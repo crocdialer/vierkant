@@ -2,7 +2,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include "../SwapChain.hpp"
+#include "../../include/vierkant/SwapChain.hpp"
 #include "../Window.hpp"
 
 void test_helper(vk::WindowPtr window, VkSampleCountFlagBits sampleCount)

@@ -2,11 +2,10 @@
 // Created by crocdialer on 2/16/19.
 //
 
-#include "Framebuffer.hpp"
+#include "../include/vierkant/Framebuffer.hpp"
 
 
-namespace vierkant
-{
+namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -22,7 +21,7 @@ Framebuffer::Format::Format() :
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 RenderPassPtr
-Framebuffer::create_renderpass(const vk::DevicePtr &device,
+Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
                                const Framebuffer::AttachmentMap &attachments,
                                const std::vector<VkSubpassDependency> &subpass_dependencies)
 {
@@ -142,7 +141,7 @@ Framebuffer::create_renderpass(const vk::DevicePtr &device,
     vkCheck(vkCreateRenderPass(device->handle(), &render_pass_info, nullptr, &renderpass),
             "failed to create render pass!");
 
-    return RenderPassPtr(renderpass, [device](VkRenderPass p){ vkDestroyRenderPass(device->handle(), p, nullptr); });
+    return RenderPassPtr(renderpass, [device](VkRenderPass p) { vkDestroyRenderPass(device->handle(), p, nullptr); });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -256,7 +255,7 @@ void Framebuffer::end_renderpass() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-size_t Framebuffer::num_attachments(vk::Framebuffer::Attachment type) const
+size_t Framebuffer::num_attachments(vierkant::Framebuffer::Attachment type) const
 {
     size_t ret = 0;
 
@@ -329,13 +328,13 @@ void Framebuffer::init(AttachmentMap attachments, RenderPassPtr renderpass)
 
 Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Format &fmt)
 {
-    // create vk::Image attachments and insert into AttachmentMap
-    std::vector<vk::ImagePtr> color_attachments, resolve_attachments, depth_stencil_attachments;
+    // create vierkant::Image attachments and insert into AttachmentMap
+    std::vector<vierkant::ImagePtr> color_attachments, resolve_attachments, depth_stencil_attachments;
 
     // color attachments
     for(uint32_t i = 0; i < fmt.num_color_attachments; ++i)
     {
-        auto img = vk::Image::create(m_device, m_extent, fmt.color_attachment_format);
+        auto img = vierkant::Image::create(m_device, m_extent, fmt.color_attachment_format);
         color_attachments.push_back(img);
 
         // multisampling requested -> add resolve attachment
@@ -343,14 +342,14 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Fo
         {
             auto resolve_fmt = fmt.color_attachment_format;
             resolve_fmt.sample_count = VK_SAMPLE_COUNT_1_BIT;
-            auto resolve_img = vk::Image::create(m_device, m_extent, resolve_fmt);
+            auto resolve_img = vierkant::Image::create(m_device, m_extent, resolve_fmt);
             resolve_attachments.push_back(resolve_img);
         }
     }
     // depth/stencil attachment
     if(fmt.depth || fmt.stencil)
     {
-        vk::Image::Format img_fmt;
+        vierkant::Image::Format img_fmt;
         img_fmt.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         img_fmt.sample_count = fmt.color_attachment_format.sample_count;
         img_fmt.format = VK_FORMAT_D32_SFLOAT;
@@ -361,7 +360,7 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Fo
             img_fmt.aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
             img_fmt.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
         }
-        auto depth_img = vk::Image::create(m_device, m_extent, img_fmt);
+        auto depth_img = vierkant::Image::create(m_device, m_extent, img_fmt);
         depth_stencil_attachments.push_back(depth_img);
     }
 

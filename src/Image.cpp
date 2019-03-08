@@ -2,9 +2,9 @@
 // Created by crocdialer on 10/2/18.
 //
 
-#include "CommandBuffer.hpp"
-#include "Buffer.hpp"
-#include "Image.hpp"
+#include "../include/vierkant/CommandBuffer.hpp"
+#include "../include/vierkant/Buffer.hpp"
+#include "../include/vierkant/Image.hpp"
 
 namespace vierkant {
 
@@ -130,7 +130,7 @@ void transition_image_layout(VkCommandBuffer commandBuffer, VkImage the_image, V
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr the_device, void* the_data, VkExtent3D size, Format the_format)
+ImagePtr Image::create(DevicePtr the_device, void *the_data, VkExtent3D size, Format the_format)
 {
     return ImagePtr(new Image(std::move(the_device), the_data, VK_NULL_HANDLE,
                               size, 1, the_format));
@@ -153,7 +153,7 @@ ImagePtr Image::create(DevicePtr the_device, VkImage the_image, VkExtent3D size,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::Image(DevicePtr the_device, void* the_data, VkImage the_image, VkExtent3D size,
+Image::Image(DevicePtr the_device, void *the_data, VkImage the_image, VkExtent3D size,
              uint32_t the_num_layers, Format the_format) :
         m_device(std::move(the_device)),
         m_extent(size),
@@ -173,8 +173,10 @@ Image::~Image()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::init(void* the_data, VkImage the_image)
+void Image::init(void *the_data, VkImage the_image)
 {
+    if(!m_extent.width || !m_extent.height || !m_extent.depth){ throw std::runtime_error("image extent is zero"); }
+
     ////////////////////////////////////////// create image ////////////////////////////////////////////////////////////
 
     VkImageUsageFlags img_usage = m_format.usage;
@@ -316,11 +318,11 @@ void Image::transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmdB
 {
     if(the_new_layout != m_image_layout)
     {
-        vk::CommandBuffer localCommandBuffer;
+        vierkant::CommandBuffer localCommandBuffer;
 
         if(cmdBufferHandle == VK_NULL_HANDLE)
         {
-            localCommandBuffer = vk::CommandBuffer(m_device, m_device->command_pool_transient());
+            localCommandBuffer = vierkant::CommandBuffer(m_device, m_device->command_pool_transient());
             localCommandBuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
             cmdBufferHandle = localCommandBuffer.handle();
         }
@@ -338,12 +340,12 @@ void Image::transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmdB
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_from(const BufferPtr& src, VkCommandBuffer cmd_buffer_handle,
+void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
                       VkOffset3D offset, VkExtent3D extent, uint32_t layer)
 {
     if(src)
     {
-        vk::CommandBuffer localCommandBuffer;
+        vierkant::CommandBuffer localCommandBuffer;
 
         if(!cmd_buffer_handle)
         {
@@ -376,12 +378,12 @@ void Image::copy_from(const BufferPtr& src, VkCommandBuffer cmd_buffer_handle,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_to(const BufferPtr& dst, VkCommandBuffer cmdBufferHandle, VkOffset3D offset, VkExtent3D extent,
+void Image::copy_to(const BufferPtr &dst, VkCommandBuffer cmdBufferHandle, VkOffset3D offset, VkExtent3D extent,
                     uint32_t layer)
 {
     if(dst)
     {
-        vk::CommandBuffer localCommandBuffer;
+        vierkant::CommandBuffer localCommandBuffer;
 
         if(!cmdBufferHandle)
         {

@@ -2,7 +2,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include "../CommandBuffer.hpp"
+#include "../../include/vierkant/CommandBuffer.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

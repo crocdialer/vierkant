@@ -6,7 +6,7 @@
 
 #include <map>
 #include "Device.hpp"
-#include "shaders.hpp"
+#include "../../cmake-build-debug/include/shaders.hpp"
 
 namespace vierkant
 {

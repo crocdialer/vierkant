@@ -3,8 +3,6 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
     set(OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/shaders.hpp")
     set(OUTPUT_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/src/shaders.cpp")
 
-#    set(OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/${OUTPUT_FOLDER}/shaders")
-
     # create output implementation and header
     file(WRITE ${OUTPUT_HEADER}
             "/* Generated file, do not edit! */\n\n"
@@ -31,6 +29,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
         get_filename_component(FILE_NAME ${GLSL} NAME)
         string(REGEX REPLACE "[.]" "_" NAME ${FILE_NAME})
         set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${NAME}.spv")
+        message(${SPIRV})
         list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 
         execute_process(

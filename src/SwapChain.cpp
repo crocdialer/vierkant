@@ -2,11 +2,10 @@
 // Created by crocdialer on 10/1/18.
 //
 
-#include "Image.hpp"
-#include "SwapChain.hpp"
+#include "../include/vierkant/Image.hpp"
+#include "../include/vierkant/SwapChain.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 //////////////////////////////////////////////// SWAP CHAIN UTILS //////////////////////////////////////////////////////
 
@@ -111,7 +110,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     auto indices = m_device->queue_family_indices();
-    uint32_t queueFamilyIndices[] = {(uint32_t) indices.graphics_family, (uint32_t) indices.present_family};
+    uint32_t queueFamilyIndices[] = {(uint32_t)indices.graphics_family, (uint32_t)indices.present_family};
 
     if(indices.graphics_family != indices.present_family)
     {
@@ -139,7 +138,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     // surface extent
     m_extent = extent;
 
-    vk::Image::Format fmt;
+    vierkant::Image::Format fmt;
     fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
     fmt.format = surface_fmt.format;
     fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -286,10 +285,10 @@ void SwapChain::create_framebuffers()
     depth_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
     auto depth_image = Image::create(m_device, {m_extent.width, m_extent.height, 1}, depth_fmt);
 
-    vk::Framebuffer::AttachmentMap attachments;
-    attachments[vk::Framebuffer::Attachment::Color] = {color_image};
-    attachments[vk::Framebuffer::Attachment::DepthStencil] = {depth_image};
-    if(resolve){ attachments[vk::Framebuffer::Attachment::Resolve] = {m_images.front()}; }
+    vierkant::Framebuffer::AttachmentMap attachments;
+    attachments[vierkant::Framebuffer::Attachment::Color] = {color_image};
+    attachments[vierkant::Framebuffer::Attachment::DepthStencil] = {depth_image};
+    if(resolve){ attachments[vierkant::Framebuffer::Attachment::Resolve] = {m_images.front()}; }
 
     // subpass is dependant on swapchain image
     VkSubpassDependency dependency = {};
@@ -300,15 +299,15 @@ void SwapChain::create_framebuffers()
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    auto renderpass = vk::Framebuffer::create_renderpass(m_device, attachments, {dependency});
+    auto renderpass = vierkant::Framebuffer::create_renderpass(m_device, attachments, {dependency});
 
     m_framebuffers.resize(m_images.size());
 
     for(size_t i = 0; i < m_images.size(); i++)
     {
-        if(resolve){ attachments[vk::Framebuffer::Attachment::Resolve] = {m_images[i]}; }
-        else{ attachments[vk::Framebuffer::Attachment::Color] = {m_images[i]}; }
-        m_framebuffers[i] = vk::Framebuffer(m_device, attachments, renderpass);
+        if(resolve){ attachments[vierkant::Framebuffer::Attachment::Resolve] = {m_images[i]}; }
+        else{ attachments[vierkant::Framebuffer::Attachment::Color] = {m_images[i]}; }
+        m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, renderpass);
     }
 }
 

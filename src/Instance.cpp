@@ -5,7 +5,7 @@
 #include <iostream>
 #include <set>
 
-#include "Instance.hpp"
+#include "../include/vierkant/Instance.hpp"
 
 namespace vierkant {
 

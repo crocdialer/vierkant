@@ -6,11 +6,13 @@
 
 #include <vulkan/vulkan.h>
 
-#include <cstring>
-#include <string>
-#include <vector>
-#include <memory>
-#include <functional>
+#include "crocore/crocore.hpp"
+
+//#include <cstring>
+//#include <string>
+//#include <vector>
+//#include <memory>
+//#include <functional>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -20,18 +22,6 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 
-//! forward declare a class and define shared-, const-, weak- and unique-pointers for it.
-#define DEFINE_CLASS_PTR(CLASS_NAME)\
-class CLASS_NAME;\
-using CLASS_NAME##Ptr = std::shared_ptr<CLASS_NAME>;\
-using CLASS_NAME##ConstPtr = std::shared_ptr<const CLASS_NAME>;\
-using CLASS_NAME##WeakPtr = std::weak_ptr<CLASS_NAME>;\
-using CLASS_NAME##UPtr = std::unique_ptr<CLASS_NAME>;
-
-
-// define main-namespace and an alias for it
-namespace vierkant{}
-namespace vk = vierkant;
 
 namespace vierkant {
 

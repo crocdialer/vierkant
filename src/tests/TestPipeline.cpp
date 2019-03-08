@@ -4,7 +4,7 @@
 
 #include <unordered_map>
 
-#include "../vierkant.hpp"
+#include "../../include/vierkant/vierkant.hpp"
 
 BOOST_AUTO_TEST_CASE(TestPipeline_Format)
 {

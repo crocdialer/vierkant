@@ -5,7 +5,7 @@
 #pragma once
 
 #include "Instance.hpp"
-#include "vk_mem_alloc.h"
+#include "../../src/vk_mem_alloc.h"
 
 namespace vierkant {
 

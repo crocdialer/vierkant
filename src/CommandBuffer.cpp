@@ -2,7 +2,7 @@
 // Created by crocdialer on 9/29/18.
 //
 
-#include "CommandBuffer.hpp"
+#include "../include/vierkant/CommandBuffer.hpp"
 
 namespace vierkant
 {

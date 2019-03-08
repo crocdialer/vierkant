@@ -8,8 +8,7 @@
 #include "Buffer.hpp"
 #include "Image.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -52,8 +51,8 @@ using descriptor_count_map_t = std::map<VkDescriptorType, uint32_t>;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief   Extract the types of descriptors and their counts for a given vk::Mesh
- * @param   mesh    a vk::Mesh to extract the descriptor counts from
+ * @brief   Extract the types of descriptors and their counts for a given vierkant::Mesh
+ * @param   mesh    a vierkant::Mesh to extract the descriptor counts from
  * @param   counts  a reference to a descriptor_count_map_t to hold the results
  */
 void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_map_t &counts);
@@ -61,48 +60,48 @@ void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_map_t &cou
 /**
  * @brief   Create a shared VkDescriptorPool (DescriptorPoolPtr)
  *
- * @param   device  handle for the vk::Device to create the DescriptorPool
+ * @param   device  handle for the vierkant::Device to create the DescriptorPool
  * @param   counts  a descriptor_count_map_t providing type and count of descriptors
  * @return  the newly constructed DescriptorPoolPtr
  */
-DescriptorPoolPtr create_descriptor_pool(const vk::DevicePtr &device, const descriptor_count_map_t &counts);
+DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, const descriptor_count_map_t &counts);
 
 /**
- * @brief   Create a shared VkDescriptorSetLayout (DescriptorSetLayoutPtr) for a given vk::Mesh
- * @param   device  handle for the vk::Device to create the DescriptorSetLayout
- * @param   mesh    a vk::Mesh to create the layout for
+ * @brief   Create a shared VkDescriptorSetLayout (DescriptorSetLayoutPtr) for a given vierkant::Mesh
+ * @param   device  handle for the vierkant::Device to create the DescriptorSetLayout
+ * @param   mesh    a vierkant::Mesh to create the layout for
  * @return  the newly created DescriptorSetLayoutPtr
  */
-DescriptorSetLayoutPtr create_descriptor_set_layout(const vk::DevicePtr &device, const MeshConstPtr &mesh);
+DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device, const MeshConstPtr &mesh);
 
 /**
- * @brief   Create an array of shared VkDescriptorSets (DescriptorSetPtr) for a given vk::Mesh
- * @param   device  handle for the vk::Device to create the DescriptorSets
+ * @brief   Create an array of shared VkDescriptorSets (DescriptorSetPtr) for a given vierkant::Mesh
+ * @param   device  handle for the vierkant::Device to create the DescriptorSets
  * @param   pool    handle for a shared VkDescriptorPool to allocate the DescriptorSets from
- * @param   mesh    a vk::Mesh to create the array of DescriptorSets for
+ * @param   mesh    a vierkant::Mesh to create the array of DescriptorSets for
  * @return  the newly created array of DescriptorSetPtr
  */
-std::vector<DescriptorSetPtr> create_descriptor_sets(const vk::DevicePtr &device,
+std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &device,
                                                      const DescriptorPoolPtr &pool,
                                                      const MeshConstPtr &mesh);
 
 /**
- * @brief   bind vertex- and index-buffers for the provided vk::Mesh
+ * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
  * @param   command_buffer  handle to an VkCommandBuffer to record the bind-operation into
- * @param   mesh            the vk::Mesh from which to bind the buffers
+ * @param   mesh            the vierkant::Mesh from which to bind the buffers
  */
 void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh);
 
 /**
- * @brief   Create an array of VkVertexInputAttributeDescription for a given vk::Mesh
- * @param   mesh    the vk::Mesh from which to extract the VkVertexInputAttributeDescriptions
+ * @brief   Create an array of VkVertexInputAttributeDescription for a given vierkant::Mesh
+ * @param   mesh    the vierkant::Mesh from which to extract the VkVertexInputAttributeDescriptions
  * @return  the newly created array of VkVertexInputAttributeDescriptions
  */
 std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const MeshConstPtr &mesh);
 
 /**
- * @brief   Create an array of VkVertexInputBindingDescription for a given vk::Mesh
- * @param   mesh    the vk::Mesh from which to extract the VkVertexInputBindingDescriptions
+ * @brief   Create an array of VkVertexInputBindingDescription for a given vierkant::Mesh
+ * @param   mesh    the vierkant::Mesh from which to extract the VkVertexInputBindingDescriptions
  * @return  the newly created array of VkVertexInputBindingDescriptions
  */
 std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshConstPtr &mesh);
@@ -124,7 +123,7 @@ public:
     struct VertexAttrib
     {
         int32_t location = -1;
-        vk::BufferPtr buffer;
+        vierkant::BufferPtr buffer;
         VkDeviceSize buffer_offset = 0;
         uint32_t offset = 0;
         uint32_t stride = 0;
@@ -140,15 +139,15 @@ public:
         VkDescriptorType type;
         VkShaderStageFlags stage_flags;
         uint32_t binding = 0;
-        std::vector<vk::BufferPtr> buffers;
+        std::vector<vierkant::BufferPtr> buffers;
         VkDeviceSize buffer_offset = 0;
-        vk::ImagePtr image;
+        vierkant::ImagePtr image;
     };
 
     static MeshPtr create();
 
     // index buffer
-    vk::BufferPtr index_buffer;
+    vierkant::BufferPtr index_buffer;
     VkDeviceSize index_buffer_offset = 0;
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
 

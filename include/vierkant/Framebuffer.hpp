@@ -8,8 +8,7 @@
 
 #include "Image.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 using RenderPassPtr = std::shared_ptr<VkRenderPass_T>;
 
@@ -25,6 +24,7 @@ public:
         bool depth = false;
         bool stencil = false;
         Image::Format color_attachment_format;
+
         Format();
     };
 
@@ -36,26 +36,26 @@ public:
         Any = 0, Color = 1, Resolve = 2, DepthStencil = 3
     };
 
-    using AttachmentMap = std::map<Attachment, std::vector<vk::ImagePtr>>;
+    using AttachmentMap = std::map<Attachment, std::vector<vierkant::ImagePtr>>;
 
     /**
      * @brief                           Utility function to create a shared RenderPass.
      *
-     * @param   device                  handle for the vk::Device to create the RenderPass with
+     * @param   device                  handle for the vierkant::Device to create the RenderPass with
      * @param   attachments             an AttachmentMap to derive the RenderPass from
      * @param   subpass_dependencies    optional array of VkSubpassDependency objects
      *
      * @return  the newly created RenderpassPtr
      */
     static
-    RenderPassPtr create_renderpass(const vk::DevicePtr &device, const AttachmentMap &attachments,
+    RenderPassPtr create_renderpass(const vierkant::DevicePtr &device, const AttachmentMap &attachments,
                                     const std::vector<VkSubpassDependency> &subpass_dependencies = {});
 
     /**
      * @brief   Construct a new Framebuffer. Will create all Image-attachments,
      *          according to the requested Framebuffer::Format and a RenderPass to match those attachments.
      *
-     * @param   device      handle for the vk::Device to create the Framebuffer with
+     * @param   device      handle for the vierkant::Device to create the Framebuffer with
      * @param   size        the desired size for the Framebuffer in pixels
      * @param   format      an optional Framebuffer::Format object
      */
@@ -63,7 +63,7 @@ public:
 
     /**
      *
-     * @param   device          handle for the vk::Device to create the Framebuffer with
+     * @param   device          handle for the vierkant::Device to create the Framebuffer with
      * @param   attachments     a Framebuffer::AttachmentMap holding the desired Image-attachments
      * @param   renderpass      an optional, shared RenderPass object to be used with the Framebuffer
      */

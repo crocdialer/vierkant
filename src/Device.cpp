@@ -4,10 +4,12 @@
 
 #include <set>
 
+//-Wreorder
+//-Wunused-variable
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
-#include "Device.hpp"
+#include "../include/vierkant/Device.hpp"
 
 namespace vierkant {
 

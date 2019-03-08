@@ -2,7 +2,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include "../vierkant.hpp"
+#include "../../include/vierkant/vierkant.hpp"
 
 struct Vertex
 {

@@ -5,56 +5,55 @@
 #include <map>
 #include <set>
 
-#include "Mesh.hpp"
+#include "../include/vierkant/Mesh.hpp"
 
-namespace vierkant
-{
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-template<>
-VkIndexType index_type<uint16_t>(){ return VK_INDEX_TYPE_UINT16; }
-
-template<>
-VkIndexType index_type<uint32_t>(){ return VK_INDEX_TYPE_UINT32; }
+namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkFormat format<float>(){ return VK_FORMAT_R32_SFLOAT; }
+VkIndexType index_type<uint16_t>() { return VK_INDEX_TYPE_UINT16; }
 
 template<>
-VkFormat format<glm::vec2>(){ return VK_FORMAT_R32G32_SFLOAT; }
+VkIndexType index_type<uint32_t>() { return VK_INDEX_TYPE_UINT32; }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkFormat format<glm::vec3>(){ return VK_FORMAT_R32G32B32_SFLOAT; }
+VkFormat format<float>() { return VK_FORMAT_R32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec4>(){ return VK_FORMAT_R32G32B32A32_SFLOAT; }
+VkFormat format<glm::vec2>() { return VK_FORMAT_R32G32_SFLOAT; }
 
 template<>
-VkFormat format<int32_t>(){ return VK_FORMAT_R32_SINT; }
+VkFormat format<glm::vec3>() { return VK_FORMAT_R32G32B32_SFLOAT; }
 
 template<>
-VkFormat format<glm::ivec2>(){ return VK_FORMAT_R32G32_SINT; }
+VkFormat format<glm::vec4>() { return VK_FORMAT_R32G32B32A32_SFLOAT; }
 
 template<>
-VkFormat format<glm::ivec3>(){ return VK_FORMAT_R32G32B32_SINT; }
+VkFormat format<int32_t>() { return VK_FORMAT_R32_SINT; }
 
 template<>
-VkFormat format<glm::ivec4>(){ return VK_FORMAT_R32G32B32A32_SINT; }
+VkFormat format<glm::ivec2>() { return VK_FORMAT_R32G32_SINT; }
 
 template<>
-VkFormat format<uint32_t>(){ return VK_FORMAT_R32_UINT; }
+VkFormat format<glm::ivec3>() { return VK_FORMAT_R32G32B32_SINT; }
 
 template<>
-VkFormat format<glm::uvec2>(){ return VK_FORMAT_R32G32_UINT; }
+VkFormat format<glm::ivec4>() { return VK_FORMAT_R32G32B32A32_SINT; }
 
 template<>
-VkFormat format<glm::uvec3>(){ return VK_FORMAT_R32G32B32_UINT; }
+VkFormat format<uint32_t>() { return VK_FORMAT_R32_UINT; }
 
 template<>
-VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
+VkFormat format<glm::uvec2>() { return VK_FORMAT_R32G32_UINT; }
+
+template<>
+VkFormat format<glm::uvec3>() { return VK_FORMAT_R32G32B32_UINT; }
+
+template<>
+VkFormat format<glm::uvec4>() { return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -65,7 +64,7 @@ void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_map_t &cou
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorPoolPtr create_descriptor_pool(const vk::DevicePtr &device, const descriptor_count_map_t &counts)
+DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, const descriptor_count_map_t &counts)
 {
     std::vector<VkDescriptorPoolSize> pool_sizes;
     for(const auto &pair : counts){ pool_sizes.push_back({pair.first, pair.second}); }
@@ -88,7 +87,7 @@ DescriptorPoolPtr create_descriptor_pool(const vk::DevicePtr &device, const desc
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorSetLayoutPtr create_descriptor_set_layout(const vk::DevicePtr &device, const MeshConstPtr &mesh)
+DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device, const MeshConstPtr &mesh)
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
@@ -119,7 +118,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vk::DevicePtr &device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<DescriptorSetPtr> create_descriptor_sets(const vk::DevicePtr &device,
+std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &device,
                                                      const DescriptorPoolPtr &pool,
                                                      const MeshConstPtr &mesh)
 {
@@ -166,8 +165,7 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vk::DevicePtr &device
                 buffer_info.range = desc.buffers[i]->num_bytes();
                 buffer_infos.push_back(buffer_info);
                 desc_write.pBufferInfo = &buffer_infos.back();
-            }
-            else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+            }else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             {
                 VkDescriptorImageInfo image_info = {};
                 image_info.imageLayout = desc.image->image_layout();
@@ -198,7 +196,7 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vk::DevicePtr &device
 
 void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh)
 {
-    std::map<vk::BufferPtr, VkDeviceSize> buf_map;
+    std::map<vierkant::BufferPtr, VkDeviceSize> buf_map;
     for(auto &att : mesh->vertex_attribs){ buf_map[att.buffer] = att.buffer_offset; }
 
     std::vector<VkBuffer> buf_handles;
@@ -226,10 +224,10 @@ void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh)
 std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const MeshConstPtr &mesh)
 {
 
-    std::set<vk::BufferPtr> bufs;
+    std::set<vierkant::BufferPtr> bufs;
     for(auto &att : mesh->vertex_attribs){ bufs.insert(att.buffer); }
 
-    auto binding_index = [](const Mesh::VertexAttrib &attrib, const std::set<vk::BufferPtr> &bufs) -> int32_t
+    auto binding_index = [](const Mesh::VertexAttrib &attrib, const std::set<vierkant::BufferPtr> &bufs) -> int32_t
     {
         uint32_t i = 0;
         for(const auto &b : bufs){ if(attrib.buffer == b){ return i; }}
@@ -259,7 +257,7 @@ std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const Mesh
 
 std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshConstPtr &mesh)
 {
-    std::map<vk::BufferPtr, uint32_t> buf_strides;
+    std::map<vierkant::BufferPtr, uint32_t> buf_strides;
     for(auto &att : mesh->vertex_attribs){ buf_strides.insert(std::make_pair(att.buffer, att.stride)); }
     std::vector<VkVertexInputBindingDescription> ret;
     uint32_t i = 0;
@@ -277,7 +275,7 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-MeshPtr Mesh::create(){ return MeshPtr(new Mesh()); }
+MeshPtr Mesh::create() { return MeshPtr(new Mesh()); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

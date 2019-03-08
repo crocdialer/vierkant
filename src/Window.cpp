@@ -5,8 +5,7 @@
 #include "Window.hpp"
 #include <iostream>
 
-namespace vierkant
-{
+namespace vierkant {
 
 /**
  * @brief RAII Helper for glfw initialization and termination
@@ -14,22 +13,22 @@ namespace vierkant
 class glfw_init_t
 {
 public:
-    glfw_init_t(){ glfwInit(); }
+    glfw_init_t() { glfwInit(); }
 
-    ~glfw_init_t(){ glfwTerminate(); }
+    ~glfw_init_t() { glfwTerminate(); }
 };
 
 static std::shared_ptr<glfw_init_t> g_glfw_init;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<const char*> Window::get_required_extensions()
+std::vector<const char *> Window::get_required_extensions()
 {
     if(!g_glfw_init){ g_glfw_init = std::make_shared<glfw_init_t>(); }
 
     uint32_t num_extensions = 0;
-    const char** extensions = glfwGetRequiredInstanceExtensions(&num_extensions);
-    std::vector<const char*> ret(extensions, extensions + num_extensions);
+    const char **extensions = glfwGetRequiredInstanceExtensions(&num_extensions);
+    std::vector<const char *> ret(extensions, extensions + num_extensions);
     return ret;
 }
 
@@ -54,7 +53,7 @@ Window::Window(VkInstance instance,
     if(!g_glfw_init){ g_glfw_init = std::make_shared<glfw_init_t>(); }
 
     int monitor_count = 0;
-    GLFWmonitor** monitors = glfwGetMonitors(&monitor_count);
+    GLFWmonitor **monitors = glfwGetMonitors(&monitor_count);
     monitor_index = std::max<int>(monitor_index, monitor_count - 1);
 
     // no GL context
@@ -96,7 +95,7 @@ void Window::create_swapchain(DevicePtr device, VkSampleCountFlagBits num_sample
     // create swapchain for this window
     m_swap_chain = SwapChain(device, m_surface, num_samples);
 
-    m_command_buffer = vk::CommandBuffer(device, device->command_pool_transient());
+    m_command_buffer = vierkant::CommandBuffer(device, device->command_pool_transient());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -107,7 +106,7 @@ void Window::record_command_buffer()
     auto device = swapchain().device();
     const auto &framebuffers = swapchain().framebuffers();
 
-    if(!m_command_buffer){ m_command_buffer = vk::CommandBuffer(device, device->command_pool_transient()); }
+    if(!m_command_buffer){ m_command_buffer = vierkant::CommandBuffer(device, device->command_pool_transient()); }
     else{ m_command_buffer.reset(); }
 
     m_command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
@@ -234,8 +233,8 @@ uint32_t Window::monitor_index() const
     int wx, wy, ww, wh;
     int mx, my, mw, mh;
     int overlap, bestoverlap;
-    GLFWmonitor** monitors;
-    const GLFWvidmode* mode;
+    GLFWmonitor **monitors;
+    const GLFWvidmode *mode;
     bestoverlap = 0;
 
     glfwGetWindowPos(m_handle, &wx, &wy);
@@ -270,9 +269,9 @@ bool Window::should_close() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::resize_cb(GLFWwindow* window, int width, int height)
+void Window::resize_cb(GLFWwindow *window, int width, int height)
 {
-    auto self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
     // while window is minimized
     while(self->is_minimized()){ glfwWaitEvents(); }
@@ -289,9 +288,9 @@ void Window::resize_cb(GLFWwindow* window, int width, int height)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::close_cb(GLFWwindow* window)
+void Window::close_cb(GLFWwindow *window)
 {
-    auto self = static_cast<Window*>(glfwGetWindowUserPointer(window));
+    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
     if(self->m_close_fn){ self->m_close_fn(); }
 
 }
