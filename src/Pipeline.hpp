@@ -1,0 +1,172 @@
+//
+// Created by crocdialer on 11/14/18.
+//
+
+#pragma once
+
+#include <map>
+#include "Device.hpp"
+#include "shaders.hpp"
+
+namespace vierkant
+{
+
+using ShaderModulePtr = std::shared_ptr<VkShaderModule_T>;
+
+/**
+ * @brief   Helper function to create a shared VkShaderModule
+ * @param   device      handle for the vk::Device to create the VkShaderModule
+ * @param   spirv_code  the SPIR-V bytecode for the shader
+ * @return  a newly constructed, shared VkShaderModule
+ */
+ShaderModulePtr create_shader_module(const DevicePtr &device,
+                                     const void* spirv_code,
+                                     size_t num_bytes);
+
+template<typename T>
+ShaderModulePtr create_shader_module(const DevicePtr &device,
+                                     const T &array)
+{
+    return create_shader_module(device, array.data(), sizeof(typename T::value_type) * array.size());
+}
+
+class Pipeline
+{
+public:
+
+    /**
+     * @brief   Format groups all sort of information, necessary to describe and create a vk::Pipeline.
+     *          Format is default-constructable, trivially copyable, comparable and hashable.
+     *          Can be used as key in std::unordered_map.
+     */
+    struct Format
+    {
+        std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages;
+
+        // vertex input assembly
+        std::vector<VkVertexInputBindingDescription> binding_descriptions;
+        std::vector<VkVertexInputAttributeDescription> attribute_descriptions;
+
+        // primitive topology
+        VkPrimitiveTopology primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        bool primitive_restart = false;
+
+        VkFrontFace front_face = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+        VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
+
+        VkCullModeFlagBits cull_mode = VK_CULL_MODE_BACK_BIT;
+
+        VkViewport viewport = {0.f, 0.f, 0.f, 0.f, 0.f, 1.f};
+        VkRect2D scissor = {{0, 0},
+                            {0, 0}};
+
+        // disable rasterizer entirely
+        bool rasterizer_discard = false;
+
+        // enable depth read/write
+        bool depth_test = true;
+        bool depth_write = true;
+        bool depth_clamp = false;
+
+        bool stencil_test = false;
+        VkStencilOpState stencil_state_front = {};
+        VkStencilOpState stencil_state_back = {};
+
+        float line_width = 1.f;
+
+        // mutlisampling
+        VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+        bool sample_shading = false;
+        float min_sample_shading = 1.f;
+
+        // enable blending
+        bool blending = false;
+
+        // color blending
+        VkBlendFactor src_color_blend_factor = VK_BLEND_FACTOR_SRC_ALPHA;
+        VkBlendFactor dst_color_blend_factor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        VkBlendOp color_blend_op = VK_BLEND_OP_ADD;
+
+        // alpha blending
+        VkBlendFactor src_alpha_blend_factor = VK_BLEND_FACTOR_ONE;
+        VkBlendFactor dst_alpha_blend_factor = VK_BLEND_FACTOR_ZERO;
+        VkBlendOp alpha_blend_op = VK_BLEND_OP_ADD;
+
+        VkRenderPass renderpass = VK_NULL_HANDLE;
+
+        uint32_t subpass = 0;
+        VkPipeline base_pipeline = VK_NULL_HANDLE;
+        int32_t base_pipeline_index = -1;
+
+        VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
+        std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_LINE_WIDTH};
+
+        // descriptor set layouts / push-constants
+        std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
+        std::vector<VkPushConstantRange> push_constant_ranges;
+
+        bool operator==(const Format &other) const;
+
+        bool operator!=(const Format &other) const{ return !(*this == other); };
+
+        Format(){};
+    };
+
+    Pipeline() = default;
+
+    /**
+     * @brief   Construct a new Pipeline object
+     * @param   device  handle for the vk::Device to create the Pipeline
+     * @param   format  the desired Pipeline::Format
+     */
+    Pipeline(DevicePtr device, Format format);
+
+    Pipeline(Pipeline &&other) noexcept;
+
+    Pipeline(const Pipeline &) = delete;
+
+    ~Pipeline();
+
+    Pipeline &operator=(Pipeline other);
+
+    /**
+     * @brief
+     * @param   command_buffer
+     */
+    void bind(VkCommandBuffer command_buffer);
+
+    /**
+     * @return  handle for the managed VkPipeline
+     */
+    VkPipeline handle() const{ return m_pipeline; }
+
+    /**
+     * @return  handle for the managed pipeline-layout
+     */
+    VkPipelineLayout layout() const{ return m_pipeline_layout; }
+
+    inline explicit operator bool() const{ return m_pipeline; };
+
+    friend void swap(Pipeline &lhs, Pipeline &rhs);
+
+private:
+
+    DevicePtr m_device;
+
+    VkPipelineLayout m_pipeline_layout = VK_NULL_HANDLE;
+
+    VkPipeline m_pipeline = VK_NULL_HANDLE;
+
+    Pipeline::Format m_format;
+};
+
+}//namespace vierkant
+
+namespace std
+{
+template<>
+struct hash<vierkant::Pipeline::Format>
+{
+    size_t operator()(vierkant::Pipeline::Format const &fmt) const;
+};
+}
