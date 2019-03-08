@@ -4,8 +4,9 @@
 
 #include <set>
 
-//-Wreorder
-//-Wunused-variable
+#pragma GCC diagnostic ignored "-Wreorder"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 

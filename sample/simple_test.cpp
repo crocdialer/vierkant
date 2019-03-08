@@ -2,11 +2,11 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 
-#include "../stb_image.h"
+#include "../src/stb_image.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 
-#include "../tiny_obj_loader.h"
+#include "../src/tiny_obj_loader.h"
 
 using float_sec_t = std::chrono::duration<float, std::chrono::seconds::period>;
 
@@ -24,6 +24,8 @@ void HelloTriangleApplication::run()
 
 void HelloTriangleApplication::init()
 {
+    LOG_INFO << "ooops my pants";
+
     create_context_and_window();
     create_texture_image();
     create_uniform_buffer();

@@ -7,8 +7,8 @@
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
 
-#include "../include/vierkant/Instance.hpp"
-#include "../include/vierkant/SwapChain.hpp"
+#include "Instance.hpp"
+#include "SwapChain.hpp"
 
 namespace vierkant
 {

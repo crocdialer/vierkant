@@ -5,14 +5,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-
 #include "crocore/crocore.hpp"
-
-//#include <cstring>
-//#include <string>
-//#include <vector>
-//#include <memory>
-//#include <functional>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE

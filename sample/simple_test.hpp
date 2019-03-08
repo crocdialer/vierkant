@@ -11,7 +11,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "../../include/vierkant/vierkant.hpp"
+#include "vierkant/vierkant.hpp"
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;

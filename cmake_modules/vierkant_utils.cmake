@@ -29,7 +29,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
         get_filename_component(FILE_NAME ${GLSL} NAME)
         string(REGEX REPLACE "[.]" "_" NAME ${FILE_NAME})
         set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${NAME}.spv")
-        message(${SPIRV})
+#        message(${SPIRV})
         list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 
         execute_process(

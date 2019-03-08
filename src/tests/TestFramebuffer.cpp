@@ -2,7 +2,7 @@
 
 #include <boost/test/unit_test.hpp>
 
-#include "../../include/vierkant/Framebuffer.hpp"
+#include "vierkant/vierkant.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

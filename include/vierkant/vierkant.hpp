@@ -12,7 +12,7 @@
 #include "Pipeline.hpp"
 #include "Mesh.hpp"
 #include "SwapChain.hpp"
-#include "../../src/Window.hpp"
+#include "Window.hpp"
 
 namespace vierkant
 {

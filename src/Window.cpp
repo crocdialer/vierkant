@@ -2,7 +2,7 @@
 // Created by crocdialer on 9/28/18.
 //
 
-#include "Window.hpp"
+#include "../include/vierkant/Window.hpp"
 #include <iostream>
 
 namespace vierkant {
