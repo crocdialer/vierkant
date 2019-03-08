@@ -75,7 +75,8 @@ const std::vector<uint32_t> g_indices =
         };
 
 const std::string g_model_path = "models/chalet.obj";
-const std::string g_texture_path = "textures/chalet.jpg";
+//const std::string g_texture_path = "textures/chalet.jpg";
+const std::string g_texture_path = "~/Pictures/avatar_01.jpg";
 
 ////////////////////////////// UNIFORM INFORMATION /////////////////////////////////////////////////
 

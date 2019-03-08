@@ -1,0 +1,3 @@
+[submodule "crocore"]
+	path = crocore
+	url = git@github.com:crocdialer/crocore.git

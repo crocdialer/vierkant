@@ -1,12 +1,11 @@
 #include "simple_test.hpp"
 
-#define STB_IMAGE_IMPLEMENTATION
-
-#include "../src/stb_image.h"
-
 #define TINYOBJLOADER_IMPLEMENTATION
 
-#include "../src/tiny_obj_loader.h"
+#include "tiny_obj_loader.h"
+
+#include "crocore/file_functions.hpp"
+#include "crocore/Image.hpp"
 
 using float_sec_t = std::chrono::duration<float, std::chrono::seconds::period>;
 
@@ -24,8 +23,6 @@ void HelloTriangleApplication::run()
 
 void HelloTriangleApplication::init()
 {
-    LOG_INFO << "ooops my pants";
-
     create_context_and_window();
     create_texture_image();
     create_uniform_buffer();
@@ -146,14 +143,11 @@ void HelloTriangleApplication::create_uniform_buffer()
 
 void HelloTriangleApplication::create_texture_image()
 {
-    int tex_width, tex_height, tex_channels;
-    stbi_uc* img_data = stbi_load(g_texture_path.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
 
+    auto img = cc::create_image_from_file(g_texture_path, 4);
     vk::Image::Format fmt;
     fmt.use_mipmap = true;
-    m_texture = vk::Image::create(m_device, img_data,
-                                  {static_cast<uint32_t>(tex_width), static_cast<uint32_t>(tex_height), 1}, fmt);
-    stbi_image_free(img_data);
+    m_texture = vk::Image::create(m_device, img->data(), {img->width(), img->height(), 1}, fmt);
 }
 
 void HelloTriangleApplication::load_model()

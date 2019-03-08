@@ -190,8 +190,8 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     std::vector<VkExtensionProperties> extensions(num_extensions);
     vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, extensions.data());
 
-//    std::cout << "available extensions:" << std::endl;
-//    for(const auto &ext : extensions) { std::cout << "\t" << ext.extensionName << std::endl; }
+    LOG_DEBUG << "available extensions:";
+    for(const auto &ext : extensions) { LOG_DEBUG << "\t" << ext.extensionName; }
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -232,8 +232,8 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
         auto version_major = VK_VERSION_MAJOR(device_props.apiVersion);
         auto version_minor = VK_VERSION_MINOR(device_props.apiVersion);
         auto version_patch = VK_VERSION_PATCH(device_props.apiVersion);
-        std::cout << "device: " << device_props.deviceName << "\n";
-        std::cout << "API-version: " << version_major << "." << version_minor << " (patch: " << version_patch << ")\n";
+        LOG_INFO << "device: " << device_props.deviceName;
+        LOG_INFO << "API-version: " << version_major << "." << version_minor << " (patch: " << version_patch << ")";
     }
     return true;
 }

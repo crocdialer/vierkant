@@ -10,11 +10,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -Wall -Wformat=0")
 
 option(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
+#option(USE_STATIC_BOOST_LIBRARIES "Use static Boost libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
 
 set(LIB_TYPE SHARED)
 if (NOT BUILD_SHARED_LIBS)
     set(LIB_TYPE STATIC)
+    set(Boost_USE_STATIC_LIBS ON)
 endif (NOT BUILD_SHARED_LIBS)
 
 ## cmake modules
@@ -33,11 +35,13 @@ include_directories(${Vulkan_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
 
 ##### BOOST
-set(Boost_USE_STATIC_LIBS ON)
 set(BOOST_COMPONENTS system filesystem)
 if (BUILD_TESTS)
     ENABLE_TESTING()
     set(BOOST_COMPONENTS ${BOOST_COMPONENTS} unit_test_framework)
+    if (BUILD_SHARED_LIBS)
+        add_definitions(-DBOOST_TEST_DYN_LINK)
+    endif (BUILD_SHARED_LIBS)
 endif (BUILD_TESTS)
 find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
 include_directories(${Boost_INCLUDE_DIRS})
