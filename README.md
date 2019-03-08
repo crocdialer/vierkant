@@ -1,2 +1,2 @@
 # vierkant
-vierkant is a set of C++ libraries useful for realtime graphics applications
+vierkant is a C++ rendering library based on Vulkan.
