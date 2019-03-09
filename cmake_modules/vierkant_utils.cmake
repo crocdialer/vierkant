@@ -1,6 +1,6 @@
 function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
 
-    set(OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/shaders.hpp")
+    set(OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/shaders.hpp")
     set(OUTPUT_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/src/shaders.cpp")
 
     # create output implementation and header
@@ -11,7 +11,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "namespace vierkant{ namespace shaders{\n\n")
     file(WRITE ${OUTPUT_SOURCE}
             "/* Generated file, do not edit! */\n\n"
-            "#include \"shaders.hpp\"\n\n"
+            "#include \"${PROJECT_NAME}/shaders.hpp\"\n\n"
             "namespace vierkant{ namespace shaders{\n")
 
     # gather all shader files

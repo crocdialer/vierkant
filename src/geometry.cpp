@@ -7,11 +7,9 @@
 //  http://www.boost.org/LICENSE_1_0.txt
 // __ ___ ____ _____ ______ _______ ________ _______ ______ _____ ____ ___ __
 
-#include "../include/vierkant/geometry_types.hpp"
+#include "vierkant/geometry.hpp"
 
 namespace vierkant
-{
-namespace geom
 {
 
 /* fast AABB <-> Triangle test from Tomas Akenine-Möller */
@@ -601,5 +599,4 @@ int triBoxOverlap(float boxcenter[3], float boxhalfsize[3], float triverts[3][3]
     return INTERSECT;   /* box and triangle overlaps */
 }
 
-}
 }//namespace

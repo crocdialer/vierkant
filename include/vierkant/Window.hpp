@@ -9,6 +9,7 @@
 
 #include "Instance.hpp"
 #include "SwapChain.hpp"
+#include "geometry.hpp"
 
 namespace vierkant
 {

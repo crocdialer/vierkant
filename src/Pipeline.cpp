@@ -2,7 +2,7 @@
 // Created by crocdialer on 11/14/18.
 //
 
-#include "../include/vierkant/Pipeline.hpp"
+#include "vierkant/Pipeline.hpp"
 
 namespace vierkant
 {

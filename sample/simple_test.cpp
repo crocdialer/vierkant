@@ -4,7 +4,7 @@
 
 #include "tiny_obj_loader.h"
 
-#include "crocore/file_functions.hpp"
+#include "crocore/filesystem.hpp"
 #include "crocore/Image.hpp"
 
 using float_sec_t = std::chrono::duration<float, std::chrono::seconds::period>;
@@ -143,7 +143,6 @@ void HelloTriangleApplication::create_uniform_buffer()
 
 void HelloTriangleApplication::create_texture_image()
 {
-
     auto img = cc::create_image_from_file(g_texture_path, 4);
     vk::Image::Format fmt;
     fmt.use_mipmap = true;
@@ -246,7 +245,7 @@ void HelloTriangleApplication::update(float time_delta)
     // update uniform buffer for this frame
     UniformBuffer ubo = {};
     ubo.model = glm::rotate(glm::mat4(1.0f), time_delta * glm::radians(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
     ubo.projection[1][1] *= -1;
     m_uniform_buffers[image_index]->set_data(&ubo, sizeof(ubo));

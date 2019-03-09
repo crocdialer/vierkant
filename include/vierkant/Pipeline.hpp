@@ -5,8 +5,8 @@
 #pragma once
 
 #include <map>
-#include "Device.hpp"
-#include "../../cmake-build-debug/include/shaders.hpp"
+#include "vierkant/Device.hpp"
+#include "vierkant/shaders.hpp"
 
 namespace vierkant
 {

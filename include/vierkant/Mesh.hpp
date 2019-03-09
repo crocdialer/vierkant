@@ -7,6 +7,7 @@
 #include "Device.hpp"
 #include "Buffer.hpp"
 #include "Image.hpp"
+#include "geometry.hpp"
 
 namespace vierkant {
 
@@ -105,6 +106,10 @@ std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const Mesh
  * @return  the newly created array of VkVertexInputBindingDescriptions
  */
 std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshConstPtr &mesh);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -17,6 +17,7 @@
 #pragma once
 
 #include <vector>
+#include <vulkan/vulkan.h>
 
 #define GLM_FORCE_CXX11
 #define GLM_FORCE_SWIZZLE
@@ -30,11 +31,9 @@
 #define GLM_ENABLE_EXPERIMENTAL
 
 #include "glm/gtx/norm.hpp"
+#include <glm/gtx/hash.hpp>
 
-namespace vierkant
-{
-namespace geom
-{
+namespace vierkant {
 
 enum intersection_type
 {
@@ -53,7 +52,7 @@ struct ray_triangle_intersection;
 
 /********************************** Ray intersection tests ****************************************/
 
-ray_intersection intersect(const geom::Plane &plane, const geom::Ray &ray);
+ray_intersection intersect(const Plane &plane, const Ray &ray);
 
 ray_triangle_intersection intersect(const Triangle &theTri, const Ray &theRay);
 
@@ -63,7 +62,7 @@ ray_intersection intersect(const AABB &theAABB, const Ray &theRay);
 
 ray_intersection intersect(const OBB &theOBB, const Ray &theRay);
 
-geom::AABB compute_aabb(const std::vector<glm::vec3> &theVertices);
+AABB compute_aabb(const std::vector<glm::vec3> &theVertices);
 
 glm::vec3 calculate_centroid(const std::vector<glm::vec3> &theVertices);
 
@@ -76,13 +75,25 @@ glm::vec3 calculate_centroid(const std::vector<glm::vec3> &theVertices);
  */
 glm::mat4 calculate_homography(const glm::vec2 src[4], const glm::vec2 dst[4]);
 
+struct Geometry
+{
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    std::vector<uint32_t> indices;
+
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec3> tangents;
+    std::vector<glm::vec2> tex_coords;
+    std::vector<glm::vec4> colors;
+};
+
 struct Ray
 {
     glm::vec3 origin;
     glm::vec3 direction;
 
     Ray(const glm::vec3 &theOrigin, const glm::vec3 &theDir) :
-            origin(theOrigin), direction(normalize(theDir)){}
+            origin(theOrigin), direction(normalize(theDir)) {}
 
     inline Ray &transform(const glm::mat4 &t)
     {
@@ -97,9 +108,9 @@ struct Ray
         return ret.transform(t);
     };
 
-    inline friend glm::vec3 operator*(const Ray &theRay, float t){ return theRay.origin + t * theRay.direction; }
+    inline friend glm::vec3 operator*(const Ray &theRay, float t) { return theRay.origin + t * theRay.direction; }
 
-    inline friend glm::vec3 operator*(float t, const Ray &theRay){ return theRay.origin + t * theRay.direction; }
+    inline friend glm::vec3 operator*(float t, const Ray &theRay) { return theRay.origin + t * theRay.direction; }
 };
 
 /*!
@@ -111,9 +122,9 @@ struct ray_intersection
     float distance;
 
     ray_intersection(intersection_type theType, float theDistance = 0.0f) :
-            type(theType), distance(theDistance){}
+            type(theType), distance(theDistance) {}
 
-    operator intersection_type() const{ return type; }
+    operator intersection_type() const { return type; }
 };
 
 /*!
@@ -126,7 +137,7 @@ struct ray_triangle_intersection : public ray_intersection
 
     ray_triangle_intersection(intersection_type theType, float theDistance = 0.0f,
                               float theU = 0.0f, float theV = 0.0f)
-            : ray_intersection(theType, theDistance), u(theU), v(theV){}
+            : ray_intersection(theType, theDistance), u(theU), v(theV) {}
 };
 
 struct Plane
@@ -144,7 +155,7 @@ struct Plane
 
     Plane(const glm::vec3 &f, const glm::vec3 &n);
 
-    inline const glm::vec3 &normal() const{ return *((glm::vec3*) (&coefficients[0])); };
+    inline const glm::vec3 &normal() const { return *((glm::vec3 *)(&coefficients[0])); };
 
     inline float distance(const glm::vec3 &p) const
     {
@@ -163,9 +174,9 @@ struct Plane
         return ret.transform(t);
     };
 
-    inline ray_intersection intersect(const geom::Ray &ray)
+    inline ray_intersection intersect(const Ray &ray)
     {
-        return geom::intersect(*this, ray);
+        return vierkant::intersect(*this, ray);
     }
 };
 
@@ -176,7 +187,7 @@ struct Triangle
     glm::vec3 v2;
 
     Triangle(const glm::vec3 &_v0, const glm::vec3 &_v1, const glm::vec3 &_v2)
-            : v0(_v0), v1(_v1), v2(_v2){}
+            : v0(_v0), v1(_v1), v2(_v2) {}
 
     inline Triangle &transform(const glm::mat4 &t)
     {
@@ -194,7 +205,7 @@ struct Triangle
 
     inline ray_triangle_intersection intersect(const Ray &theRay) const
     {
-        return geom::intersect(*this, theRay);
+        return vierkant::intersect(*this, theRay);
     };
 
     inline glm::vec3 normal() const
@@ -239,7 +250,7 @@ struct Sphere
 
     inline ray_intersection intersect(const Ray &theRay) const
     {
-        return geom::intersect(*this, theRay);
+        return vierkant::intersect(*this, theRay);
     }
 };
 
@@ -251,24 +262,24 @@ struct AABB
     glm::vec3 min;
     glm::vec3 max;
 
-    AABB() : min(glm::vec3(0)), max(glm::vec3(0)){};
+    AABB() : min(glm::vec3(0)), max(glm::vec3(0)) {};
 
     AABB(const glm::vec3 &theMin,
          const glm::vec3 &theMax) :
             min(theMin),
-            max(theMax){}
+            max(theMax) {}
 
-    inline float width() const{ return max.x - min.x; }
+    inline float width() const { return max.x - min.x; }
 
-    inline float height() const{ return max.y - min.y; }
+    inline float height() const { return max.y - min.y; }
 
-    inline float depth() const{ return max.z - min.z; }
+    inline float depth() const { return max.z - min.z; }
 
-    inline glm::vec3 halfExtents() const{ return (max - min) / 2.f; }
+    inline glm::vec3 halfExtents() const { return (max - min) / 2.f; }
 
-    inline glm::vec3 size() const{ return (max - min); }
+    inline glm::vec3 size() const { return (max - min); }
 
-    inline glm::vec3 center() const{ return max - halfExtents(); }
+    inline glm::vec3 center() const { return max - halfExtents(); }
 
     const AABB operator+(const AABB &theAABB) const
     {
@@ -352,13 +363,13 @@ struct OBB
 
     inline ray_intersection intersect(const Ray &theRay) const
     {
-        return geom::intersect(*this, theRay);
+        return vierkant::intersect(*this, theRay);
     }
 
     inline bool contains(const glm::vec3 &p) const
     {
         // point in axis space
-        const glm::mat3 &mat = *reinterpret_cast<const glm::mat3*>(&axis[0][0]);
+        const glm::mat3 &mat = *reinterpret_cast<const glm::mat3 *>(&axis[0][0]);
         glm::vec3 p_in_axis_space = mat * (p - center);
         return std::abs(p_in_axis_space.x) < half_lengths.x &&
                std::abs(p_in_axis_space.y) < half_lengths.y &&
@@ -379,8 +390,8 @@ struct Frustum
 
     inline Frustum &transform(const glm::mat4 &t)
     {
-        Plane* end = planes + 6;
-        for(Plane* p = planes; p < end; p++){ p->transform(t); }
+        Plane *end = planes + 6;
+        for(Plane *p = planes; p < end; p++){ p->transform(t); }
         return *this;
     }
 
@@ -392,8 +403,8 @@ struct Frustum
 
     inline uint32_t intersect(const glm::vec3 &v)
     {
-        Plane* end = planes + 6;
-        for(Plane* p = planes; p < end; p++)
+        Plane *end = planes + 6;
+        for(Plane *p = planes; p < end; p++)
         {
             if(p->distance(v) < 0){ return REJECT; }
         }
@@ -402,8 +413,8 @@ struct Frustum
 
     inline uint32_t intersect(const Sphere &s)
     {
-        Plane* end = planes + 6;
-        for(Plane* p = planes; p < end; p++)
+        Plane *end = planes + 6;
+        for(Plane *p = planes; p < end; p++)
         {
             if(-p->distance(s.center) > s.radius){ return REJECT; }
         }
@@ -414,8 +425,8 @@ struct Frustum
     {
         uint32_t ret = INSIDE;
 
-        Plane* end = planes + 6;
-        for(Plane* p = planes; p < end; p++)
+        Plane *end = planes + 6;
+        for(Plane *p = planes; p < end; p++)
         {
             //positive vertex outside ?
             if(p->distance(aabb.pos_vertex(p->normal())) < 0){ return REJECT; }
@@ -427,5 +438,4 @@ struct Frustum
     };
 };
 
-}
 }//namespace

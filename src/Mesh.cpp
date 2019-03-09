@@ -273,6 +273,73 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
     return ret;
 }
 
+vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom)
+{
+    // sanity check array sizes
+    auto is_sane = [](const Geometry &g) -> bool
+    {
+        if(g.vertices.empty()){ return false; }
+        auto num_vertices = g.vertices.size();
+        if(!g.tex_coords.empty() && g.tex_coords.size() != num_vertices){ return false; }
+        if(!g.colors.empty() && g.colors.size() != num_vertices){ return false; }
+        if(!g.normals.empty() && g.normals.size() != num_vertices){ return false; }
+        if(!g.tangents.empty() && g.tangents.size() != num_vertices){ return false; }
+        return true;
+    };
+    if(!is_sane(geom))
+    {
+        LOG_WARNING << "create_mesh_from_geometry: array size do not match";
+        return nullptr;
+    }
+
+    auto mesh = vierkant::Mesh::create();
+
+    auto num_vertex_bytes = [](const Geometry &g) -> size_t
+    {
+        size_t num_bytes = 0;
+        num_bytes += g.vertices.size() * sizeof(decltype(g.vertices)::value_type);
+        num_bytes += g.tex_coords.size() * sizeof(decltype(g.tex_coords)::value_type);
+        num_bytes += g.colors.size() * sizeof(decltype(g.colors)::value_type);
+        num_bytes += g.normals.size() * sizeof(decltype(g.normals)::value_type);
+        num_bytes += g.tangents.size() * sizeof(decltype(g.tangents)::value_type);
+        return num_bytes;
+    };
+
+    // TODO: create vertexbuffer
+    size_t num_bytes = num_vertex_bytes(geom);
+
+    // TODO: combine buffers
+    // vertex attributes
+    auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+//    vierkant::Mesh::VertexAttrib position, color, tex_coord;
+//    position.location = 0;
+//    position.offset = offsetof(Vertex, position);
+//    position.stride = sizeof(Vertex);
+//    position.buffer = vertex_buffer;
+//    position.format = vk::format<decltype(Vertex::position)>();
+//    mesh->vertex_attribs.push_back(position);
+//
+//    color.location = 1;
+//    color.offset = offsetof(Vertex, color);
+//    color.stride = sizeof(Vertex);
+//    color.buffer = vertex_buffer;
+//    color.format = vk::format<decltype(Vertex::color)>();
+//    mesh->vertex_attribs.push_back(color);
+//
+//    tex_coord.location = 2;
+//    tex_coord.offset = offsetof(Vertex, tex_coord);
+//    tex_coord.stride = sizeof(Vertex);
+//    tex_coord.buffer = vertex_buffer;
+//    tex_coord.format = vk::format<decltype(Vertex::tex_coord)>();
+//    mesh->vertex_attribs.push_back(tex_coord);
+
+    mesh->index_buffer = vierkant::Buffer::create(device, geom.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    return mesh;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 MeshPtr Mesh::create() { return MeshPtr(new Mesh()); }
