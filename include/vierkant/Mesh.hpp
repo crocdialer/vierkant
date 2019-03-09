@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "Device.hpp"
-#include "Buffer.hpp"
-#include "Image.hpp"
-#include "geometry.hpp"
+#include "vierkant/Device.hpp"
+#include "vierkant/Buffer.hpp"
+#include "vierkant/Image.hpp"
+#include "vierkant/geometry.hpp"
 
 namespace vierkant {
 
@@ -48,6 +48,8 @@ using DescriptorSetLayoutPtr = std::shared_ptr<VkDescriptorSetLayout_T>;
 using DescriptorSetPtr = std::shared_ptr<VkDescriptorSet_T>;
 
 using descriptor_count_map_t = std::map<VkDescriptorType, uint32_t>;
+
+using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, uint32_t>>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

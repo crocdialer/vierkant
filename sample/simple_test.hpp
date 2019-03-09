@@ -41,8 +41,7 @@ struct Vertex
     }
 };
 
-namespace std
-{
+namespace std {
 template<>
 struct hash<Vertex>
 {
@@ -55,17 +54,42 @@ struct hash<Vertex>
 };
 }
 
-const std::vector<Vertex> g_vertices =
-        {
-                {{-0.5f, -0.5f, 0.f},   {1.0f, 0.0f, 0.0f, 1.f}, {0.f, 0.f}},
-                {{0.5f,  -0.5f, 0.f},   {0.0f, 1.0f, 0.0f, 1.f}, {1.f, 0.f}},
-                {{0.5f,  0.5f,  0.f},   {0.0f, 0.0f, 1.0f, 1.f}, {1.f, 1.f}},
-                {{-0.5f, 0.5f,  0.f},   {1.0f, 1.0f, 1.0f, 1.f}, {0.f, 1.f}},
+//const std::vector<Vertex> g_vertices =
+//        {
+//                {{-0.5f, -0.5f, 0.f},   {1.0f, 0.0f, 0.0f, 1.f}, {0.f, 0.f}},
+//                {{0.5f,  -0.5f, 0.f},   {0.0f, 1.0f, 0.0f, 1.f}, {1.f, 0.f}},
+//                {{0.5f,  0.5f,  0.f},   {0.0f, 0.0f, 1.0f, 1.f}, {1.f, 1.f}},
+//                {{-0.5f, 0.5f,  0.f},   {1.0f, 1.0f, 1.0f, 1.f}, {0.f, 1.f}},
+//
+//                {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f, 1.f}, {0.f, 0.f}},
+//                {{0.5f,  -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f, 1.f}, {1.f, 0.f}},
+//                {{ 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f, 1.f }, { 1.f, 1.f }},
+//                {{ -0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f, 1.f }, { 0.f, 1.f }},
+//        };
 
-                {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f, 1.f}, {0.f, 0.f}},
-                {{0.5f,  -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f, 1.f}, {1.f, 0.f}},
-                {{ 0.5f, 0.5f, -0.5f }, { 0.0f, 0.0f, 1.0f, 1.f }, { 1.f, 1.f }},
-                {{ -0.5f, 0.5f, -0.5f }, { 1.0f, 1.0f, 1.0f, 1.f }, { 0.f, 1.f }},
+const std::vector<glm::vec3> g_vertices =
+        {
+                {-0.5f, -0.5f, 0.f},
+                {0.5f,  -0.5f, 0.f},
+                {0.5f,  0.5f,  0.f},
+                {-0.5f, 0.5f,  0.f},
+
+                {-0.5f, -0.5f, -0.5f},
+                {0.5f,  -0.5f, -0.5f},
+                {0.5f,  0.5f,  -0.5f},
+                {-0.5f, 0.5f,  -0.5f}
+        };
+
+const std::vector<glm::vec2> g_tex_coords =
+        {
+                {0.f, 0.f},
+                {1.f, 0.f},
+                {1.f, 1.f},
+                {0.f, 1.f},
+                {0.f, 0.f},
+                {1.f, 0.f},
+                {1.f, 1.f},
+                {0.f, 1.f}
         };
 
 const std::vector<uint32_t> g_indices =
@@ -74,7 +98,7 @@ const std::vector<uint32_t> g_indices =
                 4, 5, 6, 4, 6, 7
         };
 
-const std::string g_model_path = "models/chalet.obj";
+//const std::string g_model_path = "models/chalet.obj";
 //const std::string g_texture_path = "textures/chalet.jpg";
 const std::string g_texture_path = "~/Pictures/avatar_01.jpg";
 
@@ -156,7 +180,7 @@ int main()
 {
     HelloTriangleApplication app;
 
-    try{ app.run(); }
+    try { app.run(); }
     catch(const std::runtime_error &e)
     {
         std::cerr << e.what() << std::endl;

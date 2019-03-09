@@ -196,16 +196,16 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
 
 void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh)
 {
-    std::map<vierkant::BufferPtr, VkDeviceSize> buf_map;
-    for(auto &att : mesh->vertex_attribs){ buf_map[att.buffer] = att.buffer_offset; }
+    buffer_binding_set_t bufs;
+    for(auto &att : mesh->vertex_attribs){ bufs.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride)); }
 
     std::vector<VkBuffer> buf_handles;
     std::vector<VkDeviceSize> offsets;
 
-    for(const auto &pair : buf_map)
+    for(const auto &tuple : bufs)
     {
-        buf_handles.push_back(pair.first->handle());
-        offsets.push_back(pair.second);
+        buf_handles.push_back(std::get<0>(tuple)->handle());
+        offsets.push_back(std::get<1>(tuple));
     }
 
     // bind vertex buffer
@@ -223,14 +223,17 @@ void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh)
 
 std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const MeshConstPtr &mesh)
 {
+    buffer_binding_set_t bufs;
+    for(auto &att : mesh->vertex_attribs){ bufs.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride)); }
 
-    std::set<vierkant::BufferPtr> bufs;
-    for(auto &att : mesh->vertex_attribs){ bufs.insert(att.buffer); }
-
-    auto binding_index = [](const Mesh::VertexAttrib &attrib, const std::set<vierkant::BufferPtr> &bufs) -> int32_t
+    auto binding_index = [](const Mesh::VertexAttrib &a, const buffer_binding_set_t &bufs) -> int32_t
     {
         uint32_t i = 0;
-        for(const auto &b : bufs){ if(attrib.buffer == b){ return i; }}
+        for(const auto &t : bufs)
+        {
+            if(t == std::make_tuple(a.buffer, a.buffer_offset, a.stride)){ return i; }
+            i++;
+        }
         return -1;
     };
 
@@ -257,16 +260,16 @@ std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const Mesh
 
 std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshConstPtr &mesh)
 {
-    std::map<vierkant::BufferPtr, uint32_t> buf_strides;
-    for(auto &att : mesh->vertex_attribs){ buf_strides.insert(std::make_pair(att.buffer, att.stride)); }
+    buffer_binding_set_t bufs;
+    for(auto &att : mesh->vertex_attribs){ bufs.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride)); }
     std::vector<VkVertexInputBindingDescription> ret;
     uint32_t i = 0;
 
-    for(const auto &pair : buf_strides)
+    for(const auto &tuple : bufs)
     {
         VkVertexInputBindingDescription desc;
         desc.binding = i++;;
-        desc.stride = pair.second;
+        desc.stride = std::get<2>(tuple);
         desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
         ret.push_back(desc);
     }
@@ -288,7 +291,7 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
     };
     if(!is_sane(geom))
     {
-        LOG_WARNING << "create_mesh_from_geometry: array size do not match";
+        LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
         return nullptr;
     }
 
@@ -305,35 +308,71 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
         return num_bytes;
     };
 
-    // TODO: create vertexbuffer
-    size_t num_bytes = num_vertex_bytes(geom);
+    // combine buffers into staging buffer
+    size_t num_buffer_bytes = num_vertex_bytes(geom);
 
-    // TODO: combine buffers
-    // vertex attributes
-    auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+    auto stage_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                                                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+
+    // create vertexbuffer
+    auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    auto staging_data = (uint8_t *)stage_buffer->map();
+    size_t offset = 0;
 
-//    vierkant::Mesh::VertexAttrib position, color, tex_coord;
-//    position.location = 0;
-//    position.offset = offsetof(Vertex, position);
-//    position.stride = sizeof(Vertex);
-//    position.buffer = vertex_buffer;
-//    position.format = vk::format<decltype(Vertex::position)>();
-//    mesh->vertex_attribs.push_back(position);
-//
-//    color.location = 1;
-//    color.offset = offsetof(Vertex, color);
-//    color.stride = sizeof(Vertex);
-//    color.buffer = vertex_buffer;
-//    color.format = vk::format<decltype(Vertex::color)>();
-//    mesh->vertex_attribs.push_back(color);
-//
-//    tex_coord.location = 2;
-//    tex_coord.offset = offsetof(Vertex, tex_coord);
-//    tex_coord.stride = sizeof(Vertex);
-//    tex_coord.buffer = vertex_buffer;
-//    tex_coord.format = vk::format<decltype(Vertex::tex_coord)>();
-//    mesh->vertex_attribs.push_back(tex_coord);
+    // vertex attributes
+    if(!geom.vertices.empty())
+    {
+        size_t value_size = sizeof(decltype(geom.vertices)::value_type);
+        size_t num_bytes = geom.vertices.size() * value_size;
+        memcpy(staging_data + offset, geom.vertices.data(), num_bytes);
+
+        vierkant::Mesh::VertexAttrib attrib;
+        attrib.location = 0;
+        attrib.offset = 0;
+        attrib.stride = static_cast<uint32_t>(value_size);
+        attrib.buffer = vertex_buffer;
+        attrib.buffer_offset = offset;
+        attrib.format = vierkant::format<decltype(geom.vertices)::value_type>();
+        mesh->vertex_attribs.push_back(attrib);
+        offset += num_bytes;
+    }
+    if(!geom.colors.empty())
+    {
+        size_t value_size = sizeof(decltype(geom.colors)::value_type);
+        size_t num_bytes = geom.colors.size() * value_size;
+        memcpy(staging_data + offset, geom.colors.data(), num_bytes);
+
+        vierkant::Mesh::VertexAttrib attrib;
+        attrib.location = 1;
+        attrib.offset = 0;
+        attrib.stride = static_cast<uint32_t>(value_size);
+        attrib.buffer = vertex_buffer;
+        attrib.buffer_offset = offset;
+        attrib.format = vierkant::format<decltype(geom.colors)::value_type>();
+        mesh->vertex_attribs.push_back(attrib);
+        offset += num_bytes;
+    }
+    if(!geom.tex_coords.empty())
+    {
+        size_t value_size = sizeof(decltype(geom.tex_coords)::value_type);
+        size_t num_bytes = geom.tex_coords.size() * value_size;
+        memcpy(staging_data + offset, geom.tex_coords.data(), num_bytes);
+
+        vierkant::Mesh::VertexAttrib attrib;
+        attrib.location = 2;
+        attrib.offset = 0;
+        attrib.stride = static_cast<uint32_t>(value_size);
+        attrib.buffer = vertex_buffer;
+        attrib.buffer_offset = offset;
+        attrib.format = vierkant::format<decltype(geom.tex_coords)::value_type>();
+        mesh->vertex_attribs.push_back(attrib);
+        offset += num_bytes;
+    }
+    stage_buffer->copy_to(vertex_buffer);
 
     mesh->index_buffer = vierkant::Buffer::create(device, geom.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);

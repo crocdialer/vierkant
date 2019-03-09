@@ -185,33 +185,14 @@ void HelloTriangleApplication::load_model()
 //        }
 //    }
 
-    // vertex attributes
-    auto vertex_buffer = vk::Buffer::create(m_device, g_vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    vk::Mesh::VertexAttrib position, color, tex_coord;
-    position.location = 0;
-    position.offset = offsetof(Vertex, position);
-    position.stride = sizeof(Vertex);
-    position.buffer = vertex_buffer;
-    position.format = vk::format<decltype(Vertex::position)>();
-    m_mesh->vertex_attribs.push_back(position);
+    vk::Geometry geom;
+    geom.vertices = g_vertices;
+    geom.tex_coords = g_tex_coords;
+    geom.colors.resize(g_vertices.size(), glm::vec4(1.f));
+    geom.indices = g_indices;
 
-    color.location = 1;
-    color.offset = offsetof(Vertex, color);
-    color.stride = sizeof(Vertex);
-    color.buffer = vertex_buffer;
-    color.format = vk::format<decltype(Vertex::color)>();
-    m_mesh->vertex_attribs.push_back(color);
+    m_mesh = vk::create_mesh_from_geometry(m_device, geom);
 
-    tex_coord.location = 2;
-    tex_coord.offset = offsetof(Vertex, tex_coord);
-    tex_coord.stride = sizeof(Vertex);
-    tex_coord.buffer = vertex_buffer;
-    tex_coord.format = vk::format<decltype(Vertex::tex_coord)>();
-    m_mesh->vertex_attribs.push_back(tex_coord);
-
-    m_mesh->index_buffer = vk::Buffer::create(m_device, g_indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     // descriptors
     vk::Mesh::Descriptor desc_ubo, desc_texture;
     desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
