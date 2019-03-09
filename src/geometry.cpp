@@ -9,8 +9,7 @@
 
 #include "vierkant/geometry.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 /* fast AABB <-> Triangle test from Tomas Akenine-Möller */
 int triBoxOverlap(float boxcenter[3], float boxhalfsize[3], float triverts[3][3]);
@@ -264,7 +263,7 @@ Frustum::Frustum(const glm::mat4 &the_VP_martix)
 Frustum::Frustum(float aspect, float fov, float near, float far)
 {
     glm::mat4 t;
-    constexpr glm::vec3 look_at = glm::vec3(0, 0, -1), eye = glm::vec3(0),
+    const glm::vec3 look_at = glm::vec3(0, 0, -1), eye = glm::vec3(0),
             side = glm::vec3(1, 0, 0), up = glm::vec3(0, 1, 0);
     float angle_y = glm::radians(90.0f - aspect * fov / 2.0f);
     float angle_x = glm::radians(90.0f - (fov / 2.0f));
@@ -302,7 +301,7 @@ Frustum::Frustum(float left, float right, float bottom, float top,
 ////////////////////////////////////////////////////////////////////////////////////
 
 // Adapted from code found here: http://forum.openframeworks.cc/t/quad-warping-homography-without-opencv/3121/19
-void gaussian_elimination(float* a, int n)
+void gaussian_elimination(float *a, int n)
 {
     int i = 0;
     int j = 0;

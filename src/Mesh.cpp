@@ -5,7 +5,7 @@
 #include <map>
 #include <set>
 
-#include "../include/vierkant/Mesh.hpp"
+#include "vierkant/Mesh.hpp"
 
 namespace vierkant {
 
