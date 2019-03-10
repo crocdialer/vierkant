@@ -323,55 +323,34 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
     auto staging_data = (uint8_t *)stage_buffer->map();
     size_t offset = 0;
 
+    auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
+    {
+        if(!array.empty())
+        {
+            size_t value_size = sizeof(array[0]);
+            size_t num_bytes = array.size() * value_size;
+            memcpy(staging_data + offset, array.data(), num_bytes);
+
+            vierkant::Mesh::VertexAttrib attrib;
+            attrib.location = location;
+            attrib.offset = 0;
+            attrib.stride = static_cast<uint32_t>(value_size);
+            attrib.buffer = vertex_buffer;
+            attrib.buffer_offset = offset;
+            attrib.format = vierkant::format<typename std::decay<decltype(array)>::type::value_type>();
+            mesh->vertex_attribs.push_back(attrib);
+            offset += num_bytes;
+        }
+    };
+
     // vertex attributes
-    if(!geom.vertices.empty())
-    {
-        size_t value_size = sizeof(decltype(geom.vertices)::value_type);
-        size_t num_bytes = geom.vertices.size() * value_size;
-        memcpy(staging_data + offset, geom.vertices.data(), num_bytes);
+    insert_data(geom.vertices, 0);
+    insert_data(geom.colors, 1);
+    insert_data(geom.tex_coords, 2);
+    insert_data(geom.normals, 3);
+    insert_data(geom.tangents, 4);
 
-        vierkant::Mesh::VertexAttrib attrib;
-        attrib.location = 0;
-        attrib.offset = 0;
-        attrib.stride = static_cast<uint32_t>(value_size);
-        attrib.buffer = vertex_buffer;
-        attrib.buffer_offset = offset;
-        attrib.format = vierkant::format<decltype(geom.vertices)::value_type>();
-        mesh->vertex_attribs.push_back(attrib);
-        offset += num_bytes;
-    }
-    if(!geom.colors.empty())
-    {
-        size_t value_size = sizeof(decltype(geom.colors)::value_type);
-        size_t num_bytes = geom.colors.size() * value_size;
-        memcpy(staging_data + offset, geom.colors.data(), num_bytes);
-
-        vierkant::Mesh::VertexAttrib attrib;
-        attrib.location = 1;
-        attrib.offset = 0;
-        attrib.stride = static_cast<uint32_t>(value_size);
-        attrib.buffer = vertex_buffer;
-        attrib.buffer_offset = offset;
-        attrib.format = vierkant::format<decltype(geom.colors)::value_type>();
-        mesh->vertex_attribs.push_back(attrib);
-        offset += num_bytes;
-    }
-    if(!geom.tex_coords.empty())
-    {
-        size_t value_size = sizeof(decltype(geom.tex_coords)::value_type);
-        size_t num_bytes = geom.tex_coords.size() * value_size;
-        memcpy(staging_data + offset, geom.tex_coords.data(), num_bytes);
-
-        vierkant::Mesh::VertexAttrib attrib;
-        attrib.location = 2;
-        attrib.offset = 0;
-        attrib.stride = static_cast<uint32_t>(value_size);
-        attrib.buffer = vertex_buffer;
-        attrib.buffer_offset = offset;
-        attrib.format = vierkant::format<decltype(geom.tex_coords)::value_type>();
-        mesh->vertex_attribs.push_back(attrib);
-        offset += num_bytes;
-    }
+    // copy combined vertex data to device-buffer
     stage_buffer->copy_to(vertex_buffer);
 
     mesh->index_buffer = vierkant::Buffer::create(device, geom.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,

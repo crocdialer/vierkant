@@ -186,11 +186,11 @@ void HelloTriangleApplication::load_model()
 //    }
 
     vk::Geometry geom;
-    geom.vertices = g_vertices;
-    geom.tex_coords = g_tex_coords;
-    geom.colors.resize(g_vertices.size(), glm::vec4(1.f));
-    geom.indices = g_indices;
-
+//    geom.vertices = g_vertices;
+//    geom.tex_coords = g_tex_coords;
+//    geom.colors.resize(g_vertices.size(), glm::vec4(1.f));
+//    geom.indices = g_indices;
+    geom = vk::create_plane(1, 1);
     m_mesh = vk::create_mesh_from_geometry(m_device, geom);
 
     // descriptors

@@ -40,6 +40,7 @@ enum intersection_type
     REJECT = 0, INTERSECT = 1, INSIDE = 2
 };
 
+struct Geometry;
 struct Ray;
 struct Plane;
 struct Triangle;
@@ -49,6 +50,15 @@ struct OBB;
 struct Frustum;
 struct ray_intersection;
 struct ray_triangle_intersection;
+
+Geometry create_grid(float width, float height, uint32_t numSegments_W = 20, uint32_t numSegments_H = 20);
+Geometry create_plane(float width, float height, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
+//static GeometryPtr create_solid_circle(int numSegments, float the_radius = 1.f);
+//static GeometryPtr create_circle(int numSegments, float the_radius = 1.f);
+//static GeometryPtr create_box(const vec3 &the_half_extents);
+//static GeometryPtr create_box_lines(const glm::vec3 &the_half_extents = glm::vec3(.5f));
+//static GeometryPtr create_sphere(float radius, int numSlices);
+//static GeometryPtr create_cone(float radius, float height, int numSegments);
 
 /********************************** Ray intersection tests ****************************************/
 
