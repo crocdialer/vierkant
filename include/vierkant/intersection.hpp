@@ -8,10 +8,10 @@
 // __ ___ ____ _____ ______ _______ ________ _______ ______ _____ ____ ___ __
 
 /*
- * geometry_types.hpp
+ *  intersection.hpp
  *
  *  Created on: Sep 21, 2008
- *      Author: Fabian
+ *  Author: Fabian
  */
 
 #pragma once
