@@ -75,7 +75,7 @@ Geometry Geometry::Plane(float width, float height, uint32_t numSegments_W, uint
             float y = iz * segment_height - height_half;
             geom.vertices.emplace_back(x, -y, 0);
             geom.normals.push_back(normal);
-            geom.tex_coords.emplace_back(ix / (float)gridX, (gridZ - iz) / (float)gridZ);
+            geom.tex_coords.emplace_back(ix / (float)gridX, iz / (float)gridZ);
         }
     }
 
