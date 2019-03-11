@@ -1,9 +1,5 @@
 #include "simple_test.hpp"
 
-#define TINYOBJLOADER_IMPLEMENTATION
-
-#include "tiny_obj_loader.h"
-
 #include "crocore/filesystem.hpp"
 #include "crocore/Image.hpp"
 
@@ -151,46 +147,7 @@ void HelloTriangleApplication::create_texture_image()
 
 void HelloTriangleApplication::load_model()
 {
-//    tinyobj::attrib_t attrib;
-//    std::vector<tinyobj::shape_t> shapes;
-//    std::vector<tinyobj::material_t> materials;
-//    std::string err;
-//
-//    if(!tinyobj::LoadObj(&attrib, &shapes, &materials, &err, g_model_path.c_str()))
-//    {
-//        throw std::runtime_error(err);
-//    }
-//    std::vector<Vertex> vertices;
-//    std::unordered_map<Vertex, uint32_t> vertex_map;
-//    std::vector<uint32_t> indices;
-//
-//    for(const auto &shape : shapes)
-//    {
-//        for(const auto &index : shape.mesh.indices)
-//        {
-//            Vertex vertex = {};
-//            vertex.position = {attrib.vertices[3 * index.vertex_index + 0],
-//                               attrib.vertices[3 * index.vertex_index + 1],
-//                               attrib.vertices[3 * index.vertex_index + 2]};
-//            vertex.tex_coord = {attrib.texcoords[2 * index.texcoord_index + 0],
-//                                1.f - attrib.texcoords[2 * index.texcoord_index + 1]};
-//            vertex.color = {1.0f, 1.0f, 1.0f, 1.f};
-//
-//            if(vertex_map.count(vertex) == 0)
-//            {
-//                vertex_map[vertex] = static_cast<uint32_t>(vertices.size());
-//                vertices.push_back(vertex);
-//            }
-//            indices.push_back(vertex_map[vertex]);
-//        }
-//    }
-
-    vk::Geometry geom;
-//    geom.vertices = g_vertices;
-//    geom.tex_coords = g_tex_coords;
-//    geom.colors.resize(g_vertices.size(), glm::vec4(1.f));
-//    geom.indices = g_indices;
-    geom = vk::create_plane(1, 1);
+    auto geom = vk::Geometry::Plane(1, 1);
     m_mesh = vk::create_mesh_from_geometry(m_device, geom);
 
     // descriptors

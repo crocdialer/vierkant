@@ -55,7 +55,7 @@ Geometry create_grid(float width, float height, uint32_t numSegments_W, uint32_t
     return geom;
 }
 
-Geometry create_plane(float width, float height, uint32_t numSegments_W, uint32_t numSegments_H)
+Geometry Geometry::Plane(float width, float height, uint32_t numSegments_W, uint32_t numSegments_H)
 {
     Geometry geom;
 

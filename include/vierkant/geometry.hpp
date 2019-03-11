@@ -51,17 +51,31 @@ struct Frustum;
 struct ray_intersection;
 struct ray_triangle_intersection;
 
-Geometry create_grid(float width, float height, uint32_t numSegments_W = 20, uint32_t numSegments_H = 20);
-
 /**
- * @brief   Factory to create an indexed plane-geometry with vertices in the XY-plane
- * @param   width           the desired width
- * @param   height          the desired height
- * @param   numSegments_W   number of width subdivisions
- * @param   numSegments_H   number of height subdivisions
- * @return  the newly created Geometry for a plane
+ * @brief   Geometry is a simple struct to group vertex-information
  */
-Geometry create_plane(float width, float height, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
+struct Geometry
+{
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    std::vector<uint32_t> indices;
+
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec3> tangents;
+    std::vector<glm::vec2> tex_coords;
+    std::vector<glm::vec4> colors;
+
+    /**
+    * @brief   Factory to create an indexed plane-geometry with vertices in the XY-plane
+    * @param   width           the desired width
+    * @param   height          the desired height
+    * @param   numSegments_W   number of width subdivisions
+    * @param   numSegments_H   number of height subdivisions
+    * @return  the newly created Geometry for a plane
+    */
+    static Geometry Plane(float width, float height, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
+};
+
 //static GeometryPtr create_solid_circle(int numSegments, float the_radius = 1.f);
 //static GeometryPtr create_circle(int numSegments, float the_radius = 1.f);
 //static GeometryPtr create_box(const vec3 &the_half_extents);
@@ -93,18 +107,6 @@ glm::vec3 calculate_centroid(const std::vector<glm::vec3> &theVertices);
  * D +-------------------- +  C
  */
 glm::mat4 calculate_homography(const glm::vec2 src[4], const glm::vec2 dst[4]);
-
-struct Geometry
-{
-    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    std::vector<uint32_t> indices;
-
-    std::vector<glm::vec3> vertices;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::vec3> tangents;
-    std::vector<glm::vec2> tex_coords;
-    std::vector<glm::vec4> colors;
-};
 
 struct Ray
 {
