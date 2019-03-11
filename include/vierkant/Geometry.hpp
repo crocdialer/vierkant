@@ -33,32 +33,49 @@ struct Geometry
     std::vector<uint32_t> indices;
 
     std::vector<glm::vec3> vertices;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::vec3> tangents;
     std::vector<glm::vec2> tex_coords;
     std::vector<glm::vec4> colors;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec3> tangents;
 
     /**
     * @brief   Factory to create an indexed plane-geometry with vertices in the XY-plane
     *
-    * @param   width           the desired width
-    * @param   height          the desired height
-    * @param   numSegments_W   number of width subdivisions
-    * @param   numSegments_H   number of height subdivisions
+    * @param   width            the desired width
+    * @param   height           the desired height
+    * @param   numSegments_W    number of width subdivisions
+    * @param   numSegments_H    number of height subdivisions
     * @return  the newly created Geometry for a plane
     */
-    static Geometry Plane(float width, float height, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
+    static Geometry
+    Plane(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
 
     /**
     * @brief   Factory to create a grid of lines in the XZ plane
     *
-    * @param   width           the desired width
-    * @param   depth          the desired depth
-    * @param   numSegments_W   number of width subdivisions
-    * @param   numSegments_D   number of height subdivisions
+    * @param   width            the desired width
+    * @param   depth            the desired depth
+    * @param   numSegments_W    number of width subdivisions
+    * @param   numSegments_D    number of height subdivisions
     * @return  the newly created Geometry for a plane
     */
-    static Geometry Grid(float width, float depth, uint32_t numSegments_W = 10, uint32_t numSegments_D = 10);
+    static Geometry
+    Grid(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 10, uint32_t numSegments_D = 10);
+
+    /**
+     * @brief   Factory to create a colored box
+     *
+     * @param   half_extents    a glm::vec3 giving the half extent of the box
+     * @return  the newly created Geometry for a box
+     */
+    static Geometry Box(const glm::vec3 &half_extents = glm::vec3(.5f));
+
+    /**
+     * @brief   Factory to create the outline of box
+     * @param   half_extents
+     * @return  the newly created Geometry for a box-outline
+     */
+    static Geometry BoxOutline(const glm::vec3 &half_extents = glm::vec3(.5f));
 };
 
 }// namespace

@@ -11,6 +11,8 @@
 
 namespace vierkant {
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 /* fast AABB <-> Triangle test from Tomas Akenine-Möller */
 int triBoxOverlap(float boxcenter[3], float boxhalfsize[3], float triverts[3][3]);
 
@@ -26,6 +28,8 @@ ray_intersection intersect(const Plane &plane, const Ray &ray)
     return REJECT;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 ray_triangle_intersection intersect(const Triangle &theTri, const Ray &theRay)
 {
     glm::vec3 e1 = theTri.v1 - theTri.v0, e2 = theTri.v2 - theTri.v0;
@@ -40,8 +44,10 @@ ray_triangle_intersection intersect(const Triangle &theTri, const Ray &theRay)
     glm::vec3 qvec = glm::cross(tvec, e1);
     float v = glm::dot(theRay.direction, qvec) * inv_det;
     if(v < 0.0f || (u + v) > 1.0f) return REJECT;
-    return ray_triangle_intersection(INTERSECT, glm::dot(e2, qvec) * inv_det, u, v);
+    return {INTERSECT, glm::dot(e2, qvec) * inv_det, u, v};
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ray_intersection intersect(const Sphere &theSphere, const Ray &theRay)
 {
@@ -56,8 +62,10 @@ ray_intersection intersect(const Sphere &theSphere, const Ray &theRay)
     float t;
     if(l2 > r2) t = s - q;
     else t = s + q;
-    return ray_intersection(INTERSECT, t);
+    return {INTERSECT, t};
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ray_intersection intersect(const OBB &theOBB, const Ray &theRay)
 {
@@ -87,37 +95,26 @@ ray_intersection intersect(const OBB &theOBB, const Ray &theRay)
         }
     }
 
-    if(t_min > 0)
-        return ray_intersection(INTERSECT, t_min);
-    else
-        return ray_intersection(INTERSECT, t_max);
+    if(t_min > 0){ return {INTERSECT, t_min}; }
+    else{ return {INTERSECT, t_max}; }
 }
 
-///////////////////////////////////////////////////////////////////////////////
-
-glm::vec3 calculate_centroid(const std::vector<glm::vec3> &theVertices)
-{
-//    if(theVertices.empty())
-//    {
-//        LOG_TRACE << "Called calculateCentroid() on zero vertices, returned glm::vec3(0, 0, 0)";
-//        return glm::vec3(0);
-//    }
-//    return kinski::mean<glm::vec3>(theVertices);
-    return glm::vec3(0);
-}
-
-///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Plane::Plane()
 {
     coefficients = glm::vec4(0, 1, 0, 0);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 Plane::Plane(const glm::vec4 &theCoefficients)
 {
     float len = glm::length(theCoefficients.xyz());
     coefficients = theCoefficients / len;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Plane::Plane(float theA, float theB, float theC, float theD)
 {
@@ -172,6 +169,28 @@ OBB &OBB::transform(const glm::mat4 &t)
 
 ///////////////////////////////////////////////////////////////////////////////
 
+AABB::AABB(const std::vector<glm::vec3> &points):
+AABB(glm::vec3(std::numeric_limits<float>::max()),
+     glm::vec3(std::numeric_limits<float>::min()))
+{
+    if(points.empty()){ *this = {}; }
+
+    for(const glm::vec3 &vertex : points)
+    {
+        // X
+        if(vertex.x < min.x){ min.x = vertex.x; }
+        else if(vertex.x > max.x){ max.x = vertex.x; }
+        // Y
+        if(vertex.y < min.y){ min.y = vertex.y; }
+        else if(vertex.y > max.y){ max.y = vertex.y; }
+        // Z
+        if(vertex.z < min.z){ min.z = vertex.z; }
+        else if(vertex.z > max.z){ max.z = vertex.z; }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 AABB &AABB::transform(const glm::mat4 &t)
 {
     glm::vec3 aMin, aMax;
@@ -221,31 +240,7 @@ uint32_t AABB::intersect(const Triangle &t) const
                             {t.v1[0], t.v1[1], t.v1[2]},
                             {t.v2[0], t.v2[1], t.v2[2]}
     };
-    return triBoxOverlap(&center()[0], &halfExtents()[0], triVerts);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-AABB compute_aabb(const std::vector<glm::vec3> &theVertices)
-{
-    if(theVertices.empty()){ return AABB(); }
-
-    AABB ret = AABB(glm::vec3(std::numeric_limits<float>::max()),
-                    glm::vec3(std::numeric_limits<float>::min()));
-
-    for(const glm::vec3 &vertex : theVertices)
-    {
-        // X
-        if(vertex.x < ret.min.x){ ret.min.x = vertex.x; }
-        else if(vertex.x > ret.max.x){ ret.max.x = vertex.x; }
-        // Y
-        if(vertex.y < ret.min.y){ ret.min.y = vertex.y; }
-        else if(vertex.y > ret.max.y){ ret.max.y = vertex.y; }
-        // Z
-        if(vertex.z < ret.min.z){ ret.min.z = vertex.z; }
-        else if(vertex.z > ret.max.z){ ret.max.z = vertex.z; }
-    }
-    return ret;
+    return static_cast<uint32_t>(triBoxOverlap(&center()[0], &halfExtents()[0], triVerts));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

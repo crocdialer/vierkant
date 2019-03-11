@@ -25,7 +25,6 @@ enum intersection_type
     REJECT = 0, INTERSECT = 1, INSIDE = 2
 };
 
-struct Geometry;
 struct Ray;
 struct Plane;
 struct Triangle;
@@ -47,10 +46,6 @@ ray_intersection intersect(const Sphere &theSphere, const Ray &theRay);
 ray_intersection intersect(const AABB &theAABB, const Ray &theRay);
 
 ray_intersection intersect(const OBB &theOBB, const Ray &theRay);
-
-AABB compute_aabb(const std::vector<glm::vec3> &theVertices);
-
-glm::vec3 calculate_centroid(const std::vector<glm::vec3> &theVertices);
 
 /**
  *    A  +-------------+  B
@@ -233,15 +228,16 @@ struct Sphere
  */
 struct AABB
 {
-    glm::vec3 min;
-    glm::vec3 max;
+    glm::vec3 min = glm::vec3(0);
+    glm::vec3 max = glm::vec3(0);
 
-    AABB() : min(glm::vec3(0)), max(glm::vec3(0)) {};
+    AABB() = default;
 
-    AABB(const glm::vec3 &theMin,
-         const glm::vec3 &theMax) :
+    AABB(const glm::vec3 &theMin, const glm::vec3 &theMax) :
             min(theMin),
             max(theMax) {}
+
+    AABB(const std::vector<glm::vec3> &points);
 
     inline float width() const { return max.x - min.x; }
 

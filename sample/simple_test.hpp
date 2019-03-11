@@ -20,7 +20,7 @@ const int HEIGHT = 720;
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
 #ifdef NDEBUG
-const bool enable_validation_layers = false;
+const bool g_enable_validation_layers = false;
 #else
 const bool g_enable_validation_layers = true;
 #endif

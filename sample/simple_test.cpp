@@ -148,7 +148,9 @@ void HelloTriangleApplication::create_texture_image()
 
 void HelloTriangleApplication::load_model()
 {
-    auto geom = vk::Geometry::Plane(1, 1);
+//    auto geom = vk::Geometry::Plane(1, 1);
+    auto geom = vk::Geometry::Box(glm::vec3(.5f));
+//    auto geom = vk::Geometry::BoxOutline();
     m_mesh = vk::create_mesh_from_geometry(m_device, geom);
 
     // descriptors
