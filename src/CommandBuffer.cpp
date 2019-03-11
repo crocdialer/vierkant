@@ -2,7 +2,7 @@
 // Created by crocdialer on 9/29/18.
 //
 
-#include "../include/vierkant/CommandBuffer.hpp"
+#include "vierkant/CommandBuffer.hpp"
 
 namespace vierkant
 {
@@ -56,13 +56,13 @@ CommandBuffer &CommandBuffer::operator=(CommandBuffer the_other)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CommandBuffer::begin(VkCommandBufferUsageFlags the_flags, VkCommandBufferInheritanceInfo* inheritance)
+void CommandBuffer::begin(VkCommandBufferUsageFlags flags, VkCommandBufferInheritanceInfo* inheritance)
 {
     if(m_handle)
     {
         VkCommandBufferBeginInfo begin_info = {};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        begin_info.flags = the_flags;
+        begin_info.flags = flags;
         begin_info.pInheritanceInfo = inheritance;
         vkCheck(vkBeginCommandBuffer(m_handle, &begin_info), "failed to begin command buffer!");
         m_recording = true;

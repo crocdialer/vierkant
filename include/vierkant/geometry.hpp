@@ -52,6 +52,15 @@ struct ray_intersection;
 struct ray_triangle_intersection;
 
 Geometry create_grid(float width, float height, uint32_t numSegments_W = 20, uint32_t numSegments_H = 20);
+
+/**
+ * @brief   Factory to create an indexed plane-geometry with vertices in the XY-plane
+ * @param   width           the desired width
+ * @param   height          the desired height
+ * @param   numSegments_W   number of width subdivisions
+ * @param   numSegments_H   number of height subdivisions
+ * @return  the newly created Geometry for a plane
+ */
 Geometry create_plane(float width, float height, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
 //static GeometryPtr create_solid_circle(int numSegments, float the_radius = 1.f);
 //static GeometryPtr create_circle(int numSegments, float the_radius = 1.f);

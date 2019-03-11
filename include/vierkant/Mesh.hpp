@@ -111,6 +111,13 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief   Create a vierkant::MeshPtr from provided Geometry
+ *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
+ * @param   device  handle for the vierkant::Device to create subresources with
+ * @param   geom    a Geometry struct to extract the vertex information from
+ * @return  the newly created vierkant::MeshPtr
+ */
 vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

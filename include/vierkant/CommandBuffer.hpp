@@ -37,9 +37,9 @@ public:
 
     /**
      * @brief   start recording commands into buffer
-     * @param   the_flags
+     * @param   flags
      */
-    void begin(VkCommandBufferUsageFlags the_flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    void begin(VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
                VkCommandBufferInheritanceInfo* inheritance = nullptr);
 
     /**
