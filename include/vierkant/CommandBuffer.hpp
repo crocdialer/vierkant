@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "Device.hpp"
+#include "vierkant/Device.hpp"
 
 namespace vierkant
 {

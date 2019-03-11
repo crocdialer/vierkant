@@ -16,22 +16,7 @@
 
 #pragma once
 
-#include <vector>
-#include <vulkan/vulkan.h>
-
-#define GLM_FORCE_CXX11
-#define GLM_FORCE_SWIZZLE
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-
-#include <glm/glm.hpp>
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/matrix_inverse.hpp"
-
-#define GLM_ENABLE_EXPERIMENTAL
-
-#include "glm/gtx/norm.hpp"
-#include <glm/gtx/hash.hpp>
+#include "vierkant/Geometry.hpp"
 
 namespace vierkant {
 
@@ -50,50 +35,6 @@ struct OBB;
 struct Frustum;
 struct ray_intersection;
 struct ray_triangle_intersection;
-
-/**
- * @brief   Geometry is a simple struct to group vertex-information
- */
-struct Geometry
-{
-    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    std::vector<uint32_t> indices;
-
-    std::vector<glm::vec3> vertices;
-    std::vector<glm::vec3> normals;
-    std::vector<glm::vec3> tangents;
-    std::vector<glm::vec2> tex_coords;
-    std::vector<glm::vec4> colors;
-
-    /**
-    * @brief   Factory to create an indexed plane-geometry with vertices in the XY-plane
-    *
-    * @param   width           the desired width
-    * @param   height          the desired height
-    * @param   numSegments_W   number of width subdivisions
-    * @param   numSegments_H   number of height subdivisions
-    * @return  the newly created Geometry for a plane
-    */
-    static Geometry Plane(float width, float height, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
-
-    /**
-    * @brief   Factory to create a grid of lines in the XZ plane
-    *
-    * @param   width           the desired width
-    * @param   depth          the desired depth
-    * @param   numSegments_W   number of width subdivisions
-    * @param   numSegments_D   number of height subdivisions
-    * @return  the newly created Geometry for a plane
-    */
-    static Geometry Grid(float width, float depth, uint32_t numSegments_W = 10, uint32_t numSegments_D = 10);
-};
-
-//static GeometryPtr create_solid_circle(int numSegments, float the_radius = 1.f);
-//static GeometryPtr create_circle(int numSegments, float the_radius = 1.f);
-//static GeometryPtr create_box(const vec3 &the_half_extents);
-//static GeometryPtr create_box_lines(const glm::vec3 &the_half_extents = glm::vec3(.5f));
-//static GeometryPtr create_sphere(float radius, int numSlices);
-//static GeometryPtr create_cone(float radius, float height, int numSegments);
 
 /********************************** Ray intersection tests ****************************************/
 

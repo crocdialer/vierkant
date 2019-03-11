@@ -7,7 +7,7 @@
 #include "vierkant/Device.hpp"
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Image.hpp"
-#include "vierkant/geometry.hpp"
+#include "vierkant/intersection.hpp"
 
 namespace vierkant {
 

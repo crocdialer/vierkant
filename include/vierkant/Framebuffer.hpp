@@ -6,7 +6,7 @@
 
 #include <map>
 
-#include "Image.hpp"
+#include "vierkant/Image.hpp"
 
 namespace vierkant {
 

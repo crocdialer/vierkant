@@ -3,8 +3,8 @@
 //
 #pragma once
 
-#include "Device.hpp"
-#include "Buffer.hpp"
+#include "vierkant/Device.hpp"
+#include "vierkant/Buffer.hpp"
 
 namespace vierkant
 {

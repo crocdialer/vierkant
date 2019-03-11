@@ -13,7 +13,8 @@
 #include "Mesh.hpp"
 #include "SwapChain.hpp"
 #include "Window.hpp"
-#include "geometry.hpp"
+#include "Geometry.hpp"
+#include "intersection.hpp"
 
 namespace vierkant
 {

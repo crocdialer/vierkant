@@ -8,7 +8,7 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 #define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
+#include "vierkant/vk_mem_alloc.h"
 
 #include "../include/vierkant/Device.hpp"
 

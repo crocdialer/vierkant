@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "Device.hpp"
-#include "Image.hpp"
-#include "Framebuffer.hpp"
+#include "vierkant/Device.hpp"
+#include "vierkant/Image.hpp"
+#include "vierkant/Framebuffer.hpp"
 
 namespace vierkant {
 

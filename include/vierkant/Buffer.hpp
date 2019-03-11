@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "Device.hpp"
-#include "CommandBuffer.hpp"
+#include "vierkant/Device.hpp"
+#include "vierkant/CommandBuffer.hpp"
 
 namespace vierkant {
 
