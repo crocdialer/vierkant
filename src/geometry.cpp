@@ -11,7 +11,7 @@
 
 namespace vierkant {
 
-Geometry create_grid(float width, float height, uint32_t numSegments_W, uint32_t numSegments_H)
+Geometry Geometry::Grid(float width, float depth, uint32_t numSegments_W, uint32_t numSegments_D)
 {
     Geometry geom;
     geom.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
@@ -20,8 +20,8 @@ Geometry create_grid(float width, float height, uint32_t numSegments_W, uint32_t
     auto &colors = geom.colors;
     auto &tex_coords = geom.tex_coords;
 
-    float stepX = width / numSegments_W, stepZ = height / numSegments_H;
-    float w2 = width / 2.f, h2 = height / 2.f;
+    float stepX = width / numSegments_W, stepZ = depth / numSegments_D;
+    float w2 = width / 2.f, h2 = depth / 2.f;
 
     const glm::vec4 color_red(1, 0, 0, 1), color_blue(0, 0, 1, 1), color_gray(.6, .6, .6, 1.);
     glm::vec4 color;
@@ -39,7 +39,7 @@ Geometry create_grid(float width, float height, uint32_t numSegments_W, uint32_t
         tex_coords.emplace_back(x / (float)numSegments_W, 1.f);
 
     }
-    for(uint32_t z = 0; z <= numSegments_H; ++z)
+    for(uint32_t z = 0; z <= numSegments_D; ++z)
     {
         if(z == 0){ color = color_red; }
         else{ color = color_gray; }
@@ -49,8 +49,8 @@ Geometry create_grid(float width, float height, uint32_t numSegments_W, uint32_t
         points.emplace_back(w2, 0.f, -h2 + z * stepZ);
         colors.push_back(color);
         colors.push_back(color);
-        tex_coords.emplace_back(0.f, z / (float)numSegments_H);
-        tex_coords.emplace_back(1.f, z / (float)numSegments_H);
+        tex_coords.emplace_back(0.f, z / (float)numSegments_D);
+        tex_coords.emplace_back(1.f, z / (float)numSegments_D);
     }
     return geom;
 }

@@ -7,53 +7,54 @@
 
 #include "vierkant/Mesh.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkIndexType index_type<uint16_t>() { return VK_INDEX_TYPE_UINT16; }
+VkIndexType index_type<uint16_t>(){ return VK_INDEX_TYPE_UINT16; }
 
 template<>
-VkIndexType index_type<uint32_t>() { return VK_INDEX_TYPE_UINT32; }
+VkIndexType index_type<uint32_t>(){ return VK_INDEX_TYPE_UINT32; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkFormat format<float>() { return VK_FORMAT_R32_SFLOAT; }
+VkFormat format<float>(){ return VK_FORMAT_R32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec2>() { return VK_FORMAT_R32G32_SFLOAT; }
+VkFormat format<glm::vec2>(){ return VK_FORMAT_R32G32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec3>() { return VK_FORMAT_R32G32B32_SFLOAT; }
+VkFormat format<glm::vec3>(){ return VK_FORMAT_R32G32B32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec4>() { return VK_FORMAT_R32G32B32A32_SFLOAT; }
+VkFormat format<glm::vec4>(){ return VK_FORMAT_R32G32B32A32_SFLOAT; }
 
 template<>
-VkFormat format<int32_t>() { return VK_FORMAT_R32_SINT; }
+VkFormat format<int32_t>(){ return VK_FORMAT_R32_SINT; }
 
 template<>
-VkFormat format<glm::ivec2>() { return VK_FORMAT_R32G32_SINT; }
+VkFormat format<glm::ivec2>(){ return VK_FORMAT_R32G32_SINT; }
 
 template<>
-VkFormat format<glm::ivec3>() { return VK_FORMAT_R32G32B32_SINT; }
+VkFormat format<glm::ivec3>(){ return VK_FORMAT_R32G32B32_SINT; }
 
 template<>
-VkFormat format<glm::ivec4>() { return VK_FORMAT_R32G32B32A32_SINT; }
+VkFormat format<glm::ivec4>(){ return VK_FORMAT_R32G32B32A32_SINT; }
 
 template<>
-VkFormat format<uint32_t>() { return VK_FORMAT_R32_UINT; }
+VkFormat format<uint32_t>(){ return VK_FORMAT_R32_UINT; }
 
 template<>
-VkFormat format<glm::uvec2>() { return VK_FORMAT_R32G32_UINT; }
+VkFormat format<glm::uvec2>(){ return VK_FORMAT_R32G32_UINT; }
 
 template<>
-VkFormat format<glm::uvec3>() { return VK_FORMAT_R32G32B32_UINT; }
+VkFormat format<glm::uvec3>(){ return VK_FORMAT_R32G32B32_UINT; }
 
 template<>
-VkFormat format<glm::uvec4>() { return VK_FORMAT_R32G32B32A32_UINT; }
+VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -197,7 +198,10 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
 void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh)
 {
     buffer_binding_set_t buf_tuples;
-    for(auto &att : mesh->vertex_attribs){ buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride)); }
+    for(auto &att : mesh->vertex_attribs)
+    {
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride));
+    }
 
     std::vector<VkBuffer> buf_handles;
     std::vector<VkDeviceSize> offsets;
@@ -224,7 +228,10 @@ void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh)
 std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const MeshConstPtr &mesh)
 {
     buffer_binding_set_t buf_tuples;
-    for(auto &att : mesh->vertex_attribs){ buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride)); }
+    for(auto &att : mesh->vertex_attribs)
+    {
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride));
+    }
 
     auto binding_index = [](const Mesh::VertexAttrib &a, const buffer_binding_set_t &bufs) -> int32_t
     {
@@ -261,7 +268,10 @@ std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const Mesh
 std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshConstPtr &mesh)
 {
     buffer_binding_set_t buf_tuples;
-    for(auto &att : mesh->vertex_attribs){ buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride)); }
+    for(auto &att : mesh->vertex_attribs)
+    {
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride));
+    }
     std::vector<VkVertexInputBindingDescription> ret;
     uint32_t i = 0;
 
@@ -320,14 +330,16 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                                                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    auto staging_data = (uint8_t *)stage_buffer->map();
+    auto staging_data = (uint8_t *) stage_buffer->map();
     size_t offset = 0;
 
     auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
     {
+        using elem_t = typename std::decay<decltype(array)>::type::value_type;
+
         if(!array.empty())
         {
-            size_t value_size = sizeof(array[0]);
+            size_t value_size = sizeof(elem_t);
             size_t num_bytes = array.size() * value_size;
             memcpy(staging_data + offset, array.data(), num_bytes);
 
@@ -337,7 +349,7 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
             attrib.stride = static_cast<uint32_t>(value_size);
             attrib.buffer = vertex_buffer;
             attrib.buffer_offset = offset;
-            attrib.format = vierkant::format<typename std::decay<decltype(array)>::type::value_type>();
+            attrib.format = vierkant::format<elem_t>();
             mesh->vertex_attribs.push_back(attrib);
             offset += num_bytes;
         }
@@ -353,14 +365,22 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
     // copy combined vertex data to device-buffer
     stage_buffer->copy_to(vertex_buffer);
 
-    mesh->index_buffer = vierkant::Buffer::create(device, geom.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    // use indices
+    if(!geom.indices.empty())
+    {
+        mesh->index_buffer = vierkant::Buffer::create(device, geom.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        mesh->num_elements = geom.indices.size();
+    }else{ mesh->num_elements = geom.vertices.size(); }
+
+    // set topology
+    mesh->topology = geom.topology;
     return mesh;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-MeshPtr Mesh::create() { return MeshPtr(new Mesh()); }
+MeshPtr Mesh::create(){ return MeshPtr(new Mesh()); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

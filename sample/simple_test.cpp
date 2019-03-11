@@ -66,7 +66,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
 
     fmt.binding_descriptions = vk::binding_descriptions(m_mesh);
     fmt.attribute_descriptions = vk::attribute_descriptions(m_mesh);
-    fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    fmt.primitive_topology = m_mesh->topology;
 //    fmt.front_face = VK_FRONT_FACE_CLOCKWISE;
 
     fmt.viewport.width = m_window->swapchain().extent().width;
@@ -117,9 +117,10 @@ void HelloTriangleApplication::create_command_buffers()
         vkCmdBindDescriptorSets(m_command_buffers[i].handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.layout(),
                                 0, 1, &descriptor_set, 0, nullptr);
 
-        // issue actual drawing command
-        vkCmdDrawIndexed(m_command_buffers[i].handle(), m_mesh->index_buffer->num_bytes() / sizeof(uint32_t), 1, 0, 0,
-                         0);
+        // issue (indexed) drawing command
+        if(m_mesh->index_buffer){ vkCmdDrawIndexed(m_command_buffers[i].handle(), m_mesh->num_elements, 1, 0, 0, 0); }
+        else{ vkCmdDraw(m_command_buffers[i].handle(), m_mesh->num_elements, 1, 0, 0); }
+
         m_command_buffers[i].end();
     }
 }

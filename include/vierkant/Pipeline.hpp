@@ -99,7 +99,7 @@ public:
         int32_t base_pipeline_index = -1;
 
         VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
-        std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_LINE_WIDTH};
+        std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
 
         // descriptor set layouts / push-constants
         std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
