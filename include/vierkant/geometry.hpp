@@ -67,6 +67,7 @@ struct Geometry
 
     /**
     * @brief   Factory to create an indexed plane-geometry with vertices in the XY-plane
+    *
     * @param   width           the desired width
     * @param   height          the desired height
     * @param   numSegments_W   number of width subdivisions
@@ -77,6 +78,7 @@ struct Geometry
 
     /**
     * @brief   Factory to create a grid of lines in the XZ plane
+    *
     * @param   width           the desired width
     * @param   depth          the desired depth
     * @param   numSegments_W   number of width subdivisions
