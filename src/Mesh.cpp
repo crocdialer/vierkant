@@ -21,6 +21,9 @@ VkIndexType index_type<uint32_t>(){ return VK_INDEX_TYPE_UINT32; }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
+VkFormat format<uint8_t>(){ return VK_FORMAT_R8_UINT; }
+
+template<>
 VkFormat format<float>(){ return VK_FORMAT_R32_SFLOAT; }
 
 template<>
