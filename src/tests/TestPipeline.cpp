@@ -59,8 +59,8 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
         fmt.viewport.height = framebuffer.extent().height;
         fmt.renderpass = framebuffer.renderpass().get();
 
-        fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, vk::shaders::default_vert);
-        fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, vk::shaders::default_frag);
+        fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, vk::shaders::unlit_texture_vert);
+        fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, vk::shaders::unlit_texture_frag);
         auto pipeline = vk::Pipeline(device, fmt);
         BOOST_CHECK(pipeline);
     }

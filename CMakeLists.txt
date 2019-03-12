@@ -9,6 +9,17 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -Wall -Wformat=0")
 
+if(NOT CMAKE_BUILD_TYPE)
+    SET(CMAKE_BUILD_TYPE Release CACHE STRING
+            "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel."
+            FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
+set(RELEASE_BUILDS "Release MinSizeRel")
+if(${CMAKE_BUILD_TYPE} IN_LIST RELEASE_BUILDS)
+    list(APPEND CXX_FLAGS "-O3")
+endif()
+
 option(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
 #option(USE_STATIC_BOOST_LIBRARIES "Use static Boost libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
@@ -53,8 +64,8 @@ add_subdirectory("crocore")
 include_directories(${crocore_INCLUDE_DIRS})
 
 #shaders
-set(GLSLANG_VALIDATOR "/opt/glslang/6.2.2596/bin/glslangValidator")
-#set(GLSLANG_VALIDATOR "glslangValidator")
+#set(GLSLANG_VALIDATOR "/opt/glslang/6.2.2596/bin/glslangValidator")
+set(GLSLANG_VALIDATOR "glslangValidator")
 stringify_shaders("shaders" ${GLSLANG_VALIDATOR})
 
 #vierkant

@@ -4,17 +4,18 @@
 
 #pragma once
 
-#include "Instance.hpp"
-#include "Device.hpp"
-#include "Buffer.hpp"
-#include "Image.hpp"
-#include "Framebuffer.hpp"
-#include "Pipeline.hpp"
-#include "Mesh.hpp"
-#include "SwapChain.hpp"
-#include "Window.hpp"
-#include "Geometry.hpp"
-#include "intersection.hpp"
+#include "vierkant/Instance.hpp"
+#include "vierkant/Device.hpp"
+#include "vierkant/Buffer.hpp"
+#include "vierkant/Image.hpp"
+#include "vierkant/Framebuffer.hpp"
+#include "vierkant/Pipeline.hpp"
+#include "vierkant/Mesh.hpp"
+#include "vierkant/SwapChain.hpp"
+#include "vierkant/Window.hpp"
+#include "vierkant/Geometry.hpp"
+#include "vierkant/intersection.hpp"
+#include "vierkant/shaders.hpp"
 
 namespace vierkant
 {
