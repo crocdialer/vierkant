@@ -2,6 +2,7 @@
 
 #include "crocore/filesystem.hpp"
 #include "crocore/Image.hpp"
+#include "vierkant/shaders.hpp"
 
 using float_sec_t = std::chrono::duration<float, std::chrono::seconds::period>;
 
@@ -61,8 +62,8 @@ void HelloTriangleApplication::create_context_and_window()
 void HelloTriangleApplication::create_graphics_pipeline()
 {
     auto fmt = vk::Pipeline::Format();
-    fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(m_device, vk::shaders::default_vert);
-    fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(m_device, vk::shaders::default_frag);
+    fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(m_device, vk::shaders::unlit_texture_vert);
+    fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(m_device, vk::shaders::unlit_texture_frag);
 
     fmt.binding_descriptions = vk::binding_descriptions(m_mesh);
     fmt.attribute_descriptions = vk::attribute_descriptions(m_mesh);
@@ -185,7 +186,7 @@ void HelloTriangleApplication::update(float time_delta)
 
     // update uniform buffer for this frame
     UniformBuffer ubo = {};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time_delta * glm::radians(30.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::rotate(glm::mat4(1.0f), time_delta * glm::radians(30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
     ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
     ubo.projection[1][1] *= -1;

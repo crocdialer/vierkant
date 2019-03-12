@@ -6,7 +6,8 @@
 #include "../include/vierkant/Buffer.hpp"
 #include "../include/vierkant/Image.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -120,6 +121,13 @@ void transition_image_layout(VkCommandBuffer commandBuffer, VkImage the_image, V
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
         source_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destination_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }else if(the_old_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL &&
+             the_new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        source_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        destination_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }else
     {
         throw std::invalid_argument("unsupported layout transition!");
@@ -242,7 +250,7 @@ void Image::init(void *the_data, VkImage the_image)
 
     ////////////////////////////////////////// mipmap //////////////////////////////////////////////////////////////////
 
-    if(the_data && m_format.use_mipmap && m_owner){ generate_mipmaps(); }
+//    if(the_data && m_format.use_mipmap && m_owner){ generate_mipmaps(); }
 
     ////////////////////////////////////////// create image view ///////////////////////////////////////////////////////
 
@@ -369,6 +377,9 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
         region.imageExtent = extent;
         vkCmdCopyBufferToImage(cmd_buffer_handle, src->handle(), m_image, m_image_layout, 1, &region);
 
+        // generate new mipmaps after copying
+        if(m_format.use_mipmap){ generate_mipmaps(cmd_buffer_handle); }
+
         if(localCommandBuffer)
         {
             localCommandBuffer.submit(m_device->graphics_queue(), true);
@@ -378,21 +389,21 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_to(const BufferPtr &dst, VkCommandBuffer cmdBufferHandle, VkOffset3D offset, VkExtent3D extent,
+void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffset3D offset, VkExtent3D extent,
                     uint32_t layer)
 {
     if(dst)
     {
-        vierkant::CommandBuffer localCommandBuffer;
+        vierkant::CommandBuffer local_command_buffer;
 
-        if(!cmdBufferHandle)
+        if(!command_buffer)
         {
-            localCommandBuffer = CommandBuffer(m_device, m_device->command_pool_transient());
-            localCommandBuffer.begin();
-            cmdBufferHandle = localCommandBuffer.handle();
+            local_command_buffer = CommandBuffer(m_device, m_device->command_pool_transient());
+            local_command_buffer.begin();
+            command_buffer = local_command_buffer.handle();
         }
 
-        transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, cmdBufferHandle);
+        transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
 
         if(!extent.width || !extent.height || !extent.depth){ extent = m_extent; }
 
@@ -406,18 +417,18 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer cmdBufferHandle, VkOff
         region.imageSubresource.layerCount = 1;
         region.imageOffset = offset;
         region.imageExtent = extent;
-        vkCmdCopyImageToBuffer(cmdBufferHandle, m_image, m_image_layout, dst->handle(), 1, &region);
+        vkCmdCopyImageToBuffer(command_buffer, m_image, m_image_layout, dst->handle(), 1, &region);
 
-        if(localCommandBuffer)
+        if(local_command_buffer)
         {
-            localCommandBuffer.submit(m_device->graphics_queue(), true);
+            local_command_buffer.submit(m_device->graphics_queue(), true);
         }
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::generate_mipmaps()
+void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 {
     // Check if image format supports linear blitting
     VkFormatProperties format_properties;
@@ -428,8 +439,14 @@ void Image::generate_mipmaps()
         throw std::runtime_error("texture image format does not support linear blitting!");
     }
 
-    auto command_buffer = CommandBuffer(m_device, m_device->command_pool_transient());
-    command_buffer.begin();
+    vierkant::CommandBuffer local_command_buffer;
+
+    if(!command_buffer)
+    {
+        local_command_buffer = CommandBuffer(m_device, m_device->command_pool_transient());
+        local_command_buffer.begin();
+        command_buffer = local_command_buffer.handle();
+    }
 
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -452,7 +469,7 @@ void Image::generate_mipmaps()
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
-        vkCmdPipelineBarrier(command_buffer.handle(),
+        vkCmdPipelineBarrier(command_buffer,
                              VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0,
                              0, nullptr,
                              0, nullptr,
@@ -472,7 +489,7 @@ void Image::generate_mipmaps()
         blit.dstSubresource.baseArrayLayer = 0;
         blit.dstSubresource.layerCount = 1;
 
-        vkCmdBlitImage(command_buffer.handle(),
+        vkCmdBlitImage(command_buffer,
                        m_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                        m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                        1, &blit,
@@ -483,7 +500,7 @@ void Image::generate_mipmaps()
         barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-        vkCmdPipelineBarrier(command_buffer.handle(),
+        vkCmdPipelineBarrier(command_buffer,
                              VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
                              0, nullptr,
                              0, nullptr,
@@ -499,13 +516,17 @@ void Image::generate_mipmaps()
     barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
-    vkCmdPipelineBarrier(command_buffer.handle(),
+    vkCmdPipelineBarrier(command_buffer,
                          VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
                          0, nullptr,
                          0, nullptr,
                          1, &barrier);
+
+    if(local_command_buffer)
+    {
+        local_command_buffer.submit(m_device->graphics_queue(), true);
+    }
     m_image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    command_buffer.submit(m_device->graphics_queue(), true);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

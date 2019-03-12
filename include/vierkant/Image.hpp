@@ -145,7 +145,7 @@ public:
      * @param   the_extent  the extent of the memory region to copy
      * @param   the_layer   the target layer in the image to copy the data from
      */
-    void copy_to(const BufferPtr &dst, VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE,
+    void copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer = VK_NULL_HANDLE,
                  VkOffset3D the_offset = {0, 0, 0}, VkExtent3D the_extent = {0, 0, 0},
                  uint32_t the_layer = 0);
 
@@ -156,7 +156,7 @@ private:
 
     void init(void *the_data, VkImage the_image = VK_NULL_HANDLE);
 
-    void generate_mipmaps();
+    void generate_mipmaps(VkCommandBuffer command_buffer = VK_NULL_HANDLE);
 
     DevicePtr m_device;
 

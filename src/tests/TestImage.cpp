@@ -41,9 +41,19 @@ BOOST_AUTO_TEST_CASE(TestImage)
             auto img_attachment = vk::Image::create(device, size, fmt);
 
             // image for sampling with prior mipmap generation
-            fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
+            fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
             fmt.use_mipmap = true;
+
             auto img_sampler_mip = vk::Image::create(device, size, fmt);
+            auto buf = vk::Buffer::create(device, testData.get(), numBytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+            vk::CommandBuffer cmdBuf(device, device->command_pool_transient());
+            cmdBuf.begin();
+
+            // copy new data -> will also generate mipmaps
+            img_sampler_mip->copy_from(buf, cmdBuf.handle());
+            cmdBuf.submit(device->graphics_queue(), true);
+
         }
 
         // alloc + upload

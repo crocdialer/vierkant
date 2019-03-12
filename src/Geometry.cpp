@@ -251,7 +251,7 @@ Geometry Geometry::Box(const glm::vec3 &half_extents)
     geom.tex_coords.push_back(texCoords[3]);
     geom.colors.push_back(colors[5]);
 
-    for(int i = 0; i < 6; i++)
+    for(uint32_t i = 0; i < 6; i++)
     {
         geom.indices.push_back(i * 4 + 0);
         geom.indices.push_back(i * 4 + 1);

@@ -25,7 +25,7 @@ const bool g_enable_validation_layers = false;
 const bool g_enable_validation_layers = true;
 #endif
 
-const std::string g_texture_path = "/home/crocdialer/Pictures/renderer_of_worlds.png";
+const std::string g_texture_path = "~/Pictures/renderer_of_worlds.jpg";
 
 ////////////////////////////// UNIFORM INFORMATION /////////////////////////////////////////////////
 

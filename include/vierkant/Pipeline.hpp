@@ -6,7 +6,6 @@
 
 #include <map>
 #include "vierkant/Device.hpp"
-#include "vierkant/shaders.hpp"
 
 namespace vierkant
 {

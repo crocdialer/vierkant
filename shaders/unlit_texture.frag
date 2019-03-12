@@ -14,5 +14,5 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     vec4 tex_color = texture(m_sampler_2D[0], vertex_in.tex_coord);
-    out_color = tex_color; //vertex_in.color;
+    out_color = tex_color * vertex_in.color;
 }
