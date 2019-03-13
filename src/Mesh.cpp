@@ -127,7 +127,14 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
                                                      const MeshConstPtr &mesh)
 {
     size_t num_sets = 1;
-    for(const auto &desc : mesh->descriptors){ num_sets = std::max(num_sets, desc.buffers.size()); }
+    size_t num_writes = 0;
+
+    for(const auto &desc : mesh->descriptors)
+    {
+        num_sets = std::max<size_t>(num_sets, desc.buffers.size());
+        num_writes += std::max<size_t>(1, desc.images.size());
+    }
+    num_writes *= num_sets;
 
     std::vector<VkDescriptorSet> descriptor_sets(num_sets);
     std::vector<VkDescriptorSetLayout> layouts(num_sets, mesh->descriptor_set_layout.get());
@@ -141,9 +148,8 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
     vkCheck(vkAllocateDescriptorSets(device->handle(), &alloc_info, descriptor_sets.data()),
             "failed to allocate descriptor sets!");
 
-    size_t num_writes = num_sets * mesh->descriptors.size();
-
     std::vector<VkWriteDescriptorSet> descriptor_writes;
+
     std::vector<VkDescriptorBufferInfo> buffer_infos;
     buffer_infos.reserve(num_writes);
     std::vector<VkDescriptorImageInfo> image_infos;
@@ -171,11 +177,15 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
                 desc_write.pBufferInfo = &buffer_infos.back();
             }else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             {
-                VkDescriptorImageInfo image_info = {};
-                image_info.imageLayout = desc.image->image_layout();
-                image_info.imageView = desc.image->image_view();
-                image_info.sampler = desc.image->sampler();
-                image_infos.push_back(image_info);
+                for(const auto &img : desc.images)
+                {
+                    VkDescriptorImageInfo image_info = {};
+                    image_info.imageLayout = img->image_layout();
+                    image_info.imageView = img->image_view();
+                    image_info.sampler = img->sampler();
+                    image_infos.push_back(image_info);
+                }
+                desc_write.descriptorCount = static_cast<uint32_t>(desc.images.size());
                 desc_write.pImageInfo = &image_infos.back();
             }
             descriptor_writes.push_back(desc_write);

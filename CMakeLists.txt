@@ -64,8 +64,8 @@ add_subdirectory("crocore")
 include_directories(${crocore_INCLUDE_DIRS})
 
 #shaders
-#set(GLSLANG_VALIDATOR "/opt/glslang/6.2.2596/bin/glslangValidator")
-set(GLSLANG_VALIDATOR "glslangValidator")
+set(GLSLANG_VALIDATOR "/opt/glslang/6.2.2596/bin/glslangValidator")
+#set(GLSLANG_VALIDATOR "glslangValidator")
 stringify_shaders("shaders" ${GLSLANG_VALIDATOR})
 
 #vierkant

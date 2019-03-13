@@ -200,7 +200,7 @@ void Image::init(void *the_data, VkImage the_image)
         m_num_mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(width(), height())))) + 1;
 
         // in order to generate mipmaps we need to be able to transfer from base mip-level
-        img_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        img_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
     if(the_image)

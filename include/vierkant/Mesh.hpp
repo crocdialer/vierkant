@@ -155,7 +155,7 @@ public:
         uint32_t binding = 0;
         std::vector<vierkant::BufferPtr> buffers;
         VkDeviceSize buffer_offset = 0;
-        vierkant::ImagePtr image;
+        std::vector<vierkant::ImagePtr> images;
     };
 
     static MeshPtr create();
