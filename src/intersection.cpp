@@ -23,7 +23,7 @@ ray_intersection intersect(const Plane &plane, const Ray &ray)
     if(denom > 1e-6)
     {
         float d = (plane.coefficients.z - glm::dot(ray.origin, -plane.normal())) / denom;
-        if(d >= 0) return ray_intersection(INTERSECT, d);
+        if(d >= 0) return {INTERSECT, d};
     }
     return REJECT;
 }
@@ -89,12 +89,8 @@ ray_intersection intersect(const OBB &theOBB, const Ray &theRay)
             if(t2 < t_max) t_max = t2;
             if(t_min > t_max) return REJECT;
             if(t_max < 0) return REJECT;
-        }else if((-e - theOBB.half_lengths[i]) > 0 || (-e + theOBB.half_lengths[i]) < 0)
-        {
-            return REJECT;
-        }
+        }else if((-e - theOBB.half_lengths[i]) > 0 || (-e + theOBB.half_lengths[i]) < 0){ return REJECT; }
     }
-
     if(t_min > 0){ return {INTERSECT, t_min}; }
     else{ return {INTERSECT, t_max}; }
 }
@@ -153,25 +149,21 @@ OBB::OBB(const AABB &theAABB, const glm::mat4 &t)
 
 OBB &OBB::transform(const glm::mat4 &t)
 {
-    glm::vec3 scale(glm::length(t[0]),
-                    glm::length(t[1]),
-                    glm::length(t[2]));
+    glm::vec3 scale(glm::length(t[0]), glm::length(t[1]), glm::length(t[2]));
     half_lengths *= scale;
-
     glm::mat3 normal_mat = glm::inverseTranspose(glm::mat3(t));
     axis[0] = normalize(normal_mat * axis[0]);
     axis[1] = normalize(normal_mat * axis[1]);
     axis[2] = normalize(normal_mat * axis[2]);
     center += t[3].xyz();
-
     return *this;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 
-AABB::AABB(const std::vector<glm::vec3> &points):
-AABB(glm::vec3(std::numeric_limits<float>::max()),
-     glm::vec3(std::numeric_limits<float>::min()))
+AABB::AABB(const std::vector<glm::vec3> &points) :
+        AABB(glm::vec3(std::numeric_limits<float>::max()),
+             glm::vec3(std::numeric_limits<float>::min()))
 {
     if(points.empty()){ *this = {}; }
 
@@ -307,7 +299,7 @@ void gaussian_elimination(float *a, int n)
         int maxi = i;
         for(int k = i + 1; k < m; ++k)
         {
-            if(fabs(a[k * n + j]) > fabs(a[maxi * n + j])){ maxi = k; }
+            if(fabsf(a[k * n + j]) > fabsf(a[maxi * n + j])){ maxi = k; }
         }
 
         if(a[maxi * n + j] != 0)
