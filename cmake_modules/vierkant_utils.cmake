@@ -35,6 +35,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
         execute_process(
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
                 COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+                OUTPUT_QUIET
         )
 
         # read spirv binary

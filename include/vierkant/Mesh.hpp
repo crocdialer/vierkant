@@ -161,7 +161,7 @@ public:
     static MeshPtr create();
 
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    size_t num_elements = 0;
+    uint32_t num_elements = 0;
 
     // index buffer
     vierkant::BufferPtr index_buffer;

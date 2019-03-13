@@ -373,8 +373,8 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
     {
         mesh->index_buffer = vierkant::Buffer::create(device, geom.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        mesh->num_elements = geom.indices.size();
-    }else{ mesh->num_elements = geom.vertices.size(); }
+        mesh->num_elements = static_cast<uint32_t>(geom.indices.size());
+    }else{ mesh->num_elements = static_cast<uint32_t>(geom.vertices.size()); }
 
     // set topology
     mesh->topology = geom.topology;
