@@ -164,7 +164,7 @@ void HelloTriangleApplication::load_model()
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.binding = 1;
-    desc_texture.images = {m_texture};
+    desc_texture.image_samplers = {m_texture};
 
     m_mesh->descriptors = {desc_ubo, desc_texture};
 

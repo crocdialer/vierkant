@@ -132,7 +132,7 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
     for(const auto &desc : mesh->descriptors)
     {
         num_sets = std::max<size_t>(num_sets, desc.buffers.size());
-        num_writes += std::max<size_t>(1, desc.images.size());
+        num_writes += std::max<size_t>(1, desc.image_samplers.size());
     }
     num_writes *= num_sets;
 
@@ -177,7 +177,7 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
                 desc_write.pBufferInfo = &buffer_infos.back();
             }else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             {
-                for(const auto &img : desc.images)
+                for(const auto &img : desc.image_samplers)
                 {
                     VkDescriptorImageInfo image_info = {};
                     image_info.imageLayout = img->image_layout();
@@ -185,7 +185,7 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
                     image_info.sampler = img->sampler();
                     image_infos.push_back(image_info);
                 }
-                desc_write.descriptorCount = static_cast<uint32_t>(desc.images.size());
+                desc_write.descriptorCount = static_cast<uint32_t>(desc.image_samplers.size());
                 desc_write.pImageInfo = &image_infos.back();
             }
             descriptor_writes.push_back(desc_write);

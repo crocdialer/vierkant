@@ -98,7 +98,7 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.binding = 1;
-    desc_texture.image = texture;
+    desc_texture.image_samplers = {texture};
 
     ret->descriptors = {desc_ubo, desc_texture};
     ret->descriptor_set_layout = vk::create_descriptor_set_layout(device, ret);
