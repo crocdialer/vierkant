@@ -152,8 +152,10 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
 
     std::vector<VkDescriptorBufferInfo> buffer_infos;
     buffer_infos.reserve(num_writes);
-    std::vector<VkDescriptorImageInfo> image_infos;
-    image_infos.reserve(num_writes);
+
+    std::vector<std::vector<VkDescriptorImageInfo>> image_infos_collection;
+//    std::vector<VkDescriptorImageInfo> image_infos;
+//    image_infos.reserve(num_writes);
 
     for(size_t i = 0; i < num_sets; i++)
     {
@@ -177,16 +179,18 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
                 desc_write.pBufferInfo = &buffer_infos.back();
             }else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
             {
-                for(const auto &img : desc.image_samplers)
+                std::vector<VkDescriptorImageInfo> image_infos(desc.image_samplers.size());
+
+                for(uint32_t i = 0; i < desc.image_samplers.size(); ++i)
                 {
-                    VkDescriptorImageInfo image_info = {};
-                    image_info.imageLayout = img->image_layout();
-                    image_info.imageView = img->image_view();
-                    image_info.sampler = img->sampler();
-                    image_infos.push_back(image_info);
+                    const auto &img = desc.image_samplers[i];
+                    image_infos[i].imageLayout = img->image_layout();
+                    image_infos[i].imageView = img->image_view();
+                    image_infos[i].sampler = img->sampler();
                 }
                 desc_write.descriptorCount = static_cast<uint32_t>(desc.image_samplers.size());
-                desc_write.pImageInfo = &image_infos.back();
+                desc_write.pImageInfo = image_infos.data();
+                image_infos_collection.push_back(std::move(image_infos));
             }
             descriptor_writes.push_back(desc_write);
         }
