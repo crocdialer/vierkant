@@ -204,7 +204,6 @@ void Framebuffer::begin_renderpass(VkCommandBuffer commandbuffer,
 {
     if(*this && !m_active_commandbuffer)
     {
-
         VkRenderPassBeginInfo render_pass_info = {};
         render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         render_pass_info.renderPass = m_renderpass.get();
