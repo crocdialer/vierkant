@@ -61,14 +61,16 @@ VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_map_t &counts)
+void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts)
 {
-    for(const auto &desc : mesh->descriptors){ counts[desc.type]++; }
+    std::map<VkDescriptorType, uint32_t> mesh_counts;
+    for(const auto &desc : mesh->descriptors){ mesh_counts[desc.type]++; }
+    for(const auto &pair : mesh_counts){ counts.push_back(pair); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, const descriptor_count_map_t &counts)
+DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, const descriptor_count_t &counts)
 {
     std::vector<VkDescriptorPoolSize> pool_sizes;
     for(const auto &pair : counts){ pool_sizes.push_back({pair.first, pair.second}); }
@@ -99,7 +101,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
     {
         VkDescriptorSetLayoutBinding ubo_layout_binding = {};
         ubo_layout_binding.binding = desc.binding;
-        ubo_layout_binding.descriptorCount = 1;
+        ubo_layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
         ubo_layout_binding.descriptorType = desc.type;
         ubo_layout_binding.pImmutableSamplers = nullptr;
         ubo_layout_binding.stageFlags = desc.stage_flags;
@@ -188,7 +190,7 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
                     image_infos[i].imageView = img->image_view();
                     image_infos[i].sampler = img->sampler();
                 }
-                desc_write.descriptorCount = static_cast<uint32_t>(desc.image_samplers.size());
+                desc_write.descriptorCount = static_cast<uint32_t>(image_infos.size());
                 desc_write.pImageInfo = image_infos.data();
                 image_infos_collection.push_back(std::move(image_infos));
             }
