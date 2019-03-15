@@ -10,9 +10,9 @@ namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkDeviceSize num_bytes_per_pixel(VkFormat the_format)
+VkDeviceSize num_bytes_per_pixel(VkFormat format)
 {
-    switch(the_format)
+    switch(format)
     {
         case VK_FORMAT_R8G8B8A8_UNORM:
             return 4;
@@ -33,7 +33,7 @@ VkDeviceSize num_bytes_per_pixel(VkFormat the_format)
         case VK_FORMAT_R16G16B16_SFLOAT:
             return 6;
         default:
-            return 0;
+            throw std::runtime_error("num_bytes_per_pixel: format not handled");
     }
 }
 
@@ -134,36 +134,33 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFo
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr the_device, void *the_data, VkExtent3D size, Format the_format)
+ImagePtr Image::create(DevicePtr device, void *data, VkExtent3D size, Format format)
 {
-    return ImagePtr(new Image(std::move(the_device), the_data, VK_NULL_HANDLE,
-                              size, 1, the_format));
+    return ImagePtr(new Image(std::move(device), data, VK_NULL_HANDLE, size, format));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr the_device, VkExtent3D size, Format the_format)
+ImagePtr Image::create(DevicePtr device, VkExtent3D size, Format format)
 {
-    return ImagePtr(new Image(std::move(the_device), nullptr, VK_NULL_HANDLE,
-                              size, 1, the_format));
+    return ImagePtr(new Image(std::move(device), nullptr, VK_NULL_HANDLE, size, format));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr the_device, VkImage the_image, VkExtent3D size, Format the_format)
+ImagePtr Image::create(DevicePtr device, VkImage image, VkExtent3D size, Format format)
 {
-    return ImagePtr(new Image(std::move(the_device), nullptr, the_image, size, 1, the_format));
+    return ImagePtr(new Image(std::move(device), nullptr, image, size, format));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::Image(DevicePtr the_device, void *the_data, VkImage the_image, VkExtent3D size,
-             uint32_t the_num_layers, Format the_format) :
-        m_device(std::move(the_device)),
+Image::Image(DevicePtr device, void *data, VkImage image, VkExtent3D size, Format format) :
+        m_device(std::move(device)),
         m_extent(size),
-        m_format(the_format)
+        m_format(format)
 {
-    init(the_data, the_image);
+    init(data, image);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -177,7 +174,7 @@ Image::~Image()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::init(void *the_data, VkImage the_image)
+void Image::init(void *data, VkImage image)
 {
     if(!m_extent.width || !m_extent.height || !m_extent.depth){ throw std::runtime_error("image extent is zero"); }
 
@@ -186,7 +183,7 @@ void Image::init(void *the_data, VkImage the_image)
     VkImageUsageFlags img_usage = m_format.usage;
 
     // we expect a transfer
-    if(the_data){ img_usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT; }
+    if(data){ img_usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT; }
 
     m_num_mip_levels = 1;
 
@@ -199,12 +196,12 @@ void Image::init(void *the_data, VkImage the_image)
         img_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
-    if(the_image)
+    if(image)
     {
         if(m_image){ vmaDestroyImage(m_device->vk_mem_allocator(), m_image, m_allocation); }
 
         // use a provided VkImage that we do not own
-        m_image = the_image;
+        m_image = image;
         m_owner = false;
     }else
     {
@@ -233,9 +230,9 @@ void Image::init(void *the_data, VkImage the_image)
 
     ////////////////////////////////////////// copy contents ///////////////////////////////////////////////////////////
 
-    if(the_data)
+    if(data)
     {
-        auto staging_buffer = Buffer::create(m_device, the_data,
+        auto staging_buffer = Buffer::create(m_device, data,
                                              width() * height() * depth() *
                                              num_bytes_per_pixel(m_format.format),
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,

@@ -21,7 +21,6 @@ if(${CMAKE_BUILD_TYPE} IN_LIST RELEASE_BUILDS)
 endif()
 
 option(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
-#option(USE_STATIC_BOOST_LIBRARIES "Use static Boost libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
 
 set(LIB_TYPE SHARED)

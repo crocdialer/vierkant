@@ -6,12 +6,11 @@
 #include "vierkant/Device.hpp"
 #include "vierkant/Buffer.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 DEFINE_CLASS_PTR(Image);
 
-VkDeviceSize num_bytes_per_pixel(VkFormat the_format);
+VkDeviceSize num_bytes_per_pixel(VkFormat format);
 
 class Image
 {
@@ -41,26 +40,30 @@ public:
         bool normalized_coords = true;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         uint32_t num_layers = 1;
+
         Format() {};
     };
 
     /**
-     * @brief   factory to create instances of ImagePtr
+     * @brief   Factory to create instances of ImagePtr.
+     *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr the_device, void *the_data, VkExtent3D size, Format the_format = Format());
+    static ImagePtr create(DevicePtr device, void *data, VkExtent3D size, Format format = Format());
 
     /**
-     * @brief   factory to create instances of ImagePtr
+     * @brief   Factory to create instances of ImagePtr.
+     *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr the_device, VkExtent3D size, Format the_format = Format());
+    static ImagePtr create(DevicePtr device, VkExtent3D size, Format format = Format());
 
     /**
-     * @brief   factory to create instances of ImagePtr
+     * @brief   Factory to create instances of ImagePtr.
+     *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr the_device, VkImage the_image, VkExtent3D size, Format the_format = Format());
+    static ImagePtr create(DevicePtr device, VkImage image, VkExtent3D size, Format format = Format());
 
     Image(const Image &) = delete;
 
@@ -151,10 +154,9 @@ public:
 
 private:
 
-    Image(DevicePtr the_device, void *the_data, VkImage the_image,
-          VkExtent3D size, uint32_t the_num_layers, Format the_format);
+    Image(DevicePtr device, void *data, VkImage image, VkExtent3D size, Format format);
 
-    void init(void *the_data, VkImage the_image = VK_NULL_HANDLE);
+    void init(void *data, VkImage image = VK_NULL_HANDLE);
 
     void generate_mipmaps(VkCommandBuffer command_buffer = VK_NULL_HANDLE);
 
