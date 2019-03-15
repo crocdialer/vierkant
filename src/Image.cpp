@@ -387,6 +387,11 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
 {
     if(dst)
     {
+        if(!extent.width || !extent.height || !extent.depth){ extent = m_extent; }
+
+        // assure dst buffer has correct size, no-op if already the case
+        dst->set_data(nullptr, num_bytes_per_pixel(m_format.format) * extent.width * extent.height * extent.depth);
+
         vierkant::CommandBuffer local_command_buffer;
 
         if(!command_buffer)
@@ -397,8 +402,6 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
         }
 
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
-
-        if(!extent.width || !extent.height || !extent.depth){ extent = m_extent; }
 
         VkBufferImageCopy region = {};
         region.bufferOffset = 0;

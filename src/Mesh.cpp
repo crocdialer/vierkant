@@ -344,7 +344,6 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
                                                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
                                                  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-
     // create vertexbuffer
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                                                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT,
