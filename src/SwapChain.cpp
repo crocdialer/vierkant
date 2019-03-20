@@ -11,7 +11,7 @@ namespace vierkant {
 
 struct SwapChainSupportDetails
 {
-    VkSurfaceCapabilitiesKHR capabilities;
+    VkSurfaceCapabilitiesKHR capabilities = {};
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> modes;
 };
@@ -53,7 +53,7 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
     return the_formats[0];
 }
 
-VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &the_modes, bool use_vsync = true)
+VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &the_modes, bool use_vsync)
 {
     VkPresentModeKHR best_mode = VK_PRESENT_MODE_FIFO_KHR;
 
@@ -75,13 +75,13 @@ bool has_stencil_component(VkFormat the_format)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples) :
+SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync) :
         m_device(std::move(device))
 {
     SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(),
                                                                          surface);
     VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats);
-    VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes);
+    VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
     auto caps = swap_chain_support.capabilities;
     VkExtent2D extent;
 
@@ -334,7 +334,7 @@ void SwapChain::create_sync_objects()
         {
             throw std::runtime_error("failed to create sync object");
         }
-        m_sync_objects[i].frame_index = i;
+        m_sync_objects[i].frame_index = static_cast<uint32_t>(i);
     }
 }
 
