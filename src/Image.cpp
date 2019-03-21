@@ -298,7 +298,7 @@ void Image::init(void *data, VkImage image)
 
     m_image_layout = m_format.initial_layout;
 
-    if(m_image_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+    if(m_image_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && m_format.initial_layout_transition)
     {
         if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
         {

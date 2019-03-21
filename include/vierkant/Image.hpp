@@ -35,6 +35,7 @@ public:
                                                 VK_COMPONENT_SWIZZLE_IDENTITY,
                                                 VK_COMPONENT_SWIZZLE_IDENTITY};
         float max_anisotropy = 0.f;
+        bool initial_layout_transition = true;
         bool use_mipmap = false;
         VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         bool normalized_coords = true;
