@@ -7,8 +7,7 @@
 #include <map>
 #include "vierkant/Device.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 using ShaderModulePtr = std::shared_ptr<VkShaderModule_T>;
 
@@ -19,7 +18,7 @@ using ShaderModulePtr = std::shared_ptr<VkShaderModule_T>;
  * @return  a newly constructed, shared VkShaderModule
  */
 ShaderModulePtr create_shader_module(const DevicePtr &device,
-                                     const void* spirv_code,
+                                     const void *spirv_code,
                                      size_t num_bytes);
 
 template<typename T>
@@ -28,6 +27,20 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
 {
     return create_shader_module(device, array.data(), sizeof(typename T::value_type) * array.size());
 }
+
+/**
+ * @brief   ShaderType is used to refer to different sets of shader-stages
+ */
+enum class ShaderType{ UNLIT_TEXTURE };
+
+/**
+ * @brief   Get a map with shader-stages for a given Shadertype.
+ *
+ * @param   device  handle for the vk::Device to create the VkShaderModules
+ * @param   t       the Shadertype to return the shader-stages for
+ * @return  the newly constructed map containing the VkShaderModules
+ */
+std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages(const DevicePtr &device, ShaderType t);
 
 class Pipeline
 {
@@ -106,9 +119,9 @@ public:
 
         bool operator==(const Format &other) const;
 
-        bool operator!=(const Format &other) const{ return !(*this == other); };
+        bool operator!=(const Format &other) const { return !(*this == other); };
 
-        Format(){};
+        Format() {};
     };
 
     Pipeline() = default;
@@ -137,14 +150,14 @@ public:
     /**
      * @return  handle for the managed VkPipeline
      */
-    VkPipeline handle() const{ return m_pipeline; }
+    VkPipeline handle() const { return m_pipeline; }
 
     /**
      * @return  handle for the managed pipeline-layout
      */
-    VkPipelineLayout layout() const{ return m_pipeline_layout; }
+    VkPipelineLayout layout() const { return m_pipeline_layout; }
 
-    inline explicit operator bool() const{ return m_pipeline; };
+    inline explicit operator bool() const { return m_pipeline; };
 
     friend void swap(Pipeline &lhs, Pipeline &rhs);
 
@@ -161,8 +174,7 @@ private:
 
 }//namespace vierkant
 
-namespace std
-{
+namespace std {
 template<>
 struct hash<vierkant::Pipeline::Format>
 {

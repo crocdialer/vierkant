@@ -2,6 +2,7 @@
 // Created by crocdialer on 11/14/18.
 //
 
+#include "vierkant/shaders.hpp"
 #include "vierkant/Pipeline.hpp"
 
 namespace vierkant
@@ -23,6 +24,22 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
             "failed to create shader module!");
     return ShaderModulePtr(shader_module,
                            [device](VkShaderModule s){ vkDestroyShaderModule(device->handle(), s, nullptr); });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages(const DevicePtr &device, ShaderType t)
+{
+    std::map<VkShaderStageFlagBits, ShaderModulePtr> ret;
+
+    switch(t)
+    {
+        case ShaderType ::UNLIT_TEXTURE:
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit_texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_texture_frag);
+            break;
+    }
+    return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -248,6 +265,9 @@ bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs){ retur
 
 bool Pipeline::Format::operator==(const Pipeline::Format &other) const
 {
+    bool dynamic_scissor = crocore::contains(dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
+    bool dynamic_viewport = crocore::contains(dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
+
     for(const auto &pair : shader_stages)
     {
         try{ if(other.shader_stages.at(pair.first) != pair.second){ return false; }}
@@ -282,16 +302,25 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
     if(front_face != other.front_face){ return false; }
     if(polygon_mode != other.polygon_mode){ return false; }
     if(cull_mode != other.cull_mode){ return false; }
-    if(viewport.x != other.viewport.x){ return false; }
-    if(viewport.y != other.viewport.y){ return false; }
-    if(viewport.width != other.viewport.width){ return false; }
-    if(viewport.height != other.viewport.height){ return false; }
-    if(viewport.minDepth != other.viewport.minDepth){ return false; }
-    if(viewport.maxDepth != other.viewport.maxDepth){ return false; }
-    if(scissor.offset.x != other.scissor.offset.x){ return false; }
-    if(scissor.offset.y != other.scissor.offset.y){ return false; }
-    if(scissor.extent.width != other.scissor.extent.width){ return false; }
-    if(scissor.extent.height != other.scissor.extent.height){ return false; }
+
+    if(!dynamic_viewport)
+    {
+        if(viewport.x != other.viewport.x){ return false; }
+        if(viewport.y != other.viewport.y){ return false; }
+        if(viewport.width != other.viewport.width){ return false; }
+        if(viewport.height != other.viewport.height){ return false; }
+        if(viewport.minDepth != other.viewport.minDepth){ return false; }
+        if(viewport.maxDepth != other.viewport.maxDepth){ return false; }
+    }
+
+    if(!dynamic_scissor)
+    {
+        if(scissor.offset.x != other.scissor.offset.x){ return false; }
+        if(scissor.offset.y != other.scissor.offset.y){ return false; }
+        if(scissor.extent.width != other.scissor.extent.width){ return false; }
+        if(scissor.extent.height != other.scissor.extent.height){ return false; }
+    }
+
     if(rasterizer_discard != other.rasterizer_discard){ return false; }
     if(depth_test != other.depth_test){ return false; }
     if(depth_write != other.depth_write){ return false; }
@@ -399,6 +428,9 @@ size_t std::hash<vierkant::Pipeline::Format>::operator()(vierkant::Pipeline::For
 {
     size_t h = 0;
 
+    bool dynamic_scissor = crocore::contains(fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
+    bool dynamic_viewport = crocore::contains(fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
+
     for(const auto &pair : fmt.shader_stages)
     {
         hash_combine(h, pair.first);
@@ -424,16 +456,25 @@ size_t std::hash<vierkant::Pipeline::Format>::operator()(vierkant::Pipeline::For
     hash_combine(h, fmt.front_face);
     hash_combine(h, fmt.polygon_mode);
     hash_combine(h, fmt.cull_mode);
-    hash_combine(h, fmt.viewport.x);
-    hash_combine(h, fmt.viewport.y);
-    hash_combine(h, fmt.viewport.width);
-    hash_combine(h, fmt.viewport.height);
-    hash_combine(h, fmt.viewport.minDepth);
-    hash_combine(h, fmt.viewport.maxDepth);
-    hash_combine(h, fmt.scissor.offset.x);
-    hash_combine(h, fmt.scissor.offset.y);
-    hash_combine(h, fmt.scissor.extent.width);
-    hash_combine(h, fmt.scissor.extent.height);
+
+    if(!dynamic_viewport)
+    {
+        hash_combine(h, fmt.viewport.x);
+        hash_combine(h, fmt.viewport.y);
+        hash_combine(h, fmt.viewport.width);
+        hash_combine(h, fmt.viewport.height);
+        hash_combine(h, fmt.viewport.minDepth);
+        hash_combine(h, fmt.viewport.maxDepth);
+    }
+
+    if(!dynamic_scissor)
+    {
+        hash_combine(h, fmt.scissor.offset.x);
+        hash_combine(h, fmt.scissor.offset.y);
+        hash_combine(h, fmt.scissor.extent.width);
+        hash_combine(h, fmt.scissor.extent.height);
+    }
+
     hash_combine(h, fmt.rasterizer_discard);
     hash_combine(h, fmt.depth_test);
     hash_combine(h, fmt.depth_write);

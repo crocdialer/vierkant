@@ -181,4 +181,11 @@ private:
     Mesh() = default;
 };
 
+struct render_object_t
+{
+    vierkant::MeshPtr mesh;
+    vierkant::BufferPtr uniform_buffer;
+    DescriptorSetPtr descriptor_set;
+};
+
 }//namespace vierkant

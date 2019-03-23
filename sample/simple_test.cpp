@@ -2,7 +2,6 @@
 
 #include "crocore/filesystem.hpp"
 #include "crocore/Image.hpp"
-#include "vierkant/shaders.hpp"
 
 using float_sec_t = std::chrono::duration<float, std::chrono::seconds::period>;
 
@@ -62,8 +61,7 @@ void HelloTriangleApplication::create_context_and_window()
 void HelloTriangleApplication::create_graphics_pipeline()
 {
     auto fmt = vk::Pipeline::Format();
-    fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(m_device, vk::shaders::unlit_texture_vert);
-    fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(m_device, vk::shaders::unlit_texture_frag);
+    fmt.shader_stages = vk::shader_stages(m_device, vk::ShaderType::UNLIT_TEXTURE);
 
     fmt.binding_descriptions = vk::binding_descriptions(m_mesh);
     fmt.attribute_descriptions = vk::attribute_descriptions(m_mesh);
@@ -152,6 +150,7 @@ void HelloTriangleApplication::load_model()
 //    auto geom = vk::Geometry::Plane(1, 1);
     auto geom = vk::Geometry::Box(glm::vec3(.5f));
 //    auto geom = vk::Geometry::BoxOutline();
+//    auto geom = vk::Geometry::Grid();
     m_mesh = vk::create_mesh_from_geometry(m_device, geom);
 
     // descriptors
