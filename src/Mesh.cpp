@@ -61,20 +61,21 @@ VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts,
-                           size_t num_descriptors)
+void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts)
 {
     std::map<VkDescriptorType, uint32_t> mesh_counts;
-    for(const auto &desc : mesh->descriptors){ mesh_counts[desc.type] += num_descriptors; }
+    for(const auto &desc : mesh->descriptors){ mesh_counts[desc.type]++; }
     for(const auto &pair : mesh_counts){ counts.push_back(pair); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, const descriptor_count_t &counts)
+DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
+                                         const descriptor_count_t &counts,
+                                         uint32_t num_instances)
 {
     std::vector<VkDescriptorPoolSize> pool_sizes;
-    for(const auto &pair : counts){ pool_sizes.push_back({pair.first, pair.second}); }
+    for(const auto &pair : counts){ pool_sizes.push_back({pair.first, pair.second * num_instances}); }
 
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
