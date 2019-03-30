@@ -58,7 +58,8 @@ using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, 
  * @param   mesh    a vierkant::Mesh to extract the descriptor counts from
  * @param   counts  a reference to a descriptor_count_map_t to hold the results
  */
-void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts);
+void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts,
+                           size_t num_descriptors = 1);
 
 /**
  * @brief   Create a shared VkDescriptorPool (DescriptorPoolPtr)

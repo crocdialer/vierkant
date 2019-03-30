@@ -172,7 +172,8 @@ void HelloTriangleApplication::load_model()
 
     // we also need a DescriptorPool ...
     vk::descriptor_count_t descriptor_counts;
-    vk::add_descriptor_counts(m_mesh, descriptor_counts);
+    vk::add_descriptor_counts(m_mesh, descriptor_counts,
+                              m_window->swapchain().framebuffers().size());
     m_descriptor_pool = vk::create_descriptor_pool(m_device, descriptor_counts);
 
     // finally create the descriptor-sets for the mesh

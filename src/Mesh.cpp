@@ -61,10 +61,11 @@ VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts)
+void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts,
+                           size_t num_descriptors)
 {
     std::map<VkDescriptorType, uint32_t> mesh_counts;
-    for(const auto &desc : mesh->descriptors){ mesh_counts[desc.type]++; }
+    for(const auto &desc : mesh->descriptors){ mesh_counts[desc.type] += num_descriptors; }
     for(const auto &pair : mesh_counts){ counts.push_back(pair); }
 }
 
