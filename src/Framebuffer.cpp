@@ -92,7 +92,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
         }
     }
 
-    uint32_t attachment_index = 0, num_color_images = 0;;
+    uint32_t attachment_index = 0, num_color_images = 0;
     std::vector<VkAttachmentReference> color_refs, depth_stencil_refs, resolve_refs;
 
     auto color_it = attachments.find(Attachment::Color);
@@ -149,7 +149,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
 Framebuffer::Framebuffer(DevicePtr device, VkExtent3D size, Format format, RenderPassPtr renderpass) :
         m_device(std::move(device)),
         m_extent(size),
-        m_format(std::move(format))
+        m_format(format)
 {
     init(create_attachments(m_format), std::move(renderpass));
 }
@@ -269,7 +269,7 @@ size_t Framebuffer::num_attachments(vierkant::Framebuffer::Attachment type) cons
 
 void Framebuffer::init(AttachmentMap attachments, RenderPassPtr renderpass)
 {
-    clear_color = {0.f, 0.f, 0.f, 1.f};
+    clear_color = {{0.f, 0.f, 0.f, 1.f}};
     clear_depth_stencil = {1.0f, 0};
 
     if(!renderpass){ renderpass = create_renderpass(m_device, attachments); }

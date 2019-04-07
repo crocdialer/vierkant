@@ -21,7 +21,7 @@ VkIndexType index_type<uint32_t>(){ return VK_INDEX_TYPE_UINT32; }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkFormat format<uint8_t>(){ return VK_FORMAT_R8_UINT; }
+VkFormat format<uint8_t>(){ return VK_FORMAT_R8_UNORM; }
 
 template<>
 VkFormat format<float>(){ return VK_FORMAT_R32_SFLOAT; }
@@ -185,12 +185,12 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
             {
                 std::vector<VkDescriptorImageInfo> image_infos(desc.image_samplers.size());
 
-                for(uint32_t i = 0; i < desc.image_samplers.size(); ++i)
+                for(uint32_t j = 0; j < desc.image_samplers.size(); ++j)
                 {
-                    const auto &img = desc.image_samplers[i];
-                    image_infos[i].imageLayout = img->image_layout();
-                    image_infos[i].imageView = img->image_view();
-                    image_infos[i].sampler = img->sampler();
+                    const auto &img = desc.image_samplers[j];
+                    image_infos[j].imageLayout = img->image_layout();
+                    image_infos[j].imageView = img->image_view();
+                    image_infos[j].sampler = img->sampler();
                 }
                 desc_write.descriptorCount = static_cast<uint32_t>(image_infos.size());
                 desc_write.pImageInfo = image_infos.data();

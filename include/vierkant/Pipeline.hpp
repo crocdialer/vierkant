@@ -11,6 +11,8 @@ namespace vierkant {
 
 using ShaderModulePtr = std::shared_ptr<VkShaderModule_T>;
 
+using shader_stage_map_t = std::map<VkShaderStageFlagBits, ShaderModulePtr>;
+
 /**
  * @brief   Helper function to create a shared VkShaderModule
  * @param   device      handle for the vk::Device to create the VkShaderModule
@@ -40,7 +42,7 @@ enum class ShaderType{ UNLIT_TEXTURE };
  * @param   t       the Shadertype to return the shader-stages for
  * @return  the newly constructed map containing the VkShaderModules
  */
-std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages(const DevicePtr &device, ShaderType t);
+shader_stage_map_t shader_stages(const DevicePtr &device, ShaderType t);
 
 class Pipeline
 {

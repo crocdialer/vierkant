@@ -98,7 +98,11 @@ private:
 
     vk::MeshPtr m_mesh = vk::Mesh::create();
 
+    std::vector<vk::Renderer::drawable_t> m_drawables;
+
     std::vector<vierkant::BufferPtr> m_uniform_buffers;
+
+    vk::Renderer m_renderer;
 };
 
 int main()

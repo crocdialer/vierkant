@@ -60,26 +60,21 @@ void HelloTriangleApplication::create_context_and_window()
 
 void HelloTriangleApplication::create_graphics_pipeline()
 {
-    auto fmt = vk::Pipeline::Format();
-    fmt.shader_stages = vk::shader_stages(m_device, vk::ShaderType::UNLIT_TEXTURE);
+    m_renderer = vk::Renderer(m_device, m_window->swapchain().framebuffers().front());
+    m_drawables.resize(m_window->swapchain().framebuffers().size());
 
-    fmt.binding_descriptions = vk::binding_descriptions(m_mesh);
-    fmt.attribute_descriptions = vk::attribute_descriptions(m_mesh);
-    fmt.primitive_topology = m_mesh->topology;
-//    fmt.front_face = VK_FRONT_FACE_CLOCKWISE;
+    auto descriptor_sets = vk::create_descriptor_sets(m_device, m_descriptor_pool, m_mesh);
 
-    fmt.viewport.width = m_window->swapchain().extent().width;
-    fmt.viewport.height = m_window->swapchain().extent().height;
+    for(uint32_t i = 0; i < m_drawables.size(); ++i)
+    {
+        m_drawables[i].mesh = m_mesh;
+        m_drawables[i].descriptor_set = descriptor_sets[i];
+        m_drawables[i].pipeline_format.depth_test = true;
+        m_drawables[i].pipeline_format.depth_write = true;
+        m_drawables[i].pipeline_format.stencil_test = false;
+        m_drawables[i].pipeline_format.blending = false;
+    }
 
-    fmt.sample_count = m_window->swapchain().sample_count();
-    fmt.depth_test = true;
-    fmt.depth_write = true;
-    fmt.stencil_test = false;
-    fmt.blending = false;
-    fmt.descriptor_set_layouts = {m_mesh->descriptor_set_layout.get()};
-    fmt.renderpass = m_window->swapchain().renderpass();
-
-    m_pipeline = vk::Pipeline(m_device, fmt);
 }
 
 void HelloTriangleApplication::create_command_buffers()
@@ -99,26 +94,9 @@ void HelloTriangleApplication::create_command_buffers()
         m_command_buffers[i].begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT |
                                    VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, &inheritance);
 
-        // bind pipeline
-        m_pipeline.bind(m_command_buffers[i].handle());
-
-        VkViewport viewport = {};
-        viewport.width = m_window->swapchain().extent().width;
-        viewport.height = m_window->swapchain().extent().height;
-        viewport.minDepth = 0.f;
-        viewport.maxDepth = 1.f;
-        vkCmdSetViewport(m_command_buffers[i].handle(), 0, 1, &viewport);
-
-        vk::bind_buffers(m_command_buffers[i].handle(), m_mesh);
-
-        // bind descriptor sets (uniforms, samplers)
-        VkDescriptorSet descriptor_set = m_mesh->descriptor_sets[i].get();
-        vkCmdBindDescriptorSets(m_command_buffers[i].handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline.layout(),
-                                0, 1, &descriptor_set, 0, nullptr);
-
-        // issue (indexed) drawing command
-        if(m_mesh->index_buffer){ vkCmdDrawIndexed(m_command_buffers[i].handle(), m_mesh->num_elements, 1, 0, 0, 0); }
-        else{ vkCmdDraw(m_command_buffers[i].handle(), m_mesh->num_elements, 1, 0, 0); }
+        m_renderer.viewport.width = m_window->swapchain().extent().width;
+        m_renderer.viewport.height = m_window->swapchain().extent().height;
+        m_renderer.draw(m_command_buffers[i].handle(), m_drawables[i]);
 
         m_command_buffers[i].end();
     }
@@ -177,7 +155,7 @@ void HelloTriangleApplication::load_model()
                                                    m_window->swapchain().framebuffers().size());
 
     // finally create the descriptor-sets for the mesh
-    m_mesh->descriptor_sets = vk::create_descriptor_sets(m_device, m_descriptor_pool, m_mesh);
+//    m_mesh->descriptor_sets = vk::create_descriptor_sets(m_device, m_descriptor_pool, m_mesh);
 }
 
 void HelloTriangleApplication::update(float time_delta)

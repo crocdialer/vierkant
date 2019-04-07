@@ -14,10 +14,11 @@
 #include "vierkant/SwapChain.hpp"
 #include "vierkant/Window.hpp"
 #include "vierkant/Geometry.hpp"
+#include "vierkant/Renderer.hpp"
 #include "vierkant/intersection.hpp"
 
 namespace vierkant
 {
-    void draw_mesh(VkCommandBuffer command_buffer, const Mesh &mesh);
+
 }
 namespace vk = vierkant;
