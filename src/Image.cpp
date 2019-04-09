@@ -126,6 +126,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFo
             break;
 
         default:
+            destination_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             break;
     }
     vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, 0, 0, nullptr, 0, nullptr, 1,
@@ -236,14 +237,9 @@ void Image::init(void *data, VkImage image)
                                              width() * height() * depth() *
                                              num_bytes_per_pixel(m_format.format),
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
         copy_from(staging_buffer);
     }
-
-    ////////////////////////////////////////// mipmap //////////////////////////////////////////////////////////////////
-
-//    if(the_data && m_format.use_mipmap && m_owner){ generate_mipmaps(); }
 
     ////////////////////////////////////////// create image view ///////////////////////////////////////////////////////
 
@@ -296,11 +292,10 @@ void Image::init(void *data, VkImage image)
 
     ////////////////////////////////////////// layout transitions //////////////////////////////////////////////////////
 
-    m_image_layout = m_format.initial_layout;
-
-    if(m_image_layout != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && m_format.initial_layout_transition)
+    if(m_format.initial_layout_transition)
     {
-        if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
+        if(m_format.initial_layout != VK_IMAGE_LAYOUT_UNDEFINED){ transition_layout(m_format.initial_layout); }
+        else if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
         {
             transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         }else if(img_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)

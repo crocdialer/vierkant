@@ -343,13 +343,12 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
     size_t num_buffer_bytes = num_vertex_bytes(geom);
 
     auto stage_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // create vertexbuffer
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                                                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                                  VMA_MEMORY_USAGE_GPU_ONLY);
     auto staging_data = (uint8_t *) stage_buffer->map();
     size_t offset = 0;
 
@@ -389,7 +388,7 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
     if(!geom.indices.empty())
     {
         mesh->index_buffer = vierkant::Buffer::create(device, geom.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                                      VMA_MEMORY_USAGE_GPU_ONLY);
         mesh->num_elements = static_cast<uint32_t>(geom.indices.size());
     }else{ mesh->num_elements = static_cast<uint32_t>(geom.vertices.size()); }
 

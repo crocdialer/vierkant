@@ -15,15 +15,15 @@ class Buffer
 {
  public:
 
-    static BufferPtr create(DevicePtr the_device, const void *the_data, size_t the_num_bytes,
-                            VkBufferUsageFlags the_usage_flags, VkMemoryPropertyFlags the_properties);
+    static BufferPtr create(DevicePtr device, const void *data, size_t num_bytes,
+                            VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage);
 
     template<class T>
     static BufferPtr create(DevicePtr the_device, const T &the_array, VkBufferUsageFlags the_usage_flags,
-                            VkMemoryPropertyFlags the_properties)
+                            VmaMemoryUsage mem_usage)
     {
         size_t num_bytes = the_array.size() * sizeof(typename T::value_type);
-        return create(the_device, the_array.data(), num_bytes, the_usage_flags, the_properties);
+        return create(the_device, the_array.data(), num_bytes, the_usage_flags, mem_usage);
     }
 
     Buffer(Buffer &&other) = delete;
@@ -102,9 +102,9 @@ class Buffer
 
     VkBufferUsageFlags m_usage = 0;
 
-    VkMemoryPropertyFlags m_mem_properties = 0;
+    VmaMemoryUsage m_mem_usage = VMA_MEMORY_USAGE_UNKNOWN;
 
-    Buffer(DevicePtr the_device, VkBufferUsageFlags the_usage_flags, VkMemoryPropertyFlags the_properties);
+    Buffer(DevicePtr the_device, VkBufferUsageFlags the_usage_flags, VmaMemoryUsage mem_usage);
 };
 
 }//namespace vulkan

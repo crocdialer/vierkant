@@ -4,20 +4,21 @@
 
 #include "../include/vierkant/Buffer.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VmaMemoryUsage get_vma_memory_usage(VkMemoryPropertyFlags the_props)
-{
-    if(the_props & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT){ return VMA_MEMORY_USAGE_GPU_ONLY; }
-    else if(the_props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-    {
-        if(the_props & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT){ return VMA_MEMORY_USAGE_CPU_ONLY; }
-        else{ return VMA_MEMORY_USAGE_CPU_TO_GPU; }
-    }
-    return VMA_MEMORY_USAGE_UNKNOWN;
-}
+//VmaMemoryUsage get_vma_memory_usage(VkMemoryPropertyFlags the_props)
+//{
+//    if(the_props & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT){ return VMA_MEMORY_USAGE_GPU_ONLY; }
+//    else if(the_props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+//    {
+//        if(the_props & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT){ return VMA_MEMORY_USAGE_CPU_ONLY; }
+//        else{ return VMA_MEMORY_USAGE_CPU_TO_GPU; }
+//    }
+//    return VMA_MEMORY_USAGE_UNKNOWN;
+//}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -50,20 +51,20 @@ void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommand
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 BufferPtr
-Buffer::create(DevicePtr the_device, const void *the_data, size_t the_num_bytes, VkBufferUsageFlags the_usage_flags,
-               VkMemoryPropertyFlags the_properties)
+Buffer::create(DevicePtr device, const void *data, size_t num_bytes, VkBufferUsageFlags usage_flags,
+               VmaMemoryUsage mem_usage)
 {
-    auto ret = BufferPtr(new Buffer(std::move(the_device), the_usage_flags, the_properties));
-    ret->set_data(the_data, the_num_bytes);
+    auto ret = BufferPtr(new Buffer(std::move(device), usage_flags, mem_usage));
+    ret->set_data(data, num_bytes);
     return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VkMemoryPropertyFlags the_properties) :
+Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VmaMemoryUsage mem_usage) :
         m_device(std::move(the_device)),
         m_usage(the_usage_flags),
-        m_mem_properties(the_properties)
+        m_mem_usage(mem_usage)
 {
 
 }
@@ -77,7 +78,8 @@ Buffer::~Buffer()
 
 bool Buffer::is_host_visible() const
 {
-    return m_mem_properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+    return m_mem_usage == VMA_MEMORY_USAGE_CPU_ONLY || m_mem_usage == VMA_MEMORY_USAGE_CPU_TO_GPU ||
+           m_mem_usage == VMA_MEMORY_USAGE_GPU_TO_CPU;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +139,7 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VmaAllocationCreateInfo alloc_info = {};
-        alloc_info.usage = get_vma_memory_usage(m_mem_properties);
+        alloc_info.usage = m_mem_usage;
 
         vmaCreateBuffer(m_device->vk_mem_allocator(), &buffer_info, &alloc_info, &m_buffer, &m_allocation,
                         &m_allocation_info);
@@ -158,8 +160,7 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
         {
             // create staging buffer
             auto staging_buffer = Buffer::create(m_device, the_data, the_num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                                 VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
 
             // copy staging buffer to this buffer
             copy_to_helper(m_device, staging_buffer.get(), this, nullptr);
