@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(TestMesh)
         auto pool = vk::create_descriptor_pool(device, descriptor_counts);
 
         // use the pool to allocate the actual descriptor-sets
-        mesh->descriptor_sets = vk::create_descriptor_sets(device, pool, mesh);
+        auto descriptor_sets = vk::create_descriptor_sets(device, pool, mesh);
     }
 }
 

@@ -36,12 +36,12 @@ BOOST_AUTO_TEST_CASE(TestDevice)
 
         BOOST_CHECK(device->physical_device() == physical_device);
         BOOST_CHECK(device->handle() != nullptr);
-        BOOST_CHECK(device->graphics_queue() != nullptr);
-        BOOST_CHECK(device->transfer_queue() != nullptr);
-        BOOST_CHECK(device->compute_queue() != nullptr);
+        BOOST_CHECK(device->queue(vk::Device::Queue::GRAPHICS) != nullptr);
+        BOOST_CHECK(device->queue(vk::Device::Queue::TRANSFER) != nullptr);
+        BOOST_CHECK(device->queue(vk::Device::Queue::COMPUTE) != nullptr);
 
         // we didn't order one, so this should be null
-        BOOST_CHECK(device->present_queue() == nullptr);
+        BOOST_CHECK(device->queue(vk::Device::Queue::PRESENT) == nullptr);
 
         BOOST_CHECK(device->command_pool() != nullptr);
         BOOST_CHECK(device->command_pool_transient() != nullptr);

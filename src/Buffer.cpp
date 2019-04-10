@@ -44,7 +44,7 @@ void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommand
     if(local_cmd_buf)
     {
         // submit command buffer, also creates a fence and waits for the operation to complete
-        local_cmd_buf.submit(device->transfer_queue(), true);
+        local_cmd_buf.submit(device->queue(Device::Queue::TRANSFER), true);
     }
 }
 

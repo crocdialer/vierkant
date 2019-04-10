@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include "vierkant/Instance.hpp"
 #include "vk_mem_alloc.h"
 
@@ -28,12 +29,15 @@ public:
 
     ~Device();
 
-    struct QueueFamilyIndices
+    enum class Queue
     {
-        int graphics_family = -1;
-        int transfer_family = -1;
-        int compute_family = -1;
-        int present_family = -1;
+        GRAPHICS, TRANSFER, COMPUTE, PRESENT
+    };
+
+    struct queue_family_info_t
+    {
+        int index = -1;
+        uint32_t num_queues = 0;
     };
 
     /**
@@ -47,29 +51,20 @@ public:
     VkPhysicalDevice physical_device() const { return m_physical_device; }
 
     /**
-     * @return  handle for graphics queue
+     * @return  handle for the highest-priority-queue of a certain type
+     *          or VK_NULL_HANDLE if not present.
      */
-    VkQueue graphics_queue() const { return m_graphics_queue; }
+    VkQueue queue(Queue type = Queue::GRAPHICS) const;
 
     /**
-     * @return  handle for transfer queue
+     * @return  handle for queues
      */
-    VkQueue transfer_queue() const { return m_transfer_queue; }
-
-    /**
-     * @return  handle for compute queue
-     */
-    VkQueue compute_queue() const { return m_compute_queue; }
-
-    /**
-     * @return  handle for presentation queue
-     */
-    VkQueue present_queue() const { return m_present_queue; }
+    const std::vector<VkQueue> &queues(Queue type) const;
 
     /**
      * @return  const ref to the used QueueFamilyIndices
      */
-    const QueueFamilyIndices &queue_family_indices() const { return m_queue_family_indices; }
+    const std::map<Queue, queue_family_info_t> &queue_family_indices() const { return m_queue_indices; }
 
     /**
      * @return  handle for command pool
@@ -112,20 +107,11 @@ private:
 
     VkSampleCountFlagBits m_max_usable_samples = VK_SAMPLE_COUNT_1_BIT;
 
-    // graphics queue for logical device
-    VkQueue m_graphics_queue = VK_NULL_HANDLE;
-
-    // transfer queue for logical device
-    VkQueue m_transfer_queue = VK_NULL_HANDLE;
-
-    // compute queue for logical device
-    VkQueue m_compute_queue = VK_NULL_HANDLE;
-
-    // presentation queue for logical device
-    VkQueue m_present_queue = VK_NULL_HANDLE;
+    // a map holding all queues for logical device
+    std::map<Queue, std::vector<VkQueue>> m_queues;
 
     // keeps track of queue family indices
-    QueueFamilyIndices m_queue_family_indices;
+    std::map<Queue, queue_family_info_t> m_queue_indices;
 
     // regular command pool (graphics queue)
     VkCommandPool m_command_pool = VK_NULL_HANDLE;

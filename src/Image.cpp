@@ -328,7 +328,7 @@ void Image::transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmdB
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
         if(localCommandBuffer)
         {
-            localCommandBuffer.submit(m_device->graphics_queue(), true);
+            localCommandBuffer.submit(m_device->queue(), true);
         }
         m_image_layout = the_new_layout;
     }
@@ -370,7 +370,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
 
         if(localCommandBuffer)
         {
-            localCommandBuffer.submit(m_device->graphics_queue(), true);
+            localCommandBuffer.submit(m_device->queue(), true);
         }
     }
 }
@@ -412,7 +412,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
 
         if(local_command_buffer)
         {
-            local_command_buffer.submit(m_device->graphics_queue(), true);
+            local_command_buffer.submit(m_device->queue(), true);
         }
     }
 }
@@ -515,7 +515,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
     if(local_command_buffer)
     {
-        local_command_buffer.submit(m_device->graphics_queue(), true);
+        local_command_buffer.submit(m_device->queue(), true);
     }
     m_image_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 }

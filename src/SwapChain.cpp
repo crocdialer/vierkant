@@ -110,9 +110,12 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     auto indices = m_device->queue_family_indices();
-    uint32_t queueFamilyIndices[] = {(uint32_t)indices.graphics_family, (uint32_t)indices.present_family};
+    auto graphics_family = (uint32_t)indices[Device::Queue::GRAPHICS].index;
+    auto present_family = (uint32_t)indices[Device::Queue::GRAPHICS].index;
 
-    if(indices.graphics_family != indices.present_family)
+    uint32_t queueFamilyIndices[] = {graphics_family,present_family};
+
+    if(graphics_family != present_family)
     {
         create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         create_info.queueFamilyIndexCount = 2;
@@ -225,7 +228,7 @@ VkResult SwapChain::present()
     present_info.pResults = nullptr; // Optional
 
     // swap buffers
-    VkResult result = vkQueuePresentKHR(m_device->present_queue(), &present_info);
+    VkResult result = vkQueuePresentKHR(m_device->queue(Device::Queue::PRESENT), &present_info);
 
     // wait for prior frames to finish
     vkWaitForFences(m_device->handle(), 1, &sync_objects().in_flight, VK_TRUE,

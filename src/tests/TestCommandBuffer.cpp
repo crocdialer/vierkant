@@ -36,9 +36,9 @@ BOOST_AUTO_TEST_CASE(TestCommandBuffer_Submission)
 
         std::map<VkCommandPool, VkQueue> poolQueueMap =
                 {
-                        {device->command_pool(),           device->graphics_queue()},
-                        {device->command_pool_transient(), device->graphics_queue()},
-                        {device->command_pool_transfer(),  device->transfer_queue()}
+                        {device->command_pool(),           device->queue(vk::Device::Queue::GRAPHICS)},
+                        {device->command_pool_transient(), device->queue(vk::Device::Queue::GRAPHICS)},
+                        {device->command_pool_transfer(),  device->queue(vk::Device::Queue::TRANSFER)}
                 };
 
         // create command buffers, sourced from different pools

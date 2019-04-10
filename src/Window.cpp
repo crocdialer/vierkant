@@ -210,7 +210,7 @@ void Window::draw()
     submit_info.pSignalSemaphores = signal_semaphores;
 
     // submit primary commandbuffer
-    m_command_buffer.submit(swapchain().device()->graphics_queue(), false, sync_objects.in_flight, submit_info);
+    m_command_buffer.submit(swapchain().device()->queue(), false, sync_objects.in_flight, submit_info);
 
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();

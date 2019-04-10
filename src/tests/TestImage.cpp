@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(TestImage)
 
             // copy new data -> will also generate mipmaps
             img_sampler_mip->copy_from(buf, cmdBuf.handle());
-            cmdBuf.submit(device->graphics_queue(), true);
+            cmdBuf.submit(device->queue(), true);
 
         }
 
@@ -89,7 +89,7 @@ BOOST_AUTO_TEST_CASE(TestImage)
             img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmdBuf.handle());
 
             // submit CommandBuffer, create and wait VkFence internally
-            cmdBuf.submit(device->graphics_queue(), true);
+            cmdBuf.submit(device->queue(vk::Device::Queue::GRAPHICS), true);
 
             // check data-integrity
             BOOST_CHECK_EQUAL(memcmp(hostBuf->map(), testData.get(), numBytes), 0);

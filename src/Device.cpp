@@ -8,6 +8,7 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
 #define VMA_IMPLEMENTATION
+
 #include "vierkant/vk_mem_alloc.h"
 
 #include "../include/vierkant/Device.hpp"
@@ -16,7 +17,11 @@ namespace vierkant {
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
-const std::vector<const char*> g_validation_layers = { "VK_LAYER_LUNARG_standard_validation" };
+const std::vector<const char *> g_validation_layers = {"VK_LAYER_LUNARG_standard_validation"};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const std::vector<VkQueue> g_empty_queue;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -39,9 +44,9 @@ VkSampleCountFlagBits max_usable_sample_count(VkPhysicalDevice physical_device)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Device::QueueFamilyIndices find_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface)
+std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
-    Device::QueueFamilyIndices indices = {};
+    std::map<Device::Queue, Device::queue_family_info_t> indices = {};
 
     uint32_t num_queue_families = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &num_queue_families, nullptr);
@@ -50,19 +55,34 @@ Device::QueueFamilyIndices find_queue_families(VkPhysicalDevice device, VkSurfac
     vkGetPhysicalDeviceQueueFamilyProperties(device, &num_queue_families, queue_families.data());
 
     int i = 0;
-    for(const auto& queueFamily : queue_families)
+    for(const auto &queueFamily : queue_families)
     {
         if(queueFamily.queueCount > 0)
         {
-            if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT){ indices.graphics_family = i; }
-            if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT){ indices.transfer_family = i; }
-            if(queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT){ indices.compute_family = i; }
-        }
-        VkBool32 present_support = static_cast<VkBool32>(false);
-        if(surface){ vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support); }
-        if(present_support){ indices.present_family = i; }
+            if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+            {
+                indices[Device::Queue::GRAPHICS].index = i;
+                VkBool32 present_support = static_cast<VkBool32>(false);
+                if(surface){ vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support); }
 
-        if(indices.graphics_family >= 0 && indices.present_family >=0){ break; }
+                if(present_support)
+                {
+                    indices[Device::Queue::PRESENT].index = i;
+                    indices[Device::Queue::PRESENT].num_queues = queueFamily.queueCount;
+                }else{ indices[Device::Queue::PRESENT].num_queues = 0; }
+                indices[Device::Queue::GRAPHICS].num_queues = queueFamily.queueCount;
+            }
+            if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
+            {
+                indices[Device::Queue::TRANSFER].index = i;
+                indices[Device::Queue::TRANSFER].num_queues = queueFamily.queueCount;
+            }
+            if(queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT)
+            {
+                indices[Device::Queue::COMPUTE].index = i;
+                indices[Device::Queue::COMPUTE].num_queues = queueFamily.queueCount;
+            }
+        }
         i++;
     }
     return indices;
@@ -80,36 +100,46 @@ DevicePtr Device::create(VkPhysicalDevice pd, bool use_validation, VkSurfaceKHR 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkSurfaceKHR surface,
-               VkPhysicalDeviceFeatures device_features):
-m_physical_device(physical_device)
+               VkPhysicalDeviceFeatures device_features) :
+        m_physical_device(physical_device)
 {
     if(physical_device)
     {
         // add some obligatory features here
         device_features.samplerAnisotropy = VK_TRUE;
 
-        std::vector<const char*> extensions;
+        std::vector<const char *> extensions;
         if(surface){ extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
 
-        m_queue_family_indices = find_queue_families(physical_device, surface);
+        m_queue_indices = find_queue_families(physical_device, surface);
+
+        uint32_t num_queue_families;
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &num_queue_families, nullptr);
+        std::vector<VkQueueFamilyProperties> family_props(num_queue_families);
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &num_queue_families, family_props.data());
 
         std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
-        std::set<int> unique_queue_families = {m_queue_family_indices.graphics_family,
-                                               m_queue_family_indices.transfer_family,
-                                               m_queue_family_indices.compute_family,
-                                               m_queue_family_indices.present_family};
-        float queue_priority = 1.0f;
+        std::set<int> unique_queue_families = {m_queue_indices[Device::Queue::GRAPHICS].index,
+                                               m_queue_indices[Device::Queue::TRANSFER].index,
+                                               m_queue_indices[Device::Queue::COMPUTE].index,
+                                               m_queue_indices[Device::Queue::PRESENT].index};
+        // helper to pass priorities
+        std::vector<std::vector<float>> queue_priorities;
+        uint32_t i = 0;
 
         for(int queue_family : unique_queue_families)
         {
             if(queue_family >= 0)
             {
+                size_t queue_count = family_props[queue_family].queueCount;
+                std::vector<float> tmp_priorities(queue_count, 1.f);
                 VkDeviceQueueCreateInfo queue_create_info = {};
                 queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
                 queue_create_info.queueFamilyIndex = queue_family;
-                queue_create_info.queueCount = 1;
-                queue_create_info.pQueuePriorities = &queue_priority;
+                queue_create_info.queueCount = queue_count;
+                queue_create_info.pQueuePriorities = tmp_priorities.data();
                 queue_create_infos.push_back(queue_create_info);
+                queue_priorities.push_back(std::move(tmp_priorities));
             }
         }
         VkDeviceCreateInfo device_create_info = {};
@@ -124,39 +154,48 @@ m_physical_device(physical_device)
         {
             device_create_info.enabledLayerCount = static_cast<uint32_t>(g_validation_layers.size());
             device_create_info.ppEnabledLayerNames = g_validation_layers.data();
-        }
-        else{ device_create_info.enabledLayerCount = 0; }
+        }else{ device_create_info.enabledLayerCount = 0; }
 
         vkCheck(vkCreateDevice(physical_device, &device_create_info, nullptr, &m_device),
                 "failed to create logical device!");
 
-        auto get_queue = [this](VkQueue *queue, int index)
+        auto get_queues = [this](Queue type)
         {
-            if(index >= 0){ vkGetDeviceQueue(m_device, static_cast<uint32_t>(index), 0, queue); }
+            if(m_queue_indices[type].index >= 0)
+            {
+                auto num_queues = m_queue_indices[type].num_queues;
+
+                m_queues[type].resize(num_queues);
+
+                for(uint32_t i = 0; i < num_queues; ++i)
+                {
+                    vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i, &m_queues[type][i]);
+                }
+            }
         };
-        get_queue(&m_graphics_queue, m_queue_family_indices.graphics_family);
-        get_queue(&m_transfer_queue, m_queue_family_indices.transfer_family);
-        get_queue(&m_compute_queue, m_queue_family_indices.compute_family);
-        get_queue(&m_present_queue, m_queue_family_indices.present_family);
+        get_queues(Queue::GRAPHICS);
+        get_queues(Queue::TRANSFER);
+        get_queues(Queue::COMPUTE);
+        get_queues(Queue::PRESENT);
 
         // command pools
         VkCommandPoolCreateInfo pool_info = {};
         pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 
         // regular command pool -> graphics queue
-        pool_info.queueFamilyIndex = static_cast<uint32_t>(queue_family_indices().graphics_family);
+        pool_info.queueFamilyIndex = static_cast<uint32_t>(m_queue_indices[Queue::GRAPHICS].index);
         pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         vkCheck(vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool),
                 "failed to create command pool!");
 
         // transient command pool -> graphics queue
-        pool_info.queueFamilyIndex = static_cast<uint32_t>(queue_family_indices().graphics_family);
+        pool_info.queueFamilyIndex = static_cast<uint32_t>(m_queue_indices[Queue::GRAPHICS].index);
         pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         vkCheck(vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool_transient),
                 "failed to create command pool!");
 
         // transient command pool -> transfer queue
-        pool_info.queueFamilyIndex = static_cast<uint32_t>(queue_family_indices().transfer_family);
+        pool_info.queueFamilyIndex = static_cast<uint32_t>(m_queue_indices[Queue::TRANSFER].index);
         pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         vkCheck(vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool_transfer),
                 "failed to create command pool!");
@@ -203,5 +242,26 @@ Device::~Device()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+VkQueue Device::queue(Queue type) const
+{
+    auto queue_it = m_queues.find(type);
+
+    if(queue_it != m_queues.end() && !queue_it->second.empty())
+    {
+        return queue_it->second.front();
+    }
+    return VK_NULL_HANDLE;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const std::vector<VkQueue> &Device::queues(Queue type) const
+{
+    auto queue_it = m_queues.find(type);
+
+    if(queue_it != m_queues.end()){ return queue_it->second; }
+    return g_empty_queue;
+}
 
 }//namespace vulkan
