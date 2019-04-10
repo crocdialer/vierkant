@@ -47,13 +47,12 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
 
     // vertex attributes
     auto vertex_buffer = vk::Buffer::create(device, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                            VMA_MEMORY_USAGE_GPU_ONLY);
 
     // host visible, empty uniform-buffer
     auto uniform_buffer = vk::Buffer::create(device, nullptr, sizeof(UniformBuffer),
                                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                             VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // fill Uniformbuffer
     auto ubo = static_cast<UniformBuffer*>(uniform_buffer->map());
@@ -86,7 +85,7 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     ret->vertex_attribs.push_back(tex_coord);
 
     ret->index_buffer = vk::Buffer::create(device, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                           VMA_MEMORY_USAGE_GPU_ONLY);
 
     // descriptors
     vk::Mesh::Descriptor desc_ubo, desc_texture;

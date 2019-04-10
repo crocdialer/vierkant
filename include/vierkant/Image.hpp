@@ -37,12 +37,17 @@ public:
         float max_anisotropy = 0.f;
         bool initial_layout_transition = true;
         bool use_mipmap = false;
+        bool autogenerate_mipmaps = true;
         VkSamplerMipmapMode mipmap_mode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
         bool normalized_coords = true;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         uint32_t num_layers = 1;
 
         Format() {};
+
+        bool operator==(const Format& other) const;
+
+        bool operator!=(const Format& other) const { return !(*this == other); };
     };
 
     /**
@@ -192,4 +197,13 @@ private:
     bool m_owner = true;
 };
 
-}//namespace vulkan
+}//namespace vierkant
+
+namespace std
+{
+template<>
+struct hash<vierkant::Image::Format>
+{
+    size_t operator()(vierkant::Image::Format const &fmt) const;
+};
+}

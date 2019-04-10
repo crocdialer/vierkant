@@ -15,8 +15,7 @@ void test_buffer(vk::DevicePtr device)
 
     // create an empty, host-visible buffer with empty usage-flags
     auto host_buffer = vk::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                          VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+                                          VMA_MEMORY_USAGE_CPU_ONLY);
 
     // check for correct size
     BOOST_CHECK(host_buffer->num_bytes() == num_bytes);
@@ -39,7 +38,7 @@ void test_buffer(vk::DevicePtr device)
     // init a gpu only buffer with dummy data from a std::vector (will internally use a staging buffer for upload)
     auto gpu_buffer = vk::Buffer::create(device, dummy_data,
                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                         VMA_MEMORY_USAGE_GPU_ONLY);
     // check for correct size
     BOOST_CHECK(gpu_buffer->num_bytes() == dummy_data.size());
 
