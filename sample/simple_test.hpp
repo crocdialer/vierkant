@@ -85,9 +85,6 @@ private:
     // window handle
     vierkant::WindowPtr m_window;
 
-    // the actual pipeline
-    vk::Pipeline m_pipeline;
-
     // command buffers
     std::vector<vierkant::CommandBuffer> m_command_buffers;
 

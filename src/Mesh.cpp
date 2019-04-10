@@ -7,57 +7,56 @@
 
 #include "vierkant/Mesh.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkIndexType index_type<uint16_t>(){ return VK_INDEX_TYPE_UINT16; }
+VkIndexType index_type<uint16_t>() { return VK_INDEX_TYPE_UINT16; }
 
 template<>
-VkIndexType index_type<uint32_t>(){ return VK_INDEX_TYPE_UINT32; }
+VkIndexType index_type<uint32_t>() { return VK_INDEX_TYPE_UINT32; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkFormat format<uint8_t>(){ return VK_FORMAT_R8_UNORM; }
+VkFormat format<uint8_t>() { return VK_FORMAT_R8_UNORM; }
 
 template<>
-VkFormat format<float>(){ return VK_FORMAT_R32_SFLOAT; }
+VkFormat format<float>() { return VK_FORMAT_R32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec2>(){ return VK_FORMAT_R32G32_SFLOAT; }
+VkFormat format<glm::vec2>() { return VK_FORMAT_R32G32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec3>(){ return VK_FORMAT_R32G32B32_SFLOAT; }
+VkFormat format<glm::vec3>() { return VK_FORMAT_R32G32B32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec4>(){ return VK_FORMAT_R32G32B32A32_SFLOAT; }
+VkFormat format<glm::vec4>() { return VK_FORMAT_R32G32B32A32_SFLOAT; }
 
 template<>
-VkFormat format<int32_t>(){ return VK_FORMAT_R32_SINT; }
+VkFormat format<int32_t>() { return VK_FORMAT_R32_SINT; }
 
 template<>
-VkFormat format<glm::ivec2>(){ return VK_FORMAT_R32G32_SINT; }
+VkFormat format<glm::ivec2>() { return VK_FORMAT_R32G32_SINT; }
 
 template<>
-VkFormat format<glm::ivec3>(){ return VK_FORMAT_R32G32B32_SINT; }
+VkFormat format<glm::ivec3>() { return VK_FORMAT_R32G32B32_SINT; }
 
 template<>
-VkFormat format<glm::ivec4>(){ return VK_FORMAT_R32G32B32A32_SINT; }
+VkFormat format<glm::ivec4>() { return VK_FORMAT_R32G32B32A32_SINT; }
 
 template<>
-VkFormat format<uint32_t>(){ return VK_FORMAT_R32_UINT; }
+VkFormat format<uint32_t>() { return VK_FORMAT_R32_UINT; }
 
 template<>
-VkFormat format<glm::uvec2>(){ return VK_FORMAT_R32G32_UINT; }
+VkFormat format<glm::uvec2>() { return VK_FORMAT_R32G32_UINT; }
 
 template<>
-VkFormat format<glm::uvec3>(){ return VK_FORMAT_R32G32B32_UINT; }
+VkFormat format<glm::uvec3>() { return VK_FORMAT_R32G32B32_UINT; }
 
 template<>
-VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
+VkFormat format<glm::uvec4>() { return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -309,18 +308,49 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
 
 vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom)
 {
-    // sanity check array sizes
-    auto is_sane = [](const Geometry &g) -> bool
+    struct vertex_data_t
     {
-        if(g.vertices.empty()){ return false; }
+        const void *data;
+        uint32_t offset;
+        uint32_t stride;
+    };
+    std::vector<vertex_data_t> vertex_data;
+
+    auto add_offset = [](const auto &array, std::vector<vertex_data_t> &vertex_data, uint32_t &offset)
+    {
+        if(!array.empty())
+        {
+            using elem_t = typename std::decay<decltype(array)>::type::value_type;
+            size_t elem_size = sizeof(elem_t);
+            vertex_data.push_back({array.data(), offset, static_cast<uint32_t>(elem_size)});
+            offset += elem_size;
+        }
+    };
+
+    // sanity check array sizes
+    auto is_sane = [add_offset](const Geometry &g, std::vector<vertex_data_t> &vertex_data) -> bool
+    {
         auto num_vertices = g.vertices.size();
+        uint32_t offset = 0;
+
+        if(g.vertices.empty()){ return false; }
+        add_offset(g.vertices, vertex_data, offset);
+
         if(!g.tex_coords.empty() && g.tex_coords.size() != num_vertices){ return false; }
+        add_offset(g.tex_coords, vertex_data, offset);
+
         if(!g.colors.empty() && g.colors.size() != num_vertices){ return false; }
+        add_offset(g.colors, vertex_data, offset);
+
         if(!g.normals.empty() && g.normals.size() != num_vertices){ return false; }
+        add_offset(g.normals, vertex_data, offset);
+
         if(!g.tangents.empty() && g.tangents.size() != num_vertices){ return false; }
+        add_offset(g.tangents, vertex_data, offset);
+
         return true;
     };
-    if(!is_sane(geom))
+    if(!is_sane(geom, vertex_data))
     {
         LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
         return nullptr;
@@ -350,7 +380,7 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                                                                      VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    auto staging_data = (uint8_t *) stage_buffer->map();
+    auto staging_data = (uint8_t *)stage_buffer->map();
     size_t offset = 0;
 
     auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
@@ -400,7 +430,7 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-MeshPtr Mesh::create(){ return MeshPtr(new Mesh()); }
+MeshPtr Mesh::create() { return MeshPtr(new Mesh()); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

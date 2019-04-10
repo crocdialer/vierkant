@@ -173,9 +173,8 @@ public:
     // vertex attributes
     std::vector<VertexAttrib> vertex_attribs;
 
-    // descriptors -> layout + sets
+    // descriptors -> layout
     std::vector<Descriptor> descriptors;
-    std::vector<DescriptorSetPtr> descriptor_sets;
     DescriptorSetLayoutPtr descriptor_set_layout;
 
 private:
