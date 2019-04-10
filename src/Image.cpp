@@ -366,7 +366,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
         vkCmdCopyBufferToImage(cmd_buffer_handle, src->handle(), m_image, m_image_layout, 1, &region);
 
         // generate new mipmaps after copying
-        if(m_format.use_mipmap){ generate_mipmaps(cmd_buffer_handle); }
+        if(m_format.use_mipmap && m_format.autogenerate_mipmaps){ generate_mipmaps(cmd_buffer_handle); }
 
         if(localCommandBuffer)
         {
@@ -522,4 +522,72 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-}//namespace vulkan
+bool Image::Format::operator==(const Image::Format& other) const
+{
+    if (aspect != other.aspect) { return false; }
+    if (format != other.format) { return false; }
+    if (initial_layout != other.initial_layout) { return false; }
+    if (tiling != other.tiling) { return false; }
+    if (image_type != other.image_type) { return false; }
+    if (view_type != other.view_type) { return false; }
+    if (usage != other.usage) { return false; }
+    if (address_mode_u != other.address_mode_u) { return false; }
+    if (address_mode_v != other.address_mode_v) { return false; }
+    if (address_mode_w != other.address_mode_w) { return false; }
+    if (min_filter != other.min_filter) { return false; }
+    if (mag_filter != other.mag_filter) { return false; }
+    if (memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) !=
+        0) { return false; }
+    if (max_anisotropy != other.max_anisotropy) { return false; }
+    if (initial_layout_transition != other.initial_layout_transition) { return false; }
+    if (use_mipmap != other.use_mipmap) { return false; }
+    if (autogenerate_mipmaps != other.autogenerate_mipmaps) { return false; }
+    if (mipmap_mode != other.mipmap_mode) { return false; }
+    if (normalized_coords != other.normalized_coords) { return false; }
+    if (sample_count != other.sample_count) { return false; }
+    if (num_layers != other.num_layers) { return false; }
+    return true;
+}
+
+}//namespace vierkant
+
+/**
+ * @brief Create a hash for a value and combine with existing hash
+ * @see https://www.boost.org/doc/libs/1_55_0/doc/html/hash/reference.html#boost.hash_combine
+ */
+template<class T>
+inline void hash_combine(std::size_t &seed, const T &v)
+{
+    std::hash<T> hasher;
+    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+}
+
+size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format const& fmt) const
+{
+    size_t h = 0;
+    hash_combine(h, fmt.aspect);
+    hash_combine(h, fmt.format);
+    hash_combine(h, fmt.initial_layout);
+    hash_combine(h, fmt.tiling);
+    hash_combine(h, fmt.image_type);
+    hash_combine(h, fmt.view_type);
+    hash_combine(h, fmt.usage);
+    hash_combine(h, fmt.address_mode_u);
+    hash_combine(h, fmt.address_mode_v);
+    hash_combine(h, fmt.address_mode_w);
+    hash_combine(h, fmt.min_filter);
+    hash_combine(h, fmt.mag_filter);
+    hash_combine(h, fmt.component_swizzle.r);
+    hash_combine(h, fmt.component_swizzle.g);
+    hash_combine(h, fmt.component_swizzle.b);
+    hash_combine(h, fmt.component_swizzle.a);
+    hash_combine(h, fmt.max_anisotropy);
+    hash_combine(h, fmt.initial_layout_transition);
+    hash_combine(h, fmt.use_mipmap);
+    hash_combine(h, fmt.autogenerate_mipmaps);
+    hash_combine(h, fmt.mipmap_mode);
+    hash_combine(h, fmt.normalized_coords);
+    hash_combine(h, fmt.sample_count);
+    hash_combine(h, fmt.num_layers);
+    return h;
+}
