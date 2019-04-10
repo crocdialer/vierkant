@@ -20,6 +20,7 @@ public:
     {
         VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         VkFormat format = VK_FORMAT_R8G8B8A8_UNORM;
+        VkExtent3D extent = {};
         VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
         VkImageType image_type = VK_IMAGE_TYPE_2D;
@@ -55,21 +56,21 @@ public:
      *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr device, void *data, VkExtent3D size, Format format = Format());
+    static ImagePtr create(DevicePtr device, void *data, Format format);
 
     /**
      * @brief   Factory to create instances of ImagePtr.
      *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr device, VkExtent3D size, Format format = Format());
+    static ImagePtr create(DevicePtr device, Format format);
 
     /**
      * @brief   Factory to create instances of ImagePtr.
      *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr device, VkImage image, VkExtent3D size, Format format = Format());
+    static ImagePtr create(DevicePtr device, VkImage image, Format format);
 
     Image(const Image &) = delete;
 
@@ -82,22 +83,22 @@ public:
     /**
      * @return  the image extent
      */
-    inline const VkExtent3D &extent() const { return m_extent; }
+    inline const VkExtent3D &extent() const { return m_format.extent; }
 
     /**
      * @return  the width of the image in pixels
      */
-    inline uint32_t width() const { return m_extent.width; }
+    inline uint32_t width() const { return m_format.extent.width; }
 
     /**
      * @return  the height of the image in pixels
      */
-    inline uint32_t height() const { return m_extent.height; }
+    inline uint32_t height() const { return m_format.extent.height; }
 
     /**
      * @return  the depth of the image in pixels
      */
-    inline uint32_t depth() const { return m_extent.depth; }
+    inline uint32_t depth() const { return m_format.extent.depth; }
 
     /**
      * @return  number of array layers
@@ -160,16 +161,13 @@ public:
 
 private:
 
-    Image(DevicePtr device, void *data, VkImage image, VkExtent3D size, Format format);
+    Image(DevicePtr device, void *data, VkImage image, Format format);
 
     void init(void *data, VkImage image = VK_NULL_HANDLE);
 
     void generate_mipmaps(VkCommandBuffer command_buffer = VK_NULL_HANDLE);
 
     DevicePtr m_device;
-
-    // image dimensions
-    VkExtent3D m_extent = {};
 
     // number of images in mipmap chain
     uint32_t m_num_mip_levels = 1;
@@ -186,7 +184,7 @@ private:
     // current image layout
     VkImageLayout m_image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    // current and desired format
+    // current format
     Format m_format;
 
     // vma assets

@@ -32,19 +32,20 @@ BOOST_AUTO_TEST_CASE(TestImage)
         {
             // image for sampling
             vk::Image::Format fmt;
+            fmt.extent = size;
             fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-            auto img_sampler = vk::Image::create(device, size, fmt);
+            auto img_sampler = vk::Image::create(device, fmt);
 
             // image for use as framebuffer-attachment
             fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
             fmt.use_mipmap = false;
-            auto img_attachment = vk::Image::create(device, size, fmt);
+            auto img_attachment = vk::Image::create(device, fmt);
 
             // image for sampling with prior mipmap generation
             fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
             fmt.use_mipmap = true;
 
-            auto img_sampler_mip = vk::Image::create(device, size, fmt);
+            auto img_sampler_mip = vk::Image::create(device, fmt);
             auto buf = vk::Buffer::create(device, testData.get(), numBytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                           VMA_MEMORY_USAGE_CPU_TO_GPU);
             vk::CommandBuffer cmdBuf(device, device->command_pool_transient());
@@ -60,13 +61,14 @@ BOOST_AUTO_TEST_CASE(TestImage)
         {
             // image for sampling
             vk::Image::Format fmt;
+            fmt.extent = size;
             fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-            auto img = vk::Image::create(device, testData.get(), size, fmt);
+            auto img = vk::Image::create(device, testData.get(), fmt);
 
             // image for sampling with prior mipmap generation
             fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
             fmt.use_mipmap = true;
-            auto img_mip = vk::Image::create(device, testData.get(), size, fmt);
+            auto img_mip = vk::Image::create(device, testData.get(), fmt);
 
             // create host-visible buffer
             auto hostBuf = vk::Buffer::create(device, nullptr, numBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,

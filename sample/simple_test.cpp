@@ -118,8 +118,9 @@ void HelloTriangleApplication::create_texture_image()
 {
     auto img = cc::create_image_from_file(g_texture_path, 4);
     vk::Image::Format fmt;
+    fmt.extent = {img->width(), img->height(), 1};
     fmt.use_mipmap = true;
-    m_texture = vk::Image::create(m_device, img->data(), {img->width(), img->height(), 1}, fmt);
+    m_texture = vk::Image::create(m_device, img->data(), fmt);
 }
 
 void HelloTriangleApplication::load_model()

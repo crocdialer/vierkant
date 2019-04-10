@@ -135,30 +135,29 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFo
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr device, void *data, VkExtent3D size, Format format)
+ImagePtr Image::create(DevicePtr device, void *data, Format format)
 {
-    return ImagePtr(new Image(std::move(device), data, VK_NULL_HANDLE, size, format));
+    return ImagePtr(new Image(std::move(device), data, VK_NULL_HANDLE, format));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr device, VkExtent3D size, Format format)
+ImagePtr Image::create(DevicePtr device, Format format)
 {
-    return ImagePtr(new Image(std::move(device), nullptr, VK_NULL_HANDLE, size, format));
+    return ImagePtr(new Image(std::move(device), nullptr, VK_NULL_HANDLE, format));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr device, VkImage image, VkExtent3D size, Format format)
+ImagePtr Image::create(DevicePtr device, VkImage image, Format format)
 {
-    return ImagePtr(new Image(std::move(device), nullptr, image, size, format));
+    return ImagePtr(new Image(std::move(device), nullptr, image, format));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::Image(DevicePtr device, void *data, VkImage image, VkExtent3D size, Format format) :
+Image::Image(DevicePtr device, void *data, VkImage image, Format format) :
         m_device(std::move(device)),
-        m_extent(size),
         m_format(format)
 {
     init(data, image);
@@ -177,7 +176,10 @@ Image::~Image()
 
 void Image::init(void *data, VkImage image)
 {
-    if(!m_extent.width || !m_extent.height || !m_extent.depth){ throw std::runtime_error("image extent is zero"); }
+    if(!m_format.extent.width || !m_format.extent.height || !m_format.extent.depth)
+    {
+        throw std::runtime_error("image extent is zero");
+    }
 
     ////////////////////////////////////////// create image ////////////////////////////////////////////////////////////
 
@@ -209,7 +211,7 @@ void Image::init(void *data, VkImage image)
         VkImageCreateInfo image_create_info = {};
         image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         image_create_info.imageType = VK_IMAGE_TYPE_2D;
-        image_create_info.extent = m_extent;
+        image_create_info.extent = m_format.extent;
         image_create_info.mipLevels = m_num_mip_levels;
         image_create_info.arrayLayers = m_format.num_layers;
         image_create_info.format = m_format.format;
@@ -351,7 +353,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
         }
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cmd_buffer_handle);
 
-        if(!extent.width || !extent.height || !extent.depth){ extent = m_extent; }
+        if(!extent.width || !extent.height || !extent.depth){ extent = m_format.extent; }
 
         VkBufferImageCopy region = {};
         region.bufferOffset = 0;
@@ -382,7 +384,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
 {
     if(dst)
     {
-        if(!extent.width || !extent.height || !extent.depth){ extent = m_extent; }
+        if(!extent.width || !extent.height || !extent.depth){ extent = m_format.extent; }
 
         // assure dst buffer has correct size, no-op if already the case
         dst->set_data(nullptr, num_bytes_per_pixel(m_format.format) * extent.width * extent.height * extent.depth);
@@ -522,51 +524,46 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Image::Format::operator==(const Image::Format& other) const
+bool Image::Format::operator==(const Image::Format &other) const
 {
-    if (aspect != other.aspect) { return false; }
-    if (format != other.format) { return false; }
-    if (initial_layout != other.initial_layout) { return false; }
-    if (tiling != other.tiling) { return false; }
-    if (image_type != other.image_type) { return false; }
-    if (view_type != other.view_type) { return false; }
-    if (usage != other.usage) { return false; }
-    if (address_mode_u != other.address_mode_u) { return false; }
-    if (address_mode_v != other.address_mode_v) { return false; }
-    if (address_mode_w != other.address_mode_w) { return false; }
-    if (min_filter != other.min_filter) { return false; }
-    if (mag_filter != other.mag_filter) { return false; }
-    if (memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) !=
-        0) { return false; }
-    if (max_anisotropy != other.max_anisotropy) { return false; }
-    if (initial_layout_transition != other.initial_layout_transition) { return false; }
-    if (use_mipmap != other.use_mipmap) { return false; }
-    if (autogenerate_mipmaps != other.autogenerate_mipmaps) { return false; }
-    if (mipmap_mode != other.mipmap_mode) { return false; }
-    if (normalized_coords != other.normalized_coords) { return false; }
-    if (sample_count != other.sample_count) { return false; }
-    if (num_layers != other.num_layers) { return false; }
+    if(aspect != other.aspect){ return false; }
+    if(format != other.format){ return false; }
+    if(memcmp(&extent, &other.extent, sizeof(VkExtent3D)) != 0){ return false; }
+    if(initial_layout != other.initial_layout){ return false; }
+    if(tiling != other.tiling){ return false; }
+    if(image_type != other.image_type){ return false; }
+    if(view_type != other.view_type){ return false; }
+    if(usage != other.usage){ return false; }
+    if(address_mode_u != other.address_mode_u){ return false; }
+    if(address_mode_v != other.address_mode_v){ return false; }
+    if(address_mode_w != other.address_mode_w){ return false; }
+    if(min_filter != other.min_filter){ return false; }
+    if(mag_filter != other.mag_filter){ return false; }
+    if(memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) !=
+       0){ return false; }
+    if(max_anisotropy != other.max_anisotropy){ return false; }
+    if(initial_layout_transition != other.initial_layout_transition){ return false; }
+    if(use_mipmap != other.use_mipmap){ return false; }
+    if(autogenerate_mipmaps != other.autogenerate_mipmaps){ return false; }
+    if(mipmap_mode != other.mipmap_mode){ return false; }
+    if(normalized_coords != other.normalized_coords){ return false; }
+    if(sample_count != other.sample_count){ return false; }
+    if(num_layers != other.num_layers){ return false; }
     return true;
 }
 
 }//namespace vierkant
 
-/**
- * @brief Create a hash for a value and combine with existing hash
- * @see https://www.boost.org/doc/libs/1_55_0/doc/html/hash/reference.html#boost.hash_combine
- */
-template<class T>
-inline void hash_combine(std::size_t &seed, const T &v)
+size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format const &fmt) const
 {
-    std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
+    using crocore::hash_combine;
 
-size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format const& fmt) const
-{
     size_t h = 0;
     hash_combine(h, fmt.aspect);
     hash_combine(h, fmt.format);
+    hash_combine(h, fmt.extent.width);
+    hash_combine(h, fmt.extent.height);
+    hash_combine(h, fmt.extent.depth);
     hash_combine(h, fmt.initial_layout);
     hash_combine(h, fmt.tiling);
     hash_combine(h, fmt.image_type);

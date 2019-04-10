@@ -60,7 +60,9 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     ubo->view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo->projection = glm::perspective(glm::radians(45.0f), 16 / 9.f, 0.1f, 10.0f);
 
-    auto texture = vk::Image::create(device, {512, 512, 1});
+    vk::Image::Format fmt;
+    fmt.extent = {512, 512, 1};
+    auto texture = vk::Image::create(device, fmt);
 
     vk::Mesh::VertexAttrib position, color, tex_coord;
     position.location = 0;

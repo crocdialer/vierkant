@@ -217,22 +217,25 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_Manual_Attachments)
 
         // color
         vk::Image::Format color_fmt;
+        color_fmt.extent = fb_size;
         color_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         color_fmt.sample_count = device->max_usable_samples();
-        auto color_img = vk::Image::create(device, fb_size, color_fmt);
+        auto color_img = vk::Image::create(device, color_fmt);
 
         // depth/stencil
         vk::Image::Format depth_stencil_fmt;
+        depth_stencil_fmt.extent = fb_size;
         depth_stencil_fmt.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         depth_stencil_fmt.sample_count = device->max_usable_samples();
         depth_stencil_fmt.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
         depth_stencil_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-        auto depth_stencil_img = vk::Image::create(device, fb_size, depth_stencil_fmt);
+        auto depth_stencil_img = vk::Image::create(device, depth_stencil_fmt);
 
         vk::Image::Format resolve_fmt;
+        resolve_fmt.extent = fb_size;
         resolve_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         resolve_fmt.sample_count = VK_SAMPLE_COUNT_1_BIT;
-        auto resolve_img = vk::Image::create(device, fb_size, resolve_fmt);
+        auto resolve_img = vk::Image::create(device, resolve_fmt);
 
         vk::Framebuffer::AttachmentMap attachments = {
                 {vk::Framebuffer::Attachment::Color,        {color_img}},

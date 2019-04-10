@@ -151,6 +151,7 @@ Framebuffer::Framebuffer(DevicePtr device, VkExtent3D size, Format format, Rende
         m_extent(size),
         m_format(format)
 {
+    m_format.color_attachment_format.extent = m_extent;
     init(create_attachments(m_format), std::move(renderpass));
 }
 
@@ -333,7 +334,7 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Fo
     // color attachments
     for(uint32_t i = 0; i < fmt.num_color_attachments; ++i)
     {
-        auto img = vierkant::Image::create(m_device, m_extent, fmt.color_attachment_format);
+        auto img = vierkant::Image::create(m_device, fmt.color_attachment_format);
         color_attachments.push_back(img);
 
         // multisampling requested -> add resolve attachment
@@ -341,7 +342,8 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Fo
         {
             auto resolve_fmt = fmt.color_attachment_format;
             resolve_fmt.sample_count = VK_SAMPLE_COUNT_1_BIT;
-            auto resolve_img = vierkant::Image::create(m_device, m_extent, resolve_fmt);
+            resolve_fmt.extent = m_extent;
+            auto resolve_img = vierkant::Image::create(m_device, resolve_fmt);
             resolve_attachments.push_back(resolve_img);
         }
     }
@@ -351,6 +353,7 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Fo
         vierkant::Image::Format img_fmt;
         img_fmt.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         img_fmt.sample_count = fmt.color_attachment_format.sample_count;
+        img_fmt.extent = m_extent;
         img_fmt.format = VK_FORMAT_D32_SFLOAT;
         img_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
 
@@ -359,7 +362,7 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Fo
             img_fmt.aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
             img_fmt.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
         }
-        auto depth_img = vierkant::Image::create(m_device, m_extent, img_fmt);
+        auto depth_img = vierkant::Image::create(m_device, img_fmt);
         depth_stencil_attachments.push_back(depth_img);
     }
 

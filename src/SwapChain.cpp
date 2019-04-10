@@ -113,7 +113,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     auto graphics_family = (uint32_t)indices[Device::Queue::GRAPHICS].index;
     auto present_family = (uint32_t)indices[Device::Queue::GRAPHICS].index;
 
-    uint32_t queueFamilyIndices[] = {graphics_family,present_family};
+    uint32_t queueFamilyIndices[] = {graphics_family, present_family};
 
     if(graphics_family != present_family)
     {
@@ -143,6 +143,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
 
     vierkant::Image::Format fmt;
     fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    fmt.extent = {extent.width, extent.height, 1};
     fmt.format = surface_fmt.format;
     fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     fmt.initial_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
@@ -150,7 +151,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
 
     for(size_t i = 0; i < m_images.size(); i++)
     {
-        m_images[i] = Image::create(m_device, swap_chain_images[i], {extent.width, extent.height, 1}, fmt);
+        m_images[i] = Image::create(m_device, swap_chain_images[i], fmt);
     }
 
     // retrieve depth format
@@ -275,18 +276,20 @@ void SwapChain::create_framebuffers()
     {
         Image::Format color_fmt;
         color_fmt.sample_count = m_num_samples;
+        color_fmt.extent = {m_extent.width, m_extent.height, 1};
         color_fmt.format = m_color_format;
         color_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         color_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        color_image = Image::create(m_device, {m_extent.width, m_extent.height, 1}, color_fmt);
+        color_image = Image::create(m_device, color_fmt);
     }else{ color_image = m_images.front(); }
 
     Image::Format depth_fmt;
+    depth_fmt.extent = {m_extent.width, m_extent.height, 1};
     depth_fmt.sample_count = m_num_samples;
     depth_fmt.format = m_depth_format;
     depth_fmt.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     depth_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    auto depth_image = Image::create(m_device, {m_extent.width, m_extent.height, 1}, depth_fmt);
+    auto depth_image = Image::create(m_device, depth_fmt);
 
     vierkant::Framebuffer::AttachmentMap attachments;
     attachments[vierkant::Framebuffer::Attachment::Color] = {color_image};
