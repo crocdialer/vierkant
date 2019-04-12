@@ -44,8 +44,6 @@ public:
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         uint32_t num_layers = 1;
 
-        Format() {};
-
         bool operator==(const Format& other) const;
 
         bool operator!=(const Format& other) const { return !(*this == other); };

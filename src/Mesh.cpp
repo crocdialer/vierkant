@@ -187,7 +187,7 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
                 for(uint32_t j = 0; j < desc.image_samplers.size(); ++j)
                 {
                     const auto &img = desc.image_samplers[j];
-                    image_infos[j].imageLayout = img->image_layout();
+                    image_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;//img->image_layout();
                     image_infos[j].imageView = img->image_view();
                     image_infos[j].sampler = img->sampler();
                 }
@@ -310,43 +310,53 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
 {
     struct vertex_data_t
     {
-        const void *data;
-        uint32_t offset;
-        uint32_t stride;
+        const uint8_t *data;
+        size_t offset;
+        size_t elem_size;
+        size_t num_elems;
+        VkFormat format;
     };
     std::vector<vertex_data_t> vertex_data;
 
-    auto add_offset = [](const auto &array, std::vector<vertex_data_t> &vertex_data, uint32_t &offset)
+    auto add_offset = [](const auto &array, std::vector<vertex_data_t> &vertex_data, size_t &offset, size_t &stride,
+                         size_t &num_bytes)
     {
         if(!array.empty())
         {
             using elem_t = typename std::decay<decltype(array)>::type::value_type;
             size_t elem_size = sizeof(elem_t);
-            vertex_data.push_back({array.data(), offset, static_cast<uint32_t>(elem_size)});
+            vertex_data.push_back(
+                    {(uint8_t *)array.data(), offset, static_cast<uint32_t>(elem_size), array.size(),
+                     vierkant::format<elem_t>()});
             offset += elem_size;
+            stride += elem_size;
+            num_bytes += array.size() * elem_size;
         }
     };
 
+    size_t stride = 0, num_bytes = 0;
+
     // sanity check array sizes
-    auto is_sane = [add_offset](const Geometry &g, std::vector<vertex_data_t> &vertex_data) -> bool
+    auto is_sane = [add_offset, &stride, &num_bytes](const Geometry &g,
+                                                     std::vector<vertex_data_t> &vertex_data) -> bool
     {
+        size_t offset = 0;
         auto num_vertices = g.vertices.size();
-        uint32_t offset = 0;
 
         if(g.vertices.empty()){ return false; }
-        add_offset(g.vertices, vertex_data, offset);
-
-        if(!g.tex_coords.empty() && g.tex_coords.size() != num_vertices){ return false; }
-        add_offset(g.tex_coords, vertex_data, offset);
+        add_offset(g.vertices, vertex_data, offset, stride, num_bytes);
 
         if(!g.colors.empty() && g.colors.size() != num_vertices){ return false; }
-        add_offset(g.colors, vertex_data, offset);
+        add_offset(g.colors, vertex_data, offset, stride, num_bytes);
+
+        if(!g.tex_coords.empty() && g.tex_coords.size() != num_vertices){ return false; }
+        add_offset(g.tex_coords, vertex_data, offset, stride, num_bytes);
 
         if(!g.normals.empty() && g.normals.size() != num_vertices){ return false; }
-        add_offset(g.normals, vertex_data, offset);
+        add_offset(g.normals, vertex_data, offset, stride, num_bytes);
 
         if(!g.tangents.empty() && g.tangents.size() != num_vertices){ return false; }
-        add_offset(g.tangents, vertex_data, offset);
+        add_offset(g.tangents, vertex_data, offset, stride, num_bytes);
 
         return true;
     };
@@ -358,58 +368,70 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
 
     auto mesh = vierkant::Mesh::create();
 
-    auto num_vertex_bytes = [](const Geometry &g) -> size_t
-    {
-        size_t num_bytes = 0;
-        num_bytes += g.vertices.size() * sizeof(decltype(g.vertices)::value_type);
-        num_bytes += g.tex_coords.size() * sizeof(decltype(g.tex_coords)::value_type);
-        num_bytes += g.colors.size() * sizeof(decltype(g.colors)::value_type);
-        num_bytes += g.normals.size() * sizeof(decltype(g.normals)::value_type);
-        num_bytes += g.tangents.size() * sizeof(decltype(g.tangents)::value_type);
-        return num_bytes;
-    };
-
     // combine buffers into staging buffer
-    size_t num_buffer_bytes = num_vertex_bytes(geom);
-
-    auto stage_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    auto stage_buffer = vierkant::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // create vertexbuffer
-    auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                                                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes,
+                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
     auto staging_data = (uint8_t *)stage_buffer->map();
-    size_t offset = 0;
 
-    auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
+    bool interleave_data = true;
+
+    if(interleave_data)
     {
-        using elem_t = typename std::decay<decltype(array)>::type::value_type;
-
-        if(!array.empty())
+        for(uint32_t i = 0; i < vertex_data.size(); ++i)
         {
-            size_t value_size = sizeof(elem_t);
-            size_t num_bytes = array.size() * value_size;
-            memcpy(staging_data + offset, array.data(), num_bytes);
+            const auto &v = vertex_data[i];
+
+            for(uint32_t j = 0; j < v.num_elems; ++j)
+            {
+                memcpy(staging_data + v.offset + j * stride, v.data + j * v.elem_size, v.elem_size);
+            }
 
             vierkant::Mesh::VertexAttrib attrib;
-            attrib.location = location;
-            attrib.offset = 0;
-            attrib.stride = static_cast<uint32_t>(value_size);
+            attrib.location = i;
+            attrib.offset = v.offset;
+            attrib.stride = static_cast<uint32_t>(stride);
             attrib.buffer = vertex_buffer;
-            attrib.buffer_offset = offset;
-            attrib.format = vierkant::format<elem_t>();
+            attrib.buffer_offset = 0;
+            attrib.format = v.format;
             mesh->vertex_attribs.push_back(attrib);
-            offset += num_bytes;
         }
-    };
+    }else
+    {
+        size_t offset = 0;
+        auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
+        {
+            using elem_t = typename std::decay<decltype(array)>::type::value_type;
 
-    // vertex attributes
-    insert_data(geom.vertices, 0);
-    insert_data(geom.colors, 1);
-    insert_data(geom.tex_coords, 2);
-    insert_data(geom.normals, 3);
-    insert_data(geom.tangents, 4);
+            if(!array.empty())
+            {
+                size_t value_size = sizeof(elem_t);
+                size_t num_bytes = array.size() * value_size;
+                memcpy(staging_data + offset, array.data(), num_bytes);
+
+                vierkant::Mesh::VertexAttrib attrib;
+                attrib.location = location;
+                attrib.offset = 0;
+                attrib.stride = static_cast<uint32_t>(value_size);
+                attrib.buffer = vertex_buffer;
+                attrib.buffer_offset = offset;
+                attrib.format = vierkant::format<elem_t>();
+                mesh->vertex_attribs.push_back(attrib);
+                offset += num_bytes;
+            }
+        };
+
+        // vertex attributes
+        insert_data(geom.vertices, 0);
+        insert_data(geom.colors, 1);
+        insert_data(geom.tex_coords, 2);
+        insert_data(geom.normals, 3);
+        insert_data(geom.tangents, 4);
+    }
 
     // copy combined vertex data to device-buffer
     stage_buffer->copy_to(vertex_buffer);

@@ -539,8 +539,7 @@ bool Image::Format::operator==(const Image::Format &other) const
     if(address_mode_w != other.address_mode_w){ return false; }
     if(min_filter != other.min_filter){ return false; }
     if(mag_filter != other.mag_filter){ return false; }
-    if(memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) !=
-       0){ return false; }
+    if(memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) != 0){ return false; }
     if(max_anisotropy != other.max_anisotropy){ return false; }
     if(initial_layout_transition != other.initial_layout_transition){ return false; }
     if(use_mipmap != other.use_mipmap){ return false; }
