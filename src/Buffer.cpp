@@ -89,7 +89,7 @@ void *Buffer::map()
     void *ret = nullptr;
 
     if(m_allocation_info.pMappedData){ return m_allocation_info.pMappedData; }
-    else if(vmaMapMemory(m_device->vk_mem_allocator(), m_allocation, &ret) == VK_SUCCESS)
+    else if(is_host_visible() && vmaMapMemory(m_device->vk_mem_allocator(), m_allocation, &ret) == VK_SUCCESS)
     {
         return ret;
     }

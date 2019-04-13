@@ -159,7 +159,7 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
         vkCheck(vkCreateDevice(physical_device, &device_create_info, nullptr, &m_device),
                 "failed to create logical device!");
 
-        auto get_queues = [this](Queue type)
+        auto get_all_queues = [this](Queue type)
         {
             if(m_queue_indices[type].index >= 0)
             {
@@ -173,10 +173,8 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
                 }
             }
         };
-        get_queues(Queue::GRAPHICS);
-        get_queues(Queue::TRANSFER);
-        get_queues(Queue::COMPUTE);
-        get_queues(Queue::PRESENT);
+        Queue queue_types[] = {Queue::GRAPHICS, Queue::TRANSFER, Queue::COMPUTE, Queue::PRESENT};
+        for(auto q : queue_types){ get_all_queues(q); }
 
         // command pools
         VkCommandPoolCreateInfo pool_info = {};
@@ -194,7 +192,7 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
         vkCheck(vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool_transient),
                 "failed to create command pool!");
 
-        // transient command pool -> transfer queue
+        // transfer command pool -> transfer queue
         pool_info.queueFamilyIndex = static_cast<uint32_t>(m_queue_indices[Queue::TRANSFER].index);
         pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         vkCheck(vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool_transfer),

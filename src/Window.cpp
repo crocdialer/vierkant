@@ -34,6 +34,29 @@ std::vector<const char *> Window::get_required_extensions()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void get_modifiers(GLFWwindow *window, uint32_t &buttonModifiers, uint32_t &keyModifiers)
+{
+    buttonModifiers = 0;
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT))
+        buttonModifiers |= MouseEvent::BUTTON_LEFT;
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
+        buttonModifiers |= MouseEvent::BUTTON_MIDDLE;
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT))
+        buttonModifiers |= MouseEvent::BUTTON_RIGHT;
+
+    keyModifiers = 0;
+    if(glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL))
+        keyModifiers |= KeyEvent::CTRL_DOWN;
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT))
+        keyModifiers |= KeyEvent::SHIFT_DOWN;
+    if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) || glfwGetKey(window, GLFW_KEY_RIGHT_ALT))
+        keyModifiers |= KeyEvent::ALT_DOWN;
+    if(glfwGetKey(window, GLFW_KEY_LEFT_SUPER) || glfwGetKey(window, GLFW_KEY_RIGHT_SUPER))
+        keyModifiers |= KeyEvent::META_DOWN;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 WindowPtr Window::create(VkInstance instance, uint32_t width, uint32_t height, const std::string &the_name,
                          bool fullscreen, uint32_t monitor_index)
 {
@@ -71,8 +94,15 @@ Window::Window(VkInstance instance,
     glfwSetWindowUserPointer(m_handle, this);
 
     // init callbacks
-    glfwSetWindowSizeCallback(m_handle, &Window::resize_cb);
-    glfwSetWindowCloseCallback(m_handle, &Window::close_cb);
+    glfwSetErrorCallback(&Window::glfw_error_cb);
+    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
+    glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
+    glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
+    glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
+    glfwSetScrollCallback(m_handle, &Window::glfw_mouse_wheel_cb);
+    glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
+    glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
+    glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -116,7 +146,7 @@ void Window::record_command_buffer()
                                                VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
     // fire secondary commandbuffers here
-    if(m_draw_fn){ m_draw_fn(); }
+    if(draw_fn){ draw_fn(); }
 
     framebuffers[image_index].end_renderpass();
     m_command_buffer.end();
@@ -269,7 +299,7 @@ bool Window::should_close() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::resize_cb(GLFWwindow *window, int width, int height)
+void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -282,17 +312,186 @@ void Window::resize_cb(GLFWwindow *window, int width, int height)
     // recreate a swapchain
     self->create_swapchain(self->m_swap_chain.device(), self->m_swap_chain.sample_count());
 
-    if(self->m_resize_fn){ self->m_resize_fn(width, height); }
+    if(self->resize_fn){ self->resize_fn(width, height); }
 
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::close_cb(GLFWwindow *window)
+void Window::glfw_close_cb(GLFWwindow *window)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-    if(self->m_close_fn){ self->m_close_fn(); }
+    if(self->close_fn){ self->close_fn(); }
 
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_error_cb(int error_code, const char *error_msg)
+{
+    LOG_ERROR << error_msg;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_refresh_cb(GLFWwindow *window)
+{
+
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
+{
+    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+
+    if(self->mouse_delegate)
+    {
+        uint32_t button_mods, key_mods, all_mods;
+        get_modifiers(window, button_mods, key_mods);
+        all_mods = button_mods | key_mods;
+        MouseEvent e(button_mods, (int)x, (int)y, all_mods, glm::ivec2(0));
+
+        if(button_mods && self->mouse_delegate.mouse_drag){ self->mouse_delegate.mouse_drag(e); }
+        else if(self->mouse_delegate.mouse_move){ self->mouse_delegate.mouse_move(e); }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int modifier_mask)
+{
+    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+
+    if(self->mouse_delegate)
+    {
+        uint32_t initiator = 0;
+        switch(button)
+        {
+            case GLFW_MOUSE_BUTTON_LEFT:
+                initiator = MouseEvent::BUTTON_LEFT;
+                break;
+            case GLFW_MOUSE_BUTTON_MIDDLE:
+                initiator = MouseEvent::BUTTON_MIDDLE;
+                break;
+            case GLFW_MOUSE_BUTTON_RIGHT:
+                initiator = MouseEvent::BUTTON_RIGHT;
+                break;
+            default:
+                break;
+        }
+        uint32_t button_mods, key_mods, all_mods;
+        get_modifiers(window, button_mods, key_mods);
+        all_mods = button_mods | key_mods;
+
+        double posX, posY;
+        glfwGetCursorPos(window, &posX, &posY);
+        MouseEvent e(initiator, (int)posX, (int)posY, all_mods, glm::ivec2(0));
+
+        auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+        if(action == GLFW_PRESS && self->mouse_delegate.mouse_press){ self->mouse_delegate.mouse_press(e); }
+        else if(action == GLFW_RELEASE && self->mouse_delegate.mouse_release)
+        {
+            self->mouse_delegate.mouse_release(e);
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
+{
+    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+
+    if(self->mouse_delegate.mouse_wheel)
+    {
+        glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
+        double posX, posY;
+        glfwGetCursorPos(window, &posX, &posY);
+        uint32_t button_mods, key_mods = 0;
+        get_modifiers(window, button_mods, key_mods);
+        MouseEvent e(0, (int)posX, (int)posY, key_mods, offset);
+        self->mouse_delegate.mouse_wheel(e);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, int modifier_mask)
+{
+    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+
+    if(self->key_delegate)
+    {
+        uint32_t buttonMod, keyMod;
+        get_modifiers(window, buttonMod, keyMod);
+        KeyEvent e(key, key, keyMod);
+
+        switch(action)
+        {
+            case GLFW_REPEAT:
+            case GLFW_PRESS:
+                if(self->key_delegate.key_press){ self->key_delegate.key_press(e); }
+                break;
+
+            case GLFW_RELEASE:
+                if(self->key_delegate.key_release){ self->key_delegate.key_release(e); }
+                break;
+
+            default:
+                break;
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_char_cb(GLFWwindow *window, unsigned int key)
+{
+    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    if(self->key_delegate.character_input){ self->key_delegate.character_input(key); }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
+{
+    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+
+    if(self->mouse_delegate.file_drop)
+    {
+        std::vector<std::string> files(num_files);
+        for(int i = 0; i < num_files; i++){ files[i] = paths[i]; }
+        uint32_t button_mods, key_mods, all_mods;
+        get_modifiers(window, button_mods, key_mods);
+        all_mods = button_mods | key_mods;
+        double posX, posY;
+        glfwGetCursorPos(window, &posX, &posY);
+        MouseEvent e(button_mods, (int)posX, (int)posY, all_mods, glm::ivec2(0));
+        self->mouse_delegate.file_drop(e, files);
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_monitor_cb(GLFWmonitor *the_monitor, int status)
+{
+    std::string name = glfwGetMonitorName(the_monitor);
+    if(status == GLFW_CONNECTED){ LOG_DEBUG << "monitor connected: " << name; }
+    else if(status == GLFW_DISCONNECTED){ LOG_DEBUG << "monitor disconnected: " << name; }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_joystick_cb(int joy, int event)
+{
+    if(event == GLFW_CONNECTED)
+    {
+        LOG_DEBUG << "joystick " << joy << " connected";
+    }else if(event == GLFW_DISCONNECTED)
+    {
+        LOG_DEBUG << "joystick " << joy << " disconnected";
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

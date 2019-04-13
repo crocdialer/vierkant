@@ -10,11 +10,11 @@
 #include "vierkant/Instance.hpp"
 #include "vierkant/SwapChain.hpp"
 #include "vierkant/intersection.hpp"
+#include "vierkant/Input.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
-DEFINE_CLASS_PTR(Window);
+DEFINE_CLASS_PTR(Window)
 
 class Window
 {
@@ -23,11 +23,25 @@ public:
     using close_fn_t = std::function<void()>;
     using resize_fn_t = std::function<void(uint32_t w, uint32_t h)>;
 
+    // delegates
+    MouseDelegate mouse_delegate;
+
+    KeyDelegate key_delegate;
+
+    // callbacks
+
+    // a callback for draw-operations
+    draw_fn_t draw_fn;
+
+    close_fn_t close_fn;
+
+    resize_fn_t resize_fn;
+
     /**
      * @brief   Helper function to retrieve a list of Vulkan-Extensions required for Window
      * @return  a list of Vulkan-Extensions names
      */
-    static std::vector<const char*> get_required_extensions();
+    static std::vector<const char *> get_required_extensions();
 
     /**
      * @brief               Factory to create a new WindowPtr.
@@ -88,7 +102,7 @@ public:
     float aspect_ratio() const
     {
         auto sz = size();
-        return sz.x / (float) sz.y;
+        return sz.x / (float)sz.y;
     }
 
     /**
@@ -121,41 +135,41 @@ public:
     /**
      * @return  the managed GLFWwindow handle
      */
-    inline GLFWwindow* handle(){ return m_handle; }
+    inline GLFWwindow *handle() { return m_handle; }
 
     /**
      * @return  the VkSurfaceKHR handle for this Window
      */
-    VkSurfaceKHR surface() const{ return m_surface; }
+    VkSurfaceKHR surface() const { return m_surface; }
 
     /**
      * @return  the contained SwapChain, which holds the Framebuffers for this Window
      */
-    SwapChain &swapchain(){ return m_swap_chain; }
+    SwapChain &swapchain() { return m_swap_chain; }
 
     /**
      * @return  the primary command buffer that inits this Window's renderpass
      */
-    const CommandBuffer &command_buffer() const{ return m_command_buffer; }
+    const CommandBuffer &command_buffer() const { return m_command_buffer; }
 
-    /**
-     * @brief   set a callback for Draw-operations
-     *
-     * @param   draw_fn     a draw-function
-     */
-    void set_draw_fn(const draw_fn_t &draw_fn){ m_draw_fn = draw_fn; }
-
-    /**
-     * @brief   set a callback to be called, when this Window closes
-     * @param   close_fn    a close-function
-     */
-    void set_close_fn(const close_fn_t &close_fn){ m_close_fn = close_fn; }
-
-    /**
-     * @brief   set a callback to be called, when this Window resizes
-     * @param   resize_fn   a resize-function
-     */
-    void set_resize_fn(const resize_fn_t &resize_fn){ m_resize_fn = resize_fn; }
+//    /**
+//     * @brief   set a callback for Draw-operations
+//     *
+//     * @param   draw_fn     a draw-function
+//     */
+//    void set_draw_fn(const draw_fn_t &draw_fn) { draw_fn = draw_fn; }
+//
+//    /**
+//     * @brief   set a callback to be called, when this Window closes
+//     * @param   close_fn    a close-function
+//     */
+//    void set_close_fn(const close_fn_t &close_fn) { close_fn = close_fn; }
+//
+//    /**
+//     * @brief   set a callback to be called, when this Window resizes
+//     * @param   resize_fn   a resize-function
+//     */
+//    void set_resize_fn(const resize_fn_t &resize_fn) { resize_fn = resize_fn; }
 
     /**
      * @brief   create an internal SwapChain for this Window.
@@ -173,7 +187,7 @@ private:
 
     void record_command_buffer();
 
-    GLFWwindow* m_handle = nullptr;
+    GLFWwindow *m_handle = nullptr;
 
     VkInstance m_instance = VK_NULL_HANDLE;
 
@@ -185,16 +199,29 @@ private:
 
     std::string m_title;
 
-    static void resize_cb(GLFWwindow* window, int width, int height);
+    static void glfw_resize_cb(GLFWwindow *window, int width, int height);
 
-    static void close_cb(GLFWwindow* window);
+    static void glfw_close_cb(GLFWwindow *window);
 
-    // callbacks
-    draw_fn_t m_draw_fn;
+    static void glfw_error_cb(int error_code, const char *error_msg);
 
-    close_fn_t m_close_fn;
+    static void glfw_refresh_cb(GLFWwindow *window);
 
-    resize_fn_t m_resize_fn;
+    static void glfw_mouse_move_cb(GLFWwindow *window, double x, double y);
+
+    static void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int modifier_mask);
+
+    static void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y);
+
+    static void glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, int modifier_mask);
+
+    static void glfw_char_cb(GLFWwindow *window, unsigned int key);
+
+    static void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths);
+
+    static void glfw_monitor_cb(GLFWmonitor *the_monitor, int);
+
+    static void glfw_joystick_cb(int joy, int event);
 };
 
 }//namespace vulkan

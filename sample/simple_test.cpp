@@ -13,22 +13,8 @@ HelloTriangleApplication::HelloTriangleApplication() :
 
 void HelloTriangleApplication::run()
 {
-    init();
-    main_loop();
-}
+    setup();
 
-void HelloTriangleApplication::init()
-{
-    create_context_and_window();
-    create_texture_image();
-    create_uniform_buffer();
-    load_model();
-    create_graphics_pipeline();
-    create_command_buffers();
-}
-
-void HelloTriangleApplication::main_loop()
-{
     while(!m_window->should_close())
     {
         glfwPollEvents();
@@ -43,6 +29,16 @@ void HelloTriangleApplication::main_loop()
     vkDeviceWaitIdle(m_device->handle());
 }
 
+void HelloTriangleApplication::setup()
+{
+    create_context_and_window();
+    create_texture_image();
+    create_uniform_buffer();
+    load_model();
+    create_graphics_pipeline();
+    create_command_buffers();
+}
+
 void HelloTriangleApplication::create_context_and_window()
 {
     m_instance = vk::Instance(g_enable_validation_layers, vk::Window::get_required_extensions());
@@ -50,12 +46,18 @@ void HelloTriangleApplication::create_context_and_window()
     m_device = vk::Device::create(m_instance.physical_devices().front(), m_instance.use_validation_layers(),
                                   m_window->surface());
     m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT);
-    m_window->set_draw_fn(std::bind(&HelloTriangleApplication::draw, this));
-    m_window->set_resize_fn([this](uint32_t w, uint32_t h)
-                            {
-                                create_graphics_pipeline();
-                                create_command_buffers();
-                            });
+
+    m_window->draw_fn = std::bind(&HelloTriangleApplication::draw, this);
+    m_window->resize_fn = [this](uint32_t w, uint32_t h)
+    {
+        create_graphics_pipeline();
+        create_command_buffers();
+    };
+
+    m_window->key_delegate.key_press = [](const vierkant::KeyEvent &e)
+    {
+        LOG_INFO << e.character();
+    };
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()

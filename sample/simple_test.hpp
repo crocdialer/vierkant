@@ -49,13 +49,11 @@ public:
 
 private:
 
-    void init();
+    void setup();
 
     void update(float time_delta);
 
     void draw();
-
-    void main_loop();
 
     void create_context_and_window();
 

@@ -1,6 +1,8 @@
 #pragma once
 
-#include "vierkant/vierkant.hpp"
+#include <unordered_map>
+#include <glm/glm.hpp>
+#include "crocore/crocore.hpp"
 
 namespace vierkant {
 
@@ -12,40 +14,51 @@ class JoystickState;
 
 struct Touch;
 
-class MouseDelegate
+struct MouseDelegate
 {
-public:
-    virtual void mouse_press(const MouseEvent &e) = 0;
+    using mouse_cb_t = std::function<void(const MouseEvent &)>;
+    using file_drop_cb_t = std::function<void(const MouseEvent &, const std::vector<std::string> &)>;
 
-    virtual void mouse_release(const MouseEvent &e) = 0;
+    mouse_cb_t mouse_press;
+    mouse_cb_t mouse_release;
+    mouse_cb_t mouse_move;
+    mouse_cb_t mouse_drag;
+    mouse_cb_t mouse_wheel;
+    file_drop_cb_t file_drop;
 
-    virtual void mouse_move(const MouseEvent &e) = 0;
-
-    virtual void mouse_drag(const MouseEvent &e) = 0;
-
-    virtual void mouse_wheel(const MouseEvent &e) = 0;
-
-    virtual void file_drop(const MouseEvent &e, const std::vector<std::string> &files) = 0;
-
-    virtual const MouseEvent mouse_state() const = 0;
+    explicit operator bool() const
+    {
+        return mouse_press || mouse_release || mouse_move || mouse_drag || mouse_wheel || file_drop;
+    }
 };
 
-class TouchDelegate
+struct TouchDelegate
 {
-public:
-    virtual void touch_begin(const MouseEvent &e, const std::set<const Touch *> &the_touches) = 0;
+    using touch_cb_t = std::function<void(const MouseEvent &, const std::set<const Touch *> &)>;
 
-    virtual void touch_end(const MouseEvent &e, const std::set<const Touch *> &the_touches) = 0;
+    touch_cb_t touch_begin;
+    touch_cb_t touch_end;
+    touch_cb_t touch_move;
 
-    virtual void touch_move(const MouseEvent &e, const std::set<const Touch *> &the_touches) = 0;
+    explicit operator bool() const
+    {
+        return touch_begin || touch_end || touch_move;
+    }
 };
 
-class KeyDelegate
+struct KeyDelegate
 {
-public:
-    virtual void key_press(const KeyEvent &e) = 0;
+    using key_cb_t = std::function<void(const KeyEvent &)>;
+    using char_cb_t = std::function<void(uint32_t)>;
 
-    virtual void key_release(const KeyEvent &e) = 0;
+    key_cb_t key_press;
+    key_cb_t key_release;
+    char_cb_t character_input;
+
+    explicit operator bool() const
+    {
+        return key_press || key_release || character_input;
+    }
 };
 
 //! Base class for all Events
@@ -89,49 +102,49 @@ public:
     glm::ivec2 wheel_increment() const { return m_wheel_inc; }
 
     //! Returns whether the initiator for the event was the left mouse button
-    bool is_left() const { return m_initiator & LEFT_DOWN; }
+    bool is_left() const { return m_initiator & BUTTON_LEFT; }
 
-//! Returns whether the initiator for the event was the right mouse button
-    bool is_right() const { return m_initiator & RIGHT_DOWN; }
+    //! Returns whether the initiator for the event was the right mouse button
+    bool is_right() const { return m_initiator & BUTTON_RIGHT; }
 
-//! Returns whether the initiator for the event was the middle mouse button
-    bool is_middle() const { return m_initiator & MIDDLE_DOWN; }
+    //! Returns whether the initiator for the event was the middle mouse button
+    bool is_middle() const { return m_initiator & BUTTON_MIDDLE; }
 
-//! Returns whether the left mouse button was pressed during the event
-    bool is_left_down() const { return m_modifiers & LEFT_DOWN; }
+    //! Returns whether the left mouse button was pressed during the event
+    bool is_left_down() const { return m_modifiers & BUTTON_LEFT; }
 
-//! Returns whether the right mouse button was pressed during the event
-    bool is_right_down() const { return m_modifiers & RIGHT_DOWN; }
+    //! Returns whether the right mouse button was pressed during the event
+    bool is_right_down() const { return m_modifiers & BUTTON_RIGHT; }
 
-//! Returns whether the middle mouse button was pressed during the event
-    bool is_middle_down() const { return m_modifiers & MIDDLE_DOWN; }
+    //! Returns whether the middle mouse button was pressed during the event
+    bool is_middle_down() const { return m_modifiers & BUTTON_MIDDLE; }
 
-//! Returns whether the Shift key was pressed during the event.
+    //! Returns whether the Shift key was pressed during the event.
     bool is_shift_down() const { return m_modifiers & SHIFT_DOWN; }
 
-//! Returns whether the Alt (or Option) key was pressed during the event.
+    //! Returns whether the Alt (or Option) key was pressed during the event.
     bool is_alt_down() const { return m_modifiers & ALT_DOWN; }
 
-//! Returns whether the Control key was pressed during the event.
+    //! Returns whether the Control key was pressed during the event.
     bool is_control_down() const { return m_modifiers & CTRL_DOWN; }
 
-//! Returns whether the meta key was pressed during the event. Maps to the Windows key on Windows and the Command key on Mac OS X.
+    //! Returns whether the meta key was pressed during the event. Maps to the Windows key on Windows and the Command key on Mac OS X.
     bool is_meta_down() const { return m_modifiers & META_DOWN; }
 
-//! true if this MouseEvent is generated by a touch-interface
+    //! true if this MouseEvent is generated by a touch-interface
     bool is_touch() const { return m_modifiers & TOUCH_DOWN; }
 
-//! the current touch id
+    //! the current touch id
     int touch_id() const { return m_touch_id; }
 
-//! the current touch id
+    //! the current touch id
     int touch_index() const { return m_touch_index; }
 
     enum
     {
-        LEFT_DOWN = (1 << 0),
-        RIGHT_DOWN = (1 << 1),
-        MIDDLE_DOWN = (1 << 2),
+        BUTTON_LEFT = (1 << 0),
+        BUTTON_RIGHT = (1 << 1),
+        BUTTON_MIDDLE = (1 << 2),
         SHIFT_DOWN = (1 << 3),
         ALT_DOWN = (1 << 4),
         CTRL_DOWN = (1 << 5),
@@ -159,11 +172,11 @@ public:
             m_char(the_char),
             m_modifiers(the_modifiers) {}
 
-    //! Returns the key code associated with the event, which maps into the enum listed below
+    //! Returns the key code associated with the event (maps into Key::Type enum)
     int code() const { return m_code; }
 
-    //! Returns the ASCII character associated with the event.
-    uint8_t character() const { return m_char; }
+    //! Returns the Unicode character associated with the event.
+    uint32_t character() const { return m_char; }
 
     //! Returns whether the Shift key was pressed during the event.
     bool is_shift_down() const { return m_modifiers & SHIFT_DOWN; }
@@ -187,7 +200,7 @@ public:
 
 private:
     int m_code = 0;
-    char m_char = 0;
+    uint32_t m_char = 0;
     uint32_t m_modifiers = 0;
 };
 
