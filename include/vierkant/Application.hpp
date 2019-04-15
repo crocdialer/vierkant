@@ -30,8 +30,6 @@ public:
 
     double get_application_time();
 
-    virtual std::vector<JoystickState> get_joystick_states() const { return {}; };
-
     inline bool running() const { return m_running; };
 
     inline void set_running(bool b) { m_running = b; }

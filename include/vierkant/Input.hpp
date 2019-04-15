@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include "crocore/crocore.hpp"
 
@@ -13,6 +14,8 @@ class KeyEvent;
 class JoystickState;
 
 struct Touch;
+
+std::vector<JoystickState> get_joystick_states();
 
 /**
  * @brief   MouseDelegate is a struct to group mouse-callbacks

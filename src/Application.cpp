@@ -17,7 +17,7 @@ Application::Application(int argc, char *argv[]) :
         m_main_queue(0),
         m_background_queue(2)
 {
-    srand(clock());
+    srand(time(nullptr));
     for(int i = 0; i < argc; i++){ m_args.emplace_back(argv[i]); }
 }
 
@@ -51,8 +51,6 @@ int Application::run()
             update(time_delta);
 
             m_last_timestamp = time_stamp;
-
-            //TODO: draw all windows
 
             // perform fps-timing
             timing();

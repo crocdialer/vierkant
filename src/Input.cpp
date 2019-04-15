@@ -6,6 +6,26 @@
 
 namespace vierkant {
 
+std::vector<JoystickState> get_joystick_states()
+{
+    std::vector<JoystickState> ret;
+    int count;
+    for(int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; i++)
+    {
+        if(!glfwJoystickPresent(i)) continue;
+
+        const float *glfw_axis = glfwGetJoystickAxes(i, &count);
+        std::vector<float> axis(glfw_axis, glfw_axis + count);
+
+        const uint8_t *glfw_buttons = glfwGetJoystickButtons(i, &count);
+        std::vector<uint8_t> buttons(glfw_buttons, glfw_buttons + count);
+
+        std::string name(glfwGetJoystickName(i));
+        ret.emplace_back(name, buttons, axis);
+    }
+    return ret;
+}
+
 JoystickState::ButtonMap JoystickState::s_button_map =
         {
                 {Mapping::ANALOG_LEFT_H,       0},
@@ -49,27 +69,27 @@ const glm::vec2 JoystickState::analog_left() const
 {
     uint32_t index_h = s_button_map[Mapping::ANALOG_LEFT_H], index_v = s_button_map[Mapping::ANALOG_LEFT_V];
     return glm::vec2(fabs(m_axis[index_h]) > m_dead_zone ? m_axis[index_h] : 0.f,
-                    fabs(m_axis[index_v]) > m_dead_zone ? m_axis[index_v] : 0.f);
+                     fabs(m_axis[index_v]) > m_dead_zone ? m_axis[index_v] : 0.f);
 }
 
 const glm::vec2 JoystickState::analog_right() const
 {
     uint32_t index_h = s_button_map[Mapping::ANALOG_RIGHT_H], index_v = s_button_map[Mapping::ANALOG_RIGHT_V];
     return glm::vec2(fabs(m_axis[index_h]) > m_dead_zone ? m_axis[index_h] : 0.f,
-                    fabs(m_axis[index_v]) > m_dead_zone ? m_axis[index_v] : 0.f);
+                     fabs(m_axis[index_v]) > m_dead_zone ? m_axis[index_v] : 0.f);
 }
 
 const glm::vec2 JoystickState::trigger() const
 {
     uint32_t index_h = s_button_map[Mapping::TRIGGER_LEFT], index_v = s_button_map[Mapping::TRIGGER_RIGHT];
     return glm::vec2(fabs(m_axis[index_h]) > m_dead_zone ? m_axis[index_h] : 0.f,
-                    fabs(m_axis[index_v]) > m_dead_zone ? m_axis[index_v] : 0.f);
+                     fabs(m_axis[index_v]) > m_dead_zone ? m_axis[index_v] : 0.f);
 }
 
 const glm::vec2 JoystickState::dpad() const
 {
     uint32_t index_h = s_button_map[Mapping::DPAD_H], index_v = s_button_map[Mapping::DPAD_V];
     return glm::vec2(fabs(m_axis[index_h]) > m_dead_zone ? m_axis[index_h] : 0.f,
-                    fabs(m_axis[index_v]) > m_dead_zone ? m_axis[index_v] : 0.f);
+                     fabs(m_axis[index_v]) > m_dead_zone ? m_axis[index_v] : 0.f);
 }
 }
