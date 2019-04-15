@@ -4,18 +4,10 @@
 
 #pragma once
 
-#include <iostream>
-#include <chrono>
-#include <set>
-#include <unordered_map>
-
-#include <vulkan/vulkan.h>
-
 #include "vierkant/vierkant.hpp"
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;
-
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
@@ -38,22 +30,22 @@ struct UniformBuffer
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class HelloTriangleApplication
+class HelloTriangleApplication : public vierkant::Application
 {
 
 public:
 
-    HelloTriangleApplication();
-
-    void run();
+    explicit HelloTriangleApplication(int argc = 0, char *argv[] = nullptr) : vierkant::Application(argc, argv) {};
 
 private:
 
-    void setup();
+    void setup() override;
 
-    void update(float time_delta);
+    void update(double time_delta) override;
 
-    void draw();
+    void teardown() override;
+
+    void draw(vierkant::WindowPtr w);
 
     void create_context_and_window();
 
@@ -81,7 +73,7 @@ private:
     vierkant::DevicePtr m_device;
 
     // window handle
-    vierkant::WindowPtr m_window;
+    std::shared_ptr<vierkant::Window> m_window;
 
     // command buffers
     std::vector<vierkant::CommandBuffer> m_command_buffers;
@@ -100,15 +92,8 @@ private:
     vk::Renderer m_renderer;
 };
 
-int main()
+int main(int argc, char *argv[])
 {
-    HelloTriangleApplication app;
-
-    try { app.run(); }
-    catch(const std::runtime_error &e)
-    {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
-    return EXIT_SUCCESS;
+    auto app = std::make_unique<HelloTriangleApplication>(argc, argv);
+    return app->run();
 }

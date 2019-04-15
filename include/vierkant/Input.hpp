@@ -14,6 +14,9 @@ class JoystickState;
 
 struct Touch;
 
+/**
+ * @brief   MouseDelegate is a struct to group mouse-callbacks
+ */
 struct MouseDelegate
 {
     using mouse_cb_t = std::function<void(const MouseEvent &)>;
@@ -32,6 +35,9 @@ struct MouseDelegate
     }
 };
 
+/**
+ * @brief   TouchDelegate is a struct to group touch-callbacks
+ */
 struct TouchDelegate
 {
     using touch_cb_t = std::function<void(const MouseEvent &, const std::set<const Touch *> &)>;
@@ -46,6 +52,9 @@ struct TouchDelegate
     }
 };
 
+/**
+ * @brief   KeyDelegate is a struct to group keyboard-callbacks
+ */
 struct KeyDelegate
 {
     using key_cb_t = std::function<void(const KeyEvent &)>;
@@ -166,7 +175,7 @@ class KeyEvent : public Event
 {
 public:
 
-    KeyEvent(int the_code, uint8_t the_char, uint32_t the_modifiers) :
+    KeyEvent(int the_code, uint32_t the_char, uint32_t the_modifiers) :
             Event(),
             m_code(the_code),
             m_char(the_char),

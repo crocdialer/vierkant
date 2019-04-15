@@ -15,6 +15,7 @@
 #include "vierkant/Window.hpp"
 #include "vierkant/Geometry.hpp"
 #include "vierkant/Renderer.hpp"
+#include "vierkant/Application.hpp"
 #include "vierkant/intersection.hpp"
 
 namespace vierkant

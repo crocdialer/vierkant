@@ -13,24 +13,20 @@ namespace vierkant {
 
 DEFINE_CLASS_PTR(Application);
 
-class Application : crocore::Component
+class Application : public crocore::Component
 {
 public:
 
-    Application(int argc = 0, char *argv[] = nullptr);
+    explicit Application(int argc = 0, char *argv[] = nullptr);
 
-    virtual ~Application();
-
-    int run();
-
-// you are supposed to implement these in a subclass
+    // you are supposed to implement these in a subclass
     virtual void setup() = 0;
 
-    virtual void update(float timeDelta) = 0;
-
-//    virtual void draw() = 0;
+    virtual void update(double timeDelta) = 0;
 
     virtual void teardown() = 0;
+
+    int run();
 
     double get_application_time();
 
@@ -40,30 +36,26 @@ public:
 
     inline void set_running(bool b) { m_running = b; }
 
-    virtual void set_display_gui(bool b) { m_display_gui = b; };
-
-    inline bool display_gui() const { return m_display_gui; };
-
-/*!
- * return current frames per second
- */
+    /**
+    * return current frames per second
+    */
     float fps() const { return m_current_fps; };
 
-/*!
- * the commandline arguments provided at application start
- */
+    /**
+    * the commandline arguments provided at application start
+    */
     const std::vector<std::string> &args() const { return m_args; };
 
-/*!
- * this queue is processed by the main thread
- */
+    /*!
+     * this queue is processed by the main thread
+     */
     crocore::ThreadPool &main_queue() { return m_main_queue; }
 
     const crocore::ThreadPool &main_queue() const { return m_main_queue; }
 
-/*!
- * the background queue is processed by a background threadpool
- */
+    /*!
+    * the background queue is processed by a background threadpool
+    */
     crocore::ThreadPool &background_queue() { return m_background_queue; }
 
     const crocore::ThreadPool &background_queue() const { return m_background_queue; }
@@ -71,13 +63,9 @@ public:
 private:
 
     // 1 double per second
-    using double_sec_t = std::chrono::duration<double>;
-
-    virtual void init() = 0;
+    using double_sec_t = std::chrono::duration<double, std::chrono::seconds::period>;
 
     void timing();
-//
-//    virtual void draw_internal();
 
     virtual bool is_running() { return m_running; };
 
@@ -89,8 +77,6 @@ private:
     float m_current_fps;
 
     bool m_running;
-    bool m_fullscreen;
-    bool m_display_gui;
 
     std::vector<std::string> m_args;
 

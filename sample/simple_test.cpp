@@ -3,32 +3,6 @@
 #include "crocore/filesystem.hpp"
 #include "crocore/Image.hpp"
 
-using float_sec_t = std::chrono::duration<float, std::chrono::seconds::period>;
-
-HelloTriangleApplication::HelloTriangleApplication() :
-        m_start_time(std::chrono::high_resolution_clock::now())
-{
-
-}
-
-void HelloTriangleApplication::run()
-{
-    setup();
-
-    while(!m_window->should_close())
-    {
-        glfwPollEvents();
-
-        auto current_time = std::chrono::high_resolution_clock::now();
-        float time_delta = float_sec_t(current_time - m_start_time).count();
-
-        update(time_delta);
-
-        m_window->draw();
-    }
-    vkDeviceWaitIdle(m_device->handle());
-}
-
 void HelloTriangleApplication::setup()
 {
     create_context_and_window();
@@ -39,6 +13,12 @@ void HelloTriangleApplication::setup()
     create_command_buffers();
 }
 
+void HelloTriangleApplication::teardown()
+{
+    LOG_INFO << "ciao " << name();
+    vkDeviceWaitIdle(m_device->handle());
+}
+
 void HelloTriangleApplication::create_context_and_window()
 {
     m_instance = vk::Instance(g_enable_validation_layers, vk::Window::get_required_extensions());
@@ -47,16 +27,16 @@ void HelloTriangleApplication::create_context_and_window()
                                   m_window->surface());
     m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT);
 
-    m_window->draw_fn = std::bind(&HelloTriangleApplication::draw, this);
+    m_window->draw_fn = std::bind(&HelloTriangleApplication::draw, this, std::placeholders::_1);
     m_window->resize_fn = [this](uint32_t w, uint32_t h)
     {
         create_graphics_pipeline();
         create_command_buffers();
     };
 
-    m_window->key_delegate.key_press = [](const vierkant::KeyEvent &e)
+    m_window->key_delegate.key_press = [this](const vierkant::KeyEvent &e)
     {
-        LOG_INFO << e.character();
+        if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
     };
 }
 
@@ -160,23 +140,28 @@ void HelloTriangleApplication::load_model()
 //    m_mesh->descriptor_sets = vk::create_descriptor_sets(m_device, m_descriptor_pool, m_mesh);
 }
 
-void HelloTriangleApplication::update(float time_delta)
+void HelloTriangleApplication::update(double time_delta)
 {
     auto image_index = m_window->swapchain().image_index();
 
     // update uniform buffer for this frame
     UniformBuffer ubo = {};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time_delta * glm::radians(30.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    ubo.model = glm::rotate(glm::mat4(1.0f), (float)get_application_time() * glm::radians(30.0f),
+                            glm::vec3(0.0f, 1.0f, 0.0f));
     ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
     ubo.projection[1][1] *= -1;
     m_uniform_buffers[image_index]->set_data(&ubo, sizeof(ubo));
+
+    m_window->draw();
+
+    set_running(running() && !m_window->should_close());
 }
 
-void HelloTriangleApplication::draw()
+void HelloTriangleApplication::draw(vierkant::WindowPtr w)
 {
-    auto image_index = m_window->swapchain().image_index();
+    auto image_index = w->swapchain().image_index();
     std::vector<VkCommandBuffer> command_bufs = {m_command_buffers[image_index].handle()};
-    vkCmdExecuteCommands(m_window->command_buffer().handle(), static_cast<uint32_t>(command_bufs.size()),
+    vkCmdExecuteCommands(w->command_buffer().handle(), static_cast<uint32_t>(command_bufs.size()),
                          command_bufs.data());
 }

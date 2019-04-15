@@ -16,25 +16,36 @@ namespace vierkant {
 
 DEFINE_CLASS_PTR(Window)
 
-class Window
+class Window : public std::enable_shared_from_this<Window>
 {
 public:
-    using draw_fn_t = std::function<void()>;
+    using draw_fn_t = std::function<void(WindowPtr w)>;
     using close_fn_t = std::function<void()>;
     using resize_fn_t = std::function<void(uint32_t w, uint32_t h)>;
 
-    // delegates
+    /**
+     *  Delegate object for mouse callbacks
+     */
     MouseDelegate mouse_delegate;
 
+    /**
+     *  Delegate object for keyboard callbacks
+     */
     KeyDelegate key_delegate;
 
-    // callbacks
-
-    // a callback for draw-operations
+    /**
+     *  Callback for draw-operations
+     */
     draw_fn_t draw_fn;
 
+    /**
+     *  Callback for closing the window
+     */
     close_fn_t close_fn;
 
+    /**
+     *  Callback for resizing the window
+     */
     resize_fn_t resize_fn;
 
     /**
@@ -151,25 +162,6 @@ public:
      * @return  the primary command buffer that inits this Window's renderpass
      */
     const CommandBuffer &command_buffer() const { return m_command_buffer; }
-
-//    /**
-//     * @brief   set a callback for Draw-operations
-//     *
-//     * @param   draw_fn     a draw-function
-//     */
-//    void set_draw_fn(const draw_fn_t &draw_fn) { draw_fn = draw_fn; }
-//
-//    /**
-//     * @brief   set a callback to be called, when this Window closes
-//     * @param   close_fn    a close-function
-//     */
-//    void set_close_fn(const close_fn_t &close_fn) { close_fn = close_fn; }
-//
-//    /**
-//     * @brief   set a callback to be called, when this Window resizes
-//     * @param   resize_fn   a resize-function
-//     */
-//    void set_resize_fn(const resize_fn_t &resize_fn) { resize_fn = resize_fn; }
 
     /**
      * @brief   create an internal SwapChain for this Window.

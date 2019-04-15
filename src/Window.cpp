@@ -146,7 +146,7 @@ void Window::record_command_buffer()
                                                VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
     // fire secondary commandbuffers here
-    if(draw_fn){ draw_fn(); }
+    if(draw_fn){ draw_fn(shared_from_this()); }
 
     framebuffers[image_index].end_renderpass();
     m_command_buffer.end();
