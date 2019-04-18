@@ -423,6 +423,12 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
 
 void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 {
+    if (!m_format.use_mipmap || m_num_mip_levels <= 1)
+    {
+        transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer);
+        return;
+    }
+
     // Check if image format supports linear blitting
     VkFormatProperties format_properties;
     vkGetPhysicalDeviceFormatProperties(m_device->physical_device(), m_format.format, &format_properties);
