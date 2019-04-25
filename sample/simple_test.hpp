@@ -63,9 +63,6 @@ private:
 
     bool m_fullscreen = false;
 
-    // start time
-    std::chrono::high_resolution_clock::time_point m_start_time;
-
     // bundles basic Vulkan assets
     vierkant::Instance m_instance;
 

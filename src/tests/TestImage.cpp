@@ -6,6 +6,17 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+BOOST_AUTO_TEST_CASE(TestImageFormat)
+{
+    vk::Image::Format fmt = {};
+    auto fmt2 = fmt;
+    BOOST_CHECK(fmt == fmt2);
+    fmt.extent = {1920, 1080, 1};
+    BOOST_CHECK(fmt != fmt2);
+    std::unordered_map<vk::Image::Format, int> fmt_map;
+    fmt_map[fmt] = 69;
+}
+
 BOOST_AUTO_TEST_CASE(TestImage)
 {
     VkExtent3D size = {1920, 1080, 1};

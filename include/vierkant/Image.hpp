@@ -16,6 +16,11 @@ class Image
 {
 public:
 
+    /**
+     * @brief   Format groups all sort of information, necessary to describe and create a vierkant::Image.
+     *          Format is default-constructable, trivially copyable, comparable and hashable.
+     *          Can be used as key in std::unordered_map.
+     */
     struct Format
     {
         VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -43,6 +48,7 @@ public:
         bool normalized_coords = true;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         uint32_t num_layers = 1;
+        VmaPool memory_pool = VK_NULL_HANDLE;
 
         bool operator==(const Format& other) const;
 

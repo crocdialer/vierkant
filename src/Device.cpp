@@ -4,14 +4,16 @@
 
 #include <set>
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreorder"
 #pragma GCC diagnostic ignored "-Wunused-variable"
-
 #define VMA_IMPLEMENTATION
 
-#include "vierkant/vk_mem_alloc.h"
+#include <vierkant/vk_mem_alloc.h>
 
-#include "../include/vierkant/Device.hpp"
+#pragma GCC diagnostic pop
+
+#include <vierkant/Device.hpp>
 
 namespace vierkant {
 
@@ -125,7 +127,6 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
                                                m_queue_indices[Device::Queue::PRESENT].index};
         // helper to pass priorities
         std::vector<std::vector<float>> queue_priorities;
-        uint32_t i = 0;
 
         for(int queue_family : unique_queue_families)
         {
@@ -169,7 +170,8 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
 
                 for(uint32_t i = 0; i < num_queues; ++i)
                 {
-                    vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i, &m_queues[type][i]);
+                    vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i,
+                                     &m_queues[type][i]);
                 }
             }
         };

@@ -224,12 +224,12 @@ void Image::init(void *data, VkImage image)
         // ask vma to create the image
         VmaAllocationCreateInfo alloc_info = {};
         alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        alloc_info.pool = m_format.memory_pool;
 
         vmaCreateImage(m_device->vk_mem_allocator(), &image_create_info, &alloc_info, &m_image, &m_allocation,
                        &m_allocation_info);
         m_owner = true;
     }
-
 
     ////////////////////////////////////////// copy contents ///////////////////////////////////////////////////////////
 
@@ -554,6 +554,7 @@ bool Image::Format::operator==(const Image::Format &other) const
     if(normalized_coords != other.normalized_coords){ return false; }
     if(sample_count != other.sample_count){ return false; }
     if(num_layers != other.num_layers){ return false; }
+    if(memory_pool != other.memory_pool){ return false; }
     return true;
 }
 
@@ -591,5 +592,6 @@ size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format co
     hash_combine(h, fmt.normalized_coords);
     hash_combine(h, fmt.sample_count);
     hash_combine(h, fmt.num_layers);
+    hash_combine(h, fmt.memory_pool);
     return h;
 }
