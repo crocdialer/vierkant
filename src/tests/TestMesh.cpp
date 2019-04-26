@@ -52,7 +52,7 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     // host visible, empty uniform-buffer
     auto uniform_buffer = vk::Buffer::create(device, nullptr, sizeof(UniformBuffer),
                                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                             VMA_MEMORY_USAGE_CPU_ONLY);
 
     // fill Uniformbuffer
     auto ubo = static_cast<UniformBuffer*>(uniform_buffer->map());

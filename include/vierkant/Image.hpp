@@ -29,6 +29,7 @@ public:
         VkImageLayout initial_layout = VK_IMAGE_LAYOUT_UNDEFINED;
         VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
         VkImageType image_type = VK_IMAGE_TYPE_2D;
+        VkSharingMode sharing_mode = VK_SHARING_MODE_EXCLUSIVE;
         VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D;
         VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
         VkSamplerAddressMode address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;

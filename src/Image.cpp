@@ -210,7 +210,7 @@ void Image::init(void *data, VkImage image)
     {
         VkImageCreateInfo image_create_info = {};
         image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        image_create_info.imageType = VK_IMAGE_TYPE_2D;
+        image_create_info.imageType = m_format.image_type;
         image_create_info.extent = m_format.extent;
         image_create_info.mipLevels = m_num_mip_levels;
         image_create_info.arrayLayers = m_format.num_layers;
@@ -219,7 +219,7 @@ void Image::init(void *data, VkImage image)
         image_create_info.initialLayout = m_format.initial_layout;
         image_create_info.usage = img_usage;
         image_create_info.samples = m_format.sample_count;
-        image_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        image_create_info.sharingMode = m_format.sharing_mode;
 
         // ask vma to create the image
         VmaAllocationCreateInfo alloc_info = {};
@@ -239,7 +239,7 @@ void Image::init(void *data, VkImage image)
                                              width() * height() * depth() *
                                              num_bytes_per_pixel(m_format.format),
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                             VMA_MEMORY_USAGE_CPU_ONLY);
         copy_from(staging_buffer);
     }
 
@@ -538,6 +538,7 @@ bool Image::Format::operator==(const Image::Format &other) const
     if(initial_layout != other.initial_layout){ return false; }
     if(tiling != other.tiling){ return false; }
     if(image_type != other.image_type){ return false; }
+    if(sharing_mode != other.sharing_mode){ return false; }
     if(view_type != other.view_type){ return false; }
     if(usage != other.usage){ return false; }
     if(address_mode_u != other.address_mode_u){ return false; }
@@ -573,6 +574,7 @@ size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format co
     hash_combine(h, fmt.initial_layout);
     hash_combine(h, fmt.tiling);
     hash_combine(h, fmt.image_type);
+    hash_combine(h, fmt.sharing_mode);
     hash_combine(h, fmt.view_type);
     hash_combine(h, fmt.usage);
     hash_combine(h, fmt.address_mode_u);

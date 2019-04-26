@@ -370,7 +370,7 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
 
     // combine buffers into staging buffer
     auto stage_buffer = vierkant::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                 VMA_MEMORY_USAGE_CPU_ONLY);
 
     // create vertexbuffer
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes,

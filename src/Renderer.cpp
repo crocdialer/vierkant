@@ -9,7 +9,7 @@ namespace vierkant {
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Renderer::Renderer(DevicePtr device, const vierkant::Framebuffer &framebuffer) :
-        m_device(device),
+        m_device(std::move(device)),
         m_renderpass(framebuffer.renderpass())
 {
     for(const auto &attach_pair : framebuffer.attachments())

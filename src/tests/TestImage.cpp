@@ -58,7 +58,7 @@ BOOST_AUTO_TEST_CASE(TestImage)
 
             auto img_sampler_mip = vk::Image::create(device, fmt);
             auto buf = vk::Buffer::create(device, testData.get(), numBytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                          VMA_MEMORY_USAGE_CPU_ONLY);
             vk::CommandBuffer cmdBuf(device, device->command_pool_transient());
             cmdBuf.begin();
 
@@ -83,7 +83,7 @@ BOOST_AUTO_TEST_CASE(TestImage)
 
             // create host-visible buffer
             auto hostBuf = vk::Buffer::create(device, nullptr, numBytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                              VMA_MEMORY_USAGE_GPU_TO_CPU);
+                                              VMA_MEMORY_USAGE_CPU_ONLY);
             // download data
 //            img_sampler->transitionLayout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
             img->copy_to(hostBuf);

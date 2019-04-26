@@ -9,19 +9,6 @@ namespace vierkant
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-//VmaMemoryUsage get_vma_memory_usage(VkMemoryPropertyFlags the_props)
-//{
-//    if(the_props & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT){ return VMA_MEMORY_USAGE_GPU_ONLY; }
-//    else if(the_props & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
-//    {
-//        if(the_props & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT){ return VMA_MEMORY_USAGE_CPU_ONLY; }
-//        else{ return VMA_MEMORY_USAGE_CPU_TO_GPU; }
-//    }
-//    return VMA_MEMORY_USAGE_UNKNOWN;
-//}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE)
 {
     CommandBuffer local_cmd_buf;
@@ -162,7 +149,7 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
         {
             // create staging buffer
             auto staging_buffer = Buffer::create(m_device, the_data, the_num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                 VMA_MEMORY_USAGE_CPU_ONLY);
 
             // copy staging buffer to this buffer
             copy_to_helper(m_device, staging_buffer.get(), this, nullptr);

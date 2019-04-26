@@ -35,7 +35,7 @@ public:
      * @brief   Construct a new Renderer object
      * @param   device  handle for the vk::Device to create the Renderer
      */
-    explicit Renderer(DevicePtr device, const vierkant::Framebuffer &framebuffer);
+    Renderer(DevicePtr device, const vierkant::Framebuffer &framebuffer);
 
     Renderer(Renderer &&other) noexcept;
 
