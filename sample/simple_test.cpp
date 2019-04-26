@@ -92,7 +92,7 @@ void HelloTriangleApplication::create_uniform_buffer()
     for(size_t i = 0; i < m_window->swapchain().images().size(); i++)
     {
         m_uniform_buffers[i] = vk::Buffer::create(m_device, nullptr, buf_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                  VMA_MEMORY_USAGE_CPU_ONLY);
     }
 }
 
