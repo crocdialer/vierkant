@@ -156,9 +156,8 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
     std::vector<VkDescriptorBufferInfo> buffer_infos;
     buffer_infos.reserve(num_writes);
 
+    // keep all VkDescriptorImageInfo structs around until vkUpdateDescriptorSets has processed them
     std::vector<std::vector<VkDescriptorImageInfo>> image_infos_collection;
-//    std::vector<VkDescriptorImageInfo> image_infos;
-//    image_infos.reserve(num_writes);
 
     for(size_t i = 0; i < num_sets; i++)
     {
@@ -306,7 +305,8 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
     return ret;
 }
 
-vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom)
+vierkant::MeshPtr
+create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom, bool interleave_data)
 {
     struct vertex_data_t
     {
@@ -377,8 +377,6 @@ vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, c
                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
     auto staging_data = (uint8_t *)stage_buffer->map();
-
-    bool interleave_data = true;
 
     if(interleave_data)
     {

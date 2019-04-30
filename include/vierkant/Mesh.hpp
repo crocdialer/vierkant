@@ -120,7 +120,8 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
  * @param   geom    a Geometry struct to extract the vertex information from
  * @return  the newly created vierkant::MeshPtr
  */
-vierkant::MeshPtr create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom);
+vierkant::MeshPtr
+create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom, bool interleave_data = true);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -180,13 +181,6 @@ public:
 private:
 
     Mesh() = default;
-};
-
-struct render_object_t
-{
-    vierkant::MeshPtr mesh;
-    vierkant::BufferPtr uniform_buffer;
-    DescriptorSetPtr descriptor_set;
 };
 
 }//namespace vierkant
