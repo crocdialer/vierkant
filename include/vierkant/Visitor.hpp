@@ -33,10 +33,6 @@ public:
         m_transform_stack.push(glm::mat4());
     }
 
-    inline const std::stack<glm::mat4> &transform_stack() const { return m_transform_stack; };
-
-    inline std::stack<glm::mat4> &transform_stack() { return m_transform_stack; };
-
     inline bool visit_only_enabled() const { return m_visit_only_enabled; }
 
     inline void set_visit_only_enabled(bool b) { m_visit_only_enabled = b; }
@@ -68,6 +64,7 @@ protected:
 
 private:
     std::stack<glm::mat4> m_transform_stack;
+
     bool m_visit_only_enabled;
 };
 
@@ -76,34 +73,22 @@ class SelectVisitor : public Visitor
 {
 public:
 
+    std::vector<T *> objects;
+
+    std::set<std::string> tags;
+
     explicit SelectVisitor(std::set<std::string> tags = {}, bool select_only_enabled = true) :
             Visitor(select_only_enabled),
-            m_tags(std::move(tags)) {}
+            tags(std::move(tags)) {}
 
     void visit(T &theNode) override
     {
         if(theNode.enabled() || !visit_only_enabled())
         {
-            if(check_tags(m_tags, theNode.tags())){ m_objects.push_back(&theNode); }
+            if(check_tags(tags, theNode.tags())){ objects.push_back(&theNode); }
             Visitor::visit(static_cast<Object3D &>(theNode));
         }
     };
-
-    const std::set<std::string> &tags() const { return m_tags; }
-
-    void set_tags(const std::set<std::string> &the_tags) { m_tags = the_tags; }
-
-    void add_tag(const std::string &the_tag) { m_tags.insert(the_tag); }
-
-    void remove_tag(const std::string &the_tag) { m_tags.erase(the_tag); }
-
-    void clear() { m_objects.clear(); }
-
-    const std::list<T *> &get_objects() const { return m_objects; };
-
-private:
-    std::list<T *> m_objects;
-    std::set<std::string> m_tags;
 };
 
 }//namespace

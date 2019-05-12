@@ -51,10 +51,25 @@ public:
         uint32_t num_layers = 1;
         VmaPool memory_pool = VK_NULL_HANDLE;
 
-        bool operator==(const Format& other) const;
+        bool operator==(const Format &other) const;
 
-        bool operator!=(const Format& other) const { return !(*this == other); };
+        bool operator!=(const Format &other) const { return !(*this == other); };
     };
+
+    /**
+     * @brief   Create a memory pool, that can be used to allocate Images from.
+     *
+     * @param   device          handle for the vierkant::Device to create the pool with
+     * @param   fmt             the Image::Format for Images allocated from this pool
+     * @param   block_size      optional parameter for fixed block-sizes in bytes.
+     * @param   min_block_count optional parameter for minimum number of allocated blocks
+     * @param   max_block_count optional parameter for maximum number of allocated blocks
+     * @param   vma_flags       the VmaPoolCreateFlags. can be used to change the memory-pool's allocation strategy
+     * @return  the newly created VmaPoolPtr
+     */
+    static VmaPoolPtr create_pool(const DevicePtr &device, Format fmt, VkDeviceSize block_size = 0,
+                                  size_t min_block_count = 0, size_t max_block_count = 0,
+                                  VmaPoolCreateFlags vma_flags = 0);
 
     /**
      * @brief   Factory to create instances of ImagePtr.
@@ -202,8 +217,7 @@ private:
 
 }//namespace vierkant
 
-namespace std
-{
+namespace std {
 template<>
 struct hash<vierkant::Image::Format>
 {

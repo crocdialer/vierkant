@@ -12,6 +12,8 @@ namespace vierkant {
 
 DEFINE_CLASS_PTR(Device);
 
+using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
+
 class Device
 {
 public:

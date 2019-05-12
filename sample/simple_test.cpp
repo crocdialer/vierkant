@@ -1,7 +1,8 @@
 #include "simple_test.hpp"
 
-#include "crocore/filesystem.hpp"
-#include "crocore/Image.hpp"
+#include <crocore/filesystem.hpp>
+#include <crocore/filesystem.hpp>
+#include <crocore/Image.hpp>
 
 void HelloTriangleApplication::setup()
 {

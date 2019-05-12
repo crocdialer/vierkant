@@ -61,6 +61,7 @@ set(LIBS ${LIBS} ${Boost_LIBRARIES})
 #crocore
 add_subdirectory("crocore")
 include_directories(${crocore_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
 #shaders
 #set(GLSLANG_VALIDATOR "/opt/glslang/6.2.2596/bin/glslangValidator")

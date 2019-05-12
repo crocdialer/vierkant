@@ -156,7 +156,7 @@ namespace vierkant {
     {
         if(the_child)
         {
-            // avoid cyclic refs
+            // avoid cyclic refs -> new child must not be an ancestor
             Object3DPtr ancestor = parent();
             while(ancestor)
             {

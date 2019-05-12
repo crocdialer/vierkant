@@ -8,7 +8,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(${LIB_NAME} ${LIB_TYPE} ${FOLDER_SOURCES} ${FOLDER_HEADERS})
 add_dependencies(${LIB_NAME} shaders)
-target_link_libraries(${LIB_NAME} ${LIBS} crocore)
+target_link_libraries(${LIB_NAME} ${LIBS})
 set(LIBS ${LIBS} ${LIB_NAME})
 
 #Boost Unit-Tests

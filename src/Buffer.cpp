@@ -4,8 +4,7 @@
 
 #include "../include/vierkant/Buffer.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -37,21 +36,53 @@ void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommand
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+VmaPoolPtr Buffer::create_pool(const DevicePtr& device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
+                               VkDeviceSize block_size, size_t min_block_count, size_t max_block_count,
+                               VmaPoolCreateFlags vma_flags)
+{
+    VkBufferCreateInfo dummy_buf_create_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    dummy_buf_create_info.usage = usage_flags;
+    dummy_buf_create_info.size = 1024;
+
+    VmaAllocationCreateInfo dummy_alloc_create_info = {};
+    dummy_alloc_create_info.usage = mem_usage;
+    uint32_t memTypeIndex;
+    vmaFindMemoryTypeIndexForBufferInfo(device->vk_mem_allocator(), &dummy_buf_create_info, &dummy_alloc_create_info,
+                                        &memTypeIndex);
+
+    VmaPoolCreateInfo pool_create_info = {};
+    pool_create_info.memoryTypeIndex = memTypeIndex;
+    pool_create_info.blockSize = block_size;
+    pool_create_info.minBlockCount = min_block_count;
+    pool_create_info.maxBlockCount = max_block_count;
+    pool_create_info.flags = vma_flags;
+
+    // create pool
+    VmaPool pool;
+    vmaCreatePool(device->vk_mem_allocator(), &pool_create_info, &pool);
+
+    // return self-destructing VmaPoolPtr
+    return VmaPoolPtr(pool, [device](VmaPool p) { vmaDestroyPool(device->vk_mem_allocator(), p); });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 BufferPtr
 Buffer::create(DevicePtr device, const void *data, size_t num_bytes, VkBufferUsageFlags usage_flags,
-               VmaMemoryUsage mem_usage)
+               VmaMemoryUsage mem_usage, VmaPool pool)
 {
-    auto ret = BufferPtr(new Buffer(std::move(device), usage_flags, mem_usage));
+    auto ret = BufferPtr(new Buffer(std::move(device), usage_flags, mem_usage, pool));
     ret->set_data(data, num_bytes);
     return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VmaMemoryUsage mem_usage) :
+Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VmaMemoryUsage mem_usage, VmaPool pool) :
         m_device(std::move(the_device)),
         m_usage(the_usage_flags),
-        m_mem_usage(mem_usage)
+        m_mem_usage(mem_usage),
+        m_pool(pool)
 {
 
 }
@@ -129,6 +160,7 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
 
         VmaAllocationCreateInfo alloc_info = {};
         alloc_info.usage = m_mem_usage;
+        alloc_info.pool = m_pool;
 
         vmaCreateBuffer(m_device->vk_mem_allocator(), &buffer_info, &alloc_info, &m_buffer, &m_allocation,
                         &m_allocation_info);

@@ -6,7 +6,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void test_buffer(vk::DevicePtr device)
+void test_buffer(vk::DevicePtr device, VmaPool pool_host = VK_NULL_HANDLE, VmaPool pool_gpu = VK_NULL_HANDLE)
 {
     // 1 MB test-bytes
     size_t num_bytes = 1 << 20;
@@ -15,7 +15,7 @@ void test_buffer(vk::DevicePtr device)
 
     // create an empty, host-visible buffer with empty usage-flags
     auto host_buffer = vk::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                          VMA_MEMORY_USAGE_CPU_ONLY);
+                                          VMA_MEMORY_USAGE_CPU_ONLY, pool_host);
 
     // check for correct size
     BOOST_CHECK(host_buffer->num_bytes() == num_bytes);
@@ -38,7 +38,7 @@ void test_buffer(vk::DevicePtr device)
     // init a gpu only buffer with dummy data from a std::vector (will internally use a staging buffer for upload)
     auto gpu_buffer = vk::Buffer::create(device, dummy_data,
                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                         VMA_MEMORY_USAGE_GPU_ONLY);
+                                         VMA_MEMORY_USAGE_GPU_ONLY, pool_gpu);
     // check for correct size
     BOOST_CHECK(gpu_buffer->num_bytes() == dummy_data.size());
 
@@ -46,7 +46,7 @@ void test_buffer(vk::DevicePtr device)
     BOOST_CHECK(!gpu_buffer->is_host_visible());
 
     // test failed mapping to host-memory
-    ptr = static_cast<uint8_t*>(gpu_buffer->map());
+    ptr = static_cast<uint8_t *>(gpu_buffer->map());
     BOOST_CHECK(ptr == nullptr);
 
     // download data from gpu-buffer to host-buffer
@@ -87,3 +87,35 @@ BOOST_AUTO_TEST_CASE(TestBuffer)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+BOOST_AUTO_TEST_CASE(TestBufferPool)
+{
+    bool use_validation = true;
+    vk::Instance instance(use_validation, {});
+
+    BOOST_CHECK(instance);
+    BOOST_CHECK(instance.use_validation_layers() == use_validation);
+    BOOST_CHECK(!instance.physical_devices().empty());
+
+    for(auto physical_device : instance.physical_devices())
+    {
+        auto device = vk::Device::create(physical_device,
+                                         instance.use_validation_layers(),
+                                         VK_NULL_HANDLE);
+
+        auto pool = vk::Buffer::create_pool(device,
+                                            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                            VMA_MEMORY_USAGE_GPU_ONLY);
+
+        auto pool_buddy_host = vk::Buffer::create_pool(device,
+                                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                       VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                       VMA_MEMORY_USAGE_CPU_ONLY, 1U << 23, 32, 0,
+                                                       VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+
+        auto pool_buddy = vk::Buffer::create_pool(device,
+                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                  VMA_MEMORY_USAGE_GPU_ONLY, 1U << 23, 32, 0,
+                                                  VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+    }
+}

@@ -133,6 +133,42 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFo
                          &barrier);
 }
 
+VmaPoolPtr Image::create_pool(const DevicePtr &device, Image::Format format, VkDeviceSize block_size,
+                              size_t min_block_count, size_t max_block_count, VmaPoolCreateFlags vma_flags)
+{
+    VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    image_create_info.imageType = format.image_type;
+    image_create_info.extent = format.extent;
+    image_create_info.mipLevels = 1;
+    image_create_info.arrayLayers = format.num_layers;
+    image_create_info.format = format.format;
+    image_create_info.tiling = format.tiling;
+    image_create_info.initialLayout = format.initial_layout;
+    image_create_info.usage = format.usage;
+    image_create_info.samples = format.sample_count;
+    image_create_info.sharingMode = format.sharing_mode;
+
+    VmaAllocationCreateInfo dummy_alloc_create_info = {};
+    dummy_alloc_create_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    uint32_t mem_type_index;
+    vmaFindMemoryTypeIndexForImageInfo(device->vk_mem_allocator(), &image_create_info, &dummy_alloc_create_info,
+                                       &mem_type_index);
+
+    VmaPoolCreateInfo pool_create_info = {};
+    pool_create_info.memoryTypeIndex = mem_type_index;
+    pool_create_info.blockSize = block_size;
+    pool_create_info.minBlockCount = min_block_count;
+    pool_create_info.maxBlockCount = max_block_count;
+    pool_create_info.flags = vma_flags;
+
+    // create pool
+    VmaPool pool;
+    vmaCreatePool(device->vk_mem_allocator(), &pool_create_info, &pool);
+
+    // return self-destructing VmaPoolPtr
+    return VmaPoolPtr(pool, [device](VmaPool p) { vmaDestroyPool(device->vk_mem_allocator(), p); });
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ImagePtr Image::create(DevicePtr device, void *data, Format format)
@@ -423,7 +459,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
 
 void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 {
-    if (!m_format.use_mipmap || m_num_mip_levels <= 1)
+    if(!m_format.use_mipmap || m_num_mip_levels <= 1)
     {
         transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer);
         return;

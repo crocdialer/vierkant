@@ -13,22 +13,42 @@ DEFINE_CLASS_PTR(Buffer);
 
 class Buffer
 {
- public:
+public:
+
+    /**
+     * @brief   Create a memory pool, that can be used to allocate Buffers from.
+     *
+     * @param   device          handle for the vierkant::Device to create the pool with
+     * @param   usage_flags     the usage-flags for Buffers allocated from this pool
+     * @param   mem_usage       the intended memory usage
+     * @param   block_size      optional parameter for fixed block-sizes in bytes.
+     * @param   min_block_count optional parameter for minimum number of allocated blocks
+     * @param   max_block_count optional parameter for maximum number of allocated blocks
+     * @param   vma_flags       the VmaPoolCreateFlags. can be used to change the memory-pool's allocation strategy
+     * @return  the newly created VmaPoolPtr
+     */
+    static VmaPoolPtr create_pool(const DevicePtr& device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
+                                  VkDeviceSize block_size = 0, size_t min_block_count = 0, size_t max_block_count = 0,
+                                  VmaPoolCreateFlags vma_flags = 0);
 
     static BufferPtr create(DevicePtr device, const void *data, size_t num_bytes,
-                            VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage);
+                            VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
+                            VmaPool pool = VK_NULL_HANDLE);
 
     template<class T>
     static BufferPtr create(DevicePtr the_device, const T &the_array, VkBufferUsageFlags the_usage_flags,
-                            VmaMemoryUsage mem_usage)
+                            VmaMemoryUsage mem_usage, VmaPool pool = VK_NULL_HANDLE)
     {
         size_t num_bytes = the_array.size() * sizeof(typename T::value_type);
-        return create(the_device, the_array.data(), num_bytes, the_usage_flags, mem_usage);
+        return create(the_device, the_array.data(), num_bytes, the_usage_flags, mem_usage, pool);
     }
 
     Buffer(Buffer &&other) = delete;
+
     Buffer(const Buffer &other) = delete;
-    Buffer& operator=(Buffer other) = delete;
+
+    Buffer &operator=(Buffer other) = delete;
+
     ~Buffer();
 
     /**
@@ -41,7 +61,7 @@ class Buffer
      *
      * @return  a pointer to the mapped memory, if successful, nullptr otherwise
      */
-    void* map();
+    void *map();
 
     /**
      * @brief   unmap the previously mapped buffer
@@ -74,10 +94,11 @@ class Buffer
     /**
      * @brief   convenience template to set the contents of this buffer from a std::vector or std::array
      */
-    template <typename T> inline void set_data(const T &the_array)
+    template<typename T>
+    inline void set_data(const T &the_array)
     {
         size_t num_bytes = the_array.size() * sizeof(typename T::value_type);
-        set_data((void*)the_array.data(), num_bytes);
+        set_data((void *)the_array.data(), num_bytes);
     };
 
     /**
@@ -88,7 +109,7 @@ class Buffer
      */
     void copy_to(BufferPtr dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE);
 
- private:
+private:
 
     DevicePtr m_device;
 
@@ -104,7 +125,9 @@ class Buffer
 
     VmaMemoryUsage m_mem_usage = VMA_MEMORY_USAGE_UNKNOWN;
 
-    Buffer(DevicePtr the_device, VkBufferUsageFlags the_usage_flags, VmaMemoryUsage mem_usage);
+    VmaPool m_pool = VK_NULL_HANDLE;
+
+    Buffer(DevicePtr the_device, VkBufferUsageFlags the_usage_flags, VmaMemoryUsage mem_usage, VmaPool pool);
 };
 
 }//namespace vulkan

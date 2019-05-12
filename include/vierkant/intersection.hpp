@@ -164,23 +164,23 @@ struct Triangle
         v1 = (t * glm::vec4(v1, 1.0f)).xyz();
         v2 = (t * glm::vec4(v2, 1.0f)).xyz();
         return *this;
-    };
+    }
 
     inline Triangle transform(const glm::mat4 &t) const
     {
         Triangle ret = *this;
         return ret.transform(t);
-    };
+    }
 
     inline ray_triangle_intersection intersect(const Ray &theRay) const
     {
         return vierkant::intersect(*this, theRay);
-    };
+    }
 
     inline glm::vec3 normal() const
     {
         return normalize(cross(v1 - v0, v2 - v0));
-    };
+    }
 };
 
 struct Sphere
@@ -189,11 +189,12 @@ struct Sphere
     glm::vec3 center;
     float radius;
 
-    Sphere(const glm::vec3 &c, float r)
+    Sphere(const glm::vec3 &c, float r):
+    center(c),
+    radius(r)
     {
-        center = c;
-        radius = r;
-    };
+
+    }
 
     inline Sphere &transform(const glm::mat4 &t)
     {
@@ -201,13 +202,13 @@ struct Sphere
         float max_scale = std::max(std::max(t[0][0], t[1][1]), t[2][2]);
         radius *= max_scale;
         return *this;
-    };
+    }
 
     inline Sphere transform(const glm::mat4 &t) const
     {
         Sphere ret = *this;
         return ret.transform(t);
-    };
+    }
 
     inline uint32_t intersect(const glm::vec3 &thePoint) const
     {
