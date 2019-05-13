@@ -6,7 +6,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void test_buffer(vk::DevicePtr device, VmaPool pool_host = VK_NULL_HANDLE, VmaPool pool_gpu = VK_NULL_HANDLE)
+void test_buffer(const vk::DevicePtr& device, const vk::VmaPoolPtr &pool_host = nullptr,
+                 const vk::VmaPoolPtr &pool_gpu = nullptr)
 {
     // 1 MB test-bytes
     size_t num_bytes = 1 << 20;
@@ -24,7 +25,7 @@ void test_buffer(vk::DevicePtr device, VmaPool pool_host = VK_NULL_HANDLE, VmaPo
     BOOST_CHECK(host_buffer->is_host_visible());
 
     // test mapping to host-memory
-    uint8_t *ptr = static_cast<uint8_t *>(host_buffer->map());
+    auto *ptr = static_cast<uint8_t *>(host_buffer->map());
     BOOST_CHECK(ptr != nullptr);
 
     // use ptr to manipulate buffer
@@ -106,16 +107,22 @@ BOOST_AUTO_TEST_CASE(TestBufferPool)
         auto pool = vk::Buffer::create_pool(device,
                                             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                             VMA_MEMORY_USAGE_GPU_ONLY);
+        BOOST_CHECK(pool);
 
         auto pool_buddy_host = vk::Buffer::create_pool(device,
                                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                                        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                       VMA_MEMORY_USAGE_CPU_ONLY, 1U << 23, 32, 0,
+                                                       VMA_MEMORY_USAGE_CPU_ONLY, 1U << 23U, 32, 0,
                                                        VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+        BOOST_CHECK(pool_buddy_host);
 
         auto pool_buddy = vk::Buffer::create_pool(device,
                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                  VMA_MEMORY_USAGE_GPU_ONLY, 1U << 23, 32, 0,
+                                                  VMA_MEMORY_USAGE_GPU_ONLY, 1U << 23U, 32, 0,
                                                   VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+        BOOST_CHECK(pool_buddy);
+
+        // run buffer test case
+        test_buffer(device, pool_buddy_host, pool_buddy);
     }
 }

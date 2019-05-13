@@ -133,7 +133,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFo
                          &barrier);
 }
 
-VmaPoolPtr Image::create_pool(const DevicePtr &device, Image::Format format, VkDeviceSize block_size,
+VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format& format, VkDeviceSize block_size,
                               size_t min_block_count, size_t max_block_count, VmaPoolCreateFlags vma_flags)
 {
     VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
@@ -260,7 +260,7 @@ void Image::init(void *data, VkImage image)
         // ask vma to create the image
         VmaAllocationCreateInfo alloc_info = {};
         alloc_info.usage = m_format.memory_usage;
-        alloc_info.pool = m_format.memory_pool;
+        alloc_info.pool = m_format.memory_pool.get();
 
         vmaCreateImage(m_device->vk_mem_allocator(), &image_create_info, &alloc_info, &m_image, &m_allocation,
                        &m_allocation_info);

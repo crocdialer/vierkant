@@ -50,7 +50,7 @@ public:
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         uint32_t num_layers = 1;
         VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-        VmaPool memory_pool = VK_NULL_HANDLE;
+        VmaPoolPtr memory_pool = nullptr;
 
         bool operator==(const Format &other) const;
 
@@ -68,7 +68,7 @@ public:
      * @param   vma_flags       the VmaPoolCreateFlags. can be used to change the memory-pool's allocation strategy
      * @return  the newly created VmaPoolPtr
      */
-    static VmaPoolPtr create_pool(const DevicePtr &device, Format fmt, VkDeviceSize block_size = 0,
+    static VmaPoolPtr create_pool(const DevicePtr &device, const Format& fmt, VkDeviceSize block_size = 0,
                                   size_t min_block_count = 0, size_t max_block_count = 0,
                                   VmaPoolCreateFlags vma_flags = 0);
 

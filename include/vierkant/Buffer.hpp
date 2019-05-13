@@ -33,11 +33,11 @@ public:
 
     static BufferPtr create(DevicePtr device, const void *data, size_t num_bytes,
                             VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
-                            VmaPool pool = VK_NULL_HANDLE);
+                            VmaPoolPtr pool = nullptr);
 
     template<class T>
     static BufferPtr create(DevicePtr the_device, const T &the_array, VkBufferUsageFlags the_usage_flags,
-                            VmaMemoryUsage mem_usage, VmaPool pool = VK_NULL_HANDLE)
+                            VmaMemoryUsage mem_usage, VmaPoolPtr pool = nullptr)
     {
         size_t num_bytes = the_array.size() * sizeof(typename T::value_type);
         return create(the_device, the_array.data(), num_bytes, the_usage_flags, mem_usage, pool);
@@ -107,7 +107,7 @@ public:
      * @param   dst     the destination buffer for the copy operation
      * @param   cmd_buf optional pointer to an existing CommandBuffer to be used for the copy operation
      */
-    void copy_to(BufferPtr dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE);
+    void copy_to(const BufferPtr& dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE);
 
 private:
 
@@ -125,9 +125,9 @@ private:
 
     VmaMemoryUsage m_mem_usage = VMA_MEMORY_USAGE_UNKNOWN;
 
-    VmaPool m_pool = VK_NULL_HANDLE;
+    VmaPoolPtr m_pool = nullptr;
 
-    Buffer(DevicePtr the_device, VkBufferUsageFlags the_usage_flags, VmaMemoryUsage mem_usage, VmaPool pool);
+    Buffer(DevicePtr the_device, VkBufferUsageFlags the_usage_flags, VmaMemoryUsage mem_usage, VmaPoolPtr pool);
 };
 
 }//namespace vulkan

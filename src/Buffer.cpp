@@ -1,3 +1,5 @@
+#include <utility>
+
 //
 // Created by crocdialer on 9/26/18.
 //
@@ -69,20 +71,20 @@ VmaPoolPtr Buffer::create_pool(const DevicePtr& device, VkBufferUsageFlags usage
 
 BufferPtr
 Buffer::create(DevicePtr device, const void *data, size_t num_bytes, VkBufferUsageFlags usage_flags,
-               VmaMemoryUsage mem_usage, VmaPool pool)
+               VmaMemoryUsage mem_usage, VmaPoolPtr pool)
 {
-    auto ret = BufferPtr(new Buffer(std::move(device), usage_flags, mem_usage, pool));
+    auto ret = BufferPtr(new Buffer(std::move(device), usage_flags, mem_usage, std::move(pool)));
     ret->set_data(data, num_bytes);
     return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VmaMemoryUsage mem_usage, VmaPool pool) :
+Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VmaMemoryUsage mem_usage, VmaPoolPtr pool) :
         m_device(std::move(the_device)),
         m_usage(the_usage_flags),
         m_mem_usage(mem_usage),
-        m_pool(pool)
+        m_pool(std::move(pool))
 {
 
 }
@@ -160,7 +162,7 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
 
         VmaAllocationCreateInfo alloc_info = {};
         alloc_info.usage = m_mem_usage;
-        alloc_info.pool = m_pool;
+        alloc_info.pool = m_pool.get();
 
         vmaCreateBuffer(m_device->vk_mem_allocator(), &buffer_info, &alloc_info, &m_buffer, &m_allocation,
                         &m_allocation_info);
@@ -191,7 +193,7 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Buffer::copy_to(BufferPtr dst, VkCommandBuffer cmdBufferHandle)
+void Buffer::copy_to(const BufferPtr& dst, VkCommandBuffer cmdBufferHandle)
 {
     copy_to_helper(m_device, this, dst.get(), cmdBufferHandle);
 }
