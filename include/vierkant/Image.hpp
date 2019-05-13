@@ -49,6 +49,7 @@ public:
         bool normalized_coords = true;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         uint32_t num_layers = 1;
+        VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         VmaPool memory_pool = VK_NULL_HANDLE;
 
         bool operator==(const Format &other) const;
