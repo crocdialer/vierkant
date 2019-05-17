@@ -16,7 +16,7 @@ class Camera : public Object3D
 {
 public:
 
-    glm::mat4 projection_matrix() const { return m_projectionMatrix; };
+    glm::mat4 projection_matrix() const { return m_projection; };
 
     glm::mat4 view_matrix() const;
 
@@ -30,26 +30,24 @@ public:
 
 protected:
 
-    Camera(const std::string &name);
+    explicit Camera(const std::string &name);
 
-    virtual void update_projection_matrix() = 0;
-
-    void set_projection_matrix(const glm::mat4 &theMatrix) { m_projectionMatrix = theMatrix; };
+    void set_projection_matrix(const glm::mat4 &theMatrix) { m_projection = theMatrix; };
 
 private:
 
-    glm::mat4 m_projectionMatrix;
+    virtual void update_projection_matrix() = 0;
+
+    glm::mat4 m_projection{};
 };
 
 class OrthoCamera : public Camera
 {
 public:
 
-    static OrthoCameraPtr create_for_window();
-
     static OrthoCameraPtr create(float left, float right, float bottom, float top, float near, float far);
 
-    virtual vierkant::Frustum frustum() const override;
+    vierkant::Frustum frustum() const override;
 
     float near() const override { return m_near; };
 
@@ -101,14 +99,12 @@ public:
 
     void set_size(const glm::vec2 &the_sz);
 
-protected:
-
-    void update_projection_matrix() override;
-
 private:
 
     OrthoCamera(float left, float right, float bottom, float top,
                 float near, float far);
+
+    void update_projection_matrix() override;
 
     float m_left, m_right, m_bottom, m_top, m_near, m_far;
 };
@@ -139,13 +135,11 @@ public:
 
     float far() const override { return m_far; };
 
-protected:
-
-    void update_projection_matrix() override;
-
 private:
 
-    explicit PerspectiveCamera(float ascpect = 4.f / 3.f, float fov = 45, float near = .1, float far = 5000);
+    PerspectiveCamera(float ascpect, float fov, float near, float far);
+
+    void update_projection_matrix() override;
 
     float m_near, m_far;
     float m_fov;

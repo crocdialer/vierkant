@@ -122,8 +122,6 @@ public:
         bool operator==(const Format &other) const;
 
         bool operator!=(const Format &other) const { return !(*this == other); };
-
-        Format() {};
     };
 
     Pipeline() = default;

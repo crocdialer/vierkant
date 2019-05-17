@@ -2,6 +2,7 @@
 // Created by crocdialer on 3/22/19.
 //
 
+#include <crocore/Area.hpp>
 #include "vierkant/Renderer.hpp"
 
 namespace vierkant {
@@ -40,6 +41,17 @@ Renderer &Renderer::operator=(Renderer other)
 {
     swap(*this, other);
     return *this;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void swap(Renderer &lhs, Renderer &rhs)
+{
+    std::swap(lhs.m_device, rhs.m_device);
+    std::swap(lhs.m_renderpass, rhs.m_renderpass);
+    std::swap(lhs.m_sample_count, rhs.m_sample_count);
+    std::swap(lhs.m_shader_stage_cache, rhs.m_shader_stage_cache);
+    std::swap(lhs.m_pipelines, rhs.m_pipelines);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -93,19 +105,32 @@ void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout(),
                             0, 1, &descriptor_set, 0, nullptr);
 
+    // push-constants
+//    vkCmdPushConstants(command_buffer, pipeline.layout());
+
     // issue (indexed) drawing command
     if(drawable.mesh->index_buffer){ vkCmdDrawIndexed(command_buffer, drawable.mesh->num_elements, 1, 0, 0, 0); }
     else{ vkCmdDraw(command_buffer, drawable.mesh->num_elements, 1, 0, 0); }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void swap(Renderer &lhs, Renderer &rhs)
+void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImagePtr &image,
+        const crocore::Area_<float> &area)
 {
-    std::swap(lhs.m_device, rhs.m_device);
-    std::swap(lhs.m_renderpass, rhs.m_renderpass);
-    std::swap(lhs.m_sample_count, rhs.m_sample_count);
-    std::swap(lhs.m_pipelines, rhs.m_pipelines);
+    auto draw_it = m_drawable_cache.find(DrawableType::IMAGE);
+
+    // need to create drawable
+    if(draw_it == m_drawable_cache.end())
+    {
+        // create plane-geometry
+        auto plane = Geometry::Plane();
+        auto mesh = create_mesh_from_geometry(m_device, plane);
+
+        drawable_t new_drawable = {};
+    }
+
+    draw(command_buffer, draw_it->second);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 }//namespace vierkant
