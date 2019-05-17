@@ -41,8 +41,6 @@ public:
 
     Renderer(const Renderer &) = delete;
 
-    ~Renderer();
-
     Renderer &operator=(Renderer other);
 
     void draw(VkCommandBuffer command_buffer, const drawable_t &drawable);

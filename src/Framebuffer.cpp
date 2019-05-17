@@ -1,3 +1,5 @@
+#include <utility>
+
 //
 // Created by crocdialer on 2/16/19.
 //
@@ -149,7 +151,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
 Framebuffer::Framebuffer(DevicePtr device, VkExtent3D size, Format format, RenderPassPtr renderpass) :
         m_device(std::move(device)),
         m_extent(size),
-        m_format(format)
+        m_format(std::move(format))
 {
     m_format.color_attachment_format.extent = m_extent;
     init(create_attachments(m_format), std::move(renderpass));

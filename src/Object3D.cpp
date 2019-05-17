@@ -16,21 +16,19 @@ namespace vierkant {
     uint32_t Object3D::s_id_pool = 0;
     
     // static factory
-    Object3DPtr Object3D::create(const std::string &the_name)
+    Object3DPtr Object3D::create(const std::string &name)
     {
-        auto ret = Object3DPtr(new Object3D());
-        if(!the_name.empty()){ ret->set_name(the_name); }
-        return ret;
+        return Object3DPtr(new Object3D(name));
     }
     
-    Object3D::Object3D():
+    Object3D::Object3D(const std::string &name):
     m_id(s_id_pool++),
-    m_name("Object3D_" + std::to_string(m_id)),
+    m_name(name),
     m_enabled(true),
     m_billboard(false),
     m_transform(1)
     {
-
+        if(m_name.empty()){ m_name = "Object3D_" + std::to_string(m_id); }
     }
     
     void Object3D::set_rotation(const glm::quat &theRot)

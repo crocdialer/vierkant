@@ -45,7 +45,7 @@ private:
 
     void teardown() override;
 
-    void draw(vierkant::WindowPtr w);
+    void draw(const vierkant::WindowPtr &w);
 
     void create_context_and_window();
 

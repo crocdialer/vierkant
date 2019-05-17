@@ -159,7 +159,7 @@ void HelloTriangleApplication::update(double time_delta)
     set_running(running() && !m_window->should_close());
 }
 
-void HelloTriangleApplication::draw(vierkant::WindowPtr w)
+void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 {
     auto image_index = w->swapchain().image_index();
     std::vector<VkCommandBuffer> command_bufs = {m_command_buffers[image_index].handle()};

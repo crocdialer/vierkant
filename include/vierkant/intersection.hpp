@@ -87,13 +87,13 @@ struct Ray
  */
 struct ray_intersection
 {
-    intersection_type type;
-    float distance;
+    intersection_type type = REJECT;
+    float distance = 0.f;
 
     ray_intersection(intersection_type theType, float theDistance = 0.0f) :
             type(theType), distance(theDistance) {}
 
-    operator intersection_type() const { return type; }
+    explicit operator intersection_type() const { return type; }
 };
 
 /*!
@@ -102,7 +102,7 @@ struct ray_intersection
  */
 struct ray_triangle_intersection : public ray_intersection
 {
-    float u, v;
+    float u = 0.f, v = 0.f;
 
     ray_triangle_intersection(intersection_type theType, float theDistance = 0.0f,
                               float theU = 0.0f, float theV = 0.0f)
@@ -112,11 +112,11 @@ struct ray_triangle_intersection : public ray_intersection
 struct Plane
 {
     // Ax + By + Cz + D = 0
-    glm::vec4 coefficients;
+    glm::vec4 coefficients{0};
 
     Plane();
 
-    Plane(const glm::vec4 &theCoefficients);
+    explicit Plane(const glm::vec4 &theCoefficients);
 
     Plane(float theA, float theB, float theC, float theD);
 
@@ -189,9 +189,9 @@ struct Sphere
     glm::vec3 center;
     float radius;
 
-    Sphere(const glm::vec3 &c, float r):
-    center(c),
-    radius(r)
+    Sphere(const glm::vec3 &c, float r) :
+            center(c),
+            radius(r)
     {
 
     }
@@ -238,7 +238,7 @@ struct AABB
             min(theMin),
             max(theMax) {}
 
-    AABB(const std::vector<glm::vec3> &points);
+    explicit AABB(const std::vector<glm::vec3> &points);
 
     inline float width() const { return max.x - min.x; }
 
@@ -352,7 +352,7 @@ struct Frustum
 {
     Plane planes[6];
 
-    Frustum(const glm::mat4 &the_VP_martix);
+    explicit Frustum(const glm::mat4 &the_VP_martix);
 
     Frustum(float aspect, float fov, float near, float far);
 

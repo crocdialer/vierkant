@@ -138,7 +138,7 @@ public:
     virtual void accept(Visitor &theVisitor);
 
 protected:
-    Object3D();
+    explicit Object3D(const std::string &name);
 
 private:
 

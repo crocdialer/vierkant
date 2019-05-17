@@ -19,7 +19,7 @@ DEFINE_CLASS_PTR(Window)
 class Window : public std::enable_shared_from_this<Window>
 {
 public:
-    using draw_fn_t = std::function<void(WindowPtr w)>;
+    using draw_fn_t = std::function<void(const WindowPtr&)>;
     using close_fn_t = std::function<void()>;
     using resize_fn_t = std::function<void(uint32_t w, uint32_t h)>;
 
