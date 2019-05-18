@@ -4,7 +4,7 @@ namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Camera::Camera(const std::string &name): Object3D(name){}
+Camera::Camera(const std::string &name) : Object3D(name) {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -17,7 +17,7 @@ glm::mat4 Camera::view_matrix() const
 
 AABB Camera::boundingbox() const
 {
-    return AABB(glm::vec3(-0.5f), glm::vec3(0.5f));
+    return {glm::vec3(-0.5f), glm::vec3(0.5f)};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -49,7 +49,9 @@ OrthoCamera::OrthoCamera(float left, float right,
 
 void OrthoCamera::update_projection_matrix()
 {
-    set_projection_matrix(glm::ortho(m_left, m_right, m_bottom, m_top, m_near, m_far));
+    auto m = glm::orthoRH(m_left, m_right, m_bottom, m_top, m_near, m_far);
+    m[1][1] *= -1;
+    set_projection_matrix(m);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +90,9 @@ PerspectiveCamera::PerspectiveCamera(float ascpect, float fov, float near, float
 
 void PerspectiveCamera::update_projection_matrix()
 {
-    set_projection_matrix(glm::perspective(glm::radians(m_fov), m_aspect, m_near, m_far));
+    auto m = glm::perspectiveRH(glm::radians(m_fov), m_aspect, m_near, m_far);
+    m[1][1] *= -1;
+    set_projection_matrix(m);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,7 +142,9 @@ CubeCamera::CubeCamera(float the_near, float the_far) :
 
 void CubeCamera::update_projection_matrix()
 {
-    set_projection_matrix(glm::perspective(glm::radians(90.f), 1.f, m_near, m_far));
+    auto m = glm::perspectiveRH(glm::radians(90.f), 1.f, m_near, m_far);
+    m[1][1] *= -1;
+    set_projection_matrix(m);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -146,7 +152,7 @@ void CubeCamera::update_projection_matrix()
 vierkant::Frustum CubeCamera::frustum() const
 {
     auto p = global_position();
-    return vierkant::Frustum(p.x - far(), p.x + far(), p.y - far(), p.y + far(), p.z - far(), p.z + far());
+    return {p.x - far(), p.x + far(), p.y - far(), p.y + far(), p.z - far(), p.z + far()};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -124,7 +124,7 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
     {
         // create plane-geometry
         auto plane = Geometry::Plane();
-//        for(auto &v : plane.vertices){ v.xy += glm::vec2(.5f); }
+        for(auto &v : plane.vertices){ v.xy += glm::vec2(.5f, -.5f); }
 
         auto mesh = create_mesh_from_geometry(m_device, plane);
 
@@ -163,11 +163,10 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
     glm::vec2 scale = glm::vec2(area.width, area.height) / glm::vec2(viewport.width, viewport.height);
 
     matrix_struct_t matrix_ubo;
-//    matrix_ubo.model = glm::translate(glm::mat4(1), glm::vec3(.5f, .5f, 0.f));
     matrix_ubo.projection = glm::orthoRH(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
     matrix_ubo.projection[1][1] *= -1;
     matrix_ubo.model = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
-    matrix_ubo.model[3] = glm::vec4(0.5f + area.x / viewport.width, -0.5f - area.y / viewport.height, 0, 1);
+    matrix_ubo.model[3] = glm::vec4(area.x / viewport.width, -area.y / viewport.height, 0, 1);
 
     // update image-drawable
     auto &drawable = draw_it->second;
