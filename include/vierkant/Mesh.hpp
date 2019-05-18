@@ -163,6 +163,12 @@ public:
 
     static MeshPtr create();
 
+    Mesh(const Mesh &) = delete;
+
+    Mesh(Mesh &&) = delete;
+
+    Mesh &operator=(Mesh other) = delete;
+
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     uint32_t num_elements = 0;
 

@@ -46,16 +46,19 @@ void HelloTriangleApplication::create_graphics_pipeline()
     m_renderer = vk::Renderer(m_device, m_window->swapchain().framebuffers().front());
     m_drawables.resize(m_window->swapchain().framebuffers().size());
 
+    vk::Renderer::drawable_t drawable;
+    drawable.mesh = m_mesh;
+    drawable.pipeline_format.depth_test = true;
+    drawable.pipeline_format.depth_write = true;
+    drawable.pipeline_format.stencil_test = false;
+    drawable.pipeline_format.blending = false;
+
     auto descriptor_sets = vk::create_descriptor_sets(m_device, m_descriptor_pool, m_mesh);
 
     for(uint32_t i = 0; i < m_drawables.size(); ++i)
     {
-        m_drawables[i].mesh = m_mesh;
+        m_drawables[i] = drawable;
         m_drawables[i].descriptor_set = descriptor_sets[i];
-        m_drawables[i].pipeline_format.depth_test = true;
-        m_drawables[i].pipeline_format.depth_write = true;
-        m_drawables[i].pipeline_format.stencil_test = false;
-        m_drawables[i].pipeline_format.blending = false;
     }
 
 }
@@ -79,6 +82,9 @@ void HelloTriangleApplication::create_command_buffers()
 
         m_renderer.viewport.width = m_window->swapchain().extent().width;
         m_renderer.viewport.height = m_window->swapchain().extent().height;
+
+        m_renderer.draw_image(m_command_buffers[i].handle(), m_texture,
+                              {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
         m_renderer.draw(m_command_buffers[i].handle(), m_drawables[i]);
 
         m_command_buffers[i].end();
@@ -87,7 +93,7 @@ void HelloTriangleApplication::create_command_buffers()
 
 void HelloTriangleApplication::create_uniform_buffer()
 {
-    VkDeviceSize buf_size = sizeof(UniformBuffer);
+    VkDeviceSize buf_size = sizeof(vk::Renderer::matrix_struct_t);
     m_uniform_buffers.resize(m_window->swapchain().images().size());
 
     for(size_t i = 0; i < m_window->swapchain().images().size(); i++)
@@ -146,7 +152,7 @@ void HelloTriangleApplication::update(double time_delta)
     auto image_index = m_window->swapchain().image_index();
 
     // update uniform buffer for this frame
-    UniformBuffer ubo = {};
+    vk::Renderer::matrix_struct_t ubo = {};
     ubo.model = glm::rotate(glm::mat4(1.0f), (float)get_application_time() * glm::radians(30.0f),
                             glm::vec3(0.0f, 1.0f, 0.0f));
     ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 0.0f, 1.0f));

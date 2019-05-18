@@ -19,15 +19,6 @@ const bool g_enable_validation_layers = true;
 
 const std::string g_texture_path = "~/Pictures/renderer_of_worlds.jpg";
 
-////////////////////////////// UNIFORM INFORMATION /////////////////////////////////////////////////
-
-struct UniformBuffer
-{
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 projection;
-};
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class HelloTriangleApplication : public vierkant::Application

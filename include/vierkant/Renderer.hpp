@@ -18,19 +18,21 @@ public:
 
     struct matrix_struct_t
     {
-        glm::mat4 model_view;
-        glm::mat4 projection;
+        glm::mat4 model = glm::mat4(1);
+        glm::mat4 view = glm::mat4(1);
+        glm::mat4 projection = glm::mat4(1);
+        glm::mat4 texture = glm::mat4(1);
     };
 
     struct drawable_t
     {
-        MeshConstPtr mesh;
+        MeshPtr mesh;
         Pipeline::Format pipeline_format;
         DescriptorSetPtr descriptor_set;
         glm::mat4 transform;
     };
 
-    VkViewport viewport = {0.f, 0.f, 0.f, 0.f, 0.f, 1.f};
+    VkViewport viewport = {0.f, 0.f, 1.f, 1.f, 0.f, 1.f};
 
     VkRect2D scissor = {{0, 0},
                         {0, 0}};
@@ -53,11 +55,15 @@ public:
 
     void draw(VkCommandBuffer command_buffer, const drawable_t &drawable);
 
-    void draw_image(VkCommandBuffer command_buffer, const vierkant::ImagePtr &image, const crocore::Area_<float> &area);
+    void draw_image(VkCommandBuffer command_buffer, const vierkant::ImagePtr &image,
+                    const crocore::Area_<float> &area = {});
 
 private:
 
-    enum class DrawableType{ IMAGE };
+    enum class DrawableType
+    {
+        IMAGE
+    };
 
     DevicePtr m_device;
 
@@ -71,7 +77,7 @@ private:
 
     std::unordered_map<Pipeline::Format, Pipeline> m_pipelines;
 
-//    vierkant::DescriptorPoolPtr m_descriptor_pool;
+    vierkant::DescriptorPoolPtr m_descriptor_pool;
 };
 
 }//namespace vierkant
