@@ -219,7 +219,7 @@ void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh)
     buffer_binding_set_t buf_tuples;
     for(auto &att : mesh->vertex_attribs)
     {
-        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride));
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
     }
 
     std::vector<VkBuffer> buf_handles;
@@ -249,7 +249,7 @@ std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const Mesh
     buffer_binding_set_t buf_tuples;
     for(auto &att : mesh->vertex_attribs)
     {
-        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride));
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
     }
 
     auto binding_index = [](const Mesh::VertexAttrib &a, const buffer_binding_set_t &bufs) -> int32_t
@@ -257,7 +257,7 @@ std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const Mesh
         uint32_t i = 0;
         for(const auto &t : bufs)
         {
-            if(t == std::make_tuple(a.buffer, a.buffer_offset, a.stride)){ return i; }
+            if(t == std::make_tuple(a.buffer, a.buffer_offset, a.stride, a.input_rate)){ return i; }
             i++;
         }
         return -1;
@@ -289,7 +289,7 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
     buffer_binding_set_t buf_tuples;
     for(auto &att : mesh->vertex_attribs)
     {
-        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride));
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
     }
     std::vector<VkVertexInputBindingDescription> ret;
     uint32_t i = 0;
@@ -297,9 +297,9 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
     for(const auto &tuple : buf_tuples)
     {
         VkVertexInputBindingDescription desc;
-        desc.binding = i++;;
+        desc.binding = i++;
         desc.stride = std::get<2>(tuple);
-        desc.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        desc.inputRate = std::get<3>(tuple);
         ret.push_back(desc);
     }
     return ret;

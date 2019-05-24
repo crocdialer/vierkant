@@ -49,7 +49,7 @@ using DescriptorSetPtr = std::shared_ptr<VkDescriptorSet_T>;
 
 using descriptor_count_t = std::vector<std::pair<VkDescriptorType, uint32_t>>;
 
-using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, uint32_t>>;
+using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, uint32_t, VkVertexInputRate>>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

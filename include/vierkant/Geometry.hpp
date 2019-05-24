@@ -71,7 +71,7 @@ struct Geometry
     static Geometry Box(const glm::vec3 &half_extents = glm::vec3(.5f));
 
     /**
-     * @brief   Factory to create the outline of box
+     * @brief   Factory to create the outlines of a box
      * @param   half_extents
      * @return  the newly created Geometry for a box-outline
      */

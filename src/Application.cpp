@@ -39,7 +39,7 @@ int Application::run()
             time_stamp = std::chrono::high_resolution_clock::now();
 
             // poll io_service if no seperate worker-threads exist
-            if(!m_main_queue.get_num_threads()) m_main_queue.poll();
+            if(!m_main_queue.num_threads()) m_main_queue.poll();
 
             // poll input events
             glfwPollEvents();
