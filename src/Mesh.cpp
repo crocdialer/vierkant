@@ -125,30 +125,27 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &device,
-                                                     const DescriptorPoolPtr &pool,
-                                                     const MeshConstPtr &mesh)
+DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
+                                       const DescriptorPoolPtr &pool,
+                                       const MeshConstPtr &mesh)
 {
-    size_t num_sets = 1;
     size_t num_writes = 0;
 
     for(const auto &desc : mesh->descriptors)
     {
-        num_sets = std::max<size_t>(num_sets, desc.buffers.size());
         num_writes += std::max<size_t>(1, desc.image_samplers.size());
     }
-    num_writes *= num_sets;
 
-    std::vector<VkDescriptorSet> descriptor_sets(num_sets);
-    std::vector<VkDescriptorSetLayout> layouts(num_sets, mesh->descriptor_set_layout.get());
+    VkDescriptorSet descriptor_set;
+    VkDescriptorSetLayout layout = mesh->descriptor_set_layout.get();
 
     VkDescriptorSetAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info.descriptorPool = pool.get();
-    alloc_info.descriptorSetCount = static_cast<uint32_t>(num_sets);
-    alloc_info.pSetLayouts = layouts.data();
+    alloc_info.descriptorSetCount = 1;
+    alloc_info.pSetLayouts = &layout;
 
-    vkCheck(vkAllocateDescriptorSets(device->handle(), &alloc_info, descriptor_sets.data()),
+    vkCheck(vkAllocateDescriptorSets(device->handle(), &alloc_info, &descriptor_set),
             "failed to allocate descriptor sets!");
 
     std::vector<VkWriteDescriptorSet> descriptor_writes;
@@ -159,57 +156,49 @@ std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &
     // keep all VkDescriptorImageInfo structs around until vkUpdateDescriptorSets has processed them
     std::vector<std::vector<VkDescriptorImageInfo>> image_infos_collection;
 
-    for(size_t i = 0; i < num_sets; i++)
+    for(const auto &desc : mesh->descriptors)
     {
-        for(const auto &desc : mesh->descriptors)
+        VkWriteDescriptorSet desc_write = {};
+        desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        desc_write.descriptorType = desc.type;
+        desc_write.dstSet = descriptor_set;
+        desc_write.dstBinding = desc.binding;
+        desc_write.dstArrayElement = 0;
+        desc_write.descriptorCount = 1;
+
+        if(desc.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
         {
-            VkWriteDescriptorSet desc_write = {};
-            desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            desc_write.descriptorType = desc.type;
-            desc_write.dstSet = descriptor_sets[i];
-            desc_write.dstBinding = desc.binding;
-            desc_write.dstArrayElement = 0;
-            desc_write.descriptorCount = 1;
+            VkDescriptorBufferInfo buffer_info = {};
+            buffer_info.buffer = desc.buffer->handle();
+            buffer_info.offset = desc.buffer_offset;
+            buffer_info.range = desc.buffer->num_bytes();
+            buffer_infos.push_back(buffer_info);
+            desc_write.pBufferInfo = &buffer_infos.back();
+        }else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        {
+            std::vector<VkDescriptorImageInfo> image_infos(desc.image_samplers.size());
 
-            if(desc.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+            for(uint32_t j = 0; j < desc.image_samplers.size(); ++j)
             {
-                VkDescriptorBufferInfo buffer_info = {};
-                buffer_info.buffer = desc.buffers[i]->handle();
-                buffer_info.offset = desc.buffer_offset;
-                buffer_info.range = desc.buffers[i]->num_bytes();
-                buffer_infos.push_back(buffer_info);
-                desc_write.pBufferInfo = &buffer_infos.back();
-            }else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-            {
-                std::vector<VkDescriptorImageInfo> image_infos(desc.image_samplers.size());
-
-                for(uint32_t j = 0; j < desc.image_samplers.size(); ++j)
-                {
-                    const auto &img = desc.image_samplers[j];
-                    image_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;//img->image_layout();
-                    image_infos[j].imageView = img->image_view();
-                    image_infos[j].sampler = img->sampler();
-                }
-                desc_write.descriptorCount = static_cast<uint32_t>(image_infos.size());
-                desc_write.pImageInfo = image_infos.data();
-                image_infos_collection.push_back(std::move(image_infos));
+                const auto &img = desc.image_samplers[j];
+                image_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;//img->image_layout();
+                image_infos[j].imageView = img->image_view();
+                image_infos[j].sampler = img->sampler();
             }
-            descriptor_writes.push_back(desc_write);
+            desc_write.descriptorCount = static_cast<uint32_t>(image_infos.size());
+            desc_write.pImageInfo = image_infos.data();
+            image_infos_collection.push_back(std::move(image_infos));
         }
+        descriptor_writes.push_back(desc_write);
     }
+
     // write all descriptors
     vkUpdateDescriptorSets(device->handle(), descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 
-    std::vector<DescriptorSetPtr> ret;
-    for(auto ds : descriptor_sets)
+    return DescriptorSetPtr(descriptor_set, [device, pool](VkDescriptorSet s)
     {
-        DescriptorSetPtr ptr(ds, [device, pool](VkDescriptorSet s)
-        {
-            vkFreeDescriptorSets(device->handle(), pool.get(), 1, &s);
-        });
-        ret.push_back(std::move(ptr));
-    }
-    return ret;
+        vkFreeDescriptorSets(device->handle(), pool.get(), 1, &s);
+    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

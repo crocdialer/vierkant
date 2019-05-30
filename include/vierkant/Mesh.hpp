@@ -54,72 +54,6 @@ using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief   Mesh groups all sorts of resources,
- *          required to feed vertex-data into a (graphics-)pipeline.
- *          Also used to add resource-descriptors for e.g. uniform-buffers or image-samplers.
- */
-class Mesh
-{
-public:
-
-    /**
-     * @brief   Mesh::VertexAttrib defines a vertex-attribute available in the vertex-shader-stage.
-     */
-    struct VertexAttrib
-    {
-        int32_t location = -1;
-        vierkant::BufferPtr buffer;
-        VkDeviceSize buffer_offset = 0;
-        uint32_t offset = 0;
-        uint32_t stride = 0;
-        VkFormat format = VK_FORMAT_UNDEFINED;
-        VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
-    };
-
-    /**
-     * @brief   Mesh::Descriptor defines a resource available in a shader
-     */
-    struct Descriptor
-    {
-        VkDescriptorType type;
-        VkShaderStageFlags stage_flags;
-        uint32_t binding = 0;
-        std::vector<vierkant::BufferPtr> buffers;
-        VkDeviceSize buffer_offset = 0;
-        std::vector<vierkant::ImagePtr> image_samplers;
-    };
-
-    static MeshPtr create();
-
-    Mesh(const Mesh &) = delete;
-
-    Mesh(Mesh &&) = delete;
-
-    Mesh &operator=(Mesh other) = delete;
-
-    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    uint32_t num_elements = 0;
-
-    // index buffer
-    vierkant::BufferPtr index_buffer;
-    VkDeviceSize index_buffer_offset = 0;
-    VkIndexType index_type = VK_INDEX_TYPE_UINT32;
-
-    // vertex attributes
-    std::vector<VertexAttrib> vertex_attribs;
-
-    // descriptors -> layout
-    std::vector<Descriptor> descriptors;
-    DescriptorSetLayoutPtr descriptor_set_layout;
-
-private:
-
-    Mesh() = default;
-};
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
  * @brief   Extract the types of descriptors and their counts for a given vierkant::Mesh
  * @param   mesh    a vierkant::Mesh to extract the descriptor counts from
  * @param   counts  a reference to a descriptor_count_map_t to hold the results
@@ -146,15 +80,15 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device, const MeshConstPtr &mesh);
 
 /**
- * @brief   Create an array of shared VkDescriptorSets (DescriptorSetPtr) for a given vierkant::Mesh
+ * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a given vierkant::Mesh
  * @param   device  handle for the vierkant::Device to create the DescriptorSets
  * @param   pool    handle for a shared VkDescriptorPool to allocate the DescriptorSets from
  * @param   mesh    a vierkant::Mesh to create the array of DescriptorSets for
- * @return  the newly created array of DescriptorSetPtr
+ * @return  the newly created DescriptorSetPtr
  */
-std::vector<DescriptorSetPtr> create_descriptor_sets(const vierkant::DevicePtr &device,
-                                                     const DescriptorPoolPtr &pool,
-                                                     const MeshConstPtr &mesh);
+DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
+                                       const DescriptorPoolPtr &pool,
+                                       const MeshConstPtr &mesh);
 
 /**
  * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
@@ -191,5 +125,68 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geo
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * @brief   Mesh groups all sorts of resources,
+ *          required to feed vertex-data into a (graphics-)pipeline.
+ *          Also used to add resource-descriptors for e.g. uniform-buffers or image-samplers.
+ */
+class Mesh
+{
+public:
+
+    /**
+     * @brief   Mesh::VertexAttrib defines a vertex-attribute available in the vertex-shader-stage.
+     */
+    struct VertexAttrib
+    {
+        int32_t location = -1;
+        vierkant::BufferPtr buffer;
+        VkDeviceSize buffer_offset = 0;
+        uint32_t offset = 0;
+        uint32_t stride = 0;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
+    };
+
+    /**
+     * @brief   Mesh::Descriptor defines a resource available in a shader
+     */
+    struct Descriptor
+    {
+        VkDescriptorType type;
+        VkShaderStageFlags stage_flags;
+        uint32_t binding = 0;
+        vierkant::BufferPtr buffer;
+        VkDeviceSize buffer_offset = 0;
+        std::vector<vierkant::ImagePtr> image_samplers;
+    };
+
+    static MeshPtr create();
+
+    Mesh(const Mesh &) = delete;
+
+    Mesh(Mesh &&) = delete;
+
+    Mesh &operator=(Mesh other) = delete;
+
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    uint32_t num_elements = 0;
+
+    // index buffer
+    vierkant::BufferPtr index_buffer;
+    VkDeviceSize index_buffer_offset = 0;
+    VkIndexType index_type = VK_INDEX_TYPE_UINT32;
+
+    // vertex attributes
+    std::vector<VertexAttrib> vertex_attribs;
+
+    // descriptors -> layout
+    std::vector<Descriptor> descriptors;
+    DescriptorSetLayoutPtr descriptor_set_layout;
+
+private:
+
+    Mesh() = default;
+};
 
 }//namespace vierkant

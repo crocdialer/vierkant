@@ -144,7 +144,7 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
         desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         desc_ubo.binding = 0;
-        desc_ubo.buffers = {uniform_buf};
+        desc_ubo.buffer = uniform_buf;
 
         vierkant::Mesh::Descriptor desc_texture;
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -170,12 +170,12 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
 
     // update image-drawable
     auto &drawable = draw_it->second;
-    drawable.mesh->descriptors[0].buffers[0]->set_data(&matrix_ubo, sizeof(matrix_struct_t));
+    drawable.mesh->descriptors[0].buffer->set_data(&matrix_ubo, sizeof(matrix_struct_t));
 
     if(!drawable.descriptor_set || drawable.mesh->descriptors[1].image_samplers[0] != image)
     {
         drawable.mesh->descriptors[1].image_samplers[0] = image;
-        drawable.descriptor_set = vierkant::create_descriptor_sets(m_device, m_descriptor_pool, drawable.mesh).front();
+        drawable.descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool, drawable.mesh);
     }
 
     // transition image layout

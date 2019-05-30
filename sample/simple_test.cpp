@@ -1,8 +1,6 @@
-#include "simple_test.hpp"
-
-#include <crocore/filesystem.hpp>
 #include <crocore/filesystem.hpp>
 #include <crocore/Image.hpp>
+#include "simple_test.hpp"
 
 void HelloTriangleApplication::setup()
 {
@@ -44,8 +42,12 @@ void HelloTriangleApplication::create_context_and_window()
 //    LOG_INFO << str;
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);
-    m_animation.set_ease_function(crocore::easing::EaseOutCubic());
+    m_animation.set_ease_function(crocore::easing::EaseOutBounce());
     m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
+    m_animation.set_finish_callback([](crocore::Animation &a)
+    {
+        LOG_INFO << (a.playbacktype() == crocore::Animation::PLAYBACK_FORWARD ? "Bing" : "Bong");
+    });
     m_animation.start();
 }
 
@@ -61,14 +63,12 @@ void HelloTriangleApplication::create_graphics_pipeline()
     drawable.pipeline_format.stencil_test = false;
     drawable.pipeline_format.blending = false;
 
-    auto descriptor_sets = vk::create_descriptor_sets(m_device, m_descriptor_pool, m_mesh);
-
     for(uint32_t i = 0; i < m_drawables.size(); ++i)
     {
+        m_mesh->descriptors[0].buffer = m_uniform_buffers[i];
         m_drawables[i] = drawable;
-        m_drawables[i].descriptor_set = descriptor_sets[i];
+        m_drawables[i].descriptor_set = vk::create_descriptor_set(m_device, m_descriptor_pool, m_mesh);
     }
-
 }
 
 void HelloTriangleApplication::create_command_buffers()
@@ -133,7 +133,7 @@ void HelloTriangleApplication::load_model()
     desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
     desc_ubo.binding = 0;
-    desc_ubo.buffers = m_uniform_buffers;
+    desc_ubo.buffer = m_uniform_buffers.front();
 
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
