@@ -388,7 +388,6 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
         glfwGetCursorPos(window, &posX, &posY);
         MouseEvent e(initiator, (int)posX, (int)posY, all_mods, glm::ivec2(0));
 
-        auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
         if(action == GLFW_PRESS && self->mouse_delegate.mouse_press){ self->mouse_delegate.mouse_press(e); }
         else if(action == GLFW_RELEASE && self->mouse_delegate.mouse_release)
         {

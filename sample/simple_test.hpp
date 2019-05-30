@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <crocore/Animation.hpp>
 #include "vierkant/vierkant.hpp"
 
 const int WIDTH = 1280;
@@ -78,6 +79,10 @@ private:
     std::vector<vierkant::BufferPtr> m_uniform_buffers;
 
     vk::Renderer m_renderer;
+
+    float m_scale = 1.f;
+
+    crocore::Animation m_animation;
 };
 
 int main(int argc, char *argv[])

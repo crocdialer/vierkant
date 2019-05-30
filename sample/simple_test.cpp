@@ -23,7 +23,7 @@ void HelloTriangleApplication::teardown()
 void HelloTriangleApplication::create_context_and_window()
 {
     m_instance = vk::Instance(g_enable_validation_layers, vk::Window::get_required_extensions());
-    m_window = vk::Window::create(m_instance.handle(), WIDTH, HEIGHT, "Vulkan", m_fullscreen);
+    m_window = vk::Window::create(m_instance.handle(), WIDTH, HEIGHT, name(), m_fullscreen);
     m_device = vk::Device::create(m_instance.physical_devices().front(), m_instance.use_validation_layers(),
                                   m_window->surface());
     m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT);
@@ -39,6 +39,14 @@ void HelloTriangleApplication::create_context_and_window()
     {
         if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
     };
+
+//    auto str = crocore::format("lambada#%d: %s", 69, "poop");
+//    LOG_INFO << str;
+
+    m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);
+    m_animation.set_ease_function(crocore::easing::EaseOutCubic());
+    m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
+    m_animation.start();
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
@@ -149,11 +157,13 @@ void HelloTriangleApplication::load_model()
 
 void HelloTriangleApplication::update(double time_delta)
 {
+    m_animation.update();
+
     auto image_index = m_window->swapchain().image_index();
 
     // update uniform buffer for this frame
     vk::Renderer::matrix_struct_t ubo = {};
-    ubo.model = glm::rotate(glm::mat4(1.0f), (float)get_application_time() * glm::radians(30.0f),
+    ubo.model = glm::rotate(glm::scale(glm::mat4(1), glm::vec3(m_scale)), (float)get_application_time() * glm::radians(30.0f),
                             glm::vec3(0.0f, 1.0f, 0.0f));
     ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
