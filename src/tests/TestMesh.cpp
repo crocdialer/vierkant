@@ -94,7 +94,7 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
     desc_ubo.binding = 0;
-    desc_ubo.buffers = {uniform_buffer};
+    desc_ubo.buffer = uniform_buffer;
 
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -137,8 +137,8 @@ BOOST_AUTO_TEST_CASE(TestMesh)
 //        BOOST_CHECK_NE(descriptor_counts.count(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER), 0L);
         auto pool = vk::create_descriptor_pool(device, descriptor_counts);
 
-        // use the pool to allocate the actual descriptor-sets
-        auto descriptor_sets = vk::create_descriptor_sets(device, pool, mesh);
+        // use the pool to allocate the actual descriptor-set
+        auto descriptor_set = vk::create_descriptor_set(device, pool, mesh);
     }
 }
 
