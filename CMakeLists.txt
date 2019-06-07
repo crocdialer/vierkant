@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.3)
 project(vierkant)
 
 ## request C++17
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -Wall -Wformat=0")
@@ -43,20 +43,6 @@ SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
-
-##### BOOST
-set(BOOST_COMPONENTS system filesystem)
-if (BUILD_TESTS)
-    ENABLE_TESTING()
-    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} unit_test_framework)
-    if (BUILD_SHARED_LIBS)
-        add_definitions(-DBOOST_TEST_DYN_LINK)
-    endif (BUILD_SHARED_LIBS)
-endif (BUILD_TESTS)
-find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
-include_directories(${Boost_INCLUDE_DIRS})
-set(LIBS ${LIBS} ${Boost_LIBRARIES})
-#####
 
 #crocore
 add_subdirectory("crocore")
