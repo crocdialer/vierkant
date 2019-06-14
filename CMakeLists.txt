@@ -34,6 +34,20 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake_modules ${CMAKE_MODULE_PATH})
 include(add_test_helper)
 include(vierkant_utils)
 
+##### BOOST
+set(BOOST_COMPONENTS system filesystem)
+if (BUILD_TESTS)
+    ENABLE_TESTING()
+    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} unit_test_framework)
+    if (BUILD_SHARED_LIBS)
+        add_definitions(-DBOOST_TEST_DYN_LINK)
+    endif (BUILD_SHARED_LIBS)
+endif (BUILD_TESTS)
+find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
+include_directories(${Boost_INCLUDE_DIRS})
+set(LIBS ${LIBS} ${Boost_LIBRARIES})
+#####
+
 ## GLFW
 find_package(GLFW3 REQUIRED)
 include_directories(${GLFW_INCLUDE_DIRS})
