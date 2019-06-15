@@ -67,14 +67,11 @@ private:
     // command buffers
     std::vector<vierkant::CommandBuffer> m_command_buffers;
 
-    // descriptor pool to allocate sets
-    vk::DescriptorPoolPtr m_descriptor_pool;
-
     vierkant::ImagePtr m_texture;
 
     vk::MeshPtr m_mesh = vk::Mesh::create();
 
-    std::vector<vk::Renderer::drawable_t> m_drawables;
+    vk::Renderer::drawable_t m_drawable;
 
     std::vector<vierkant::BufferPtr> m_uniform_buffers;
 

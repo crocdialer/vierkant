@@ -21,6 +21,12 @@ Object3D::Object3D(std::string name) :
     if(m_name.empty()){ m_name = "Object3D_" + std::to_string(m_id); }
 }
 
+void Object3D::set_position(const glm::vec3 &thePos)
+{
+    glm::vec3& dst = *reinterpret_cast<glm::vec3 *>(&m_transform[3].x);
+    dst = thePos;
+}
+
 void Object3D::set_rotation(const glm::quat &theRot)
 {
     glm::vec3 pos_tmp(position()), scale_tmp(scale());
@@ -145,6 +151,7 @@ void Object3D::add_child(const Object3DPtr &the_child)
     {
         // avoid cyclic refs -> new child must not be an ancestor
         Object3DPtr ancestor = parent();
+
         while(ancestor)
         {
             if(ancestor == the_child) return;

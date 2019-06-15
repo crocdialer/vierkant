@@ -45,16 +45,16 @@ void HelloTriangleApplication::create_context_and_window()
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
     m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
     m_animation.set_finish_callback([](crocore::Animation &a)
-    {
-        LOG_INFO << (a.playbacktype() == crocore::Animation::PLAYBACK_FORWARD ? "Bing" : "Bong");
-    });
+                                    {
+                                        LOG_INFO
+                                        << (a.playbacktype() == crocore::Animation::PLAYBACK_FORWARD ? "Bing" : "Bong");
+                                    });
     m_animation.start();
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
 {
-    m_renderer = vk::Renderer(m_device, m_window->swapchain().framebuffers().front());
-    m_drawables.resize(m_window->swapchain().framebuffers().size());
+    m_renderer = vk::Renderer(m_device, m_window->swapchain().framebuffers());
 
     vk::Renderer::drawable_t drawable;
     drawable.mesh = m_mesh;
@@ -62,13 +62,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
     drawable.pipeline_format.depth_write = true;
     drawable.pipeline_format.stencil_test = false;
     drawable.pipeline_format.blending = false;
-
-    for(uint32_t i = 0; i < m_drawables.size(); ++i)
-    {
-        m_mesh->descriptors[0].buffer = m_uniform_buffers[i];
-        m_drawables[i] = drawable;
-        m_drawables[i].descriptor_set = vk::create_descriptor_set(m_device, m_descriptor_pool, m_mesh);
-    }
+    m_drawable = std::move(drawable);
 }
 
 void HelloTriangleApplication::create_command_buffers()
@@ -85,15 +79,20 @@ void HelloTriangleApplication::create_command_buffers()
         inheritance.framebuffer = framebuffers[i].handle();
         inheritance.renderPass = framebuffers[i].renderpass().get();
 
+        // set index for renderer
+        m_renderer.set_current_index(i);
+
         m_command_buffers[i].begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT |
                                    VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, &inheritance);
+
+        m_drawable.mesh->descriptors[0].buffer = m_uniform_buffers[i];
 
         m_renderer.viewport.width = m_window->swapchain().extent().width;
         m_renderer.viewport.height = m_window->swapchain().extent().height;
 
         m_renderer.draw_image(m_command_buffers[i].handle(), m_texture,
                               {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
-        m_renderer.draw(m_command_buffers[i].handle(), m_drawables[i]);
+        m_renderer.draw(m_command_buffers[i].handle(), m_drawable);
 
         m_command_buffers[i].end();
     }
@@ -133,7 +132,6 @@ void HelloTriangleApplication::load_model()
     desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
     desc_ubo.binding = 0;
-    desc_ubo.buffer = m_uniform_buffers.front();
 
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -144,15 +142,6 @@ void HelloTriangleApplication::load_model()
 
     // with the descriptors in place we can derive the set-layout
     m_mesh->descriptor_set_layout = vk::create_descriptor_set_layout(m_device, m_mesh);
-
-    // we also need a DescriptorPool ...
-    vk::descriptor_count_t descriptor_counts;
-    vk::add_descriptor_counts(m_mesh, descriptor_counts);
-    m_descriptor_pool = vk::create_descriptor_pool(m_device, descriptor_counts,
-                                                   m_window->swapchain().framebuffers().size());
-
-    // finally create the descriptor-sets for the mesh
-//    m_mesh->descriptor_sets = vk::create_descriptor_sets(m_device, m_descriptor_pool, m_mesh);
 }
 
 void HelloTriangleApplication::update(double time_delta)
@@ -162,12 +151,15 @@ void HelloTriangleApplication::update(double time_delta)
     auto image_index = m_window->swapchain().image_index();
 
     // update uniform buffer for this frame
-    vk::Renderer::matrix_struct_t ubo = {};
-    ubo.model = glm::rotate(glm::scale(glm::mat4(1), glm::vec3(m_scale)), (float)get_application_time() * glm::radians(30.0f),
+    vk::Renderer::matrix_struct_t ubo = {};//= m_drawables[image_index].matrices;
+
+    ubo.model = glm::rotate(glm::scale(glm::mat4(1), glm::vec3(m_scale)),
+                            (float)get_application_time() * glm::radians(30.0f),
                             glm::vec3(0.0f, 1.0f, 0.0f));
     ubo.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
     ubo.projection[1][1] *= -1;
+
     m_uniform_buffers[image_index]->set_data(&ubo, sizeof(ubo));
 
     m_window->draw();
@@ -178,7 +170,6 @@ void HelloTriangleApplication::update(double time_delta)
 void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 {
     auto image_index = w->swapchain().image_index();
-    std::vector<VkCommandBuffer> command_bufs = {m_command_buffers[image_index].handle()};
-    vkCmdExecuteCommands(w->command_buffer().handle(), static_cast<uint32_t>(command_bufs.size()),
-                         command_bufs.data());
+    VkCommandBuffer command_buf = m_command_buffers[image_index].handle();
+    vkCmdExecuteCommands(w->command_buffer().handle(), 1, &command_buf);
 }

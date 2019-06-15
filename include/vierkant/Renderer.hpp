@@ -27,9 +27,8 @@ public:
     struct drawable_t
     {
         MeshPtr mesh;
-        Pipeline::Format pipeline_format;
-        DescriptorSetPtr descriptor_set;
-        glm::mat4 transform;
+        Pipeline::Format pipeline_format = {};
+        matrix_struct_t matrices = {};
     };
 
     VkViewport viewport = {0.f, 0.f, 1.f, 1.f, 0.f, 1.f};
@@ -43,7 +42,7 @@ public:
      * @brief   Construct a new Renderer object
      * @param   device  handle for the vk::Device to create the Renderer
      */
-    Renderer(DevicePtr device, const vierkant::Framebuffer &framebuffer);
+    Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &framebuffers);
 
     Renderer(Renderer &&other) noexcept;
 
@@ -52,6 +51,8 @@ public:
     Renderer &operator=(Renderer other);
 
     friend void swap(Renderer &lhs, Renderer &rhs);
+
+    void set_current_index(uint32_t i);
 
     void draw(VkCommandBuffer command_buffer, const drawable_t &drawable);
 
@@ -64,6 +65,13 @@ private:
     {
         IMAGE
     };
+
+    struct render_asset_t
+    {
+        vierkant::BufferPtr uniform_buffer;
+        vierkant::DescriptorSetPtr descriptor_set;
+    };
+    using asset_map_t = std::unordered_map<vierkant::MeshPtr, render_asset_t>;
 
     DevicePtr m_device;
 
@@ -78,6 +86,10 @@ private:
     std::unordered_map<Pipeline::Format, Pipeline> m_pipelines;
 
     vierkant::DescriptorPoolPtr m_descriptor_pool;
+
+    std::vector<asset_map_t> m_frame_assets;
+
+    uint32_t m_current_index = 0;
 };
 
 }//namespace vierkant

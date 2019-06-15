@@ -24,9 +24,7 @@ public:
 
     virtual ~Object3D() = default;
 
-    inline uint32_t get_id() const { return m_id; };
-
-    inline void set_id(uint32_t the_id) { m_id = the_id; };
+    inline uint32_t id() const { return m_id; };
 
     inline const std::string name() const { return m_name; }
 
@@ -50,11 +48,9 @@ public:
 
     void set_billboard(bool b) { m_billboard = b; }
 
-    inline void set_position(const glm::vec3 &thePos) { position() = thePos; };
+    void set_position(const glm::vec3 &thePos);
 
     inline glm::vec3 position() const { return m_transform[3].xyz(); }
-
-    inline glm::vec3 &position() { return *reinterpret_cast<glm::vec3 *>(&m_transform[3].x); }
 
     inline glm::vec3 lookAt() const { return normalize(m_transform[2].xyz()); }
 

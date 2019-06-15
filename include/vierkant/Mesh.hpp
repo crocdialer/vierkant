@@ -69,7 +69,7 @@ void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts)
  */
 DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
                                          const descriptor_count_t &counts,
-                                         uint32_t num_instances = 1);
+                                         uint32_t max_sets);
 
 /**
  * @brief   Create a shared VkDescriptorSetLayout (DescriptorSetLayoutPtr) for a given vierkant::Mesh

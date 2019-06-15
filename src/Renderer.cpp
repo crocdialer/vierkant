@@ -9,22 +9,26 @@ namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Renderer::Renderer(DevicePtr device, const vierkant::Framebuffer &framebuffer) :
-        m_device(std::move(device)),
-        m_renderpass(framebuffer.renderpass())
+Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &framebuffers) :
+        m_device(std::move(device))
 {
-    for(const auto &attach_pair : framebuffer.attachments())
+    for(auto &fb : framebuffers)
     {
-        for(const auto &img : attach_pair.second)
+        for(const auto &attach_pair : fb.attachments())
         {
-            m_sample_count = std::max(m_sample_count, img->format().sample_count);
+            for(const auto &img : attach_pair.second)
+            {
+                m_sample_count = std::max(m_sample_count, img->format().sample_count);
+            }
         }
+        m_renderpass = fb.renderpass();
     }
+    m_frame_assets.resize(framebuffers.size());
 
     // we also need a DescriptorPool ...
-    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 32},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         32}};
-    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts);
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},
+                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1024}};
+    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -53,6 +57,19 @@ void swap(Renderer &lhs, Renderer &rhs)
     std::swap(lhs.m_shader_stage_cache, rhs.m_shader_stage_cache);
     std::swap(lhs.m_pipelines, rhs.m_pipelines);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
+    std::swap(lhs.m_frame_assets, rhs.m_frame_assets);
+    std::swap(lhs.m_current_index, rhs.m_current_index);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Renderer::set_current_index(uint32_t i)
+{
+    i = crocore::clamp<uint32_t>(i, 0, m_frame_assets.size());
+    m_current_index = i;
+
+    // flush descriptor sets
+    m_frame_assets[m_current_index].clear();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -101,10 +118,22 @@ void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
 
     vierkant::bind_buffers(command_buffer, drawable.mesh);
 
+    // search/create descriptor set
+    vierkant::DescriptorSetPtr descriptor_set;
+    auto asset_it = m_frame_assets[m_current_index].find(drawable.mesh);
+
+    if(asset_it == m_frame_assets[m_current_index].end())
+    {
+        render_asset_t render_asset = {};
+        descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool, drawable.mesh);
+        render_asset.descriptor_set = descriptor_set;
+        m_frame_assets[m_current_index][drawable.mesh] = render_asset;
+    }else{ descriptor_set = asset_it->second.descriptor_set; }
+
     // bind descriptor sets (uniforms, samplers)
-    VkDescriptorSet descriptor_set = drawable.descriptor_set.get();
+    VkDescriptorSet descriptor_handle = descriptor_set.get();
     vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout(),
-                            0, 1, &descriptor_set, 0, nullptr);
+                            0, 1, &descriptor_handle, 0, nullptr);
 
     // push-constants
 //    vkCmdPushConstants(command_buffer, pipeline.layout());
@@ -114,7 +143,7 @@ void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
     else{ vkCmdDraw(command_buffer, drawable.mesh->num_elements, 1, 0, 0); }
 }
 
-void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImagePtr& image,
+void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImagePtr &image,
                           const crocore::Area_<float> &area)
 {
     auto draw_it = m_drawable_cache.find(DrawableType::IMAGE);
@@ -172,10 +201,9 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
     auto &drawable = draw_it->second;
     drawable.mesh->descriptors[0].buffer->set_data(&matrix_ubo, sizeof(matrix_struct_t));
 
-    if(!drawable.descriptor_set || drawable.mesh->descriptors[1].image_samplers[0] != image)
+    if(drawable.mesh->descriptors[1].image_samplers[0] != image)
     {
         drawable.mesh->descriptors[1].image_samplers[0] = image;
-        drawable.descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool, drawable.mesh);
     }
 
     // transition image layout

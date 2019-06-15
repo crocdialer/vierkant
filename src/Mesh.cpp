@@ -71,16 +71,16 @@ void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts)
 
 DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
                                          const descriptor_count_t &counts,
-                                         uint32_t num_instances)
+                                         uint32_t max_sets)
 {
     std::vector<VkDescriptorPoolSize> pool_sizes;
-    for(const auto &pair : counts){ pool_sizes.push_back({pair.first, pair.second * num_instances}); }
+    for(const auto &pair : counts){ pool_sizes.push_back({pair.first, pair.second}); }
 
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
     pool_info.pPoolSizes = pool_sizes.data();
-    pool_info.maxSets = static_cast<uint32_t>(10);
+    pool_info.maxSets = max_sets;
     pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
