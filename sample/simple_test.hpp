@@ -43,9 +43,7 @@ private:
 
     void create_graphics_pipeline();
 
-    void create_command_buffers();
-
-    void create_uniform_buffer();
+    void create_command_buffer(size_t i);
 
     void create_texture_image();
 
@@ -72,8 +70,6 @@ private:
     vk::MeshPtr m_mesh = vk::Mesh::create();
 
     vk::Renderer::drawable_t m_drawable;
-
-    std::vector<vierkant::BufferPtr> m_uniform_buffers;
 
     vk::Renderer m_renderer;
 
