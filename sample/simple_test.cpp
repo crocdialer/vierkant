@@ -50,6 +50,11 @@ void HelloTriangleApplication::create_graphics_pipeline()
 
     m_drawable = {};
     m_drawable.mesh = m_mesh;
+    m_drawable.pipeline_format.shader_stages = vierkant::shader_stages(m_device, vk::ShaderType::UNLIT_TEXTURE);
+    m_drawable.pipeline_format.descriptor_set_layouts = {m_mesh->descriptor_set_layout.get()};
+    m_drawable.pipeline_format.primitive_topology = m_mesh->topology;
+    m_drawable.pipeline_format.binding_descriptions = vierkant::binding_descriptions(m_mesh);
+    m_drawable.pipeline_format.attribute_descriptions = vierkant::attribute_descriptions(m_mesh);
     m_drawable.pipeline_format.depth_test = true;
     m_drawable.pipeline_format.depth_write = true;
     m_drawable.pipeline_format.stencil_test = false;
@@ -90,8 +95,16 @@ void HelloTriangleApplication::create_texture_image()
 {
     // try to fetch cool image
     auto http_resonse = cc::net::http::get(g_texture_url);
-    
-    auto img = cc::create_image_from_data(http_resonse.data, 4);
+    crocore::ImagePtr img;
+
+    // create from downloaded data
+    if(!http_resonse.data.empty()){ img = cc::create_image_from_data(http_resonse.data, 4); }
+    else
+    {
+        // create 1x1, all-white dummy image
+        uint32_t v = 0xFFFFFFFF;
+        img = cc::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(&v), 1, 1, 4);
+    }
     vk::Image::Format fmt;
     fmt.extent = {img->width(), img->height(), 1};
     fmt.use_mipmap = true;
@@ -100,7 +113,6 @@ void HelloTriangleApplication::create_texture_image()
 
 void HelloTriangleApplication::load_model()
 {
-//    auto geom = vk::Geometry::Plane(1, 1);
     auto geom = vk::Geometry::Box(glm::vec3(.5f));
 //    auto geom = vk::Geometry::BoxOutline();
 //    auto geom = vk::Geometry::Grid();

@@ -82,28 +82,9 @@ void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
     if(pipe_it == m_pipelines.end())
     {
         auto fmt = drawable.pipeline_format;
-
-        if(fmt.shader_stages.empty())
-        {
-            auto shader_type = vierkant::ShaderType::UNLIT_TEXTURE;
-            auto stage_it = m_shader_stage_cache.find(shader_type);
-
-            if(stage_it == m_shader_stage_cache.end())
-            {
-                auto pair = std::make_pair(shader_type, vierkant::shader_stages(m_device, shader_type));
-                stage_it = m_shader_stage_cache.insert(pair).first;
-            }
-            fmt.shader_stages = stage_it->second;
-        }
-        fmt.binding_descriptions = vierkant::binding_descriptions(drawable.mesh);
-        fmt.attribute_descriptions = vierkant::attribute_descriptions(drawable.mesh);
-        fmt.primitive_topology = drawable.mesh->topology;
-
         fmt.renderpass = m_renderpass.get();
         fmt.viewport = viewport;
         fmt.sample_count = m_sample_count;
-
-        fmt.descriptor_set_layouts = {drawable.mesh->descriptor_set_layout.get()};
 
         // not found -> create pipeline
         auto new_pipeline = Pipeline(m_device, fmt);
@@ -182,6 +163,7 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
         fmt.blending = true;
         fmt.depth_test = false;
         fmt.depth_write = false;
+        fmt.shader_stages = vierkant::shader_stages(m_device, vierkant::ShaderType::UNLIT_TEXTURE);
         fmt.binding_descriptions = vierkant::binding_descriptions(mesh);
         fmt.attribute_descriptions = vierkant::attribute_descriptions(mesh);
         fmt.primitive_topology = mesh->topology;
@@ -199,6 +181,7 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
 
         mesh->descriptors = {desc_ubo, desc_texture};
         mesh->descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, mesh);
+        fmt.descriptor_set_layouts = {mesh->descriptor_set_layout.get()};
         drawable_t new_drawable = {mesh, fmt};
 
         // insert new drawable in map, update iterator
