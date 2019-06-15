@@ -438,7 +438,12 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geo
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-MeshPtr Mesh::create() { return MeshPtr(new Mesh()); }
+MeshPtr Mesh::create()
+{
+    auto ret = MeshPtr(new Mesh());
+    ret->set_name("mesh_" + ret->id());
+    return ret;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

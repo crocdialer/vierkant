@@ -7,6 +7,7 @@
 #include "vierkant/Device.hpp"
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Image.hpp"
+#include "vierkant/Object3D.hpp"
 #include "vierkant/intersection.hpp"
 
 namespace vierkant {
@@ -130,7 +131,7 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geo
  *          required to feed vertex-data into a (graphics-)pipeline.
  *          Also used to add resource-descriptors for e.g. uniform-buffers or image-samplers.
  */
-class Mesh
+class Mesh : public Object3D
 {
 public:
 

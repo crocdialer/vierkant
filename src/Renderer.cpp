@@ -63,10 +63,10 @@ void swap(Renderer &lhs, Renderer &rhs)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::set_current_index(uint32_t i)
+void Renderer::set_current_index(uint32_t image_index)
 {
-    i = crocore::clamp<uint32_t>(i, 0, m_frame_assets.size());
-    m_current_index = i;
+    image_index = crocore::clamp<uint32_t>(image_index, 0, m_frame_assets.size());
+    m_current_index = image_index;
 
     // flush descriptor sets
 //    m_frame_assets[m_current_index].clear();
@@ -186,21 +186,16 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
         fmt.attribute_descriptions = vierkant::attribute_descriptions(mesh);
         fmt.primitive_topology = mesh->topology;
 
-        auto uniform_buf = vierkant::Buffer::create(m_device, nullptr, sizeof(matrix_struct_t),
-                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                    VMA_MEMORY_USAGE_CPU_ONLY);
         // descriptors
         vierkant::Mesh::Descriptor desc_ubo = {};
         desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         desc_ubo.binding = 0;
-        desc_ubo.buffer = uniform_buf;
 
         vierkant::Mesh::Descriptor desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         desc_texture.binding = 1;
-        desc_texture.image_samplers = {image};
 
         mesh->descriptors = {desc_ubo, desc_texture};
         mesh->descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, mesh);
@@ -219,10 +214,8 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
     drawable.matrices.model = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
     drawable.matrices.model[3] = glm::vec4(area.x / viewport.width, -area.y / viewport.height, 0, 1);
 
-    if(drawable.mesh->descriptors[1].image_samplers[0] != image)
-    {
-        drawable.mesh->descriptors[1].image_samplers[0] = image;
-    }
+    // set image
+    drawable.mesh->descriptors[1].image_samplers = {image};
 
     // transition image layout
     image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer);

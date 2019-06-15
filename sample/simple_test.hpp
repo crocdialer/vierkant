@@ -18,7 +18,7 @@ const bool g_enable_validation_layers = false;
 const bool g_enable_validation_layers = true;
 #endif
 
-const std::string g_texture_path = "~/Pictures/renderer_of_worlds.jpg";
+const char* g_texture_url = "http://roa.h-cdn.co/assets/cm/14/47/1024x576/546b32b33240f_-_hasselhoff_kr_pr_nbc-lg.jpg";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -1,4 +1,5 @@
 #include <crocore/filesystem.hpp>
+#include <crocore/http.hpp>
 #include <crocore/Image.hpp>
 #include "simple_test.hpp"
 
@@ -72,17 +73,14 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
     inheritance.framebuffer = framebuffers[i].handle();
     inheritance.renderPass = framebuffers[i].renderpass().get();
 
-    // set index for renderer
-    m_renderer.set_current_index(i);
-
     m_command_buffers[i].begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT |
                                VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, &inheritance);
 
     m_renderer.viewport.width = m_window->swapchain().extent().width;
     m_renderer.viewport.height = m_window->swapchain().extent().height;
 
-//    m_renderer.draw_image(m_command_buffers[i].handle(), m_texture,
-//                          {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
+    m_renderer.draw_image(m_command_buffers[i].handle(), m_texture,
+                          {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
     m_renderer.draw(m_command_buffers[i].handle(), m_drawable);
 
     m_command_buffers[i].end();
@@ -90,7 +88,10 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
 
 void HelloTriangleApplication::create_texture_image()
 {
-    auto img = cc::create_image_from_file(g_texture_path, 4);
+    // try to fetch cool image
+    auto http_resonse = cc::net::http::get(g_texture_url);
+    
+    auto img = cc::create_image_from_data(http_resonse.data, 4);
     vk::Image::Format fmt;
     fmt.extent = {img->width(), img->height(), 1};
     fmt.use_mipmap = true;
@@ -127,17 +128,13 @@ void HelloTriangleApplication::update(double time_delta)
     m_animation.update();
 
     // update matrices for this frame
-    vk::Renderer::matrix_struct_t matrices = {};
-
-    matrices.model = glm::rotate(glm::scale(glm::mat4(1), glm::vec3(m_scale)),
-                                 (float)get_application_time() * glm::radians(30.0f),
-                                 glm::vec3(0.0f, 1.0f, 0.0f));
-
-    matrices.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 0.0f, 1.0f));
-    matrices.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
-    matrices.projection[1][1] *= -1;
-
-    m_drawable.matrices = std::move(matrices);
+    m_drawable.matrices.model = glm::rotate(glm::scale(glm::mat4(1), glm::vec3(m_scale)),
+                                            (float)get_application_time() * glm::radians(30.0f),
+                                            glm::vec3(0.0f, 1.0f, 0.0f));
+    m_drawable.matrices.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f),
+                                           glm::vec3(0.0f, 0.0f, 1.0f));
+    m_drawable.matrices.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
+    m_drawable.matrices.projection[1][1] *= -1;
 
     // issue top-level draw-command
     m_window->draw();
@@ -149,9 +146,13 @@ void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 {
     auto image_index = w->swapchain().image_index();
 
+    // set index for renderer
+    m_renderer.set_current_index(image_index);
+
     // create commandbuffer for this frame
     create_command_buffer(image_index);
 
+    // execute secondary commandbuffers
     VkCommandBuffer command_buf = m_command_buffers[image_index].handle();
     vkCmdExecuteCommands(w->command_buffer().handle(), 1, &command_buf);
 }

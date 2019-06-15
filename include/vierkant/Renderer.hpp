@@ -52,7 +52,7 @@ public:
 
     friend void swap(Renderer &lhs, Renderer &rhs);
 
-    void set_current_index(uint32_t i);
+    void set_current_index(uint32_t image_index);
 
     void draw(VkCommandBuffer command_buffer, const drawable_t &drawable);
 
