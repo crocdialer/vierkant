@@ -31,10 +31,9 @@ public:
         matrix_struct_t matrices = {};
     };
 
-    VkViewport viewport = {0.f, 0.f, 1.f, 1.f, 0.f, 1.f};
+    VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
 
-    VkRect2D scissor = {{0, 0},
-                        {0, 0}};
+    VkRect2D scissor = {.offset = {0, 0}, .extent = {0, 0}};
 
     Renderer() = default;
 

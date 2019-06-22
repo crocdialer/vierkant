@@ -22,6 +22,8 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
             }
         }
         m_renderpass = fb.renderpass();
+        viewport = {0.f, 0.f, static_cast<float>(fb.extent().width), static_cast<float>(fb.extent().height), 0.f,
+                    static_cast<float>(fb.extent().depth)};
     }
     m_frame_assets.resize(framebuffers.size());
 
