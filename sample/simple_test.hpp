@@ -6,6 +6,7 @@
 
 #include <crocore/Animation.hpp>
 #include "vierkant/vierkant.hpp"
+#include "../src/Font.hpp"
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;
@@ -76,6 +77,8 @@ private:
     float m_scale = 1.f;
 
     crocore::Animation m_animation;
+
+    vierkant::Font m_font;
 };
 
 int main(int argc, char *argv[])

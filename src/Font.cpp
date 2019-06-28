@@ -1,3 +1,5 @@
+#include <utility>
+
 // __ ___ ____ _____ ______ _______ ________ _______ ______ _____ ____ ___ __
 //
 // Copyright (C) 2012-2016, Fabian Schmidt <crocdialer@googlemail.com>
@@ -18,27 +20,18 @@
 
 #include "stb_rect_pack.h"
 
-//#define STBTT_RASTERIZER_VERSION 1
 #define STB_TRUETYPE_IMPLEMENTATION
 
 #include "stb_truetype.h"
 
 #include <codecvt>
-// -> fallback to boost/locale
-//#include <boost/locale/encoding_utf.hpp>
 
 std::wstring utf8_to_wstring(const std::string &str)
 {
     // the UTF-8 / UTF-16 standard conversion facet
     std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>, wchar_t> utf16conv;
     return utf16conv.from_bytes(str);
-//    return boost::locale::conv::utf_to_utf<wchar_t>(str.c_str(), str.c_str() + str.size());
 }
-
-//std::string wstring_to_utf8(const std::wstring& str)
-//{
-//    return utf_to_utf<char>(str.c_str(), str.c_str() + str.size());
-//}
 
 #define BITMAP_WIDTH(font_sz) font_sz > 50 ? 2048 : 1024
 
@@ -198,10 +191,11 @@ void Font::load(vierkant::DevicePtr device, const std::string &thePath, size_t t
 //        }
 
         vierkant::Image::Format fmt;
+        fmt.format = vierkant::format<uint8_t>();
         fmt.extent = {m_impl->bitmap->width(), m_impl->bitmap->height(), 1};
         fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                                  VK_COMPONENT_SWIZZLE_R};
-        m_impl->texture = vierkant::Image::create(device, m_impl->bitmap->data(), fmt);
+        m_impl->texture = vierkant::Image::create(std::move(device), m_impl->bitmap->data(), fmt);
     }catch(const std::exception &e)
     {
         LOG_ERROR << e.what();
@@ -217,7 +211,7 @@ vierkant::AABB Font::create_aabb(const std::string &theText) const
     for(const auto &quad : quads)
     {
         ret += vierkant::AABB(glm::vec3(quad.x0, quad.y0, 0),
-                        glm::vec3(quad.x1, quad.y1, 0));
+                              glm::vec3(quad.x1, quad.y1, 0));
     }
     return ret;
 }
@@ -225,8 +219,8 @@ vierkant::AABB Font::create_aabb(const std::string &theText) const
 crocore::ImagePtr Font::create_image(const std::string &theText, const glm::vec4 &theColor) const
 {
     uint32_t max_x = 0, max_y = 0;
-    typedef std::list<std::pair<crocore::Area_<uint32_t>, crocore::Area_<uint32_t>>> Area_Pairs;
-    Area_Pairs area_pairs;
+    using area_pair_t = std::pair<crocore::Area_<uint32_t>, crocore::Area_<uint32_t>>;
+    std::list<area_pair_t> area_pairs;
     auto quads = m_impl->create_quads(theText, &max_x, &max_y);
 
     for(auto &q : quads)
@@ -240,7 +234,7 @@ crocore::ImagePtr Font::create_image(const std::string &theText, const glm::vec4
                                         static_cast<uint32_t>(q.x1 - q.x0),
                                         static_cast<uint32_t>(q.y1 - q.y0)};
 
-        area_pairs.push_back(std::make_pair(src, dst));
+        area_pairs.emplace_back(src, dst);
     }
     auto dst_img = crocore::Image_<uint8_t>::create(max_x, max_y, 1);
 
@@ -253,17 +247,17 @@ crocore::ImagePtr Font::create_image(const std::string &theText, const glm::vec4
     return dst_img;
 }
 
-vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::string &theText, const glm::vec4 &theColor) const
+vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::string &theText,
+                                        const glm::vec4 &theColor) const
 {
-    vierkant::ImagePtr ret;
     auto img = create_image(theText, theColor);
 
     vierkant::Image::Format fmt;
-    fmt.extent = {m_impl->bitmap->width(), m_impl->bitmap->height(), 1};
+    fmt.format = vierkant::format<uint8_t>();
+    fmt.extent = {img->width(), img->height(), 1};
     fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                              VK_COMPONENT_SWIZZLE_R};
-    m_impl->texture = vierkant::Image::create(device, m_impl->bitmap->data(), fmt);
-    return ret;
+    return vierkant::Image::create(std::move(device), img->data(), fmt);
 }
 
 //gl::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 &theColor) const
@@ -443,9 +437,9 @@ vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::s
 //}
 
 vierkant::Object3DPtr Font::create_text_object(const std::string &the_text,
-                                         Align the_align,
-                                         uint32_t the_linewidth,
-                                         uint32_t the_lineheight) const
+                                               Align the_align,
+                                               uint32_t the_linewidth,
+                                               uint32_t the_lineheight) const
 {
     // create text meshes (1 per line)
     auto lines = crocore::split(the_text, '\n', false);

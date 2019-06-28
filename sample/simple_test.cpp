@@ -40,6 +40,8 @@ void HelloTriangleApplication::create_context_and_window()
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
     m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
     m_animation.start();
+
+//    m_font.load(m_device, "/usr/local/share/fonts/Courier New Bold.ttf", 64);
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
@@ -95,20 +97,24 @@ void HelloTriangleApplication::create_texture_image()
 {
     // try to fetch cool image
     auto http_resonse = cc::net::http::get(g_texture_url);
+
     crocore::ImagePtr img;
+    vk::Image::Format fmt;
 
     // create from downloaded data
     if(!http_resonse.data.empty()){ img = cc::create_image_from_data(http_resonse.data, 4); }
     else
     {
-        // create 1x1, all-white dummy image
-        uint32_t v = 0xFFFFFFFF;
-        img = cc::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(&v), 1, 1, 4);
+        // create 2x2 black/white checkerboard image
+        uint32_t v[4] = {0xFFFFFFFF, 0x000000FF, 0x000000FF, 0xFFFFFFFF};
+        img = cc::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(v), 2, 2, 4);
+        fmt.mag_filter = VK_FILTER_NEAREST;
     }
-    vk::Image::Format fmt;
     fmt.extent = {img->width(), img->height(), 1};
     fmt.use_mipmap = true;
     m_texture = vk::Image::create(m_device, img->data(), fmt);
+
+//    m_texture = m_font.create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
 }
 
 void HelloTriangleApplication::load_model()

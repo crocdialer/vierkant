@@ -2961,7 +2961,7 @@ static bool STB_TEXTEDIT_INSERTCHARS(STB_TEXTEDIT_STRING* obj, int pos, const Im
 #define STB_TEXTEDIT_K_SHIFT        0x20000
 
 #define STB_TEXTEDIT_IMPLEMENTATION
-#include "vierkant/imgui/imstb_textedit.h"
+#include "imstb_textedit.h"
 
 }
 

@@ -32,9 +32,9 @@ public:
         VkSharingMode sharing_mode = VK_SHARING_MODE_EXCLUSIVE;
         VkImageViewType view_type = VK_IMAGE_VIEW_TYPE_2D;
         VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-        VkSamplerAddressMode address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        VkSamplerAddressMode address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        VkSamplerAddressMode address_mode_w = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        VkSamplerAddressMode address_mode_u = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        VkSamplerAddressMode address_mode_v = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        VkSamplerAddressMode address_mode_w = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         VkFilter min_filter = VK_FILTER_LINEAR;
         VkFilter mag_filter = VK_FILTER_LINEAR;
         VkComponentMapping component_swizzle = {VK_COMPONENT_SWIZZLE_IDENTITY,

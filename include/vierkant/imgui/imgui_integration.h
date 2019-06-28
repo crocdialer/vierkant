@@ -1,11 +1,11 @@
-#include "vierkant/Application.hpp"
+#include "vierkant/Window.hpp"
 
 #include "imgui.h"
 #include "ImGuizmo.h"
 
-namespace kinski{ namespace gui {
+namespace vierkant::gui {
 
-bool init(kinski::App *the_app);
+bool init(vierkant::WindowPtr *the_app);
 
 void shutdown();
 
@@ -19,11 +19,11 @@ void invalidate_device_objects();
 
 bool create_device_objects();
 
-void mouse_press(const vk::MouseEvent &e);
-void mouse_wheel(const vk::MouseEvent &e);
+void mouse_press(const vierkant::MouseEvent &e);
+void mouse_wheel(const vierkant::MouseEvent &e);
 
-void key_press(const vk::KeyEvent &e);
-void key_release(const vk::KeyEvent &e);
+void key_press(const vierkant::KeyEvent &e);
+void key_release(const vierkant::KeyEvent &e);
 void char_callback(uint32_t c);
 
-}}// namespace
+}// namespace
