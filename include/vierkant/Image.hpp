@@ -10,6 +10,8 @@ namespace vierkant {
 
 DEFINE_CLASS_PTR(Image);
 
+using VkImagePtr = std::shared_ptr<VkImage_T>;
+
 VkDeviceSize num_bytes_per_pixel(VkFormat format);
 
 class Image
@@ -91,7 +93,7 @@ public:
      *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr device, VkImage image, Format format);
+    static ImagePtr create(DevicePtr device, const VkImagePtr& shared_image, Format format);
 
     Image(const Image &) = delete;
 
@@ -134,7 +136,12 @@ public:
     /**
      * @return  handle to the managed VkImage
      */
-    VkImage image() const { return m_image; };
+    VkImage image() const { return m_image.get(); };
+
+    /**
+     * @return  shared handle to the managed VkImage
+     */
+    const VkImagePtr& shared_image() const { return m_image; };
 
     /**
      * @return  image view handle
@@ -182,9 +189,9 @@ public:
 
 private:
 
-    Image(DevicePtr device, void *data, VkImage image, Format format);
+    Image(DevicePtr device, void *data, const VkImagePtr& shared_image, Format format);
 
-    void init(void *data, VkImage image = VK_NULL_HANDLE);
+    void init(void *data, const VkImagePtr& shared_image = nullptr);
 
     void generate_mipmaps(VkCommandBuffer command_buffer = VK_NULL_HANDLE);
 
@@ -194,7 +201,7 @@ private:
     uint32_t m_num_mip_levels = 1;
 
     // image handle
-    VkImage m_image = VK_NULL_HANDLE;
+    VkImagePtr m_image = nullptr;
 
     // image view handle
     VkImageView m_image_view = VK_NULL_HANDLE;
@@ -211,9 +218,6 @@ private:
     // vma assets
     VmaAllocation m_allocation = nullptr;
     VmaAllocationInfo m_allocation_info = {};
-
-    // ownership of managed VkImage
-    bool m_owner = true;
 };
 
 }//namespace vierkant

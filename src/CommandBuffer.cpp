@@ -4,8 +4,7 @@
 
 #include "vierkant/CommandBuffer.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -56,7 +55,7 @@ CommandBuffer &CommandBuffer::operator=(CommandBuffer the_other)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CommandBuffer::begin(VkCommandBufferUsageFlags flags, VkCommandBufferInheritanceInfo* inheritance)
+void CommandBuffer::begin(VkCommandBufferUsageFlags flags, VkCommandBufferInheritanceInfo *inheritance)
 {
     if(m_handle)
     {
@@ -96,21 +95,19 @@ void CommandBuffer::submit(VkQueue queue,
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &m_handle;
 
-        VkFence local_fence = fence;
-
         if(create_fence)
         {
             VkFenceCreateInfo fence_create_info = {};
             fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             fence_create_info.flags = 0;
-            vkCreateFence(m_device->handle(), &fence_create_info, nullptr, &local_fence);
+            vkCreateFence(m_device->handle(), &fence_create_info, nullptr, &fence);
         }
-        vkQueueSubmit(queue, 1, &submit_info, local_fence);
+        vkQueueSubmit(queue, 1, &submit_info, fence);
 
         if(create_fence)
         {
-            vkWaitForFences(m_device->handle(), 1, &local_fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-            vkDestroyFence(m_device->handle(), local_fence, nullptr);
+            vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+            vkDestroyFence(m_device->handle(), fence, nullptr);
         }
     }
 }
@@ -122,8 +119,7 @@ void CommandBuffer::reset(bool release_resources)
     if(m_handle)
     {
         VkCommandBufferResetFlags resetFlags = release_resources ? VK_COMMAND_BUFFER_RESET_RELEASE_RESOURCES_BIT : 0;
-        vkCheck(vkResetCommandBuffer(m_handle, resetFlags),
-                "failed to reset command buffer");
+        vkCheck(vkResetCommandBuffer(m_handle, resetFlags), "failed to reset command buffer");
     }
 }
 

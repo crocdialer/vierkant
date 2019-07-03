@@ -41,7 +41,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
     m_animation.start();
 
-//    m_font.load(m_device, "/usr/local/share/fonts/Courier New Bold.ttf", 64);
+    m_font.load(m_device, "/usr/local/share/fonts/Courier New Bold.ttf", 64);
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
@@ -73,24 +73,25 @@ void HelloTriangleApplication::create_graphics_pipeline()
 
 void HelloTriangleApplication::create_command_buffer(size_t i)
 {
-    const auto &framebuffers = m_window->swapchain().framebuffers();
+    const auto &framebuffer = m_window->swapchain().framebuffers()[i];
+    auto &command_buffer = m_command_buffers[i];
 
     VkCommandBufferInheritanceInfo inheritance = {};
     inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance.framebuffer = framebuffers[i].handle();
-    inheritance.renderPass = framebuffers[i].renderpass().get();
+    inheritance.framebuffer = framebuffer.handle();
+    inheritance.renderPass = framebuffer.renderpass().get();
 
-    m_command_buffers[i].begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT |
-                               VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, &inheritance);
+    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT |
+                         VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, &inheritance);
 
     m_renderer.viewport.width = m_window->swapchain().extent().width;
     m_renderer.viewport.height = m_window->swapchain().extent().height;
 
-    m_renderer.draw_image(m_command_buffers[i].handle(), m_texture,
+    m_renderer.draw_image(command_buffer.handle(), m_texture,
                           {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
-    m_renderer.draw(m_command_buffers[i].handle(), m_drawable);
+    m_renderer.draw(command_buffer.handle(), m_drawable);
 
-    m_command_buffers[i].end();
+    command_buffer.end();
 }
 
 void HelloTriangleApplication::create_texture_image()
@@ -106,15 +107,21 @@ void HelloTriangleApplication::create_texture_image()
     else
     {
         // create 2x2 black/white checkerboard image
-        uint32_t v[4] = {0xFFFFFFFF, 0x000000FF, 0x000000FF, 0xFFFFFFFF};
+        uint32_t v[4] = {0xFFFFFFFF, 0xFF000000, 0xFF000000, 0xFFFFFFFF};
         img = cc::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(v), 2, 2, 4);
         fmt.mag_filter = VK_FILTER_NEAREST;
+        fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
     }
     fmt.extent = {img->width(), img->height(), 1};
     fmt.use_mipmap = true;
     m_texture = vk::Image::create(m_device, img->data(), fmt);
 
-//    m_texture = m_font.create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
+    m_texture = m_font.create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
+
+    fmt = m_texture->format();
+    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
+                             VK_COMPONENT_SWIZZLE_ONE};
+    m_texture_swizzled = vk::Image::create(m_device, m_texture->shared_image(), fmt);
 }
 
 void HelloTriangleApplication::load_model()
@@ -133,7 +140,7 @@ void HelloTriangleApplication::load_model()
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.binding = 1;
-    desc_texture.image_samplers = {m_texture};
+    desc_texture.image_samplers = {m_texture_swizzled};
 
     m_mesh->descriptors = {desc_ubo, desc_texture};
 

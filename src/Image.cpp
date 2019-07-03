@@ -1,3 +1,11 @@
+#include <utility>
+
+#include <utility>
+
+#include <utility>
+
+#include <utility>
+
 //
 // Created by crocdialer on 10/2/18.
 //
@@ -133,7 +141,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFo
                          &barrier);
 }
 
-VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format& format, VkDeviceSize block_size,
+VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format &format, VkDeviceSize block_size,
                               size_t min_block_count, size_t max_block_count, VmaPoolCreateFlags vma_flags)
 {
     VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
@@ -173,30 +181,30 @@ VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format& form
 
 ImagePtr Image::create(DevicePtr device, void *data, Format format)
 {
-    return ImagePtr(new Image(std::move(device), data, VK_NULL_HANDLE, format));
+    return ImagePtr(new Image(std::move(device), data, VK_NULL_HANDLE, std::move(format)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ImagePtr Image::create(DevicePtr device, Format format)
 {
-    return ImagePtr(new Image(std::move(device), nullptr, VK_NULL_HANDLE, format));
+    return ImagePtr(new Image(std::move(device), nullptr, VK_NULL_HANDLE, std::move(format)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr device, VkImage image, Format format)
+ImagePtr Image::create(DevicePtr device, const VkImagePtr& shared_image, Format format)
 {
-    return ImagePtr(new Image(std::move(device), nullptr, image, format));
+    return ImagePtr(new Image(std::move(device), nullptr, shared_image, std::move(format)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::Image(DevicePtr device, void *data, VkImage image, Format format) :
+Image::Image(DevicePtr device, void *data, const VkImagePtr& shared_image, Format format) :
         m_device(std::move(device)),
-        m_format(format)
+        m_format(std::move(format))
 {
-    init(data, image);
+    init(data, shared_image);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -205,12 +213,11 @@ Image::~Image()
 {
     if(m_sampler){ vkDestroySampler(m_device->handle(), m_sampler, nullptr); }
     if(m_image_view){ vkDestroyImageView(m_device->handle(), m_image_view, nullptr); }
-    if(m_image && m_owner){ vmaDestroyImage(m_device->vk_mem_allocator(), m_image, m_allocation); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::init(void *data, VkImage image)
+void Image::init(void *data, const VkImagePtr& shared_image)
 {
     if(!m_format.extent.width || !m_format.extent.height || !m_format.extent.depth)
     {
@@ -235,13 +242,10 @@ void Image::init(void *data, VkImage image)
         img_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     }
 
-    if(image)
+    if(shared_image)
     {
-        if(m_image){ vmaDestroyImage(m_device->vk_mem_allocator(), m_image, m_allocation); }
-
-        // use a provided VkImage that we do not own
-        m_image = image;
-        m_owner = false;
+        // use an existing, shared VkImage
+        m_image = shared_image;
     }else
     {
         VkImageCreateInfo image_create_info = {};
@@ -262,9 +266,14 @@ void Image::init(void *data, VkImage image)
         alloc_info.usage = m_format.memory_usage;
         alloc_info.pool = m_format.memory_pool.get();
 
-        vmaCreateImage(m_device->vk_mem_allocator(), &image_create_info, &alloc_info, &m_image, &m_allocation,
+        VkImage image;
+        vmaCreateImage(m_device->vk_mem_allocator(), &image_create_info, &alloc_info, &image, &m_allocation,
                        &m_allocation_info);
-        m_owner = true;
+
+        m_image = VkImagePtr(image, [this](VkImage img)
+        {
+            vmaDestroyImage(m_device->vk_mem_allocator(), img, m_allocation);
+        });
     }
 
     ////////////////////////////////////////// copy contents ///////////////////////////////////////////////////////////
@@ -283,11 +292,11 @@ void Image::init(void *data, VkImage image)
 
     VkImageViewCreateInfo view_create_info = {};
     view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    view_create_info.image = m_image;
+    view_create_info.image = m_image.get();
     view_create_info.viewType = m_format.view_type;
     view_create_info.format = m_format.format;
     view_create_info.components = m_format.component_swizzle;
-    view_create_info.subresourceRange.aspectMask = m_format.aspect;//VK_IMAGE_ASPECT_COLOR_BIT;
+    view_create_info.subresourceRange.aspectMask = m_format.aspect;
     view_create_info.subresourceRange.baseMipLevel = 0;
     view_create_info.subresourceRange.levelCount = m_num_mip_levels;
     view_create_info.subresourceRange.baseArrayLayer = 0;
@@ -360,7 +369,7 @@ void Image::transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmdB
             localCommandBuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
             cmdBufferHandle = localCommandBuffer.handle();
         }
-        transition_image_layout(cmdBufferHandle, m_image, m_format.format, m_image_layout, the_new_layout,
+        transition_image_layout(cmdBufferHandle, m_image.get(), m_format.format, m_image_layout, the_new_layout,
                                 m_num_mip_levels);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
@@ -401,7 +410,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
         region.imageSubresource.layerCount = 1;
         region.imageOffset = offset;
         region.imageExtent = extent;
-        vkCmdCopyBufferToImage(cmd_buffer_handle, src->handle(), m_image, m_image_layout, 1, &region);
+        vkCmdCopyBufferToImage(cmd_buffer_handle, src->handle(), m_image.get(), m_image_layout, 1, &region);
 
         // generate new mipmaps after copying
         if(m_format.use_mipmap && m_format.autogenerate_mipmaps){ generate_mipmaps(cmd_buffer_handle); }
@@ -446,7 +455,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
         region.imageSubresource.layerCount = 1;
         region.imageOffset = offset;
         region.imageExtent = extent;
-        vkCmdCopyImageToBuffer(command_buffer, m_image, m_image_layout, dst->handle(), 1, &region);
+        vkCmdCopyImageToBuffer(command_buffer, m_image.get(), m_image_layout, dst->handle(), 1, &region);
 
         if(local_command_buffer)
         {
@@ -485,7 +494,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.image = m_image;
+    barrier.image = m_image.get();
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -525,8 +534,8 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
         blit.dstSubresource.layerCount = 1;
 
         vkCmdBlitImage(command_buffer,
-                       m_image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                       m_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                       m_image.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                       m_image.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                        1, &blit,
                        VK_FILTER_LINEAR);
 

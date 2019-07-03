@@ -66,7 +66,7 @@ private:
     // command buffers
     std::vector<vierkant::CommandBuffer> m_command_buffers;
 
-    vierkant::ImagePtr m_texture;
+    vierkant::ImagePtr m_texture, m_texture_swizzled;
 
     vk::MeshPtr m_mesh = vk::Mesh::create();
 

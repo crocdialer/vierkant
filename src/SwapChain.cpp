@@ -151,7 +151,9 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
 
     for(size_t i = 0; i < m_images.size(); i++)
     {
-        m_images[i] = Image::create(m_device, swap_chain_images[i], fmt);
+        // do not delete on destruction, we do not own the image
+        auto shared_image = VkImagePtr(swap_chain_images[i], [](VkImage){});
+        m_images[i] = Image::create(m_device, shared_image, fmt);
     }
 
     // retrieve depth format

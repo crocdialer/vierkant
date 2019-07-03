@@ -255,6 +255,7 @@ vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::s
     vierkant::Image::Format fmt;
     fmt.format = vierkant::format<uint8_t>();
     fmt.extent = {img->width(), img->height(), 1};
+    fmt.use_mipmap = true;
     fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                              VK_COMPONENT_SWIZZLE_R};
     return vierkant::Image::create(std::move(device), img->data(), fmt);
