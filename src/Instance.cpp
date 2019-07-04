@@ -190,8 +190,8 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     std::vector<VkExtensionProperties> extensions(num_extensions);
     vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, extensions.data());
 
-    LOG_DEBUG << "available extensions:";
-    for(const auto &ext : extensions) { LOG_DEBUG << "\t" << ext.extensionName; }
+    LOG_TRACE << "available extensions:";
+    for(const auto &ext : extensions) { LOG_TRACE << "\t" << ext.extensionName; }
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;

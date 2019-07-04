@@ -22,7 +22,29 @@
 
 namespace vierkant {
 
+using index_t = uint32_t;
+
 DEFINE_CLASS_PTR(Geometry)
+
+struct HalfEdge
+{
+    //! Vertex index at the end of this half-edge
+    index_t index = std::numeric_limits<index_t>::max();
+
+    //! Oppositely oriented adjacent half-edge
+    HalfEdge *twin = nullptr;
+
+    //! Next half-edge around the face
+    HalfEdge *next = nullptr;
+};
+
+/**
+ * @brief   Compute the half-edges for a provided Geometry
+ *
+ * @param   geom    the geometry to compute the half-edges for
+ * @return  an array containing the half-edges
+ */
+std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom);
 
 /**
 * @brief   Geometry groups vertex-information and provides factories for common geometries.
@@ -32,7 +54,6 @@ class Geometry
 public:
 
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    std::vector<uint32_t> indices;
 
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec2> tex_coords;
@@ -40,11 +61,19 @@ public:
     std::vector<glm::vec3> normals;
     std::vector<glm::vec3> tangents;
 
+    std::vector<index_t> indices;
+
     Geometry(const Geometry &) = delete;
 
     Geometry(Geometry &&) = delete;
 
     Geometry &operator=(Geometry other) = delete;
+
+    void compute_face_normals();
+
+    void compute_vertex_normals();
+
+    void compute_tangents();
 
     /**
      * @brief   Factory to create an empty Geometry

@@ -2,10 +2,190 @@
 // Created by crocdialer on 3/11/19.
 //
 
+#include <crocore/Timer.hpp>
 #include "vierkant/Geometry.hpp"
 #include "vierkant/intersection.hpp"
 
 namespace vierkant {
+
+namespace {
+inline uint64_t pack(uint64_t a, uint64_t b) { return (a << 32U) | b; }
+
+inline uint64_t swizzle(uint64_t a) { return ((a & 0xFFFFFFFFU) << 32U) | (a >> 32U); }
+}
+
+std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom)
+{
+    if(geom->topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST || geom->indices.size() < 3)
+    {
+        LOG_WARNING << "requested computation of half-edges for non-triangle mesh";
+        return {};
+    }
+
+    crocore::Stopwatch timer;
+    timer.start();
+
+    std::vector<HalfEdge> ret(3 * geom->indices.size());
+    std::unordered_map<uint64_t, HalfEdge *> edge_table;
+
+    HalfEdge *edge = ret.data();
+
+    for(size_t i = 0; i < geom->indices.size(); i += 3)
+    {
+        index_t a = geom->indices[i], b = geom->indices[i + 1], c = geom->indices[i + 2];
+
+        // create the half-edge that goes from C to A:
+        edge_table[pack(c, a)] = edge;
+        edge->index = a;
+        edge->next = edge + 1;
+        ++edge;
+
+        // create the half-edge that goes from A to B:
+        edge_table[pack(a, b)] = edge;
+        edge->index = b;
+        edge->next = edge + 1;
+        ++edge;
+
+        // create the half-edge that goes from B to C:
+        edge_table[pack(b, c)] = edge;
+        edge->index = c;
+        edge->next = edge - 2;
+        ++edge;
+    }
+
+    // populate the twin pointers by iterating over the edge_table
+    int boundaryCount = 0;
+
+    for(auto &e : edge_table)
+    {
+        HalfEdge *current_edge = e.second;
+
+        // try to find twin edge in map
+        auto it = edge_table.find(swizzle(e.first));
+
+        if(it != edge_table.end())
+        {
+            HalfEdge *twin_edge = it->second;
+            twin_edge->twin = current_edge;
+            current_edge->twin = twin_edge;
+        }else{ ++boundaryCount; }
+    }
+
+    if(boundaryCount > 0)
+    {
+        LOG_DEBUG << "mesh is not watertight. contains " << boundaryCount << " boundary edges.";
+    }
+    LOG_TRACE << "half-edge computation took " << (int)std::round(timer.time_elapsed() * 1000.0) << " ms";
+    return ret;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Geometry::compute_face_normals()
+{
+    if(indices.empty()) return;
+
+    normals.resize(vertices.size());
+
+    for(size_t i = 0; i < indices.size(); i += 3)
+    {
+        index_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
+
+        const glm::vec3 &vA = vertices[a];
+        const glm::vec3 &vB = vertices[b];
+        const glm::vec3 &vC = vertices[c];
+        glm::vec3 normal = glm::normalize(glm::cross(vB - vA, vC - vA));
+        normals[a] = normals[b] = normals[c] = normal;
+    }
+}
+
+void Geometry::compute_vertex_normals()
+{
+    if(indices.size() < 3) return;
+
+    // assert correct size
+    if(normals.size() != vertices.size())
+    {
+        normals.clear();
+        normals.resize(vertices.size(), glm::vec3(0));
+    }
+    else{ std::fill(normals.begin(), normals.end(), glm::vec3(0)); }
+
+    // iterate faces and sum normals for all vertices
+    for(size_t i = 0; i < indices.size(); i += 3)
+    {
+        index_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
+
+        const glm::vec3 &vA = vertices[a];
+        const glm::vec3 &vB = vertices[b];
+        const glm::vec3 &vC = vertices[c];
+        glm::vec3 normal = glm::normalize(glm::cross(vB - vA, vC - vA));
+        normals[a] += normal;
+        normals[b] += normal;
+        normals[c] += normal;
+    }
+
+    // normalize vertexNormals
+    for(auto &n : normals){ n = glm::normalize(n); }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Geometry::compute_tangents()
+{
+    if(indices.size() < 3) return;
+    if(tex_coords.size() != vertices.size()) return;
+
+    std::vector<glm::vec3> tangents_tmp;
+
+    if(tangents.size() != vertices.size())
+    {
+        tangents.clear();
+        tangents.resize(vertices.size(), glm::vec3(0));
+        tangents_tmp.resize(vertices.size(), glm::vec3(0));
+    }
+
+    for(size_t i = 0; i < indices.size(); i += 3)
+    {
+        index_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
+
+        const glm::vec3 &v1 = vertices[a], &v2 = vertices[b], &v3 = vertices[c];
+        const glm::vec2 &w1 = tex_coords[a], &w2 = tex_coords[b], &w3 = tex_coords[c];
+
+        float x1 = v2.x - v1.x;
+        float x2 = v3.x - v1.x;
+        float y1 = v2.y - v1.y;
+        float y2 = v3.y - v1.y;
+        float z1 = v2.z - v1.z;
+        float z2 = v3.z - v1.z;
+        float s1 = w2.x - w1.x;
+        float s2 = w3.x - w1.x;
+        float t1 = w2.y - w1.y;
+        float t2 = w3.y - w1.y;
+
+        float r = 1.0F / (s1 * t2 - s2 * t1);
+        glm::vec3 sdir((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r,
+                       (t2 * z1 - t1 * z2) * r);
+        glm::vec3 tdir((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r,
+                       (s1 * z2 - s2 * z1) * r);
+
+        tangents_tmp[a] += sdir;
+        tangents_tmp[b] += sdir;
+        tangents_tmp[c] += sdir;
+    }
+
+    for (uint32_t a = 0; a < vertices.size(); ++a)
+    {
+        const glm::vec3& n = normals[a];
+        const glm::vec3& t = tangents_tmp[a];
+
+        // Gram-Schmidt orthogonalize
+        tangents[a] = glm::normalize(t - n * glm::dot(n, t));
+
+        // Calculate handedness
+        //tangent[a].w = (Dot(Cross(n, t), tan2[a]) < 0.0F) ? -1.0F : 1.0F;
+    }
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

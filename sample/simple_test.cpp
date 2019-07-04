@@ -5,6 +5,8 @@
 
 void HelloTriangleApplication::setup()
 {
+    crocore::Logger::get()->set_severity(crocore::Severity::DEBUG);
+
     create_context_and_window();
     create_texture_image();
     load_model();
@@ -127,6 +129,9 @@ void HelloTriangleApplication::create_texture_image()
 void HelloTriangleApplication::load_model()
 {
     auto geom = vk::Geometry::Box(glm::vec3(.5f));
+
+    vk::compute_half_edges(geom);
+
 //    auto geom = vk::Geometry::BoxOutline();
 //    auto geom = vk::Geometry::Grid();
     m_mesh = vk::create_mesh_from_geometry(m_device, geom);
