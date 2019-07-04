@@ -9,6 +9,7 @@
 namespace vierkant
 {
 
+using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
 
 class CommandBuffer
 {

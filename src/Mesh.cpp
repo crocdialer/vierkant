@@ -295,7 +295,7 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
 }
 
 vierkant::MeshPtr
-create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom, bool interleave_data)
+create_mesh_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geom, bool interleave_data)
 {
     struct vertex_data_t
     {
@@ -326,26 +326,26 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geo
     size_t stride = 0, num_bytes = 0;
 
     // sanity check array sizes
-    auto is_sane = [add_offset, &stride, &num_bytes](const Geometry &g,
+    auto is_sane = [add_offset, &stride, &num_bytes](const GeometryConstPtr &g,
                                                      std::vector<vertex_data_t> &vertex_data) -> bool
     {
         size_t offset = 0;
-        auto num_vertices = g.vertices.size();
+        auto num_vertices = g->vertices.size();
 
-        if(g.vertices.empty()){ return false; }
-        add_offset(g.vertices, vertex_data, offset, stride, num_bytes);
+        if(g->vertices.empty()){ return false; }
+        add_offset(g->vertices, vertex_data, offset, stride, num_bytes);
 
-        if(!g.colors.empty() && g.colors.size() != num_vertices){ return false; }
-        add_offset(g.colors, vertex_data, offset, stride, num_bytes);
+        if(!g->colors.empty() && g->colors.size() != num_vertices){ return false; }
+        add_offset(g->colors, vertex_data, offset, stride, num_bytes);
 
-        if(!g.tex_coords.empty() && g.tex_coords.size() != num_vertices){ return false; }
-        add_offset(g.tex_coords, vertex_data, offset, stride, num_bytes);
+        if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
+        add_offset(g->tex_coords, vertex_data, offset, stride, num_bytes);
 
-        if(!g.normals.empty() && g.normals.size() != num_vertices){ return false; }
-        add_offset(g.normals, vertex_data, offset, stride, num_bytes);
+        if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
+        add_offset(g->normals, vertex_data, offset, stride, num_bytes);
 
-        if(!g.tangents.empty() && g.tangents.size() != num_vertices){ return false; }
-        add_offset(g.tangents, vertex_data, offset, stride, num_bytes);
+        if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
+        add_offset(g->tangents, vertex_data, offset, stride, num_bytes);
 
         return true;
     };
@@ -413,26 +413,26 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geo
         };
 
         // vertex attributes
-        insert_data(geom.vertices, 0);
-        insert_data(geom.colors, 1);
-        insert_data(geom.tex_coords, 2);
-        insert_data(geom.normals, 3);
-        insert_data(geom.tangents, 4);
+        insert_data(geom->vertices, 0);
+        insert_data(geom->colors, 1);
+        insert_data(geom->tex_coords, 2);
+        insert_data(geom->normals, 3);
+        insert_data(geom->tangents, 4);
     }
 
     // copy combined vertex data to device-buffer
     stage_buffer->copy_to(vertex_buffer);
 
     // use indices
-    if(!geom.indices.empty())
+    if(!geom->indices.empty())
     {
-        mesh->index_buffer = vierkant::Buffer::create(device, geom.indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        mesh->index_buffer = vierkant::Buffer::create(device, geom->indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_GPU_ONLY);
-        mesh->num_elements = static_cast<uint32_t>(geom.indices.size());
-    }else{ mesh->num_elements = static_cast<uint32_t>(geom.vertices.size()); }
+        mesh->num_elements = static_cast<uint32_t>(geom->indices.size());
+    }else{ mesh->num_elements = static_cast<uint32_t>(geom->vertices.size()); }
 
     // set topology
-    mesh->topology = geom.topology;
+    mesh->topology = geom->topology;
     return mesh;
 }
 
@@ -441,7 +441,7 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geo
 MeshPtr Mesh::create()
 {
     auto ret = MeshPtr(new Mesh());
-    ret->set_name("mesh_" + ret->id());
+    ret->set_name("mesh_" + std::to_string(ret->id()));
     return ret;
 }
 

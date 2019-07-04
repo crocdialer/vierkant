@@ -122,7 +122,7 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
  * @return  the newly created vierkant::MeshPtr
  */
 vierkant::MeshPtr
-create_mesh_from_geometry(const vierkant::DevicePtr &device, const Geometry &geom, bool interleave_data = true);
+create_mesh_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geom, bool interleave_data = true);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

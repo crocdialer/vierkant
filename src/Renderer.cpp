@@ -27,10 +27,27 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
     }
     m_frame_assets.resize(framebuffers.size());
 
+    // command pool
+    VkCommandPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+
+    // transient command pool -> graphics queue
+    auto queue_indices = m_device->queue_family_indices();
+    pool_info.queueFamilyIndex = static_cast<uint32_t>(queue_indices[Device::Queue::GRAPHICS].index);
+    pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    VkCommandPool command_pool;
+    vkCheck(vkCreateCommandPool(m_device->handle(), &pool_info, nullptr, &command_pool),
+            "failed to create command pool!");
+
+    m_command_pool = vierkant::CommandPoolPtr(command_pool, [device{m_device}](VkCommandPool pool)
+    {
+        vkDestroyCommandPool(device->handle(), pool, nullptr);
+    });
+
     // we also need a DescriptorPool ...
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1024}};
-    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
+    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -58,6 +75,7 @@ void swap(Renderer &lhs, Renderer &rhs)
     std::swap(lhs.m_sample_count, rhs.m_sample_count);
     std::swap(lhs.m_shader_stage_cache, rhs.m_shader_stage_cache);
     std::swap(lhs.m_pipelines, rhs.m_pipelines);
+    std::swap(lhs.m_command_pool, rhs.m_command_pool);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(lhs.m_frame_assets, rhs.m_frame_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
@@ -71,7 +89,7 @@ void Renderer::set_current_index(uint32_t image_index)
     m_current_index = image_index;
 
     // flush descriptor sets
-//    m_frame_assets[m_current_index].clear();
+    m_frame_assets[m_current_index].clear();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -157,7 +175,7 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
     {
         // create plane-geometry
         auto plane = Geometry::Plane();
-        for(auto &v : plane.vertices){ v.xy += glm::vec2(.5f, -.5f); }
+        for(auto &v : plane->vertices){ v.xy += glm::vec2(.5f, -.5f); }
 
         auto mesh = create_mesh_from_geometry(m_device, plane);
 

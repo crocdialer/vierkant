@@ -8,7 +8,7 @@
 
 namespace vierkant {
 
-DEFINE_CLASS_PTR(Image);
+DEFINE_CLASS_PTR(Image)
 
 using VkImagePtr = std::shared_ptr<VkImage_T>;
 

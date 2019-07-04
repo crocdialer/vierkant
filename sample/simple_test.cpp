@@ -41,7 +41,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
     m_animation.start();
 
-    m_font.load(m_device, "/usr/local/share/fonts/Courier New Bold.ttf", 64);
+//    m_font.load(m_device, "/usr/local/share/fonts/Courier New Bold.ttf", 64);
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
@@ -116,12 +116,12 @@ void HelloTriangleApplication::create_texture_image()
     fmt.use_mipmap = true;
     m_texture = vk::Image::create(m_device, img->data(), fmt);
 
-    m_texture = m_font.create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
-
-    fmt = m_texture->format();
-    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
-                             VK_COMPONENT_SWIZZLE_ONE};
-    m_texture_swizzled = vk::Image::create(m_device, m_texture->shared_image(), fmt);
+//    m_texture = m_font.create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
+//
+//    fmt = m_texture->format();
+//    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
+//                             VK_COMPONENT_SWIZZLE_ONE};
+//    m_texture_swizzled = vk::Image::create(m_device, m_texture->shared_image(), fmt);
 }
 
 void HelloTriangleApplication::load_model()
@@ -140,7 +140,7 @@ void HelloTriangleApplication::load_model()
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.binding = 1;
-    desc_texture.image_samplers = {m_texture_swizzled};
+    desc_texture.image_samplers = {m_texture};
 
     m_mesh->descriptors = {desc_ubo, desc_texture};
 

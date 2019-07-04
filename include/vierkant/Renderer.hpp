@@ -84,6 +84,8 @@ private:
 
     std::unordered_map<Pipeline::Format, Pipeline> m_pipelines;
 
+    vierkant::CommandPoolPtr m_command_pool;
+
     vierkant::DescriptorPoolPtr m_descriptor_pool;
 
     std::vector<asset_map_t> m_frame_assets;

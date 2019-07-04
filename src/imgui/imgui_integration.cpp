@@ -1,42 +1,41 @@
-//#include "gl/Mesh.hpp"
-//#include "app/imgui/imgui.h"
-//#include "app/imgui/imgui_util.h"
-//#include "imgui_integration.h"
-//
-//namespace kinski {
-//namespace gui {
-//
-//// app instance
-//static kinski::App *g_app = nullptr;
+#include "vierkant/imgui/imgui_integration.h"
+#include <crocore/Area.hpp>
+
+namespace vierkant{
+
 //static double g_Time = 0.0f;
-//static bool g_mouse_pressed[3] = {false, false, false};
-//
+static bool g_mouse_pressed[3] = {false, false, false};
+
+
 //// gl assets
+
 //static kinski::gl::MeshPtr g_mesh;
-//static kinski::gl::Texture g_font_texture;
-//static kinski::gl::Buffer g_vertex_buffer;
-//static kinski::gl::Buffer g_index_buffer;
-//
-//void render()
-//{
-//    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
-//    ImGuiIO &io = ImGui::GetIO();
-//    int fb_width = (int)(io.DisplaySize.x * io.DisplayFramebufferScale.x);
-//    int fb_height = (int)(io.DisplaySize.y * io.DisplayFramebufferScale.y);
-//    if(fb_width == 0 || fb_height == 0){ return; }
-//
-//    ImGui::Render();
-//    ImDrawData *draw_data = ImGui::GetDrawData();
-//    draw_data->ScaleClipRects(io.DisplayFramebufferScale);
-//
+static vierkant::ImagePtr g_font_texture;
+static vierkant::BufferPtr g_vertex_buffer;
+static vierkant::BufferPtr g_index_buffer;
+
+
+void render()
+{
+    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
+    ImGuiIO &io = ImGui::GetIO();
+    int fb_width = (int)(io.DisplaySize.x * io.DisplayFramebufferScale.x);
+    int fb_height = (int)(io.DisplaySize.y * io.DisplayFramebufferScale.y);
+    if(fb_width == 0 || fb_height == 0){ return; }
+
+    ImGui::Render();
+    ImDrawData *draw_data = ImGui::GetDrawData();
+    draw_data->ScaleClipRects(io.DisplayFramebufferScale);
+
 //    gl::ScopedMatrixPush push_modelview(gl::MODEL_VIEW_MATRIX), push_proj(gl::PROJECTION_MATRIX);
 //    gl::load_identity(gl::MODEL_VIEW_MATRIX);
 //    gl::load_matrix(gl::PROJECTION_MATRIX, glm::ortho(0.f, io.DisplaySize.x, io.DisplaySize.y, 0.f));
-//
-//    // Draw
-//    for(int n = 0; n < draw_data->CmdListsCount; n++)
-//    {
-//        const ImDrawList *cmd_list = draw_data->CmdLists[n];
+
+    // Draw
+    for(int n = 0; n < draw_data->CmdListsCount; n++)
+    {
+        const ImDrawList *cmd_list = draw_data->CmdLists[n];
+
 //        auto &entry = g_mesh->entries()[0];
 //        entry.base_vertex = 0;
 //        entry.base_index = 0;
@@ -44,73 +43,73 @@
 //        entry.num_indices = cmd_list->IdxBuffer.Size;
 //        entry.primitive_type = GL_TRIANGLES;
 //
-//        // upload data
-//        g_vertex_buffer.set_data(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
-//        g_index_buffer.set_data(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-//
-//        for(int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
-//        {
-//            const ImDrawCmd *pcmd = &cmd_list->CmdBuffer[cmd_i];
-//            if(pcmd->UserCallback){ pcmd->UserCallback(cmd_list, pcmd); }
-//            else
-//            {
+        // upload data
+        g_vertex_buffer->set_data(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
+        g_index_buffer->set_data(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+
+        for(int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
+        {
+            const ImDrawCmd *pcmd = &cmd_list->CmdBuffer[cmd_i];
+            if(pcmd->UserCallback){ pcmd->UserCallback(cmd_list, pcmd); }
+            else
+            {
 //                auto &tex = *reinterpret_cast<kinski::gl::Texture *>(pcmd->TextureId);
 //                g_mesh->material()->add_texture(tex);
-//
-//                crocore::Area_<uint32_t> rect = {static_cast<uint32_t>(pcmd->ClipRect.x),
-//                                                 static_cast<uint32_t>(pcmd->ClipRect.y),
-//                                                 static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
-//                                                 static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
-//
+
+                crocore::Area_<uint32_t> rect = {static_cast<uint32_t>(pcmd->ClipRect.x),
+                                                 static_cast<uint32_t>(pcmd->ClipRect.y),
+                                                 static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
+                                                 static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
+
 //                g_mesh->material()->set_scissor_rect(rect);
 //                entry.num_indices = pcmd->ElemCount;
 //                kinski::gl::draw_mesh(g_mesh);
-//            }
+            }
 //            entry.base_index += pcmd->ElemCount;
-//        }
-//    }
-//}
-//
-//void mouse_press(const MouseEvent &e)
-//{
-//    if(e.is_left()){ g_mouse_pressed[0] = true; }
-//    else if(e.is_middle()){ g_mouse_pressed[1] = true; }
-//    else if(e.is_right()){ g_mouse_pressed[2] = true; }
-//}
-//
-//void mouse_wheel(const MouseEvent &e)
-//{
-//    ImGuiIO &io = ImGui::GetIO();
-//    io.MouseWheelH += e.wheel_increment().x;
-//    io.MouseWheel += e.wheel_increment().y;
-//}
-//
-//void key_press(const KeyEvent &e)
-//{
-//    ImGuiIO &io = ImGui::GetIO();
-//    io.KeysDown[e.code()] = true;
-//    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
-//    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
-//    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
-//    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
-//}
-//
-//void key_release(const KeyEvent &e)
-//{
-//    ImGuiIO &io = ImGui::GetIO();
-//    io.KeysDown[e.code()] = false;
-//    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
-//    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
-//    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
-//    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
-//}
-//
-//void char_callback(uint32_t c)
-//{
-//    ImGuiIO &io = ImGui::GetIO();
-//    if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short)c); }
-//}
-//
+        }
+    }
+}
+
+void mouse_press(const MouseEvent &e)
+{
+    if(e.is_left()){ g_mouse_pressed[0] = true; }
+    else if(e.is_middle()){ g_mouse_pressed[1] = true; }
+    else if(e.is_right()){ g_mouse_pressed[2] = true; }
+}
+
+void mouse_wheel(const MouseEvent &e)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    io.MouseWheelH += e.wheel_increment().x;
+    io.MouseWheel += e.wheel_increment().y;
+}
+
+void key_press(const KeyEvent &e)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    io.KeysDown[e.code()] = true;
+    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
+    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
+    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
+    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
+}
+
+void key_release(const KeyEvent &e)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    io.KeysDown[e.code()] = false;
+    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
+    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
+    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
+    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
+}
+
+void char_callback(uint32_t c)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short)c); }
+}
+
 //bool create_device_objects()
 //{
 //    // buffer objects
@@ -294,6 +293,5 @@
 //{
 //    ImGui::EndFrame();
 //}
-//
-//}
-//}//namespace
+
+}//namespace

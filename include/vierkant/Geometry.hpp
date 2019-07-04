@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <vector>
-
-#include <vulkan/vulkan.h>
+#include "vierkant/Device.hpp"
 
 #define GLM_FORCE_CXX11
 #define GLM_FORCE_SWIZZLE
@@ -24,11 +22,15 @@
 
 namespace vierkant {
 
+DEFINE_CLASS_PTR(Geometry)
+
 /**
-* @brief   Geometry is a simple struct to group vertex-information
+* @brief   Geometry groups vertex-information and provides factories for common geometries.
 */
-struct Geometry
+class Geometry
 {
+public:
+
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     std::vector<uint32_t> indices;
 
@@ -37,6 +39,19 @@ struct Geometry
     std::vector<glm::vec4> colors;
     std::vector<glm::vec3> normals;
     std::vector<glm::vec3> tangents;
+
+    Geometry(const Geometry &) = delete;
+
+    Geometry(Geometry &&) = delete;
+
+    Geometry &operator=(Geometry other) = delete;
+
+    /**
+     * @brief   Factory to create an empty Geometry
+     *
+     * @return  the newly created Geometry
+     */
+    static GeometryPtr create();
 
     /**
     * @brief   Factory to create an indexed plane-geometry with vertices in the XY-plane
@@ -47,7 +62,7 @@ struct Geometry
     * @param   numSegments_H    number of height subdivisions
     * @return  the newly created Geometry for a plane
     */
-    static Geometry
+    static GeometryPtr
     Plane(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
 
     /**
@@ -59,7 +74,7 @@ struct Geometry
     * @param   numSegments_D    number of height subdivisions
     * @return  the newly created Geometry for a plane
     */
-    static Geometry
+    static GeometryPtr
     Grid(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 10, uint32_t numSegments_D = 10);
 
     /**
@@ -68,14 +83,18 @@ struct Geometry
      * @param   half_extents    a glm::vec3 giving the half extent of the box
      * @return  the newly created Geometry for a box
      */
-    static Geometry Box(const glm::vec3 &half_extents = glm::vec3(.5f));
+    static GeometryPtr Box(const glm::vec3 &half_extents = glm::vec3(.5f));
 
     /**
      * @brief   Factory to create the outlines of a box
      * @param   half_extents
      * @return  the newly created Geometry for a box-outline
      */
-    static Geometry BoxOutline(const glm::vec3 &half_extents = glm::vec3(.5f));
+    static GeometryPtr BoxOutline(const glm::vec3 &half_extents = glm::vec3(.5f));
+
+private:
+
+    Geometry() = default;
 };
 
 }// namespace
