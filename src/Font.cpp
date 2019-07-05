@@ -43,10 +43,6 @@ struct string_mesh_container
     MeshPtr mesh;
     uint64_t counter;
 
-    string_mesh_container() : counter(0) {};
-
-    string_mesh_container(const std::string &t, const MeshPtr &m) : text(t), mesh(m), counter(0) {}
-
     bool operator<(const string_mesh_container &other) const { return counter < other.counter; }
 };
 
@@ -73,7 +69,7 @@ struct FontImpl
         use_sdf = false;
     }
 
-    std::tuple<crocore::Image_<uint8_t>::Ptr, std::unique_ptr<stbtt_packedchar[]>>
+    std::pair<crocore::Image_<uint8_t>::Ptr, std::unique_ptr<stbtt_packedchar[]>>
     create_bitmap(const std::vector<uint8_t> &the_font, float the_font_size,
                   uint32_t the_bitmap_width, uint32_t the_padding)
     {
@@ -88,7 +84,7 @@ struct FontImpl
         stbtt_PackFontRange(&spc, const_cast<uint8_t *>(the_font.data()), 0, the_font_size, 32,
                             num_chars, c_data.get());
         stbtt_PackEnd(&spc);
-        return std::make_tuple(img, std::move(c_data));
+        return std::make_pair(img, std::move(c_data));
     }
 
     std::list<stbtt_aligned_quad> create_quads(const std::string &the_text,
@@ -176,11 +172,11 @@ void Font::load(vierkant::DevicePtr device, const std::string &thePath, size_t t
         m_impl->line_height = theSize;
         m_impl->use_sdf = use_sdf;
 
-        auto tuple = m_impl->create_bitmap(font_data, theSize, BITMAP_WIDTH(theSize),
+        auto img_quads_pair = m_impl->create_bitmap(font_data, theSize, BITMAP_WIDTH(theSize),
                                            use_sdf ? 6 : 2);
 
-        m_impl->bitmap = std::get<0>(tuple);
-        m_impl->char_data = std::move(std::get<1>(tuple));
+        m_impl->bitmap = img_quads_pair.first;
+        m_impl->char_data = std::move(img_quads_pair.second);
 
 //        // signed distance field
 //        if(use_sdf)

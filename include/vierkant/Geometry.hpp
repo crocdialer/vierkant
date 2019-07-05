@@ -116,6 +116,7 @@ public:
 
     /**
      * @brief   Factory to create the outlines of a box
+     *
      * @param   half_extents
      * @return  the newly created Geometry for a box-outline
      */
