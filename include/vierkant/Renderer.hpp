@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include <unordered_map>
 #include "crocore/Area.hpp"
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Framebuffer.hpp"
-#include "vierkant/Pipeline.hpp"
+#include "vierkant/PipelineCache.hpp"
+#include "Pipeline.hpp"
 
 namespace vierkant {
 
@@ -82,7 +82,7 @@ private:
 
     std::unordered_map<DrawableType, drawable_t> m_drawable_cache;
 
-    std::unordered_map<Pipeline::Format, Pipeline> m_pipelines;
+    vierkant::PipelineCachePtr m_pipeline_cache;
 
     vierkant::CommandPoolPtr m_command_pool;
 

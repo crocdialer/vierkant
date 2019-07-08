@@ -56,12 +56,10 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom)
     // populate the twin pointers by iterating over the edge_table
     int boundaryCount = 0;
 
-    for(auto &e : edge_table)
+    for(auto &[key, current_edge] : edge_table)
     {
-        HalfEdge *current_edge = e.second;
-
         // try to find twin edge in map
-        auto it = edge_table.find(swizzle(e.first));
+        auto it = edge_table.find(swizzle(key));
 
         if(it != edge_table.end())
         {
@@ -293,8 +291,7 @@ GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, u
             indices.push_back(a);
         }
     }
-//    geom->compute_tangents();
-//    geom->compute_aabb();
+    geom->compute_tangents();
     return geom;
 }
 

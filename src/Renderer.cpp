@@ -48,6 +48,8 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1024}};
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
+
+    m_pipeline_cache = vierkant::PipelineCache::create(m_device);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -74,7 +76,7 @@ void swap(Renderer &lhs, Renderer &rhs)
     std::swap(lhs.m_renderpass, rhs.m_renderpass);
     std::swap(lhs.m_sample_count, rhs.m_sample_count);
     std::swap(lhs.m_shader_stage_cache, rhs.m_shader_stage_cache);
-    std::swap(lhs.m_pipelines, rhs.m_pipelines);
+    std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_command_pool, rhs.m_command_pool);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(lhs.m_frame_assets, rhs.m_frame_assets);
@@ -96,24 +98,16 @@ void Renderer::set_current_index(uint32_t image_index)
 
 void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
 {
+    auto fmt = drawable.pipeline_format;
+    fmt.renderpass = m_renderpass.get();
+    fmt.viewport = viewport;
+    fmt.sample_count = m_sample_count;
+
     // select/create pipeline
-    auto pipe_it = m_pipelines.find(drawable.pipeline_format);
-
-    if(pipe_it == m_pipelines.end())
-    {
-        auto fmt = drawable.pipeline_format;
-        fmt.renderpass = m_renderpass.get();
-        fmt.viewport = viewport;
-        fmt.sample_count = m_sample_count;
-
-        // not found -> create pipeline
-        auto new_pipeline = Pipeline(m_device, fmt);
-        pipe_it = m_pipelines.insert(std::make_pair(drawable.pipeline_format, std::move(new_pipeline))).first;
-    }
-    auto &pipeline = pipe_it->second;
+    auto pipeline = m_pipeline_cache->get(fmt);
 
     // bind pipeline
-    pipeline.bind(command_buffer);
+    pipeline->bind(command_buffer);
 
     vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
@@ -154,11 +148,8 @@ void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
 
     // bind descriptor sets (uniforms, samplers)
     VkDescriptorSet descriptor_handle = descriptor_set.get();
-    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.layout(),
+    vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(),
                             0, 1, &descriptor_handle, 0, nullptr);
-
-    // push-constants
-//    vkCmdPushConstants(command_buffer, pipeline.layout());
 
     // issue (indexed) drawing command
     if(drawable.mesh->index_buffer){ vkCmdDrawIndexed(command_buffer, drawable.mesh->num_elements, 1, 0, 0, 0); }
@@ -175,6 +166,8 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
     {
         // create plane-geometry
         auto plane = Geometry::Plane();
+        plane->normals.clear();
+        plane->tangents.clear();
         for(auto &v : plane->vertices){ v.xy += glm::vec2(.5f, -.5f); }
 
         auto mesh = create_mesh_from_geometry(m_device, plane);

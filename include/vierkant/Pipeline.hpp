@@ -44,6 +44,8 @@ enum class ShaderType{ UNLIT_TEXTURE };
  */
 shader_stage_map_t shader_stages(const DevicePtr &device, ShaderType t);
 
+DEFINE_CLASS_PTR(Pipeline)
+
 class Pipeline
 {
 public:
@@ -124,22 +126,21 @@ public:
         bool operator!=(const Format &other) const { return !(*this == other); };
     };
 
-    Pipeline() = default;
-
     /**
      * @brief   Construct a new Pipeline object
+     *
      * @param   device  handle for the vk::Device to create the Pipeline
      * @param   format  the desired Pipeline::Format
      */
-    Pipeline(DevicePtr device, Format format);
+    static PipelinePtr create(DevicePtr device, Format format);
 
-    Pipeline(Pipeline &&other) noexcept;
+    Pipeline(Pipeline &&other) noexcept = delete;
 
     Pipeline(const Pipeline &) = delete;
 
     ~Pipeline();
 
-    Pipeline &operator=(Pipeline other);
+    Pipeline &operator=(Pipeline other) = delete;
 
     /**
      * @brief
@@ -157,11 +158,9 @@ public:
      */
     VkPipelineLayout layout() const { return m_pipeline_layout; }
 
-    inline explicit operator bool() const { return m_pipeline; };
-
-    friend void swap(Pipeline &lhs, Pipeline &rhs);
-
 private:
+
+    Pipeline(DevicePtr device, Format format);
 
     DevicePtr m_device;
 

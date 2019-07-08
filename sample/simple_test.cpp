@@ -129,8 +129,8 @@ void HelloTriangleApplication::create_texture_image()
 void HelloTriangleApplication::load_model()
 {
     auto geom = vk::Geometry::Box(glm::vec3(.5f));
-
-    vk::compute_half_edges(geom);
+    geom->normals.clear();
+//    vk::compute_half_edges(geom);
 
 //    auto geom = vk::Geometry::BoxOutline();
 //    auto geom = vk::Geometry::Grid();

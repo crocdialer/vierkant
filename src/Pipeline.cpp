@@ -1,3 +1,7 @@
+#include <utility>
+
+#include <utility>
+
 //
 // Created by crocdialer on 11/14/18.
 //
@@ -40,6 +44,13 @@ std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages(const DevicePtr &
             break;
     }
     return ret;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+PipelinePtr Pipeline::create(DevicePtr device, Format format)
+{
+    return PipelinePtr(new Pipeline(std::move(device), std::move(format)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,14 +211,6 @@ Pipeline::Pipeline(DevicePtr device, Format format) :
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Pipeline::Pipeline(Pipeline &&other) noexcept:
-        Pipeline()
-{
-    swap(*this, other);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 Pipeline::~Pipeline()
 {
     if(m_device)
@@ -219,28 +222,10 @@ Pipeline::~Pipeline()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Pipeline &Pipeline::operator=(Pipeline other)
-{
-    swap(*this, other);
-    return *this;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 void Pipeline::bind(VkCommandBuffer command_buffer)
 {
     // bind pipeline
     vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void swap(Pipeline &lhs, Pipeline &rhs)
-{
-    std::swap(lhs.m_device, rhs.m_device);
-    std::swap(lhs.m_pipeline_layout, rhs.m_pipeline_layout);
-    std::swap(lhs.m_pipeline, rhs.m_pipeline);
-    std::swap(lhs.m_format, rhs.m_format);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
