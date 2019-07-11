@@ -356,13 +356,12 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Fo
         img_fmt.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         img_fmt.sample_count = fmt.color_attachment_format.sample_count;
         img_fmt.extent = m_extent;
-        img_fmt.format = VK_FORMAT_D32_SFLOAT;
+        img_fmt.format = VK_FORMAT_D24_UNORM_S8_UINT;
         img_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
 
         if(fmt.stencil)
         {
             img_fmt.aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
-            img_fmt.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
         }
         auto depth_img = vierkant::Image::create(m_device, img_fmt);
         depth_stencil_attachments.push_back(depth_img);
