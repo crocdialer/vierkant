@@ -24,6 +24,11 @@ CommandBuffer::CommandBuffer(DevicePtr the_device, VkCommandPool the_pool, VkCom
 
         vkAllocateCommandBuffers(m_device->handle(), &alloc_info, &m_handle);
     }
+
+    VkFenceCreateInfo fence_create_info = {};
+    fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_create_info.flags = 0;
+    vkCreateFence(m_device->handle(), &fence_create_info, nullptr, &m_fence);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,6 +46,7 @@ CommandBuffer::~CommandBuffer()
     if(m_device)
     {
         if(m_recording){ end(); }
+        vkDestroyFence(m_device->handle(), m_fence, nullptr);
         if(m_handle && m_pool){ vkFreeCommandBuffers(m_device->handle(), m_pool, 1, &m_handle); }
     }
 }
@@ -97,17 +103,15 @@ void CommandBuffer::submit(VkQueue queue,
 
         if(create_fence)
         {
-            VkFenceCreateInfo fence_create_info = {};
-            fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            fence_create_info.flags = 0;
-            vkCreateFence(m_device->handle(), &fence_create_info, nullptr, &fence);
+            vkResetFences(m_device->handle(), 1, &m_fence);
+            fence = m_fence;
         }
+
         vkQueueSubmit(queue, 1, &submit_info, fence);
 
         if(create_fence)
         {
             vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-            vkDestroyFence(m_device->handle(), fence, nullptr);
         }
     }
 }
@@ -130,6 +134,7 @@ void swap(CommandBuffer &lhs, CommandBuffer &rhs)
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_pool, rhs.m_pool);
     std::swap(lhs.m_handle, rhs.m_handle);
+    std::swap(lhs.m_fence, rhs.m_fence);
     std::swap(lhs.m_recording, rhs.m_recording);
 }
 

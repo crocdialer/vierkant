@@ -31,14 +31,6 @@ BOOST_AUTO_TEST_CASE(TestPipeline_Format)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(TestPipeline_Constructor)
-{
-    vk::Pipeline pipeline;
-    BOOST_CHECK(!pipeline);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
 {
     VkExtent3D fb_size = {1920, 1080, 1};
@@ -59,7 +51,7 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
         fmt.viewport.height = framebuffer.extent().height;
         fmt.renderpass = framebuffer.renderpass().get();
         fmt.shader_stages = vk::shader_stages(device, vk::ShaderType::UNLIT_TEXTURE);
-        auto pipeline = vk::Pipeline(device, fmt);
+        auto pipeline = vk::Pipeline::create(device, fmt);
         BOOST_CHECK(pipeline);
     }
 }

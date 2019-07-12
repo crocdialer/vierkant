@@ -6,8 +6,7 @@
 
 #include "vierkant/Device.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
 
@@ -41,7 +40,7 @@ public:
      * @param   flags
      */
     void begin(VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-               VkCommandBufferInheritanceInfo* inheritance = nullptr);
+               VkCommandBufferInheritanceInfo *inheritance = nullptr);
 
     /**
      * @brief   stop recording commands into this buffer
@@ -68,19 +67,20 @@ public:
      */
     void reset(bool release_resources = false);
 
-    VkCommandBuffer handle() const{ return m_handle; }
+    VkCommandBuffer handle() const { return m_handle; }
 
-    VkCommandPool pool() const{ return m_pool; }
+    VkCommandPool pool() const { return m_pool; }
 
-    bool is_recording() const{ return m_recording; }
+    bool is_recording() const { return m_recording; }
 
-    inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
+    inline explicit operator bool() const { return static_cast<bool>(m_handle); };
 
     friend void swap(CommandBuffer &lhs, CommandBuffer &rhs);
 
 private:
     DevicePtr m_device = nullptr;
     VkCommandBuffer m_handle = VK_NULL_HANDLE;
+    VkFence m_fence = VK_NULL_HANDLE;
     VkCommandPool m_pool = VK_NULL_HANDLE;
     bool m_recording = false;
 };
