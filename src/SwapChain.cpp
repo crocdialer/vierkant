@@ -76,7 +76,7 @@ bool has_stencil_component(VkFormat the_format)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync) :
-        m_device(std::move(device))
+        m_device(std::move(device)), m_use_v_sync(use_vsync)
 {
     SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(),
                                                                          surface);
@@ -152,7 +152,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     for(size_t i = 0; i < m_images.size(); i++)
     {
         // do not delete on destruction, we do not own the image
-        auto shared_image = VkImagePtr(swap_chain_images[i], [](VkImage){});
+        auto shared_image = VkImagePtr(swap_chain_images[i], [](VkImage) {});
         m_images[i] = Image::create(m_device, shared_image, fmt);
     }
 
@@ -232,11 +232,6 @@ VkResult SwapChain::present()
 
     // swap buffers
     VkResult result = vkQueuePresentKHR(m_device->queue(Device::Queue::PRESENT), &present_info);
-
-    // wait for prior frames to finish
-    vkWaitForFences(m_device->handle(), 1, &sync_objects().in_flight, VK_TRUE,
-                    std::numeric_limits<uint64_t>::max());
-    vkResetFences(m_device->handle(), 1, &sync_objects().in_flight);
     m_current_frame_index = (m_current_frame_index + 1) % SwapChain::max_frames_in_flight;
     return result;
 }
@@ -246,6 +241,7 @@ void swap(SwapChain &lhs, SwapChain &rhs)
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_num_samples, rhs.m_num_samples);
     std::swap(lhs.m_swap_chain, rhs.m_swap_chain);
+    std::swap(lhs.m_use_v_sync, rhs.m_use_v_sync);
     std::swap(lhs.m_images, rhs.m_images);
     std::swap(lhs.m_framebuffers, rhs.m_framebuffers);
     std::swap(lhs.m_color_format, rhs.m_color_format);
@@ -331,6 +327,8 @@ void SwapChain::create_sync_objects()
 
     VkFenceCreateInfo fence_info = {};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_info.pNext = nullptr;
+    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     for(size_t i = 0; i < SwapChain::max_frames_in_flight; i++)
     {

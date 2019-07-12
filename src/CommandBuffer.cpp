@@ -6,6 +6,36 @@
 
 namespace vierkant {
 
+SemaphorePtr create_semaphore(vierkant::DevicePtr device)
+{
+    VkSemaphoreCreateInfo semaphore_create_info = {};
+    semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    semaphore_create_info.pNext = nullptr;
+    VkSemaphore semaphore = VK_NULL_HANDLE;
+    vkCreateSemaphore(device->handle(), &semaphore_create_info, nullptr, &semaphore);
+    return std::shared_ptr<VkSemaphore_T>(semaphore, [device](VkSemaphore s)
+    {
+        vkDestroySemaphore(device->handle(), s, nullptr);
+    });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+FencePtr create_fence(vierkant::DevicePtr device, bool create_signaled)
+{
+    VkFence fence = VK_NULL_HANDLE;
+    VkFenceCreateInfo fence_create_info = {};
+    fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fence_create_info.pNext = nullptr;
+    fence_create_info.flags = create_signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
+    vkCreateFence(device->handle(), &fence_create_info, nullptr, &fence);
+
+    return FencePtr(fence, [device](VkFence f)
+    {
+        vkDestroyFence(device->handle(), f, nullptr);
+    });
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 CommandBuffer::CommandBuffer(DevicePtr the_device, VkCommandPool the_pool, VkCommandBufferLevel level) :

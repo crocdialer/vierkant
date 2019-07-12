@@ -25,7 +25,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_window = vk::Window::create(m_instance.handle(), WIDTH, HEIGHT, name(), m_fullscreen);
     m_device = vk::Device::create(m_instance.physical_devices().front(), m_instance.use_validation_layers(),
                                   m_window->surface());
-    m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT);
+    m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT, false);
 
     m_window->draw_fn = std::bind(&HelloTriangleApplication::draw, this, std::placeholders::_1);
     m_window->resize_fn = [this](uint32_t w, uint32_t h)

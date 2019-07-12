@@ -116,16 +116,21 @@ Window::~Window()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::create_swapchain(DevicePtr device, VkSampleCountFlagBits num_samples)
+void Window::create_swapchain(DevicePtr device, VkSampleCountFlagBits num_samples, bool v_sync)
 {
     // make sure everything is cleaned up
     // prevents: vkCreateSwapChainKHR(): surface has an existing swapchain other than oldSwapchain
     m_swap_chain = SwapChain();
 
     // create swapchain for this window
-    m_swap_chain = SwapChain(device, m_surface, num_samples);
+    m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync);
 
-    m_command_buffer = vierkant::CommandBuffer(device, device->command_pool_transient());
+    m_command_buffers.resize(m_swap_chain.max_frames_in_flight);
+
+    for(uint32_t i = 0; i < m_command_buffers.size(); ++i)
+    {
+        m_command_buffers[i] = vierkant::CommandBuffer(device, device->command_pool_transient());
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,20 +141,17 @@ void Window::record_command_buffer()
     auto device = swapchain().device();
     const auto &framebuffers = swapchain().framebuffers();
 
-    if(!m_command_buffer){ m_command_buffer = vierkant::CommandBuffer(device, device->command_pool_transient()); }
-    else{ m_command_buffer.reset(); }
-
-    m_command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
+    m_command_buffers[image_index].begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
 
     //  begin the renderpass
-    framebuffers[image_index].begin_renderpass(m_command_buffer.handle(),
+    framebuffers[image_index].begin_renderpass(m_command_buffers[image_index].handle(),
                                                VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
     // fire secondary commandbuffers here
     if(draw_fn){ draw_fn(shared_from_this()); }
 
     framebuffers[image_index].end_renderpass();
-    m_command_buffer.end();
+    m_command_buffers[image_index].end();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -220,6 +222,13 @@ void Window::set_title(const std::string &title)
 
 void Window::draw()
 {
+    auto sync_objects = swapchain().sync_objects();
+
+    // wait for prior frames to finish
+    vkWaitForFences(swapchain().device()->handle(), 1, &sync_objects.in_flight, VK_TRUE,
+                    std::numeric_limits<uint64_t>::max());
+    vkResetFences(swapchain().device()->handle(), 1, &sync_objects.in_flight);
+
     uint32_t image_index;
     swapchain().aquire_next_image(&image_index);
 
@@ -227,7 +236,6 @@ void Window::draw()
     record_command_buffer();
 
     // submit with synchronization-infos
-    auto sync_objects = swapchain().sync_objects();
     VkSemaphore wait_semaphores[] = {sync_objects.image_available};
     VkSemaphore signal_semaphores[] = {sync_objects.render_finished};
     VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -240,7 +248,7 @@ void Window::draw()
     submit_info.pSignalSemaphores = signal_semaphores;
 
     // submit primary commandbuffer
-    m_command_buffer.submit(swapchain().device()->queue(), false, sync_objects.in_flight, submit_info);
+    m_command_buffers[image_index].submit(swapchain().device()->queue(), false, sync_objects.in_flight, submit_info);
 
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();
@@ -310,7 +318,7 @@ void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
     vkDeviceWaitIdle(self->m_swap_chain.device()->handle());
 
     // recreate a swapchain
-    self->create_swapchain(self->m_swap_chain.device(), self->m_swap_chain.sample_count());
+    self->create_swapchain(self->m_swap_chain.device(), self->m_swap_chain.sample_count(), self->m_swap_chain.v_sync());
 
     if(self->resize_fn){ self->resize_fn(width, height); }
 

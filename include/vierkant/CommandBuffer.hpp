@@ -8,6 +8,24 @@
 
 namespace vierkant {
 
+using SemaphorePtr = std::shared_ptr<VkSemaphore_T>;
+
+/**
+ * @brief   Create a ref counted semaphore object
+ * @param   device  the VkDevice used to create the Semaphore
+ * @return  a newly created Semaphore
+ */
+SemaphorePtr create_semaphore(vierkant::DevicePtr device);
+
+using FencePtr = std::shared_ptr<VkFence_T>;
+
+/**
+ * @brief   Create a ref counted fence object
+ * @param   device  the VkDevice used to create the Fence
+ * @return  a newly created Fence
+ */
+FencePtr create_fence(vierkant::DevicePtr device, bool create_signaled = false);
+
 using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
 
 class CommandBuffer

@@ -19,7 +19,7 @@ DEFINE_CLASS_PTR(Window)
 class Window : public std::enable_shared_from_this<Window>
 {
 public:
-    using draw_fn_t = std::function<void(const WindowPtr&)>;
+    using draw_fn_t = std::function<void(const WindowPtr &)>;
     using close_fn_t = std::function<void()>;
     using resize_fn_t = std::function<void(uint32_t w, uint32_t h)>;
 
@@ -161,7 +161,7 @@ public:
     /**
      * @return  the primary command buffer that inits this Window's renderpass
      */
-    const CommandBuffer &command_buffer() const { return m_command_buffer; }
+    const CommandBuffer &command_buffer() const { return m_command_buffers[m_swap_chain.image_index()]; }
 
     /**
      * @brief   create an internal SwapChain for this Window.
@@ -169,8 +169,10 @@ public:
      *
      * @param   device      handle for the vk::Device to create the SwapChain with
      * @param   num_samples the desired value for MSAA for the SwapChain
+     * @param   v_sync      use vertical synchronization or not
      */
-    void create_swapchain(DevicePtr device, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT);
+    void create_swapchain(DevicePtr device, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
+                          bool v_sync = true);
 
 private:
 
@@ -185,7 +187,7 @@ private:
 
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
 
-    CommandBuffer m_command_buffer;
+    std::vector<CommandBuffer> m_command_buffers;
 
     SwapChain m_swap_chain;
 

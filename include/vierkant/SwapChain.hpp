@@ -14,7 +14,7 @@ class SwapChain
 {
 public:
 
-    static constexpr uint32_t max_frames_in_flight = 2;
+    static constexpr uint32_t max_frames_in_flight = 3;
 
     /**
      * @brief   sync_objects_t is a helper struct to bundle synchronization data for the SwapChain
@@ -103,6 +103,11 @@ public:
     VkSampleCountFlagBits sample_count() const { return m_num_samples; }
 
     /**
+     * @return  a flag indicating if vertical synchronization is used
+     */
+    bool v_sync() const { return m_use_v_sync; }
+
+    /**
      * @return  the current image index inside the SwapChain
      */
     uint32_t image_index() const { return m_swapchain_image_index; }
@@ -127,6 +132,8 @@ private:
     VkSampleCountFlagBits m_num_samples = VK_SAMPLE_COUNT_1_BIT;
 
     VkSwapchainKHR m_swap_chain = VK_NULL_HANDLE;
+
+    bool m_use_v_sync = true;
 
     std::vector<vierkant::ImagePtr> m_images;
 
