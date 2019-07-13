@@ -25,7 +25,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_window = vk::Window::create(m_instance.handle(), WIDTH, HEIGHT, name(), m_fullscreen);
     m_device = vk::Device::create(m_instance.physical_devices().front(), m_instance.use_validation_layers(),
                                   m_window->surface());
-    m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT, false);
+    m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT, V_SYNC);
 
     m_window->draw_fn = std::bind(&HelloTriangleApplication::draw, this, std::placeholders::_1);
     m_window->resize_fn = [this](uint32_t w, uint32_t h)
@@ -52,10 +52,26 @@ void HelloTriangleApplication::create_graphics_pipeline()
 
     m_renderer = vk::Renderer(m_device, framebuffers);
 
+    // descriptors
+    vk::descriptor_t desc_ubo = {}, desc_texture = {};
+    desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+    desc_ubo.binding = 0;
+
+    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_texture.binding = 1;
+    desc_texture.image_samplers = {m_texture};
+
     m_drawable = {};
     m_drawable.mesh = m_mesh;
+    m_drawable.descriptors = {desc_ubo, desc_texture};
+
+    // with the descriptors in place we can derive the set-layout
+    m_drawable.descriptor_set_layout = vk::create_descriptor_set_layout(m_device, m_drawable.descriptors);
+
     m_drawable.pipeline_format.shader_stages = vierkant::shader_stages(m_device, vk::ShaderType::UNLIT_TEXTURE);
-    m_drawable.pipeline_format.descriptor_set_layouts = {m_mesh->descriptor_set_layout.get()};
+    m_drawable.pipeline_format.descriptor_set_layouts = {m_drawable.descriptor_set_layout.get()};
     m_drawable.pipeline_format.primitive_topology = m_mesh->topology;
     m_drawable.pipeline_format.binding_descriptions = vierkant::binding_descriptions(m_mesh);
     m_drawable.pipeline_format.attribute_descriptions = vierkant::attribute_descriptions(m_mesh);
@@ -135,22 +151,6 @@ void HelloTriangleApplication::load_model()
 //    auto geom = vk::Geometry::BoxOutline();
 //    auto geom = vk::Geometry::Grid();
     m_mesh = vk::create_mesh_from_geometry(m_device, geom);
-
-    // descriptors
-    vk::Mesh::Descriptor desc_ubo = {}, desc_texture = {};
-    desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    desc_ubo.binding = 0;
-
-    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.binding = 1;
-    desc_texture.image_samplers = {m_texture};
-
-    m_mesh->descriptors = {desc_ubo, desc_texture};
-
-    // with the descriptors in place we can derive the set-layout
-    m_mesh->descriptor_set_layout = vk::create_descriptor_set_layout(m_device, m_mesh);
 }
 
 void HelloTriangleApplication::update(double time_delta)

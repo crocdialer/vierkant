@@ -1,5 +1,6 @@
 #include "vierkant/imgui/imgui_integration.h"
 #include <crocore/Area.hpp>
+#include <crocore/Image.hpp>
 
 namespace vierkant{
 
@@ -110,44 +111,31 @@ void char_callback(uint32_t c)
     if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short)c); }
 }
 
-//bool create_device_objects()
-//{
-//    // buffer objects
-//    g_vertex_buffer = kinski::gl::Buffer(GL_ARRAY_BUFFER, GL_STREAM_DRAW);
+bool create_device_objects(vierkant::DevicePtr device)
+{
+    // buffer objects
+//    g_vertex_buffer = vierkant::Buffer::create(GL_ARRAY_BUFFER, GL_STREAM_DRAW);
+
 //    g_vertex_buffer.set_stride(sizeof(ImDrawVert));
-//    g_index_buffer = kinski::gl::Buffer(GL_ELEMENT_ARRAY_BUFFER, GL_STREAM_DRAW);
-//
-//    // font texture
-//    ImGuiIO &io = ImGui::GetIO();
-//    unsigned char *pixels;
-//    int width, height, num_components;
-//    io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height, &num_components);
-//
-//#if defined(KINSKI_ARM)
-//    GLint tex_format = GL_LUMINANCE_ALPHA;
-//
-//    // create data
-//    size_t num_bytes = width * height * 2;
-//    auto luminance_alpha_data = std::unique_ptr<uint8_t>(new uint8_t[num_bytes]);
-//    uint8_t *src_ptr = static_cast<uint8_t*>(pixels);
-//    uint8_t *out_ptr = luminance_alpha_data.get(), *data_end = luminance_alpha_data.get() + num_bytes;
-//
-//    for (; out_ptr < data_end; out_ptr += 2, ++src_ptr)
-//    {
-//        out_ptr[0] = 255;
-//        out_ptr[1] = *src_ptr;
-//    }
-//
-//    // create a new texture object for our glyphs
-//    gl::Texture::Format fmt;
-//    fmt.internal_format = tex_format;
-//    g_font_texture = gl::Texture(luminance_alpha_data.get(), tex_format, width, height, fmt);
-//#else
-//    auto font_img = crocore::Image_<uint8_t>::create(pixels, width, height, num_components, true);
-//    g_font_texture = kinski::gl::create_texture_from_image(font_img, false, false);
+//    g_index_buffer = vierkant::Buffer(GL_ELEMENT_ARRAY_BUFFER, GL_STREAM_DRAW);
+
+    // font texture
+    ImGuiIO &io = ImGui::GetIO();
+    unsigned char *pixels;
+    int width, height, num_components;
+    io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height, &num_components);
+
+    auto font_img = crocore::Image_<uint8_t>::create(pixels, width, height, num_components, true);
+
+    vierkant::Image::Format fmt = {};
+    fmt.extent = {font_img->width(), font_img->height(), 1};
+    fmt.use_mipmap = true;
+    g_font_texture = vierkant::Image::create(device, font_img->data(), fmt);
+
+//    g_font_texture = vierkant::cre create_texture_from_image(font_img, false, false);
 //    g_font_texture.set_flipped(false);
 //    g_font_texture.set_swizzle(GL_ONE, GL_ONE, GL_ONE, GL_RED);
-//#endif
+
 //
 //    io.Fonts->TexID = &g_font_texture;
 //
@@ -196,8 +184,8 @@ void char_callback(uint32_t c)
 //    g_mesh->add_vertex_attrib(color_attrib);
 //    g_mesh->add_vertex_attrib(tex_coord_attrib);
 //    g_mesh->set_index_buffer(g_index_buffer);
-//    return true;
-//}
+    return true;
+}
 //
 //void invalidate_device_objects()
 //{

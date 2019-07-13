@@ -17,7 +17,7 @@ void render();
 
 void invalidate_device_objects();
 
-bool create_device_objects();
+bool create_device_objects(vierkant::DevicePtr device);
 
 void mouse_press(const vierkant::MouseEvent &e);
 void mouse_wheel(const vierkant::MouseEvent &e);

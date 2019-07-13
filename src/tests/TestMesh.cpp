@@ -49,21 +49,6 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     auto vertex_buffer = vk::Buffer::create(device, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                             VMA_MEMORY_USAGE_GPU_ONLY);
 
-    // host visible, empty uniform-buffer
-    auto uniform_buffer = vk::Buffer::create(device, nullptr, sizeof(UniformBuffer),
-                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                             VMA_MEMORY_USAGE_CPU_ONLY);
-
-    // fill Uniformbuffer
-    auto ubo = static_cast<UniformBuffer*>(uniform_buffer->map());
-    ubo->model = glm::mat4();
-    ubo->view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo->projection = glm::perspective(glm::radians(45.0f), 16 / 9.f, 0.1f, 10.0f);
-
-    vk::Image::Format fmt;
-    fmt.extent = {512, 512, 1};
-    auto texture = vk::Image::create(device, fmt);
-
     vk::Mesh::VertexAttrib position, color, tex_coord;
     position.location = 0;
     position.offset = offsetof(Vertex, position);
@@ -88,9 +73,27 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
 
     ret->index_buffer = vk::Buffer::create(device, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                            VMA_MEMORY_USAGE_GPU_ONLY);
+    return ret;
+}
+
+std::vector<vk::descriptor_t> create_descriptors(const vk::DevicePtr &device)
+{
+    // host visible, empty uniform-buffer
+    auto uniform_buffer = vk::Buffer::create(device, nullptr, sizeof(UniformBuffer),
+                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                             VMA_MEMORY_USAGE_CPU_ONLY);
+    // fill Uniformbuffer
+    auto ubo = static_cast<UniformBuffer*>(uniform_buffer->map());
+    ubo->model = glm::mat4();
+    ubo->view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo->projection = glm::perspective(glm::radians(45.0f), 16 / 9.f, 0.1f, 10.0f);
+
+    vk::Image::Format fmt;
+    fmt.extent = {512, 512, 1};
+    auto texture = vk::Image::create(device, fmt);
 
     // descriptors
-    vk::Mesh::Descriptor desc_ubo, desc_texture;
+    vk::descriptor_t desc_ubo, desc_texture;
     desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
     desc_ubo.binding = 0;
@@ -101,10 +104,7 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     desc_texture.binding = 1;
     desc_texture.image_samplers = {texture};
 
-    ret->descriptors = {desc_ubo, desc_texture};
-    ret->descriptor_set_layout = vk::create_descriptor_set_layout(device, ret);
-
-    return ret;
+    return {desc_ubo, desc_texture};
 }
 
 BOOST_AUTO_TEST_CASE(TestMesh_Constructor)
@@ -130,15 +130,18 @@ BOOST_AUTO_TEST_CASE(TestMesh)
 
         auto mesh = create_mesh(device, vertices, indices);
 
+        auto descriptors = create_descriptors(device);
+
+        auto descriptor_set_layout = vk::create_descriptor_set_layout(device, descriptors);
+
         // construct a pool to hold enough descriptors for the mesh
         vk::descriptor_count_t descriptor_counts;
-        vk::add_descriptor_counts(mesh, descriptor_counts);
-//        BOOST_CHECK_NE(descriptor_counts.count(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER), 0L);
-//        BOOST_CHECK_NE(descriptor_counts.count(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER), 0L);
+        vk::add_descriptor_counts(descriptors, descriptor_counts);
+
         auto pool = vk::create_descriptor_pool(device, descriptor_counts, 16);
 
         // use the pool to allocate the actual descriptor-set
-        auto descriptor_set = vk::create_descriptor_set(device, pool, mesh);
+        auto descriptor_set = vk::create_descriptor_set(device, pool, descriptor_set_layout, descriptors);
     }
 }
 

@@ -1,13 +1,18 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(binding = 0) uniform matrix_struct_t
+struct matrix_struct_t
 {
     mat4 model;
     mat4 view;
     mat4 projection;
     mat4 texture;
-} matrices;
+};
+
+layout(std140, binding = 0) uniform UBOMatrices
+{
+    matrix_struct_t matrices[1];
+};
 
 out gl_PerVertex
 {
@@ -26,7 +31,8 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    gl_Position = matrices.projection * matrices.view * matrices.model * vec4(a_position, 1.0);
+    matrix_struct m = matrices[gl_InstanceIndex];
+    gl_Position = m.projection * m.view * m.model * vec4(a_position, 1.0);
     vertex_out.color = a_color;
-    vertex_out.tex_coord = (matrices.texture * vec4(a_tex_coord, 0, 1)).xy;
+    vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
 }

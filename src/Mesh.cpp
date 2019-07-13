@@ -60,10 +60,10 @@ VkFormat format<glm::uvec4>() { return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts)
+void add_descriptor_counts(const std::vector<descriptor_t> &descriptors, descriptor_count_t &counts)
 {
     std::map<VkDescriptorType, uint32_t> mesh_counts;
-    for(const auto &desc : mesh->descriptors){ mesh_counts[desc.type]++; }
+    for(const auto &desc : descriptors){ mesh_counts[desc.type]++; }
     for(const auto &pair : mesh_counts){ counts.push_back(pair); }
 }
 
@@ -94,11 +94,12 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device, const MeshConstPtr &mesh)
+DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
+                                                    const std::vector<descriptor_t> &descriptors)
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-    for(const auto &desc : mesh->descriptors)
+    for(const auto &desc : descriptors)
     {
         VkDescriptorSetLayoutBinding ubo_layout_binding = {};
         ubo_layout_binding.binding = desc.binding;
@@ -127,23 +128,24 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
                                        const DescriptorPoolPtr &pool,
-                                       const MeshConstPtr &mesh)
+                                       const DescriptorSetLayoutPtr &layout,
+                                       const std::vector<descriptor_t> &descriptors)
 {
     size_t num_writes = 0;
 
-    for(const auto &desc : mesh->descriptors)
+    for(const auto &desc : descriptors)
     {
         num_writes += std::max<size_t>(1, desc.image_samplers.size());
     }
 
     VkDescriptorSet descriptor_set;
-    VkDescriptorSetLayout layout = mesh->descriptor_set_layout.get();
+    VkDescriptorSetLayout layout_handle = layout.get();
 
     VkDescriptorSetAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info.descriptorPool = pool.get();
     alloc_info.descriptorSetCount = 1;
-    alloc_info.pSetLayouts = &layout;
+    alloc_info.pSetLayouts = &layout_handle;
 
     vkCheck(vkAllocateDescriptorSets(device->handle(), &alloc_info, &descriptor_set),
             "failed to allocate descriptor sets!");
@@ -156,7 +158,7 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
     // keep all VkDescriptorImageInfo structs around until vkUpdateDescriptorSets has processed them
     std::vector<std::vector<VkDescriptorImageInfo>> image_infos_collection;
 
-    for(const auto &desc : mesh->descriptors)
+    for(const auto &desc : descriptors)
     {
         VkWriteDescriptorSet desc_write = {};
         desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

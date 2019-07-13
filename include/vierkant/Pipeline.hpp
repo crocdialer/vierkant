@@ -15,6 +15,7 @@ using shader_stage_map_t = std::map<VkShaderStageFlagBits, ShaderModulePtr>;
 
 /**
  * @brief   Helper function to create a shared VkShaderModule
+ *
  * @param   device      handle for the vk::Device to create the VkShaderModule
  * @param   spirv_code  the SPIR-V bytecode for the shader
  * @return  a newly constructed, shared VkShaderModule

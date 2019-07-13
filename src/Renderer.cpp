@@ -90,11 +90,39 @@ void Renderer::set_current_index(uint32_t image_index)
     image_index = crocore::clamp<uint32_t>(image_index, 0, m_frame_assets.size());
     m_current_index = image_index;
 
-    // flush descriptor sets
-    m_frame_assets[m_current_index].clear();
+    // flush assets
+    m_frame_assets[m_current_index] = {};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Renderer::stage_drawable(const drawable_t &drawable)
+{
+    m_frame_assets[m_current_index].drawables.push_back(drawable);
+}
+
+void Renderer::render(VkCommandBuffer command_buffer)
+{
+    std::unordered_map<Pipeline::Format, std::vector<drawable_t>> pipelines;
+
+    for(auto &drawable : m_frame_assets[m_current_index].drawables)
+    {
+        pipelines[drawable.pipeline_format].push_back(std::move(drawable));
+    }
+
+    // grouped by pipelines
+    for(auto &[pipe_fmt, drawables] : pipelines)
+    {
+        // select/create pipeline
+        auto pipeline = m_pipeline_cache->get(pipe_fmt);
+
+        // bind pipeline
+        pipeline->bind(command_buffer);
+
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+
+    }
+}
 
 void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
 {
@@ -116,9 +144,9 @@ void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
 
     // search/create descriptor set
     vierkant::DescriptorSetPtr descriptor_set;
-    auto asset_it = m_frame_assets[m_current_index].find(drawable.mesh);
+    auto descriptor_it = m_frame_assets[m_current_index].render_assets.find(drawable.mesh);
 
-    if(asset_it == m_frame_assets[m_current_index].end())
+    if(descriptor_it == m_frame_assets[m_current_index].render_assets.end())
     {
         render_asset_t render_asset = {};
 
@@ -128,22 +156,25 @@ void Renderer::draw(VkCommandBuffer command_buffer, const drawable_t &drawable)
                                                     VMA_MEMORY_USAGE_CPU_ONLY);
 
         // update descriptors with ref to newly created buffer
-        drawable.mesh->descriptors.front().buffer = uniform_buf;
+        auto descriptors = drawable.descriptors;
+        descriptors[0].buffer = uniform_buf;
 
         // create a new descriptor set
-        descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool, drawable.mesh);
+        descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
+                                                         drawable.descriptor_set_layout,
+                                                         descriptors);
 
         // insert all created assets and store in map
         render_asset.uniform_buffer = uniform_buf;
         render_asset.descriptor_set = descriptor_set;
-        m_frame_assets[m_current_index][drawable.mesh] = render_asset;
+        m_frame_assets[m_current_index].render_assets[drawable.mesh] = render_asset;
     }else
     {
         // use existing set
-        descriptor_set = asset_it->second.descriptor_set;
+        descriptor_set = descriptor_it->second.descriptor_set;
 
         // update data in existing uniform-buffer
-        asset_it->second.uniform_buffer->set_data(&drawable.matrices, sizeof(matrix_struct_t));
+        descriptor_it->second.uniform_buffer->set_data(&drawable.matrices, sizeof(matrix_struct_t));
     }
 
     // bind descriptor sets (uniforms, samplers)
@@ -182,20 +213,22 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
         fmt.primitive_topology = mesh->topology;
 
         // descriptors
-        vierkant::Mesh::Descriptor desc_ubo = {};
+        vierkant::descriptor_t desc_ubo = {};
         desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         desc_ubo.binding = 0;
 
-        vierkant::Mesh::Descriptor desc_texture = {};
+        vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         desc_texture.binding = 1;
 
-        mesh->descriptors = {desc_ubo, desc_texture};
-        mesh->descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, mesh);
-        fmt.descriptor_set_layouts = {mesh->descriptor_set_layout.get()};
-        drawable_t new_drawable = {mesh, fmt};
+        drawable_t new_drawable = {};
+        new_drawable.mesh = mesh;
+        new_drawable.descriptors = {desc_ubo, desc_texture};
+        new_drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, new_drawable.descriptors);
+        fmt.descriptor_set_layouts = {new_drawable.descriptor_set_layout.get()};
+        new_drawable.pipeline_format = fmt;
 
         // insert new drawable in map, update iterator
         draw_it = m_drawable_cache.insert(std::make_pair(DrawableType::IMAGE, std::move(new_drawable))).first;
@@ -203,15 +236,15 @@ void Renderer::draw_image(VkCommandBuffer command_buffer, const vierkant::ImageP
 
     glm::vec2 scale = glm::vec2(area.width, area.height) / glm::vec2(viewport.width, viewport.height);
 
-    // update image-drawable
-    auto &drawable = draw_it->second;
+    // copy image-drawable
+    auto drawable = draw_it->second;
     drawable.matrices.projection = glm::orthoRH(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
     drawable.matrices.model = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
     drawable.matrices.model[3] = glm::vec4(area.x / viewport.width, -area.y / viewport.height, 0, 1);
 
     // set image
-    drawable.mesh->descriptors[1].image_samplers = {image};
+    drawable.descriptors[1].image_samplers = {image};
 
     // transition image layout
     image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer);

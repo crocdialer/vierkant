@@ -21,13 +21,13 @@ SemaphorePtr create_semaphore(vierkant::DevicePtr device)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-FencePtr create_fence(vierkant::DevicePtr device, bool create_signaled)
+FencePtr create_fence(vierkant::DevicePtr device, bool signaled)
 {
     VkFence fence = VK_NULL_HANDLE;
     VkFenceCreateInfo fence_create_info = {};
     fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fence_create_info.pNext = nullptr;
-    fence_create_info.flags = create_signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
+    fence_create_info.flags = signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
     vkCreateFence(device->handle(), &fence_create_info, nullptr, &fence);
 
     return FencePtr(fence, [device](VkFence f)

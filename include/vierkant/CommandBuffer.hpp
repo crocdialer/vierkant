@@ -12,6 +12,7 @@ using SemaphorePtr = std::shared_ptr<VkSemaphore_T>;
 
 /**
  * @brief   Create a ref counted semaphore object
+ *
  * @param   device  the VkDevice used to create the Semaphore
  * @return  a newly created Semaphore
  */
@@ -21,10 +22,12 @@ using FencePtr = std::shared_ptr<VkFence_T>;
 
 /**
  * @brief   Create a ref counted fence object
- * @param   device  the VkDevice used to create the Fence
+ *
+ * @param   device      the VkDevice used to create the Fence
+ * @param   signaled    flag indicating if the fence should be created in signaled state
  * @return  a newly created Fence
  */
-FencePtr create_fence(vierkant::DevicePtr device, bool create_signaled = false);
+FencePtr create_fence(vierkant::DevicePtr device, bool signaled = false);
 
 using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
 
@@ -34,6 +37,7 @@ public:
 
     /**
      * @brief   construct a new CommandBuffer
+     *
      * @param   the_device  the VkDevice that should be used to create the CommandBuffer
      * @param   the_pool    the VkCommandPool to allocate the CommandBuffer from
      * @param   level       the VkCommandBufferLevel
@@ -55,7 +59,9 @@ public:
 
     /**
      * @brief   start recording commands into buffer
-     * @param   flags
+     *
+     * @param   flags       bitmask for usage flags
+     * @param   inheritance optional pointer to a VkCommandBufferInheritanceInfo
      */
     void begin(VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
                VkCommandBufferInheritanceInfo *inheritance = nullptr);
@@ -66,10 +72,11 @@ public:
     void end();
 
     /**
+     * @brief   Submit the commandbuffer to specified queue.
      *
-     * @param   queue       VkQueue to submit this CommandBuffer to
-     * @param   create_fence
-     * @param   fence       optional external VkFence object to wait on
+     * @param   queue           VkQueue to submit this CommandBuffer to
+     * @param   create_fence    flag indicating if synchronization (blocking wait) via internal fence should be done.
+     * @param   fence           optional external VkFence object to wait on
      * @param   submit_info     optional VkSubmitInfo struct. can be used to provide synchronization -semaphores
      *                          and stage-info
      */
@@ -81,6 +88,7 @@ public:
     /**
      * @brief   Reset the CommandBuffer back to an initial state,
      *          optionally freeing allocated resources
+     *
      * @param   release_resources    flag indicating wether to free all allocated resources
      */
     void reset(bool release_resources = false);

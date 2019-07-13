@@ -10,6 +10,7 @@
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;
+const bool V_SYNC = true;
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 

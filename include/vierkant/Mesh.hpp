@@ -55,11 +55,24 @@ using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief   Extract the types of descriptors and their counts for a given vierkant::Mesh
- * @param   mesh    a vierkant::Mesh to extract the descriptor counts from
- * @param   counts  a reference to a descriptor_count_map_t to hold the results
+ * @brief   descriptor_t defines a resource-descriptor available in a shader program
  */
-void add_descriptor_counts(const MeshConstPtr &mesh, descriptor_count_t &counts);
+struct descriptor_t
+{
+    VkDescriptorType type;
+    VkShaderStageFlags stage_flags;
+    uint32_t binding = 0;
+    vierkant::BufferPtr buffer;
+    VkDeviceSize buffer_offset = 0;
+    std::vector<vierkant::ImagePtr> image_samplers;
+};
+
+/**
+ * @brief   Extract the types of descriptors and their counts for a given vierkant::Mesh
+ * @param   descriptors an array of descriptors to extract the descriptor counts from
+ * @param   counts      a reference to a descriptor_count_map_t to hold the results
+ */
+void add_descriptor_counts(const std::vector<descriptor_t> &descriptors, descriptor_count_t &counts);
 
 /**
  * @brief   Create a shared VkDescriptorPool (DescriptorPoolPtr)
@@ -78,7 +91,8 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
  * @param   mesh    a vierkant::Mesh to create the layout for
  * @return  the newly created DescriptorSetLayoutPtr
  */
-DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device, const MeshConstPtr &mesh);
+DescriptorSetLayoutPtr
+create_descriptor_set_layout(const vierkant::DevicePtr &device, const std::vector<descriptor_t> &descriptors);
 
 /**
  * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a given vierkant::Mesh
@@ -89,7 +103,8 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
  */
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
                                        const DescriptorPoolPtr &pool,
-                                       const MeshConstPtr &mesh);
+                                       const DescriptorSetLayoutPtr &layout,
+                                       const std::vector<descriptor_t> &descriptors);
 
 /**
  * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
@@ -149,19 +164,6 @@ public:
         VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
     };
 
-    /**
-     * @brief   Mesh::Descriptor defines a resource available in a shader
-     */
-    struct Descriptor
-    {
-        VkDescriptorType type;
-        VkShaderStageFlags stage_flags;
-        uint32_t binding = 0;
-        vierkant::BufferPtr buffer;
-        VkDeviceSize buffer_offset = 0;
-        std::vector<vierkant::ImagePtr> image_samplers;
-    };
-
     static MeshPtr create();
 
     Mesh(const Mesh &) = delete;
@@ -180,10 +182,6 @@ public:
 
     // vertex attributes
     std::vector<VertexAttrib> vertex_attribs;
-
-    // descriptors -> layout
-    std::vector<Descriptor> descriptors;
-    DescriptorSetLayoutPtr descriptor_set_layout;
 
 private:
 

@@ -29,6 +29,10 @@ public:
         MeshPtr mesh;
         Pipeline::Format pipeline_format = {};
         matrix_struct_t matrices = {};
+
+        // descriptors -> layout
+        std::vector<descriptor_t> descriptors;
+        DescriptorSetLayoutPtr descriptor_set_layout;
     };
 
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
@@ -53,6 +57,10 @@ public:
 
     void set_current_index(uint32_t image_index);
 
+    void stage_drawable(const drawable_t &drawable);
+
+    void render(VkCommandBuffer command_buffer);
+
     void draw(VkCommandBuffer command_buffer, const drawable_t &drawable);
 
     void draw_image(VkCommandBuffer command_buffer, const vierkant::ImagePtr &image,
@@ -72,6 +80,11 @@ private:
     };
     using asset_map_t = std::unordered_map<vierkant::MeshPtr, render_asset_t>;
 
+    struct frame_assets_t
+    {
+        asset_map_t render_assets;
+        std::vector<drawable_t> drawables;
+    };
     DevicePtr m_device;
 
     vierkant::RenderPassPtr m_renderpass;
@@ -88,7 +101,7 @@ private:
 
     vierkant::DescriptorPoolPtr m_descriptor_pool;
 
-    std::vector<asset_map_t> m_frame_assets;
+    std::vector<frame_assets_t> m_frame_assets;
 
     uint32_t m_current_index = 0;
 };
