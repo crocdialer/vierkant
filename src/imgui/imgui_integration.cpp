@@ -1,8 +1,9 @@
-#include "vierkant/imgui/imgui_integration.h"
 #include <crocore/Area.hpp>
 #include <crocore/Image.hpp>
+#include <vierkant/Mesh.hpp>
+#include "vierkant/imgui/imgui_integration.h"
 
-namespace vierkant{
+namespace vierkant {
 
 //static double g_Time = 0.0f;
 static bool g_mouse_pressed[3] = {false, false, false};
@@ -10,7 +11,7 @@ static bool g_mouse_pressed[3] = {false, false, false};
 
 //// gl assets
 
-//static kinski::gl::MeshPtr g_mesh;
+static vierkant::MeshPtr g_mesh;
 static vierkant::ImagePtr g_font_texture;
 static vierkant::BufferPtr g_vertex_buffer;
 static vierkant::BufferPtr g_index_buffer;
@@ -114,10 +115,13 @@ void char_callback(uint32_t c)
 bool create_device_objects(vierkant::DevicePtr device)
 {
     // buffer objects
-//    g_vertex_buffer = vierkant::Buffer::create(GL_ARRAY_BUFFER, GL_STREAM_DRAW);
+    g_vertex_buffer = vierkant::Buffer::create(device, nullptr, 1 << 20,
+                                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                               VMA_MEMORY_USAGE_GPU_ONLY);
 
-//    g_vertex_buffer.set_stride(sizeof(ImDrawVert));
-//    g_index_buffer = vierkant::Buffer(GL_ELEMENT_ARRAY_BUFFER, GL_STREAM_DRAW);
+    g_index_buffer = vierkant::Buffer::create(device, nullptr, 1 << 20,
+                                              VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                              VMA_MEMORY_USAGE_GPU_ONLY);
 
     // font texture
     ImGuiIO &io = ImGui::GetIO();
@@ -128,20 +132,28 @@ bool create_device_objects(vierkant::DevicePtr device)
     auto font_img = crocore::Image_<uint8_t>::create(pixels, width, height, num_components, true);
 
     vierkant::Image::Format fmt = {};
+    fmt.format = vierkant::format<uint8_t>();
     fmt.extent = {font_img->width(), font_img->height(), 1};
-    fmt.use_mipmap = true;
+    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
+                             VK_COMPONENT_SWIZZLE_R};
     g_font_texture = vierkant::Image::create(device, font_img->data(), fmt);
 
-//    g_font_texture = vierkant::cre create_texture_from_image(font_img, false, false);
-//    g_font_texture.set_flipped(false);
-//    g_font_texture.set_swizzle(GL_ONE, GL_ONE, GL_ONE, GL_RED);
+    io.Fonts->TexID = &g_font_texture;
 
-//
-//    io.Fonts->TexID = &g_font_texture;
-//
-//    // create mesh instance
-//    g_mesh = kinski::gl::Mesh::create();
-//
+    // create mesh instance
+    g_mesh = vierkant::Mesh::create();
+    g_mesh->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    // vertex attrib -> position
+    vierkant::Mesh::VertexAttrib position_attrib;
+    position_attrib.location = 0;
+    position_attrib.offset = offsetof(ImDrawVert, pos);
+    position_attrib.stride = sizeof(ImDrawVert);
+    position_attrib.buffer = g_vertex_buffer;
+    position_attrib.buffer_offset = 0;
+    position_attrib.format = vierkant::format<glm::vec2>();
+    g_mesh->vertex_attribs.push_back(position_attrib);
+
 //    // add texture
 //    auto &mat = g_mesh->material();
 //    mat->add_texture(g_font_texture, kinski::gl::Texture::Usage::COLOR);
@@ -149,16 +161,6 @@ bool create_device_objects(vierkant::DevicePtr device)
 //    mat->set_depth_write(false);
 //    mat->set_blending(true);
 //    mat->set_culling(kinski::gl::Material::CULL_NONE);
-//
-//    // vertex attrib -> position
-//    kinski::gl::Mesh::VertexAttrib position_attrib;
-//    position_attrib.type = GL_FLOAT;
-//    position_attrib.size = 2;
-//    position_attrib.name = "a_vertex";
-//    position_attrib.buffer = g_vertex_buffer;
-//    position_attrib.stride = sizeof(ImDrawVert);
-//    position_attrib.offset = offsetof(ImDrawVert, pos);
-//    position_attrib.normalize = false;
 //
 //    // vertex attrib -> color
 //    kinski::gl::Mesh::VertexAttrib color_attrib;

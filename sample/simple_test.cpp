@@ -105,9 +105,9 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
     m_renderer.viewport.width = m_window->swapchain().extent().width;
     m_renderer.viewport.height = m_window->swapchain().extent().height;
 
-    m_renderer.draw_image(command_buffer.handle(), m_texture,
-                          {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
-    m_renderer.draw(command_buffer.handle(), m_drawable);
+    m_renderer.stage_image(m_texture, {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
+    m_renderer.stage_drawable(m_drawable);
+    m_renderer.render(command_buffer.handle());
 
     command_buffer.end();
 }
@@ -175,9 +175,6 @@ void HelloTriangleApplication::update(double time_delta)
 void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 {
     auto image_index = w->swapchain().image_index();
-
-    // set index for renderer
-    m_renderer.set_current_index(image_index);
 
     // create commandbuffer for this frame
     create_command_buffer(image_index);

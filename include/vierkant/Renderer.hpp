@@ -45,7 +45,8 @@ public:
      * @brief   Construct a new Renderer object
      * @param   device  handle for the vk::Device to create the Renderer
      */
-    Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &framebuffers);
+    Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &framebuffers,
+             vierkant::PipelineCachePtr pipeline_cache = nullptr);
 
     Renderer(Renderer &&other) noexcept;
 
@@ -53,18 +54,17 @@ public:
 
     Renderer &operator=(Renderer other);
 
-    friend void swap(Renderer &lhs, Renderer &rhs);
-
-    void set_current_index(uint32_t image_index);
+//    void set_current_index(uint32_t image_index);
 
     void stage_drawable(const drawable_t &drawable);
 
+    void stage_image(const vierkant::ImagePtr &image, const crocore::Area_<float> &area = {});
+
     void render(VkCommandBuffer command_buffer);
 
-    void draw(VkCommandBuffer command_buffer, const drawable_t &drawable);
+//    void draw(VkCommandBuffer command_buffer, const drawable_t &drawable);
 
-    void draw_image(VkCommandBuffer command_buffer, const vierkant::ImagePtr &image,
-                    const crocore::Area_<float> &area = {});
+    friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 
 private:
 
@@ -101,7 +101,10 @@ private:
 
     vierkant::DescriptorPoolPtr m_descriptor_pool;
 
-    std::vector<frame_assets_t> m_frame_assets;
+    std::vector<std::vector<drawable_t>> m_staged_drawables;
+    std::vector<frame_assets_t> m_render_assets;
+
+    std::mutex m_staging_mutex;
 
     uint32_t m_current_index = 0;
 };
