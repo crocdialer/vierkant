@@ -43,7 +43,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
     m_animation.start();
 
-//    m_font.load(m_device, "/usr/local/share/fonts/Courier New Bold.ttf", 64);
+    m_font.load(m_device, "/usr/local/share/fonts/Courier New Bold.ttf", 64);
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
@@ -93,6 +93,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
 void HelloTriangleApplication::create_command_buffer(size_t i)
 {
     const auto &framebuffer = m_window->swapchain().framebuffers()[i];
+    int32_t width = m_window->swapchain().extent().width, height = m_window->swapchain().extent().height;
     auto &command_buffer = m_command_buffers[i];
 
     VkCommandBufferInheritanceInfo inheritance = {};
@@ -103,13 +104,15 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT |
                          VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, &inheritance);
 
-    m_renderer.viewport.width = m_window->swapchain().extent().width;
-    m_renderer.viewport.height = m_window->swapchain().extent().height;
+    m_renderer.viewport.width = width;
+    m_renderer.viewport.height = height;
 
-    m_image_renderer.viewport.width = m_window->swapchain().extent().width;
-    m_image_renderer.viewport.height = m_window->swapchain().extent().height;
+    m_image_renderer.viewport.width = width;
+    m_image_renderer.viewport.height = height;
 
-    m_image_renderer.stage_image(m_texture, {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
+    m_image_renderer.stage_image(m_texture, {0, 0, width, height});
+    m_image_renderer.stage_image(m_texture_font, {width / 4, height / 4, width / 2, height / 2});
+
     m_renderer.stage_drawable(m_drawable);
 
     m_image_renderer.render(command_buffer.handle());
@@ -140,8 +143,9 @@ void HelloTriangleApplication::create_texture_image()
     fmt.use_mipmap = true;
     m_texture = vk::Image::create(m_device, img->data(), fmt);
 
-//    m_texture = m_font.create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
-//
+    // render some text into a texture
+    m_texture_font = m_font.create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
+
 //    fmt = m_texture->format();
 //    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
 //                             VK_COMPONENT_SWIZZLE_ONE};

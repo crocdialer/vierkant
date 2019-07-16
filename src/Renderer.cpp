@@ -106,6 +106,8 @@ void Renderer::stage_drawable(const drawable_t &drawable)
     m_staged_drawables[m_current_index].push_back(std::move(drawable_copy));
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void Renderer::render(VkCommandBuffer command_buffer)
 {
     uint32_t last_index;
@@ -209,7 +211,9 @@ void Renderer::render(VkCommandBuffer command_buffer)
     }
 }
 
-void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_<float> &area)
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_<int> &area)
 {
     auto draw_it = m_drawable_cache.find(DrawableType::IMAGE);
 
@@ -272,5 +276,30 @@ void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Renderer::asset_key_t::operator==(const Renderer::asset_key_t &other) const
+{
+    if(mesh != other.mesh){ return false; }
+    if(descriptors.size() != other.descriptors.size()){ return false; }
+
+    for(uint32_t i = 0; i < descriptors.size(); ++i)
+    {
+        if(descriptors[i] != other.descriptors[i]){ return false; }
+    }
+    return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+size_t Renderer::asset_key_hash_t::operator()(const Renderer::asset_key_t &key) const
+{
+    size_t h = 0;
+    crocore::hash_combine(h, key.mesh);
+    for(const auto &descriptor : key.descriptors){ crocore::hash_combine(h, descriptor); }
+    return h;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 }//namespace vierkant

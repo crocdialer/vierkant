@@ -56,7 +56,7 @@ public:
 
     void stage_drawable(const drawable_t &drawable);
 
-    void stage_image(const vierkant::ImagePtr &image, const crocore::Area_<float> &area = {});
+    void stage_image(const vierkant::ImagePtr &image, const crocore::Area_<int> &area = {});
 
     void render(VkCommandBuffer command_buffer);
 
@@ -80,28 +80,12 @@ private:
         vierkant::MeshPtr mesh;
         std::vector<vierkant::descriptor_t> descriptors;
 
-        inline bool operator==(const asset_key_t &other) const
-        {
-            if(mesh != other.mesh){ return false; }
-            if(descriptors.size() != other.descriptors.size()){ return false; }
-
-            for(uint32_t i = 0; i < descriptors.size(); ++i)
-            {
-                if(descriptors[i] != other.descriptors[i]){ return false; }
-            }
-            return true;
-        }
+        bool operator==(const asset_key_t &other) const;
     };
 
     struct asset_key_hash_t
     {
-        inline size_t operator()(const asset_key_t &key) const
-        {
-            size_t h = 0;
-            crocore::hash_combine(h, key.mesh);
-            for(const auto &descriptor : key.descriptors){ crocore::hash_combine(h, descriptor); }
-            return h;
-        }
+        size_t operator()(const asset_key_t &key) const;
     };
 
     using asset_map_t = std::unordered_map<asset_key_t, render_asset_t, asset_key_hash_t>;
