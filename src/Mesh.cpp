@@ -471,7 +471,7 @@ bool descriptor_t::operator==(const descriptor_t &other) const
 
 using crocore::hash_combine;
 
-size_t std::hash<vierkant::descriptor_t>::operator()(vierkant::descriptor_t const &descriptor) const
+size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_t &descriptor) const
 {
     size_t h = 0;
     hash_combine(h, descriptor.type);

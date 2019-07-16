@@ -54,15 +54,11 @@ public:
 
     Renderer &operator=(Renderer other);
 
-//    void set_current_index(uint32_t image_index);
-
     void stage_drawable(const drawable_t &drawable);
 
     void stage_image(const vierkant::ImagePtr &image, const crocore::Area_<float> &area = {});
 
     void render(VkCommandBuffer command_buffer);
-
-//    void draw(VkCommandBuffer command_buffer, const drawable_t &drawable);
 
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 
@@ -87,11 +83,12 @@ private:
         inline bool operator==(const asset_key_t &other) const
         {
             if(mesh != other.mesh){ return false; }
+            if(descriptors.size() != other.descriptors.size()){ return false; }
 
-//            for(uint32_t i = 0; i < descriptors.size(); ++i)
-//            {
-//                if(descriptors[i] != other.descriptors[i]){ return false; }
-//            }
+            for(uint32_t i = 0; i < descriptors.size(); ++i)
+            {
+                if(descriptors[i] != other.descriptors[i]){ return false; }
+            }
             return true;
         }
     };
@@ -102,7 +99,7 @@ private:
         {
             size_t h = 0;
             crocore::hash_combine(h, key.mesh);
-//            for(const auto &descriptor : key.descriptors){ crocore::hash_combine(h, descriptor); }
+            for(const auto &descriptor : key.descriptors){ crocore::hash_combine(h, descriptor); }
             return h;
         }
     };

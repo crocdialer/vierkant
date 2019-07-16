@@ -146,8 +146,10 @@ void Renderer::render(VkCommandBuffer command_buffer)
             for(auto drawable : drawables)
             {
                 // search/create descriptor set
+                asset_key_t key = {mesh, drawable->descriptors};
+                auto descriptor_it = frame_assets.render_assets.find(key);
+
                 vierkant::DescriptorSetPtr descriptor_set;
-                auto descriptor_it = frame_assets.render_assets.find({mesh, drawable->descriptors});
 
                 if(descriptor_it == frame_assets.render_assets.end())
                 {
@@ -182,7 +184,7 @@ void Renderer::render(VkCommandBuffer command_buffer)
                     // insert all created assets and store in map
                     render_asset.uniform_buffer = uniform_buf;
                     render_asset.descriptor_set = descriptor_set;
-                    frame_assets.render_assets[{mesh, drawable->descriptors}] = std::move(render_asset);
+                    frame_assets.render_assets[key] = std::move(render_asset);
                 }else
                 {
                     // use existing set

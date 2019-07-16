@@ -210,6 +210,6 @@ namespace std {
 template<>
 struct hash<vierkant::descriptor_t>
 {
-    size_t operator()(vierkant::descriptor_t const &descriptor) const;
+    size_t operator()(const vierkant::descriptor_t &descriptor) const;
 };
 }
