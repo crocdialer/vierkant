@@ -55,7 +55,8 @@ using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * @brief   descriptor_t defines a resource-descriptor available in a shader program
+ * @brief   descriptor_t defines a resource-descriptor available in a shader program.
+ *          it is default constructible, moveable and hashable.
  */
 struct descriptor_t
 {
@@ -65,6 +66,10 @@ struct descriptor_t
     vierkant::BufferPtr buffer;
     VkDeviceSize buffer_offset = 0;
     std::vector<vierkant::ImagePtr> image_samplers;
+
+    bool operator==(const descriptor_t &other) const;
+
+    bool operator!=(const descriptor_t &other) const { return !(*this == other); };
 };
 
 /**
@@ -86,25 +91,36 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
                                          uint32_t max_sets);
 
 /**
- * @brief   Create a shared VkDescriptorSetLayout (DescriptorSetLayoutPtr) for a given vierkant::Mesh
- * @param   device  handle for the vierkant::Device to create the DescriptorSetLayout
- * @param   mesh    a vierkant::Mesh to create the layout for
+ * @brief   Create a shared VkDescriptorSetLayout (DescriptorSetLayoutPtr) for a given array of vierkant::descriptor_t
+ *
+ * @param   device      handle for the vierkant::Device to create the DescriptorSetLayout
+ * @param   descriptors an array of descriptor_t to create a layout from
  * @return  the newly created DescriptorSetLayoutPtr
  */
 DescriptorSetLayoutPtr
 create_descriptor_set_layout(const vierkant::DevicePtr &device, const std::vector<descriptor_t> &descriptors);
 
 /**
- * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a given vierkant::Mesh
- * @param   device  handle for the vierkant::Device to create the DescriptorSets
- * @param   pool    handle for a shared VkDescriptorPool to allocate the DescriptorSets from
- * @param   mesh    a vierkant::Mesh to create the array of DescriptorSets for
+ * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a provided DescriptorLayout
+ *
+ * @param   device  handle for the vierkant::Device to create the DescriptorSet
+ * @param   pool    handle for a shared VkDescriptorPool to allocate the DescriptorSet from
+ * @param   layout  handle for a shared VkDescriptorSetLayout to use as blueprint
  * @return  the newly created DescriptorSetPtr
  */
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
                                        const DescriptorPoolPtr &pool,
-                                       const DescriptorSetLayoutPtr &layout,
-                                       const std::vector<descriptor_t> &descriptors);
+                                       const DescriptorSetLayoutPtr &layout);
+
+/**
+ * @brief   Update an existing shared VkDescriptorSet with a provided array of vierkant::descriptor_t.
+ *
+ * @param   device          handle for the vierkant::Device to update the DescriptorSet
+ * @param   descriptor_set  handle for a shared VkDescriptorSet to update
+ * @param   descriptors     an array of descriptor_t to use for updating the DescriptorSet
+ */
+void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
+                           const std::vector<descriptor_t> &descriptors);
 
 /**
  * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
@@ -189,3 +205,11 @@ private:
 };
 
 }//namespace vierkant
+
+namespace std {
+template<>
+struct hash<vierkant::descriptor_t>
+{
+    size_t operator()(vierkant::descriptor_t const &descriptor) const;
+};
+}

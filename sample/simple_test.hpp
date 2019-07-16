@@ -10,7 +10,7 @@
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;
-const bool V_SYNC = false;
+const bool V_SYNC = true;
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
@@ -73,7 +73,7 @@ private:
 
     vk::Renderer::drawable_t m_drawable;
 
-    vk::Renderer m_renderer;
+    vk::Renderer m_renderer, m_image_renderer;
 
     float m_scale = 1.f;
 

@@ -1,6 +1,7 @@
 #include <crocore/Area.hpp>
 #include <crocore/Image.hpp>
 #include <vierkant/Mesh.hpp>
+#include <vierkant/Pipeline.hpp>
 #include "vierkant/imgui/imgui_integration.h"
 
 namespace vierkant {
@@ -128,16 +129,14 @@ bool create_device_objects(vierkant::DevicePtr device)
     unsigned char *pixels;
     int width, height, num_components;
     io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height, &num_components);
-
-    auto font_img = crocore::Image_<uint8_t>::create(pixels, width, height, num_components, true);
+//    auto font_img = crocore::Image_<uint8_t>::create(pixels, width, height, num_components, true);
 
     vierkant::Image::Format fmt = {};
     fmt.format = vierkant::format<uint8_t>();
-    fmt.extent = {font_img->width(), font_img->height(), 1};
+    fmt.extent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
     fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                              VK_COMPONENT_SWIZZLE_R};
-    g_font_texture = vierkant::Image::create(device, font_img->data(), fmt);
-
+    g_font_texture = vierkant::Image::create(device, pixels, fmt);
     io.Fonts->TexID = &g_font_texture;
 
     // create mesh instance
@@ -154,6 +153,36 @@ bool create_device_objects(vierkant::DevicePtr device)
     position_attrib.format = vierkant::format<glm::vec2>();
     g_mesh->vertex_attribs.push_back(position_attrib);
 
+    // vertex attrib -> color
+    vierkant::Mesh::VertexAttrib color_attrib;
+    color_attrib.location = 1;
+    color_attrib.offset = offsetof(ImDrawVert, col);
+    color_attrib.stride = sizeof(ImDrawVert);
+    color_attrib.buffer = g_vertex_buffer;
+    color_attrib.buffer_offset = 0;
+    color_attrib.format = VK_FORMAT_R8G8B8A8_UNORM;
+    g_mesh->vertex_attribs.push_back(color_attrib);
+
+    // vertex attrib -> tex coords
+    vierkant::Mesh::VertexAttrib tex_coord_attrib;
+    tex_coord_attrib.location = 2;
+    tex_coord_attrib.offset = offsetof(ImDrawVert, uv);
+    tex_coord_attrib.stride = sizeof(ImDrawVert);
+    tex_coord_attrib.buffer = g_vertex_buffer;
+    tex_coord_attrib.buffer_offset = 0;
+    tex_coord_attrib.format = vierkant::format<glm::vec2>();
+    g_mesh->vertex_attribs.push_back(tex_coord_attrib);
+
+    // index buffer
+    g_mesh->index_buffer = g_index_buffer;
+    g_mesh->index_type = VK_INDEX_TYPE_UINT16;
+
+    vierkant::Pipeline::Format pipeline_fmt = {};
+    pipeline_fmt.depth_write = false;
+    pipeline_fmt.depth_test = false;
+    pipeline_fmt.blending = true;
+    pipeline_fmt.cull_mode = VK_CULL_MODE_NONE;
+
 //    // add texture
 //    auto &mat = g_mesh->material();
 //    mat->add_texture(g_font_texture, kinski::gl::Texture::Usage::COLOR);
@@ -161,31 +190,6 @@ bool create_device_objects(vierkant::DevicePtr device)
 //    mat->set_depth_write(false);
 //    mat->set_blending(true);
 //    mat->set_culling(kinski::gl::Material::CULL_NONE);
-//
-//    // vertex attrib -> color
-//    kinski::gl::Mesh::VertexAttrib color_attrib;
-//    color_attrib.type = GL_UNSIGNED_BYTE;
-//    color_attrib.size = 4;
-//    color_attrib.name = "a_color";
-//    color_attrib.buffer = g_vertex_buffer;
-//    color_attrib.stride = sizeof(ImDrawVert);
-//    color_attrib.offset = offsetof(ImDrawVert, col);
-//    color_attrib.normalize = true;
-//
-//    // vertex attrib -> texcoords
-//    kinski::gl::Mesh::VertexAttrib tex_coord_attrib;
-//    tex_coord_attrib.type = GL_FLOAT;
-//    tex_coord_attrib.size = 2;
-//    tex_coord_attrib.name = "a_texCoord";
-//    tex_coord_attrib.buffer = g_vertex_buffer;
-//    tex_coord_attrib.stride = sizeof(ImDrawVert);
-//    tex_coord_attrib.offset = offsetof(ImDrawVert, uv);
-//    tex_coord_attrib.normalize = false;
-//
-//    g_mesh->add_vertex_attrib(position_attrib);
-//    g_mesh->add_vertex_attrib(color_attrib);
-//    g_mesh->add_vertex_attrib(tex_coord_attrib);
-//    g_mesh->set_index_buffer(g_index_buffer);
     return true;
 }
 //

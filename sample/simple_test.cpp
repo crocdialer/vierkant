@@ -51,6 +51,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
     auto &framebuffers = m_window->swapchain().framebuffers();
 
     m_renderer = vk::Renderer(m_device, framebuffers);
+    m_image_renderer = vk::Renderer(m_device, framebuffers);
 
     // descriptors
     vk::descriptor_t desc_ubo = {}, desc_texture = {};
@@ -105,8 +106,13 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
     m_renderer.viewport.width = m_window->swapchain().extent().width;
     m_renderer.viewport.height = m_window->swapchain().extent().height;
 
-    m_renderer.stage_image(m_texture, {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
+    m_image_renderer.viewport.width = m_window->swapchain().extent().width;
+    m_image_renderer.viewport.height = m_window->swapchain().extent().height;
+
+    m_image_renderer.stage_image(m_texture, {0, 0, m_renderer.viewport.width, m_renderer.viewport.height});
     m_renderer.stage_drawable(m_drawable);
+
+    m_image_renderer.render(command_buffer.handle());
     m_renderer.render(command_buffer.handle());
 
     command_buffer.end();

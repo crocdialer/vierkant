@@ -2,6 +2,7 @@
 // Created by crocdialer on 2/28/19.
 //
 
+#include <crocore/Utils.hpp>
 #include <map>
 #include <set>
 
@@ -128,16 +129,8 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
                                        const DescriptorPoolPtr &pool,
-                                       const DescriptorSetLayoutPtr &layout,
-                                       const std::vector<descriptor_t> &descriptors)
+                                       const DescriptorSetLayoutPtr &layout)
 {
-    size_t num_writes = 0;
-
-    for(const auto &desc : descriptors)
-    {
-        num_writes += std::max<size_t>(1, desc.image_samplers.size());
-    }
-
     VkDescriptorSet descriptor_set;
     VkDescriptorSetLayout layout_handle = layout.get();
 
@@ -149,6 +142,20 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 
     vkCheck(vkAllocateDescriptorSets(device->handle(), &alloc_info, &descriptor_set),
             "failed to allocate descriptor sets!");
+
+    return DescriptorSetPtr(descriptor_set, [device, pool](VkDescriptorSet s)
+    {
+        vkFreeDescriptorSets(device->handle(), pool.get(), 1, &s);
+    });
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
+                           const std::vector<descriptor_t> &descriptors)
+{
+    size_t num_writes = 0;
+    for(const auto &desc : descriptors){ num_writes += std::max<size_t>(1, desc.image_samplers.size()); }
 
     std::vector<VkWriteDescriptorSet> descriptor_writes;
 
@@ -163,7 +170,7 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
         VkWriteDescriptorSet desc_write = {};
         desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         desc_write.descriptorType = desc.type;
-        desc_write.dstSet = descriptor_set;
+        desc_write.dstSet = descriptor_set.get();
         desc_write.dstBinding = desc.binding;
         desc_write.dstArrayElement = 0;
         desc_write.descriptorCount = 1;
@@ -196,11 +203,6 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 
     // write all descriptors
     vkUpdateDescriptorSets(device->handle(), descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-
-    return DescriptorSetPtr(descriptor_set, [device, pool](VkDescriptorSet s)
-    {
-        vkFreeDescriptorSets(device->handle(), pool.get(), 1, &s);
-    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -449,4 +451,34 @@ MeshPtr Mesh::create()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool descriptor_t::operator==(const descriptor_t &other) const
+{
+    if(type != other.type){ return false; }
+    if(stage_flags != other.stage_flags){ return false; }
+    if(binding != other.binding){ return false; }
+    if(buffer != other.buffer){ return false; }
+    if(buffer_offset != other.buffer_offset){ return false; }
+    if(image_samplers.size() != other.image_samplers.size()){ return false; }
+
+    for(uint32_t i = 0; i < image_samplers.size(); ++i)
+    {
+        if(image_samplers[i] != other.image_samplers[i]){ return false; }
+    }
+    return true;
+}
+
 }//namespace vierkant
+
+using crocore::hash_combine;
+
+size_t std::hash<vierkant::descriptor_t>::operator()(vierkant::descriptor_t const &descriptor) const
+{
+    size_t h = 0;
+    hash_combine(h, descriptor.type);
+    hash_combine(h, descriptor.stage_flags);
+    hash_combine(h, descriptor.binding);
+    hash_combine(h, descriptor.buffer);
+    hash_combine(h, descriptor.buffer_offset);
+    for(const auto &img : descriptor.image_samplers){ hash_combine(h, img); }
+    return h;
+}

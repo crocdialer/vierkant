@@ -78,7 +78,36 @@ private:
         vierkant::BufferPtr uniform_buffer;
         vierkant::DescriptorSetPtr descriptor_set;
     };
-    using asset_map_t = std::unordered_map<vierkant::MeshPtr, render_asset_t>;
+
+    struct asset_key_t
+    {
+        vierkant::MeshPtr mesh;
+        std::vector<vierkant::descriptor_t> descriptors;
+
+        inline bool operator==(const asset_key_t &other) const
+        {
+            if(mesh != other.mesh){ return false; }
+
+//            for(uint32_t i = 0; i < descriptors.size(); ++i)
+//            {
+//                if(descriptors[i] != other.descriptors[i]){ return false; }
+//            }
+            return true;
+        }
+    };
+
+    struct asset_key_hash_t
+    {
+        inline size_t operator()(const asset_key_t &key) const
+        {
+            size_t h = 0;
+            crocore::hash_combine(h, key.mesh);
+//            for(const auto &descriptor : key.descriptors){ crocore::hash_combine(h, descriptor); }
+            return h;
+        }
+    };
+
+    using asset_map_t = std::unordered_map<asset_key_t, render_asset_t, asset_key_hash_t>;
 
     struct frame_assets_t
     {

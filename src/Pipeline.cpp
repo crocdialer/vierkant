@@ -1,11 +1,8 @@
-#include <utility>
-
-#include <utility>
-
 //
 // Created by crocdialer on 11/14/18.
 //
 
+#include <crocore/Utils.hpp>
 #include "vierkant/shaders.hpp"
 #include "vierkant/Pipeline.hpp"
 
@@ -362,18 +359,7 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * @brief Create a hash for a value and combine with existing hash
- * @see https://www.boost.org/doc/libs/1_55_0/doc/html/hash/reference.html#boost.hash_combine
- */
-template<class T>
-inline void hash_combine(std::size_t &seed, const T &v)
-{
-    std::hash<T> hasher;
-    seed ^= hasher(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
+using crocore::hash_combine;
 
 namespace std
 {

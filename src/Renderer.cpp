@@ -108,12 +108,14 @@ void Renderer::stage_drawable(const drawable_t &drawable)
 
 void Renderer::render(VkCommandBuffer command_buffer)
 {
+    uint32_t last_index;
     {
         std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
-        m_render_assets[m_current_index].drawables = std::move(m_staged_drawables[m_current_index]);
+        last_index = m_current_index;
         m_current_index = (m_current_index + 1) % m_staged_drawables.size();
+        m_render_assets[last_index].drawables = std::move(m_staged_drawables[last_index]);
     }
-    auto &frame_assets = m_render_assets[(m_current_index + m_staged_drawables.size() - 1) % m_staged_drawables.size()];
+    auto &frame_assets = m_render_assets[last_index];
 
     // sort by pipelines
     std::unordered_map<Pipeline::Format, std::vector<drawable_t *>> pipelines;
@@ -141,11 +143,11 @@ void Renderer::render(VkCommandBuffer command_buffer)
             // bind vertex- and index-buffers
             vierkant::bind_buffers(command_buffer, mesh);
 
-            for(auto &drawable : drawables)
+            for(auto drawable : drawables)
             {
                 // search/create descriptor set
                 vierkant::DescriptorSetPtr descriptor_set;
-                auto descriptor_it = frame_assets.render_assets.find(mesh);
+                auto descriptor_it = frame_assets.render_assets.find({mesh, drawable->descriptors});
 
                 if(descriptor_it == frame_assets.render_assets.end())
                 {
@@ -172,13 +174,15 @@ void Renderer::render(VkCommandBuffer command_buffer)
 
                     // create a new descriptor set
                     descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                     drawable->descriptor_set_layout,
-                                                                     descriptors);
+                                                                     drawable->descriptor_set_layout);
+
+                    // update the newly created descriptor set
+                    vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
                     // insert all created assets and store in map
                     render_asset.uniform_buffer = uniform_buf;
                     render_asset.descriptor_set = descriptor_set;
-                    frame_assets.render_assets[drawable->mesh] = render_asset;
+                    frame_assets.render_assets[{mesh, drawable->descriptors}] = std::move(render_asset);
                 }else
                 {
                     // use existing set
@@ -261,9 +265,7 @@ void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_
     // set image
     drawable.descriptors[1].image_samplers = {image};
 
-    // transition image layout
-//    image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer);
-
+    // stage image drawable
     stage_drawable(drawable);
 }
 
