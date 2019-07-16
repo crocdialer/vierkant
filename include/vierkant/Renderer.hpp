@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <deque>
 #include "crocore/Area.hpp"
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Framebuffer.hpp"
@@ -88,7 +89,7 @@ private:
         size_t operator()(const asset_key_t &key) const;
     };
 
-    using asset_map_t = std::unordered_map<asset_key_t, render_asset_t, asset_key_hash_t>;
+    using asset_map_t = std::unordered_map<asset_key_t, std::deque<render_asset_t>, asset_key_hash_t>;
 
     struct frame_assets_t
     {

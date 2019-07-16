@@ -111,6 +111,7 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
     m_image_renderer.viewport.height = height;
 
     m_image_renderer.stage_image(m_texture, {0, 0, width, height});
+    m_image_renderer.stage_image(m_texture, {width / 4, height / 4, width / 2, height / 2});
     m_image_renderer.stage_image(m_texture_font, {width / 4, height / 4, width / 2, height / 2});
 
     m_renderer.stage_drawable(m_drawable);

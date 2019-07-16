@@ -117,11 +117,12 @@ void Renderer::render(VkCommandBuffer command_buffer)
         m_current_index = (m_current_index + 1) % m_staged_drawables.size();
         m_render_assets[last_index].drawables = std::move(m_staged_drawables[last_index]);
     }
-    auto &frame_assets = m_render_assets[last_index];
+    auto &last_assets = m_render_assets[last_index];
+    frame_assets_t current_assets = {};
 
     // sort by pipelines
     std::unordered_map<Pipeline::Format, std::vector<drawable_t *>> pipelines;
-    for(auto &drawable : frame_assets.drawables){ pipelines[drawable.pipeline_format].push_back(&drawable); }
+    for(auto &drawable : last_assets.drawables){ pipelines[drawable.pipeline_format].push_back(&drawable); }
 
     // grouped by pipelines
     for(auto &[pipe_fmt, drawables] : pipelines)
@@ -147,13 +148,17 @@ void Renderer::render(VkCommandBuffer command_buffer)
 
             for(auto drawable : drawables)
             {
+                // update/create descriptor set
+                auto &descriptors = drawable->descriptors;
+
                 // search/create descriptor set
                 asset_key_t key = {mesh, drawable->descriptors};
-                auto descriptor_it = frame_assets.render_assets.find(key);
+                auto descriptor_it = last_assets.render_assets.find(key);
 
                 vierkant::DescriptorSetPtr descriptor_set;
 
-                if(descriptor_it == frame_assets.render_assets.end())
+                // not found or empty queue
+                if(descriptor_it == last_assets.render_assets.end() || descriptor_it->second.empty())
                 {
                     render_asset_t render_asset = {};
 
@@ -161,9 +166,6 @@ void Renderer::render(VkCommandBuffer command_buffer)
                     auto uniform_buf = vierkant::Buffer::create(m_device, &drawable->matrices, sizeof(matrix_struct_t),
                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                 VMA_MEMORY_USAGE_CPU_ONLY);
-
-                    // update descriptors with ref to newly created buffer
-                    auto &descriptors = drawable->descriptors;
 
                     // transition image layouts
                     for(auto &desc : descriptors)
@@ -173,7 +175,6 @@ void Renderer::render(VkCommandBuffer command_buffer)
                             img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer);
                         }
                     }
-
                     descriptors[0].buffer = uniform_buf;
 
                     // create a new descriptor set
@@ -186,14 +187,23 @@ void Renderer::render(VkCommandBuffer command_buffer)
                     // insert all created assets and store in map
                     render_asset.uniform_buffer = uniform_buf;
                     render_asset.descriptor_set = descriptor_set;
-                    frame_assets.render_assets[key] = std::move(render_asset);
+                    current_assets.render_assets[key].push_back(std::move(render_asset));
                 }else
                 {
+                    auto render_asset = std::move(descriptor_it->second.front());
+                    descriptor_it->second.pop_front();
+
                     // use existing set
-                    descriptor_set = descriptor_it->second.descriptor_set;
+                    descriptor_set = render_asset.descriptor_set;
 
                     // update data in existing uniform-buffer
-                    descriptor_it->second.uniform_buffer->set_data(&drawable->matrices, sizeof(matrix_struct_t));
+                    render_asset.uniform_buffer->set_data(&drawable->matrices, sizeof(matrix_struct_t));
+
+                    // update existing descriptor set
+                    descriptors[0].buffer = render_asset.uniform_buffer;
+                    vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
+
+                    current_assets.render_assets[key].push_back(std::move(render_asset));
                 }
 
                 // bind descriptor sets (uniforms, samplers)
@@ -209,6 +219,9 @@ void Renderer::render(VkCommandBuffer command_buffer)
             }
         }
     }
+
+    // keep the stuff in use
+    last_assets = std::move(current_assets);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
