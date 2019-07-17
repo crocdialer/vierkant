@@ -73,7 +73,8 @@ struct descriptor_t
 };
 
 /**
- * @brief   Extract the types of descriptors and their counts for a given vierkant::Mesh
+ * @brief   Extract the types of descriptors and their counts for a given vierkant::Mesh.
+ *
  * @param   descriptors an array of descriptors to extract the descriptor counts from
  * @param   counts      a reference to a descriptor_count_map_t to hold the results
  */
@@ -124,6 +125,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 
 /**
  * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
+ *
  * @param   command_buffer  handle to an VkCommandBuffer to record the bind-operation into
  * @param   mesh            the vierkant::Mesh from which to bind the buffers
  */
@@ -131,6 +133,7 @@ void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh);
 
 /**
  * @brief   Create an array of VkVertexInputAttributeDescription for a given vierkant::Mesh
+ *
  * @param   mesh    the vierkant::Mesh from which to extract the VkVertexInputAttributeDescriptions
  * @return  the newly created array of VkVertexInputAttributeDescriptions
  */
@@ -138,6 +141,7 @@ std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const Mesh
 
 /**
  * @brief   Create an array of VkVertexInputBindingDescription for a given vierkant::Mesh
+ *
  * @param   mesh    the vierkant::Mesh from which to extract the VkVertexInputBindingDescriptions
  * @return  the newly created array of VkVertexInputBindingDescriptions
  */
@@ -148,6 +152,7 @@ std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshCons
 /**
  * @brief   Create a vierkant::MeshPtr from provided Geometry
  *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
+ *
  * @param   device  handle for the vierkant::Device to create subresources with
  * @param   geom    a Geometry struct to extract the vertex information from
  * @return  the newly created vierkant::MeshPtr

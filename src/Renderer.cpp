@@ -271,8 +271,9 @@ void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_
         // insert new drawable in map, update iterator
         draw_it = m_drawable_cache.insert(std::make_pair(DrawableType::IMAGE, std::move(new_drawable))).first;
     }
-
-    glm::vec2 scale = glm::vec2(area.width, area.height) / glm::vec2(viewport.width, viewport.height);
+    float w = area.width ? area.width : viewport.width;
+    float h = area.height ? area.height : viewport.height;
+    glm::vec2 scale = glm::vec2(w, h) / glm::vec2(viewport.width, viewport.height);
 
     // copy image-drawable
     auto drawable = draw_it->second;
