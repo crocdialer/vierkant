@@ -12,13 +12,17 @@ static bool g_mouse_pressed[3] = {false, false, false};
 
 //// gl assets
 
-static vierkant::MeshPtr g_mesh;
-static vierkant::ImagePtr g_font_texture;
-static vierkant::BufferPtr g_vertex_buffer;
-static vierkant::BufferPtr g_index_buffer;
+struct imgui_assets_t
+{
+    vierkant::MeshPtr mesh;
+    vierkant::ImagePtr font_texture;
+    vierkant::BufferPtr vertex_buffer;
+    vierkant::BufferPtr index_buffer;
+};
 
+static imgui_assets_t g_imgui_assets = {};
 
-void render()
+void render(vierkant::Renderer &renderer)
 {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     ImGuiIO &io = ImGui::GetIO();
@@ -30,9 +34,9 @@ void render()
     ImDrawData *draw_data = ImGui::GetDrawData();
     draw_data->ScaleClipRects(io.DisplayFramebufferScale);
 
-//    gl::ScopedMatrixPush push_modelview(gl::MODEL_VIEW_MATRIX), push_proj(gl::PROJECTION_MATRIX);
-//    gl::load_identity(gl::MODEL_VIEW_MATRIX);
-//    gl::load_matrix(gl::PROJECTION_MATRIX, glm::ortho(0.f, io.DisplaySize.x, io.DisplaySize.y, 0.f));
+    Renderer::matrix_struct_t matrices = {};
+    matrices.projection = glm::orthoRH(0.f, io.DisplaySize.x, io.DisplaySize.y, 0.f, 0.0f, 1.0f);
+    matrices.projection[1][1] *= -1;
 
     // Draw
     for(int n = 0; n < draw_data->CmdListsCount; n++)
@@ -47,8 +51,8 @@ void render()
 //        entry.primitive_type = GL_TRIANGLES;
 //
         // upload data
-        g_vertex_buffer->set_data(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
-        g_index_buffer->set_data(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+        g_imgui_assets.vertex_buffer->set_data(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
+        g_imgui_assets.index_buffer->set_data(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
 
         for(int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
         {
@@ -56,15 +60,14 @@ void render()
             if(pcmd->UserCallback){ pcmd->UserCallback(cmd_list, pcmd); }
             else
             {
-//                auto &tex = *reinterpret_cast<kinski::gl::Texture *>(pcmd->TextureId);
+                auto &tex = *reinterpret_cast<vierkant::ImagePtr *>(pcmd->TextureId);
+
 //                g_mesh->material()->add_texture(tex);
 
-                crocore::Area_<uint32_t> rect = {static_cast<uint32_t>(pcmd->ClipRect.x),
-                                                 static_cast<uint32_t>(pcmd->ClipRect.y),
-                                                 static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
-                                                 static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
-
-//                g_mesh->material()->set_scissor_rect(rect);
+                renderer.scissor.offset = {static_cast<int32_t>(pcmd->ClipRect.x),
+                                           static_cast<int32_t>(pcmd->ClipRect.y)};
+                renderer.scissor.extent = {static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
+                                           static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
 //                entry.num_indices = pcmd->ElemCount;
 //                kinski::gl::draw_mesh(g_mesh);
             }
@@ -115,14 +118,16 @@ void char_callback(uint32_t c)
 
 bool create_device_objects(vierkant::DevicePtr device)
 {
-    // buffer objects
-    g_vertex_buffer = vierkant::Buffer::create(device, nullptr, 1 << 20,
-                                               VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                               VMA_MEMORY_USAGE_GPU_ONLY);
+    // dynamic vertexbuffer objects
+    g_imgui_assets.vertex_buffer = vierkant::Buffer::create(device, nullptr, 0,
+                                                            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                            VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    g_index_buffer = vierkant::Buffer::create(device, nullptr, 1 << 20,
-                                              VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                              VMA_MEMORY_USAGE_GPU_ONLY);
+    g_imgui_assets.index_buffer = vierkant::Buffer::create(device, nullptr, 0,
+                                                           VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                           VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // font texture
     ImGuiIO &io = ImGui::GetIO();
@@ -136,46 +141,46 @@ bool create_device_objects(vierkant::DevicePtr device)
     fmt.extent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
     fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                              VK_COMPONENT_SWIZZLE_R};
-    g_font_texture = vierkant::Image::create(device, pixels, fmt);
-    io.Fonts->TexID = &g_font_texture;
+    g_imgui_assets.font_texture = vierkant::Image::create(device, pixels, fmt);
+    io.Fonts->TexID = &g_imgui_assets.font_texture;
 
     // create mesh instance
-    g_mesh = vierkant::Mesh::create();
-    g_mesh->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    g_imgui_assets.mesh = vierkant::Mesh::create();
+    g_imgui_assets.mesh->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // vertex attrib -> position
     vierkant::Mesh::VertexAttrib position_attrib;
     position_attrib.location = 0;
     position_attrib.offset = offsetof(ImDrawVert, pos);
     position_attrib.stride = sizeof(ImDrawVert);
-    position_attrib.buffer = g_vertex_buffer;
+    position_attrib.buffer = g_imgui_assets.vertex_buffer;
     position_attrib.buffer_offset = 0;
     position_attrib.format = vierkant::format<glm::vec2>();
-    g_mesh->vertex_attribs.push_back(position_attrib);
+    g_imgui_assets.mesh->vertex_attribs.push_back(position_attrib);
 
     // vertex attrib -> color
     vierkant::Mesh::VertexAttrib color_attrib;
     color_attrib.location = 1;
     color_attrib.offset = offsetof(ImDrawVert, col);
     color_attrib.stride = sizeof(ImDrawVert);
-    color_attrib.buffer = g_vertex_buffer;
+    color_attrib.buffer = g_imgui_assets.vertex_buffer;
     color_attrib.buffer_offset = 0;
     color_attrib.format = VK_FORMAT_R8G8B8A8_UNORM;
-    g_mesh->vertex_attribs.push_back(color_attrib);
+    g_imgui_assets.mesh->vertex_attribs.push_back(color_attrib);
 
     // vertex attrib -> tex coords
     vierkant::Mesh::VertexAttrib tex_coord_attrib;
     tex_coord_attrib.location = 2;
     tex_coord_attrib.offset = offsetof(ImDrawVert, uv);
     tex_coord_attrib.stride = sizeof(ImDrawVert);
-    tex_coord_attrib.buffer = g_vertex_buffer;
+    tex_coord_attrib.buffer = g_imgui_assets.vertex_buffer;
     tex_coord_attrib.buffer_offset = 0;
     tex_coord_attrib.format = vierkant::format<glm::vec2>();
-    g_mesh->vertex_attribs.push_back(tex_coord_attrib);
+    g_imgui_assets.mesh->vertex_attribs.push_back(tex_coord_attrib);
 
     // index buffer
-    g_mesh->index_buffer = g_index_buffer;
-    g_mesh->index_type = VK_INDEX_TYPE_UINT16;
+    g_imgui_assets.mesh->index_buffer = g_imgui_assets.index_buffer;
+    g_imgui_assets.mesh->index_type = VK_INDEX_TYPE_UINT16;
 
     vierkant::Pipeline::Format pipeline_fmt = {};
     pipeline_fmt.depth_write = false;
@@ -246,13 +251,13 @@ bool create_device_objects(vierkant::DevicePtr device)
 //    // Destroy OpenGL objects
 //    invalidate_device_objects();
 //}
+
+void new_frame()
+{
+//    if(!g_imgui_assets.mesh){ create_device_objects(); }
 //
-//void new_frame()
-//{
-//    if(!g_mesh){ create_device_objects(); }
-//
-//    ImGuiIO &io = ImGui::GetIO();
-//
+    ImGuiIO &io = ImGui::GetIO();
+
 //    // Setup display size (every frame to accommodate for window resizing)
 //    io.DisplaySize = kinski::gui::im_vec_cast(kinski::gl::window_dimension());
 //    io.DisplayFramebufferScale = ImVec2(1.f, 1.f);
@@ -272,20 +277,20 @@ bool create_device_objects(vierkant::DevicePtr device)
 //    io.MouseDown[0] = g_mouse_pressed[0] || mouse_state.is_left_down();
 //    io.MouseDown[1] = g_mouse_pressed[1] || mouse_state.is_middle_down();
 //    io.MouseDown[2] = g_mouse_pressed[2] || mouse_state.is_right_down();
-//
-//    for(int i = 0; i < 3; i++){ g_mouse_pressed[i] = false; }
-//
-//    // start the frame. will update the io.WantCaptureMouse, io.WantCaptureKeyboard flags
-//    ImGui::NewFrame();
-//
-//    // signal begin frame to ImGuizmo
-//    ImGuizmo::BeginFrame();
-//    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-//}
-//
-//void end_frame()
-//{
-//    ImGui::EndFrame();
-//}
+
+    for(int i = 0; i < 3; i++){ g_mouse_pressed[i] = false; }
+
+    // start the frame. will update the io.WantCaptureMouse, io.WantCaptureKeyboard flags
+    ImGui::NewFrame();
+
+    // signal begin frame to ImGuizmo
+    ImGuizmo::BeginFrame();
+    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+}
+
+void end_frame()
+{
+    ImGui::EndFrame();
+}
 
 }//namespace

@@ -6,7 +6,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void test_buffer(const vk::DevicePtr& device, const vk::VmaPoolPtr &pool_host = nullptr,
+void test_buffer(const vk::DevicePtr &device, const vk::VmaPoolPtr &pool_host = nullptr,
                  const vk::VmaPoolPtr &pool_gpu = nullptr)
 {
     // 1 MB test-bytes
@@ -64,6 +64,11 @@ void test_buffer(const vk::DevicePtr& device, const vk::VmaPoolPtr &pool_host = 
 
     // map host-buffer again and compare with original data
     BOOST_CHECK(memcmp(host_buffer->map(), dummy_data.data(), dummy_data.size()) == 0);
+
+    // create an empty buffer that does not allocate any memory initially
+    auto empty_buffer = vk::Buffer::create(device, nullptr, 0,
+                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                           VMA_MEMORY_USAGE_GPU_ONLY, pool_gpu);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

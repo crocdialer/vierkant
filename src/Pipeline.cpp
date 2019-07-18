@@ -336,13 +336,8 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
         const auto &rhs = other.dynamic_states[i];
         if(lhs != rhs){ return false; }
     }
-    if(descriptor_set_layouts.size() != other.descriptor_set_layouts.size()){ return false; }
-    for(uint32_t i = 0; i < descriptor_set_layouts.size(); ++i)
-    {
-        const auto &lhs = descriptor_set_layouts[i];
-        const auto &rhs = other.descriptor_set_layouts[i];
-        if(lhs != rhs){ return false; }
-    }
+    if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
+
     if(push_constant_ranges.size() != other.push_constant_ranges.size()){ return false; }
     for(uint32_t i = 0; i < push_constant_ranges.size(); ++i)
     {

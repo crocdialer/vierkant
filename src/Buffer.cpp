@@ -91,7 +91,7 @@ Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VmaMemoryUsage me
 
 Buffer::~Buffer()
 {
-    vmaDestroyBuffer(m_device->vk_mem_allocator(), m_buffer, m_allocation);
+    if(m_buffer){ vmaDestroyBuffer(m_device->vk_mem_allocator(), m_buffer, m_allocation); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

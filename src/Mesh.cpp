@@ -458,12 +458,7 @@ bool descriptor_t::operator==(const descriptor_t &other) const
     if(binding != other.binding){ return false; }
     if(buffer != other.buffer){ return false; }
     if(buffer_offset != other.buffer_offset){ return false; }
-    if(image_samplers.size() != other.image_samplers.size()){ return false; }
-
-    for(uint32_t i = 0; i < image_samplers.size(); ++i)
-    {
-        if(image_samplers[i] != other.image_samplers[i]){ return false; }
-    }
+    if(image_samplers != other.image_samplers){ return false; }
     return true;
 }
 

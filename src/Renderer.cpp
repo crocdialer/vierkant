@@ -294,12 +294,7 @@ void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_
 bool Renderer::asset_key_t::operator==(const Renderer::asset_key_t &other) const
 {
     if(mesh != other.mesh){ return false; }
-    if(descriptors.size() != other.descriptors.size()){ return false; }
-
-    for(uint32_t i = 0; i < descriptors.size(); ++i)
-    {
-        if(descriptors[i] != other.descriptors[i]){ return false; }
-    }
+    if(descriptors != other.descriptors){ return false; }
     return true;
 }
 
