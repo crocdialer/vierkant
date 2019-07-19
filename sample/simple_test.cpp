@@ -61,6 +61,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
 
     m_renderer = vk::Renderer(m_device, framebuffers);
     m_image_renderer = vk::Renderer(m_device, framebuffers);
+    m_gui_renderer = vk::Renderer(m_device, framebuffers);
 
     // descriptors
     vk::descriptor_t desc_ubo = {}, desc_texture = {};
@@ -114,23 +115,23 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT |
                          VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, &inheritance);
 
-    m_renderer.viewport.width = width;
-    m_renderer.viewport.height = height;
-
-    m_image_renderer.viewport.width = width;
-    m_image_renderer.viewport.height = height;
-
+    for(auto renderer : {&m_image_renderer, &m_renderer, &m_gui_renderer})
+    {
+        renderer->viewport.width = width;
+        renderer->viewport.height = height;
+    }
     m_image_renderer.stage_image(m_texture);
     m_image_renderer.stage_image(m_texture, {width / 4, height / 4, width / 2, height / 2});
     m_image_renderer.stage_image(m_texture_font, {width / 4, height / 4, width / 2, height / 2});
 
-    vk::gui::render(m_image_renderer);
-
     m_renderer.stage_drawable(m_drawable);
 
-    m_image_renderer.render(command_buffer.handle());
-    m_renderer.render(command_buffer.handle());
+    vk::gui::render(m_gui_renderer);
 
+    for(auto renderer : {&m_image_renderer, &m_renderer, &m_gui_renderer})
+    {
+        renderer->render(command_buffer.handle());
+    }
     command_buffer.end();
 }
 

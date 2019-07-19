@@ -73,7 +73,7 @@ private:
 
     vk::Renderer::drawable_t m_drawable;
 
-    vk::Renderer m_renderer, m_image_renderer;
+    vk::Renderer m_image_renderer, m_renderer, m_gui_renderer;
 
     float m_scale = 1.f;
 

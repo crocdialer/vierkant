@@ -126,8 +126,8 @@ void render(vierkant::Renderer &renderer)
     }
 
     Renderer::matrix_struct_t matrices = {};
-    matrices.projection = glm::orthoRH(0.f, io.DisplaySize.x, io.DisplaySize.y, 0.f, 0.0f, 1.0f);
-    matrices.projection[1][1] *= -1;
+    matrices.projection = glm::orthoRH(0.f, io.DisplaySize.x, 0.f, io.DisplaySize.y, 0.0f, 1.0f);
+//    matrices.projection[1][1] *= -1;
 
     // Draw
     for(int n = 0; n < draw_data->CmdListsCount; n++)
