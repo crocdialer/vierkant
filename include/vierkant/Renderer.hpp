@@ -34,6 +34,9 @@ public:
         // descriptors -> layout
         std::vector<descriptor_t> descriptors;
         DescriptorSetLayoutPtr descriptor_set_layout;
+
+        uint32_t base_index = 0;
+        uint32_t num_indices = 0;
     };
 
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
@@ -60,6 +63,12 @@ public:
     void stage_image(const vierkant::ImagePtr &image, const crocore::Area_<int> &area = {});
 
     void render(VkCommandBuffer command_buffer);
+
+    uint32_t current_index() const { return m_current_index; }
+
+    uint32_t num_indices() const { return m_render_assets.size(); }
+
+    vierkant::DevicePtr device() const { return m_device; }
 
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 

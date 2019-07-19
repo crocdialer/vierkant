@@ -353,15 +353,18 @@ void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
-    if(self->mouse_delegate)
+    if(!self->mouse_delegates.empty())
     {
         uint32_t button_mods, key_mods, all_mods;
         get_modifiers(window, button_mods, key_mods);
         all_mods = button_mods | key_mods;
         MouseEvent e(button_mods, (int)x, (int)y, all_mods, glm::ivec2(0));
 
-        if(button_mods && self->mouse_delegate.mouse_drag){ self->mouse_delegate.mouse_drag(e); }
-        else if(self->mouse_delegate.mouse_move){ self->mouse_delegate.mouse_move(e); }
+        for(auto &delegate : self->mouse_delegates)
+        {
+            if(button_mods && delegate.mouse_drag){ delegate.mouse_drag(e); }
+            else if(delegate.mouse_move){ delegate.mouse_move(e); }
+        }
     }
 }
 
@@ -371,7 +374,7 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
-    if(self->mouse_delegate)
+    if(!self->mouse_delegates.empty())
     {
         uint32_t initiator = 0;
         switch(button)
@@ -396,10 +399,13 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
         glfwGetCursorPos(window, &posX, &posY);
         MouseEvent e(initiator, (int)posX, (int)posY, all_mods, glm::ivec2(0));
 
-        if(action == GLFW_PRESS && self->mouse_delegate.mouse_press){ self->mouse_delegate.mouse_press(e); }
-        else if(action == GLFW_RELEASE && self->mouse_delegate.mouse_release)
+        for(auto &delegate : self->mouse_delegates)
         {
-            self->mouse_delegate.mouse_release(e);
+            if(action == GLFW_PRESS && delegate.mouse_press){ delegate.mouse_press(e); }
+            else if(action == GLFW_RELEASE && delegate.mouse_release)
+            {
+                delegate.mouse_release(e);
+            }
         }
     }
 }
@@ -410,15 +416,22 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
-    if(self->mouse_delegate.mouse_wheel)
+    if(!self->mouse_delegates.empty())
     {
-        glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
-        double posX, posY;
-        glfwGetCursorPos(window, &posX, &posY);
-        uint32_t button_mods, key_mods = 0;
-        get_modifiers(window, button_mods, key_mods);
-        MouseEvent e(0, (int)posX, (int)posY, key_mods, offset);
-        self->mouse_delegate.mouse_wheel(e);
+        for(auto &delegate : self->mouse_delegates)
+        {
+            if(delegate.mouse_wheel)
+            {
+                glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
+                double posX, posY;
+                glfwGetCursorPos(window, &posX, &posY);
+                uint32_t button_mods, key_mods = 0;
+                get_modifiers(window, button_mods, key_mods);
+                MouseEvent e(0, (int)posX, (int)posY, key_mods, offset);
+                delegate.mouse_wheel(e);
+            }
+        }
+
     }
 }
 
@@ -428,25 +441,28 @@ void Window::glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, 
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
-    if(self->key_delegate)
+    if(!self->key_delegates.empty())
     {
         uint32_t buttonMod, keyMod;
         get_modifiers(window, buttonMod, keyMod);
         KeyEvent e(key, key, keyMod);
 
-        switch(action)
+        for(auto &delegate : self->key_delegates)
         {
-            case GLFW_REPEAT:
-            case GLFW_PRESS:
-                if(self->key_delegate.key_press){ self->key_delegate.key_press(e); }
-                break;
+            switch(action)
+            {
+                case GLFW_REPEAT:
+                case GLFW_PRESS:
+                    if(delegate.key_press){ delegate.key_press(e); }
+                    break;
 
-            case GLFW_RELEASE:
-                if(self->key_delegate.key_release){ self->key_delegate.key_release(e); }
-                break;
+                case GLFW_RELEASE:
+                    if(delegate.key_release){ delegate.key_release(e); }
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
         }
     }
 }
@@ -456,7 +472,11 @@ void Window::glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, 
 void Window::glfw_char_cb(GLFWwindow *window, unsigned int key)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-    if(self->key_delegate.character_input){ self->key_delegate.character_input(key); }
+
+    for(auto &delegate : self->key_delegates)
+    {
+        if(delegate.character_input){ delegate.character_input(key); }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -465,7 +485,7 @@ void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **p
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
-    if(self->mouse_delegate.file_drop)
+    if(!self->mouse_delegates.empty())
     {
         std::vector<std::string> files(num_files);
         for(int i = 0; i < num_files; i++){ files[i] = paths[i]; }
@@ -475,7 +495,11 @@ void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **p
         double posX, posY;
         glfwGetCursorPos(window, &posX, &posY);
         MouseEvent e(button_mods, (int)posX, (int)posY, all_mods, glm::ivec2(0));
-        self->mouse_delegate.file_drop(e, files);
+
+        for(auto &delegate : self->mouse_delegates)
+        {
+            if(delegate.file_drop){ delegate.file_drop(e, files); }
+        }
     }
 }
 

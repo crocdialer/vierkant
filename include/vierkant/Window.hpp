@@ -24,14 +24,14 @@ public:
     using resize_fn_t = std::function<void(uint32_t w, uint32_t h)>;
 
     /**
-     *  Delegate object for mouse callbacks
+     *  Delegate objects for mouse callbacks
      */
-    MouseDelegate mouse_delegate;
+    std::vector<MouseDelegate> mouse_delegates;
 
     /**
-     *  Delegate object for keyboard callbacks
+     *  Delegate objects for keyboard callbacks
      */
-    KeyDelegate key_delegate;
+    std::vector<KeyDelegate> key_delegates;
 
     /**
      *  Callback for draw-operations

@@ -5,7 +5,7 @@
 
 namespace vierkant::gui {
 
-bool init(vierkant::WindowPtr *the_app);
+bool init(vierkant::WindowPtr w);
 
 void shutdown();
 

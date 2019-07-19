@@ -33,10 +33,12 @@ void HelloTriangleApplication::create_context_and_window()
         create_graphics_pipeline();
     };
 
-    m_window->key_delegate.key_press = [this](const vierkant::KeyEvent &e)
+    vierkant::KeyDelegate key_delegate = {};
+    key_delegate.key_press = [this](const vierkant::KeyEvent &e)
     {
         if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
     };
+    m_window->key_delegates = {key_delegate};
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
@@ -66,6 +68,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
 
     m_drawable = {};
     m_drawable.mesh = m_mesh;
+    m_drawable.num_indices = m_mesh->num_elements;
     m_drawable.descriptors = {desc_ubo, desc_texture};
 
     // with the descriptors in place we can derive the set-layout

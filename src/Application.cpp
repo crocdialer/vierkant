@@ -7,6 +7,9 @@
 
 namespace vierkant {
 
+// 1 double per second
+using double_sec_t = std::chrono::duration<double, std::chrono::seconds::period>;
+
 Application::Application(int argc, char *argv[]) :
         Component(argc ? crocore::fs::get_filename_part(argv[0]) : "vierkant_app"),
         m_start_time(std::chrono::high_resolution_clock::now()),

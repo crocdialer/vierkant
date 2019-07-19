@@ -60,9 +60,6 @@ public:
 
 private:
 
-    // 1 double per second
-    using double_sec_t = std::chrono::duration<double, std::chrono::seconds::period>;
-
     void timing();
 
     virtual bool is_running() { return m_running; };

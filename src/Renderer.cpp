@@ -214,8 +214,8 @@ void Renderer::render(VkCommandBuffer command_buffer)
                 // issue (indexed) drawing command
                 if(drawable->mesh->index_buffer)
                 {
-                    vkCmdDrawIndexed(command_buffer, drawable->mesh->num_elements, 1, 0, 0, 0);
-                }else{ vkCmdDraw(command_buffer, drawable->mesh->num_elements, 1, 0, 0); }
+                    vkCmdDrawIndexed(command_buffer, drawable->num_indices, 1, drawable->base_index, 0, 0);
+                }else{ vkCmdDraw(command_buffer, drawable->num_indices, 1, drawable->base_index, 0); }
             }
         }
     }
@@ -263,6 +263,7 @@ void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_
 
         drawable_t new_drawable = {};
         new_drawable.mesh = mesh;
+        new_drawable.num_indices = mesh->num_elements;
         new_drawable.descriptors = {desc_ubo, desc_texture};
         new_drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, new_drawable.descriptors);
         fmt.descriptor_set_layouts = {new_drawable.descriptor_set_layout.get()};
