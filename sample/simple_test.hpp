@@ -84,6 +84,6 @@ private:
 
 int main(int argc, char *argv[])
 {
-    auto app = std::make_unique<HelloTriangleApplication>(argc, argv);
+    auto app = std::make_shared<HelloTriangleApplication>(argc, argv);
     return app->run();
 }

@@ -1,6 +1,8 @@
 #include <crocore/filesystem.hpp>
 #include <crocore/http.hpp>
 #include <crocore/Image.hpp>
+#include <vierkant/imgui/imgui_util.h>
+
 #include "simple_test.hpp"
 
 void HelloTriangleApplication::setup()
@@ -16,6 +18,7 @@ void HelloTriangleApplication::setup()
 void HelloTriangleApplication::teardown()
 {
     LOG_INFO << "ciao " << name();
+    vk::gui::shutdown();
     vkDeviceWaitIdle(m_device->handle());
 }
 
@@ -39,6 +42,10 @@ void HelloTriangleApplication::create_context_and_window()
         if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
     };
     m_window->key_delegates = {key_delegate};
+
+    ImGui::CreateContext();
+//    ImGuiIO &io = ImGui::GetIO();
+    vierkant::gui::init(m_window);
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
@@ -117,6 +124,8 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
     m_image_renderer.stage_image(m_texture, {width / 4, height / 4, width / 2, height / 2});
     m_image_renderer.stage_image(m_texture_font, {width / 4, height / 4, width / 2, height / 2});
 
+    vk::gui::render(m_image_renderer);
+
     m_renderer.stage_drawable(m_drawable);
 
     m_image_renderer.render(command_buffer.handle());
@@ -179,6 +188,10 @@ void HelloTriangleApplication::update(double time_delta)
                                            glm::vec3(0.0f, 0.0f, 1.0f));
     m_drawable.matrices.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
     m_drawable.matrices.projection[1][1] *= -1;
+
+    // draw application gui
+    vk::gui::new_frame(m_window->size(), time_delta);
+    vk::gui::draw_component_ui(shared_from_this());
 
     // issue top-level draw-command
     m_window->draw();

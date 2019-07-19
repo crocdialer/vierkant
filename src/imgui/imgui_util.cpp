@@ -9,21 +9,6 @@ using namespace crocore;
 
 namespace vierkant::gui {
 
-const ImVec2 &im_vec_cast(const glm::vec2 &the_vec)
-{
-    return *reinterpret_cast<const ImVec2 *>(&the_vec);
-}
-
-const ImVec4 &im_vec_cast(const glm::vec4 &the_vec)
-{
-    return *reinterpret_cast<const ImVec4 *>(&the_vec);
-}
-
-const ImVec4 im_vec_cast(const glm::vec3 &the_vec)
-{
-    auto tmp = glm::vec4(the_vec, 1.f);
-    return *reinterpret_cast<const ImVec4 *>(&tmp);
-}
 
 // int
 void draw_property_ui(const Property_<int>::Ptr &the_property)

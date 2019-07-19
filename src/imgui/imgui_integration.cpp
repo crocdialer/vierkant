@@ -4,7 +4,7 @@
 #include <vierkant/Pipeline.hpp>
 #include "vierkant/imgui/imgui_integration.h"
 
-namespace vierkant {
+namespace vierkant::gui {
 
 static const glm::vec4 COLOR_WHITE(1), COLOR_BLACK(0, 0, 0, 1), COLOR_GRAY(.6, .6, .6, 1.),
         COLOR_RED(1, 0, 0, 1), COLOR_GREEN(0, 1, 0, 1), COLOR_BLUE(0, 0, 1, 1),
@@ -28,7 +28,9 @@ struct imgui_assets_t
     std::vector<std::vector<mesh_asset_t>> frame_assets;
 };
 
-static imgui_assets_t g_imgui_assets = {};
+static imgui_assets_t g_imgui_assets;
+
+bool create_device_objects(vierkant::DevicePtr device);
 
 mesh_asset_t create_window_assets(const vierkant::DevicePtr &device)
 {
@@ -83,15 +85,15 @@ mesh_asset_t create_window_assets(const vierkant::DevicePtr &device)
     return {mesh, vertex_buffer, index_buffer};
 }
 
-const ImVec2 &im_vec_cast(const glm::vec2 &the_vec)
-{
-    return *reinterpret_cast<const ImVec2 *>(&the_vec);
-}
-
-const ImVec4 &im_vec_cast(const glm::vec4 &the_vec)
-{
-    return *reinterpret_cast<const ImVec4 *>(&the_vec);
-}
+//const ImVec2 &im_vec_cast(const glm::vec2 &the_vec)
+//{
+//    return *reinterpret_cast<const ImVec2 *>(&the_vec);
+//}
+//
+//const ImVec4 &im_vec_cast(const glm::vec4 &the_vec)
+//{
+//    return *reinterpret_cast<const ImVec4 *>(&the_vec);
+//}
 
 const ImVec4 im_vec_cast(const glm::vec3 &the_vec)
 {
@@ -103,10 +105,12 @@ void render(vierkant::Renderer &renderer)
 {
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     ImGuiIO &io = ImGui::GetIO();
+
     int fb_width = (int)(io.DisplaySize.x * io.DisplayFramebufferScale.x);
     int fb_height = (int)(io.DisplaySize.y * io.DisplayFramebufferScale.y);
     if(fb_width == 0 || fb_height == 0){ return; }
 
+    // create imgui drawlists
     ImGui::Render();
     ImDrawData *draw_data = ImGui::GetDrawData();
     draw_data->ScaleClipRects(io.DisplayFramebufferScale);
@@ -161,6 +165,7 @@ void render(vierkant::Renderer &renderer)
             base_index += pcmd->ElemCount;
         }
     }
+    ImGui::EndFrame();
 }
 
 void mouse_press(const MouseEvent &e)
@@ -175,6 +180,12 @@ void mouse_wheel(const MouseEvent &e)
     ImGuiIO &io = ImGui::GetIO();
     io.MouseWheelH += e.wheel_increment().x;
     io.MouseWheel += e.wheel_increment().y;
+}
+
+void mouse_move(const MouseEvent &e)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    io.MousePos = {static_cast<float>(e.get_x()), static_cast<float>(e.get_y())};
 }
 
 void key_press(const KeyEvent &e)
@@ -249,12 +260,8 @@ bool create_device_objects(vierkant::DevicePtr device)
     drawable.pipeline_format = std::move(pipeline_fmt);
     drawable.descriptors = {desc_ubo, desc_texture};
     drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
+    drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
     return true;
-}
-
-void invalidate_device_objects()
-{
-    g_imgui_assets = {};
 }
 
 bool init(vierkant::WindowPtr w)
@@ -293,40 +300,34 @@ bool init(vierkant::WindowPtr w)
     im_style.Colors[ImGuiCol_FrameBg] = im_vec_cast(COLOR_WHITE.rgb * 0.07f);
     im_style.Colors[ImGuiCol_FrameBgHovered] = im_style.Colors[ImGuiCol_FrameBgActive] =
             im_vec_cast(COLOR_ORANGE.rgb * 0.5f);
-    return true;
+
+    vierkant::MouseDelegate mouse_delegate = {};
+    mouse_delegate.mouse_press = mouse_press;
+    mouse_delegate.mouse_wheel = mouse_wheel;
+    mouse_delegate.mouse_move = mouse_move;
+    w->mouse_delegates.push_back(mouse_delegate);
+
+    vierkant::KeyDelegate key_delegate = {};
+    key_delegate.key_press = key_press;
+    key_delegate.key_release = key_release;
+    key_delegate.character_input = char_callback;
+    w->key_delegates.push_back(key_delegate);
+
+    return create_device_objects(w->swapchain().device());
 }
 
 void shutdown()
 {
-    // Destroy OpenGL objects
-    invalidate_device_objects();
+    g_imgui_assets = {};
 }
 
-void new_frame()
+void new_frame(const glm::vec2 &size, float delta_time)
 {
     ImGuiIO &io = ImGui::GetIO();
 
-//    // Setup display size (every frame to accommodate for window resizing)
-//    io.DisplaySize = kinski::gui::im_vec_cast(kinski::gl::window_dimension());
-//    io.DisplayFramebufferScale = ImVec2(1.f, 1.f);
-//
-//    // Setup time step
-//    double current_time = g_app->get_application_time();
-//    io.DeltaTime = g_Time > 0.0 ? (float)(current_time - g_Time) : (float)(1.0f / 60.0f);
-//    g_Time = current_time;
-//
-//    // Setup inputs
-//    if(g_app->display_gui()){ io.MousePos = kinski::gui::im_vec_cast(g_app->cursor_position()); }
-//    else{ io.MousePos = ImVec2(-FLT_MAX, -FLT_MAX); }
-//
-//    // If a mouse press event came, always pass it as "mouse held this frame"
-//    // so we don't miss click-release events that are shorter than 1 frame.
-//    auto mouse_state = g_app->mouse_state();
-//    io.MouseDown[0] = g_mouse_pressed[0] || mouse_state.is_left_down();
-//    io.MouseDown[1] = g_mouse_pressed[1] || mouse_state.is_middle_down();
-//    io.MouseDown[2] = g_mouse_pressed[2] || mouse_state.is_right_down();
-
-    for(bool &i : g_mouse_pressed){ i = false; }
+    // Setup display size (every frame to accommodate for window resizing)
+    io.DisplaySize = {size.x, size.y};
+    io.DisplayFramebufferScale = ImVec2(1.f, 1.f);
 
     // start the frame. will update the io.WantCaptureMouse, io.WantCaptureKeyboard flags
     ImGui::NewFrame();
@@ -334,11 +335,15 @@ void new_frame()
     // signal begin frame to ImGuizmo
     ImGuizmo::BeginFrame();
     ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-}
 
-void end_frame()
-{
-    ImGui::EndFrame();
+    // Setup time step
+    io.DeltaTime = delta_time;
+
+    io.MouseDown[0] = g_mouse_pressed[0];
+    io.MouseDown[1] = g_mouse_pressed[1];
+    io.MouseDown[2] = g_mouse_pressed[2];
+
+    for(bool &i : g_mouse_pressed){ i = false; }
 }
 
 }//namespace

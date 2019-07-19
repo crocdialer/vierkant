@@ -420,16 +420,14 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
     {
         for(auto &delegate : self->mouse_delegates)
         {
-            if(delegate.mouse_wheel)
-            {
-                glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
-                double posX, posY;
-                glfwGetCursorPos(window, &posX, &posY);
-                uint32_t button_mods, key_mods = 0;
-                get_modifiers(window, button_mods, key_mods);
-                MouseEvent e(0, (int)posX, (int)posY, key_mods, offset);
-                delegate.mouse_wheel(e);
-            }
+            glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
+            double posX, posY;
+            glfwGetCursorPos(window, &posX, &posY);
+            uint32_t button_mods, key_mods = 0;
+            get_modifiers(window, button_mods, key_mods);
+            MouseEvent e(0, (int)posX, (int)posY, key_mods, offset);
+
+            if(delegate.mouse_wheel){ delegate.mouse_wheel(e); }
         }
 
     }

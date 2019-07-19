@@ -68,6 +68,8 @@ public:
 
     uint32_t num_indices() const { return m_render_assets.size(); }
 
+    void reset();
+
     vierkant::DevicePtr device() const { return m_device; }
 
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;

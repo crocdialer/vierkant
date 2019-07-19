@@ -133,8 +133,17 @@ void Renderer::render(VkCommandBuffer command_buffer)
         // bind pipeline
         pipeline->bind(command_buffer);
 
-        // set dynamic viewport
-        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+        if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT))
+        {
+            // set dynamic viewport
+            vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+        }
+
+        if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR))
+        {
+            // set dynamic scissor
+            vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+        }
 
         // sort by meshes
         std::unordered_map<vierkant::MeshPtr, std::vector<drawable_t *>> meshes;
@@ -288,6 +297,16 @@ void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_
 
     // stage image drawable
     stage_drawable(drawable);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Renderer::reset()
+{
+    std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
+    m_current_index = 0;
+    m_staged_drawables.clear();
+    for(auto &frame_asset : m_render_assets){ frame_asset = {}; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
