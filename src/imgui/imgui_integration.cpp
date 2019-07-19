@@ -11,9 +11,6 @@ static const glm::vec4 COLOR_WHITE(1), COLOR_BLACK(0, 0, 0, 1), COLOR_GRAY(.6, .
         COLOR_YELLOW(1, 1, 0, 1), COLOR_PURPLE(1, 0, 1, 1), COLOR_ORANGE(1, .5, 0, 1),
         COLOR_OLIVE(.5, .5, 0, 1), COLOR_DARK_RED(.6, 0, 0, 1);
 
-//static double g_Time = 0.0f;
-static bool g_mouse_pressed[3] = {false, false, false};
-
 struct mesh_asset_t
 {
     vierkant::MeshPtr mesh;
@@ -170,9 +167,18 @@ void render(vierkant::Renderer &renderer)
 
 void mouse_press(const MouseEvent &e)
 {
-    if(e.is_left()){ g_mouse_pressed[0] = true; }
-    else if(e.is_middle()){ g_mouse_pressed[1] = true; }
-    else if(e.is_right()){ g_mouse_pressed[2] = true; }
+    ImGuiIO &io = ImGui::GetIO();
+    if(e.is_left()){ io.MouseDown[0] = true; }
+    else if(e.is_middle()){ io.MouseDown[1] = true; }
+    else if(e.is_right()){ io.MouseDown[2] = true; }
+}
+
+void mouse_release(const MouseEvent &e)
+{
+    ImGuiIO &io = ImGui::GetIO();
+    if(e.is_left()){ io.MouseDown[0] = false; }
+    else if(e.is_middle()){ io.MouseDown[1] = false; }
+    else if(e.is_right()){ io.MouseDown[2] = false; }
 }
 
 void mouse_wheel(const MouseEvent &e)
@@ -303,6 +309,7 @@ bool init(vierkant::WindowPtr w)
 
     vierkant::MouseDelegate mouse_delegate = {};
     mouse_delegate.mouse_press = mouse_press;
+    mouse_delegate.mouse_release = mouse_release;
     mouse_delegate.mouse_wheel = mouse_wheel;
     mouse_delegate.mouse_move = mouse_move;
     w->mouse_delegates.push_back(mouse_delegate);
@@ -338,12 +345,6 @@ void new_frame(const glm::vec2 &size, float delta_time)
 
     // Setup time step
     io.DeltaTime = delta_time;
-
-    io.MouseDown[0] = g_mouse_pressed[0];
-    io.MouseDown[1] = g_mouse_pressed[1];
-    io.MouseDown[2] = g_mouse_pressed[2];
-
-    for(bool &i : g_mouse_pressed){ i = false; }
 }
 
 }//namespace

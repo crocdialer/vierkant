@@ -22,6 +22,9 @@ Application::Application(int argc, char *argv[]) :
 {
     srand(time(nullptr));
     for(int i = 0; i < argc; i++){ m_args.emplace_back(argv[i]); }
+
+    // properties
+//    register_property(m_log_level);
 }
 
 int Application::run()
@@ -91,6 +94,11 @@ void Application::timing()
         m_num_loop_iterations = 0;
         m_last_measure = m_last_timestamp;
     }
+}
+
+void Application::update_property(const crocore::PropertyConstPtr &theProperty)
+{
+    if(theProperty == m_log_level){ crocore::Logger::get()->set_severity(crocore::Severity(m_log_level->value())); }
 }
 
 }

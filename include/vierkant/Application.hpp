@@ -58,6 +58,8 @@ public:
 
     const crocore::ThreadPool &background_queue() const { return m_background_queue; }
 
+    void update_property(const crocore::PropertyConstPtr &theProperty) override;
+
 private:
 
     void timing();
@@ -76,6 +78,10 @@ private:
     std::vector<std::string> m_args;
 
     crocore::ThreadPool m_main_queue, m_background_queue;
+
+    // basic application properties
+    crocore::Property_<uint32_t>::Ptr
+    m_log_level = crocore::Property_<uint32_t>::create("log_level", (uint32_t)crocore::Severity::INFO);
 };
 
 
