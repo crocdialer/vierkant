@@ -151,17 +151,26 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
         }
 
-        // sort by meshes
-        std::unordered_map<vierkant::MeshPtr, std::vector<drawable_t *>> meshes;
-        for(auto &d : drawables){ meshes[d->mesh].push_back(d); }
+//        // sort by meshes
+//        std::unordered_map<vierkant::MeshPtr, std::vector<drawable_t *>> meshes;
+//        for(auto &d : drawables){ meshes[d->mesh].push_back(d); }
 
         // grouped by meshes
-        for(auto &[mesh, drawables] : meshes)
-        {
-            // bind vertex- and index-buffers
-            vierkant::bind_buffers(command_buffer.handle(), mesh);
+//        for(auto &[mesh, drawables] : meshes)
+        vierkant::MeshPtr current_mesh;
 
-            for(auto drawable : drawables)
+        for(auto &drawable : drawables)
+        {
+
+            if(current_mesh != drawable->mesh)
+            {
+                current_mesh = drawable->mesh;
+
+                // bind vertex- and index-buffers
+                vierkant::bind_buffers(command_buffer.handle(), current_mesh);
+            }
+
+//            for(auto drawable : drawables)
             {
                 if(dynamic_scissor)
                 {
@@ -173,7 +182,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 auto &descriptors = drawable->descriptors;
 
                 // search/create descriptor set
-                asset_key_t key = {mesh, drawable->descriptors};
+                asset_key_t key = {current_mesh, drawable->descriptors};
                 auto descriptor_it = last_assets.render_assets.find(key);
 
                 vierkant::DescriptorSetPtr descriptor_set;

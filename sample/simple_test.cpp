@@ -61,7 +61,7 @@ void HelloTriangleApplication::create_context_and_window()
         {
             if(tex)
             {
-                ImVec2 sz(w, w / (tex->width() / (float) tex->height()));
+                ImVec2 sz(w, w / (tex->width() / (float)tex->height()));
                 ImGui::Image((ImTextureID)(tex.get()), sz, uv_0, uv_1);
                 ImGui::Spacing();
                 ImGui::Separator();
@@ -71,10 +71,8 @@ void HelloTriangleApplication::create_context_and_window()
         ImGui::End();
     };
 
-    m_gui_context.delegates["demo"] = []
-    {
-        ImGui::ShowDemoWindow(&DEMO_GUI);
-    };
+    // imgui demo window
+    m_gui_context.delegates["demo"] = [] { ImGui::ShowDemoWindow(&DEMO_GUI); };
 
     // attach gui input-delegates to window
     m_window->key_delegates["gui"] = m_gui_context.key_delegate();
