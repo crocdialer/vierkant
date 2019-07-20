@@ -96,7 +96,7 @@ const ImVec4 im_vec_cast(const glm::vec3 &the_vec)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Context::Context(const vierkant::DevicePtr &device) :
-        m_imgui_context{ImGui::CreateContext()}
+        m_imgui_context(ImGui::CreateContext())
 {
     ImGui::SetCurrentContext(m_imgui_context);
 

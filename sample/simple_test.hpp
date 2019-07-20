@@ -11,6 +11,7 @@
 const int WIDTH = 1280;
 const int HEIGHT = 720;
 const bool V_SYNC = true;
+bool DEMO_GUI = true;
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 

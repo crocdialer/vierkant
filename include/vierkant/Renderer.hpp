@@ -17,6 +17,11 @@ class Renderer
 {
 public:
 
+    enum DescriptorSlot
+    {
+        SLOT_MATRIX = 0, SLOT_TEXTURES, MIN_NUM_DESCRIPTORS
+    };
+    
     struct matrix_struct_t
     {
         glm::mat4 model = glm::mat4(1);

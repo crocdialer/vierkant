@@ -143,16 +143,12 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
         // bind pipeline
         pipeline->bind(command_buffer.handle());
 
+        bool dynamic_scissor = crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
+
         if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT))
         {
             // set dynamic viewport
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
-        }
-
-        if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR))
-        {
-            // set dynamic scissor
-            vkCmdSetScissor(command_buffer.handle(), 0, 1, &pipe_fmt.scissor);
         }
 
         // sort by meshes
@@ -167,6 +163,12 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
             for(auto drawable : drawables)
             {
+                if(dynamic_scissor)
+                {
+                    // set dynamic scissor
+                    vkCmdSetScissor(command_buffer.handle(), 0, 1, &drawable->pipeline_format.scissor);
+                }
+
                 // update/create descriptor set
                 auto &descriptors = drawable->descriptors;
 
@@ -194,7 +196,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                             img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
                         }
                     }
-                    descriptors[0].buffer = uniform_buf;
+                    descriptors[SLOT_MATRIX].buffer = uniform_buf;
 
                     // create a new descriptor set
                     descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
@@ -307,7 +309,7 @@ void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_
     drawable.matrices.model[3] = glm::vec4(area.x / viewport.width, -area.y / viewport.height, 0, 1);
 
     // set image
-    drawable.descriptors[1].image_samplers = {image};
+    drawable.descriptors[SLOT_TEXTURES].image_samplers = {image};
 
     // stage image drawable
     stage_drawable(drawable);

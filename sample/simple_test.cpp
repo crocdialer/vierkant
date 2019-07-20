@@ -46,9 +46,35 @@ void HelloTriangleApplication::create_context_and_window()
     };
     m_window->key_delegates["main"] = key_delegate;
 
-    // create a gui and inject additional key- and mouse-delegates for window
+    // create a gui and add a draw-delegate
     m_gui_context = vk::gui::Context(m_device);
     m_gui_context.delegates["main"] = [this] { vk::gui::draw_component_ui(shared_from_this()); };
+
+    m_gui_context.delegates["textures"] = [this]
+    {
+        ImGui::Begin("textures");
+
+        const float w = ImGui::GetContentRegionAvailWidth();
+        const ImVec2 uv_0(0, 0), uv_1(1, 1);
+
+        for(auto &tex : {m_texture, m_texture_font})
+        {
+            if(tex)
+            {
+                ImVec2 sz(w, w / (tex->width() / (float) tex->height()));
+                ImGui::Image((ImTextureID)(tex.get()), sz, uv_0, uv_1);
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::Spacing();
+            }
+        }
+        ImGui::End();
+    };
+
+    m_gui_context.delegates["demo"] = []
+    {
+        ImGui::ShowDemoWindow(&DEMO_GUI);
+    };
 
     // attach gui input-delegates to window
     m_window->key_delegates["gui"] = m_gui_context.key_delegate();
