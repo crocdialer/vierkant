@@ -245,7 +245,7 @@ std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const Mesh
         buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
     }
 
-    auto binding_index = [](const Mesh::VertexAttrib &a, const buffer_binding_set_t &bufs) -> int32_t
+    auto binding_index = [](const Mesh::attrib_t &a, const buffer_binding_set_t &bufs) -> int32_t
     {
         uint32_t i = 0;
         for(const auto &t : bufs)
@@ -382,7 +382,7 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const GeometryConst
                 memcpy(staging_data + v.offset + j * stride, v.data + j * v.elem_size, v.elem_size);
             }
 
-            vierkant::Mesh::VertexAttrib attrib;
+            vierkant::Mesh::attrib_t attrib;
             attrib.location = i;
             attrib.offset = v.offset;
             attrib.stride = static_cast<uint32_t>(stride);
@@ -404,7 +404,7 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const GeometryConst
                 size_t num_bytes = array.size() * value_size;
                 memcpy(staging_data + offset, array.data(), num_bytes);
 
-                vierkant::Mesh::VertexAttrib attrib;
+                vierkant::Mesh::attrib_t attrib;
                 attrib.location = location;
                 attrib.offset = 0;
                 attrib.stride = static_cast<uint32_t>(value_size);

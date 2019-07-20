@@ -26,6 +26,12 @@ public:
 
     Context &operator=(Context other);
 
+    /**
+     * @brief   Render the gui using a provided renderer.
+     *          Will invoke the current draw-delegate objects to create all gui elements.
+     *
+     * @param   renderer    a vierkant::Renderer that is used to stage drawables for the gui.
+     */
     void render(vierkant::Renderer &renderer);
 
     friend void swap(Context &lhs, Context& rhs) noexcept;
@@ -47,7 +53,7 @@ private:
         std::chrono::steady_clock::time_point time_point = std::chrono::steady_clock::now();
     };
 
-    mesh_asset_t create_window_assets(const vierkant::DevicePtr &device);
+    mesh_asset_t create_mesh_assets(const vierkant::DevicePtr &device);
 
     bool create_device_objects(const vierkant::DevicePtr &device);
 

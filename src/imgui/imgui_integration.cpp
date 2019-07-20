@@ -32,7 +32,7 @@ void character_input(ImGuiContext *ctx, uint32_t c);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Context::mesh_asset_t Context::create_window_assets(const vierkant::DevicePtr &device)
+Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &device)
 {
     // dynamic vertexbuffer objects
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, 0,
@@ -49,7 +49,7 @@ Context::mesh_asset_t Context::create_window_assets(const vierkant::DevicePtr &d
     mesh->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // vertex attrib -> position
-    vierkant::Mesh::VertexAttrib position_attrib;
+    vierkant::Mesh::attrib_t position_attrib;
     position_attrib.location = 0;
     position_attrib.offset = offsetof(ImDrawVert, pos);
     position_attrib.stride = sizeof(ImDrawVert);
@@ -59,7 +59,7 @@ Context::mesh_asset_t Context::create_window_assets(const vierkant::DevicePtr &d
     mesh->vertex_attribs.push_back(position_attrib);
 
     // vertex attrib -> color
-    vierkant::Mesh::VertexAttrib color_attrib;
+    vierkant::Mesh::attrib_t color_attrib;
     color_attrib.location = 1;
     color_attrib.offset = offsetof(ImDrawVert, col);
     color_attrib.stride = sizeof(ImDrawVert);
@@ -69,7 +69,7 @@ Context::mesh_asset_t Context::create_window_assets(const vierkant::DevicePtr &d
     mesh->vertex_attribs.push_back(color_attrib);
 
     // vertex attrib -> tex coords
-    vierkant::Mesh::VertexAttrib tex_coord_attrib;
+    vierkant::Mesh::attrib_t tex_coord_attrib;
     tex_coord_attrib.location = 2;
     tex_coord_attrib.offset = offsetof(ImDrawVert, uv);
     tex_coord_attrib.stride = sizeof(ImDrawVert);
@@ -220,7 +220,7 @@ void Context::render(vierkant::Renderer &renderer)
     // provide enough mesh_assets (1 vertex/index buffer per window)
     for(int32_t i = mesh_assets.size(); i < draw_data->CmdListsCount; ++i)
     {
-        mesh_assets.push_back(create_window_assets(renderer.device()));
+        mesh_assets.push_back(create_mesh_assets(renderer.device()));
     }
 
     Renderer::matrix_struct_t matrices = {};
@@ -285,7 +285,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     io.Fonts->TexID = m_imgui_assets.font_texture.get();
 
     // create dummy mesh instance
-    auto mesh = create_window_assets(device).mesh;
+    auto mesh = create_mesh_assets(device).mesh;
 
     // pipeline format
     vierkant::Pipeline::Format pipeline_fmt = {};

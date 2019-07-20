@@ -165,7 +165,6 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const GeometryConst
 /**
  * @brief   Mesh groups all sorts of resources,
  *          required to feed vertex-data into a (graphics-)pipeline.
- *          Also used to add resource-descriptors for e.g. uniform-buffers or image-samplers.
  */
 class Mesh : public Object3D
 {
@@ -174,7 +173,7 @@ public:
     /**
      * @brief   Mesh::VertexAttrib defines a vertex-attribute available in the vertex-shader-stage.
      */
-    struct VertexAttrib
+    struct attrib_t
     {
         int32_t location = -1;
         vierkant::BufferPtr buffer;
@@ -202,7 +201,7 @@ public:
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
 
     // vertex attributes
-    std::vector<VertexAttrib> vertex_attribs;
+    std::vector<attrib_t> vertex_attribs;
 
 private:
 

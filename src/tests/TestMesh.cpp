@@ -49,7 +49,7 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     auto vertex_buffer = vk::Buffer::create(device, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                             VMA_MEMORY_USAGE_GPU_ONLY);
 
-    vk::Mesh::VertexAttrib position, color, tex_coord;
+    vk::Mesh::attrib_t position, color, tex_coord;
     position.location = 0;
     position.offset = offsetof(Vertex, position);
     position.stride = sizeof(Vertex);
