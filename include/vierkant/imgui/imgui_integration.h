@@ -5,14 +5,53 @@
 
 namespace vierkant::gui {
 
-bool init(vierkant::WindowPtr w);
+class Context
+{
+public:
 
-void shutdown();
+    explicit Context(const vierkant::WindowPtr &w);
 
-void render(vierkant::Renderer &renderer);
+    Context() = default;
 
-void new_frame(const glm::vec2 &size, float delta_time);
+    Context(const Context &) = delete;
 
-//void end_frame();
+    Context(Context &&other) noexcept;
+
+    ~Context();
+
+    Context &operator=(Context other);
+
+    void render(vierkant::Renderer &renderer);
+
+    void new_frame(const glm::vec2 &size, float delta_time);
+
+    void set_current();
+
+    friend void swap(Context &lhs, Context& rhs) noexcept;
+
+private:
+
+    struct mesh_asset_t
+    {
+        vierkant::MeshPtr mesh;
+        vierkant::BufferPtr vertex_buffer;
+        vierkant::BufferPtr index_buffer;
+    };
+
+    struct imgui_assets_t
+    {
+        vierkant::Renderer::drawable_t drawable;
+        vierkant::ImagePtr font_texture;
+        std::vector<std::vector<mesh_asset_t>> frame_assets;
+    };
+
+    mesh_asset_t create_window_assets(const vierkant::DevicePtr &device);
+
+    bool create_device_objects(const vierkant::DevicePtr &device);
+
+    ImGuiContext* m_imgui_context = nullptr;
+
+    imgui_assets_t m_imgui_assets = {};
+};
 
 }// namespace

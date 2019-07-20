@@ -174,7 +174,7 @@ void Renderer::render(VkCommandBuffer command_buffer)
                     // create new uniform-buffer for matrices
                     auto uniform_buf = vierkant::Buffer::create(m_device, &drawable->matrices, sizeof(matrix_struct_t),
                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                VMA_MEMORY_USAGE_CPU_ONLY);
+                                                                VMA_MEMORY_USAGE_CPU_TO_GPU);
 
                     // transition image layouts
                     for(auto &desc : descriptors)

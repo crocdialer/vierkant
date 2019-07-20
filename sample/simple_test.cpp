@@ -18,7 +18,6 @@ void HelloTriangleApplication::setup()
 void HelloTriangleApplication::teardown()
 {
     LOG_INFO << "ciao " << name();
-    vk::gui::shutdown();
     vkDeviceWaitIdle(m_device->handle());
 }
 
@@ -43,9 +42,7 @@ void HelloTriangleApplication::create_context_and_window()
     };
     m_window->key_delegates = {key_delegate};
 
-    ImGui::CreateContext();
-//    ImGuiIO &io = ImGui::GetIO();
-    vierkant::gui::init(m_window);
+    m_gui_context = vk::gui::Context(m_window);
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
@@ -126,7 +123,7 @@ void HelloTriangleApplication::create_command_buffer(size_t i)
 
     m_renderer.stage_drawable(m_drawable);
 
-    vk::gui::render(m_gui_renderer);
+    m_gui_context.render(m_gui_renderer);
 
     for(auto renderer : {&m_image_renderer, &m_renderer, &m_gui_renderer})
     {
@@ -191,7 +188,7 @@ void HelloTriangleApplication::update(double time_delta)
     m_drawable.matrices.projection[1][1] *= -1;
 
     // draw application gui
-    vk::gui::new_frame(m_window->size(), time_delta);
+    m_gui_context.new_frame(m_window->size(), time_delta);
     vk::gui::draw_component_ui(shared_from_this());
 
     // issue top-level draw-command

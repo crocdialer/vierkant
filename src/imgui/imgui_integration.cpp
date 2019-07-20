@@ -3,6 +3,7 @@
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Pipeline.hpp>
 #include "vierkant/imgui/imgui_integration.h"
+#include "vierkant/imgui/imgui_internal.h"
 
 namespace vierkant::gui {
 
@@ -11,25 +12,22 @@ static const glm::vec4 COLOR_WHITE(1), COLOR_BLACK(0, 0, 0, 1), COLOR_GRAY(.6, .
         COLOR_YELLOW(1, 1, 0, 1), COLOR_PURPLE(1, 0, 1, 1), COLOR_ORANGE(1, .5, 0, 1),
         COLOR_OLIVE(.5, .5, 0, 1), COLOR_DARK_RED(.6, 0, 0, 1);
 
-struct mesh_asset_t
-{
-    vierkant::MeshPtr mesh;
-    vierkant::BufferPtr vertex_buffer;
-    vierkant::BufferPtr index_buffer;
-};
 
-struct imgui_assets_t
-{
-    vierkant::Renderer::drawable_t drawable;
-    vierkant::ImagePtr font_texture;
-    std::vector<std::vector<mesh_asset_t>> frame_assets;
-};
+void mouse_press(ImGuiContext *ctx, const MouseEvent &e);
 
-static imgui_assets_t g_imgui_assets;
+void mouse_release(ImGuiContext *ctx, const MouseEvent &e);
 
-bool create_device_objects(vierkant::DevicePtr device);
+void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e);
 
-mesh_asset_t create_window_assets(const vierkant::DevicePtr &device)
+void mouse_move(ImGuiContext *ctx, const MouseEvent &e);
+
+void key_press(ImGuiContext *ctx, const KeyEvent &e);
+
+void key_release(ImGuiContext *ctx, const KeyEvent &e);
+
+void character_input(ImGuiContext *ctx, uint32_t c);
+
+Context::mesh_asset_t Context::create_window_assets(const vierkant::DevicePtr &device)
 {
     // dynamic vertexbuffer objects
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, 0,
@@ -82,196 +80,17 @@ mesh_asset_t create_window_assets(const vierkant::DevicePtr &device)
     return {mesh, vertex_buffer, index_buffer};
 }
 
-//const ImVec2 &im_vec_cast(const glm::vec2 &the_vec)
-//{
-//    return *reinterpret_cast<const ImVec2 *>(&the_vec);
-//}
-//
-//const ImVec4 &im_vec_cast(const glm::vec4 &the_vec)
-//{
-//    return *reinterpret_cast<const ImVec4 *>(&the_vec);
-//}
-
 const ImVec4 im_vec_cast(const glm::vec3 &the_vec)
 {
     auto tmp = glm::vec4(the_vec, 1.f);
     return *reinterpret_cast<const ImVec4 *>(&tmp);
 }
 
-void render(vierkant::Renderer &renderer)
+Context::Context(const vierkant::WindowPtr &w) :
+        m_imgui_context{ImGui::CreateContext()}
 {
-    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
-    ImGuiIO &io = ImGui::GetIO();
+    ImGui::SetCurrentContext(m_imgui_context);
 
-    int fb_width = (int)(io.DisplaySize.x * io.DisplayFramebufferScale.x);
-    int fb_height = (int)(io.DisplaySize.y * io.DisplayFramebufferScale.y);
-    if(fb_width == 0 || fb_height == 0){ return; }
-
-    // create imgui drawlists
-    ImGui::Render();
-    ImDrawData *draw_data = ImGui::GetDrawData();
-    draw_data->ScaleClipRects(io.DisplayFramebufferScale);
-
-    // provide enough frameslots
-    g_imgui_assets.frame_assets.resize(renderer.num_indices());
-    auto &mesh_assets = g_imgui_assets.frame_assets[renderer.current_index()];
-
-    // provide enough mesh_assets (1 vertex/index buffer per window)
-    for(int32_t i = mesh_assets.size(); i < draw_data->CmdListsCount; ++i)
-    {
-        mesh_assets.push_back(create_window_assets(renderer.device()));
-    }
-
-    Renderer::matrix_struct_t matrices = {};
-    matrices.projection = glm::orthoRH(0.f, io.DisplaySize.x, 0.f, io.DisplaySize.y, 0.0f, 1.0f);
-//    matrices.projection[1][1] *= -1;
-
-    // Draw
-    for(int n = 0; n < draw_data->CmdListsCount; n++)
-    {
-        const ImDrawList *cmd_list = draw_data->CmdLists[n];
-        uint32_t base_index = 0;
-
-        // upload data
-        mesh_assets[n].vertex_buffer->set_data(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
-        mesh_assets[n].index_buffer->set_data(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
-
-        for(int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
-        {
-            const ImDrawCmd *pcmd = &cmd_list->CmdBuffer[cmd_i];
-            if(pcmd->UserCallback){ pcmd->UserCallback(cmd_list, pcmd); }
-            else
-            {
-                auto &tex = *reinterpret_cast<vierkant::ImagePtr *>(pcmd->TextureId);
-
-                // create a new drawable
-                auto drawable = g_imgui_assets.drawable;
-                drawable.mesh = mesh_assets[n].mesh;
-                drawable.matrices = matrices;
-                drawable.descriptors[1].image_samplers = {tex};
-                drawable.base_index = base_index;
-                drawable.num_indices = pcmd->ElemCount;
-
-                renderer.scissor.offset = {static_cast<int32_t>(pcmd->ClipRect.x),
-                                           static_cast<int32_t>(pcmd->ClipRect.y)};
-                renderer.scissor.extent = {static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
-                                           static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
-
-                renderer.stage_drawable(drawable);
-            }
-            base_index += pcmd->ElemCount;
-        }
-    }
-    ImGui::EndFrame();
-}
-
-void mouse_press(const MouseEvent &e)
-{
-    ImGuiIO &io = ImGui::GetIO();
-    if(e.is_left()){ io.MouseDown[0] = true; }
-    else if(e.is_middle()){ io.MouseDown[1] = true; }
-    else if(e.is_right()){ io.MouseDown[2] = true; }
-}
-
-void mouse_release(const MouseEvent &e)
-{
-    ImGuiIO &io = ImGui::GetIO();
-    if(e.is_left()){ io.MouseDown[0] = false; }
-    else if(e.is_middle()){ io.MouseDown[1] = false; }
-    else if(e.is_right()){ io.MouseDown[2] = false; }
-}
-
-void mouse_wheel(const MouseEvent &e)
-{
-    ImGuiIO &io = ImGui::GetIO();
-    io.MouseWheelH += e.wheel_increment().x;
-    io.MouseWheel += e.wheel_increment().y;
-}
-
-void mouse_move(const MouseEvent &e)
-{
-    ImGuiIO &io = ImGui::GetIO();
-    io.MousePos = {static_cast<float>(e.get_x()), static_cast<float>(e.get_y())};
-}
-
-void key_press(const KeyEvent &e)
-{
-    ImGuiIO &io = ImGui::GetIO();
-    io.KeysDown[e.code()] = true;
-    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
-    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
-    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
-    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
-}
-
-void key_release(const KeyEvent &e)
-{
-    ImGuiIO &io = ImGui::GetIO();
-    io.KeysDown[e.code()] = false;
-    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
-    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
-    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
-    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
-}
-
-void char_callback(uint32_t c)
-{
-    ImGuiIO &io = ImGui::GetIO();
-    if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short)c); }
-}
-
-bool create_device_objects(vierkant::DevicePtr device)
-{
-    // font texture
-    ImGuiIO &io = ImGui::GetIO();
-    unsigned char *pixels;
-    int width, height, num_components;
-    io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height, &num_components);
-
-    vierkant::Image::Format fmt = {};
-    fmt.format = vierkant::format<uint8_t>();
-    fmt.extent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
-    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
-                             VK_COMPONENT_SWIZZLE_R};
-    g_imgui_assets.font_texture = vierkant::Image::create(device, pixels, fmt);
-    io.Fonts->TexID = &g_imgui_assets.font_texture;
-
-    // create dummy mesh instance
-    auto mesh = create_window_assets(device).mesh;
-
-    // pipeline format
-    vierkant::Pipeline::Format pipeline_fmt = {};
-    pipeline_fmt.shader_stages = vierkant::shader_stages(device, vierkant::ShaderType::UNLIT_TEXTURE);
-    pipeline_fmt.attribute_descriptions = vierkant::attribute_descriptions(mesh);
-    pipeline_fmt.binding_descriptions = vierkant::binding_descriptions(mesh);
-    pipeline_fmt.depth_write = false;
-    pipeline_fmt.depth_test = false;
-    pipeline_fmt.blending = true;
-    pipeline_fmt.cull_mode = VK_CULL_MODE_NONE;
-    pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-
-    // descriptors
-    vierkant::descriptor_t desc_ubo = {};
-    desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    desc_ubo.binding = 0;
-
-    vierkant::descriptor_t desc_texture = {};
-    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.binding = 1;
-
-    auto &drawable = g_imgui_assets.drawable;
-    drawable.mesh = mesh;
-    drawable.pipeline_format = std::move(pipeline_fmt);
-    drawable.descriptors = {desc_ubo, desc_texture};
-    drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
-    drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
-    return true;
-}
-
-bool init(vierkant::WindowPtr w)
-{
     // Setup back-end capabilities flags
     ImGuiIO &io = ImGui::GetIO();
 
@@ -308,28 +127,160 @@ bool init(vierkant::WindowPtr w)
             im_vec_cast(COLOR_ORANGE.rgb * 0.5f);
 
     vierkant::MouseDelegate mouse_delegate = {};
-    mouse_delegate.mouse_press = mouse_press;
-    mouse_delegate.mouse_release = mouse_release;
-    mouse_delegate.mouse_wheel = mouse_wheel;
-    mouse_delegate.mouse_move = mouse_move;
+    mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e) { mouse_press(ctx, e); };
+    mouse_delegate.mouse_release = [ctx = m_imgui_context](const MouseEvent &e) { mouse_release(ctx, e); };
+    mouse_delegate.mouse_wheel = [ctx = m_imgui_context](const MouseEvent &e) { mouse_wheel(ctx, e); };
+    mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
     w->mouse_delegates.push_back(mouse_delegate);
 
     vierkant::KeyDelegate key_delegate = {};
-    key_delegate.key_press = key_press;
-    key_delegate.key_release = key_release;
-    key_delegate.character_input = char_callback;
+    key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e) { key_press(ctx, e); };
+    key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e) { key_release(ctx, e); };
+    key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
     w->key_delegates.push_back(key_delegate);
 
-    return create_device_objects(w->swapchain().device());
+    create_device_objects(w->swapchain().device());
 }
 
-void shutdown()
+Context::Context(Context &&other) noexcept:
+        Context()
 {
-    g_imgui_assets = {};
+    swap(*this, other);
 }
 
-void new_frame(const glm::vec2 &size, float delta_time)
+Context::~Context()
 {
+    if(m_imgui_context){ ImGui::DestroyContext(m_imgui_context); }
+}
+
+Context &Context::operator=(Context other)
+{
+    swap(*this, other);
+    return *this;
+}
+
+void Context::render(vierkant::Renderer &renderer)
+{
+    ImGui::SetCurrentContext(m_imgui_context);
+
+    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
+    ImGuiIO &io = ImGui::GetIO();
+
+    int fb_width = (int)(io.DisplaySize.x * io.DisplayFramebufferScale.x);
+    int fb_height = (int)(io.DisplaySize.y * io.DisplayFramebufferScale.y);
+    if(fb_width == 0 || fb_height == 0){ return; }
+
+    // create imgui drawlists
+    ImGui::Render();
+    ImDrawData *draw_data = ImGui::GetDrawData();
+    draw_data->ScaleClipRects(io.DisplayFramebufferScale);
+
+    // provide enough frameslots
+    m_imgui_assets.frame_assets.resize(renderer.num_indices());
+    auto &mesh_assets = m_imgui_assets.frame_assets[renderer.current_index()];
+
+    // provide enough mesh_assets (1 vertex/index buffer per window)
+    for(int32_t i = mesh_assets.size(); i < draw_data->CmdListsCount; ++i)
+    {
+        mesh_assets.push_back(create_window_assets(renderer.device()));
+    }
+
+    Renderer::matrix_struct_t matrices = {};
+    matrices.projection = glm::orthoRH(0.f, io.DisplaySize.x, 0.f, io.DisplaySize.y, 0.0f, 1.0f);
+
+    // Draw
+    for(int n = 0; n < draw_data->CmdListsCount; n++)
+    {
+        const ImDrawList *cmd_list = draw_data->CmdLists[n];
+        uint32_t base_index = 0;
+
+        // upload data
+        mesh_assets[n].vertex_buffer->set_data(cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
+        mesh_assets[n].index_buffer->set_data(cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
+
+        for(int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
+        {
+            const ImDrawCmd *pcmd = &cmd_list->CmdBuffer[cmd_i];
+            if(pcmd->UserCallback){ pcmd->UserCallback(cmd_list, pcmd); }
+            else
+            {
+                auto tex = vierkant::ImagePtr(static_cast<vierkant::Image*>(pcmd->TextureId), [](vierkant::Image*){});
+
+                // create a new drawable
+                auto drawable = m_imgui_assets.drawable;
+                drawable.mesh = mesh_assets[n].mesh;
+                drawable.matrices = matrices;
+                drawable.descriptors[1].image_samplers = {tex};
+                drawable.base_index = base_index;
+                drawable.num_indices = pcmd->ElemCount;
+
+                renderer.scissor.offset = {static_cast<int32_t>(pcmd->ClipRect.x),
+                                           static_cast<int32_t>(pcmd->ClipRect.y)};
+                renderer.scissor.extent = {static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
+                                           static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
+
+                renderer.stage_drawable(drawable);
+            }
+            base_index += pcmd->ElemCount;
+        }
+    }
+    ImGui::EndFrame();
+}
+
+bool Context::create_device_objects(const vierkant::DevicePtr &device)
+{
+    // font texture
+    ImGuiIO &io = ImGui::GetIO();
+    unsigned char *pixels;
+    int width, height, num_components;
+    io.Fonts->GetTexDataAsAlpha8(&pixels, &width, &height, &num_components);
+
+    vierkant::Image::Format fmt = {};
+    fmt.format = vierkant::format<uint8_t>();
+    fmt.extent = {static_cast<uint32_t>(width), static_cast<uint32_t>(height), 1};
+    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
+                             VK_COMPONENT_SWIZZLE_R};
+    m_imgui_assets.font_texture = vierkant::Image::create(device, pixels, fmt);
+    io.Fonts->TexID = m_imgui_assets.font_texture.get();
+
+    // create dummy mesh instance
+    auto mesh = create_window_assets(device).mesh;
+
+    // pipeline format
+    vierkant::Pipeline::Format pipeline_fmt = {};
+    pipeline_fmt.shader_stages = vierkant::shader_stages(device, vierkant::ShaderType::UNLIT_TEXTURE);
+    pipeline_fmt.attribute_descriptions = vierkant::attribute_descriptions(mesh);
+    pipeline_fmt.binding_descriptions = vierkant::binding_descriptions(mesh);
+    pipeline_fmt.depth_write = false;
+    pipeline_fmt.depth_test = false;
+    pipeline_fmt.blending = true;
+    pipeline_fmt.cull_mode = VK_CULL_MODE_NONE;
+    pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+
+    // descriptors
+    vierkant::descriptor_t desc_ubo = {};
+    desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+    desc_ubo.binding = 0;
+
+    vierkant::descriptor_t desc_texture = {};
+    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_texture.binding = 1;
+
+    auto &drawable = m_imgui_assets.drawable;
+    drawable.mesh = mesh;
+    drawable.pipeline_format = std::move(pipeline_fmt);
+    drawable.descriptors = {desc_ubo, desc_texture};
+    drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
+    drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
+    return true;
+}
+
+void Context::new_frame(const glm::vec2 &size, float delta_time)
+{
+    ImGui::SetCurrentContext(m_imgui_context);
+
     ImGuiIO &io = ImGui::GetIO();
 
     // Setup display size (every frame to accommodate for window resizing)
@@ -345,6 +296,69 @@ void new_frame(const glm::vec2 &size, float delta_time)
 
     // Setup time step
     io.DeltaTime = delta_time;
+}
+
+void Context::set_current(){ ImGui::SetCurrentContext(m_imgui_context); }
+
+void swap(Context &lhs, Context &rhs) noexcept
+{
+    std::swap(lhs.m_imgui_context, rhs.m_imgui_context);
+    std::swap(lhs.m_imgui_assets, rhs.m_imgui_assets);
+}
+
+void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
+{
+    ImGuiIO &io = ctx->IO;
+    if(e.is_left()){ io.MouseDown[0] = true; }
+    else if(e.is_middle()){ io.MouseDown[1] = true; }
+    else if(e.is_right()){ io.MouseDown[2] = true; }
+}
+
+void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
+{
+    ImGuiIO &io = ctx->IO;
+    if(e.is_left()){ io.MouseDown[0] = false; }
+    else if(e.is_middle()){ io.MouseDown[1] = false; }
+    else if(e.is_right()){ io.MouseDown[2] = false; }
+}
+
+void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e)
+{
+    ImGuiIO &io = ctx->IO;
+    io.MouseWheelH += e.wheel_increment().x;
+    io.MouseWheel += e.wheel_increment().y;
+}
+
+void mouse_move(ImGuiContext *ctx, const MouseEvent &e)
+{
+    ImGuiIO &io = ctx->IO;
+    io.MousePos = {static_cast<float>(e.get_x()), static_cast<float>(e.get_y())};
+}
+
+void key_press(ImGuiContext *ctx, const KeyEvent &e)
+{
+    ImGuiIO &io = ctx->IO;
+    io.KeysDown[e.code()] = true;
+    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
+    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
+    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
+    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
+}
+
+void key_release(ImGuiContext *ctx, const KeyEvent &e)
+{
+    ImGuiIO &io = ctx->IO;
+    io.KeysDown[e.code()] = false;
+    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
+    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
+    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
+    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
+}
+
+void character_input(ImGuiContext *ctx, uint32_t c)
+{
+    ImGuiIO &io = ctx->IO;
+    if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short)c); }
 }
 
 }//namespace

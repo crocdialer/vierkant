@@ -80,6 +80,8 @@ private:
     crocore::Animation m_animation;
 
     vierkant::Font m_font;
+
+    vierkant::gui::Context m_gui_context;
 };
 
 int main(int argc, char *argv[])
