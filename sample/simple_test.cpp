@@ -42,6 +42,7 @@ void HelloTriangleApplication::create_context_and_window()
     };
     m_window->key_delegates = {key_delegate};
 
+    // create a gui and inject key- and mouse-delegates for window
     m_gui_context = vk::gui::Context(m_window);
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);

@@ -3,7 +3,7 @@
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Pipeline.hpp>
 #include "vierkant/imgui/imgui_integration.h"
-#include "vierkant/imgui/imgui_internal.h"
+#include "imgui_internal.h"
 
 namespace vierkant::gui {
 
