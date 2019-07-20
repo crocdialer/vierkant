@@ -6,25 +6,24 @@
 #include "vierkant/shaders.hpp"
 #include "vierkant/Pipeline.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 ShaderModulePtr create_shader_module(const DevicePtr &device,
-                                     const void* spirv_code,
+                                     const void *spirv_code,
                                      size_t num_bytes)
 {
     VkShaderModuleCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     create_info.codeSize = num_bytes;
-    create_info.pCode = reinterpret_cast<const uint32_t*>(spirv_code);
+    create_info.pCode = reinterpret_cast<const uint32_t *>(spirv_code);
 
     VkShaderModule shader_module;
     vkCheck(vkCreateShaderModule(device->handle(), &create_info, nullptr, &shader_module),
             "failed to create shader module!");
     return ShaderModulePtr(shader_module,
-                           [device](VkShaderModule s){ vkDestroyShaderModule(device->handle(), s, nullptr); });
+                           [device](VkShaderModule s) { vkDestroyShaderModule(device->handle(), s, nullptr); });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -35,7 +34,7 @@ std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages(const DevicePtr &
 
     switch(t)
     {
-        case ShaderType ::UNLIT_TEXTURE:
+        case ShaderType::UNLIT_TEXTURE:
             ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit_texture_vert);
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_texture_frag);
             break;
@@ -241,19 +240,16 @@ bool operator==(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs){ return !(lhs == rhs); }
+bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs) { return !(lhs == rhs); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Pipeline::Format::operator==(const Pipeline::Format &other) const
 {
-    bool dynamic_scissor = crocore::contains(dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
-    bool dynamic_viewport = crocore::contains(dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
-
     for(const auto &pair : shader_stages)
     {
-        try{ if(other.shader_stages.at(pair.first) != pair.second){ return false; }}
-        catch(std::out_of_range &e){ return false; }
+        try { if(other.shader_stages.at(pair.first) != pair.second){ return false; }}
+        catch(std::out_of_range &e) { return false; }
     }
 
     if(binding_descriptions.size() != other.binding_descriptions.size()){ return false; }
@@ -285,23 +281,10 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
     if(polygon_mode != other.polygon_mode){ return false; }
     if(cull_mode != other.cull_mode){ return false; }
 
-    if(!dynamic_viewport)
-    {
-        if(viewport.x != other.viewport.x){ return false; }
-        if(viewport.y != other.viewport.y){ return false; }
-        if(viewport.width != other.viewport.width){ return false; }
-        if(viewport.height != other.viewport.height){ return false; }
-        if(viewport.minDepth != other.viewport.minDepth){ return false; }
-        if(viewport.maxDepth != other.viewport.maxDepth){ return false; }
-    }
-
-    if(!dynamic_scissor)
-    {
-        if(scissor.offset.x != other.scissor.offset.x){ return false; }
-        if(scissor.offset.y != other.scissor.offset.y){ return false; }
-        if(scissor.extent.width != other.scissor.extent.width){ return false; }
-        if(scissor.extent.height != other.scissor.extent.height){ return false; }
-    }
+    bool dynamic_scissor = crocore::contains(dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
+    bool dynamic_viewport = crocore::contains(dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
+    if(!dynamic_viewport && memcmp(&viewport, &other.viewport, sizeof(VkViewport)) != 0){ return false; }
+    if(!dynamic_scissor && memcmp(&scissor, &other.scissor, sizeof(VkRect2D)) != 0){ return false; }
 
     if(rasterizer_discard != other.rasterizer_discard){ return false; }
     if(depth_test != other.depth_test){ return false; }
@@ -356,8 +339,7 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
 
 using crocore::hash_combine;
 
-namespace std
-{
+namespace std {
 template<>
 struct hash<VkStencilOpState>
 {

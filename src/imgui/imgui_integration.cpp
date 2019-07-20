@@ -95,7 +95,7 @@ const ImVec4 im_vec_cast(const glm::vec3 &the_vec)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Context::Context(const vierkant::WindowPtr &w) :
+Context::Context(const vierkant::DevicePtr &device) :
         m_imgui_context{ImGui::CreateContext()}
 {
     ImGui::SetCurrentContext(m_imgui_context);
@@ -135,22 +135,18 @@ Context::Context(const vierkant::WindowPtr &w) :
     im_style.Colors[ImGuiCol_FrameBgHovered] = im_style.Colors[ImGuiCol_FrameBgActive] =
             im_vec_cast(COLOR_ORANGE.rgb * 0.5f);
 
-    std::string delegate_id = "imgui: " + w->title();
-
-    vierkant::mouse_delegate_t mouse_delegate = {};
+    auto &mouse_delegate = m_imgui_assets.mouse_delegate;
     mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e) { mouse_press(ctx, e); };
     mouse_delegate.mouse_release = [ctx = m_imgui_context](const MouseEvent &e) { mouse_release(ctx, e); };
     mouse_delegate.mouse_wheel = [ctx = m_imgui_context](const MouseEvent &e) { mouse_wheel(ctx, e); };
     mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
-    w->mouse_delegates[delegate_id] = std::move(mouse_delegate);
 
-    vierkant::key_delegate_t key_delegate = {};
+    auto &key_delegate = m_imgui_assets.key_delegate;
     key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e) { key_press(ctx, e); };
     key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e) { key_release(ctx, e); };
     key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
-    w->key_delegates[delegate_id] = std::move(key_delegate);
 
-    create_device_objects(w->swapchain().device());
+    create_device_objects(device);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,10 +249,11 @@ void Context::render(vierkant::Renderer &renderer)
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;
 
-                renderer.scissor.offset = {static_cast<int32_t>(pcmd->ClipRect.x),
-                                           static_cast<int32_t>(pcmd->ClipRect.y)};
-                renderer.scissor.extent = {static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
-                                           static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
+                auto &scissor = drawable.pipeline_format.scissor;
+                scissor.offset = {static_cast<int32_t>(pcmd->ClipRect.x),
+                                  static_cast<int32_t>(pcmd->ClipRect.y)};
+                scissor.extent = {static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
+                                  static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
 
                 renderer.stage_drawable(drawable);
             }
@@ -264,6 +261,20 @@ void Context::render(vierkant::Renderer &renderer)
         }
     }
     ImGui::EndFrame();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const vierkant::mouse_delegate_t &Context::mouse_delegate() const
+{
+    return m_imgui_assets.mouse_delegate;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+const vierkant::key_delegate_t &Context::key_delegate() const
+{
+    return m_imgui_assets.key_delegate;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

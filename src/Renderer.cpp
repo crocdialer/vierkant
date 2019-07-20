@@ -142,7 +142,7 @@ void Renderer::render(VkCommandBuffer command_buffer)
         if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR))
         {
             // set dynamic scissor
-            vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+            vkCmdSetScissor(command_buffer, 0, 1, &pipe_fmt.scissor);
         }
 
         // sort by meshes

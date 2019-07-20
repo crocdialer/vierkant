@@ -24,6 +24,26 @@ BOOST_AUTO_TEST_CASE(TestPipeline_Format)
     BOOST_CHECK(foo != bar);
     BOOST_CHECK(fmt_hash(foo) != fmt_hash(bar));
 
+    // different viewport and not dynamic
+    bar = foo;
+    bar.viewport.x = 23;
+    bar.dynamic_states = {};
+    BOOST_CHECK(foo != bar);
+
+    // dynamic viewport
+    bar.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
+    BOOST_CHECK(foo == bar);
+
+    // different scissor and not dynamic
+    bar = {}; foo = {};
+    bar.scissor.extent.width = 200;
+    bar.dynamic_states = {};
+    BOOST_CHECK(foo != bar);
+
+    // dynamic scissor
+    foo.dynamic_states = bar.dynamic_states = {VK_DYNAMIC_STATE_SCISSOR};
+    BOOST_CHECK(foo == bar);
+
     std::unordered_map<vk::Pipeline::Format, int> pipeline_map;
     pipeline_map[foo] = 11;
     pipeline_map[bar] = 23;

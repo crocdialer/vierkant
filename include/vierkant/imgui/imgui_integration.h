@@ -14,7 +14,12 @@ public:
     //! Delegate functions for gui drawing
     std::map<std::string, draw_fn_t> delegates;
 
-    explicit Context(const vierkant::WindowPtr &w);
+    /**
+     * @brief   Create a new gui::Context with provided device.
+     *
+     * @param   device  a shared vierkant::Device to create the gui-assets with.
+     */
+    explicit Context(const vierkant::DevicePtr &device);
 
     Context() = default;
 
@@ -34,7 +39,11 @@ public:
      */
     void render(vierkant::Renderer &renderer);
 
-    friend void swap(Context &lhs, Context& rhs) noexcept;
+    const vierkant::mouse_delegate_t &mouse_delegate() const;
+
+    const vierkant::key_delegate_t &key_delegate() const;
+
+    friend void swap(Context &lhs, Context &rhs) noexcept;
 
 private:
 
@@ -50,6 +59,8 @@ private:
         vierkant::Renderer::drawable_t drawable = {};
         vierkant::ImagePtr font_texture = nullptr;
         std::vector<std::vector<mesh_asset_t>> frame_assets;
+        vierkant::mouse_delegate_t mouse_delegate = {};
+        vierkant::key_delegate_t key_delegate = {};
         std::chrono::steady_clock::time_point time_point = std::chrono::steady_clock::now();
     };
 
@@ -57,7 +68,7 @@ private:
 
     bool create_device_objects(const vierkant::DevicePtr &device);
 
-    ImGuiContext* m_imgui_context = nullptr;
+    ImGuiContext *m_imgui_context = nullptr;
 
     imgui_assets_t m_imgui_assets = {};
 };
