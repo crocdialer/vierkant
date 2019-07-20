@@ -20,7 +20,7 @@ std::vector<JoystickState> get_joystick_states();
 /**
  * @brief   MouseDelegate is a struct to group mouse-callbacks
  */
-struct MouseDelegate
+struct mouse_delegate_t
 {
     using mouse_cb_t = std::function<void(const MouseEvent &)>;
     using file_drop_cb_t = std::function<void(const MouseEvent &, const std::vector<std::string> &)>;
@@ -31,34 +31,24 @@ struct MouseDelegate
     mouse_cb_t mouse_drag;
     mouse_cb_t mouse_wheel;
     file_drop_cb_t file_drop;
-
-    explicit operator bool() const
-    {
-        return mouse_press || mouse_release || mouse_move || mouse_drag || mouse_wheel || file_drop;
-    }
 };
 
 /**
  * @brief   TouchDelegate is a struct to group touch-callbacks
  */
-struct TouchDelegate
+struct touch_delegate_t
 {
     using touch_cb_t = std::function<void(const MouseEvent &, const std::set<const Touch *> &)>;
 
     touch_cb_t touch_begin;
     touch_cb_t touch_end;
     touch_cb_t touch_move;
-
-    explicit operator bool() const
-    {
-        return touch_begin || touch_end || touch_move;
-    }
 };
 
 /**
  * @brief   KeyDelegate is a struct to group keyboard-callbacks
  */
-struct KeyDelegate
+struct key_delegate_t
 {
     using key_cb_t = std::function<void(const KeyEvent &)>;
     using char_cb_t = std::function<void(uint32_t)>;
@@ -66,11 +56,6 @@ struct KeyDelegate
     key_cb_t key_press;
     key_cb_t key_release;
     char_cb_t character_input;
-
-    explicit operator bool() const
-    {
-        return key_press || key_release || character_input;
-    }
 };
 
 //! Base class for all Events

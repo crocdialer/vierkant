@@ -16,37 +16,34 @@ namespace vierkant {
 
 DEFINE_CLASS_PTR(Window)
 
-class Window : public std::enable_shared_from_this<Window>
+struct window_delegate_t
 {
-public:
     using draw_fn_t = std::function<void(const WindowPtr &)>;
     using close_fn_t = std::function<void()>;
     using resize_fn_t = std::function<void(uint32_t w, uint32_t h)>;
 
-    /**
-     *  Delegate objects for mouse callbacks
-     */
-    std::vector<MouseDelegate> mouse_delegates;
-
-    /**
-     *  Delegate objects for keyboard callbacks
-     */
-    std::vector<KeyDelegate> key_delegates;
-
-    /**
-     *  Callback for draw-operations
-     */
+    //! Callback for draw-operations
     draw_fn_t draw_fn;
 
-    /**
-     *  Callback for closing the window
-     */
+    //! Callback for closing the window
     close_fn_t close_fn;
 
-    /**
-     *  Callback for resizing the window
-     */
+    //! Callback for resizing the window
     resize_fn_t resize_fn;
+};
+
+class Window : public std::enable_shared_from_this<Window>
+{
+public:
+
+    //! Delegate objects for mouse callbacks
+    std::vector<mouse_delegate_t> mouse_delegates;
+
+    //! Delegate objects for keyboard callbacks
+    std::vector<key_delegate_t> key_delegates;
+
+    //! Delegate objects for window callbacks
+    std::vector<window_delegate_t> window_delegates;
 
     /**
      * @brief   Helper function to retrieve a list of Vulkan-Extensions required for Window

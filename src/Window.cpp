@@ -148,7 +148,10 @@ void Window::record_command_buffer()
                                                VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
     // fire secondary commandbuffers here
-    if(draw_fn){ draw_fn(shared_from_this()); }
+    for(auto &delegate : window_delegates)
+    {
+        if(delegate.draw_fn){ delegate.draw_fn(shared_from_this()); }
+    }
 
     framebuffers[image_index].end_renderpass();
     m_command_buffers[image_index].end();
@@ -320,8 +323,10 @@ void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
     // recreate a swapchain
     self->create_swapchain(self->m_swap_chain.device(), self->m_swap_chain.sample_count(), self->m_swap_chain.v_sync());
 
-    if(self->resize_fn){ self->resize_fn(width, height); }
-
+    for(auto &delegate : self->window_delegates)
+    {
+        if(delegate.resize_fn){ delegate.resize_fn(width, height); }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -329,8 +334,11 @@ void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
 void Window::glfw_close_cb(GLFWwindow *window)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-    if(self->close_fn){ self->close_fn(); }
 
+    for(auto &delegate : self->window_delegates)
+    {
+        if(delegate.close_fn){ delegate.close_fn(); }
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -33,7 +33,9 @@ BOOST_AUTO_TEST_CASE(TestWindow)
     //BOOST_CHECK(new_position == window->position());
 
     // add resize callback
-    window->resize_fn = [&trigger_size](uint32_t w, uint32_t h){ trigger_size = true; };
+    vierkant::window_delegate_t window_delegate = {};
+    window_delegate.resize_fn = [&trigger_size](uint32_t w, uint32_t h){ trigger_size = true; };
+    window->window_delegates = {window_delegate};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

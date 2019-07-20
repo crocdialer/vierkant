@@ -29,20 +29,24 @@ void HelloTriangleApplication::create_context_and_window()
                                   m_window->surface());
     m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT, V_SYNC);
 
-    m_window->draw_fn = std::bind(&HelloTriangleApplication::draw, this, std::placeholders::_1);
-    m_window->resize_fn = [this](uint32_t w, uint32_t h)
+    // create a WindowDelegate
+    vierkant::window_delegate_t window_delegate = {};
+    window_delegate.draw_fn = std::bind(&HelloTriangleApplication::draw, this, std::placeholders::_1);
+    window_delegate.resize_fn = [this](uint32_t w, uint32_t h)
     {
         create_graphics_pipeline();
     };
+    m_window->window_delegates = {window_delegate};
 
-    vierkant::KeyDelegate key_delegate = {};
+    // create a KeyDelegate
+    vierkant::key_delegate_t key_delegate = {};
     key_delegate.key_press = [this](const vierkant::KeyEvent &e)
     {
         if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
     };
     m_window->key_delegates = {key_delegate};
 
-    // create a gui and inject key- and mouse-delegates for window
+    // create a gui and inject additional key- and mouse-delegates for window
     m_gui_context = vk::gui::Context(m_window);
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);

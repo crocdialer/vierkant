@@ -126,14 +126,14 @@ Context::Context(const vierkant::WindowPtr &w) :
     im_style.Colors[ImGuiCol_FrameBgHovered] = im_style.Colors[ImGuiCol_FrameBgActive] =
             im_vec_cast(COLOR_ORANGE.rgb * 0.5f);
 
-    vierkant::MouseDelegate mouse_delegate = {};
+    vierkant::mouse_delegate_t mouse_delegate = {};
     mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e) { mouse_press(ctx, e); };
     mouse_delegate.mouse_release = [ctx = m_imgui_context](const MouseEvent &e) { mouse_release(ctx, e); };
     mouse_delegate.mouse_wheel = [ctx = m_imgui_context](const MouseEvent &e) { mouse_wheel(ctx, e); };
     mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
     w->mouse_delegates.push_back(mouse_delegate);
 
-    vierkant::KeyDelegate key_delegate = {};
+    vierkant::key_delegate_t key_delegate = {};
     key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e) { key_press(ctx, e); };
     key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e) { key_release(ctx, e); };
     key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
