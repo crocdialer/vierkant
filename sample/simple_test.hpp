@@ -23,6 +23,8 @@ const bool g_enable_validation_layers = true;
 
 const char* g_texture_url = "http://roa.h-cdn.co/assets/cm/14/47/1024x576/546b32b33240f_-_hasselhoff_kr_pr_nbc-lg.jpg";
 
+const char* g_font_path = "/usr/local/share/fonts/Courier New Bold.ttf";
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class HelloTriangleApplication : public vierkant::Application
@@ -75,7 +77,7 @@ private:
 
     crocore::Animation m_animation;
 
-    vierkant::Font m_font;
+    vierkant::FontPtr m_font;
 
     vierkant::gui::Context m_gui_context;
 };

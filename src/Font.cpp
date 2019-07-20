@@ -1,5 +1,7 @@
 #include <utility>
 
+#include <utility>
+
 // __ ___ ____ _____ ______ _______ ________ _______ ______ _____ ____ ___ __
 //
 // Copyright (C) 2012-2016, Fabian Schmidt <crocdialer@googlemail.com>
@@ -45,6 +47,19 @@ struct string_mesh_container
 
     bool operator<(const string_mesh_container &other) const { return counter < other.counter; }
 };
+
+FontPtr Font::create(vierkant::DevicePtr device, const std::string &the_path, size_t size, bool use_sdf)
+{
+    try
+    {
+        auto p = crocore::fs::search_file(the_path);
+        return FontPtr(new Font(std::move(device), the_path, size, use_sdf));
+    }catch(const std::exception &e)
+    {
+        LOG_ERROR << e.what();
+        return nullptr;
+    }
+}
 
 struct FontImpl
 {
@@ -121,9 +136,36 @@ struct FontImpl
 };
 
 
-Font::Font() : m_impl(new FontImpl())
+Font::Font(vierkant::DevicePtr device, const std::string &path, size_t size, bool use_sdf) : m_impl(
+        new FontImpl())
 {
+    std::vector<uint8_t> font_data = crocore::fs::read_binary_file(path);
+    m_impl->path = path;
+    m_impl->string_mesh_map.clear();
+    m_impl->font_height = size;
+    m_impl->line_height = size;
+    m_impl->use_sdf = use_sdf;
 
+    auto img_quads_pair = m_impl->create_bitmap(font_data, size, BITMAP_WIDTH(size),
+                                                use_sdf ? 6 : 2);
+
+    m_impl->bitmap = img_quads_pair.first;
+    m_impl->char_data = std::move(img_quads_pair.second);
+
+//        // signed distance field
+//        if(use_sdf)
+//        {
+//            auto dist_img = compute_distance_field(m_impl->bitmap, 5);
+//            dist_img = dist_img->blur();
+//            m_impl->sdf_texture = create_texture_from_image(dist_img, true);
+//        }
+
+    vierkant::Image::Format fmt;
+    fmt.format = vierkant::format<uint8_t>();
+    fmt.extent = {m_impl->bitmap->width(), m_impl->bitmap->height(), 1};
+    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
+                             VK_COMPONENT_SWIZZLE_R};
+    m_impl->texture = vierkant::Image::create(std::move(device), m_impl->bitmap->data(), fmt);
 }
 
 const std::string Font::path() const
@@ -159,44 +201,6 @@ void Font::set_line_height(uint32_t the_line_height)
 bool Font::use_sdf() const { return m_impl->use_sdf; }
 
 void Font::set_use_sdf(bool b) { m_impl->use_sdf = b; }
-
-void Font::load(vierkant::DevicePtr device, const std::string &thePath, size_t theSize, bool use_sdf)
-{
-    try
-    {
-        auto p = crocore::fs::search_file(thePath);
-        std::vector<uint8_t> font_data = crocore::fs::read_binary_file(p);
-        m_impl->path = p;
-        m_impl->string_mesh_map.clear();
-        m_impl->font_height = theSize;
-        m_impl->line_height = theSize;
-        m_impl->use_sdf = use_sdf;
-
-        auto img_quads_pair = m_impl->create_bitmap(font_data, theSize, BITMAP_WIDTH(theSize),
-                                           use_sdf ? 6 : 2);
-
-        m_impl->bitmap = img_quads_pair.first;
-        m_impl->char_data = std::move(img_quads_pair.second);
-
-//        // signed distance field
-//        if(use_sdf)
-//        {
-//            auto dist_img = compute_distance_field(m_impl->bitmap, 5);
-//            dist_img = dist_img->blur();
-//            m_impl->sdf_texture = create_texture_from_image(dist_img, true);
-//        }
-
-        vierkant::Image::Format fmt;
-        fmt.format = vierkant::format<uint8_t>();
-        fmt.extent = {m_impl->bitmap->width(), m_impl->bitmap->height(), 1};
-        fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
-                                 VK_COMPONENT_SWIZZLE_R};
-        m_impl->texture = vierkant::Image::create(std::move(device), m_impl->bitmap->data(), fmt);
-    }catch(const std::exception &e)
-    {
-        LOG_ERROR << e.what();
-    }
-}
 
 vierkant::AABB Font::create_aabb(const std::string &theText) const
 {

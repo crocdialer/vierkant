@@ -47,7 +47,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_window->key_delegates["main"] = key_delegate;
 
     // create a gui and add a draw-delegate
-    m_gui_context = vk::gui::Context(m_device);
+    m_gui_context = vk::gui::Context(m_device, g_font_path, 23.f);
     m_gui_context.delegates["main"] = [this] { vk::gui::draw_component_ui(shared_from_this()); };
 
     m_gui_context.delegates["textures"] = [this]
@@ -83,7 +83,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
     m_animation.start();
 
-    m_font.load(m_device, "/usr/local/share/fonts/Courier New Bold.ttf", 64);
+    m_font = vk::Font::create(m_device, g_font_path, 64);
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
@@ -146,8 +146,11 @@ void HelloTriangleApplication::create_texture_image()
     fmt.use_mipmap = true;
     m_texture = vk::Image::create(m_device, img->data(), fmt);
 
-    // render some text into a texture
-    m_texture_font = m_font.create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
+    if(m_font)
+    {
+        // render some text into a texture
+        m_texture_font = m_font->create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
+    }
 
 //    fmt = m_texture->format();
 //    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,

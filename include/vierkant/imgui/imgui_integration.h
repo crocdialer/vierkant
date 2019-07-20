@@ -19,7 +19,7 @@ public:
      *
      * @param   device  a shared vierkant::Device to create the gui-assets with.
      */
-    explicit Context(const vierkant::DevicePtr &device);
+    explicit Context(const vierkant::DevicePtr &device, const std::string &font = "", float font_size = 0.f);
 
     Context() = default;
 

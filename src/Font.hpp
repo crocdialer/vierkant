@@ -11,6 +11,8 @@
 
 namespace vierkant {
 
+DEFINE_CLASS_PTR(Font)
+
 class Font
 {
 public:
@@ -20,9 +22,13 @@ public:
         LEFT, CENTER, RIGHT
     };
 
-    Font();
+    static FontPtr create(vierkant::DevicePtr device, const std::string &the_path, size_t size, bool use_sdf = false);
 
-    void load(vierkant::DevicePtr device, const std::string &the_path, size_t the_size, bool use_sdf = false);
+    Font(const Font &) = delete;
+
+    Font(Font &&) = delete;
+
+    Font &operator=(Font other) = delete;
 
     const std::string path() const;
 
@@ -70,12 +76,10 @@ public:
     void set_use_sdf(bool b);
 
 private:
-    std::shared_ptr<struct FontImpl> m_impl;
 
-public:
-    explicit operator bool() const { return m_impl.get(); }
+    Font(vierkant::DevicePtr device, const std::string &path, size_t size, bool use_sdf);
 
-    void reset() { m_impl.reset(); }
+    std::unique_ptr<struct FontImpl> m_impl;
 };
 
 }// namespace

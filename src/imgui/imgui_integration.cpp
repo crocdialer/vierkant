@@ -95,7 +95,7 @@ const ImVec4 im_vec_cast(const glm::vec3 &the_vec)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Context::Context(const vierkant::DevicePtr &device) :
+Context::Context(const vierkant::DevicePtr &device, const std::string &font, float font_size) :
         m_imgui_context(ImGui::CreateContext())
 {
     ImGui::SetCurrentContext(m_imgui_context);
@@ -129,11 +129,18 @@ Context::Context(const vierkant::DevicePtr &device) :
     io.KeyMap[ImGuiKey_Y] = Key::_Y;
     io.KeyMap[ImGuiKey_Z] = Key::_Z;
 
+    if(!font.empty())
+    {
+        // add custom font
+        io.Fonts->AddFontFromFileTTF(font.c_str(), font_size, nullptr, io.Fonts->GetGlyphRangesDefault());
+    }
+
     ImGuiStyle &im_style = ImGui::GetStyle();
     im_style.Colors[ImGuiCol_TitleBgActive] = im_vec_cast(COLOR_ORANGE.rgb * 0.5f);
     im_style.Colors[ImGuiCol_FrameBg] = im_vec_cast(COLOR_WHITE.rgb * 0.07f);
     im_style.Colors[ImGuiCol_FrameBgHovered] = im_style.Colors[ImGuiCol_FrameBgActive] =
             im_vec_cast(COLOR_ORANGE.rgb * 0.5f);
+    im_style.ScaleAllSizes(1.5f);
 
     auto &mouse_delegate = m_imgui_assets.mouse_delegate;
     mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e) { mouse_press(ctx, e); };
