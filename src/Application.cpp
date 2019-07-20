@@ -18,7 +18,7 @@ Application::Application(int argc, char *argv[]) :
         m_current_fps(0.f),
         m_running(false),
         m_main_queue(0),
-        m_background_queue(2)
+        m_background_queue(4)
 {
     srand(time(nullptr));
     for(int i = 0; i < argc; i++){ m_args.emplace_back(argv[i]); }

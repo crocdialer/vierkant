@@ -62,7 +62,7 @@ public:
 
     void stage_image(const vierkant::ImagePtr &image, const crocore::Area_<int> &area = {});
 
-    void render(VkCommandBuffer command_buffer);
+    VkCommandBuffer render(VkCommandBufferInheritanceInfo *inheritance);
 
     uint32_t current_index() const { return m_current_index; }
 
@@ -106,6 +106,7 @@ private:
     {
         asset_map_t render_assets;
         std::vector<drawable_t> drawables;
+        vierkant::CommandBuffer command_buffer;
     };
     DevicePtr m_device;
 

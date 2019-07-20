@@ -45,8 +45,6 @@ private:
 
     void create_graphics_pipeline();
 
-    void create_command_buffer(size_t i);
-
     void create_texture_image();
 
     void load_model();
@@ -63,9 +61,6 @@ private:
 
     // window handle
     std::shared_ptr<vierkant::Window> m_window;
-
-    // command buffers
-    std::vector<vierkant::CommandBuffer> m_command_buffers;
 
     vierkant::ImagePtr m_texture, m_texture_font;
 

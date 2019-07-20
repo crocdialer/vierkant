@@ -46,6 +46,11 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
         vkDestroyCommandPool(device->handle(), pool, nullptr);
     });
 
+    for(auto &render_asset : m_render_assets)
+    {
+        render_asset.command_buffer = vierkant::CommandBuffer(m_device, command_pool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+    }
+
     // we also need a DescriptorPool ...
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1024}};
@@ -108,7 +113,7 @@ void Renderer::stage_drawable(const drawable_t &drawable)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::render(VkCommandBuffer command_buffer)
+VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 {
     uint32_t last_index;
     {
@@ -119,6 +124,11 @@ void Renderer::render(VkCommandBuffer command_buffer)
     }
     auto &last_assets = m_render_assets[last_index];
     frame_assets_t current_assets = {};
+
+    // fetch and start commandbuffer
+    current_assets.command_buffer = std::move(last_assets.command_buffer);
+    auto &command_buffer = current_assets.command_buffer;
+    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, inheritance);
 
     // sort by pipelines
     std::unordered_map<Pipeline::Format, std::vector<drawable_t *>> pipelines;
@@ -131,18 +141,18 @@ void Renderer::render(VkCommandBuffer command_buffer)
         auto pipeline = m_pipeline_cache->get(pipe_fmt);
 
         // bind pipeline
-        pipeline->bind(command_buffer);
+        pipeline->bind(command_buffer.handle());
 
         if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT))
         {
             // set dynamic viewport
-            vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+            vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
         }
 
         if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR))
         {
             // set dynamic scissor
-            vkCmdSetScissor(command_buffer, 0, 1, &pipe_fmt.scissor);
+            vkCmdSetScissor(command_buffer.handle(), 0, 1, &pipe_fmt.scissor);
         }
 
         // sort by meshes
@@ -153,7 +163,7 @@ void Renderer::render(VkCommandBuffer command_buffer)
         for(auto &[mesh, drawables] : meshes)
         {
             // bind vertex- and index-buffers
-            vierkant::bind_buffers(command_buffer, mesh);
+            vierkant::bind_buffers(command_buffer.handle(), mesh);
 
             for(auto drawable : drawables)
             {
@@ -181,7 +191,7 @@ void Renderer::render(VkCommandBuffer command_buffer)
                     {
                         for(auto &img : desc.image_samplers)
                         {
-                            img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer);
+                            img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
                         }
                     }
                     descriptors[0].buffer = uniform_buf;
@@ -217,20 +227,24 @@ void Renderer::render(VkCommandBuffer command_buffer)
 
                 // bind descriptor sets (uniforms, samplers)
                 VkDescriptorSet descriptor_handle = descriptor_set.get();
-                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(),
+                vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(),
                                         0, 1, &descriptor_handle, 0, nullptr);
 
                 // issue (indexed) drawing command
                 if(drawable->mesh->index_buffer)
                 {
-                    vkCmdDrawIndexed(command_buffer, drawable->num_indices, 1, drawable->base_index, 0, 0);
-                }else{ vkCmdDraw(command_buffer, drawable->num_indices, 1, drawable->base_index, 0); }
+                    vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index, 0, 0);
+                }else{ vkCmdDraw(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index, 0); }
             }
         }
     }
 
     // keep the stuff in use
     last_assets = std::move(current_assets);
+
+    // end and return commandbuffer
+    last_assets.command_buffer.end();
+    return last_assets.command_buffer.handle();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

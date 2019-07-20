@@ -98,48 +98,6 @@ void HelloTriangleApplication::create_graphics_pipeline()
     m_drawable.pipeline_format.depth_write = true;
     m_drawable.pipeline_format.stencil_test = false;
     m_drawable.pipeline_format.blending = false;
-
-    // make sure count matches
-    m_command_buffers.resize(framebuffers.size());
-
-    for(auto &cmd_buf : m_command_buffers)
-    {
-        cmd_buf = vk::CommandBuffer(m_device, m_device->command_pool(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-    }
-}
-
-void HelloTriangleApplication::create_command_buffer(size_t i)
-{
-    const auto &framebuffer = m_window->swapchain().framebuffers()[i];
-    int32_t width = m_window->swapchain().extent().width, height = m_window->swapchain().extent().height;
-    auto &command_buffer = m_command_buffers[i];
-
-    VkCommandBufferInheritanceInfo inheritance = {};
-    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance.framebuffer = framebuffer.handle();
-    inheritance.renderPass = framebuffer.renderpass().get();
-
-    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT |
-                         VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT, &inheritance);
-
-    for(auto renderer : {&m_image_renderer, &m_renderer, &m_gui_renderer})
-    {
-        renderer->viewport.width = width;
-        renderer->viewport.height = height;
-    }
-    m_image_renderer.stage_image(m_texture);
-    m_image_renderer.stage_image(m_texture, {width / 4, height / 4, width / 2, height / 2});
-    m_image_renderer.stage_image(m_texture_font, {width / 4, height / 4, width / 2, height / 2});
-
-    m_renderer.stage_drawable(m_drawable);
-
-    m_gui_context.render(m_gui_renderer);
-
-    for(auto renderer : {&m_image_renderer, &m_renderer, &m_gui_renderer})
-    {
-        renderer->render(command_buffer.handle());
-    }
-    command_buffer.end();
 }
 
 void HelloTriangleApplication::create_texture_image()
@@ -206,11 +164,50 @@ void HelloTriangleApplication::update(double time_delta)
 void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 {
     auto image_index = w->swapchain().image_index();
+    const auto &framebuffer = m_window->swapchain().framebuffers()[image_index];
+    int32_t width = m_window->swapchain().extent().width, height = m_window->swapchain().extent().height;
 
-    // create commandbuffer for this frame
-    create_command_buffer(image_index);
+    VkCommandBufferInheritanceInfo inheritance = {};
+    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritance.framebuffer = framebuffer.handle();
+    inheritance.renderPass = framebuffer.renderpass().get();
 
-    // execute secondary commandbuffers
-    VkCommandBuffer command_buf = m_command_buffers[image_index].handle();
-    vkCmdExecuteCommands(w->command_buffer().handle(), 1, &command_buf);
+    for(auto renderer : {&m_image_renderer, &m_renderer, &m_gui_renderer})
+    {
+        renderer->viewport.width = width;
+        renderer->viewport.height = height;
+    }
+
+    auto render_images = [this, width, height, &inheritance]() -> VkCommandBuffer
+    {
+        m_image_renderer.stage_image(m_texture);
+        m_image_renderer.stage_image(m_texture, {width / 4, height / 4, width / 2, height / 2});
+        m_image_renderer.stage_image(m_texture_font, {width / 4, height / 4, width / 2, height / 2});
+        return m_image_renderer.render(&inheritance);
+    };
+
+    auto render_mesh = [this, &inheritance]() -> VkCommandBuffer
+    {
+        m_renderer.stage_drawable(m_drawable);
+        return m_renderer.render(&inheritance);
+    };
+
+    auto render_gui = [this, &inheritance]() -> VkCommandBuffer
+    {
+        m_gui_context.render(m_gui_renderer);
+        return m_gui_renderer.render(&inheritance);
+    };
+
+    // submit and wait for all command-creation tasks to complete
+    std::vector<std::future<VkCommandBuffer>> cmd_futures;
+    cmd_futures.push_back(background_queue().post(render_images));
+    cmd_futures.push_back(background_queue().post(render_mesh));
+    cmd_futures.push_back(background_queue().post(render_gui));
+    crocore::wait_all(cmd_futures);
+
+    // get values from completed futures
+    std::vector<VkCommandBuffer> command_buffers;
+    for(auto &f : cmd_futures){ command_buffers.push_back(f.get()); }
+
+    vkCmdExecuteCommands(w->command_buffer().handle(), command_buffers.size(), command_buffers.data());
 }
