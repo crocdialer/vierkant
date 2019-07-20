@@ -36,7 +36,7 @@ void HelloTriangleApplication::create_context_and_window()
     {
         create_graphics_pipeline();
     };
-    m_window->window_delegates = {window_delegate};
+    m_window->window_delegates["main"] = window_delegate;
 
     // create a KeyDelegate
     vierkant::key_delegate_t key_delegate = {};
@@ -44,10 +44,11 @@ void HelloTriangleApplication::create_context_and_window()
     {
         if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
     };
-    m_window->key_delegates = {key_delegate};
+    m_window->key_delegates["main"] = key_delegate;
 
     // create a gui and inject additional key- and mouse-delegates for window
     m_gui_context = vk::gui::Context(m_window);
+    m_gui_context.delegates["main"] = [this] { vk::gui::draw_component_ui(shared_from_this()); };
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
@@ -191,10 +192,6 @@ void HelloTriangleApplication::update(double time_delta)
                                            glm::vec3(0.0f, 0.0f, 1.0f));
     m_drawable.matrices.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
     m_drawable.matrices.projection[1][1] *= -1;
-
-    // draw application gui
-    m_gui_context.new_frame(m_window->size(), time_delta);
-    vk::gui::draw_component_ui(shared_from_this());
 
     // issue top-level draw-command
     m_window->draw();

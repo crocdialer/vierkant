@@ -7,6 +7,9 @@
 
 namespace vierkant::gui {
 
+// 1 double per second
+using double_sec_t = std::chrono::duration<double, std::chrono::seconds::period>;
+
 static const glm::vec4 COLOR_WHITE(1), COLOR_BLACK(0, 0, 0, 1), COLOR_GRAY(.6, .6, .6, 1.),
         COLOR_RED(1, 0, 0, 1), COLOR_GREEN(0, 1, 0, 1), COLOR_BLUE(0, 0, 1, 1),
         COLOR_YELLOW(1, 1, 0, 1), COLOR_PURPLE(1, 0, 1, 1), COLOR_ORANGE(1, .5, 0, 1),
@@ -26,6 +29,8 @@ void key_press(ImGuiContext *ctx, const KeyEvent &e);
 void key_release(ImGuiContext *ctx, const KeyEvent &e);
 
 void character_input(ImGuiContext *ctx, uint32_t c);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Context::mesh_asset_t Context::create_window_assets(const vierkant::DevicePtr &device)
 {
@@ -80,11 +85,15 @@ Context::mesh_asset_t Context::create_window_assets(const vierkant::DevicePtr &d
     return {mesh, vertex_buffer, index_buffer};
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 const ImVec4 im_vec_cast(const glm::vec3 &the_vec)
 {
     auto tmp = glm::vec4(the_vec, 1.f);
     return *reinterpret_cast<const ImVec4 *>(&tmp);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Context::Context(const vierkant::WindowPtr &w) :
         m_imgui_context{ImGui::CreateContext()}
@@ -126,21 +135,25 @@ Context::Context(const vierkant::WindowPtr &w) :
     im_style.Colors[ImGuiCol_FrameBgHovered] = im_style.Colors[ImGuiCol_FrameBgActive] =
             im_vec_cast(COLOR_ORANGE.rgb * 0.5f);
 
+    std::string delegate_id = "imgui: " + w->title();
+
     vierkant::mouse_delegate_t mouse_delegate = {};
     mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e) { mouse_press(ctx, e); };
     mouse_delegate.mouse_release = [ctx = m_imgui_context](const MouseEvent &e) { mouse_release(ctx, e); };
     mouse_delegate.mouse_wheel = [ctx = m_imgui_context](const MouseEvent &e) { mouse_wheel(ctx, e); };
     mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
-    w->mouse_delegates.push_back(mouse_delegate);
+    w->mouse_delegates[delegate_id] = std::move(mouse_delegate);
 
     vierkant::key_delegate_t key_delegate = {};
     key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e) { key_press(ctx, e); };
     key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e) { key_release(ctx, e); };
     key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
-    w->key_delegates.push_back(key_delegate);
+    w->key_delegates[delegate_id] = std::move(key_delegate);
 
     create_device_objects(w->swapchain().device());
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Context::Context(Context &&other) noexcept:
         Context()
@@ -148,16 +161,22 @@ Context::Context(Context &&other) noexcept:
     swap(*this, other);
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 Context::~Context()
 {
     if(m_imgui_context){ ImGui::DestroyContext(m_imgui_context); }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Context &Context::operator=(Context other)
 {
     swap(*this, other);
     return *this;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Context::render(vierkant::Renderer &renderer)
 {
@@ -166,9 +185,28 @@ void Context::render(vierkant::Renderer &renderer)
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     ImGuiIO &io = ImGui::GetIO();
 
+    // Setup display size (every frame to accommodate for window resizing)
+    io.DisplaySize = {renderer.viewport.width, renderer.viewport.height};
+    io.DisplayFramebufferScale = ImVec2(1.f, 1.f);
+
+    // start the frame. will update the io.WantCaptureMouse, io.WantCaptureKeyboard flags
+    ImGui::NewFrame();
+
+    // signal begin frame to ImGuizmo
+    ImGuizmo::BeginFrame();
+    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
+
+    // update time step
+    auto now = std::chrono::steady_clock::now();
+    io.DeltaTime = double_sec_t(now - m_imgui_assets.time_point).count();
+    m_imgui_assets.time_point = now;
+
     int fb_width = (int)(io.DisplaySize.x * io.DisplayFramebufferScale.x);
     int fb_height = (int)(io.DisplaySize.y * io.DisplayFramebufferScale.y);
     if(fb_width == 0 || fb_height == 0){ return; }
+
+    // fire draw delegates
+    for(auto &p : delegates){ if(p.second){ p.second(); }}
 
     // create imgui drawlists
     ImGui::Render();
@@ -204,7 +242,8 @@ void Context::render(vierkant::Renderer &renderer)
             if(pcmd->UserCallback){ pcmd->UserCallback(cmd_list, pcmd); }
             else
             {
-                auto tex = vierkant::ImagePtr(static_cast<vierkant::Image*>(pcmd->TextureId), [](vierkant::Image*){});
+                auto tex = vierkant::ImagePtr(static_cast<vierkant::Image *>(pcmd->TextureId),
+                                              [](vierkant::Image *) {});
 
                 // create a new drawable
                 auto drawable = m_imgui_assets.drawable;
@@ -226,6 +265,8 @@ void Context::render(vierkant::Renderer &renderer)
     }
     ImGui::EndFrame();
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Context::create_device_objects(const vierkant::DevicePtr &device)
 {
@@ -277,34 +318,15 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     return true;
 }
 
-void Context::new_frame(const glm::vec2 &size, float delta_time)
-{
-    ImGui::SetCurrentContext(m_imgui_context);
-
-    ImGuiIO &io = ImGui::GetIO();
-
-    // Setup display size (every frame to accommodate for window resizing)
-    io.DisplaySize = {size.x, size.y};
-    io.DisplayFramebufferScale = ImVec2(1.f, 1.f);
-
-    // start the frame. will update the io.WantCaptureMouse, io.WantCaptureKeyboard flags
-    ImGui::NewFrame();
-
-    // signal begin frame to ImGuizmo
-    ImGuizmo::BeginFrame();
-    ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
-
-    // Setup time step
-    io.DeltaTime = delta_time;
-}
-
-void Context::set_current(){ ImGui::SetCurrentContext(m_imgui_context); }
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void swap(Context &lhs, Context &rhs) noexcept
 {
     std::swap(lhs.m_imgui_context, rhs.m_imgui_context);
     std::swap(lhs.m_imgui_assets, rhs.m_imgui_assets);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
 {
@@ -314,6 +336,8 @@ void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
     else if(e.is_right()){ io.MouseDown[2] = true; }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
@@ -322,6 +346,8 @@ void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
     else if(e.is_right()){ io.MouseDown[2] = false; }
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
@@ -329,11 +355,15 @@ void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e)
     io.MouseWheel += e.wheel_increment().y;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void mouse_move(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
     io.MousePos = {static_cast<float>(e.get_x()), static_cast<float>(e.get_y())};
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void key_press(ImGuiContext *ctx, const KeyEvent &e)
 {
@@ -345,6 +375,8 @@ void key_press(ImGuiContext *ctx, const KeyEvent &e)
     io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void key_release(ImGuiContext *ctx, const KeyEvent &e)
 {
     ImGuiIO &io = ctx->IO;
@@ -355,10 +387,14 @@ void key_release(ImGuiContext *ctx, const KeyEvent &e)
     io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void character_input(ImGuiContext *ctx, uint32_t c)
 {
     ImGuiIO &io = ctx->IO;
     if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short)c); }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 }//namespace

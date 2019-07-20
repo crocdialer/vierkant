@@ -37,13 +37,13 @@ class Window : public std::enable_shared_from_this<Window>
 public:
 
     //! Delegate objects for mouse callbacks
-    std::vector<mouse_delegate_t> mouse_delegates;
+    std::map<std::string, mouse_delegate_t> mouse_delegates;
 
     //! Delegate objects for keyboard callbacks
-    std::vector<key_delegate_t> key_delegates;
+    std::map<std::string, key_delegate_t> key_delegates;
 
     //! Delegate objects for window callbacks
-    std::vector<window_delegate_t> window_delegates;
+    std::map<std::string, window_delegate_t> window_delegates;
 
     /**
      * @brief   Helper function to retrieve a list of Vulkan-Extensions required for Window

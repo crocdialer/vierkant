@@ -9,6 +9,11 @@ class Context
 {
 public:
 
+    using draw_fn_t = std::function<void()>;
+
+    //! Delegate functions for gui drawing
+    std::map<std::string, draw_fn_t> delegates;
+
     explicit Context(const vierkant::WindowPtr &w);
 
     Context() = default;
@@ -23,26 +28,23 @@ public:
 
     void render(vierkant::Renderer &renderer);
 
-    void new_frame(const glm::vec2 &size, float delta_time);
-
-    void set_current();
-
     friend void swap(Context &lhs, Context& rhs) noexcept;
 
 private:
 
     struct mesh_asset_t
     {
-        vierkant::MeshPtr mesh;
-        vierkant::BufferPtr vertex_buffer;
-        vierkant::BufferPtr index_buffer;
+        vierkant::MeshPtr mesh = nullptr;
+        vierkant::BufferPtr vertex_buffer = nullptr;
+        vierkant::BufferPtr index_buffer = nullptr;
     };
 
     struct imgui_assets_t
     {
-        vierkant::Renderer::drawable_t drawable;
-        vierkant::ImagePtr font_texture;
+        vierkant::Renderer::drawable_t drawable = {};
+        vierkant::ImagePtr font_texture = nullptr;
         std::vector<std::vector<mesh_asset_t>> frame_assets;
+        std::chrono::steady_clock::time_point time_point = std::chrono::steady_clock::now();
     };
 
     mesh_asset_t create_window_assets(const vierkant::DevicePtr &device);
