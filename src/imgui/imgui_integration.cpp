@@ -350,8 +350,8 @@ void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
     if(e.is_left()){ io.MouseDown[0] = true; }
-    else if(e.is_middle()){ io.MouseDown[1] = true; }
-    else if(e.is_right()){ io.MouseDown[2] = true; }
+    else if(e.is_middle()){ io.MouseDown[2] = true; }
+    else if(e.is_right()){ io.MouseDown[1] = true; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -360,8 +360,8 @@ void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
     if(e.is_left()){ io.MouseDown[0] = false; }
-    else if(e.is_middle()){ io.MouseDown[1] = false; }
-    else if(e.is_right()){ io.MouseDown[2] = false; }
+    else if(e.is_middle()){ io.MouseDown[2] = false; }
+    else if(e.is_right()){ io.MouseDown[1] = false; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
