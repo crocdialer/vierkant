@@ -56,7 +56,7 @@ using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, 
 
 /**
  * @brief   descriptor_t defines a resource-descriptor available in a shader program.
- *          it is default constructible, moveable and hashable.
+ *          it is default constructable, trivially copyable, movable and hashable.
  */
 struct descriptor_t
 {

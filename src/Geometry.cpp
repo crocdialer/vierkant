@@ -2,6 +2,7 @@
 // Created by crocdialer on 3/11/19.
 //
 
+#include <unordered_map>
 #include <crocore/Timer.hpp>
 #include "vierkant/Geometry.hpp"
 #include "vierkant/intersection.hpp"
@@ -56,8 +57,11 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom)
     // populate the twin pointers by iterating over the edge_table
     int boundaryCount = 0;
 
-    for(auto &[key, current_edge] : edge_table)
+    for(auto &pair : edge_table)
     {
+        auto &key = pair.first;
+        auto &current_edge = pair.second;
+
         // try to find twin edge in map
         auto it = edge_table.find(swizzle(key));
 
