@@ -9,6 +9,16 @@ class Context
 {
 public:
 
+    enum CaptureFlagBits
+    {
+        WantCaptureMouse = 1 << 0,
+        WantCaptureKeyboard = 1 << 1,
+        WantTextInput = 1 << 2,
+        WantSetMousePos = 1 << 3,
+        WantSaveIniSettings = 1 << 4
+    };
+    using CaptureFlags = uint32_t;
+
     using draw_fn_t = std::function<void()>;
 
     //! Delegate functions for gui drawing
@@ -42,6 +52,8 @@ public:
     const vierkant::mouse_delegate_t &mouse_delegate() const;
 
     const vierkant::key_delegate_t &key_delegate() const;
+
+    CaptureFlags capture_flags() const;
 
     friend void swap(Context &lhs, Context &rhs) noexcept;
 

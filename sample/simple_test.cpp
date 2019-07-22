@@ -42,7 +42,10 @@ void HelloTriangleApplication::create_context_and_window()
     vierkant::key_delegate_t key_delegate = {};
     key_delegate.key_press = [this](const vierkant::KeyEvent &e)
     {
-        if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
+        if(!(m_gui_context.capture_flags() & vk::gui::Context::WantCaptureKeyboard))
+        {
+            if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
+        }
     };
     m_window->key_delegates["main"] = key_delegate;
 
@@ -50,38 +53,41 @@ void HelloTriangleApplication::create_context_and_window()
     m_gui_context = vk::gui::Context(m_device, g_font_path, 23.f);
     m_gui_context.delegates["main"] = [this] { vk::gui::draw_component_ui(shared_from_this()); };
 
-    m_gui_context.delegates["textures"] = [this]
+    // textures window
+    m_gui_context.delegates["textures"] = [this] { vk::gui::draw_images_ui({m_texture, m_texture_font}); };
+
+    // animations window
+    m_gui_context.delegates["animations"] = [this]
     {
-        ImGui::Begin("textures");
-
-        const float w = ImGui::GetContentRegionAvailWidth();
-        const ImVec2 uv_0(0, 0), uv_1(1, 1);
-
-        for(auto &tex : {m_texture, m_texture_font})
+        ImGui::Begin("animations");
+//        for(auto &animation : {m_animation})
         {
-            if(tex)
-            {
-                ImVec2 sz(w, w / (tex->width() / (float)tex->height()));
-                ImGui::Image((ImTextureID)(tex.get()), sz, uv_0, uv_1);
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-            }
+            float duration = m_animation.duration();
+            float current_time = m_animation.progress() * duration;
+
+            // animation current time / duration
+            if(ImGui::InputFloat("duration", &duration)){ m_animation.set_duration(duration); }
+            ImGui::ProgressBar(m_animation.progress(), ImVec2(-1, 0),
+                               crocore::format("%.2f/%.2f s", current_time, duration).c_str());
+            ImGui::Separator();
+
         }
         ImGui::End();
     };
 
     // imgui demo window
-    m_gui_context.delegates["demo"] = [] { ImGui::ShowDemoWindow(&DEMO_GUI); };
+    m_gui_context.delegates["demo"] = [] { if(DEMO_GUI){ ImGui::ShowDemoWindow(&DEMO_GUI); }};
 
     // attach gui input-delegates to window
     m_window->key_delegates["gui"] = m_gui_context.key_delegate();
     m_window->mouse_delegates["gui"] = m_gui_context.mouse_delegate();
 
-    m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.f);
+    m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
     m_animation.set_loop_type(crocore::Animation::LOOP_BACK_FORTH);
     m_animation.start();
+
+    m_animation.set_duration(3.);
 
     m_font = vk::Font::create(m_device, g_font_path, 64);
 }
@@ -151,21 +157,12 @@ void HelloTriangleApplication::create_texture_image()
         // render some text into a texture
         m_texture_font = m_font->create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
     }
-
-//    fmt = m_texture->format();
-//    fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_R,
-//                             VK_COMPONENT_SWIZZLE_ONE};
-//    m_texture_swizzled = vk::Image::create(m_device, m_texture->shared_image(), fmt);
 }
 
 void HelloTriangleApplication::load_model()
 {
     auto geom = vk::Geometry::Box(glm::vec3(.5f));
     geom->normals.clear();
-//    vk::compute_half_edges(geom);
-
-//    auto geom = vk::Geometry::BoxOutline();
-//    auto geom = vk::Geometry::Grid();
     m_mesh = vk::create_mesh_from_geometry(m_device, geom);
 }
 
