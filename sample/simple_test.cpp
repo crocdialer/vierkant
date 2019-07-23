@@ -7,7 +7,7 @@
 
 void HelloTriangleApplication::setup()
 {
-    crocore::Logger::get()->set_severity(crocore::Severity::DEBUG);
+    crocore::g_logger.set_severity(crocore::Severity::DEBUG);
 
     create_context_and_window();
     create_texture_image();

@@ -13,7 +13,7 @@
 
 #include <unordered_map>
 #include <crocore/filesystem.hpp>
-#include "Font.hpp"
+#include "vierkant/Font.hpp"
 
 #define STB_RECT_PACK_IMPLEMENTATION
 
@@ -39,8 +39,8 @@ namespace vierkant {
 struct string_mesh_container
 {
     std::string text;
-    MeshPtr mesh;
-    uint64_t counter;
+    MeshPtr mesh = nullptr;
+    uint64_t counter = 0;
 
     bool operator<(const string_mesh_container &other) const { return counter < other.counter; }
 };
@@ -60,6 +60,7 @@ FontPtr Font::create(vierkant::DevicePtr device, const std::string &the_path, si
 
 struct FontImpl
 {
+    vierkant::DevicePtr device;
     std::string path;
     std::unique_ptr<stbtt_packedchar[]> char_data;
     uint32_t font_height;
@@ -133,10 +134,11 @@ struct FontImpl
 };
 
 
-Font::Font(vierkant::DevicePtr device, const std::string &path, size_t size, bool use_sdf) : m_impl(
+Font::Font(const vierkant::DevicePtr &device, const std::string &path, size_t size, bool use_sdf) : m_impl(
         new FontImpl())
 {
     std::vector<uint8_t> font_data = crocore::fs::read_binary_file(path);
+    m_impl->device = device;
     m_impl->path = path;
     m_impl->string_mesh_map.clear();
     m_impl->font_height = size;
@@ -149,20 +151,12 @@ Font::Font(vierkant::DevicePtr device, const std::string &path, size_t size, boo
     m_impl->bitmap = img_quads_pair.first;
     m_impl->char_data = std::move(img_quads_pair.second);
 
-//        // signed distance field
-//        if(use_sdf)
-//        {
-//            auto dist_img = compute_distance_field(m_impl->bitmap, 5);
-//            dist_img = dist_img->blur();
-//            m_impl->sdf_texture = create_texture_from_image(dist_img, true);
-//        }
-
     vierkant::Image::Format fmt;
     fmt.format = vierkant::format<uint8_t>();
     fmt.extent = {m_impl->bitmap->width(), m_impl->bitmap->height(), 1};
     fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                              VK_COMPONENT_SWIZZLE_R};
-    m_impl->texture = vierkant::Image::create(std::move(device), m_impl->bitmap->data(), fmt);
+    m_impl->texture = vierkant::Image::create(device, m_impl->bitmap->data(), fmt);
 }
 
 const std::string Font::path() const
@@ -258,174 +252,171 @@ vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::s
     return vierkant::Image::create(std::move(device), img->data(), fmt);
 }
 
-//vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 &theColor) const
-//{
-//    // look for an existing mesh
-////    auto mesh_iter = m_impl->string_mesh_map.find(theText);
-////
-////    if(mesh_iter != m_impl->string_mesh_map.end())
-////    {
-////        mesh_iter->second.counter++;
-////        mesh_iter->second.mesh->set_transform(mat4());
-////        return mesh_iter->second.mesh;
-////    }
-//
-////    if(m_impl->use_sdf)
-////    {
-////        mat->set_shader(gl::create_shader(ShaderType::SDF_FONT));
-////        mat->add_texture(m_impl->sdf_texture, Texture::Usage::COLOR);
-////        mat->uniform("u_buffer", 0.725f);
-////        mat->uniform("u_gamma", 0.05f);
-////    }else{ mat->add_texture(m_impl->texture, Texture::Usage::COLOR); }
-//
-////    MeshPtr ret = gl::Mesh::create(geom, mat);
-////    ret->entries().clear();
-//
-////    std::vector<glm::vec3> &vertices = geom->vertices();
-////    std::vector<glm::vec2> &tex_coords = geom->tex_coords();
-////    std::vector<glm::vec4> &colors = geom->colors();
-//
-//    uint32_t max_y = 0;
-//    auto quads = m_impl->create_quads(theText, nullptr, &max_y);
-//
-//    // reserve memory
-//    vertices.reserve(quads.size() * 4);
-//    tex_coords.reserve(quads.size() * 4);
-//    colors.reserve(quads.size() * 4);
-//
-//    for(const auto &quad : quads)
-//    {
-//        float h = quad.y1 - quad.y0;
-//
-//        stbtt_aligned_quad adjusted = {};
-//        adjusted.x0 = quad.x0;
-//        adjusted.y0 = max_y - (m_impl->font_height + quad.y0);
-//        adjusted.x1 = quad.x1;
-//        adjusted.y1 = max_y - (m_impl->font_height + quad.y0 + h);
-//        adjusted.s0 = quad.s0;
-//        adjusted.t0 = 1 - quad.t0;
-//        adjusted.s1 = quad.s1;
-//        adjusted.t1 = 1 - quad.t1;
-//
-//        // CREATE QUAD
-//        // create vertices
-//        vertices.emplace_back(adjusted.x0, adjusted.y1, 0);
-//        vertices.emplace_back(adjusted.x1, adjusted.y1, 0);
-//        vertices.emplace_back(adjusted.x1, adjusted.y0, 0);
-//        vertices.emplace_back(adjusted.x0, adjusted.y0, 0);
-//
-//        // create texcoords
-//        tex_coords.emplace_back(adjusted.s0, adjusted.t1);
-//        tex_coords.emplace_back(adjusted.s1, adjusted.t1);
-//        tex_coords.emplace_back(adjusted.s1, adjusted.t0);
-//        tex_coords.emplace_back(adjusted.s0, adjusted.t0);
-//
-//        // create colors
-//        for(int i = 0; i < 4; i++){ colors.emplace_back(1); }
-//    }
-//    for(uint32_t i = 0; i < vertices.size(); i += 4)
-//    {
-//        geom->append_face(i, i + 1, i + 2);
-//        geom->append_face(i, i + 2, i + 3);
-//    }
-//    geom->compute_face_normals();
-//    geom->compute_aabb();
-//
-//    // free the less frequent used half of our buffered string-meshes
-//    if(m_impl->string_mesh_map.size() >= m_impl->max_mesh_buffer_size)
-//    {
-//        LOG_TRACE << "font-mesh buffersize: " << m_impl->max_mesh_buffer_size << " -> clearing ...";
-//        std::list<string_mesh_container> tmp_list;
-//
-//        for(auto &item : m_impl->string_mesh_map){ tmp_list.push_back(item.second); }
-//        tmp_list.sort();
-//
-//        std::list<string_mesh_container>::reverse_iterator list_it = tmp_list.rbegin();
-//        m_impl->string_mesh_map.clear();
-//
-//        for(uint32_t i = 0; i < tmp_list.size() / 2; i++, ++list_it)
-//        {
-//            list_it->counter--;
-//            m_impl->string_mesh_map[list_it->text] = *list_it;
-//        }
-//    }
-//    // insert the newly created mesh
-////    m_impl->string_mesh_map[theText] = string_mesh_container(theText, ret);
-//    return ret;
-//}
+vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 &theColor, float extrude) const
+{
+    // look for an existing mesh
+    auto mesh_iter = m_impl->string_mesh_map.find(theText);
 
-//vierkant::Object3DPtr Font::create_text_object(std::list<std::string> the_lines,
-//                                         Align the_align,
-//                                         uint32_t the_linewidth,
-//                                         uint32_t the_lineheight) const
-//{
-//    if(!the_lineheight){ the_lineheight = line_height(); }
-//    auto root = vierkant::Object3D::create();
-//    auto parent = root;
-//
-//    glm::vec2 line_offset;
-//    bool reformat = false;
-//
-//    for(auto it = the_lines.begin(); it != the_lines.end(); ++it)
-//    {
-//        if(!reformat){ parent = root; }
-//        std::string &l = *it;
-//
-//        // center line_mesh
-//        auto line_aabb = create_aabb(l);
-//
-//        reformat = false;
-//        auto insert_it = it;
-//        insert_it++;
-//
-//        //split line, if necessary
-//        while(the_linewidth && (line_aabb.width() > the_linewidth))
-//        {
-//            size_t indx = l.find_last_of(' ');
-//            if(indx == std::string::npos){ break; }
-//
-//            std::string last_word = l.substr(indx + 1);
-//            l = l.substr(0, indx);
-//
-//            if(!reformat)
-//            {
-//                parent = vierkant::Object3D::create();
-//                root->add_child(parent);
-//                reformat = true;
-//                insert_it = the_lines.insert(insert_it, last_word);
-//            }else if(insert_it != the_lines.end())
-//            {
-//                *insert_it = last_word + " " + *insert_it;
-//            }else{ the_lines.push_back(last_word); }
-//
-//            // new aabb
-//            line_aabb = create_aabb(l);
-//        }
-//
-//        switch(the_align)
-//        {
-//            case Align::LEFT:
-//                line_offset.x = 0.f;
-//                break;
-//            case Align::CENTER:
-//                line_offset.x = (the_linewidth - line_aabb.width()) / 2.f;
-//                break;
-//            case Align::RIGHT:
-//                line_offset.x = (the_linewidth - line_aabb.width());
-//                break;
-//        }
+    if(mesh_iter != m_impl->string_mesh_map.end())
+    {
+        mesh_iter->second.counter++;
+        mesh_iter->second.mesh->set_transform(glm::mat4());
+        return mesh_iter->second.mesh;
+    }
+
+    uint32_t max_y = 0;
+    auto quads = m_impl->create_quads(theText, nullptr, &max_y);
+
+    auto geom = vierkant::Geometry::create();
+    auto &vertices = geom->vertices;
+    auto &colors = geom->colors;
+    auto &tex_coords = geom->tex_coords;
+    auto &indices = geom->indices;
+
+    // reserve memory
+    vertices.reserve(quads.size() * 4);
+    colors.reserve(quads.size() * 4);
+    tex_coords.reserve(quads.size() * 4);
+    indices.reserve(quads.size() * 6);
+
+    for(const auto &quad : quads)
+    {
+        float h = quad.y1 - quad.y0;
+
+        stbtt_aligned_quad adjusted = {};
+        adjusted.x0 = quad.x0;
+        adjusted.y0 = max_y - (m_impl->font_height + quad.y0);
+        adjusted.x1 = quad.x1;
+        adjusted.y1 = max_y - (m_impl->font_height + quad.y0 + h);
+        adjusted.s0 = quad.s0;
+        adjusted.t0 = 1 - quad.t0;
+        adjusted.s1 = quad.s1;
+        adjusted.t1 = 1 - quad.t1;
+
+        // CREATE QUAD
+        // create vertices
+        vertices.emplace_back(adjusted.x0, adjusted.y1, 0);
+        vertices.emplace_back(adjusted.x1, adjusted.y1, 0);
+        vertices.emplace_back(adjusted.x1, adjusted.y0, 0);
+        vertices.emplace_back(adjusted.x0, adjusted.y0, 0);
+
+        // create texcoords
+        tex_coords.emplace_back(adjusted.s0, adjusted.t1);
+        tex_coords.emplace_back(adjusted.s1, adjusted.t1);
+        tex_coords.emplace_back(adjusted.s1, adjusted.t0);
+        tex_coords.emplace_back(adjusted.s0, adjusted.t0);
+
+        // create colors
+        for(int i = 0; i < 4; i++){ colors.emplace_back(1); }
+    }
+    for(uint32_t i = 0; i < vertices.size(); i += 4)
+    {
+        indices.push_back(i);
+        indices.push_back(i + 1);
+        indices.push_back(i + 2);
+        indices.push_back(i);
+        indices.push_back(i + 2);
+        indices.push_back(i + 3);
+    }
+
+    auto mesh = vierkant::create_mesh_from_geometry(m_impl->device, geom);
+
+    // free the less frequent used half of our buffered string-meshes
+    if(m_impl->string_mesh_map.size() >= m_impl->max_mesh_buffer_size)
+    {
+        LOG_TRACE << "font-mesh buffersize: " << m_impl->max_mesh_buffer_size << " -> clearing ...";
+        std::list<string_mesh_container> tmp_list;
+
+        for(auto &item : m_impl->string_mesh_map){ tmp_list.push_back(item.second); }
+        tmp_list.sort();
+
+        std::list<string_mesh_container>::reverse_iterator list_it = tmp_list.rbegin();
+        m_impl->string_mesh_map.clear();
+
+        for(uint32_t i = 0; i < tmp_list.size() / 2; i++, ++list_it)
+        {
+            list_it->counter--;
+            m_impl->string_mesh_map[list_it->text] = *list_it;
+        }
+    }
+    // insert the newly created mesh
+    m_impl->string_mesh_map[theText] = {theText, mesh};
+    return mesh;
+}
+
+vierkant::Object3DPtr Font::create_text_object(std::list<std::string> the_lines,
+                                               Align the_align,
+                                               uint32_t the_linewidth,
+                                               uint32_t the_lineheight) const
+{
+    if(!the_lineheight){ the_lineheight = line_height(); }
+    auto root = vierkant::Object3D::create();
+    auto parent = root;
+
+    glm::vec2 line_offset;
+    bool reformat = false;
+
+    for(auto it = the_lines.begin(); it != the_lines.end(); ++it)
+    {
+        if(!reformat){ parent = root; }
+        std::string &l = *it;
+
+        // center line_mesh
+        auto line_aabb = create_aabb(l);
+
+        reformat = false;
+        auto insert_it = it;
+        insert_it++;
+
+        //split line, if necessary
+        while(the_linewidth && (line_aabb.width() > the_linewidth))
+        {
+            size_t indx = l.find_last_of(' ');
+            if(indx == std::string::npos){ break; }
+
+            std::string last_word = l.substr(indx + 1);
+            l = l.substr(0, indx);
+
+            if(!reformat)
+            {
+                parent = vierkant::Object3D::create();
+                root->add_child(parent);
+                reformat = true;
+                insert_it = the_lines.insert(insert_it, last_word);
+            }else if(insert_it != the_lines.end())
+            {
+                *insert_it = last_word + " " + *insert_it;
+            }else{ the_lines.push_back(last_word); }
+
+            // new aabb
+            line_aabb = create_aabb(l);
+        }
+
+        switch(the_align)
+        {
+            case Align::LEFT:
+                line_offset.x = 0.f;
+                break;
+            case Align::CENTER:
+                line_offset.x = (the_linewidth - line_aabb.width()) / 2.f;
+                break;
+            case Align::RIGHT:
+                line_offset.x = (the_linewidth - line_aabb.width());
+                break;
+        }
 //        auto line_mesh = create_mesh(l)->copy();
-//        line_mesh->set_position(vec3(line_offset.x, line_offset.y - line_aabb.height(), 0.f));
+        auto line_mesh = create_mesh(l);
+        line_mesh->set_position(glm::vec3(line_offset.x, line_offset.y - line_aabb.height(), 0.f));
 //        line_mesh->material()->set_blending();
-//
-//        // advance offset
-//        line_offset.y -= line_height();
-//
-//        // add line
-//        parent->add_child(line_mesh);
-//    }
-//    return root;
-//}
+
+        // advance offset
+        line_offset.y -= line_height();
+
+        // add line
+        parent->add_child(line_mesh);
+    }
+    return root;
+}
 
 vierkant::Object3DPtr Font::create_text_object(const std::string &the_text,
                                                Align the_align,

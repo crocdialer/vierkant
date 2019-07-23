@@ -6,7 +6,7 @@
 
 #include <crocore/Animation.hpp>
 #include "vierkant/vierkant.hpp"
-#include "../src/Font.hpp"
+#include "vierkant/Font.hpp"
 
 const int WIDTH = 1280;
 const int HEIGHT = 720;

@@ -40,19 +40,22 @@ public:
 
     crocore::ImagePtr create_image(const std::string &theText, const glm::vec4 &theColor = glm::vec4(1)) const;
 
-    vierkant::ImagePtr create_texture(vierkant::DevicePtr device, const std::string &theText, const glm::vec4 &theColor = glm::vec4(1)) const;
+    vierkant::ImagePtr create_texture(vierkant::DevicePtr device, const std::string &theText,
+                                      const glm::vec4 &theColor = glm::vec4(1)) const;
 
-//    vierkant::MeshPtr create_mesh(const std::string &theText, const glm::vec4 &theColor = glm::vec4(1)) const;
+    vierkant::MeshPtr create_mesh(const std::string &theText,
+                                  const glm::vec4 &theColor = glm::vec4(1),
+                                  float extrude = 0.f) const;
 
     vierkant::Object3DPtr create_text_object(const std::string &the_text,
                                              Align the_align = Align::LEFT,
                                              uint32_t the_linewidth = 0,
                                              uint32_t the_lineheight = 0) const;
 
-//    vierkant::Object3DPtr create_text_object(std::list<std::string> the_lines,
-//                                             Align the_align = Align::LEFT,
-//                                             uint32_t the_linewidth = 0,
-//                                             uint32_t the_lineheight = 0) const;
+    vierkant::Object3DPtr create_text_object(std::list<std::string> the_lines,
+                                             Align the_align = Align::LEFT,
+                                             uint32_t the_linewidth = 0,
+                                             uint32_t the_lineheight = 0) const;
 
     template<template<typename, typename> class Collection, typename T = std::string>
     vierkant::Object3DPtr create_text_object(const Collection<T, std::allocator<T>> &the_lines,
@@ -77,7 +80,7 @@ public:
 
 private:
 
-    Font(vierkant::DevicePtr device, const std::string &path, size_t size, bool use_sdf);
+    Font(const vierkant::DevicePtr& device, const std::string &path, size_t size, bool use_sdf);
 
     std::unique_ptr<struct FontImpl> m_impl;
 };

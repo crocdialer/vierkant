@@ -168,7 +168,7 @@ public:
      * @param   num_samples the desired value for MSAA for the SwapChain
      * @param   v_sync      use vertical synchronization or not
      */
-    void create_swapchain(DevicePtr device, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
+    void create_swapchain(const DevicePtr& device, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
                           bool v_sync = true);
 
 private:
