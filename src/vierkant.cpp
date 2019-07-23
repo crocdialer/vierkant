@@ -9,7 +9,7 @@ namespace vierkant
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void draw_mesh(VkCommandBuffer command_buffer, const Mesh &mesh)
+void draw_mesh(vierkant::Renderer &renderer, const MeshPtr &mesh)
 {
 
 }

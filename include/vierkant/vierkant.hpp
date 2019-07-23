@@ -18,8 +18,9 @@
 #include "vierkant/Application.hpp"
 #include "vierkant/intersection.hpp"
 
-namespace vierkant
-{
+namespace vierkant {
+
+void draw_mesh(vierkant::Renderer &renderer, const MeshPtr &mesh);
 
 }
 namespace vk = vierkant;

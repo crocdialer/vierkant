@@ -258,39 +258,32 @@ vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::s
     return vierkant::Image::create(std::move(device), img->data(), fmt);
 }
 
-//gl::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 &theColor) const
+//vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 &theColor) const
 //{
 //    // look for an existing mesh
-//    auto mesh_iter = m_impl->string_mesh_map.find(theText);
+////    auto mesh_iter = m_impl->string_mesh_map.find(theText);
+////
+////    if(mesh_iter != m_impl->string_mesh_map.end())
+////    {
+////        mesh_iter->second.counter++;
+////        mesh_iter->second.mesh->set_transform(mat4());
+////        return mesh_iter->second.mesh;
+////    }
 //
-//    if(mesh_iter != m_impl->string_mesh_map.end())
-//    {
-//        mesh_iter->second.counter++;
-//        mesh_iter->second.mesh->set_transform(mat4());
-//        return mesh_iter->second.mesh;
-//    }
+////    if(m_impl->use_sdf)
+////    {
+////        mat->set_shader(gl::create_shader(ShaderType::SDF_FONT));
+////        mat->add_texture(m_impl->sdf_texture, Texture::Usage::COLOR);
+////        mat->uniform("u_buffer", 0.725f);
+////        mat->uniform("u_gamma", 0.05f);
+////    }else{ mat->add_texture(m_impl->texture, Texture::Usage::COLOR); }
 //
-//    // create a new mesh object
-//    GeometryPtr geom = Geometry::create();
-//    geom->set_primitive_type(GL_TRIANGLES);
-//    gl::MaterialPtr mat = gl::Material::create();
-//    mat->set_diffuse(theColor);
-//    mat->set_blending(true);
+////    MeshPtr ret = gl::Mesh::create(geom, mat);
+////    ret->entries().clear();
 //
-//    if(m_impl->use_sdf)
-//    {
-//        mat->set_shader(gl::create_shader(ShaderType::SDF_FONT));
-//        mat->add_texture(m_impl->sdf_texture, Texture::Usage::COLOR);
-//        mat->uniform("u_buffer", 0.725f);
-//        mat->uniform("u_gamma", 0.05f);
-//    }else{ mat->add_texture(m_impl->texture, Texture::Usage::COLOR); }
-//
-//    MeshPtr ret = gl::Mesh::create(geom, mat);
-//    ret->entries().clear();
-//
-//    std::vector<glm::vec3> &vertices = geom->vertices();
-//    std::vector<glm::vec2> &tex_coords = geom->tex_coords();
-//    std::vector<glm::vec4> &colors = geom->colors();
+////    std::vector<glm::vec3> &vertices = geom->vertices();
+////    std::vector<glm::vec2> &tex_coords = geom->tex_coords();
+////    std::vector<glm::vec4> &colors = geom->colors();
 //
 //    uint32_t max_y = 0;
 //    auto quads = m_impl->create_quads(theText, nullptr, &max_y);
@@ -357,7 +350,7 @@ vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::s
 //        }
 //    }
 //    // insert the newly created mesh
-//    m_impl->string_mesh_map[theText] = string_mesh_container(theText, ret);
+////    m_impl->string_mesh_map[theText] = string_mesh_container(theText, ret);
 //    return ret;
 //}
 
