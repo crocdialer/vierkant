@@ -135,8 +135,11 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     for(auto &drawable : last_assets.drawables){ pipelines[drawable.pipeline_format].push_back(&drawable); }
 
     // grouped by pipelines
-    for(auto &[pipe_fmt, drawables] : pipelines)
+    for(auto &pair : pipelines)
     {
+        auto &pipe_fmt = pair.first;
+        auto &drawables = pair.second;
+
         // select/create pipeline
         auto pipeline = m_pipeline_cache->get(pipe_fmt);
 
