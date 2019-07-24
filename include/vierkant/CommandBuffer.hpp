@@ -29,6 +29,23 @@ using FencePtr = std::shared_ptr<VkFence_T>;
  */
 FencePtr create_fence(vierkant::DevicePtr device, bool signaled = false);
 
+/**
+ * @brief   Submit an array of VkCommandBuffer to a VkQueue.
+ *
+ * @param   device          shared handle to a VkDevice
+ * @param   queue           a VkQueue to submit the commands to
+ * @param   commandBuffers  an array of recorded VkCommandBuffers
+ * @param   fence           an optional fence to signal
+ * @param   wait_fence      optional flag indicating that the fence should be waited on
+ * @param   submitInfo      an optional VkSubmitInfo that can be used to pass in signal/wait semaphores
+ */
+void submit(const vierkant::DevicePtr& device,
+            VkQueue queue,
+            const std::vector<VkCommandBuffer>& commandBuffers,
+            VkFence fence = VK_NULL_HANDLE,
+            bool wait_fence = false,
+            VkSubmitInfo submitInfo = {});
+
 using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
 
 class CommandBuffer

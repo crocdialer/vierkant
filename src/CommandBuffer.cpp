@@ -38,6 +38,34 @@ FencePtr create_fence(vierkant::DevicePtr device, bool signaled)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void submit(const vierkant::DevicePtr& device,
+            VkQueue queue,
+            const std::vector<VkCommandBuffer>& commandBuffers,
+            VkFence fence,
+            bool wait_fence,
+            VkSubmitInfo submitInfo)
+{
+    if(queue)
+    {
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext = nullptr;
+        submitInfo.commandBufferCount = commandBuffers.size();
+        submitInfo.pCommandBuffers = commandBuffers.data();
+
+        if(fence){ vkResetFences(device->handle(), 1, &fence); }
+
+        vkQueueSubmit(queue, 1, &submitInfo, fence);
+
+        if(fence && wait_fence)
+        {
+            vkWaitForFences(device->handle(), 1, &fence, VK_TRUE,
+                            std::numeric_limits<uint64_t>::max());
+        }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 CommandBuffer::CommandBuffer(DevicePtr the_device, VkCommandPool the_pool, VkCommandBufferLevel level) :
         m_device(std::move(the_device)),
         m_handle(VK_NULL_HANDLE),
