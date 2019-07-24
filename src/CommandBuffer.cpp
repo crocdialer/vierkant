@@ -40,21 +40,21 @@ FencePtr create_fence(vierkant::DevicePtr device, bool signaled)
 
 void submit(const vierkant::DevicePtr& device,
             VkQueue queue,
-            const std::vector<VkCommandBuffer>& commandBuffers,
+            const std::vector<VkCommandBuffer>& command_buffers,
             VkFence fence,
             bool wait_fence,
-            VkSubmitInfo submitInfo)
+            VkSubmitInfo submit_info)
 {
     if(queue)
     {
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.pNext = nullptr;
-        submitInfo.commandBufferCount = commandBuffers.size();
-        submitInfo.pCommandBuffers = commandBuffers.data();
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.pNext = nullptr;
+        submit_info.commandBufferCount = command_buffers.size();
+        submit_info.pCommandBuffers = command_buffers.data();
 
         if(fence){ vkResetFences(device->handle(), 1, &fence); }
 
-        vkQueueSubmit(queue, 1, &submitInfo, fence);
+        vkQueueSubmit(queue, 1, &submit_info, fence);
 
         if(fence && wait_fence)
         {
