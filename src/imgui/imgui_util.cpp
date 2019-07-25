@@ -279,6 +279,11 @@ void draw_component_ui(const ComponentConstPtr &the_component)
     ImGui::End();
 }
 
+void draw_application_ui(const vierkant::ApplicationConstPtr &app)
+{
+
+}
+
 void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
 {
     ImGui::Begin("textures");

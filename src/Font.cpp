@@ -330,7 +330,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
         for(auto &item : m_impl->string_mesh_map){ tmp_list.push_back(item.second); }
         tmp_list.sort();
 
-        std::list<string_mesh_container>::reverse_iterator list_it = tmp_list.rbegin();
+        auto list_it = tmp_list.rbegin();
         m_impl->string_mesh_map.clear();
 
         for(uint32_t i = 0; i < tmp_list.size() / 2; i++, ++list_it)
@@ -353,7 +353,7 @@ vierkant::Object3DPtr Font::create_text_object(std::list<std::string> the_lines,
     auto root = vierkant::Object3D::create();
     auto parent = root;
 
-    glm::vec2 line_offset;
+    glm::vec2 line_offset = {};
     bool reformat = false;
 
     for(auto it = the_lines.begin(); it != the_lines.end(); ++it)

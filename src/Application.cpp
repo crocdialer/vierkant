@@ -29,6 +29,7 @@ Application::Application(int argc, char *argv[]) :
 
 int Application::run()
 {
+    if(m_running){ return -1; }
     m_running = true;
 
     // user setup-hook
@@ -59,7 +60,7 @@ int Application::run()
             m_last_timestamp = time_stamp;
 
             // perform fps-timing
-            timing();
+            frame_timing();
 
             // Check if ESC key was pressed or window was closed or whatever
             m_running = is_running();
@@ -76,13 +77,13 @@ int Application::run()
     return EXIT_SUCCESS;
 }
 
-double Application::get_application_time()
+double Application::application_time()
 {
     auto current_time = std::chrono::high_resolution_clock::now();
     return double_sec_t(current_time - m_start_time).count();
 }
 
-void Application::timing()
+void Application::frame_timing()
 {
     m_num_loop_iterations++;
 

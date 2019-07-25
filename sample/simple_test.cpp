@@ -51,7 +51,10 @@ void HelloTriangleApplication::create_context_and_window()
 
     // create a gui and add a draw-delegate
     m_gui_context = vk::gui::Context(m_device, g_font_path, 23.f);
-    m_gui_context.delegates["main"] = [this] { vk::gui::draw_component_ui(shared_from_this()); };
+    m_gui_context.delegates["main"] = [this]
+    {
+        vk::gui::draw_component_ui(std::static_pointer_cast<Application>(shared_from_this()));
+    };
 
     // textures window
     m_gui_context.delegates["textures"] = [this] { vk::gui::draw_images_ui({m_texture, m_texture_font}); };
@@ -172,7 +175,7 @@ void HelloTriangleApplication::update(double time_delta)
 
     // update matrices for this frame
     m_drawable.matrices.model = glm::rotate(glm::scale(glm::mat4(1), glm::vec3(m_scale)),
-                                            (float)get_application_time() * glm::radians(30.0f),
+                                            (float)application_time() * glm::radians(30.0f),
                                             glm::vec3(0.0f, 1.0f, 0.0f));
     m_drawable.matrices.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f),
                                            glm::vec3(0.0f, 0.0f, 1.0f));
