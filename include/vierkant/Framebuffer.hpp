@@ -93,6 +93,17 @@ public:
     void end_renderpass() const;
 
     /**
+     * @brief   Execute a provided array of secondary VkCommandBuffers within a Renderpass for this Framebuffer.
+     *          Submit to a VkQUeue with optional submit_info.
+     *
+     * @param   command_buffers an array of VkCommandBuffers to render into this Framebuffer.
+     * @param   queue           a VkQueue to submit the primary VkCommandBuffer to.
+     * @param   submit_info     an optional VkSubmitInfo struct.
+     * @return  a fence that will be signaled when rendering is done.
+     */
+    VkFence submit(const std::vector<VkCommandBuffer> &command_buffers, VkQueue queue, VkSubmitInfo submit_info = {});
+
+    /**
      * @return  the VkExtent3D used by the Image-Attachments
      */
     const VkExtent3D &extent() const { return m_extent; }
@@ -146,6 +157,10 @@ private:
     AttachmentMap m_attachments;
 
     VkFramebuffer m_framebuffer = VK_NULL_HANDLE;
+
+    vierkant::FencePtr m_fence;
+
+    vierkant::CommandBuffer m_commandbuffer;
 
     mutable VkCommandBuffer m_active_commandbuffer = VK_NULL_HANDLE;
 

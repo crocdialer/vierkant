@@ -27,6 +27,8 @@ public:
 
     DrawContext() = default;
 
+    DrawContext(const DrawContext &) = delete;
+
     explicit DrawContext(vierkant::DevicePtr device);
 
     void draw_text(vierkant::Renderer &renderer, const std::string &text, const FontPtr &font, const glm::vec2 &pos,

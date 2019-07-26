@@ -154,6 +154,9 @@ Framebuffer::Framebuffer(DevicePtr device, VkExtent3D size, Format format, Rende
         m_format(std::move(format))
 {
     m_format.color_attachment_format.extent = m_extent;
+    m_commandbuffer = vierkant::CommandBuffer(m_device, m_device->command_pool_transient());
+    m_fence = vierkant::create_fence(m_device, true);
+
     init(create_attachments(m_format), std::move(renderpass));
 }
 
@@ -253,6 +256,34 @@ void Framebuffer::end_renderpass() const
         vkCmdEndRenderPass(m_active_commandbuffer);
         m_active_commandbuffer = VK_NULL_HANDLE;
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+VkFence
+Framebuffer::submit(const std::vector<VkCommandBuffer> &command_buffers, VkQueue queue, VkSubmitInfo submit_info)
+{
+    // wait for prior fence
+    VkFence fence = m_fence.get();
+    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vkResetFences(m_device->handle(), 1, &fence);
+
+    // record commandbuffer
+    m_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
+
+    // begin the renderpass
+    begin_renderpass(m_commandbuffer.handle(), VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+
+    // execute secondary commandbuffers
+    vkCmdExecuteCommands(m_commandbuffer.handle(), command_buffers.size(), command_buffers.data());
+
+    // end renderpass
+    end_renderpass();
+
+    // submit primary commandbuffer
+    m_commandbuffer.submit(queue, false, fence, submit_info);
+
+    return fence;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
