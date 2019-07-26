@@ -80,6 +80,8 @@ private:
     vierkant::FontPtr m_font;
 
     vierkant::gui::Context m_gui_context;
+
+    vierkant::DrawContext m_draw_context;
 };
 
 int main(int argc, char *argv[])

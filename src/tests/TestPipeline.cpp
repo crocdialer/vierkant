@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
         fmt.viewport.width = framebuffer.extent().width;
         fmt.viewport.height = framebuffer.extent().height;
         fmt.renderpass = framebuffer.renderpass().get();
-        fmt.shader_stages = vk::shader_stages(device, vk::ShaderType::UNLIT_TEXTURE);
+        fmt.shader_stages = vk::create_shader_stages(device, vk::ShaderType::UNLIT_TEXTURE);
         auto pipeline = vk::Pipeline::create(device, fmt);
         BOOST_CHECK(pipeline);
     }

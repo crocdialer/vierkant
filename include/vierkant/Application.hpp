@@ -28,7 +28,7 @@ public:
 
     int run();
 
-    double application_time();
+    double application_time() const;
 
     inline bool running() const { return m_running; };
 
@@ -63,8 +63,6 @@ public:
 private:
 
     void frame_timing();
-
-    virtual bool is_running() { return m_running; };
 
     // timing
     size_t m_num_loop_iterations = 0;

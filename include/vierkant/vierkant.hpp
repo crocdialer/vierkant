@@ -21,7 +21,29 @@
 
 namespace vierkant {
 
-void draw_text(vierkant::Renderer &renderer, const FontPtr &font);
+class DrawContext
+{
+public:
+
+    DrawContext() = default;
+
+    explicit DrawContext(vierkant::DevicePtr device);
+
+    void draw_text(vierkant::Renderer &renderer, const std::string &text, const FontPtr &font, const glm::vec2 &pos,
+                   const glm::vec4 &color = glm::vec4(1));
+
+    void draw_image(vierkant::Renderer &renderer, const vierkant::ImagePtr &image,
+                    const crocore::Area_<int> &area = {});
+
+private:
+
+    const shader_stage_map_t& shader_stages(vierkant::ShaderType type);
+
+    vierkant::DevicePtr m_device;
+    std::map<vierkant::ShaderType, shader_stage_map_t> m_shader_stage_cache;
+    Renderer::drawable_t m_drawable_text = {};
+    Renderer::drawable_t m_drawable_image = {};
+};
 
 //void draw_mesh(vierkant::Renderer &renderer, const MeshPtr &mesh);
 

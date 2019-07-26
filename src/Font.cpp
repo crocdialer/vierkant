@@ -281,30 +281,18 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
 
     for(const auto &quad : quads)
     {
-        float h = quad.y1 - quad.y0;
-
-        stbtt_aligned_quad adjusted = {};
-        adjusted.x0 = quad.x0;
-        adjusted.y0 = max_y - (m_impl->font_height + quad.y0);
-        adjusted.x1 = quad.x1;
-        adjusted.y1 = max_y - (m_impl->font_height + quad.y0 + h);
-        adjusted.s0 = quad.s0;
-        adjusted.t0 = 1 - quad.t0;
-        adjusted.s1 = quad.s1;
-        adjusted.t1 = 1 - quad.t1;
-
         // CREATE QUAD
         // create vertices
-        vertices.emplace_back(adjusted.x0, adjusted.y1, 0);
-        vertices.emplace_back(adjusted.x1, adjusted.y1, 0);
-        vertices.emplace_back(adjusted.x1, adjusted.y0, 0);
-        vertices.emplace_back(adjusted.x0, adjusted.y0, 0);
+        vertices.emplace_back(quad.x0, quad.y1, 0);
+        vertices.emplace_back(quad.x1, quad.y1, 0);
+        vertices.emplace_back(quad.x1, quad.y0, 0);
+        vertices.emplace_back(quad.x0, quad.y0, 0);
 
         // create texcoords
-        tex_coords.emplace_back(adjusted.s0, adjusted.t1);
-        tex_coords.emplace_back(adjusted.s1, adjusted.t1);
-        tex_coords.emplace_back(adjusted.s1, adjusted.t0);
-        tex_coords.emplace_back(adjusted.s0, adjusted.t0);
+        tex_coords.emplace_back(quad.s0, quad.t1);
+        tex_coords.emplace_back(quad.s1, quad.t1);
+        tex_coords.emplace_back(quad.s1, quad.t0);
+        tex_coords.emplace_back(quad.s0, quad.t0);
 
         // create colors
         for(int i = 0; i < 4; i++){ colors.emplace_back(1); }

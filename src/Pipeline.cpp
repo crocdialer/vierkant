@@ -28,7 +28,7 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages(const DevicePtr &device, ShaderType t)
+std::map<VkShaderStageFlagBits, ShaderModulePtr> create_shader_stages(const DevicePtr &device, ShaderType t)
 {
     std::map<VkShaderStageFlagBits, ShaderModulePtr> ret;
 

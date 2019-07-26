@@ -88,7 +88,6 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_renderpass, rhs.m_renderpass);
     std::swap(lhs.m_sample_count, rhs.m_sample_count);
-    std::swap(lhs.m_shader_stage_cache, rhs.m_shader_stage_cache);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_command_pool, rhs.m_command_pool);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
@@ -259,72 +258,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     // end and return commandbuffer
     last_assets.command_buffer.end();
     return last_assets.command_buffer.handle();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Renderer::stage_image(const vierkant::ImagePtr &image, const crocore::Area_<int> &area)
-{
-    auto draw_it = m_drawable_cache.find(DrawableType::IMAGE);
-
-    // need to create drawable
-    if(draw_it == m_drawable_cache.end())
-    {
-        // create plane-geometry
-        auto plane = Geometry::Plane();
-        plane->normals.clear();
-        plane->tangents.clear();
-        for(auto &v : plane->vertices){ v.xy += glm::vec2(.5f, -.5f); }
-
-        auto mesh = create_mesh_from_geometry(m_device, plane);
-
-        Pipeline::Format fmt = {};
-        fmt.blending = true;
-        fmt.depth_test = false;
-        fmt.depth_write = false;
-        fmt.shader_stages = vierkant::shader_stages(m_device, vierkant::ShaderType::UNLIT_TEXTURE);
-        fmt.binding_descriptions = vierkant::binding_descriptions(mesh);
-        fmt.attribute_descriptions = vierkant::attribute_descriptions(mesh);
-        fmt.primitive_topology = mesh->topology;
-
-        // descriptors
-        vierkant::descriptor_t desc_ubo = {};
-        desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        desc_ubo.binding = 0;
-
-        vierkant::descriptor_t desc_texture = {};
-        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_texture.binding = 1;
-
-        drawable_t new_drawable = {};
-        new_drawable.mesh = mesh;
-        new_drawable.num_indices = mesh->num_elements;
-        new_drawable.descriptors = {desc_ubo, desc_texture};
-        new_drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, new_drawable.descriptors);
-        fmt.descriptor_set_layouts = {new_drawable.descriptor_set_layout.get()};
-        new_drawable.pipeline_format = fmt;
-
-        // insert new drawable in map, update iterator
-        draw_it = m_drawable_cache.insert(std::make_pair(DrawableType::IMAGE, std::move(new_drawable))).first;
-    }
-    float w = area.width ? area.width : viewport.width;
-    float h = area.height ? area.height : viewport.height;
-    glm::vec2 scale = glm::vec2(w, h) / glm::vec2(viewport.width, viewport.height);
-
-    // copy image-drawable
-    auto drawable = draw_it->second;
-    drawable.matrices.projection = glm::orthoRH(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
-    drawable.matrices.projection[1][1] *= -1;
-    drawable.matrices.model = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
-    drawable.matrices.model[3] = glm::vec4(area.x / viewport.width, -area.y / viewport.height, 0, 1);
-
-    // set image
-    drawable.descriptors[SLOT_TEXTURES].image_samplers = {image};
-
-    // stage image drawable
-    stage_drawable(drawable);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

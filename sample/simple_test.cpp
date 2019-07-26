@@ -49,11 +49,14 @@ void HelloTriangleApplication::create_context_and_window()
     };
     m_window->key_delegates["main"] = key_delegate;
 
+    // create a draw context
+    m_draw_context = vierkant::DrawContext(m_device);
+
     // create a gui and add a draw-delegate
     m_gui_context = vk::gui::Context(m_device, g_font_path, 23.f);
-    m_gui_context.delegates["main"] = [this]
+    m_gui_context.delegates["application"] = [this]
     {
-        vk::gui::draw_component_ui(std::static_pointer_cast<Application>(shared_from_this()));
+        vk::gui::draw_application_ui(std::static_pointer_cast<Application>(shared_from_this()));
     };
 
     // textures window
@@ -122,7 +125,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
     // with the descriptors in place we can derive the set-layout
     m_drawable.descriptor_set_layout = vk::create_descriptor_set_layout(m_device, m_drawable.descriptors);
 
-    m_drawable.pipeline_format.shader_stages = vierkant::shader_stages(m_device, vk::ShaderType::UNLIT_TEXTURE);
+    m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device, vk::ShaderType::UNLIT_TEXTURE);
     m_drawable.pipeline_format.descriptor_set_layouts = {m_drawable.descriptor_set_layout.get()};
     m_drawable.pipeline_format.primitive_topology = m_mesh->topology;
     m_drawable.pipeline_format.binding_descriptions = vierkant::binding_descriptions(m_mesh);
@@ -207,9 +210,9 @@ void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 
     auto render_images = [this, width, height, &inheritance]() -> VkCommandBuffer
     {
-        m_image_renderer.stage_image(m_texture);
-        m_image_renderer.stage_image(m_texture, {width / 4, height / 4, width / 2, height / 2});
-        m_image_renderer.stage_image(m_texture_font, {width / 4, height / 4, width / 2, height / 2});
+        m_draw_context.draw_image(m_image_renderer, m_texture);
+        m_draw_context.draw_image(m_image_renderer, m_texture, {width / 4, height / 4, width / 2, height / 2});
+        m_draw_context.draw_image(m_image_renderer, m_texture_font, {width / 4, height / 4, width / 2, height / 2});
         return m_image_renderer.render(&inheritance);
     };
 
@@ -222,6 +225,7 @@ void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
     auto render_gui = [this, &inheritance]() -> VkCommandBuffer
     {
         m_gui_context.render(m_gui_renderer);
+        m_draw_context.draw_text(m_gui_renderer, "$$$ oder fahrkarte du nase\nteil zwo", m_font, {400.f, 450.f});
         return m_gui_renderer.render(&inheritance);
     };
 

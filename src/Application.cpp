@@ -61,9 +61,6 @@ int Application::run()
 
             // perform fps-timing
             frame_timing();
-
-            // Check if ESC key was pressed or window was closed or whatever
-            m_running = is_running();
         }
 
         // manage teardown, save stuff etc.
@@ -77,7 +74,7 @@ int Application::run()
     return EXIT_SUCCESS;
 }
 
-double Application::application_time()
+double Application::application_time() const
 {
     auto current_time = std::chrono::high_resolution_clock::now();
     return double_sec_t(current_time - m_start_time).count();

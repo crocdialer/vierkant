@@ -281,7 +281,41 @@ void draw_component_ui(const ComponentConstPtr &the_component)
 
 void draw_application_ui(const vierkant::ApplicationConstPtr &app)
 {
+    int corner = 0;
+    bool is_open = true;
+    float bg_alpha = .35f;
+    const float DISTANCE = 10.0f;
+    ImGuiIO &io = ImGui::GetIO();
+    ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
+                               (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
+    ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
+    ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+    ImGui::SetNextWindowBgAlpha(bg_alpha);
 
+    if(ImGui::Begin("Example: Simple overlay", &is_open,
+                    (corner != -1 ? ImGuiWindowFlags_NoMove : 0) | ImGuiWindowFlags_NoDecoration |
+                    ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
+                    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+    {
+        ImGui::Text(app->name().c_str());
+        ImGui::Separator();
+
+        const char *items[] = {"Disabled", "Print", "Fatal", "Error", "Warning", "Info", "Debug", "Trace_1", "Trace_2",
+                               "Trace_3"};
+        int log_level = (int)crocore::g_logger.severity();
+
+        if(ImGui::Combo("log level", &log_level, items, IM_ARRAYSIZE(items)))
+        {
+            crocore::g_logger.set_severity(crocore::Severity(log_level));
+        }
+        ImGui::Spacing();
+        ImGui::Text("%.0f x %.0f", io.DisplaySize.x, io.DisplaySize.y);
+        ImGui::Spacing();
+        ImGui::Text("time: %.1f", app->application_time());
+        ImGui::Spacing();
+        ImGui::Text("fps: %.1f", app->fps());
+    }
+    ImGui::End();
 }
 
 void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)

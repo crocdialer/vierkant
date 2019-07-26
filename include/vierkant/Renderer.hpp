@@ -65,8 +65,6 @@ public:
 
     void stage_drawable(const drawable_t &drawable);
 
-    void stage_image(const vierkant::ImagePtr &image, const crocore::Area_<int> &area = {});
-
     VkCommandBuffer render(VkCommandBufferInheritanceInfo *inheritance);
 
     uint32_t current_index() const { return m_current_index; }
@@ -80,11 +78,6 @@ public:
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 
 private:
-
-    enum class DrawableType
-    {
-        IMAGE
-    };
 
     struct render_asset_t
     {
@@ -118,10 +111,6 @@ private:
     vierkant::RenderPassPtr m_renderpass;
 
     VkSampleCountFlagBits m_sample_count = VK_SAMPLE_COUNT_1_BIT;
-
-    std::map<vierkant::ShaderType, shader_stage_map_t> m_shader_stage_cache;
-
-    std::unordered_map<DrawableType, drawable_t> m_drawable_cache;
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 

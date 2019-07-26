@@ -43,7 +43,7 @@ enum class ShaderType{ UNLIT_TEXTURE };
  * @param   t       the Shadertype to return the shader-stages for
  * @return  the newly constructed map containing the VkShaderModules
  */
-shader_stage_map_t shader_stages(const DevicePtr &device, ShaderType t);
+shader_stage_map_t create_shader_stages(const DevicePtr &device, ShaderType t);
 
 DEFINE_CLASS_PTR(Pipeline)
 
