@@ -106,39 +106,9 @@ void HelloTriangleApplication::create_context_and_window()
 void HelloTriangleApplication::create_graphics_pipeline()
 {
     auto &framebuffers = m_window->swapchain().framebuffers();
-
     m_renderer = vk::Renderer(m_device, framebuffers);
     m_image_renderer = vk::Renderer(m_device, framebuffers);
     m_gui_renderer = vk::Renderer(m_device, framebuffers);
-
-    // descriptors
-    vk::descriptor_t desc_ubo = {}, desc_texture = {};
-    desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    desc_ubo.binding = 0;
-
-    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.binding = 1;
-    desc_texture.image_samplers = {m_texture};
-
-    m_drawable = {};
-    m_drawable.mesh = m_mesh;
-    m_drawable.num_indices = m_mesh->num_elements;
-    m_drawable.descriptors = {desc_ubo, desc_texture};
-
-    // with the descriptors in place we can derive the set-layout
-    m_drawable.descriptor_set_layout = vk::create_descriptor_set_layout(m_device, m_drawable.descriptors);
-
-    m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device, vk::ShaderType::UNLIT_TEXTURE);
-    m_drawable.pipeline_format.descriptor_set_layouts = {m_drawable.descriptor_set_layout.get()};
-    m_drawable.pipeline_format.primitive_topology = m_mesh->topology;
-    m_drawable.pipeline_format.binding_descriptions = vierkant::binding_descriptions(m_mesh);
-    m_drawable.pipeline_format.attribute_descriptions = vierkant::attribute_descriptions(m_mesh);
-    m_drawable.pipeline_format.depth_test = true;
-    m_drawable.pipeline_format.depth_write = true;
-    m_drawable.pipeline_format.stencil_test = false;
-    m_drawable.pipeline_format.blending = false;
 }
 
 void HelloTriangleApplication::create_texture_image()
@@ -175,6 +145,12 @@ void HelloTriangleApplication::load_model()
     auto geom = vk::Geometry::Box(glm::vec3(.5f));
     geom->normals.clear();
     m_mesh = vk::create_mesh_from_geometry(m_device, geom);
+    m_material->shader_type = vk::ShaderType::UNLIT_TEXTURE;
+    m_material->images = {m_texture};
+
+    m_drawable = vk::Renderer::create_drawable(m_device,
+                                               vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 10.f),
+                                               m_mesh, m_material);
 }
 
 void HelloTriangleApplication::update(double time_delta)

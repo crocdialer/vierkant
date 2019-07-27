@@ -11,11 +11,13 @@
 #include "vierkant/Framebuffer.hpp"
 #include "vierkant/Pipeline.hpp"
 #include "vierkant/Mesh.hpp"
+#include "vierkant/Material.hpp"
 #include "vierkant/SwapChain.hpp"
 #include "vierkant/Window.hpp"
 #include "vierkant/Geometry.hpp"
 #include "vierkant/Font.hpp"
 #include "vierkant/Renderer.hpp"
+#include "vierkant/Camera.hpp"
 #include "vierkant/intersection.hpp"
 
 namespace vierkant {
@@ -38,15 +40,14 @@ public:
 
 private:
 
-    const shader_stage_map_t& shader_stages(vierkant::ShaderType type);
+    const shader_stage_map_t &shader_stages(vierkant::ShaderType type);
 
     vierkant::DevicePtr m_device;
     std::map<vierkant::ShaderType, shader_stage_map_t> m_shader_stage_cache;
     Renderer::drawable_t m_drawable_text = {};
     Renderer::drawable_t m_drawable_image = {};
+    Renderer::drawable_t m_drawable_mesh = {};
 };
-
-//void draw_mesh(vierkant::Renderer &renderer, const MeshPtr &mesh);
 
 }
 namespace vk = vierkant;

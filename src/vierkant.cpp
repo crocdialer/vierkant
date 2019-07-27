@@ -77,6 +77,11 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
                                                                                        m_drawable_text.descriptors);
         m_drawable_text.pipeline_format.descriptor_set_layouts = {m_drawable_text.descriptor_set_layout.get()};
     }
+
+    // meshes
+    {
+
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,11 +143,6 @@ const shader_stage_map_t &DrawContext::shader_stages(vierkant::ShaderType type)
         return it->second;
     }
 }
-
-//void draw_mesh(vierkant::Renderer &renderer, const MeshPtr &mesh)
-//{
-//
-//}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

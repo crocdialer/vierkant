@@ -9,6 +9,47 @@ namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device, const CameraPtr &camera,
+                                               const MeshPtr &mesh, const MaterialPtr &material)
+{
+    // copy mesh-drawable
+    Renderer::drawable_t drawable = {};
+    drawable.mesh = mesh;
+    drawable.num_indices = mesh->num_elements;
+    drawable.matrices.projection = camera->projection_matrix();
+    drawable.matrices.model = mesh->global_transform();
+
+    drawable.pipeline_format.binding_descriptions = vierkant::binding_descriptions(mesh);
+    drawable.pipeline_format.attribute_descriptions = vierkant::attribute_descriptions(mesh);
+    drawable.pipeline_format.primitive_topology = mesh->topology;
+    drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
+    drawable.pipeline_format.blending = false;
+    drawable.pipeline_format.depth_test = true;
+    drawable.pipeline_format.depth_write = true;
+
+    // descriptors
+    vierkant::descriptor_t desc_ubo = {};
+    desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+    desc_ubo.binding = 0;
+
+    vierkant::descriptor_t desc_texture = {};
+    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_texture.binding = 1;
+
+    drawable.descriptors = {desc_ubo, desc_texture};
+    drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
+    drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
+
+    // set images
+    drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = material->images;
+
+    return drawable;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &framebuffers,
                    vierkant::PipelineCachePtr pipeline_cache) :
         m_device(std::move(device))
@@ -48,7 +89,8 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
 
     for(auto &render_asset : m_render_assets)
     {
-        render_asset.command_buffer = vierkant::CommandBuffer(m_device, command_pool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+        render_asset.command_buffer = vierkant::CommandBuffer(m_device, command_pool,
+                                                              VK_COMMAND_BUFFER_LEVEL_SECONDARY);
     }
 
     // we also need a DescriptorPool ...

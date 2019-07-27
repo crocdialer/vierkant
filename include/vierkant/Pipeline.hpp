@@ -34,7 +34,7 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
 /**
  * @brief   ShaderType is used to refer to different sets of shader-stages
  */
-enum class ShaderType{ UNLIT_TEXTURE };
+enum class ShaderType{ UNLIT_TEXTURE, CUSTOM };
 
 /**
  * @brief   Get a map with shader-stages for a given Shadertype.

@@ -9,7 +9,9 @@
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Framebuffer.hpp"
 #include "vierkant/PipelineCache.hpp"
-#include "Pipeline.hpp"
+#include "vierkant/Pipeline.hpp"
+#include "vierkant/Camera.hpp"
+#include "vierkant/Material.hpp"
 
 namespace vierkant {
 
@@ -21,7 +23,7 @@ public:
     {
         SLOT_MATRIX = 0, SLOT_TEXTURES, MIN_NUM_DESCRIPTORS
     };
-    
+
     struct matrix_struct_t
     {
         glm::mat4 model = glm::mat4(1);
@@ -43,6 +45,9 @@ public:
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
     };
+
+    static drawable_t create_drawable(const vierkant::DevicePtr &device, const CameraPtr &camera, const MeshPtr &mesh,
+                                      const MaterialPtr &material);
 
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
 
