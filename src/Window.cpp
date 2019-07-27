@@ -299,8 +299,8 @@ bool Window::should_close() const
 
 void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
 {
-    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-    self->m_framebuffer_resized = true;
+//    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+//    self->m_framebuffer_resized = true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -411,7 +411,6 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
 
             if(pair.second.mouse_wheel){ pair.second.mouse_wheel(e); }
         }
-
     }
 }
 
