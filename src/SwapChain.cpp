@@ -191,7 +191,6 @@ SwapChain::~SwapChain()
         {
             vkDestroySemaphore(m_device->handle(), so.render_finished, nullptr);
             vkDestroySemaphore(m_device->handle(), so.image_available, nullptr);
-            vkDestroyFence(m_device->handle(), so.in_flight, nullptr);
         }
     }
 }
@@ -325,22 +324,16 @@ void SwapChain::create_sync_objects()
     VkSemaphoreCreateInfo semaphore_info = {};
     semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    VkFenceCreateInfo fence_info = {};
-    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fence_info.pNext = nullptr;
-    fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
     for(size_t i = 0; i < SwapChain::max_frames_in_flight; i++)
     {
         if(vkCreateSemaphore(m_device->handle(), &semaphore_info, nullptr, &m_sync_objects[i].image_available) !=
            VK_SUCCESS ||
            vkCreateSemaphore(m_device->handle(), &semaphore_info, nullptr, &m_sync_objects[i].render_finished) !=
-           VK_SUCCESS ||
-           vkCreateFence(m_device->handle(), &fence_info, nullptr, &m_sync_objects[i].in_flight) != VK_SUCCESS)
+           VK_SUCCESS)
         {
             throw std::runtime_error("failed to create sync object");
         }
-        m_sync_objects[i].frame_index = static_cast<uint32_t>(i);
+
     }
 }
 

@@ -42,7 +42,7 @@ private:
 
     void teardown() override;
 
-    void draw(const vierkant::WindowPtr &w);
+    std::vector<VkCommandBuffer> draw(const vierkant::WindowPtr &w);
 
     void create_context_and_window();
 

@@ -124,37 +124,6 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
 
     // create swapchain for this window
     m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync);
-
-    m_command_buffers.resize(vierkant::SwapChain::max_frames_in_flight);
-
-    for(auto &m_command_buffer : m_command_buffers)
-    {
-        m_command_buffer = vierkant::CommandBuffer(device, device->command_pool_transient());
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Window::record_command_buffer()
-{
-    uint32_t image_index = swapchain().image_index();
-    auto device = swapchain().device();
-    const auto &framebuffers = swapchain().framebuffers();
-
-    m_command_buffers[image_index].begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
-
-    //  begin the renderpass
-    framebuffers[image_index].begin_renderpass(m_command_buffers[image_index].handle(),
-                                               VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-
-    // fire secondary commandbuffers here
-    for(auto &pair : window_delegates)
-    {
-        if(pair.second.draw_fn){ pair.second.draw_fn(shared_from_this()); }
-    }
-
-    framebuffers[image_index].end_renderpass();
-    m_command_buffers[image_index].end();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -227,16 +196,8 @@ void Window::draw()
 {
     auto sync_objects = swapchain().sync_objects();
 
-    // wait for prior frames to finish
-    vkWaitForFences(swapchain().device()->handle(), 1, &sync_objects.in_flight, VK_TRUE,
-                    std::numeric_limits<uint64_t>::max());
-    vkResetFences(swapchain().device()->handle(), 1, &sync_objects.in_flight);
-
     uint32_t image_index;
     swapchain().aquire_next_image(&image_index);
-
-    // record primary commandbuffer for this frame
-    record_command_buffer();
 
     // submit with synchronization-infos
     VkSemaphore wait_semaphores[] = {sync_objects.image_available};
@@ -250,8 +211,22 @@ void Window::draw()
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
 
-    // submit primary commandbuffer
-    m_command_buffers[image_index].submit(swapchain().device()->queue(), false, sync_objects.in_flight, submit_info);
+    auto &framebuffer = swapchain().framebuffers()[image_index];
+
+    // fire secondary commandbuffers here
+    for(auto &pair : window_delegates)
+    {
+        if(pair.second.draw_fn)
+        {
+            auto draw_fn = [self = shared_from_this(), &delegate = pair.second]()
+            {
+                return delegate.draw_fn(self);
+            };
+
+            // submit primary commandbuffer
+            framebuffer.submit(draw_fn, swapchain().device()->queue(), submit_info);
+        }
+    }
 
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();

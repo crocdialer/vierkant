@@ -154,9 +154,6 @@ Framebuffer::Framebuffer(DevicePtr device, VkExtent3D size, Format format, Rende
         m_format(std::move(format))
 {
     m_format.color_attachment_format.extent = m_extent;
-    m_commandbuffer = vierkant::CommandBuffer(m_device, m_device->command_pool_transient());
-    m_fence = vierkant::create_fence(m_device, true);
-
     init(create_attachments(m_format), std::move(renderpass));
 }
 
@@ -261,12 +258,15 @@ void Framebuffer::end_renderpass() const
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 VkFence
-Framebuffer::submit(const std::vector<VkCommandBuffer> &command_buffers, VkQueue queue, VkSubmitInfo submit_info)
+Framebuffer::submit(const draw_fn_t& draw_fn, VkQueue queue, VkSubmitInfo submit_info)
 {
     // wait for prior fence
     VkFence fence = m_fence.get();
     vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     vkResetFences(m_device->handle(), 1, &fence);
+
+    // execute provided draw function
+    auto command_buffers = draw_fn();
 
     // record commandbuffer
     m_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
@@ -303,6 +303,9 @@ size_t Framebuffer::num_attachments(vierkant::Framebuffer::Attachment type) cons
 
 void Framebuffer::init(AttachmentMap attachments, RenderPassPtr renderpass)
 {
+    m_commandbuffer = vierkant::CommandBuffer(m_device, m_device->command_pool_transient());
+    m_fence = vierkant::create_fence(m_device, true);
+
     clear_color = {{0.f, 0.f, 0.f, 1.f}};
     clear_depth_stencil = {1.0f, 0};
 
@@ -417,6 +420,8 @@ void swap(Framebuffer &lhs, Framebuffer &rhs)
     std::swap(lhs.m_extent, rhs.m_extent);
     std::swap(lhs.m_attachments, rhs.m_attachments);
     std::swap(lhs.m_framebuffer, rhs.m_framebuffer);
+    std::swap(lhs.m_fence, rhs.m_fence);
+    std::swap(lhs.m_commandbuffer, rhs.m_commandbuffer);
     std::swap(lhs.m_active_commandbuffer, rhs.m_active_commandbuffer);
     std::swap(lhs.m_renderpass, rhs.m_renderpass);
     std::swap(lhs.m_format, rhs.m_format);

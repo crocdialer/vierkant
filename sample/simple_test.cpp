@@ -191,7 +191,7 @@ void HelloTriangleApplication::update(double time_delta)
     set_running(running() && !m_window->should_close());
 }
 
-void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
+std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 {
     auto image_index = w->swapchain().image_index();
     const auto &framebuffer = m_window->swapchain().framebuffers()[image_index];
@@ -239,6 +239,5 @@ void HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
     // get values from completed futures
     std::vector<VkCommandBuffer> command_buffers;
     for(auto &f : cmd_futures){ command_buffers.push_back(f.get()); }
-
-    vkCmdExecuteCommands(w->command_buffer().handle(), command_buffers.size(), command_buffers.data());
+    return command_buffers;
 }

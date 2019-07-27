@@ -18,7 +18,7 @@ DEFINE_CLASS_PTR(Window)
 
 struct window_delegate_t
 {
-    using draw_fn_t = std::function<void(const WindowPtr &)>;
+    using draw_fn_t = std::function<std::vector<VkCommandBuffer>(const WindowPtr &)>;
     using close_fn_t = std::function<void()>;
     using resize_fn_t = std::function<void(uint32_t w, uint32_t h)>;
 
@@ -156,11 +156,6 @@ public:
     SwapChain &swapchain() { return m_swap_chain; }
 
     /**
-     * @return  the primary command buffer that inits this Window's renderpass
-     */
-    const CommandBuffer &command_buffer() const { return m_command_buffers[m_swap_chain.image_index()]; }
-
-    /**
      * @brief   create an internal SwapChain for this Window.
      *          this is necessary after creating or resizing the Window
      *
@@ -176,15 +171,11 @@ private:
     Window(VkInstance instance, uint32_t width, uint32_t height, const std::string &title,
            bool fullscreen, uint32_t monitor_index);
 
-    void record_command_buffer();
-
     GLFWwindow *m_handle = nullptr;
 
     VkInstance m_instance = VK_NULL_HANDLE;
 
     VkSurfaceKHR m_surface = VK_NULL_HANDLE;
-
-    std::vector<CommandBuffer> m_command_buffers;
 
     SwapChain m_swap_chain;
 

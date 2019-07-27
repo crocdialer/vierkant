@@ -24,10 +24,6 @@ public:
         VkSemaphore image_available = VK_NULL_HANDLE;
 
         VkSemaphore render_finished = VK_NULL_HANDLE;
-
-        VkFence in_flight = VK_NULL_HANDLE;
-
-        uint32_t frame_index = 0;
     };
 
     SwapChain() = default;
@@ -85,7 +81,7 @@ public:
     /**
      * @return  a reference for the contained array of Framebuffers
      */
-    const std::vector<vierkant::Framebuffer> &framebuffers() const { return m_framebuffers; }
+    std::vector<vierkant::Framebuffer> &framebuffers() { return m_framebuffers; }
 
     /**
      * @return  a reference for array of SwapChain-Images
