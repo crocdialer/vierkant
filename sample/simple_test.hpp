@@ -28,12 +28,12 @@ const char *g_font_path = "/usr/local/share/fonts/Courier New Bold.ttf";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-class HelloTriangleApplication : public vierkant::Application
+class HelloTriangleApplication : public crocore::Application
 {
 
 public:
 
-    explicit HelloTriangleApplication(int argc = 0, char *argv[] = nullptr) : vierkant::Application(argc, argv) {};
+    explicit HelloTriangleApplication(int argc = 0, char *argv[] = nullptr) : crocore::Application(argc, argv) {};
 
 private:
 

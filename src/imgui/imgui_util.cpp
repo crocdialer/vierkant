@@ -279,7 +279,7 @@ void draw_component_ui(const ComponentConstPtr &the_component)
     ImGui::End();
 }
 
-void draw_application_ui(const vierkant::ApplicationConstPtr &app)
+void draw_application_ui(const crocore::ApplicationConstPtr &app)
 {
     int corner = 0;
     bool is_open = true;
