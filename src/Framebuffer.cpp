@@ -258,15 +258,12 @@ void Framebuffer::end_renderpass() const
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 VkFence
-Framebuffer::submit(const draw_fn_t& draw_fn, VkQueue queue, VkSubmitInfo submit_info)
+Framebuffer::submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue, VkSubmitInfo submit_info)
 {
     // wait for prior fence
     VkFence fence = m_fence.get();
     vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     vkResetFences(m_device->handle(), 1, &fence);
-
-    // execute provided draw function
-    auto command_buffers = draw_fn();
 
     // record commandbuffer
     m_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
@@ -275,7 +272,10 @@ Framebuffer::submit(const draw_fn_t& draw_fn, VkQueue queue, VkSubmitInfo submit
     begin_renderpass(m_commandbuffer.handle(), VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
 
     // execute secondary commandbuffers
-    vkCmdExecuteCommands(m_commandbuffer.handle(), command_buffers.size(), command_buffers.data());
+    if(!commandbuffers.empty())
+    {
+        vkCmdExecuteCommands(m_commandbuffer.handle(), commandbuffers.size(), commandbuffers.data());
+    }
 
     // end renderpass
     end_renderpass();
@@ -284,6 +284,15 @@ Framebuffer::submit(const draw_fn_t& draw_fn, VkQueue queue, VkSubmitInfo submit
     m_commandbuffer.submit(queue, false, fence, submit_info);
 
     return fence;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Framebuffer::wait_fence()
+{
+    // wait for prior fence
+    VkFence fence = m_fence.get();
+    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

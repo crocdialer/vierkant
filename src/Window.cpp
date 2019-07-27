@@ -199,6 +199,11 @@ void Window::draw()
     uint32_t image_index;
     swapchain().aquire_next_image(&image_index);
 
+    auto &framebuffer = swapchain().framebuffers()[image_index];
+
+    // wait for prior frame to finish
+    framebuffer.wait_fence();
+
     // submit with synchronization-infos
     VkSemaphore wait_semaphores[] = {sync_objects.image_available};
     VkSemaphore signal_semaphores[] = {sync_objects.render_finished};
@@ -211,22 +216,19 @@ void Window::draw()
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
 
-    auto &framebuffer = swapchain().framebuffers()[image_index];
+    std::vector<VkCommandBuffer> commandbuffers;
 
-    // fire secondary commandbuffers here
+    // create secondary commandbuffers
     for(auto &pair : window_delegates)
     {
         if(pair.second.draw_fn)
         {
-            auto draw_fn = [self = shared_from_this(), &delegate = pair.second]()
-            {
-                return delegate.draw_fn(self);
-            };
-
-            // submit primary commandbuffer
-            framebuffer.submit(draw_fn, swapchain().device()->queue(), submit_info);
+            auto delegate_cmds = pair.second.draw_fn(shared_from_this());
+            commandbuffers.insert(commandbuffers.end(), delegate_cmds.begin(), delegate_cmds.end());
         }
     }
+    // submit primary commandbuffer
+    framebuffer.submit(commandbuffers, swapchain().device()->queue(), submit_info);
 
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();

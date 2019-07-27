@@ -16,8 +16,6 @@ class Framebuffer
 {
 public:
 
-    using draw_fn_t = std::function<std::vector<VkCommandBuffer>()>;
-
     /**
      * @brief   Framebuffer::Format groups information necessary to create a set of Image-Attachments
      */
@@ -104,7 +102,12 @@ public:
      * @param   submit_info     an optional VkSubmitInfo struct.
      * @return  a fence that will be signaled when rendering is done.
      */
-    VkFence submit(const draw_fn_t& draw_fn, VkQueue queue, VkSubmitInfo submit_info = {});
+    VkFence submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue, VkSubmitInfo submit_info = {});
+
+    /**
+     * @brief   wait for a prior frame to finish.
+     */
+    void wait_fence();
 
     /**
      * @return  the VkExtent3D used by the Image-Attachments

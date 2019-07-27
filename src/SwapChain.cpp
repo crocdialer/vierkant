@@ -184,6 +184,7 @@ SwapChain::~SwapChain()
 {
     if(m_swap_chain)
     {
+        vkDeviceWaitIdle(m_device->handle());
         vkDestroySwapchainKHR(m_device->handle(), m_swap_chain, nullptr);
         m_swap_chain = VK_NULL_HANDLE;
 
