@@ -118,12 +118,21 @@ Window::~Window()
 
 void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples, bool v_sync)
 {
+    // while window is minimized
+    while(is_minimized()){ glfwWaitEvents(); }
+
     // make sure everything is cleaned up
     // prevents: vkCreateSwapChainKHR(): surface has an existing swapchain other than oldSwapchain
     m_swap_chain = SwapChain();
 
     // create swapchain for this window
     m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync);
+
+    for(auto &pair : window_delegates)
+    {
+        if(pair.second.resize_fn){ pair.second.resize_fn(m_swap_chain.extent().width, m_swap_chain.extent().height); }
+    }
+    m_framebuffer_resized = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -194,10 +203,14 @@ void Window::set_title(const std::string &title)
 
 void Window::draw()
 {
-    auto sync_objects = swapchain().sync_objects();
-
+    auto sync_objects = m_swap_chain.sync_objects();
     uint32_t image_index;
-    swapchain().aquire_next_image(&image_index);
+
+    if(!m_swap_chain.aquire_next_image(&image_index))
+    {
+        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
+        return;
+    }
 
     auto &framebuffer = swapchain().framebuffers()[image_index];
 
@@ -227,18 +240,15 @@ void Window::draw()
             commandbuffers.insert(commandbuffers.end(), delegate_cmds.begin(), delegate_cmds.end());
         }
     }
-    // submit primary commandbuffer
-    framebuffer.submit(commandbuffers, swapchain().device()->queue(), submit_info);
+    // execute all commands, submit primary commandbuffer
+    framebuffer.submit(commandbuffers, m_swap_chain.device()->queue(), submit_info);
 
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();
 
-    switch(result)
+    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebuffer_resized)
     {
-        case VK_ERROR_OUT_OF_DATE_KHR:
-        case VK_SUBOPTIMAL_KHR:
-        default:
-            break;
+        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
     }
 }
 
@@ -290,20 +300,7 @@ bool Window::should_close() const
 void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-
-    // while window is minimized
-    while(self->is_minimized()){ glfwWaitEvents(); }
-
-    // wait for work to finish in queue
-    vkDeviceWaitIdle(self->m_swap_chain.device()->handle());
-
-    // recreate a swapchain
-    self->create_swapchain(self->m_swap_chain.device(), self->m_swap_chain.sample_count(), self->m_swap_chain.v_sync());
-
-    for(auto &pair : self->window_delegates)
-    {
-        if(pair.second.resize_fn){ pair.second.resize_fn(width, height); }
-    }
+    self->m_framebuffer_resized = true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

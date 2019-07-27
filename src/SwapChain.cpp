@@ -206,15 +206,15 @@ SwapChain &SwapChain::operator=(SwapChain other)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkResult SwapChain::aquire_next_image(uint32_t *image_index,
-                                      uint64_t timeout)
+bool SwapChain::aquire_next_image(uint32_t *image_index, uint64_t timeout)
 {
     VkResult result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain,
                                             timeout,
                                             sync_objects().image_available,
                                             VK_NULL_HANDLE, &m_swapchain_image_index);
     if(image_index){ *image_index = m_swapchain_image_index; }
-    return result;
+    if(result == VK_ERROR_OUT_OF_DATE_KHR){ return false; }
+    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
