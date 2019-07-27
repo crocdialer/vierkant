@@ -3,7 +3,7 @@
 #include <crocore/Component.hpp>
 #include <vierkant/Image.hpp>
 #include <vierkant/imgui/imgui_integration.h>
-#include <vierkant/Application.hpp>
+#include <crocore/Application.hpp>
 
 namespace vierkant::gui {
 

@@ -21,6 +21,11 @@ void HelloTriangleApplication::teardown()
     vkDeviceWaitIdle(m_device->handle());
 }
 
+void HelloTriangleApplication::poll_events()
+{
+    glfwPollEvents();
+}
+
 void HelloTriangleApplication::create_context_and_window()
 {
     m_instance = vk::Instance(g_enable_validation_layers, vk::Window::get_required_extensions());

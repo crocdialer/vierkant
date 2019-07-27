@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "crocore/Application.hpp"
 #include <crocore/Animation.hpp>
 #include "vierkant/vierkant.hpp"
 #include "vierkant/Font.hpp"
@@ -21,9 +22,9 @@ const bool g_enable_validation_layers = false;
 const bool g_enable_validation_layers = true;
 #endif
 
-const char* g_texture_url = "http://roa.h-cdn.co/assets/cm/14/47/1024x576/546b32b33240f_-_hasselhoff_kr_pr_nbc-lg.jpg";
+const char *g_texture_url = "http://roa.h-cdn.co/assets/cm/14/47/1024x576/546b32b33240f_-_hasselhoff_kr_pr_nbc-lg.jpg";
 
-const char* g_font_path = "/usr/local/share/fonts/Courier New Bold.ttf";
+const char *g_font_path = "/usr/local/share/fonts/Courier New Bold.ttf";
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -41,6 +42,8 @@ private:
     void update(double time_delta) override;
 
     void teardown() override;
+
+    void poll_events() override;
 
     std::vector<VkCommandBuffer> draw(const vierkant::WindowPtr &w);
 
