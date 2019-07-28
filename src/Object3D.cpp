@@ -58,7 +58,7 @@ glm::quat Object3D::rotation() const
 
 void Object3D::set_look_at(const glm::vec3 &theLookAt, const glm::vec3 &theUp)
 {
-    set_transform(glm::inverse(glm::lookAt(position(), theLookAt, theUp)) * glm::scale(glm::mat4(), scale()));
+    set_transform(glm::inverse(glm::lookAt(position(), theLookAt, theUp)) * glm::scale(glm::mat4(1), scale()));
 }
 
 void Object3D::set_look_at(const Object3DPtr &theLookAt)
@@ -106,7 +106,7 @@ glm::vec3 Object3D::global_scale() const
 
 void Object3D::set_global_transform(const glm::mat4 &transform)
 {
-    glm::mat4 parent_trans_inv = parent() ? glm::inverse(parent()->global_transform()) : glm::mat4();
+    glm::mat4 parent_trans_inv = parent() ? glm::inverse(parent()->global_transform()) : glm::mat4(1);
     m_transform = parent_trans_inv * transform;
 }
 
@@ -202,7 +202,7 @@ AABB Object3D::aabb() const
 
 OBB Object3D::obb() const
 {
-    OBB ret(aabb(), glm::mat4());
+    OBB ret(aabb(), glm::mat4(1));
     return ret;
 }
 

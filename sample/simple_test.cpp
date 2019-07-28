@@ -96,6 +96,8 @@ void HelloTriangleApplication::create_context_and_window()
 
     // camera
     m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 10.f);
+    m_camera->set_position(glm::vec3(1.0f, 1.0f, 1.0f));
+    m_camera->set_look_at(glm::vec3(0.0f, 0.0f, -.5f),   glm::vec3(0.0f, 0.0f, 1.0f));
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
@@ -163,9 +165,7 @@ void HelloTriangleApplication::update(double time_delta)
     m_drawable.matrices.model = glm::rotate(glm::scale(glm::mat4(1), glm::vec3(m_scale)),
                                             (float)application_time() * glm::radians(30.0f),
                                             glm::vec3(0.0f, 1.0f, 0.0f));
-    m_drawable.matrices.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f),
-                                           glm::vec3(0.0f, 0.0f, 1.0f));
-
+    m_drawable.matrices.view = m_camera->view_matrix();
     m_drawable.matrices.projection = m_camera->projection_matrix();
 
     // issue top-level draw-command
