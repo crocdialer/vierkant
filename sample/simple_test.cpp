@@ -40,6 +40,7 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h)
     {
         create_graphics_pipeline();
+        m_camera->set_aspect(m_window->aspect_ratio());
     };
     m_window->window_delegates["main"] = window_delegate;
 
@@ -92,6 +93,9 @@ void HelloTriangleApplication::create_context_and_window()
     // attach gui input-delegates to window
     m_window->key_delegates["gui"] = m_gui_context.key_delegate();
     m_window->mouse_delegates["gui"] = m_gui_context.mouse_delegate();
+
+    // camera
+    m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 10.f);
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
@@ -148,9 +152,7 @@ void HelloTriangleApplication::load_model()
     m_material->shader_type = vk::ShaderType::UNLIT_TEXTURE;
     m_material->images = {m_texture};
 
-    m_drawable = vk::Renderer::create_drawable(m_device,
-                                               vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 10.f),
-                                               m_mesh, m_material);
+    m_drawable = vk::Renderer::create_drawable(m_device, m_mesh, m_material);
 }
 
 void HelloTriangleApplication::update(double time_delta)
@@ -163,8 +165,8 @@ void HelloTriangleApplication::update(double time_delta)
                                             glm::vec3(0.0f, 1.0f, 0.0f));
     m_drawable.matrices.view = glm::lookAt(glm::vec3(1.0f, 1.0f, 1.0f), glm::vec3(0.0f, 0.0f, -.5f),
                                            glm::vec3(0.0f, 0.0f, 1.0f));
-    m_drawable.matrices.projection = glm::perspective(glm::radians(45.0f), m_window->aspect_ratio(), 0.1f, 10.0f);
-    m_drawable.matrices.projection[1][1] *= -1;
+
+    m_drawable.matrices.projection = m_camera->projection_matrix();
 
     // issue top-level draw-command
     m_window->draw();
@@ -200,6 +202,9 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
     auto render_mesh = [this, &inheritance]() -> VkCommandBuffer
     {
         m_renderer.stage_drawable(m_drawable);
+        m_draw_context.draw_boundingbox(m_renderer, m_mesh->aabb(),
+                                        m_drawable.matrices.view * m_drawable.matrices.model,
+                                        m_drawable.matrices.projection);
         return m_renderer.render(&inheritance);
     };
 

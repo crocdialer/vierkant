@@ -22,6 +22,8 @@
 
 namespace vierkant {
 
+vierkant::Ray calculate_ray(const CameraPtr &camera, const glm::vec2 &pos, const glm::vec2 &extent);
+
 class DrawContext
 {
 public:
@@ -38,6 +40,9 @@ public:
     void draw_image(vierkant::Renderer &renderer, const vierkant::ImagePtr &image,
                     const crocore::Area_<int> &area = {});
 
+    void draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb, const glm::mat4 &model_view,
+                          const glm::mat4 &projection);
+
 private:
 
     const shader_stage_map_t &shader_stages(vierkant::ShaderType type);
@@ -47,6 +52,7 @@ private:
     Renderer::drawable_t m_drawable_text = {};
     Renderer::drawable_t m_drawable_image = {};
     Renderer::drawable_t m_drawable_mesh = {};
+    Renderer::drawable_t m_drawable_aabb = {};
 };
 
 }

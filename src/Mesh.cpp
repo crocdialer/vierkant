@@ -437,6 +437,7 @@ create_mesh_from_geometry(const vierkant::DevicePtr &device, const GeometryConst
 
     // set topology
     mesh->topology = geom->topology;
+    mesh->boundingbox = vierkant::compute_aabb(geom->vertices);
     return mesh;
 }
 

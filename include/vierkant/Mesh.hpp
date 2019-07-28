@@ -192,6 +192,8 @@ public:
 
     Mesh &operator=(Mesh other) = delete;
 
+    vierkant::AABB aabb() const override { return boundingbox; }
+
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     uint32_t num_elements = 0;
 
@@ -202,6 +204,9 @@ public:
 
     // vertex attributes
     std::vector<attrib_t> vertex_attribs;
+
+    // boundingbox
+    vierkant::AABB boundingbox;
 
 private:
 

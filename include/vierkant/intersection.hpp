@@ -54,7 +54,11 @@ ray_intersection intersect(const OBB &theOBB, const Ray &theRay);
  *    /                   \
  * D +-------------------- +  C
  */
-glm::mat4 calculate_homography(const glm::vec2 src[4], const glm::vec2 dst[4]);
+glm::mat4 compute_homography(const glm::vec2 *src, const glm::vec2 *dst);
+
+vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices);
+
+glm::vec3 compute_centroid(const std::vector<glm::vec3> &vertices);
 
 struct Ray
 {

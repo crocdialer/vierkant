@@ -46,7 +46,7 @@ public:
         uint32_t num_indices = 0;
     };
 
-    static drawable_t create_drawable(const vierkant::DevicePtr &device, const CameraPtr &camera, const MeshPtr &mesh,
+    static drawable_t create_drawable(const vierkant::DevicePtr &device, const MeshPtr &mesh,
                                       const MaterialPtr &material);
 
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};

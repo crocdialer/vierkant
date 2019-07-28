@@ -30,6 +30,43 @@ ray_intersection intersect(const Plane &plane, const Ray &ray)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices)
+{
+    if(vertices.empty()){ return AABB(); }
+
+    AABB ret = AABB(glm::vec3(std::numeric_limits<float>::max()),
+                    glm::vec3(std::numeric_limits<float>::min()));
+
+    for(const glm::vec3 &vertex : vertices)
+    {
+        // X
+        if(vertex.x < ret.min.x)
+            ret.min.x = vertex.x;
+        else if(vertex.x > ret.max.x)
+            ret.max.x = vertex.x;
+        // Y
+        if(vertex.y < ret.min.y)
+            ret.min.y = vertex.y;
+        else if(vertex.y > ret.max.y)
+            ret.max.y = vertex.y;
+        // Z
+        if(vertex.z < ret.min.z)
+            ret.min.z = vertex.z;
+        else if(vertex.z > ret.max.z)
+            ret.max.z = vertex.z;
+    }
+    return ret;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+glm::vec3 compute_centroid(const std::vector<glm::vec3> &vertices)
+{
+    return crocore::mean<glm::vec3>(vertices);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 ray_triangle_intersection intersect(const Triangle &theTri, const Ray &theRay)
 {
     glm::vec3 e1 = theTri.v1 - theTri.v0, e2 = theTri.v2 - theTri.v0;
@@ -341,7 +378,7 @@ void gaussian_elimination(float *a, int n)
 }
 
 // Adapted from code found here: http://forum.openframeworks.cc/t/quad-warping-homography-without-opencv/3121/19
-glm::mat4 calculate_homography(const glm::vec2 src[4], const glm::vec2 dst[4])
+glm::mat4 compute_homography(const glm::vec2 *src, const glm::vec2 *dst)
 {
     float p[8][9] = {
             {-src[0][0], -src[0][1], -1, 0,          0,          0,  src[0][0] * dst[0][0],

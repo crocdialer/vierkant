@@ -62,13 +62,15 @@ private:
     // bundles basic Vulkan assets
     vierkant::Instance m_instance;
 
-    //
+    // device
     vierkant::DevicePtr m_device;
 
     // window handle
     std::shared_ptr<vierkant::Window> m_window;
 
     vierkant::ImagePtr m_texture, m_texture_font;
+
+    vk::PerspectiveCameraPtr m_camera;
 
     vk::MeshPtr m_mesh = vk::Mesh::create();
 

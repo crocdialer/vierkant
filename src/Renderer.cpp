@@ -9,15 +9,15 @@ namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device, const CameraPtr &camera,
+Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device,
                                                const MeshPtr &mesh, const MaterialPtr &material)
 {
     // copy mesh-drawable
     Renderer::drawable_t drawable = {};
     drawable.mesh = mesh;
     drawable.num_indices = mesh->num_elements;
-    drawable.matrices.projection = camera->projection_matrix();
-    drawable.matrices.model = mesh->global_transform();
+
+//    drawable.matrices.model = mesh->global_transform();
 
     drawable.pipeline_format.binding_descriptions = vierkant::binding_descriptions(mesh);
     drawable.pipeline_format.attribute_descriptions = vierkant::attribute_descriptions(mesh);
@@ -31,19 +31,36 @@ Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device
     vierkant::descriptor_t desc_ubo = {};
     desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    desc_ubo.binding = 0;
+    desc_ubo.binding = SLOT_MATRIX;
+    drawable.descriptors.push_back(desc_ubo);
 
-    vierkant::descriptor_t desc_texture = {};
-    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.binding = 1;
+    // textures
+    if(!material->images.empty())
+    {
+        vierkant::descriptor_t desc_texture = {};
+        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_texture.binding = SLOT_TEXTURES;
+        desc_texture.image_samplers = material->images;
+        drawable.descriptors.push_back(desc_texture);
+    }
 
-    drawable.descriptors = {desc_ubo, desc_texture};
+    uint32_t binding = MIN_NUM_DESCRIPTORS;
+
+    // custom ubos
+    for(auto &ubo : material->ubos)
+    {
+        vierkant::descriptor_t custom_desc = {};
+        custom_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        custom_desc.stage_flags = VK_SHADER_STAGE_ALL;
+        custom_desc.binding = binding++;
+        custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+        drawable.descriptors.push_back(custom_desc);
+    }
+
     drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
     drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
-
-    // set images
-    drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = material->images;
 
     return drawable;
 }

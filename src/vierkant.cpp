@@ -8,6 +8,48 @@
 
 namespace vierkant {
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+vierkant::Ray calculate_ray(const CameraPtr &camera, const glm::vec2 &pos, const glm::vec2 &extent)
+{
+    glm::vec3 cam_pos = camera->position();
+    glm::vec3 lookAt = camera->lookAt(), side = camera->side(), up = camera->up();
+    float near = camera->near();
+    glm::vec3 click_world_pos, ray_dir;
+
+    if(auto cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(camera))
+    {
+        // bring click_pos to range -1, 1
+        glm::vec2 click_2D(extent);
+        glm::vec2 offset(extent / 2.0f);
+        click_2D -= offset;
+        click_2D /= offset;
+        click_2D.y = -click_2D.y;
+
+        // convert fovy to radians
+        float rad = glm::radians(cam->fov());
+        float vLength = std::tan(rad / 2) * near;
+        float hLength = vLength * cam->aspect();
+
+        click_world_pos = cam_pos + lookAt * near
+                          + side * hLength * click_2D.x
+                          + up * vLength * click_2D.y;
+        ray_dir = click_world_pos - cam_pos;
+
+    }else if(auto cam = std::dynamic_pointer_cast<vierkant::OrthoCamera>(camera))
+    {
+        glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, cam->left(), cam->right()),
+                        crocore::map_value<float>(pos.y, extent.y, 0, cam->bottom(), cam->top()));
+        click_world_pos = cam_pos + lookAt * near + side * coord.x + up * coord.y;
+        ray_dir = lookAt;
+    }
+    LOG_TRACE_2 << "clicked_world: (" << click_world_pos.x << ",  " << click_world_pos.y
+                << ",  " << click_world_pos.z << ")";
+    return Ray(click_world_pos, ray_dir);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device))
 {
     // images
@@ -57,7 +99,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         pipeline_fmt.depth_write = false;
         pipeline_fmt.depth_test = false;
         pipeline_fmt.blending = true;
-        pipeline_fmt.cull_mode = VK_CULL_MODE_NONE;
+        pipeline_fmt.cull_mode = VK_CULL_MODE_BACK_BIT;
         pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
 
         // descriptors
@@ -78,9 +120,14 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_text.pipeline_format.descriptor_set_layouts = {m_drawable_text.descriptor_set_layout.get()};
     }
 
-    // meshes
+    // aabb
     {
-
+        // unit cube
+        auto geom = vierkant::Geometry::BoxOutline();
+        auto mesh = vierkant::create_mesh_from_geometry(m_device, geom);
+        auto material = vierkant::Material::create();
+        material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
+        m_drawable_aabb = vierkant::Renderer::create_drawable(m_device, mesh, material);
     }
 }
 
@@ -127,6 +174,22 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
     drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {image};
 
     // stage image drawable
+    renderer.stage_drawable(drawable);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb,
+                                   const glm::mat4 &model_view, const glm::mat4 &projection)
+{
+    auto drawable = m_drawable_aabb;
+
+    glm::mat4 center_mat = glm::translate(glm::mat4(1), aabb.center());
+    glm::mat4 scale_mat = glm::scale(glm::mat4(1), glm::vec3(aabb.width(),
+                                                            aabb.height(),
+                                                            aabb.depth()));
+    drawable.matrices.model = scale_mat * center_mat * model_view;
+    drawable.matrices.projection = projection;
     renderer.stage_drawable(drawable);
 }
 
