@@ -104,22 +104,24 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
     for(uint32_t i = 0; i < num_color_images; ++i)
     {
         VkAttachmentReference color_attachment_ref = {};
-        color_attachment_ref.attachment = attachment_index++;
+        color_attachment_ref.attachment = i;
         color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         color_refs.push_back(color_attachment_ref);
+        attachment_index++;
 
         if(has_resolve)
         {
             VkAttachmentReference color_attachment_resolve_ref = {};
-            color_attachment_resolve_ref.attachment = attachment_index++;
+            color_attachment_resolve_ref.attachment = i + num_color_images;
             color_attachment_resolve_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
             resolve_refs.push_back(color_attachment_resolve_ref);
+            attachment_index++;
         }
     }
     if(has_depth_stencil)
     {
         VkAttachmentReference depth_attachment_ref = {};
-        depth_attachment_ref.attachment = attachment_index++;
+        depth_attachment_ref.attachment = attachment_index;
         depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
         depth_stencil_refs = {depth_attachment_ref};
     }
