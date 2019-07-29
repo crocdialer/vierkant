@@ -213,8 +213,7 @@ bool SwapChain::aquire_next_image(uint32_t *image_index, uint64_t timeout)
                                             sync_objects().image_available,
                                             VK_NULL_HANDLE, &m_swapchain_image_index);
     if(image_index){ *image_index = m_swapchain_image_index; }
-    if(result == VK_ERROR_OUT_OF_DATE_KHR){ return false; }
-    return true;
+    return result == VK_SUCCESS;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
