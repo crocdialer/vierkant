@@ -32,12 +32,12 @@ public:
     /**
      * @brief   Enum to differentiate Image-Attachments
      */
-    enum class Attachment
+    enum class AttachmentType
     {
         Any = 0, Color = 1, Resolve = 2, DepthStencil = 3
     };
 
-    using AttachmentMap = std::map<Attachment, std::vector<vierkant::ImagePtr>>;
+    using AttachmentMap = std::map<AttachmentType, std::vector<vierkant::ImagePtr>>;
 
     /**
      * @brief                           Utility function to create a shared RenderPass.
@@ -119,7 +119,7 @@ public:
      * @param   type an Attachment-Enum specifying the type of Attachment to query for
      * @return  the number of Image-Attachments for the specified type
      */
-    size_t num_attachments(Attachment type = Attachment::Any) const;
+    size_t num_attachments(AttachmentType type = AttachmentType::Any) const;
 
     /**
      * @return  const-ref to a map, holding the Image-Attachments

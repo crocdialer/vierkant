@@ -6,17 +6,17 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-using attachment_count_t = std::map<vk::Framebuffer::Attachment, uint32_t>;
+using attachment_count_t = std::map<vk::Framebuffer::AttachmentType, uint32_t>;
 
 bool check_attachment_count(const vk::Framebuffer::AttachmentMap &attachments,
-                            std::map<vk::Framebuffer::Attachment, uint32_t> &expected_count)
+                            std::map<vk::Framebuffer::AttachmentType, uint32_t> &expected_count)
 {
-    if(attachments.count(vk::Framebuffer::Attachment::Color) !=
-       expected_count.count(vk::Framebuffer::Attachment::Color)){ return false; }
-    if(attachments.count(vk::Framebuffer::Attachment::Resolve) !=
-       expected_count.count(vk::Framebuffer::Attachment::Resolve)){ return false; }
-    if(attachments.count(vk::Framebuffer::Attachment::DepthStencil) !=
-       expected_count.count(vk::Framebuffer::Attachment::DepthStencil)){ return false; }
+    if(attachments.count(vk::Framebuffer::AttachmentType::Color) !=
+       expected_count.count(vk::Framebuffer::AttachmentType::Color)){ return false; }
+    if(attachments.count(vk::Framebuffer::AttachmentType::Resolve) !=
+       expected_count.count(vk::Framebuffer::AttachmentType::Resolve)){ return false; }
+    if(attachments.count(vk::Framebuffer::AttachmentType::DepthStencil) !=
+       expected_count.count(vk::Framebuffer::AttachmentType::DepthStencil)){ return false; }
 
     for(auto &pair : attachments)
     {
@@ -57,7 +57,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColor)
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 1);
 
         attachment_count_t expected_count;
-        expected_count[vk::Framebuffer::Attachment::Color] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
         auto res = check_attachment_count(framebuffer.attachments(), expected_count);
         BOOST_CHECK(res);
 
@@ -101,8 +101,8 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepth)
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 2);
 
         attachment_count_t expected_count;
-        expected_count[vk::Framebuffer::Attachment::Color] = 1;
-        expected_count[vk::Framebuffer::Attachment::DepthStencil] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
         auto res = check_attachment_count(framebuffer.attachments(), expected_count);
         BOOST_CHECK(res);
     }
@@ -130,8 +130,8 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil)
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 2);
 
         attachment_count_t expected_count;
-        expected_count[vk::Framebuffer::Attachment::Color] = 1;
-        expected_count[vk::Framebuffer::Attachment::DepthStencil] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
         auto res = check_attachment_count(framebuffer.attachments(), expected_count);
         BOOST_CHECK(res);
     }
@@ -160,8 +160,8 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_MultiColorDepthStencil)
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 5);
 
         attachment_count_t expected_count;
-        expected_count[vk::Framebuffer::Attachment::Color] = 4;
-        expected_count[vk::Framebuffer::Attachment::DepthStencil] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::Color] = 4;
+        expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
         auto res = check_attachment_count(framebuffer.attachments(), expected_count);
         BOOST_CHECK(res);
     }
@@ -191,9 +191,9 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil_MSAA)
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 3);
 
         attachment_count_t expected_count;
-        expected_count[vk::Framebuffer::Attachment::Color] = 1;
-        expected_count[vk::Framebuffer::Attachment::DepthStencil] = 1;
-        expected_count[vk::Framebuffer::Attachment::Resolve] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::Resolve] = 1;
         auto res = check_attachment_count(framebuffer.attachments(), expected_count);
         BOOST_CHECK(res);
     }
@@ -238,18 +238,18 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_Manual_Attachments)
         auto resolve_img = vk::Image::create(device, resolve_fmt);
 
         vk::Framebuffer::AttachmentMap attachments = {
-                {vk::Framebuffer::Attachment::Color,        {color_img}},
-                {vk::Framebuffer::Attachment::DepthStencil, {depth_stencil_img}},
-                {vk::Framebuffer::Attachment::Resolve,      {resolve_img}}
+                {vk::Framebuffer::AttachmentType::Color, {color_img}},
+                {vk::Framebuffer::AttachmentType::DepthStencil, {depth_stencil_img}},
+                {vk::Framebuffer::AttachmentType::Resolve, {resolve_img}}
         };
 
         auto framebuffer = vk::Framebuffer(device, attachments);
         BOOST_CHECK(framebuffer);
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 3);
         attachment_count_t expected_count;
-        expected_count[vk::Framebuffer::Attachment::Color] = 1;
-        expected_count[vk::Framebuffer::Attachment::DepthStencil] = 1;
-        expected_count[vk::Framebuffer::Attachment::Resolve] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
+        expected_count[vk::Framebuffer::AttachmentType::Resolve] = 1;
         auto res = check_attachment_count(framebuffer.attachments(), expected_count);
         BOOST_CHECK(res);
 

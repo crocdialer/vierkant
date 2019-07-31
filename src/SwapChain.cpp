@@ -289,9 +289,9 @@ void SwapChain::create_framebuffers()
     auto depth_image = Image::create(m_device, depth_fmt);
 
     vierkant::Framebuffer::AttachmentMap attachments;
-    attachments[vierkant::Framebuffer::Attachment::Color] = {color_image};
-    attachments[vierkant::Framebuffer::Attachment::DepthStencil] = {depth_image};
-    if(resolve){ attachments[vierkant::Framebuffer::Attachment::Resolve] = {m_images.front()}; }
+    attachments[vierkant::Framebuffer::AttachmentType::Color] = {color_image};
+    attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {depth_image};
+    if(resolve){ attachments[vierkant::Framebuffer::AttachmentType::Resolve] = {m_images.front()}; }
 
     // subpass is dependant on swapchain image
     VkSubpassDependency dependency = {};
@@ -308,8 +308,8 @@ void SwapChain::create_framebuffers()
 
     for(size_t i = 0; i < m_images.size(); i++)
     {
-        if(resolve){ attachments[vierkant::Framebuffer::Attachment::Resolve] = {m_images[i]}; }
-        else{ attachments[vierkant::Framebuffer::Attachment::Color] = {m_images[i]}; }
+        if(resolve){ attachments[vierkant::Framebuffer::AttachmentType::Resolve] = {m_images[i]}; }
+        else{ attachments[vierkant::Framebuffer::AttachmentType::Color] = {m_images[i]}; }
         m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, renderpass);
     }
 }
