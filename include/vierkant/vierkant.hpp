@@ -22,8 +22,6 @@
 
 namespace vierkant {
 
-vierkant::Ray calculate_ray(const CameraPtr &camera, const glm::vec2 &pos, const glm::vec2 &extent);
-
 class DrawContext
 {
 public:

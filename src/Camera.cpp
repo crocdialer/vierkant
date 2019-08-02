@@ -63,6 +63,21 @@ vierkant::Frustum OrthoCamera::frustum() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
+{
+    glm::vec3 click_world_pos, ray_dir;
+
+    glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, left(), right()),
+                    crocore::map_value<float>(pos.y, extent.y, 0, bottom(), top()));
+    click_world_pos = position() + lookAt() * near() + side() * coord.x + up() * coord.y;
+    ray_dir = lookAt();
+    LOG_TRACE_2 << "clicked_world: (" << click_world_pos.x << ",  " << click_world_pos.y
+                << ",  " << click_world_pos.z << ")";
+    return Ray(click_world_pos, ray_dir);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void OrthoCamera::set_size(const glm::vec2 &the_sz)
 {
     m_left = 0.f;
@@ -130,6 +145,33 @@ void PerspectiveCamera::set_clipping(float near, float far)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
+{
+    glm::vec3 click_world_pos, ray_dir;
+
+    // bring click_pos to range -1, 1
+    glm::vec2 click_2D(extent);
+    glm::vec2 offset(extent / 2.0f);
+    click_2D -= offset;
+    click_2D /= offset;
+    click_2D.y = -click_2D.y;
+
+    // convert fovy to radians
+    float rad = glm::radians(fov());
+    float vLength = std::tan(rad / 2) * near();
+    float hLength = vLength * aspect();
+
+    click_world_pos = position() + lookAt() * near() + side() * hLength * click_2D.x
+                      + up() * vLength * click_2D.y;
+    ray_dir = click_world_pos - position();
+
+    LOG_TRACE_2 << "clicked_world: (" << click_world_pos.x << ",  " << click_world_pos.y
+                << ",  " << click_world_pos.z << ")";
+    return Ray(click_world_pos, ray_dir);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 CubeCamera::CubeCamera(float the_near, float the_far) :
         Camera("CubeCamera"),
         m_near(the_near),
@@ -173,6 +215,13 @@ glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
     auto p = global_position();
     the_face = crocore::clamp<uint32_t>(the_face, 0, 5);
     return glm::lookAt(p, p + vals[2 * the_face], vals[2 * the_face + 1]);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+vierkant::Ray CubeCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
+{
+    return {position(), glm::vec3(0, 0, 1)};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

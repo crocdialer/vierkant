@@ -28,6 +28,8 @@ public:
 
     virtual float far() const = 0;
 
+    virtual vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const = 0;
+
 protected:
 
     explicit Camera(const std::string &name);
@@ -56,6 +58,8 @@ public:
         m_near = val;
         update_projection_matrix();
     };
+
+    vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
     float far() const override { return m_far; };
 
@@ -135,6 +139,8 @@ public:
 
     float far() const override { return m_far; };
 
+    vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
+
 private:
 
     PerspectiveCamera(float ascpect, float fov, float near, float far);
@@ -160,6 +166,8 @@ public:
     float near() const override { return m_near; };
 
     float far() const override { return m_far; };
+
+    vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
     glm::mat4 view_matrix(uint32_t the_face) const;
 

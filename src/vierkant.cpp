@@ -4,49 +4,7 @@
 
 #include "vierkant/vierkant.hpp"
 
-#include <utility>
-
 namespace vierkant {
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-vierkant::Ray calculate_ray(const CameraPtr &camera, const glm::vec2 &pos, const glm::vec2 &extent)
-{
-    glm::vec3 cam_pos = camera->position();
-    glm::vec3 lookAt = camera->lookAt(), side = camera->side(), up = camera->up();
-    float near = camera->near();
-    glm::vec3 click_world_pos, ray_dir;
-
-    if(auto cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(camera))
-    {
-        // bring click_pos to range -1, 1
-        glm::vec2 click_2D(extent);
-        glm::vec2 offset(extent / 2.0f);
-        click_2D -= offset;
-        click_2D /= offset;
-        click_2D.y = -click_2D.y;
-
-        // convert fovy to radians
-        float rad = glm::radians(cam->fov());
-        float vLength = std::tan(rad / 2) * near;
-        float hLength = vLength * cam->aspect();
-
-        click_world_pos = cam_pos + lookAt * near
-                          + side * hLength * click_2D.x
-                          + up * vLength * click_2D.y;
-        ray_dir = click_world_pos - cam_pos;
-
-    }else if(auto cam = std::dynamic_pointer_cast<vierkant::OrthoCamera>(camera))
-    {
-        glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, cam->left(), cam->right()),
-                        crocore::map_value<float>(pos.y, extent.y, 0, cam->bottom(), cam->top()));
-        click_world_pos = cam_pos + lookAt * near + side * coord.x + up * coord.y;
-        ray_dir = lookAt;
-    }
-    LOG_TRACE_2 << "clicked_world: (" << click_world_pos.x << ",  " << click_world_pos.y
-                << ",  " << click_world_pos.z << ")";
-    return Ray(click_world_pos, ray_dir);
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
