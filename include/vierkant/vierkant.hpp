@@ -51,7 +51,6 @@ private:
     std::map<vierkant::ShaderType, shader_stage_map_t> m_shader_stage_cache;
     Renderer::drawable_t m_drawable_text = {};
     Renderer::drawable_t m_drawable_image = {};
-    Renderer::drawable_t m_drawable_mesh = {};
     Renderer::drawable_t m_drawable_aabb = {};
 };
 

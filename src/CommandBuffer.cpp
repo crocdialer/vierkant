@@ -38,9 +38,9 @@ FencePtr create_fence(vierkant::DevicePtr device, bool signaled)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void submit(const vierkant::DevicePtr& device,
+void submit(const vierkant::DevicePtr &device,
             VkQueue queue,
-            const std::vector<VkCommandBuffer>& command_buffers,
+            const std::vector<VkCommandBuffer> &command_buffers,
             VkFence fence,
             bool wait_fence,
             VkSubmitInfo submit_info)
@@ -62,6 +62,29 @@ void submit(const vierkant::DevicePtr& device,
                             std::numeric_limits<uint64_t>::max());
         }
     }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+CommandPoolPtr create_command_pool(const vierkant::DevicePtr& device, vierkant::Device::Queue queue_type,
+                                   VkCommandPoolCreateFlags flags)
+{
+    // command pool
+    VkCommandPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+
+    // transient command pool -> graphics queue
+    auto queue_indices = device->queue_family_indices();
+    pool_info.queueFamilyIndex = static_cast<uint32_t>(queue_indices[queue_type].index);
+    pool_info.flags = flags;
+    VkCommandPool command_pool;
+    vkCheck(vkCreateCommandPool(device->handle(), &pool_info, nullptr, &command_pool),
+            "failed to create command pool!");
+
+    return vierkant::CommandPoolPtr(command_pool, [device](VkCommandPool pool)
+    {
+        vkDestroyCommandPool(device->handle(), pool, nullptr);
+    });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

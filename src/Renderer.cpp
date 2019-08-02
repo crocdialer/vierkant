@@ -55,7 +55,7 @@ Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device
         custom_desc.stage_flags = VK_SHADER_STAGE_ALL;
         custom_desc.binding = binding++;
         custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                      VMA_MEMORY_USAGE_CPU_TO_GPU);
         drawable.descriptors.push_back(custom_desc);
     }
 
@@ -87,26 +87,13 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
     m_staged_drawables.resize(framebuffers.size());
     m_render_assets.resize(framebuffers.size());
 
-    // command pool
-    VkCommandPoolCreateInfo pool_info = {};
-    pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-
-    // transient command pool -> graphics queue
-    auto queue_indices = m_device->queue_family_indices();
-    pool_info.queueFamilyIndex = static_cast<uint32_t>(queue_indices[Device::Queue::GRAPHICS].index);
-    pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    VkCommandPool command_pool;
-    vkCheck(vkCreateCommandPool(m_device->handle(), &pool_info, nullptr, &command_pool),
-            "failed to create command pool!");
-
-    m_command_pool = vierkant::CommandPoolPtr(command_pool, [device{m_device}](VkCommandPool pool)
-    {
-        vkDestroyCommandPool(device->handle(), pool, nullptr);
-    });
+    m_command_pool = vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
+                                                   VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                                   VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     for(auto &render_asset : m_render_assets)
     {
-        render_asset.command_buffer = vierkant::CommandBuffer(m_device, command_pool,
+        render_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get(),
                                                               VK_COMMAND_BUFFER_LEVEL_SECONDARY);
     }
 
@@ -291,7 +278,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     render_asset.uniform_buffer->set_data(&drawable->matrices, sizeof(matrix_struct_t));
 
                     // update existing descriptor set
-                    descriptors[0].buffer = render_asset.uniform_buffer;
+                    descriptors[SLOT_MATRIX].buffer = render_asset.uniform_buffer;
                     vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
                     current_assets.render_assets[key].push_back(std::move(render_asset));

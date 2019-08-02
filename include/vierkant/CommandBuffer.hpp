@@ -34,19 +34,30 @@ FencePtr create_fence(vierkant::DevicePtr device, bool signaled = false);
  *
  * @param   device          shared handle to a VkDevice
  * @param   queue           a VkQueue to submit the commands to
- * @param   command_buffers  an array of recorded VkCommandBuffers
+ * @param   command_buffers an array of recorded VkCommandBuffers
  * @param   fence           an optional fence to signal
  * @param   wait_fence      optional flag indicating that the fence should be waited on
- * @param   submit_info      an optional VkSubmitInfo that can be used to pass in signal/wait semaphores
+ * @param   submit_info     an optional VkSubmitInfo that can be used to pass in signal/wait semaphores
  */
-void submit(const vierkant::DevicePtr& device,
+void submit(const vierkant::DevicePtr &device,
             VkQueue queue,
-            const std::vector<VkCommandBuffer>& command_buffers,
+            const std::vector<VkCommandBuffer> &command_buffers,
             VkFence fence = VK_NULL_HANDLE,
             bool wait_fence = false,
             VkSubmitInfo submit_info = {});
 
 using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
+
+/**
+ * @brief   Create a shared VkCommandPool.
+ *
+ * @param   device      shared handle to a VkDevice
+ * @param   queue_type  type of queue (graphics|transfer|compute) this CommandPool is used for
+ * @param   flags       flags to pass to VkCreateCommandPool
+ * @return  the newly created shared VkCommandPool
+ */
+CommandPoolPtr create_command_pool(const vierkant::DevicePtr& device, vierkant::Device::Queue queue_type,
+                                   VkCommandPoolCreateFlags flags);
 
 class CommandBuffer
 {
