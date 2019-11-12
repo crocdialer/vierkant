@@ -21,7 +21,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         auto mesh = create_mesh_from_geometry(m_device, plane);
 
         Pipeline::Format fmt = {};
-        fmt.blending = true;
+        fmt.blend_state.blendEnable = true;
         fmt.depth_test = false;
         fmt.depth_write = false;
         fmt.shader_stages = shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
@@ -56,7 +56,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         pipeline_fmt.shader_stages = shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
         pipeline_fmt.depth_write = false;
         pipeline_fmt.depth_test = false;
-        pipeline_fmt.blending = true;
+        pipeline_fmt.blend_state.blendEnable = true;
         pipeline_fmt.cull_mode = VK_CULL_MODE_BACK_BIT;
         pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
 

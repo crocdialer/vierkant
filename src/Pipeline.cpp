@@ -147,26 +147,27 @@ Pipeline::Pipeline(DevicePtr device, Format format) :
     depth_stencil.front = format.stencil_state_front;
     depth_stencil.back = format.stencil_state_back;
 
-
     // blend settings (per framebuffer)
-    VkPipelineColorBlendAttachmentState color_blend_attachment = {};
-    color_blend_attachment.colorWriteMask =
-            VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    color_blend_attachment.blendEnable = static_cast<VkBool32>(format.blending);
-    color_blend_attachment.srcColorBlendFactor = format.src_color_blend_factor;
-    color_blend_attachment.dstColorBlendFactor = format.dst_color_blend_factor;
-    color_blend_attachment.colorBlendOp = format.color_blend_op;
-    color_blend_attachment.srcAlphaBlendFactor = format.src_alpha_blend_factor;
-    color_blend_attachment.dstAlphaBlendFactor = format.dst_alpha_blend_factor;
-    color_blend_attachment.alphaBlendOp = format.alpha_blend_op;
+    std::vector<VkPipelineColorBlendAttachmentState> color_blend_attachments = {};
+
+    if (format.attachment_blend_states.size() == format.attachment_count)
+    {
+        // apply attachment-specific blend-configuration
+        color_blend_attachments = format.attachment_blend_states;
+    }
+    else
+    {
+        // apply global blend-configuration for all attachments
+        color_blend_attachments.resize(format.attachment_count, format.blend_state);
+    }
 
     // blend settings (global)
     VkPipelineColorBlendStateCreateInfo colorBlending = {};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY;
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &color_blend_attachment;
+    colorBlending.attachmentCount = color_blend_attachments.size();
+    colorBlending.pAttachments = color_blend_attachments.data();
     colorBlending.blendConstants[0] = 0.0f;
     colorBlending.blendConstants[1] = 0.0f;
     colorBlending.blendConstants[2] = 0.0f;
@@ -234,26 +235,10 @@ void Pipeline::bind(VkCommandBuffer command_buffer)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool operator==(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
-{
-    if(lhs.failOp != rhs.failOp){ return false; }
-    if(lhs.passOp != rhs.passOp){ return false; }
-    if(lhs.depthFailOp != rhs.depthFailOp){ return false; }
-    if(lhs.compareOp != rhs.compareOp){ return false; }
-    if(lhs.compareMask != rhs.compareMask){ return false; }
-    if(lhs.writeMask != rhs.writeMask){ return false; }
-    if(lhs.reference != rhs.reference){ return false; }
-    return true;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs) { return !(lhs == rhs); }
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 bool Pipeline::Format::operator==(const Pipeline::Format &other) const
 {
+    if(attachment_count != other.attachment_count){ return false; }
+
     for(const auto &pair : shader_stages)
     {
         try { if(other.shader_stages.at(pair.first) != pair.second){ return false; }}
@@ -271,17 +256,7 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
         if(lhs.stride != rhs.stride){ return false; }
     }
 
-    if(attribute_descriptions.size() != other.attribute_descriptions.size()){ return false; }
-
-    for(uint32_t i = 0; i < attribute_descriptions.size(); ++i)
-    {
-        const auto &lhs = attribute_descriptions[i];
-        const auto &rhs = other.attribute_descriptions[i];
-        if(lhs.binding != rhs.binding){ return false; }
-        if(lhs.format != rhs.format){ return false; }
-        if(lhs.location != rhs.location){ return false; }
-        if(lhs.offset != rhs.offset){ return false; }
-    }
+    if(attribute_descriptions != other.attribute_descriptions){ return false; }
 
     if(primitive_topology != other.primitive_topology){ return false; }
     if(primitive_restart != other.primitive_restart){ return false; }
@@ -305,39 +280,19 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
     if(sample_count != other.sample_count){ return false; }
     if(sample_shading != other.sample_shading){ return false; }
     if(min_sample_shading != other.min_sample_shading){ return false; }
-    if(blending != other.blending){ return false; }
-    if(src_color_blend_factor != other.src_color_blend_factor){ return false; }
-    if(dst_color_blend_factor != other.dst_color_blend_factor){ return false; }
-    if(color_blend_op != other.color_blend_op){ return false; }
-    if(src_alpha_blend_factor != other.src_alpha_blend_factor){ return false; }
-    if(dst_alpha_blend_factor != other.dst_alpha_blend_factor){ return false; }
-    if(alpha_blend_op != other.alpha_blend_op){ return false; }
+    if(blend_state != other.blend_state){ return false; }
+    if(attachment_blend_states != other.attachment_blend_states){ return false; }
     if(renderpass != other.renderpass){ return false; }
     if(subpass != other.subpass){ return false; }
     if(base_pipeline != other.base_pipeline){ return false; }
     if(base_pipeline_index != other.base_pipeline_index){ return false; }
     if(pipeline_cache != other.pipeline_cache){ return false; }
 
-    if(src_alpha_blend_factor != other.src_alpha_blend_factor){ return false; }
+    if(dynamic_states != other.dynamic_states){ return false; }
 
-    if(dynamic_states.size() != other.dynamic_states.size()){ return false; }
-    for(uint32_t i = 0; i < dynamic_states.size(); ++i)
-    {
-        const auto &lhs = dynamic_states[i];
-        const auto &rhs = other.dynamic_states[i];
-        if(lhs != rhs){ return false; }
-    }
     if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
 
-    if(push_constant_ranges.size() != other.push_constant_ranges.size()){ return false; }
-    for(uint32_t i = 0; i < push_constant_ranges.size(); ++i)
-    {
-        const auto &lhs = push_constant_ranges[i];
-        const auto &rhs = other.push_constant_ranges[i];
-        if(lhs.size != rhs.size){ return false; }
-        if(lhs.offset != rhs.offset){ return false; }
-        if(lhs.stageFlags != rhs.stageFlags){ return false; }
-    }
+    if(push_constant_ranges != other.push_constant_ranges){ return false; }
     return true;
 }
 
@@ -345,9 +300,115 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool operator==(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
+{
+    if(lhs.binding != rhs.binding){ return false; }
+    if(lhs.inputRate != rhs.inputRate){ return false; }
+    if(lhs.stride != rhs.stride){ return false; }
+    return true;
+}
+
+bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
+{
+    return !(lhs == rhs);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool operator==(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs)
+{
+    if(lhs.binding != rhs.binding){ return false; }
+    if(lhs.format != rhs.format){ return false; }
+    if(lhs.location != rhs.location){ return false; }
+    if(lhs.offset != rhs.offset){ return false; }
+    return true;
+}
+
+bool operator!=(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs)
+{
+    return !(lhs == rhs);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
+                const VkPipelineColorBlendAttachmentState &rhs)
+{
+    if (lhs.blendEnable != rhs.blendEnable) { return false; }
+    if (lhs.srcColorBlendFactor != rhs.srcColorBlendFactor) { return false; }
+    if (lhs.dstColorBlendFactor != rhs.dstColorBlendFactor) { return false; }
+    if (lhs.colorBlendOp != rhs.colorBlendOp) { return false; }
+    if (lhs.srcAlphaBlendFactor != rhs.srcAlphaBlendFactor) { return false; }
+    if (lhs.dstAlphaBlendFactor != rhs.dstAlphaBlendFactor) { return false; }
+    if (lhs.alphaBlendOp != rhs.alphaBlendOp) { return false; }
+    if (lhs.colorWriteMask != rhs.colorWriteMask) { return false; }
+    return true;
+}
+
+bool operator!=(const VkPipelineColorBlendAttachmentState &lhs,
+                const VkPipelineColorBlendAttachmentState &rhs)
+{
+    return !(lhs == rhs);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool operator==(const VkStencilOpState& lhs, const VkStencilOpState& rhs)
+{
+    if (lhs.failOp != rhs.failOp) { return false; }
+    if (lhs.passOp != rhs.passOp) { return false; }
+    if (lhs.depthFailOp != rhs.depthFailOp) { return false; }
+    if (lhs.compareOp != rhs.compareOp) { return false; }
+    if (lhs.compareMask != rhs.compareMask) { return false; }
+    if (lhs.writeMask != rhs.writeMask) { return false; }
+    if (lhs.reference != rhs.reference) { return false; }
+    return true;
+}
+
+bool operator!=(const VkStencilOpState& lhs, const VkStencilOpState& rhs)
+{
+    return !(lhs == rhs);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool operator==(const VkPushConstantRange& lhs, const VkPushConstantRange& rhs)
+{
+    if (lhs.size != rhs.size) { return false; }
+    if (lhs.offset != rhs.offset) { return false; }
+    if (lhs.stageFlags != rhs.stageFlags) { return false; }
+    return true;
+}
+
+bool operator!=(const VkPushConstantRange& lhs, const VkPushConstantRange& rhs)
+{
+    return !(lhs == rhs);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 using crocore::hash_combine;
 
 namespace std {
+
+template<>
+struct hash<VkPipelineColorBlendAttachmentState>
+{
+    size_t operator()(VkPipelineColorBlendAttachmentState const& blendAttachmentState) const
+    {
+        size_t h = 0;
+        hash_combine(h, blendAttachmentState.blendEnable);
+        hash_combine(h, blendAttachmentState.srcColorBlendFactor);
+        hash_combine(h, blendAttachmentState.dstColorBlendFactor);
+        hash_combine(h, blendAttachmentState.colorBlendOp);
+        hash_combine(h, blendAttachmentState.srcAlphaBlendFactor);
+        hash_combine(h, blendAttachmentState.dstAlphaBlendFactor);
+        hash_combine(h, blendAttachmentState.alphaBlendOp);
+        hash_combine(h, blendAttachmentState.colorWriteMask);
+        return h;
+    }
+};
+
 template<>
 struct hash<VkStencilOpState>
 {
@@ -386,6 +447,8 @@ size_t std::hash<vierkant::Pipeline::Format>::operator()(vierkant::Pipeline::For
 
     bool dynamic_scissor = crocore::contains(fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
     bool dynamic_viewport = crocore::contains(fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
+
+    hash_combine(h, fmt.attachment_count);
 
     for(const auto &pair : fmt.shader_stages)
     {
@@ -442,13 +505,8 @@ size_t std::hash<vierkant::Pipeline::Format>::operator()(vierkant::Pipeline::For
     hash_combine(h, fmt.sample_count);
     hash_combine(h, fmt.sample_shading);
     hash_combine(h, fmt.min_sample_shading);
-    hash_combine(h, fmt.blending);
-    hash_combine(h, fmt.src_color_blend_factor);
-    hash_combine(h, fmt.dst_color_blend_factor);
-    hash_combine(h, fmt.color_blend_op);
-    hash_combine(h, fmt.src_alpha_blend_factor);
-    hash_combine(h, fmt.dst_alpha_blend_factor);
-    hash_combine(h, fmt.alpha_blend_op);
+    hash_combine(h, fmt.blend_state);
+    for (const auto& bs : fmt.attachment_blend_states) { hash_combine(h, bs); }
     hash_combine(h, fmt.renderpass);
     hash_combine(h, fmt.subpass);
     hash_combine(h, fmt.base_pipeline);

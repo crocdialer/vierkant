@@ -371,7 +371,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     pipeline_fmt.binding_descriptions = vierkant::binding_descriptions(mesh);
     pipeline_fmt.depth_write = false;
     pipeline_fmt.depth_test = false;
-    pipeline_fmt.blending = true;
+    pipeline_fmt.blend_state.blendEnable = true;
     pipeline_fmt.cull_mode = VK_CULL_MODE_NONE;
     pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
