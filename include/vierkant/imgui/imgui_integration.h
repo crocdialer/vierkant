@@ -3,7 +3,8 @@
 #include "imgui.h"
 #include "ImGuizmo.h"
 
-namespace vierkant::gui {
+namespace vierkant::gui
+{
 
 class Context
 {
@@ -76,7 +77,7 @@ private:
         std::chrono::steady_clock::time_point time_point = std::chrono::steady_clock::now();
     };
 
-    mesh_asset_t create_mesh_assets(const vierkant::DevicePtr &device);
+    static mesh_asset_t create_mesh_assets(const vierkant::DevicePtr &device);
 
     bool create_device_objects(const vierkant::DevicePtr &device);
 

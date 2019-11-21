@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "crocore/Application.hpp"
+#include <crocore/Application.hpp>
 #include <crocore/Animation.hpp>
-#include "vierkant/vierkant.hpp"
-#include "vierkant/Font.hpp"
+
+#include <vierkant/vierkant.hpp>
 
 const int WIDTH = 1920;
 const int HEIGHT = 1080;

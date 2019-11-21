@@ -215,15 +215,21 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
         return m_gui_renderer.render(&inheritance);
     };
 
-    // submit and wait for all command-creation tasks to complete
-    std::vector<std::future<VkCommandBuffer>> cmd_futures;
-    cmd_futures.push_back(background_queue().post(render_images));
-    cmd_futures.push_back(background_queue().post(render_mesh));
-    cmd_futures.push_back(background_queue().post(render_gui));
-    crocore::wait_all(cmd_futures);
+    bool concurrant_draw = true;
 
-    // get values from completed futures
-    std::vector<VkCommandBuffer> command_buffers;
-    for(auto &f : cmd_futures){ command_buffers.push_back(f.get()); }
-    return command_buffers;
+    if(concurrant_draw)
+    {
+        // submit and wait for all command-creation tasks to complete
+        std::vector<std::future<VkCommandBuffer>> cmd_futures;
+        cmd_futures.push_back(background_queue().post(render_images));
+        cmd_futures.push_back(background_queue().post(render_mesh));
+        cmd_futures.push_back(background_queue().post(render_gui));
+        crocore::wait_all(cmd_futures);
+
+        // get values from completed futures
+        std::vector<VkCommandBuffer> command_buffers;
+        for(auto &f : cmd_futures){ command_buffers.push_back(f.get()); }
+        return command_buffers;
+    }
+    return {render_images(), render_mesh(), render_gui()};
 }
