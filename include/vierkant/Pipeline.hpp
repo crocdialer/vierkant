@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <map>
 #include "vierkant/Device.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 using ShaderModulePtr = std::shared_ptr<VkShaderModule_T>;
 
@@ -34,7 +34,10 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
 /**
  * @brief   ShaderType is used to refer to different sets of shader-stages
  */
-enum class ShaderType{ UNLIT_COLOR, UNLIT_TEXTURE, CUSTOM };
+enum class ShaderType
+{
+    UNLIT_COLOR, UNLIT_TEXTURE, CUSTOM
+};
 
 /**
  * @brief   Get a map with shader-stages for a given Shadertype.
@@ -58,6 +61,8 @@ public:
      */
     struct Format
     {
+        uint32_t attachment_count = 1;
+
         std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages;
 
         // vertex input assembly
@@ -96,18 +101,29 @@ public:
         bool sample_shading = false;
         float min_sample_shading = 1.f;
 
-        // enable blending
-        bool blending = false;
+        // global blend-state for the pipeline
+        VkPipelineColorBlendAttachmentState blend_state = {
 
-        // color blending
-        VkBlendFactor src_color_blend_factor = VK_BLEND_FACTOR_SRC_ALPHA;
-        VkBlendFactor dst_color_blend_factor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-        VkBlendOp color_blend_op = VK_BLEND_OP_ADD;
+                // enable blending
+                .blendEnable = static_cast<VkBool32>(false),
 
-        // alpha blending
-        VkBlendFactor src_alpha_blend_factor = VK_BLEND_FACTOR_ONE;
-        VkBlendFactor dst_alpha_blend_factor = VK_BLEND_FACTOR_ZERO;
-        VkBlendOp alpha_blend_op = VK_BLEND_OP_ADD;
+                // color blending
+                .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+                .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+                .colorBlendOp = VK_BLEND_OP_ADD,
+
+                // alpha blending
+                .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+                .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+                .alphaBlendOp = VK_BLEND_OP_ADD,
+
+                // color mask
+                .colorWriteMask =  VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                                   VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+        };
+
+        // optional attachment-specific blendStates (will override global state if present)
+        std::vector<VkPipelineColorBlendAttachmentState> attachment_blend_states;
 
         VkRenderPass renderpass = VK_NULL_HANDLE;
 
@@ -124,7 +140,7 @@ public:
 
         bool operator==(const Format &other) const;
 
-        bool operator!=(const Format &other) const { return !(*this == other); };
+        bool operator!=(const Format &other) const{ return !(*this == other); };
     };
 
     /**
@@ -152,12 +168,12 @@ public:
     /**
      * @return  handle for the managed VkPipeline
      */
-    VkPipeline handle() const { return m_pipeline; }
+    VkPipeline handle() const{ return m_pipeline; }
 
     /**
      * @return  handle for the managed pipeline-layout
      */
-    VkPipelineLayout layout() const { return m_pipeline_layout; }
+    VkPipelineLayout layout() const{ return m_pipeline_layout; }
 
 private:
 
@@ -174,7 +190,31 @@ private:
 
 }//namespace vierkant
 
-namespace std {
+// comparison operators for some vulkan-structs used by vierkant::Pipeline
+
+bool operator==(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs);
+
+bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs);
+
+bool operator==(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs);
+
+bool operator!=(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs);
+
+bool operator==(const VkPipelineColorBlendAttachmentState &lhs, const VkPipelineColorBlendAttachmentState &rhs);
+
+bool operator!=(const VkPipelineColorBlendAttachmentState &lhs, const VkPipelineColorBlendAttachmentState &rhs);
+
+bool operator==(const VkStencilOpState &lhs, const VkStencilOpState &rhs);
+
+bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs);
+
+bool operator==(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs);
+
+bool operator!=(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs);
+
+// template specializations for hashing
+namespace std
+{
 template<>
 struct hash<vierkant::Pipeline::Format>
 {

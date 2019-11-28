@@ -108,7 +108,9 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
     if(physical_device)
     {
         // add some obligatory features here
-        device_features.samplerAnisotropy = VK_TRUE;
+        device_features.samplerAnisotropy = true;
+        device_features.sampleRateShading = true;
+        device_features.independentBlend = true;
 
         std::vector<const char *> extensions;
         if(surface){ extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }

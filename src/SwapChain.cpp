@@ -5,7 +5,8 @@
 #include "../include/vierkant/Image.hpp"
 #include "../include/vierkant/SwapChain.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 //////////////////////////////////////////////// SWAP CHAIN UTILS //////////////////////////////////////////////////////
 
@@ -56,15 +57,7 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
 VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &the_modes, bool use_vsync)
 {
     VkPresentModeKHR best_mode = VK_PRESENT_MODE_FIFO_KHR;
-
-    if(!use_vsync)
-    {
-        for(const auto &m : the_modes)
-        {
-            if(m == VK_PRESENT_MODE_MAILBOX_KHR){ return m; }
-            else if(m == VK_PRESENT_MODE_IMMEDIATE_KHR){ best_mode = m; }
-        }
-    }
+    for(const auto &m : the_modes){ if(!use_vsync && m == VK_PRESENT_MODE_IMMEDIATE_KHR){ best_mode = m; }}
     return best_mode;
 }
 
@@ -110,8 +103,8 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     auto indices = m_device->queue_family_indices();
-    auto graphics_family = (uint32_t)indices[Device::Queue::GRAPHICS].index;
-    auto present_family = (uint32_t)indices[Device::Queue::GRAPHICS].index;
+    auto graphics_family = (uint32_t) indices[Device::Queue::GRAPHICS].index;
+    auto present_family = (uint32_t) indices[Device::Queue::GRAPHICS].index;
 
     uint32_t queueFamilyIndices[] = {graphics_family, present_family};
 
@@ -120,7 +113,8 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
         create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         create_info.queueFamilyIndexCount = 2;
         create_info.pQueueFamilyIndices = queueFamilyIndices;
-    }else{ create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; }
+    }
+    else{ create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; }
 
     create_info.preTransform = swap_chain_support.capabilities.currentTransform;
     create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -152,7 +146,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     for(size_t i = 0; i < m_images.size(); i++)
     {
         // do not delete on destruction, we do not own the image
-        auto shared_image = VkImagePtr(swap_chain_images[i], [](VkImage) {});
+        auto shared_image = VkImagePtr(swap_chain_images[i], [](VkImage){});
         m_images[i] = Image::create(m_device, shared_image, fmt);
     }
 
@@ -278,7 +272,8 @@ void SwapChain::create_framebuffers()
         color_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
         color_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         color_image = Image::create(m_device, color_fmt);
-    }else{ color_image = m_images.front(); }
+    }
+    else{ color_image = m_images.front(); }
 
     Image::Format depth_fmt;
     depth_fmt.extent = {m_extent.width, m_extent.height, 1};

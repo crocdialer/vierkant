@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include "crocore/Application.hpp"
+#include <crocore/Application.hpp>
 #include <crocore/Animation.hpp>
-#include "vierkant/vierkant.hpp"
-#include "vierkant/Font.hpp"
 
-const int WIDTH = 1280;
-const int HEIGHT = 720;
+#include <vierkant/vierkant.hpp>
+
+const int WIDTH = 1920;
+const int HEIGHT = 1080;
 const bool V_SYNC = true;
 bool DEMO_GUI = true;
 

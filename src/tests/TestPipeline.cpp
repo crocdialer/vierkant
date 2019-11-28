@@ -15,7 +15,7 @@ BOOST_AUTO_TEST_CASE(TestPipeline_Format)
     std::hash<vk::Pipeline::Format> fmt_hash;
     BOOST_CHECK(fmt_hash(foo) == fmt_hash(bar));
 
-    bar.blending = true;
+    bar.blend_state.blendEnable = true;
     BOOST_CHECK(foo != bar);
     BOOST_CHECK(fmt_hash(foo) != fmt_hash(bar));
 

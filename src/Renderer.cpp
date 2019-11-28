@@ -23,7 +23,7 @@ Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device
     drawable.pipeline_format.attribute_descriptions = vierkant::attribute_descriptions(mesh);
     drawable.pipeline_format.primitive_topology = mesh->topology;
     drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
-    drawable.pipeline_format.blending = false;
+    drawable.pipeline_format.blend_state.blendEnable = false;
     drawable.pipeline_format.depth_test = true;
     drawable.pipeline_format.depth_write = true;
 
