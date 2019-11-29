@@ -19,8 +19,8 @@ Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device
 
 //    drawable.matrices.model = mesh->global_transform();
 
-    drawable.pipeline_format.binding_descriptions = vierkant::binding_descriptions(mesh);
-    drawable.pipeline_format.attribute_descriptions = vierkant::attribute_descriptions(mesh);
+    drawable.pipeline_format.binding_descriptions = mesh->binding_descriptions();
+    drawable.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
     drawable.pipeline_format.primitive_topology = mesh->topology;
     drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
     drawable.pipeline_format.blend_state.blendEnable = false;
@@ -215,7 +215,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 current_mesh = drawable->mesh;
 
                 // bind vertex- and index-buffers
-                vierkant::bind_buffers(command_buffer.handle(), current_mesh);
+                current_mesh->bind_buffers(command_buffer.handle());
             }
 
 //            for(auto drawable : drawables)

@@ -367,8 +367,8 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     // pipeline format
     vierkant::Pipeline::Format pipeline_fmt = {};
     pipeline_fmt.shader_stages = vierkant::create_shader_stages(device, vierkant::ShaderType::UNLIT_TEXTURE);
-    pipeline_fmt.attribute_descriptions = vierkant::attribute_descriptions(mesh);
-    pipeline_fmt.binding_descriptions = vierkant::binding_descriptions(mesh);
+    pipeline_fmt.attribute_descriptions = mesh->attribute_descriptions();
+    pipeline_fmt.binding_descriptions = mesh->binding_descriptions();
     pipeline_fmt.depth_write = false;
     pipeline_fmt.depth_test = false;
     pipeline_fmt.blend_state.blendEnable = true;

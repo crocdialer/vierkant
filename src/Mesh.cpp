@@ -207,99 +207,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh)
-{
-    buffer_binding_set_t buf_tuples;
-    for(auto &att : mesh->vertex_attribs)
-    {
-        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
-    }
-
-    std::vector<VkBuffer> buf_handles;
-    std::vector<VkDeviceSize> offsets;
-
-    for(const auto &tuple : buf_tuples)
-    {
-        buf_handles.push_back(std::get<0>(tuple)->handle());
-        offsets.push_back(std::get<1>(tuple));
-    }
-
-    // bind vertex buffer
-    vkCmdBindVertexBuffers(command_buffer, 0, static_cast<uint32_t>(buf_handles.size()), buf_handles.data(),
-                           offsets.data());
-
-    // bind index buffer
-    if(mesh->index_buffer)
-    {
-        vkCmdBindIndexBuffer(command_buffer, mesh->index_buffer->handle(), mesh->index_buffer_offset, mesh->index_type);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const MeshConstPtr &mesh)
-{
-    buffer_binding_set_t buf_tuples;
-    for(auto &att : mesh->vertex_attribs)
-    {
-        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
-    }
-
-    auto binding_index = [](const Mesh::attrib_t &a, const buffer_binding_set_t &bufs) -> int32_t
-    {
-        uint32_t i = 0;
-        for(const auto &t : bufs)
-        {
-            if(t == std::make_tuple(a.buffer, a.buffer_offset, a.stride, a.input_rate)){ return i; }
-            i++;
-        }
-        return -1;
-    };
-
-    std::vector<VkVertexInputAttributeDescription> ret;
-
-    for(const auto &att_in : mesh->vertex_attribs)
-    {
-        auto binding = binding_index(att_in, buf_tuples);
-
-        if(binding >= 0 && att_in.location >= 0)
-        {
-            VkVertexInputAttributeDescription att;
-            att.offset = att_in.offset;
-            att.binding = static_cast<uint32_t>(binding);
-            att.location = static_cast<uint32_t>(att_in.location);
-            att.format = att_in.format;
-            ret.push_back(att);
-        }
-    }
-    return ret;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshConstPtr &mesh)
-{
-    buffer_binding_set_t buf_tuples;
-    for(auto &att : mesh->vertex_attribs)
-    {
-        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
-    }
-    std::vector<VkVertexInputBindingDescription> ret;
-    uint32_t i = 0;
-
-    for(const auto &tuple : buf_tuples)
-    {
-        VkVertexInputBindingDescription desc;
-        desc.binding = i++;
-        desc.stride = std::get<2>(tuple);
-        desc.inputRate = std::get<3>(tuple);
-        ret.push_back(desc);
-    }
-    return ret;
-}
-
 vierkant::MeshPtr
-create_mesh_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geom, bool interleave_data)
+Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geom, bool interleave_data)
 {
     struct vertex_data_t
     {
@@ -451,6 +360,99 @@ MeshPtr Mesh::create()
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
+{
+    buffer_binding_set_t buf_tuples;
+    for(auto &att : vertex_attribs)
+    {
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
+    }
+
+    std::vector<VkBuffer> buf_handles;
+    std::vector<VkDeviceSize> offsets;
+
+    for(const auto &tuple : buf_tuples)
+    {
+        buf_handles.push_back(std::get<0>(tuple)->handle());
+        offsets.push_back(std::get<1>(tuple));
+    }
+
+    // bind vertex buffer
+    vkCmdBindVertexBuffers(command_buffer, 0, static_cast<uint32_t>(buf_handles.size()), buf_handles.data(),
+                           offsets.data());
+
+    // bind index buffer
+    if(index_buffer)
+    {
+        vkCmdBindIndexBuffer(command_buffer, index_buffer->handle(), index_buffer_offset, index_type);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::vector<VkVertexInputAttributeDescription> Mesh::attribute_descriptions() const
+{
+    buffer_binding_set_t buf_tuples;
+    for(auto &att : vertex_attribs)
+    {
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
+    }
+
+    auto binding_index = [](const Mesh::attrib_t &a, const buffer_binding_set_t &bufs) -> int32_t
+    {
+        uint32_t i = 0;
+        for(const auto &t : bufs)
+        {
+            if(t == std::make_tuple(a.buffer, a.buffer_offset, a.stride, a.input_rate)){ return i; }
+            i++;
+        }
+        return -1;
+    };
+
+    std::vector<VkVertexInputAttributeDescription> ret;
+
+    for(const auto &att_in : vertex_attribs)
+    {
+        auto binding = binding_index(att_in, buf_tuples);
+
+        if(binding >= 0 && att_in.location >= 0)
+        {
+            VkVertexInputAttributeDescription att;
+            att.offset = att_in.offset;
+            att.binding = static_cast<uint32_t>(binding);
+            att.location = static_cast<uint32_t>(att_in.location);
+            att.format = att_in.format;
+            ret.push_back(att);
+        }
+    }
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
+{
+    buffer_binding_set_t buf_tuples;
+    for(auto &att : vertex_attribs)
+    {
+        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
+    }
+    std::vector<VkVertexInputBindingDescription> ret;
+    uint32_t i = 0;
+
+    for(const auto &tuple : buf_tuples)
+    {
+        VkVertexInputBindingDescription desc;
+        desc.binding = i++;
+        desc.stride = std::get<2>(tuple);
+        desc.inputRate = std::get<3>(tuple);
+        ret.push_back(desc);
+    }
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool descriptor_t::operator==(const descriptor_t &other) const
 {

@@ -10,7 +10,8 @@
 #include "vierkant/Object3D.hpp"
 #include "vierkant/intersection.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -40,8 +41,6 @@ VkFormat format();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DEFINE_CLASS_PTR(Mesh);
-
 using DescriptorPoolPtr = std::shared_ptr<VkDescriptorPool_T>;
 
 using DescriptorSetLayoutPtr = std::shared_ptr<VkDescriptorSetLayout_T>;
@@ -69,7 +68,7 @@ struct descriptor_t
 
     bool operator==(const descriptor_t &other) const;
 
-    bool operator!=(const descriptor_t &other) const { return !(*this == other); };
+    bool operator!=(const descriptor_t &other) const{ return !(*this == other); };
 };
 
 /**
@@ -123,44 +122,9 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
                            const std::vector<descriptor_t> &descriptors);
 
-/**
- * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
- *
- * @param   command_buffer  handle to an VkCommandBuffer to record the bind-operation into
- * @param   mesh            the vierkant::Mesh from which to bind the buffers
- */
-void bind_buffers(VkCommandBuffer command_buffer, const MeshConstPtr &mesh);
-
-/**
- * @brief   Create an array of VkVertexInputAttributeDescription for a given vierkant::Mesh
- *
- * @param   mesh    the vierkant::Mesh from which to extract the VkVertexInputAttributeDescriptions
- * @return  the newly created array of VkVertexInputAttributeDescriptions
- */
-std::vector<VkVertexInputAttributeDescription> attribute_descriptions(const MeshConstPtr &mesh);
-
-/**
- * @brief   Create an array of VkVertexInputBindingDescription for a given vierkant::Mesh
- *
- * @param   mesh    the vierkant::Mesh from which to extract the VkVertexInputBindingDescriptions
- * @return  the newly created array of VkVertexInputBindingDescriptions
- */
-std::vector<VkVertexInputBindingDescription> binding_descriptions(const MeshConstPtr &mesh);
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-/**
- * @brief   Create a vierkant::MeshPtr from provided Geometry
- *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
- *
- * @param   device  handle for the vierkant::Device to create subresources with
- * @param   geom    a Geometry struct to extract the vertex information from
- * @return  the newly created vierkant::MeshPtr
- */
-vierkant::MeshPtr
-create_mesh_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geom, bool interleave_data = true);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
+DEFINE_CLASS_PTR(Mesh);
 
 /**
  * @brief   Mesh groups all sorts of resources,
@@ -186,13 +150,45 @@ public:
 
     static MeshPtr create();
 
+    /**
+     * @brief   Create a vierkant::MeshPtr from provided Geometry
+     *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
+     *
+     * @param   device  handle for the vierkant::Device to create subresources with
+     * @param   geom    a Geometry struct to extract the vertex information from
+     * @return  the newly created vierkant::MeshPtr
+     */
+    static vierkant::MeshPtr
+    create_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geom, bool interleave_data = true);
+
     Mesh(const Mesh &) = delete;
 
     Mesh(Mesh &&) = delete;
 
     Mesh &operator=(Mesh other) = delete;
 
-    vierkant::AABB aabb() const override { return boundingbox; }
+    vierkant::AABB aabb() const override{ return boundingbox; }
+
+    /**
+     * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
+     *
+     * @param   command_buffer  handle to an VkCommandBuffer to record the bind-operation into
+     */
+    void bind_buffers(VkCommandBuffer command_buffer) const;
+
+    /**
+     * @brief   Create an array of VkVertexInputAttributeDescription for a given vierkant::Mesh
+     *
+     * @return  the newly created array of VkVertexInputAttributeDescriptions
+     */
+    std::vector<VkVertexInputAttributeDescription> attribute_descriptions() const;
+
+    /**
+     * @brief   Create an array of VkVertexInputBindingDescription for a given vierkant::Mesh
+     *
+     * @return  the newly created array of VkVertexInputBindingDescriptions
+     */
+    std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
 
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     uint32_t num_elements = 0;
@@ -215,7 +211,8 @@ private:
 
 }//namespace vierkant
 
-namespace std {
+namespace std
+{
 template<>
 struct hash<vierkant::descriptor_t>
 {

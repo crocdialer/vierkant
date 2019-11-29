@@ -18,15 +18,15 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         plane->tangents.clear();
         for(auto &v : plane->vertices){ v.xy += glm::vec2(.5f, -.5f); }
 
-        auto mesh = create_mesh_from_geometry(m_device, plane);
+        auto mesh = Mesh::create_from_geometry(m_device, plane);
 
         Pipeline::Format fmt = {};
         fmt.blend_state.blendEnable = true;
         fmt.depth_test = false;
         fmt.depth_write = false;
         fmt.shader_stages = shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
-        fmt.binding_descriptions = vierkant::binding_descriptions(mesh);
-        fmt.attribute_descriptions = vierkant::attribute_descriptions(mesh);
+        fmt.binding_descriptions = mesh->binding_descriptions();
+        fmt.attribute_descriptions = mesh->attribute_descriptions();
         fmt.primitive_topology = mesh->topology;
 
         // descriptors
@@ -82,7 +82,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     {
         // unit cube
         auto geom = vierkant::Geometry::BoxOutline();
-        auto mesh = vierkant::create_mesh_from_geometry(m_device, geom);
+        auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom);
         auto material = vierkant::Material::create();
         material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
         m_drawable_aabb = vierkant::Renderer::create_drawable(m_device, mesh, material);
@@ -98,8 +98,8 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
 
     if(m_drawable_text.pipeline_format.attribute_descriptions.empty())
     {
-        m_drawable_text.pipeline_format.attribute_descriptions = vierkant::attribute_descriptions(mesh);
-        m_drawable_text.pipeline_format.binding_descriptions = vierkant::binding_descriptions(mesh);
+        m_drawable_text.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
+        m_drawable_text.pipeline_format.binding_descriptions = mesh->binding_descriptions();
     }
 
     auto drawable = m_drawable_text;

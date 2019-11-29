@@ -150,7 +150,7 @@ void HelloTriangleApplication::load_model()
 {
     auto geom = vk::Geometry::Box(glm::vec3(.5f));
     geom->normals.clear();
-    m_mesh = vk::create_mesh_from_geometry(m_device, geom);
+    m_mesh = vk::Mesh::create_from_geometry(m_device, geom);
     m_material->shader_type = vk::ShaderType::UNLIT_TEXTURE;
     m_material->images = {m_texture};
 
