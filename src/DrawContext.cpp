@@ -4,7 +4,8 @@
 
 #include "vierkant/DrawContext.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -87,6 +88,16 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
         m_drawable_aabb = vierkant::Renderer::create_drawable(m_device, mesh, material);
     }
+
+    // grid
+    {
+        // unit grid
+        auto geom = vierkant::Geometry::Grid();
+        auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom);
+        auto material = vierkant::Material::create();
+        material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
+        m_drawable_grid = vierkant::Renderer::create_drawable(m_device, mesh, material);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -109,7 +120,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
     drawable.matrices.model[3] = glm::vec4(pos.x, pos.y, 0, 1);
     drawable.descriptors[1].image_samplers = {font->glyph_texture()};
     drawable.num_indices = mesh->num_elements;
-    renderer.stage_drawable(drawable);
+    renderer.stage_drawable(std::move(drawable));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -132,7 +143,18 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
     drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {image};
 
     // stage image drawable
-    renderer.stage_drawable(drawable);
+    renderer.stage_drawable(std::move(drawable));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DrawContext::draw_grid(vierkant::Renderer &renderer, float scale, uint32_t num_subs, const glm::mat4 &model_view,
+                            const glm::mat4 &projection)
+{
+    auto drawable = m_drawable_grid;
+    drawable.matrices.model = glm::scale(model_view, glm::vec3(scale));
+    drawable.matrices.projection = projection;
+    renderer.stage_drawable(std::move(drawable));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,11 +166,11 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
 
     glm::mat4 center_mat = glm::translate(glm::mat4(1), aabb.center());
     glm::mat4 scale_mat = glm::scale(glm::mat4(1), glm::vec3(aabb.width(),
-                                                            aabb.height(),
-                                                            aabb.depth()));
+                                                             aabb.height(),
+                                                             aabb.depth()));
     drawable.matrices.model = scale_mat * center_mat * model_view;
     drawable.matrices.projection = projection;
-    renderer.stage_drawable(drawable);
+    renderer.stage_drawable(std::move(drawable));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

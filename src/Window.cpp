@@ -5,7 +5,8 @@
 #include "../include/vierkant/Window.hpp"
 #include <iostream>
 
-namespace vierkant {
+namespace vierkant
+{
 
 /**
  * @brief RAII Helper for glfw initialization and termination
@@ -13,9 +14,9 @@ namespace vierkant {
 class glfw_init_t
 {
 public:
-    glfw_init_t() { glfwInit(); }
+    glfw_init_t(){ glfwInit(); }
 
-    ~glfw_init_t() { glfwTerminate(); }
+    ~glfw_init_t(){ glfwTerminate(); }
 };
 
 static std::shared_ptr<glfw_init_t> g_glfw_init;
@@ -81,37 +82,15 @@ Window::Window(VkInstance instance,
 
     // no GL context
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    m_handle = glfwCreateWindow(width, height,
-                                title.c_str(),
-                                fullscreen ? monitors[monitor_index] : nullptr,
-                                nullptr);
-    if(!m_handle){ throw std::runtime_error("could not create window"); }
 
-    vkCheck(glfwCreateWindowSurface(instance, m_handle, nullptr, &m_surface),
-            "failed to create window surface!");
-
-    // set user-pointer
-    glfwSetWindowUserPointer(m_handle, this);
-
-    // init callbacks
-    glfwSetErrorCallback(&Window::glfw_error_cb);
-    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
-    glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
-    glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
-    glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
-    glfwSetScrollCallback(m_handle, &Window::glfw_mouse_wheel_cb);
-    glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
-    glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
-    glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
+    init_handles(width, height, title, fullscreen ? monitors[monitor_index] : nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Window::~Window()
 {
-    m_swap_chain = SwapChain();
-    if(m_instance && m_surface){ vkDestroySurfaceKHR(m_instance, m_surface, nullptr); }
-    glfwDestroyWindow(m_handle);
+    clear_handles();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -120,6 +99,9 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
 {
     // while window is minimized
     while(is_minimized()){ glfwWaitEvents(); }
+
+    // wait for good measure
+    vkDeviceWaitIdle(device->handle());
 
     // make sure everything is cleaned up
     // prevents: vkCreateSwapChainKHR(): surface has an existing swapchain other than oldSwapchain
@@ -340,7 +322,7 @@ void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
         uint32_t button_mods, key_mods, all_mods;
         get_modifiers(window, button_mods, key_mods);
         all_mods = button_mods | key_mods;
-        MouseEvent e(button_mods, (int)x, (int)y, all_mods, glm::ivec2(0));
+        MouseEvent e(button_mods, (int) x, (int) y, all_mods, glm::ivec2(0));
 
         for(auto &pair : self->mouse_delegates)
         {
@@ -379,7 +361,7 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
 
         double posX, posY;
         glfwGetCursorPos(window, &posX, &posY);
-        MouseEvent e(initiator, (int)posX, (int)posY, all_mods, glm::ivec2(0));
+        MouseEvent e(initiator, (int) posX, (int) posY, all_mods, glm::ivec2(0));
 
         for(auto &pair : self->mouse_delegates)
         {
@@ -407,7 +389,7 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
             glfwGetCursorPos(window, &posX, &posY);
             uint32_t button_mods, key_mods = 0;
             get_modifiers(window, button_mods, key_mods);
-            MouseEvent e(0, (int)posX, (int)posY, key_mods, offset);
+            MouseEvent e(0, (int) posX, (int) posY, key_mods, offset);
 
             if(pair.second.mouse_wheel){ pair.second.mouse_wheel(e); }
         }
@@ -473,7 +455,7 @@ void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **p
         all_mods = button_mods | key_mods;
         double posX, posY;
         glfwGetCursorPos(window, &posX, &posY);
-        MouseEvent e(button_mods, (int)posX, (int)posY, all_mods, glm::ivec2(0));
+        MouseEvent e(button_mods, (int) posX, (int) posY, all_mods, glm::ivec2(0));
 
         for(auto &pair : self->mouse_delegates)
         {
@@ -498,10 +480,62 @@ void Window::glfw_joystick_cb(int joy, int event)
     if(event == GLFW_CONNECTED)
     {
         LOG_DEBUG << "joystick " << joy << " connected";
-    }else if(event == GLFW_DISCONNECTED)
+    }
+    else if(event == GLFW_DISCONNECTED)
     {
         LOG_DEBUG << "joystick " << joy << " disconnected";
     }
+}
+
+void Window::set_fullscreen(bool b, uint32_t monitor_index)
+{
+
+    int num;
+    GLFWmonitor **monitors = glfwGetMonitors(&num);
+    if(monitor_index >= static_cast<uint32_t>(num)) return;
+    const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor_index]);
+
+    init_handles(mode->width, mode->height, title(), b ? monitors[monitor_index] : nullptr);
+}
+
+void Window::init_handles(int width, int height, const std::string &title, GLFWmonitor *monitor)
+{
+    clear_handles();
+
+    if(monitor)
+    {
+        // TODO: check for available modes and pick closest
+        const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+        width = mode->width;
+        height = mode->height;
+    }
+
+    m_handle = glfwCreateWindow(width, height, title.c_str(), monitor, nullptr);
+    if(!m_handle){ throw std::runtime_error("could not init window-handles"); }
+
+    vkCheck(glfwCreateWindowSurface(m_instance, m_handle, nullptr, &m_surface),
+            "failed to create window surface!");
+
+    // set user-pointer
+    glfwSetWindowUserPointer(m_handle, this);
+
+    // init callbacks
+    glfwSetErrorCallback(&Window::glfw_error_cb);
+    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
+    glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
+    glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
+    glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
+    glfwSetScrollCallback(m_handle, &Window::glfw_mouse_wheel_cb);
+    glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
+    glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
+    glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
+}
+
+void Window::clear_handles()
+{
+    m_swap_chain = SwapChain();
+    if(m_instance && m_surface){ vkDestroySurfaceKHR(m_instance, m_surface, nullptr); }
+    if(m_handle){ glfwDestroyWindow(m_handle); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

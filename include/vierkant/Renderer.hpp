@@ -68,7 +68,7 @@ public:
 
     Renderer &operator=(Renderer other);
 
-    void stage_drawable(const drawable_t &drawable);
+    void stage_drawable(drawable_t drawable);
 
     VkCommandBuffer render(VkCommandBufferInheritanceInfo *inheritance);
 

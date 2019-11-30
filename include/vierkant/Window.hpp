@@ -108,6 +108,14 @@ public:
     void set_position(const glm::ivec2 &position);
 
     /**
+     * @brief   set the window to fullscreen or back.
+     *
+     * @param   b               a flag indicating fullscreen or not
+     * @param   monitor_index   an optional monitor index to use for fullscreen mode
+     */
+    void set_fullscreen(bool b, uint32_t monitor_index = 0);
+
+    /**
      * @return  the aspect-ratio for the Window
      */
     float aspect_ratio() const
@@ -173,6 +181,10 @@ private:
 
     Window(VkInstance instance, uint32_t width, uint32_t height, const std::string &title,
            bool fullscreen, uint32_t monitor_index);
+
+    void init_handles(int width, int height, const std::string &title, GLFWmonitor *monitor);
+
+    void clear_handles();
 
     GLFWwindow *m_handle = nullptr;
 

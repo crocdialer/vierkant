@@ -29,6 +29,9 @@ public:
     void draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb, const glm::mat4 &model_view,
                           const glm::mat4 &projection);
 
+    void draw_grid(vierkant::Renderer &renderer, float scale, uint32_t num_subs, const glm::mat4 &model_view,
+                   const glm::mat4 &projection);
+
 private:
 
     const shader_stage_map_t &shader_stages(vierkant::ShaderType type);
@@ -38,6 +41,8 @@ private:
     Renderer::drawable_t m_drawable_text = {};
     Renderer::drawable_t m_drawable_image = {};
     Renderer::drawable_t m_drawable_aabb = {};
+
+    Renderer::drawable_t m_drawable_grid = {};
 };
 
 }

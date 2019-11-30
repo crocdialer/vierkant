@@ -66,29 +66,40 @@ void HelloTriangleApplication::create_context_and_window()
     };
 
     // textures window
-    m_gui_context.delegates["textures"] = [this] { vk::gui::draw_images_ui({m_texture, m_texture_font}); };
+    m_gui_context.delegates["textures"] = [this]{ vk::gui::draw_images_ui({m_texture, m_texture_font}); };
 
-//    // animations window
-//    m_gui_context.delegates["animations"] = [this]
-//    {
-//        ImGui::Begin("animations");
-////        for(auto &animation : {m_animation})
-//        {
-//            float duration = m_animation.duration();
-//            float current_time = m_animation.progress() * duration;
-//
-//            // animation current time / duration
-//            if(ImGui::InputFloat("duration", &duration)){ m_animation.set_duration(duration); }
-//            ImGui::ProgressBar(m_animation.progress(), ImVec2(-1, 0),
-//                               crocore::format("%.2f/%.2f s", current_time, duration).c_str());
-//            ImGui::Separator();
-//
-//        }
-//        ImGui::End();
-//    };
+    // animations window
+    m_gui_context.delegates["animations"] = [this]
+    {
+        ImGui::Begin("animations");
+//        for(auto &animation : {m_animation})
+        {
+            float duration = m_animation.duration();
+            float current_time = m_animation.progress() * duration;
+
+            // animation current time / duration
+            if(ImGui::InputFloat("duration", &duration)){ m_animation.set_duration(duration); }
+            ImGui::ProgressBar(m_animation.progress(), ImVec2(-1, 0),
+                               crocore::format("%.2f/%.2f s", current_time, duration).c_str());
+            ImGui::Separator();
+
+            if(ImGui::Checkbox("fullscreen", &m_fullscreen))
+            {
+                vkDeviceWaitIdle(m_device->handle());
+
+                m_window->set_fullscreen(m_fullscreen);
+                m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT, V_SYNC);
+
+                create_graphics_pipeline();
+                m_camera->set_aspect(m_window->aspect_ratio());
+            }
+
+        }
+        ImGui::End();
+    };
 
     // imgui demo window
-    m_gui_context.delegates["demo"] = [] { if(DEMO_GUI){ ImGui::ShowDemoWindow(&DEMO_GUI); }};
+    m_gui_context.delegates["demo"] = []{ if(DEMO_GUI){ ImGui::ShowDemoWindow(&DEMO_GUI); }};
 
     // attach gui input-delegates to window
     m_window->key_delegates["gui"] = m_gui_context.key_delegate();
@@ -97,7 +108,7 @@ void HelloTriangleApplication::create_context_and_window()
     // camera
     m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 10.f);
     m_camera->set_position(glm::vec3(1.0f, 1.0f, 1.0f));
-    m_camera->set_look_at(glm::vec3(0.0f, 0.0f, -.5f),   glm::vec3(0.0f, 0.0f, 1.0f));
+    m_camera->set_look_at(glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 1.0f, 0.0f));
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
@@ -163,7 +174,7 @@ void HelloTriangleApplication::update(double time_delta)
 
     // update matrices for this frame
     m_drawable.matrices.model = glm::rotate(glm::scale(glm::mat4(1), glm::vec3(m_scale)),
-                                            (float)application_time() * glm::radians(30.0f),
+                                            (float) application_time() * glm::radians(30.0f),
                                             glm::vec3(0.0f, 1.0f, 0.0f));
     m_drawable.matrices.view = m_camera->view_matrix();
     m_drawable.matrices.projection = m_camera->projection_matrix();
@@ -205,6 +216,7 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
         m_draw_context.draw_boundingbox(m_renderer, m_mesh->aabb(),
                                         m_drawable.matrices.view * m_drawable.matrices.model,
                                         m_drawable.matrices.projection);
+        m_draw_context.draw_grid(m_renderer, 1.f, 10, m_camera->view_matrix(), m_camera->projection_matrix());
         return m_renderer.render(&inheritance);
     };
 

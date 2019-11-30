@@ -144,16 +144,15 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::stage_drawable(const drawable_t &drawable)
+void Renderer::stage_drawable(drawable_t drawable)
 {
-    auto drawable_copy = drawable;
-    auto &fmt = drawable_copy.pipeline_format;
+    auto &fmt = drawable.pipeline_format;
     fmt.renderpass = m_renderpass.get();
     fmt.viewport = viewport;
     fmt.sample_count = m_sample_count;
 
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
-    m_staged_drawables[m_current_index].push_back(std::move(drawable_copy));
+    m_staged_drawables[m_current_index].push_back(std::move(drawable));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
