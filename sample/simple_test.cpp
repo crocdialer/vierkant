@@ -41,6 +41,8 @@ void HelloTriangleApplication::create_context_and_window()
     {
         create_graphics_pipeline();
         m_camera->set_aspect(m_window->aspect_ratio());
+
+        m_arcball.screen_size = {w, h};
     };
     m_window->window_delegates["main"] = window_delegate;
 
@@ -100,6 +102,12 @@ void HelloTriangleApplication::create_context_and_window()
     m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 10.f);
     m_camera->set_position(glm::vec3(1.0f, 1.0f, 1.0f));
     m_camera->set_look_at(glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // create arcball
+    m_arcball = vk::Arcball(m_camera, m_window->size());
+
+    // attach arcball mouse delegate
+    m_window->mouse_delegates["arcball"] = m_arcball.mouse_delegate();
 
     m_animation = crocore::Animation::create(&m_scale, 0.5f, 1.5f, 2.);
     m_animation.set_ease_function(crocore::easing::EaseOutBounce());
@@ -161,6 +169,8 @@ void HelloTriangleApplication::load_model()
 
 void HelloTriangleApplication::update(double time_delta)
 {
+    m_arcball.update();
+
     m_animation.update();
 
     // update matrices for this frame
@@ -203,10 +213,10 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
 
     auto render_mesh = [this, &inheritance]() -> VkCommandBuffer
     {
-        m_renderer.stage_drawable(m_drawable);
-        m_draw_context.draw_boundingbox(m_renderer, m_mesh->aabb(),
-                                        m_drawable.matrices.view * m_drawable.matrices.model,
-                                        m_drawable.matrices.projection);
+//        m_renderer.stage_drawable(m_drawable);
+//        m_draw_context.draw_boundingbox(m_renderer, m_mesh->aabb(),
+//                                        m_drawable.matrices.view * m_drawable.matrices.model,
+//                                        m_drawable.matrices.projection);
         m_draw_context.draw_grid(m_renderer, 1.f, 10, m_camera->view_matrix(), m_camera->projection_matrix());
         return m_renderer.render(&inheritance);
     };

@@ -72,6 +72,8 @@ private:
 
     vk::PerspectiveCameraPtr m_camera;
 
+    vk::Arcball m_arcball;
+
     vk::MeshPtr m_mesh = vk::Mesh::create();
 
     vk::MaterialPtr m_material = vk::Material::create();
