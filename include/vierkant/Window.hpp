@@ -196,6 +196,9 @@ private:
 
     std::string m_title;
 
+    // keep track of window params when switching between window/fullscreen
+    glm::ivec2 m_window_size, m_window_pos;
+
     static void glfw_resize_cb(GLFWwindow *window, int width, int height);
 
     static void glfw_close_cb(GLFWwindow *window);

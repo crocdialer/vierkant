@@ -83,26 +83,7 @@ void HelloTriangleApplication::create_context_and_window()
                                crocore::format("%.2f/%.2f s", current_time, duration).c_str());
             ImGui::Separator();
 
-            if(ImGui::Checkbox("fullscreen", &m_fullscreen))
-            {
-//                vkDeviceWaitIdle(m_device->handle());
-
-                m_window->set_fullscreen(m_fullscreen);
-
-//                std::this_thread::sleep_for(std::chrono::milliseconds(500));
-//                m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples()
-//                                                                : VK_SAMPLE_COUNT_1_BIT, V_SYNC);
-
-                main_queue().post([this]()
-                                  {
-                                      m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples()
-                                                                                      : VK_SAMPLE_COUNT_1_BIT, V_SYNC);
-//                                      create_graphics_pipeline();
-                                  });
-
-//                create_graphics_pipeline();
-//                m_camera->set_aspect(m_window->aspect_ratio());
-            }
+            if(ImGui::Checkbox("fullscreen", &m_fullscreen)){ m_window->set_fullscreen(m_fullscreen); }
 
         }
         ImGui::End();

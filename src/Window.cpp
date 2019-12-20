@@ -542,9 +542,24 @@ void Window::set_fullscreen(bool b, uint32_t monitor_index)
     if(monitor_index >= static_cast<uint32_t>(num)) return;
     const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor_index]);
 
-    init_handles(mode->width, mode->height, title(), b ? monitors[monitor_index] : nullptr);
+    int w, h, x, y;
 
-//    glfwPollEvents();
+    if(b)
+    {
+        m_window_size = size();
+        m_window_pos = position();
+        w = mode->width;
+        h = mode->height;
+        x = y = 0;
+    }
+    else
+    {
+        w = m_window_size.x;
+        h = m_window_size.y;
+        x = m_window_pos.x;
+        y = m_window_pos.y;
+    }
+    glfwSetWindowMonitor(m_handle, b ? monitors[monitor_index] : nullptr, x, y, w, h, mode->refreshRate);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
