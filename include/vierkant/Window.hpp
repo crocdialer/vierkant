@@ -12,7 +12,8 @@
 #include "vierkant/intersection.hpp"
 #include "vierkant/Input.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 DEFINE_CLASS_PTR(Window)
 
@@ -108,6 +109,11 @@ public:
     void set_position(const glm::ivec2 &position);
 
     /**
+     * @return  true if the window is fullscreen
+     */
+    bool fullscreen() const{ return m_fullscreen; }
+
+    /**
      * @brief   set the window to fullscreen or back.
      *
      * @param   b               a flag indicating fullscreen or not
@@ -121,7 +127,7 @@ public:
     float aspect_ratio() const
     {
         auto sz = size();
-        return sz.x / (float)sz.y;
+        return sz.x / (float) sz.y;
     }
 
     /**
@@ -154,17 +160,17 @@ public:
     /**
      * @return  the managed GLFWwindow handle
      */
-    inline GLFWwindow *handle() { return m_handle; }
+    inline GLFWwindow *handle(){ return m_handle; }
 
     /**
      * @return  the VkSurfaceKHR handle for this Window
      */
-    VkSurfaceKHR surface() const { return m_surface; }
+    VkSurfaceKHR surface() const{ return m_surface; }
 
     /**
      * @return  the contained SwapChain, which holds the Framebuffers for this Window
      */
-    SwapChain &swapchain() { return m_swap_chain; }
+    SwapChain &swapchain(){ return m_swap_chain; }
 
     /**
      * @brief   create an internal SwapChain for this Window.
@@ -174,7 +180,7 @@ public:
      * @param   num_samples the desired value for MSAA for the SwapChain
      * @param   v_sync      use vertical synchronization or not
      */
-    void create_swapchain(const DevicePtr& device, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
+    void create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
                           bool v_sync = true);
 
 private:
@@ -195,6 +201,8 @@ private:
     SwapChain m_swap_chain;
 
     std::string m_title;
+
+    bool m_fullscreen = false;
 
     // keep track of window params when switching between window/fullscreen
     glm::ivec2 m_window_size, m_window_pos;

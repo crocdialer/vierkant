@@ -62,7 +62,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_gui_context = vk::gui::Context(m_device, g_font_path, 23.f);
     m_gui_context.delegates["application"] = [this]
     {
-        vk::gui::draw_application_ui(std::static_pointer_cast<Application>(shared_from_this()));
+        vk::gui::draw_application_ui(std::static_pointer_cast<Application>(shared_from_this()), m_window);
     };
 
     // textures window
@@ -83,7 +83,7 @@ void HelloTriangleApplication::create_context_and_window()
                                crocore::format("%.2f/%.2f s", current_time, duration).c_str());
             ImGui::Separator();
 
-            if(ImGui::Checkbox("fullscreen", &m_fullscreen)){ m_window->set_fullscreen(m_fullscreen); }
+
 
         }
         ImGui::End();

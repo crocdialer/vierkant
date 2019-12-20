@@ -32,6 +32,9 @@ public:
         glm::mat4 texture = glm::mat4(1);
     };
 
+    /**
+     * @brief   drawable_t groups all necessary information for a drawable object.
+     */
     struct drawable_t
     {
         MeshPtr mesh;
@@ -46,11 +49,25 @@ public:
         uint32_t num_indices = 0;
     };
 
+    /**
+     * @brief   Factory to create a drawable_t from provided mesh and material.
+     *
+     * @param   device      handle for the vk::Device to create any vulkan assets with.
+     * @param   mesh        a mesh object containing vertex information
+     * @param   material    a material object
+     * @return  a newly constructed drawable_t
+     */
     static drawable_t create_drawable(const vierkant::DevicePtr &device, const MeshPtr &mesh,
                                       const MaterialPtr &material);
 
+    /**
+     * @brief   Viewport parameters currently used.
+     */
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
 
+    /**
+     * @brief   Scissor parameters currently used.
+     */
     VkRect2D scissor = {.offset = {0, 0}, .extent = {0, 0}};
 
     Renderer() = default;
@@ -68,14 +85,35 @@ public:
 
     Renderer &operator=(Renderer other);
 
+    /**
+     * @brief   Stage a drawable object to be rendered.
+     *
+     * @param   drawable    a drawable_t object.
+     */
     void stage_drawable(drawable_t drawable);
 
+    /**
+     * @brief   Creates a secondary VkCommandBuffer, that will render all staged drawables.
+     *
+     * @param   inheritance pointer to a VkCommandBufferInheritanceInfo that contains information about the
+     *          current renderpass and framebuffer.
+     * @return  handle to the recorded VkCommandBuffer.
+     */
     VkCommandBuffer render(VkCommandBufferInheritanceInfo *inheritance);
 
+    /**
+     * @return  the current swapchain index.
+     */
     uint32_t current_index() const { return m_current_index; }
 
+    /**
+     * @return  the number of swapchain indices.
+     */
     uint32_t num_indices() const { return m_render_assets.size(); }
 
+    /**
+     * @brief   Release all cached rendering assets.
+     */
     void reset();
 
     vierkant::DevicePtr device() const { return m_device; }

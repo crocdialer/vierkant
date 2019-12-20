@@ -9,7 +9,8 @@
 
 using namespace crocore;
 
-namespace vierkant::gui {
+namespace vierkant::gui
+{
 
 // int
 void draw_property_ui(const Property_<int>::Ptr &the_property)
@@ -23,7 +24,8 @@ void draw_property_ui(const Property_<int>::Ptr &the_property)
         {
             the_property->notify_observers();
         }
-    }else
+    }
+    else
     {
         if(ImGui::InputInt(prop_name.c_str(), &the_property->value(), 1, 10, ImGuiInputTextFlags_EnterReturnsTrue))
         {
@@ -44,7 +46,8 @@ void draw_property_ui(const Property_<uint32_t>::Ptr &the_property)
         {
             *the_property = val;
         }
-    }else
+    }
+    else
     {
         if(ImGui::InputInt(prop_name.c_str(), &val, 1, 10, ImGuiInputTextFlags_EnterReturnsTrue))
         {
@@ -65,7 +68,8 @@ void draw_property_ui(const Property_<float>::Ptr &the_property)
         {
             the_property->notify_observers();
         }
-    }else
+    }
+    else
     {
         if(ImGui::InputFloat(prop_name.c_str(), &the_property->value(), 0.f, 0.f,
                              (std::abs(the_property->value()) < 1.f) ? 5 : 2,
@@ -136,7 +140,7 @@ void draw_property_ui(const Property_<glm::vec4>::Ptr &the_property)
 {
     std::string prop_name = the_property->name();
 
-    if(ImGui::ColorEdit4(prop_name.c_str(), (float *)&the_property->value()))
+    if(ImGui::ColorEdit4(prop_name.c_str(), (float *) &the_property->value()))
     {
         the_property->notify_observers();
     }
@@ -229,60 +233,84 @@ void draw_component_ui(const ComponentConstPtr &the_component)
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<bool>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<int>())
+        }
+        else if(p->is_of_type<int>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<int>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<uint32_t>())
+        }
+        else if(p->is_of_type<uint32_t>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<uint32_t>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<float>())
+        }
+        else if(p->is_of_type<float>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<float>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<glm::vec2>())
+        }
+        else if(p->is_of_type<glm::vec2>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<glm::vec2>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<glm::vec3>())
+        }
+        else if(p->is_of_type<glm::vec3>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<glm::vec3>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<glm::ivec2>())
+        }
+        else if(p->is_of_type<glm::ivec2>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<glm::ivec2>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<glm::ivec3>())
+        }
+        else if(p->is_of_type<glm::ivec3>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<glm::ivec3>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<glm::vec4>())
+        }
+        else if(p->is_of_type<glm::vec4>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<glm::vec4>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<std::string>())
+        }
+        else if(p->is_of_type<std::string>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<std::string>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<std::vector<std::string>>())
+        }
+        else if(p->is_of_type<std::vector<std::string>>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<std::vector<std::string>>>(p);
             draw_property_ui(cast_prop);
-        }else if(p->is_of_type<std::vector<float>>())
+        }
+        else if(p->is_of_type<std::vector<float>>())
         {
             auto cast_prop = std::dynamic_pointer_cast<Property_<std::vector<float>>>(p);
             draw_property_ui(cast_prop);
-        }else{ draw_property_ui(p); }
+        }
+        else{ draw_property_ui(p); }
     }
 
     ImGui::End();
 }
 
-void draw_application_ui(const crocore::ApplicationConstPtr &app)
+void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::WindowPtr &window)
 {
     int corner = 0;
     bool is_open = true;
+    bool is_fullscreen = window->fullscreen();
+    bool v_sync = window->swapchain().v_sync();
+    VkSampleCountFlagBits msaa_current = window->swapchain().sample_count();
+
+    auto create_swapchain = [app, window](VkSampleCountFlagBits sample_count, bool v_sync)
+    {
+        app->main_queue().post([window, sample_count, v_sync]()
+                               {
+                                   window->create_swapchain(window->swapchain().device(), sample_count, v_sync);
+                               });
+    };
+
     float bg_alpha = .35f;
     const float DISTANCE = 10.0f;
     ImGuiIO &io = ImGui::GetIO();
@@ -300,18 +328,47 @@ void draw_application_ui(const crocore::ApplicationConstPtr &app)
         ImGui::Text(app->name().c_str());
         ImGui::Separator();
 
-        const char *items[] = {"Disabled", "Print", "Fatal", "Error", "Warning", "Info", "Debug", "Trace_1", "Trace_2",
-                               "Trace_3"};
-        int log_level = (int)crocore::g_logger.severity();
+        const char *log_items[] = {"Disabled", "Print", "Fatal", "Error", "Warning", "Info", "Debug", "Trace_1",
+                                   "Trace_2",
+                                   "Trace_3"};
+        int log_level = (int) crocore::g_logger.severity();
 
-        if(ImGui::Combo("log level", &log_level, items, IM_ARRAYSIZE(items)))
+        if(ImGui::Combo("log level", &log_level, log_items, IM_ARRAYSIZE(log_items)))
         {
             crocore::g_logger.set_severity(crocore::Severity(log_level));
         }
         ImGui::Spacing();
-        ImGui::Text("%.0f x %.0f", io.DisplaySize.x, io.DisplaySize.y);
-        ImGui::Spacing();
         ImGui::Text("time: %.1f", app->application_time());
+        ImGui::Spacing();
+
+        ImGui::Text("%.0f x %.0f", io.DisplaySize.x, io.DisplaySize.y);
+        ImGui::SameLine();
+        if(ImGui::Checkbox("fullscreen", &is_fullscreen)){ window->set_fullscreen(is_fullscreen); }
+        ImGui::SameLine();
+
+        if(ImGui::Checkbox("vsync", &v_sync))
+        {
+            create_swapchain(window->swapchain().sample_count(), v_sync);
+        }
+
+        ImGui::Spacing();
+
+        VkSampleCountFlagBits const msaa_levels[] = {VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT,
+                                                     VK_SAMPLE_COUNT_4_BIT, VK_SAMPLE_COUNT_8_BIT};
+        const char *msaa_items[] = {"None", "MSAA 2x", "MSAA 4x", "MSAA 8x"};
+        int msaa_index = 0;
+
+        for(auto lvl : msaa_levels)
+        {
+            if(msaa_current == lvl){ break; }
+            msaa_index++;
+        }
+
+        if(ImGui::Combo("multisampling", &msaa_index, msaa_items, IM_ARRAYSIZE(msaa_items)))
+        {
+            create_swapchain(msaa_levels[msaa_index], v_sync);
+        }
+
         ImGui::Spacing();
         ImGui::Text("fps: %.1f", app->fps());
     }
@@ -329,8 +386,8 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     {
         if(tex)
         {
-            ImVec2 sz(w, w / (tex->width() / (float)tex->height()));
-            ImGui::Image((ImTextureID)(tex.get()), sz, uv_0, uv_1);
+            ImVec2 sz(w, w / (tex->width() / (float) tex->height()));
+            ImGui::Image((ImTextureID) (tex.get()), sz, uv_0, uv_1);
             ImGui::Spacing();
             ImGui::Separator();
             ImGui::Spacing();

@@ -72,7 +72,8 @@ Window::Window(VkInstance instance,
                const std::string &title,
                bool fullscreen,
                uint32_t monitor_index) :
-        m_instance(instance)
+        m_instance(instance),
+        m_fullscreen(fullscreen)
 {
     if(!g_glfw_init){ g_glfw_init = std::make_shared<glfw_init_t>(); }
 
@@ -536,6 +537,7 @@ void Window::glfw_joystick_cb(int joy, int event)
 
 void Window::set_fullscreen(bool b, uint32_t monitor_index)
 {
+    if(b == m_fullscreen){ return; }
 
     int num;
     GLFWmonitor **monitors = glfwGetMonitors(&num);
@@ -560,6 +562,7 @@ void Window::set_fullscreen(bool b, uint32_t monitor_index)
         y = m_window_pos.y;
     }
     glfwSetWindowMonitor(m_handle, b ? monitors[monitor_index] : nullptr, x, y, w, h, mode->refreshRate);
+    m_fullscreen = b;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
