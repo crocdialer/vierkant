@@ -196,8 +196,6 @@ private:
 
     std::string m_title;
 
-    bool m_framebuffer_resized = false;
-
     static void glfw_resize_cb(GLFWwindow *window, int width, int height);
 
     static void glfw_close_cb(GLFWwindow *window);

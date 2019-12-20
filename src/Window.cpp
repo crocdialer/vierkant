@@ -80,9 +80,6 @@ Window::Window(VkInstance instance,
     GLFWmonitor **monitors = glfwGetMonitors(&monitor_count);
     monitor_index = std::max<int>(monitor_index, monitor_count - 1);
 
-    // no GL context
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
     init_handles(width, height, title, fullscreen ? monitors[monitor_index] : nullptr);
 }
 
@@ -91,6 +88,53 @@ Window::Window(VkInstance instance,
 Window::~Window()
 {
     clear_handles();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::init_handles(int width, int height, const std::string &title, GLFWmonitor *monitor)
+{
+    clear_handles();
+
+    if(monitor)
+    {
+        // TODO: check for available modes and pick closest
+        const GLFWvidmode *mode = glfwGetVideoMode(monitor);
+        width = mode->width;
+        height = mode->height;
+    }
+
+    // no GL context
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+
+    m_handle = glfwCreateWindow(width, height, title.c_str(), monitor, nullptr);
+    if(!m_handle){ throw std::runtime_error("could not init window-handles"); }
+
+    vkCheck(glfwCreateWindowSurface(m_instance, m_handle, nullptr, &m_surface),
+            "failed to create window surface!");
+
+    // set user-pointer
+    glfwSetWindowUserPointer(m_handle, this);
+
+    // init callbacks
+    glfwSetErrorCallback(&Window::glfw_error_cb);
+    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
+    glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
+    glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
+    glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
+    glfwSetScrollCallback(m_handle, &Window::glfw_mouse_wheel_cb);
+    glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
+    glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
+    glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::clear_handles()
+{
+    m_swap_chain = SwapChain();
+    if(m_instance && m_surface){ vkDestroySurfaceKHR(m_instance, m_surface, nullptr); }
+    if(m_handle){ glfwDestroyWindow(m_handle); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -107,6 +151,9 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
     // prevents: vkCreateSwapChainKHR(): surface has an existing swapchain other than oldSwapchain
     m_swap_chain = SwapChain();
 
+    // wait for good measure
+    vkDeviceWaitIdle(device->handle());
+
     // create swapchain for this window
     m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync);
 
@@ -114,7 +161,6 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
     {
         if(pair.second.resize_fn){ pair.second.resize_fn(m_swap_chain.extent().width, m_swap_chain.extent().height); }
     }
-    m_framebuffer_resized = false;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -185,6 +231,8 @@ void Window::set_title(const std::string &title)
 
 void Window::draw()
 {
+    if(!m_swap_chain){ return; }
+
     auto sync_objects = m_swap_chain.sync_objects();
     uint32_t image_index;
 
@@ -228,7 +276,7 @@ void Window::draw()
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();
 
-    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || m_framebuffer_resized)
+    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
         create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
     }
@@ -281,8 +329,7 @@ bool Window::should_close() const
 
 void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
 {
-//    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
-//    self->m_framebuffer_resized = true;
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -496,46 +543,8 @@ void Window::set_fullscreen(bool b, uint32_t monitor_index)
     const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor_index]);
 
     init_handles(mode->width, mode->height, title(), b ? monitors[monitor_index] : nullptr);
-}
 
-void Window::init_handles(int width, int height, const std::string &title, GLFWmonitor *monitor)
-{
-    clear_handles();
-
-    if(monitor)
-    {
-        // TODO: check for available modes and pick closest
-        const GLFWvidmode *mode = glfwGetVideoMode(monitor);
-        width = mode->width;
-        height = mode->height;
-    }
-
-    m_handle = glfwCreateWindow(width, height, title.c_str(), monitor, nullptr);
-    if(!m_handle){ throw std::runtime_error("could not init window-handles"); }
-
-    vkCheck(glfwCreateWindowSurface(m_instance, m_handle, nullptr, &m_surface),
-            "failed to create window surface!");
-
-    // set user-pointer
-    glfwSetWindowUserPointer(m_handle, this);
-
-    // init callbacks
-    glfwSetErrorCallback(&Window::glfw_error_cb);
-    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
-    glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
-    glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
-    glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
-    glfwSetScrollCallback(m_handle, &Window::glfw_mouse_wheel_cb);
-    glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
-    glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
-    glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
-}
-
-void Window::clear_handles()
-{
-    m_swap_chain = SwapChain();
-    if(m_instance && m_surface){ vkDestroySurfaceKHR(m_instance, m_surface, nullptr); }
-    if(m_handle){ glfwDestroyWindow(m_handle); }
+//    glfwPollEvents();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

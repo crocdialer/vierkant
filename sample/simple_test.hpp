@@ -57,7 +57,7 @@ private:
 
     bool m_use_msaa = true;
 
-    bool m_fullscreen = true;
+    bool m_fullscreen = false;
 
     // bundles basic Vulkan assets
     vierkant::Instance m_instance;
