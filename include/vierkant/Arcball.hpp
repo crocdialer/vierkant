@@ -14,13 +14,15 @@ class Arcball
 {
 public:
 
-    bool enabled = true;
+    bool enabled = false;
+
+    glm::vec2 multiplier = {1.f, 1.f};
 
     glm::vec2 screen_size;
 
     Arcball() = default;
 
-    Arcball(vierkant::PerspectiveCameraPtr camera, const glm::vec2& screen_size);
+    Arcball(vierkant::Object3DPtr object, const glm::vec2& screen_size);
 
     virtual ~Arcball() = default;
 
@@ -36,11 +38,13 @@ public:
 
 private:
 
-    glm::vec3 get_arcball_vector(int x, int y);
+    glm::vec3 get_arcball_vector(const glm::vec2 &screen_pos);
 
-    vierkant::PerspectiveCameraPtr m_camera;
+//    glm::quat m_rotation;
+    vierkant::Object3DPtr m_object;
 
-    int m_last_mx = 0, m_last_my = 0, m_cur_mx = 0, m_cur_my = 0;
+    glm::ivec2 m_last_pos = {};
+    glm::ivec2 m_current_pos = {};
     bool m_arcball_on = false;
 };
 

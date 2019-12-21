@@ -7,9 +7,10 @@
 namespace vierkant
 {
 
-Arcball::Arcball(vierkant::PerspectiveCameraPtr camera, const glm::vec2 &screen_size) :
+Arcball::Arcball(vierkant::Object3DPtr object, const glm::vec2 &screen_size) :
+        enabled(true),
         screen_size(screen_size),
-        m_camera(std::move(camera))
+        m_object(std::move(object))
 {
 
 }
@@ -18,23 +19,18 @@ void Arcball::update()
 {
     if(!enabled){ return; }
 
-    /* onIdle() */
-    if(m_cur_mx != m_last_mx || m_cur_my != m_last_my)
+    if(m_last_pos != m_current_pos)
     {
-        glm::vec3 va = get_arcball_vector(m_last_mx, m_last_my);
-        glm::vec3 vb = get_arcball_vector(m_cur_mx, m_cur_my);
+        glm::vec3 va = get_arcball_vector(m_last_pos);
+        glm::vec3 vb = get_arcball_vector(m_current_pos);
         float angle = acosf(std::min(1.0f, glm::dot(va, vb)));
         glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
 
-        auto cam_transform = glm::rotate(m_camera->transform(), angle, axis_in_camera_coord);
-        m_camera->set_transform(cam_transform);
+        auto obj_rotation = glm::rotate(m_object->rotation(), angle, axis_in_camera_coord);
+//        m_object->set_rotation(obj_rotation);
 
-//        glm::mat3 camera2object = glm::inverse(glm::mat3(transforms[MODE_CAMERA]) * glm::mat3(mesh.object2world));
-//        glm::vec3 axis_in_object_coord = camera2object * axis_in_camera_coord;
-//        mesh.object2world = glm::rotate(mesh.object2world, glm::degrees(angle), axis_in_object_coord);
-
-        m_last_mx = m_cur_mx;
-        m_last_my = m_cur_my;
+        m_object->set_transform(glm::mat4(obj_rotation));
+        m_last_pos = m_current_pos;
     }
 
 }
@@ -46,30 +42,18 @@ void Arcball::mouse_press(const MouseEvent &e)
     if(e.is_left())
     {
         m_arcball_on = true;
-        m_last_mx = m_cur_mx = e.get_x();
-        m_last_my = m_cur_my = e.get_y();
+        m_last_pos = m_current_pos = e.position();
     }
 }
 
 void Arcball::mouse_release(const MouseEvent &e)
 {
-    if(!enabled){ return; }
-
-    if(e.is_left())
-    {
-        m_arcball_on = false;
-    }
+    if(enabled && e.is_left()){ m_arcball_on = false; }
 }
 
 void Arcball::mouse_move(const MouseEvent &e)
 {
-    if(!enabled){ return; }
-    
-    if(m_arcball_on)
-    {
-        m_cur_mx = e.get_x();
-        m_cur_my = e.get_y();
-    }
+    if(enabled && m_arcball_on){ m_current_pos = e.position(); }
 }
 
 /**
@@ -78,19 +62,25 @@ void Arcball::mouse_move(const MouseEvent &e)
  * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
  * sphere, return the nearest point on the virtual ball surface.
  */
-glm::vec3 Arcball::get_arcball_vector(int x, int y)
+glm::vec3 Arcball::get_arcball_vector(const glm::vec2 &screen_pos)
 {
+    // screenpos in range [-1 .. 1]
+    glm::vec3 surface_point = glm::vec3(multiplier * (screen_pos / screen_size * 2.f - 1.f), 0.f);
 
-    glm::vec3 P = glm::vec3(1.0 * x / screen_size.x * 2 - 1.0,
-                            1.0 * y / screen_size.y * 2 - 1.0,
-                            0);
-    P.y = -P.y;
-    float OP_squared = P.x * P.x + P.y * P.y;
-    if(OP_squared <= 1 * 1)
-        P.z = sqrt(1 * 1 - OP_squared);  // Pythagoras
+    surface_point.y *= -1.f;
+    float OP_squared = glm::length2(surface_point); //P.x * P.x + P.y * P.y;
+
+    if(OP_squared <= 1.f)
+    {
+        // pythagoras
+        surface_point.z = sqrtf(1 * 1 - OP_squared);
+    }
     else
-        P = glm::normalize(P);  // nearest point
-    return P;
+    {
+        // nearest point
+        surface_point = glm::normalize(surface_point);
+    }
+    return surface_point;
 }
 
 vierkant::mouse_delegate_t Arcball::mouse_delegate()

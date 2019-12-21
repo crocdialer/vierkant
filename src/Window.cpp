@@ -374,8 +374,8 @@ void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 
         for(auto &pair : self->mouse_delegates)
         {
+            if(pair.second.mouse_move){ pair.second.mouse_move(e); }
             if(button_mods && pair.second.mouse_drag){ pair.second.mouse_drag(e); }
-            else if(pair.second.mouse_move){ pair.second.mouse_move(e); }
         }
     }
 }

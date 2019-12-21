@@ -70,6 +70,7 @@ private:
 
     vierkant::ImagePtr m_texture, m_texture_font;
 
+    vk::Object3DPtr m_camera_handle = vk::Object3D::create();
     vk::PerspectiveCameraPtr m_camera;
 
     vk::Arcball m_arcball;
