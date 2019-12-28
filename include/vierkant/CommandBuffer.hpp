@@ -16,7 +16,7 @@ using SemaphorePtr = std::shared_ptr<VkSemaphore_T>;
  * @param   device  the VkDevice used to create the Semaphore
  * @return  a newly created Semaphore
  */
-SemaphorePtr create_semaphore(vierkant::DevicePtr device);
+SemaphorePtr create_semaphore(const vierkant::DevicePtr& device);
 
 using FencePtr = std::shared_ptr<VkFence_T>;
 
@@ -27,7 +27,7 @@ using FencePtr = std::shared_ptr<VkFence_T>;
  * @param   signaled    flag indicating if the fence should be created in signaled state
  * @return  a newly created Fence
  */
-FencePtr create_fence(vierkant::DevicePtr device, bool signaled = false);
+FencePtr create_fence(const vierkant::DevicePtr& device, bool signaled = false);
 
 /**
  * @brief   Submit an array of VkCommandBuffer to a VkQueue.

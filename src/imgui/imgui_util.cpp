@@ -321,16 +321,15 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     ImGui::SetNextWindowBgAlpha(bg_alpha);
 
     if(ImGui::Begin("Example: Simple overlay", &is_open,
-                    (corner != -1 ? ImGuiWindowFlags_NoMove : 0) | ImGuiWindowFlags_NoDecoration |
-                    ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings |
-                    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+                    (corner != -1 ? ImGuiWindowFlags_NoMove : 0) | ImGuiWindowFlags_NoTitleBar |
+                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
+                    ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
     {
         ImGui::Text(app->name().c_str());
         ImGui::Separator();
 
         const char *log_items[] = {"Disabled", "Print", "Fatal", "Error", "Warning", "Info", "Debug", "Trace_1",
-                                   "Trace_2",
-                                   "Trace_3"};
+                                   "Trace_2", "Trace_3"};
         int log_level = (int) crocore::g_logger.severity();
 
         if(ImGui::Combo("log level", &log_level, log_items, IM_ARRAYSIZE(log_items)))

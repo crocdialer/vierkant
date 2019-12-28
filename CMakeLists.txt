@@ -49,9 +49,8 @@ set(LIBS ${LIBS} ${Boost_LIBRARIES})
 #####
 
 ## GLFW
-find_package(GLFW3 REQUIRED)
-include_directories(${GLFW_INCLUDE_DIRS})
-SET(LIBS ${LIBS} ${GLFW_LIBRARIES})
+find_package(glfw3 3.3 REQUIRED)
+set(LIBS ${LIBS} glfw)
 
 ## Vulkan
 find_package(Vulkan REQUIRED)
@@ -64,7 +63,6 @@ include_directories(${crocore_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
 #shaders
-#set(GLSLANG_VALIDATOR "/opt/glslang/6.2.2596/bin/glslangValidator")
 set(GLSLANG_VALIDATOR "glslangValidator")
 stringify_shaders("shaders" ${GLSLANG_VALIDATOR})
 

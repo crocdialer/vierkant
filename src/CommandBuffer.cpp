@@ -6,7 +6,7 @@
 
 namespace vierkant {
 
-SemaphorePtr create_semaphore(vierkant::DevicePtr device)
+SemaphorePtr create_semaphore(const vierkant::DevicePtr& device)
 {
     VkSemaphoreCreateInfo semaphore_create_info = {};
     semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -21,7 +21,7 @@ SemaphorePtr create_semaphore(vierkant::DevicePtr device)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-FencePtr create_fence(vierkant::DevicePtr device, bool signaled)
+FencePtr create_fence(const vierkant::DevicePtr& device, bool signaled)
 {
     VkFence fence = VK_NULL_HANDLE;
     VkFenceCreateInfo fence_create_info = {};

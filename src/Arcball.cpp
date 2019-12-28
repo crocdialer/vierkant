@@ -15,24 +15,22 @@ Arcball::Arcball(vierkant::Object3DPtr object, const glm::vec2 &screen_size) :
 
 }
 
-void Arcball::update()
+void Arcball::update(double time_delta)
 {
     if(!enabled){ return; }
 
-    if(m_last_pos != m_current_pos)
-    {
-        glm::vec3 va = get_arcball_vector(m_last_pos);
-        glm::vec3 vb = get_arcball_vector(m_current_pos);
-        float angle = acosf(std::min(1.0f, glm::dot(va, vb)));
-        glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
-
-        auto obj_rotation = glm::rotate(m_object->rotation(), angle, axis_in_camera_coord);
-//        m_object->set_rotation(obj_rotation);
-
-        m_object->set_transform(glm::mat4(obj_rotation));
-        m_last_pos = m_current_pos;
-    }
-
+//    if(m_last_pos != m_current_pos)
+//    {
+//        glm::vec3 va = get_arcball_vector(m_last_pos);
+//        glm::vec3 vb = get_arcball_vector(m_current_pos);
+//        float angle = multiplier * acosf(std::min(1.0f, glm::dot(va, vb)));
+//        glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
+//
+//        auto obj_rotation = glm::rotate(m_object->rotation(), angle, axis_in_camera_coord);
+//
+//        m_object->set_transform(glm::mat4(obj_rotation));
+//        m_last_pos = m_current_pos;
+//    }
 }
 
 void Arcball::mouse_press(const MouseEvent &e)
@@ -41,19 +39,26 @@ void Arcball::mouse_press(const MouseEvent &e)
 
     if(e.is_left())
     {
-        m_arcball_on = true;
+        m_mouse_down = true;
         m_last_pos = m_current_pos = e.position();
+        m_last_rotation = m_current_rotation;
     }
 }
 
 void Arcball::mouse_release(const MouseEvent &e)
 {
-    if(enabled && e.is_left()){ m_arcball_on = false; }
+    if(enabled && e.is_left()){ m_mouse_down = false; }
 }
 
 void Arcball::mouse_move(const MouseEvent &e)
 {
-    if(enabled && m_arcball_on){ m_current_pos = e.position(); }
+    if(enabled && m_mouse_down)
+    {
+        m_current_pos = e.position();
+
+        glm::vec2 diff = m_last_pos - m_current_pos;
+        m_current_rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(diff.y), glm::radians(diff.x), 0));
+    }
 }
 
 /**
@@ -65,7 +70,7 @@ void Arcball::mouse_move(const MouseEvent &e)
 glm::vec3 Arcball::get_arcball_vector(const glm::vec2 &screen_pos)
 {
     // screenpos in range [-1 .. 1]
-    glm::vec3 surface_point = glm::vec3(multiplier * (screen_pos / screen_size * 2.f - 1.f), 0.f);
+    glm::vec3 surface_point = glm::vec3(screen_pos / screen_size * 2.f - 1.f, 0.f);
 
     surface_point.y *= -1.f;
     float OP_squared = glm::length2(surface_point); //P.x * P.x + P.y * P.y;

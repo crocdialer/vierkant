@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <crocore/CircularBuffer.hpp>
 #include "vierkant/Input.hpp"
 #include "vierkant/Camera.hpp"
 
@@ -16,17 +17,15 @@ public:
 
     bool enabled = false;
 
-    glm::vec2 multiplier = {1.f, 1.f};
+    float multiplier = 1.f;
 
     glm::vec2 screen_size;
 
     Arcball() = default;
 
-    Arcball(vierkant::Object3DPtr object, const glm::vec2& screen_size);
+    Arcball(vierkant::Object3DPtr object, const glm::vec2 &screen_size);
 
-    virtual ~Arcball() = default;
-
-    void update();
+    void update(double time_delta);
 
     void mouse_press(const MouseEvent &e);
 
@@ -35,6 +34,8 @@ public:
     void mouse_move(const MouseEvent &e);
 
     vierkant::mouse_delegate_t mouse_delegate();
+
+    const glm::quat &rotation() const{ return m_current_rotation; }
 
 private:
 
@@ -45,7 +46,14 @@ private:
 
     glm::ivec2 m_last_pos = {};
     glm::ivec2 m_current_pos = {};
-    bool m_arcball_on = false;
+
+    // mouse rotation control
+    glm::vec2 m_inertia = {};
+
+    glm::quat m_last_rotation = {}, m_current_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
+    crocore::CircularBuffer<glm::vec2> m_drag_buffer;
+
+    bool m_mouse_down = false;
 };
 
 };

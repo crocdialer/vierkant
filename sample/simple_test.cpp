@@ -169,7 +169,11 @@ void HelloTriangleApplication::load_model()
 
 void HelloTriangleApplication::update(double time_delta)
 {
-    m_arcball.update();
+    m_arcball.enabled = !(m_gui_context.capture_flags() & vk::gui::Context::WantCaptureMouse);
+
+    m_camera_handle->set_rotation(m_arcball.rotation());
+
+//    m_arcball.update(time_delta);
 
     m_animation.update();
 
@@ -217,7 +221,7 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
         m_draw_context.draw_boundingbox(m_renderer, m_mesh->aabb(),
                                         m_drawable.matrices.view * m_drawable.matrices.model,
                                         m_drawable.matrices.projection);
-        m_draw_context.draw_grid(m_renderer, 1.f, 10, m_camera->view_matrix(), m_camera->projection_matrix());
+        m_draw_context.draw_grid(m_renderer, 10.f, 100, m_camera->view_matrix(), m_camera->projection_matrix());
         return m_renderer.render(&inheritance);
     };
 
