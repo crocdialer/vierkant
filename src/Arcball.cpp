@@ -7,10 +7,9 @@
 namespace vierkant
 {
 
-Arcball::Arcball(vierkant::Object3DPtr object, const glm::vec2 &screen_size) :
+Arcball::Arcball(const glm::vec2 &screen_size) :
         enabled(true),
-        screen_size(screen_size),
-        m_object(std::move(object))
+        screen_size(screen_size)
 {
 
 }
@@ -18,19 +17,6 @@ Arcball::Arcball(vierkant::Object3DPtr object, const glm::vec2 &screen_size) :
 void Arcball::update(double time_delta)
 {
     if(!enabled){ return; }
-
-//    if(m_last_pos != m_current_pos)
-//    {
-//        glm::vec3 va = get_arcball_vector(m_last_pos);
-//        glm::vec3 vb = get_arcball_vector(m_current_pos);
-//        float angle = multiplier * acosf(std::min(1.0f, glm::dot(va, vb)));
-//        glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
-//
-//        auto obj_rotation = glm::rotate(m_object->rotation(), angle, axis_in_camera_coord);
-//
-//        m_object->set_transform(glm::mat4(obj_rotation));
-//        m_last_pos = m_current_pos;
-//    }
 }
 
 void Arcball::mouse_press(const MouseEvent &e)
@@ -58,6 +44,18 @@ void Arcball::mouse_move(const MouseEvent &e)
 
         glm::vec2 diff = m_last_pos - m_current_pos;
         m_current_rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(diff.y), glm::radians(diff.x), 0));
+
+//        if(m_last_pos != m_current_pos)
+//        {
+//            glm::vec3 va = get_arcball_vector(m_last_pos);
+//            glm::vec3 vb = get_arcball_vector(m_current_pos);
+//            float angle = multiplier * acosf(std::min(1.0f, glm::dot(va, vb)));
+//            glm::vec3 axis_in_camera_coord = glm::cross(va, vb);
+//            m_current_rotation = glm::rotate(m_last_rotation, angle, axis_in_camera_coord);
+//        }
+
+        m_last_pos = m_current_pos;
+        m_last_rotation = m_current_rotation;
     }
 }
 

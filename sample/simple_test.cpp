@@ -70,23 +70,20 @@ void HelloTriangleApplication::create_context_and_window()
     // textures window
     m_gui_context.delegates["textures"] = [this]{ vk::gui::draw_images_ui({m_texture, m_texture_font}); };
 
-    // animations window
-    m_gui_context.delegates["animations"] = [this]
-    {
-        ImGui::Begin("animations");
-//        for(auto &animation : {m_animation})
-        {
-            float duration = m_animation.duration();
-            float current_time = m_animation.progress() * duration;
-
-            // animation current time / duration
-            if(ImGui::InputFloat("duration", &duration)){ m_animation.set_duration(duration); }
-            ImGui::ProgressBar(m_animation.progress(), ImVec2(-1, 0),
-                               crocore::format("%.2f/%.2f s", current_time, duration).c_str());
-            ImGui::Separator();
-        }
-        ImGui::End();
-    };
+//    // animations window
+//    m_gui_context.delegates["animations"] = [this]
+//    {
+//        ImGui::Begin("animations");
+//        float duration = m_animation.duration();
+//        float current_time = m_animation.progress() * duration;
+//
+//        // animation current time / duration
+//        if(ImGui::InputFloat("duration", &duration)){ m_animation.set_duration(duration); }
+//        ImGui::ProgressBar(m_animation.progress(), ImVec2(-1, 0),
+//                           crocore::format("%.2f/%.2f s", current_time, duration).c_str());
+//        ImGui::Separator();
+//        ImGui::End();
+//    };
 
     // imgui demo window
     m_gui_context.delegates["demo"] = []{ if(DEMO_GUI){ ImGui::ShowDemoWindow(&DEMO_GUI); }};
@@ -96,14 +93,11 @@ void HelloTriangleApplication::create_context_and_window()
     m_window->mouse_delegates["gui"] = m_gui_context.mouse_delegate();
 
     // camera
-    m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 10.f);
-    m_camera->set_position(glm::vec3(0.f, 0.f, 4.0f));
-    m_camera->set_parent(m_camera_handle);
-//    m_camera->set_position(glm::vec3(1.0f, 1.0f, 1.0f));
-//    m_camera->set_look_at(glm::vec3(0.0f, 0.0f, -.5f), glm::vec3(0.0f, 1.0f, 0.0f));
+    m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 100.f);
+//    m_camera->set_position(glm::vec3(0.f, 0.f, 4.0f));
 
     // create arcball
-    m_arcball = vk::Arcball(m_camera_handle, m_window->size());
+    m_arcball = vk::Arcball(m_window->size());
     m_arcball.multiplier *= -1.f;
 
     // attach arcball mouse delegate
@@ -151,7 +145,7 @@ void HelloTriangleApplication::create_texture_image()
 
     if(m_font)
     {
-        // render some text into a texture
+        // draw_gui some text into a texture
         m_texture_font = m_font->create_texture(m_device, "Pooop!\nKleines kaka,\ngrosses KAKA ...");
     }
 }
@@ -171,8 +165,15 @@ void HelloTriangleApplication::update(double time_delta)
 {
     m_arcball.enabled = !(m_gui_context.capture_flags() & vk::gui::Context::WantCaptureMouse);
 
-    m_camera_handle->set_rotation(m_arcball.rotation());
+    auto look_at = glm::vec3(0);
+    float cam_distance = 4.f;
+    glm::mat4 rotation = glm::mat4_cast(m_arcball.rotation());
 
+    auto tmp = glm::translate(glm::mat4(1), look_at + glm::vec3(0, 0, cam_distance));
+    auto cam_transform = rotation * tmp;
+    m_camera->set_global_transform(cam_transform);
+
+//    m_camera_handle->set_rotation(m_arcball.rotation());
 //    m_arcball.update(time_delta);
 
     m_animation.update();
@@ -227,7 +228,7 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
 
     auto render_gui = [this, &inheritance]() -> VkCommandBuffer
     {
-        m_gui_context.render(m_gui_renderer);
+        m_gui_context.draw_gui(m_gui_renderer);
         m_draw_context.draw_text(m_gui_renderer, "$$$ oder fahrkarte du nase\nteil zwo", m_font, {400.f, 450.f});
         return m_gui_renderer.render(&inheritance);
     };

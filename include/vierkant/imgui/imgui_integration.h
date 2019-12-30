@@ -43,12 +43,12 @@ public:
     Context &operator=(Context other);
 
     /**
-     * @brief   Render the gui using a provided renderer.
+     * @brief   Draw the gui using a provided renderer.
      *          Will invoke the current draw-delegate objects to create all gui elements.
      *
      * @param   renderer    a vierkant::Renderer that is used to stage drawables for the gui.
      */
-    void render(vierkant::Renderer &renderer);
+    void draw_gui(vierkant::Renderer &renderer);
 
     const vierkant::mouse_delegate_t &mouse_delegate() const;
 

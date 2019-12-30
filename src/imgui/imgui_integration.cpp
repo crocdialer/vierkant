@@ -226,7 +226,7 @@ Context &Context::operator=(Context other)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Context::render(vierkant::Renderer &renderer)
+void Context::draw_gui(vierkant::Renderer &renderer)
 {
     ImGui::SetCurrentContext(m_imgui_context);
 

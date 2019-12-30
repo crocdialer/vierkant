@@ -6,7 +6,6 @@
 
 #include <crocore/CircularBuffer.hpp>
 #include "vierkant/Input.hpp"
-#include "vierkant/Camera.hpp"
 
 namespace vierkant
 {
@@ -23,7 +22,7 @@ public:
 
     Arcball() = default;
 
-    Arcball(vierkant::Object3DPtr object, const glm::vec2 &screen_size);
+    Arcball(const glm::vec2 &screen_size);
 
     void update(double time_delta);
 
@@ -40,9 +39,6 @@ public:
 private:
 
     glm::vec3 get_arcball_vector(const glm::vec2 &screen_pos);
-
-//    glm::quat m_rotation;
-    vierkant::Object3DPtr m_object;
 
     glm::ivec2 m_last_pos = {};
     glm::ivec2 m_current_pos = {};
