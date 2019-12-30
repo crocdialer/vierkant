@@ -148,6 +148,29 @@ public:
     void set_title(const std::string &title);
 
     /**
+     * @return  the current cursor-position relative to this window
+     */
+    glm::vec2 cursor_position() const;
+
+    /**
+     * @brief   set the current mouse-cursor position relative to this window.
+     *
+     * @param   pos     the desired window position
+     */
+    void set_cursor_position(const glm::vec2 &pos);
+
+    /**
+     * @return  true if the cursor is currently visible
+     */
+    bool cursor_visible() const;
+
+    /**
+     * @brief   sets the mouse-cursor for this window visible or not.
+     * @param   b   a flag indicating if the mouse-cursor shall be visible
+     */
+    void set_cursor_visible(bool b);
+
+    /**
      * @return  the current monitor index this Window resides on
      */
     uint32_t monitor_index() const;

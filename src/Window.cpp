@@ -230,6 +230,36 @@ void Window::set_title(const std::string &title)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+glm::vec2 Window::cursor_position() const
+{
+    double x_pos, y_pos;
+    glfwGetCursorPos(m_handle, &x_pos, &y_pos);
+    return {x_pos, y_pos};
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::set_cursor_position(const glm::vec2 &pos)
+{
+    glfwSetCursorPos(m_handle, pos.x, pos.y);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool Window::cursor_visible() const
+{
+    return glfwGetInputMode(m_handle, GLFW_CURSOR) != GLFW_CURSOR_HIDDEN;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::set_cursor_visible(bool b)
+{
+    glfwSetInputMode(m_handle, GLFW_CURSOR, b ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void Window::draw()
 {
     if(!m_swap_chain){ return; }
@@ -534,6 +564,8 @@ void Window::glfw_joystick_cb(int joy, int event)
         LOG_DEBUG << "joystick " << joy << " disconnected";
     }
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Window::set_fullscreen(bool b, uint32_t monitor_index)
 {
