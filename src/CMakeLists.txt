@@ -3,7 +3,7 @@ set(LIB_NAME ${PROJECT_NAME})
 FILE(GLOB FOLDER_SOURCES *.c* imgui/*.c* ${CMAKE_CURRENT_BINARY_DIR}/*.cpp)
 FILE(GLOB FOLDER_HEADERS *.h* ${CMAKE_BINARY_DIR}/include/${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/include/${PROJECT_NAME})
 
-include_directories(${CMAKE_BINARY_DIR}/include ${PROJECT_SOURCE_DIR}/include)
+include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/${LIB_NAME}/include ${PROJECT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(${LIB_NAME} ${LIB_TYPE} ${FOLDER_SOURCES} ${FOLDER_HEADERS} Arcball.cpp ../include/vierkant/Arcball.hpp)

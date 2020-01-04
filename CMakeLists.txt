@@ -30,7 +30,7 @@ if (NOT BUILD_SHARED_LIBS)
 endif (NOT BUILD_SHARED_LIBS)
 
 ## cmake modules
-set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake_modules ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake_modules ${CMAKE_MODULE_PATH})
 include(add_test_helper)
 include(vierkant_utils)
 

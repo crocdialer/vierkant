@@ -1,10 +1,4 @@
-#include <utility>
-
-//
-// Created by crocdialer on 2/16/19.
-//
-
-#include "../include/vierkant/Framebuffer.hpp"
+#include "vierkant/Framebuffer.hpp"
 
 
 namespace vierkant

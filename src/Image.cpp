@@ -1,18 +1,10 @@
-#include <utility>
-
-#include <utility>
-
-#include <utility>
-
-#include <utility>
-
 //
 // Created by crocdialer on 10/2/18.
 //
 
-#include "../include/vierkant/CommandBuffer.hpp"
-#include "../include/vierkant/Buffer.hpp"
-#include "../include/vierkant/Image.hpp"
+#include <vierkant/CommandBuffer.hpp>
+#include <vierkant/Buffer.hpp>
+#include <vierkant/Image.hpp>
 
 namespace vierkant {
 
