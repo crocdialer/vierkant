@@ -1,7 +1,3 @@
-//
-// Created by crocdialer on 3/11/19.
-//
-
 #include <unordered_map>
 #include <crocore/Timer.hpp>
 #include "vierkant/Geometry.hpp"

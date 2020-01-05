@@ -2,8 +2,8 @@
 // Created by crocdialer on 10/1/18.
 //
 
-#include "../include/vierkant/Image.hpp"
-#include "../include/vierkant/SwapChain.hpp"
+#include "vierkant/Image.hpp"
+#include "vierkant/SwapChain.hpp"
 
 namespace vierkant
 {

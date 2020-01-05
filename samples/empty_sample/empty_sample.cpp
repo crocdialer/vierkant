@@ -3,7 +3,7 @@
 #include <crocore/Image.hpp>
 #include <vierkant/imgui/imgui_util.h>
 
-#include "simple_test.hpp"
+#include "empty_sample.hpp"
 
 void HelloTriangleApplication::setup()
 {
@@ -70,20 +70,20 @@ void HelloTriangleApplication::create_context_and_window()
     // textures window
     m_gui_context.delegates["textures"] = [this]{ vk::gui::draw_images_ui({m_texture, m_texture_font}); };
 
-//    // animations window
-//    m_gui_context.delegates["animations"] = [this]
-//    {
-//        ImGui::Begin("animations");
-//        float duration = m_animation.duration();
-//        float current_time = m_animation.progress() * duration;
-//
-//        // animation current time / duration
-//        if(ImGui::InputFloat("duration", &duration)){ m_animation.set_duration(duration); }
-//        ImGui::ProgressBar(m_animation.progress(), ImVec2(-1, 0),
-//                           crocore::format("%.2f/%.2f s", current_time, duration).c_str());
-//        ImGui::Separator();
-//        ImGui::End();
-//    };
+    // animations window
+    m_gui_context.delegates["animations"] = [this]
+    {
+        ImGui::Begin("animations");
+        float duration = m_animation.duration();
+        float current_time = m_animation.progress() * duration;
+
+        // animation current time / duration
+        if(ImGui::InputFloat("duration", &duration)){ m_animation.set_duration(duration); }
+        ImGui::ProgressBar(m_animation.progress(), ImVec2(-1, 0),
+                           crocore::format("%.2f/%.2f s", current_time, duration).c_str());
+        ImGui::Separator();
+        ImGui::End();
+    };
 
     // imgui demo window
     m_gui_context.delegates["demo"] = []{ if(DEMO_GUI){ ImGui::ShowDemoWindow(&DEMO_GUI); }};

@@ -22,6 +22,7 @@ endif()
 
 option(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
 option(BUILD_TESTS "Build Tests" ON)
+option(BUILD_EXAMPLES "Build Examples" ON)
 
 set(LIB_TYPE SHARED)
 if (NOT BUILD_SHARED_LIBS)
@@ -69,5 +70,7 @@ stringify_shaders("shaders" ${GLSLANG_VALIDATOR})
 #vierkant
 add_subdirectory("src")
 
-#sample
-add_subdirectory("sample")
+#examples
+if (BUILD_EXAMPLES)
+    add_subdirectory("samples")
+endif (BUILD_EXAMPLES)

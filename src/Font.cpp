@@ -1,16 +1,3 @@
-// __ ___ ____ _____ ______ _______ ________ _______ ______ _____ ____ ___ __
-//
-// Copyright (C) 2012-2016, Fabian Schmidt <crocdialer@googlemail.com>
-//
-// It is distributed under the Boost Software License, Version 1.0.
-// (See accompanying file LICENSE_1_0.txt or copy at
-//  http://www.boost.org/LICENSE_1_0.txt
-// __ ___ ____ _____ ______ _______ ________ _______ ______ _____ ____ ___ __
-
-//  Font.cpp
-//
-//  Created by Fabian on 3/9/13.
-
 #include <unordered_map>
 #include <crocore/filesystem.hpp>
 #include "vierkant/Font.hpp"

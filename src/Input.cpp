@@ -1,7 +1,3 @@
-//
-// Created by crocdialer on 4/13/19.
-//
-
 #include "vierkant/Input.hpp"
 
 namespace vierkant {

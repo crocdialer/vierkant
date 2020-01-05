@@ -1,10 +1,4 @@
-#include <utility>
-
-//
-// Created by crocdialer on 9/26/18.
-//
-
-#include "../include/vierkant/Buffer.hpp"
+#include "vierkant/Buffer.hpp"
 
 namespace vierkant {
 
