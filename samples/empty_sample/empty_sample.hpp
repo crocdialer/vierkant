@@ -22,10 +22,6 @@ const bool g_enable_validation_layers = false;
 const bool g_enable_validation_layers = true;
 #endif
 
-const char *g_texture_url = "http://roa.h-cdn.co/assets/cm/14/47/1024x576/546b32b33240f_-_hasselhoff_kr_pr_nbc-lg.jpg";
-
-const char *g_font_path = "/usr/local/share/fonts/Courier New Bold.ttf";
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class HelloTriangleApplication : public crocore::Application
@@ -51,8 +47,6 @@ private:
 
     void create_graphics_pipeline();
 
-    void create_texture_image();
-
     void load_model();
 
     bool m_use_msaa = true;
@@ -68,11 +62,7 @@ private:
     // window handle
     std::shared_ptr<vierkant::Window> m_window;
 
-    vierkant::ImagePtr m_texture, m_texture_font;
-
-    vk::PerspectiveCameraPtr m_camera;
-
-    vk::Arcball m_arcball;
+    vierkant::ImagePtr m_texture;
 
     vk::MeshPtr m_mesh = vk::Mesh::create();
 
@@ -80,17 +70,9 @@ private:
 
     vk::Renderer::drawable_t m_drawable;
 
-    vk::Renderer m_image_renderer, m_renderer, m_gui_renderer;
-
-    float m_scale = 1.f;
-
-    crocore::Animation m_animation;
-
-    vierkant::FontPtr m_font;
+    vk::Renderer m_renderer, m_gui_renderer;
 
     vierkant::gui::Context m_gui_context;
-
-    vierkant::DrawContext m_draw_context;
 };
 
 int main(int argc, char *argv[])
