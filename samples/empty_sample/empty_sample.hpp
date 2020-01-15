@@ -62,7 +62,7 @@ private:
     // window handle
     std::shared_ptr<vierkant::Window> m_window;
 
-    vierkant::ImagePtr m_texture;
+    vk::PerspectiveCameraPtr m_camera;
 
     vk::MeshPtr m_mesh = vk::Mesh::create();
 

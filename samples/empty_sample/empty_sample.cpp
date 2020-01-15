@@ -36,6 +36,7 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h)
     {
         create_graphics_pipeline();
+        m_camera->set_aspect(m_window->aspect_ratio());
     };
     window_delegate.close_fn = [this](){ set_running(false); };
     m_window->window_delegates[name()] = window_delegate;
@@ -61,6 +62,10 @@ void HelloTriangleApplication::create_context_and_window()
     // attach gui input-delegates to window
     m_window->key_delegates["gui"] = m_gui_context.key_delegate();
     m_window->mouse_delegates["gui"] = m_gui_context.mouse_delegate();
+
+    // camera
+    m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 100.f);
+    m_camera->set_position(glm::vec3(0.f, 0.f,  2.f));
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
@@ -73,9 +78,9 @@ void HelloTriangleApplication::create_graphics_pipeline()
 void HelloTriangleApplication::load_model()
 {
     auto geom = vk::Geometry::create();
-    geom->vertices = {glm::vec3(-0.5f, 0.5f, 0.f),
-                      glm::vec3(0.5f, 0.5f, 0.f),
-                      glm::vec3(0.f, -0.5f, 0.f)};
+    geom->vertices = {glm::vec3(-0.5f, -0.5f, 0.f),
+                      glm::vec3(0.5f, -0.5f, 0.f),
+                      glm::vec3(0.f, 0.5f, 0.f)};
     geom->colors = {glm::vec4(1.f, 0.f, 0.f, 1.f),
                     glm::vec4(0.f, 1.f, 0.f, 1.f),
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};
@@ -87,6 +92,9 @@ void HelloTriangleApplication::load_model()
 
 void HelloTriangleApplication::update(double time_delta)
 {
+    m_drawable.matrices.view = m_camera->view_matrix();
+    m_drawable.matrices.projection = m_camera->projection_matrix();
+
     // issue top-level draw-command
     m_window->draw();
 }
@@ -101,12 +109,6 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
     inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
     inheritance.framebuffer = framebuffer.handle();
     inheritance.renderPass = framebuffer.renderpass().get();
-
-    for(auto renderer : {&m_renderer, &m_gui_renderer})
-    {
-        renderer->viewport.width = width;
-        renderer->viewport.height = height;
-    }
 
     auto render_mesh = [this, &inheritance]() -> VkCommandBuffer
     {
