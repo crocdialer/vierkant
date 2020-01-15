@@ -103,7 +103,6 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
 {
     auto image_index = w->swapchain().image_index();
     const auto &framebuffer = m_window->swapchain().framebuffers()[image_index];
-    int32_t width = m_window->swapchain().extent().width, height = m_window->swapchain().extent().height;
 
     VkCommandBufferInheritanceInfo inheritance = {};
     inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;

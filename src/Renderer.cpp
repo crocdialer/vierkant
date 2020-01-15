@@ -132,6 +132,8 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::lock_guard<std::mutex> lock_rhs(rhs.m_staging_mutex, std::adopt_lock);
 
     std::swap(lhs.m_device, rhs.m_device);
+    std::swap(lhs.viewport, rhs.viewport);
+    std::swap(lhs.scissor, rhs.scissor);
     std::swap(lhs.m_renderpass, rhs.m_renderpass);
     std::swap(lhs.m_sample_count, rhs.m_sample_count);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
