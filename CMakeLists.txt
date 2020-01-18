@@ -72,11 +72,6 @@ add_subdirectory("src")
 include_directories(${vierkant_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${vierkant_LIBRARIES})
 
-#examples
-if (BUILD_EXAMPLES)
-    add_subdirectory("samples")
-endif (BUILD_EXAMPLES)
-
 # Expose public includes (including Boost transitively) to other
 # subprojects through cache variable.
 set(${PROJECT_NAME}_INCLUDE_DIRS ${crocore_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include
@@ -85,5 +80,10 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${crocore_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/i
 set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
-#message("includes: ${vierkant_INCLUDE_DIRS}")
-#message("libs: ${vierkant_LIBRARIES}")
+# message("includes: ${vierkant_INCLUDE_DIRS}")
+# message("libs: ${vierkant_LIBRARIES}")
+
+#examples
+if (BUILD_EXAMPLES)
+    add_subdirectory("samples")
+endif (BUILD_EXAMPLES)
