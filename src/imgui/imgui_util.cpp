@@ -352,6 +352,13 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
         ImGui::Spacing();
 
+        auto clear_color = window->swapchain().framebuffers().front().clear_color;
+
+        if(ImGui::ColorEdit4("clear color", clear_color.float32))
+        {
+            for(auto &framebuffer : window->swapchain().framebuffers()){ framebuffer.clear_color = clear_color; }
+        }
+
         VkSampleCountFlagBits const msaa_levels[] = {VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT,
                                                      VK_SAMPLE_COUNT_4_BIT, VK_SAMPLE_COUNT_8_BIT};
         const char *msaa_items[] = {"None", "MSAA 2x", "MSAA 4x", "MSAA 8x"};

@@ -3,7 +3,7 @@ FILE(GLOB FOLDER_CONTENT *)
 
 include_directories(${vierkant_INCLUDE_DIRS})
 
-#set(LIBS ${LIBS} crocore vierkant)
+set(LIBS ${LIBS} crocore vierkant)
 
 FOREACH(folderItem ${FOLDER_CONTENT})
     IF(IS_DIRECTORY ${folderItem})
