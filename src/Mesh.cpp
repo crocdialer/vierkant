@@ -8,56 +8,57 @@
 
 #include "vierkant/Mesh.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkIndexType index_type<uint16_t>() { return VK_INDEX_TYPE_UINT16; }
+VkIndexType index_type<uint16_t>(){ return VK_INDEX_TYPE_UINT16; }
 
 template<>
-VkIndexType index_type<uint32_t>() { return VK_INDEX_TYPE_UINT32; }
+VkIndexType index_type<uint32_t>(){ return VK_INDEX_TYPE_UINT32; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
-VkFormat format<uint8_t>() { return VK_FORMAT_R8_UNORM; }
+VkFormat format<uint8_t>(){ return VK_FORMAT_R8_UNORM; }
 
 template<>
-VkFormat format<float>() { return VK_FORMAT_R32_SFLOAT; }
+VkFormat format<float>(){ return VK_FORMAT_R32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec2>() { return VK_FORMAT_R32G32_SFLOAT; }
+VkFormat format<glm::vec2>(){ return VK_FORMAT_R32G32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec3>() { return VK_FORMAT_R32G32B32_SFLOAT; }
+VkFormat format<glm::vec3>(){ return VK_FORMAT_R32G32B32_SFLOAT; }
 
 template<>
-VkFormat format<glm::vec4>() { return VK_FORMAT_R32G32B32A32_SFLOAT; }
+VkFormat format<glm::vec4>(){ return VK_FORMAT_R32G32B32A32_SFLOAT; }
 
 template<>
-VkFormat format<int32_t>() { return VK_FORMAT_R32_SINT; }
+VkFormat format<int32_t>(){ return VK_FORMAT_R32_SINT; }
 
 template<>
-VkFormat format<glm::ivec2>() { return VK_FORMAT_R32G32_SINT; }
+VkFormat format<glm::ivec2>(){ return VK_FORMAT_R32G32_SINT; }
 
 template<>
-VkFormat format<glm::ivec3>() { return VK_FORMAT_R32G32B32_SINT; }
+VkFormat format<glm::ivec3>(){ return VK_FORMAT_R32G32B32_SINT; }
 
 template<>
-VkFormat format<glm::ivec4>() { return VK_FORMAT_R32G32B32A32_SINT; }
+VkFormat format<glm::ivec4>(){ return VK_FORMAT_R32G32B32A32_SINT; }
 
 template<>
-VkFormat format<uint32_t>() { return VK_FORMAT_R32_UINT; }
+VkFormat format<uint32_t>(){ return VK_FORMAT_R32_UINT; }
 
 template<>
-VkFormat format<glm::uvec2>() { return VK_FORMAT_R32G32_UINT; }
+VkFormat format<glm::uvec2>(){ return VK_FORMAT_R32G32_UINT; }
 
 template<>
-VkFormat format<glm::uvec3>() { return VK_FORMAT_R32G32B32_UINT; }
+VkFormat format<glm::uvec3>(){ return VK_FORMAT_R32G32B32_UINT; }
 
 template<>
-VkFormat format<glm::uvec4>() { return VK_FORMAT_R32G32B32A32_UINT; }
+VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -183,7 +184,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
             buffer_info.range = desc.buffer->num_bytes();
             buffer_infos.push_back(buffer_info);
             desc_write.pBufferInfo = &buffer_infos.back();
-        }else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+        }
+        else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
         {
             std::vector<VkDescriptorImageInfo> image_infos(desc.image_samplers.size());
 
@@ -228,7 +230,7 @@ Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryCons
             using elem_t = typename std::decay<decltype(array)>::type::value_type;
             size_t elem_size = sizeof(elem_t);
             vertex_data.push_back(
-                    {(uint8_t *)array.data(), offset, static_cast<uint32_t>(elem_size), array.size(),
+                    {(uint8_t *) array.data(), offset, static_cast<uint32_t>(elem_size), array.size(),
                      vierkant::format<elem_t>()});
             offset += elem_size;
             stride += elem_size;
@@ -278,7 +280,7 @@ Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryCons
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes,
                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
-    auto staging_data = (uint8_t *)stage_buffer->map();
+    auto staging_data = (uint8_t *) stage_buffer->map();
 
     if(interleave_data)
     {
@@ -300,7 +302,8 @@ Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryCons
             attrib.format = v.format;
             mesh->vertex_attribs.push_back(attrib);
         }
-    }else
+    }
+    else
     {
         size_t offset = 0;
         auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
@@ -342,7 +345,8 @@ Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryCons
         mesh->index_buffer = vierkant::Buffer::create(device, geom->indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_GPU_ONLY);
         mesh->num_elements = static_cast<uint32_t>(geom->indices.size());
-    }else{ mesh->num_elements = static_cast<uint32_t>(geom->vertices.size()); }
+    }
+    else{ mesh->num_elements = static_cast<uint32_t>(geom->vertices.size()); }
 
     // set topology
     mesh->topology = geom->topology;
