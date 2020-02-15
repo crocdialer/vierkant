@@ -98,6 +98,8 @@ struct ray_intersection
             type(theType), distance(theDistance) {}
 
     explicit operator intersection_type() const { return type; }
+
+    explicit operator bool() const { return type; }
 };
 
 /*!
