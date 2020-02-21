@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "vierkant/Geometry.hpp"
+#include "vierkant/math.hpp"
 
 namespace vierkant {
 

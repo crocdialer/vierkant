@@ -4,21 +4,9 @@
 
 #pragma once
 
-#include "vierkant/Device.hpp"
-
-#define GLM_FORCE_CXX11
-#define GLM_FORCE_SWIZZLE
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-
-#include <glm/glm.hpp>
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/matrix_inverse.hpp"
-
-#define GLM_ENABLE_EXPERIMENTAL
-
-#include "glm/gtx/norm.hpp"
-#include <glm/gtx/hash.hpp>
+#include <vierkant/math.hpp>
+#include <vierkant/Device.hpp>
+#include <vierkant/Bones.hpp>
 
 namespace vierkant {
 
@@ -60,6 +48,7 @@ public:
     std::vector<glm::vec4> colors;
     std::vector<glm::vec3> normals;
     std::vector<glm::vec3> tangents;
+    std::vector<bones::vertex_data_t> bone_weights;
 
     std::vector<index_t> indices;
 

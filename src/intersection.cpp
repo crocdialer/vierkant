@@ -1,3 +1,4 @@
+#include <crocore/crocore.hpp>
 #include "vierkant/intersection.hpp"
 
 namespace vierkant {

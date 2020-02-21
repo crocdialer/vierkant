@@ -8,7 +8,7 @@
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Image.hpp"
 #include "vierkant/Object3D.hpp"
-#include "vierkant/intersection.hpp"
+#include "vierkant/Geometry.hpp"
 
 namespace vierkant
 {

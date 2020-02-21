@@ -8,11 +8,11 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "/* Generated file, do not edit! */\n\n"
             "#pragma once\n\n"
             "#include <array>\n\n"
-            "namespace vierkant{ namespace shaders{\n\n")
+            "namespace vierkant::shaders{\n\n")
     file(WRITE ${OUTPUT_SOURCE}
             "/* Generated file, do not edit! */\n\n"
             "#include \"${PROJECT_NAME}/shaders.hpp\"\n\n"
-            "namespace vierkant{ namespace shaders{\n")
+            "namespace vierkant::shaders{\n")
 
     # gather all shader files
     file(GLOB GLSL_SOURCE_FILES
@@ -22,7 +22,10 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "${GLSL_FOLDER}/*.tesc"
             "${GLSL_FOLDER}/*.tese"
             "${GLSL_FOLDER}/*.glsl"
-            "${GLSL_FOLDER}/*.comp")
+            "${GLSL_FOLDER}/*.comp"
+            "${GLSL_FOLDER}/*.rgen"
+            "${GLSL_FOLDER}/*.rchit"
+            "${GLSL_FOLDER}/*.rmiss")
 
     foreach (GLSL ${GLSL_SOURCE_FILES})
 
@@ -53,8 +56,8 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
     endforeach (GLSL)
 
     # close namespace
-    file(APPEND ${OUTPUT_HEADER} "\n}}\n")
-    file(APPEND ${OUTPUT_SOURCE} "\n}}\n")
+    file(APPEND ${OUTPUT_HEADER} "\n}\n")
+    file(APPEND ${OUTPUT_SOURCE} "\n}\n")
 
     add_custom_target(
             shaders
