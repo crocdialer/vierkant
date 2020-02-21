@@ -8,10 +8,12 @@ namespace vierkant::bones
 {
 
 //! recursion helper-routine
-void build_bone_matrices_helper(BonePtr root, const animation_t &animation, std::vector<glm::mat4> &matrices,
+void build_bone_matrices_helper(const BoneConstPtr &bone,
+                                const animation_t &animation,
+                                std::vector<glm::mat4> &matrices,
                                 glm::mat4 transform);
 
-uint32_t num_bones_in_hierarchy(const BonePtr &root)
+uint32_t num_bones_in_hierarchy(const BoneConstPtr &root)
 {
     if(!root){ return 0; }
     uint32_t ret = 1;
@@ -19,23 +21,7 @@ uint32_t num_bones_in_hierarchy(const BonePtr &root)
     return ret;
 }
 
-BonePtr deep_copy_bones(BonePtr src)
-{
-    if(!src){ return BonePtr(); }
-    BonePtr ret = std::make_shared<bone_t>();
-    *ret = *src;
-    ret->children.clear();
-
-    for(const auto &c : src->children)
-    {
-        auto b = deep_copy_bones(c);
-        b->parent = ret;
-        ret->children.push_back(b);
-    }
-    return ret;
-}
-
-BonePtr get_bone_by_name(BonePtr root, const std::string &name)
+BoneConstPtr get_bone_by_name(BoneConstPtr root, const std::string &name)
 {
     if(root->name == name){ return root; }
     for(const auto &c : root->children)
@@ -43,21 +29,25 @@ BonePtr get_bone_by_name(BonePtr root, const std::string &name)
         auto b = get_bone_by_name(c, name);
         if(b){ return b; }
     }
-    return BonePtr();
+    return nullptr;
 }
 
-void build_bone_matrices(BonePtr root, const animation_t &animation, std::vector<glm::mat4> &matrices)
+void build_bone_matrices(const BoneConstPtr &root, const animation_t &animation, std::vector<glm::mat4> &matrices)
 {
-    return build_bone_matrices_helper(root, animation, matrices, glm::mat4(1));
+    if(!root){ return; }
+    matrices.resize(num_bones_in_hierarchy(root));
+    return build_bone_matrices_helper(root, animation, matrices, root->world_transform);
 }
 
-void build_bone_matrices_helper(BonePtr root, const animation_t &animation, std::vector<glm::mat4> &matrices,
+void build_bone_matrices_helper(const BoneConstPtr &bone,
+                                const animation_t &animation,
+                                std::vector<glm::mat4> &matrices,
                                 glm::mat4 transform)
 {
     float time = animation.current_time;
-    glm::mat4 boneTransform = root->transform;
+    glm::mat4 boneTransform = bone->transform;
 
-    auto it = animation.bone_keys.find(root);
+    auto it = animation.bone_keys.find(bone);
 
     if(it == animation.bone_keys.end()){ return; }
 
@@ -144,13 +134,13 @@ void build_bone_matrices_helper(BonePtr root, const animation_t &animation, std:
         }
     }
     if(boneHasKeys){ boneTransform = translation * rotation * scaleMatrix; }
-    root->world_transform = transform * boneTransform;
+    auto world_transform = transform * boneTransform;
 
     // add final transform
-    matrices[root->index] = root->world_transform * root->offset;
+    matrices[bone->index] = world_transform * bone->offset;
 
     // recursion through all children
-    for(auto &b : root->children){ build_bone_matrices_helper(b, animation, matrices, root->world_transform); }
+    for(auto &b : bone->children){ build_bone_matrices_helper(b, animation, matrices, world_transform); }
 }
 
 }

@@ -13,15 +13,16 @@ namespace vierkant::bones
 {
 
 using BonePtr = std::shared_ptr<struct bone_t>;
+using BoneConstPtr = std::shared_ptr<const struct bone_t>;
 
 struct bone_t
 {
     std::string name;
-    glm::mat4 transform;
-    glm::mat4 world_transform;
-    glm::mat4 offset;
-    uint32_t index;
-    BonePtr parent;
+    glm::mat4 transform = glm::mat4(1);
+    glm::mat4 world_transform = glm::mat4(1);
+    glm::mat4 offset = glm::mat4(0);
+    uint32_t index = 0;
+    BonePtr parent = nullptr;
     std::list<BonePtr> children;
 };
 
@@ -44,7 +45,7 @@ struct animation_t
     float current_time = 0.f;
     float duration = 0.f;
     float ticks_per_sec = 0.f;
-    std::map<BonePtr, animation_keys_t> bone_keys;
+    std::map<BoneConstPtr, animation_keys_t> bone_keys;
 };
 
 // each vertex can reference up to 4 bones
@@ -61,16 +62,7 @@ struct vertex_data_t
  *
  * @return  the total number of bones.
  */
-uint32_t num_bones_in_hierarchy(const BonePtr &root);
-
-/**
- * @brief   deep-copy a bone-hierarchy.
- *
- * @param   root    a root bone of a bone-hierarchy.
- *
- * @return  a newly created root-bone, holding a copy of the hierarchy.
- */
-BonePtr deep_copy_bones(BonePtr root);
+uint32_t num_bones_in_hierarchy(const BoneConstPtr &root);
 
 /**
  * @brief   Attempt to find a bone by name.
@@ -81,7 +73,7 @@ BonePtr deep_copy_bones(BonePtr root);
  *
  * @return  the found BonePtr or nullptr, if the name could not be found in the hierarchy.
  */
-BonePtr get_bone_by_name(BonePtr root, const std::string &name);
+BoneConstPtr get_bone_by_name(BoneConstPtr root, const std::string &name);
 
 /**
  * @brief   Create transformation matrices, matching the provided bone-hierarchy and animation.
@@ -92,6 +84,6 @@ BonePtr get_bone_by_name(BonePtr root, const std::string &name);
  *
  * @param   matrices    ref to an array of transformation-matrices. will be recursively populated by this function.
  */
-void build_bone_matrices(BonePtr root, const animation_t &animation, std::vector<glm::mat4> &matrices);
+void build_bone_matrices(const BoneConstPtr& root, const animation_t &animation, std::vector<glm::mat4> &matrices);
 
 }// namespace vierkant::bones
