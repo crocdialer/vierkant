@@ -2,7 +2,7 @@
 // Created by crocdialer on 2/21/20.
 //
 
-#include "vierkant/Bones.hpp"
+#include "vierkant/bones.hpp"
 
 namespace vierkant::bones
 {
@@ -42,7 +42,7 @@ void build_bone_matrices(const BoneConstPtr &root, const animation_t &animation,
 void build_bone_matrices_helper(const BoneConstPtr &bone,
                                 const animation_t &animation,
                                 std::vector<glm::mat4> &matrices,
-                                glm::mat4 transform)
+                                glm::mat4 world_transform)
 {
     float time = animation.current_time;
     glm::mat4 boneTransform = bone->transform;
@@ -134,7 +134,7 @@ void build_bone_matrices_helper(const BoneConstPtr &bone,
         }
     }
     if(boneHasKeys){ boneTransform = translation * rotation * scaleMatrix; }
-    auto world_transform = transform * boneTransform;
+    world_transform = world_transform * boneTransform;
 
     // add final transform
     matrices[bone->index] = world_transform * bone->offset;
