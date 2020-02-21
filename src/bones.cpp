@@ -21,12 +21,12 @@ uint32_t num_bones_in_hierarchy(const BoneConstPtr &root)
     return ret;
 }
 
-BoneConstPtr get_bone_by_name(BoneConstPtr root, const std::string &name)
+BoneConstPtr bone_by_name(BoneConstPtr root, const std::string &name)
 {
     if(root->name == name){ return root; }
     for(const auto &c : root->children)
     {
-        auto b = get_bone_by_name(c, name);
+        auto b = bone_by_name(c, name);
         if(b){ return b; }
     }
     return nullptr;

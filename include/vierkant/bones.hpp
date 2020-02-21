@@ -73,7 +73,7 @@ uint32_t num_bones_in_hierarchy(const BoneConstPtr &root);
  *
  * @return  the found BonePtr or nullptr, if the name could not be found in the hierarchy.
  */
-BoneConstPtr get_bone_by_name(BoneConstPtr root, const std::string &name);
+BoneConstPtr bone_by_name(BoneConstPtr root, const std::string &name);
 
 /**
  * @brief   Create transformation matrices, matching the provided bone-hierarchy and animation.
