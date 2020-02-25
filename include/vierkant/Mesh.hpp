@@ -134,6 +134,17 @@ class Mesh : public Object3D
 {
 public:
 
+    struct entry_t
+    {
+        index_t base_vertex = 0;
+        uint32_t num_vertices = 0;
+        index_t base_index = 0;
+        uint32_t num_indices = 0;
+        uint32_t material_index = 0;
+        VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        bool enabled = true;
+    };
+
     /**
      * @brief   Mesh::VertexAttrib defines a vertex-attribute available in the vertex-shader-stage.
      */
@@ -159,7 +170,9 @@ public:
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr
-    create_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geom, bool interleave_data = true);
+    create_from_geometries(const vierkant::DevicePtr &device,
+                           const std::vector<GeometryPtr> &geometries,
+                           bool interleave_data = true);
 
     Mesh(const Mesh &) = delete;
 
@@ -190,6 +203,9 @@ public:
      */
     std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
 
+    std::vector<entry_t> entries;
+
+    // TODO: migrate to entries
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     uint32_t num_elements = 0;
 

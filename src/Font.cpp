@@ -294,7 +294,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
         indices.push_back(i + 3);
     }
 
-    auto mesh = vierkant::Mesh::create_from_geometry(m_impl->device, geom);
+    auto mesh = vierkant::Mesh::create_from_geometries(m_impl->device, {geom});
 
     // free the less frequent used half of our buffered string-meshes
     if(m_impl->string_mesh_map.size() >= m_impl->max_mesh_buffer_size)

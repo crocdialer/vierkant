@@ -16,6 +16,7 @@ Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device
     Renderer::drawable_t drawable = {};
     drawable.mesh = mesh;
     drawable.num_indices = mesh->num_elements;
+//    drawable.num_indices = mesh->entries.front().num_indices;
 
 //    drawable.matrices.model = mesh->global_transform();
 

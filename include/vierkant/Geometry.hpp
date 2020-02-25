@@ -41,17 +41,6 @@ class Geometry
 {
 public:
 
-    struct entry_t
-    {
-        index_t base_vertex = 0;
-        uint32_t num_vertices = 0;
-        index_t base_index = 0;
-        uint32_t num_indices = 0;
-        uint32_t material_index = 0;
-        uint32_t primitive_type = 0;
-        bool enabled = true;
-    };
-
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     std::vector<glm::vec3> vertices;
@@ -59,11 +48,12 @@ public:
     std::vector<glm::vec4> colors;
     std::vector<glm::vec3> normals;
     std::vector<glm::vec3> tangents;
-    std::vector<bones::vertex_data_t> bone_weights;
+
+    std::vector<glm::ivec4> bone_indices;
+    std::vector<glm::vec4> bone_weights;
 
     std::vector<index_t> indices;
 
-    std::vector<entry_t> entries;
 
     Geometry(const Geometry &) = delete;
 

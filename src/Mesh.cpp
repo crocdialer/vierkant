@@ -210,7 +210,9 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::MeshPtr
-Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geom, bool interleave_data)
+Mesh::create_from_geometries(const vierkant::DevicePtr &device,
+                             const std::vector<GeometryPtr> &geometries,
+                             bool interleave_data)
 {
     struct vertex_data_t
     {
@@ -241,8 +243,8 @@ Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryCons
     size_t stride = 0, num_bytes = 0;
 
     // sanity check array sizes
-    auto is_sane = [add_offset, &stride, &num_bytes](const GeometryConstPtr &g,
-                                                     std::vector<vertex_data_t> &vertex_data) -> bool
+    auto check_and_insert = [add_offset, &stride, &num_bytes](const GeometryConstPtr &g,
+                                                              std::vector<vertex_data_t> &vertex_data) -> bool
     {
         size_t offset = 0;
         auto num_vertices = g->vertices.size();
@@ -262,12 +264,23 @@ Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryCons
         if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
         add_offset(g->tangents, vertex_data, offset, stride, num_bytes);
 
+        if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices){ return false; }
+        add_offset(g->bone_indices, vertex_data, offset, stride, num_bytes);
+
+        if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
+        add_offset(g->bone_weights, vertex_data, offset, stride, num_bytes);
+
         return true;
     };
-    if(!is_sane(geom, vertex_data))
+
+    // insert all geometries
+    for(auto &geom : geometries)
     {
-        LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
-        return nullptr;
+        if(!check_and_insert(geom, vertex_data))
+        {
+            LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
+            return nullptr;
+        }
     }
 
     auto mesh = vierkant::Mesh::create();
@@ -328,29 +341,61 @@ Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryCons
             }
         };
 
-        // vertex attributes
-        insert_data(geom->vertices, 0);
-        insert_data(geom->colors, 1);
-        insert_data(geom->tex_coords, 2);
-        insert_data(geom->normals, 3);
-        insert_data(geom->tangents, 4);
+        // insert all geometries
+        for(auto &geom : geometries)
+        {
+            // vertex attributes
+            insert_data(geom->vertices, 0);
+            insert_data(geom->colors, 1);
+            insert_data(geom->tex_coords, 2);
+            insert_data(geom->normals, 3);
+            insert_data(geom->tangents, 4);
+        }
     }
 
     // copy combined vertex data to device-buffer
     stage_buffer->copy_to(vertex_buffer);
 
-    // use indices
-    if(!geom->indices.empty())
-    {
-        mesh->index_buffer = vierkant::Buffer::create(device, geom->indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                      VMA_MEMORY_USAGE_GPU_ONLY);
-        mesh->num_elements = static_cast<uint32_t>(geom->indices.size());
-    }
-    else{ mesh->num_elements = static_cast<uint32_t>(geom->vertices.size()); }
+    // concat indices
+    std::vector<vierkant::index_t> indices;
+    size_t num_vertices = 0;
+    size_t current_base_vertex = 0, current_base_index = 0;
 
-    // set topology
-    mesh->topology = geom->topology;
-    mesh->boundingbox = vierkant::compute_aabb(geom->vertices);
+    for(uint32_t i = 0; i < geometries.size(); ++i)
+    {
+        const auto &geom = geometries[i];
+        indices.insert(indices.end(), geom->indices.begin(), geom->indices.end());
+        num_vertices += geom->vertices.size();
+
+        // combine with aabb
+        mesh->boundingbox += vierkant::compute_aabb(geom->vertices);
+
+        // set topology
+        mesh->topology = geom->topology;
+
+        vierkant::Mesh::entry_t entry = {};
+        entry.primitive_type = geom->topology;
+        entry.base_vertex = current_base_vertex;
+        entry.num_vertices = geom->vertices.size();
+        entry.base_index = current_base_index;
+        entry.num_indices = geom->indices.size();
+        entry.material_index = i;
+        current_base_vertex += geom->vertices.size();
+        current_base_index += geom->indices.size();
+
+        // insert new entry
+        mesh->entries.push_back(entry);
+    }
+
+    // use indices
+    if(!indices.empty())
+    {
+        mesh->index_buffer = vierkant::Buffer::create(device, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                      VMA_MEMORY_USAGE_GPU_ONLY);
+        mesh->num_elements = static_cast<uint32_t>(indices.size());
+    }
+    else{ mesh->num_elements = num_vertices; }
+
     return mesh;
 }
 

@@ -14,6 +14,7 @@
 #include <assimp/postprocess.h>
 
 #include <crocore/filesystem.hpp>
+#include <crocore/Image.hpp>
 
 #include "vierkant/Object3D.hpp"
 #include "vierkant/Material.hpp"
@@ -23,9 +24,15 @@
 namespace vierkant::assimp
 {
 
+struct weight_t
+{
+    uint32_t index = 0;
+    float weight = 0.f;
+};
+
 using bone_map_t = std::map<std::string, std::pair<int, glm::mat4>>;
 
-using weight_map_t =  std::map<uint32_t, std::list<std::pair<uint32_t, float>>>;
+using weight_map_t =  std::map<uint32_t, std::list<weight_t>>;
 
 /////////////////////////////////////////////////////////////////
 
@@ -33,7 +40,7 @@ void merge_geometries(vierkant::GeometryPtr src, vierkant::GeometryPtr dst);
 
 vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theScene);
 
-vierkant::MaterialPtr create_material(const aiMaterial *mtl);
+//vierkant::MaterialPtr create_material(const aiMaterial *mtl);
 
 void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_t &bonemap, weight_map_t &weightmap);
 
@@ -170,11 +177,11 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
 void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_t &bonemap, weight_map_t &weightmap)
 {
     int num_bones = 0;
-    if(base_vertex == 0) num_bones = 0;
+//    if(base_vertex == 0) num_bones = 0;
 
     if(aMesh->HasBones())
     {
-        int bone_index = 0, start_index = bonemap.size();
+        uint32_t bone_index = 0, start_index = bonemap.size();
 
         for(uint32_t i = 0; i < aMesh->mNumBones; ++i)
         {
@@ -191,7 +198,7 @@ void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_
             for(uint32_t j = 0; j < bone->mNumWeights; ++j)
             {
                 const aiVertexWeight &w = bone->mWeights[j];
-                weightmap[w.mVertexId + base_vertex].push_back(std::make_pair(bone_index, w.mWeight));
+                weightmap[w.mVertexId + base_vertex].push_back({bone_index, static_cast<float>(w.mWeight)});
             }
         }
     }
@@ -204,27 +211,27 @@ void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &wei
     if(weightmap.empty()) return;
 
     // allocate storage for indices and weights
+    geom->bone_indices.resize(geom->vertices.size());
     geom->bone_weights.resize(geom->vertices.size());
 
-    for(const auto&[bone_index, weights] : weightmap)
+    for(const auto&[index, weights] : weightmap)
     {
-        vierkant::bones::vertex_data_t &boneData = geom->bone_weights[bone_index + start_index];
+        auto &bone_index = geom->bone_indices[index + start_index];
+        auto &bone_weight = geom->bone_weights[index + start_index];
+
         constexpr uint32_t max_num_weights = glm::ivec4::length();
 
+        // sort by weight decreasing
         auto weights_sorted = weights;
-
-        weights_sorted.sort([](const std::pair<uint32_t, float> &lhs, const std::pair<uint32_t, float> &rhs)
-                            {
-                                return lhs.second > rhs.second;
-                            });
+        weights_sorted.sort([](const weight_t &lhs, const weight_t &rhs){ return lhs.weight > rhs.weight; });
 
         uint32_t i = 0;
 
         for(auto &w : weights_sorted)
         {
             if(i >= max_num_weights) break;
-            boneData.indices[i] = w.first;
-            boneData.weights[i] = w.second;
+            bone_index[i] = w.index;
+            bone_weight[i] = w.weight;
             i++;
         }
     }
@@ -289,188 +296,194 @@ void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &wei
 
 /////////////////////////////////////////////////////////////////
 
-//gl::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial *mtl,
-//                                std::map<std::string, crocore::ImagePtr> *the_img_map = nullptr)
-//{
-//    gl::MaterialPtr theMaterial = gl::Material::create();
+vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial *mtl,
+                                      std::map<std::string, crocore::ImagePtr> *the_img_map = nullptr)
+{
+    auto theMaterial = vierkant::Material::create();
+
 //    theMaterial->set_blending(true);
-//    int ret1, ret2;
-//    aiColor4D c;
-//    float shininess, strength;
-//    int two_sided;
-//    int wireframe;
-//    aiString path_buf;
-//
-//    LOG_TRACE_IF(the_scene->mNumTextures) << "num embedded textures: " << the_scene->mNumTextures;
-//
-//    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &c))
-//    {
-//        auto col = aicolor_convert(c);
-//        col.a = 1.f;
-//
-//        // transparent material
-//        if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c)){ col.a = c.a; }
-//        theMaterial->set_diffuse(col);
-//    }
-//
-//    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &c))
-//    {
-//        //TODO: introduce cavity param!?
-//    }
-//
-//    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &c))
-//    {
-//        // got rid of constant ambient
-//    }
-//
-//    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &c))
-//    {
-//        auto col = aicolor_convert(c);
-//
-//        if(col.r > 0.f || col.g > 0.f || col.b > 0.f)
-//        {
-//            theMaterial->set_emission(col);
+    int ret1, ret2;
+    aiColor4D c;
+    float shininess, strength;
+    int two_sided;
+    int wireframe;
+    aiString path_buf;
+
+    LOG_TRACE_IF(the_scene->mNumTextures) << "num embedded textures: " << the_scene->mNumTextures;
+
+    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &c))
+    {
+        auto col = aicolor_convert(c);
+        col.a = 1.f;
+
+        // transparent material
+        if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c)){ col.a = c.a; }
+        theMaterial->color = col;
+    }
+
+    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &c))
+    {
+        //TODO: introduce cavity param!?
+    }
+
+    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &c))
+    {
+        // got rid of constant ambient
+    }
+
+    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &c))
+    {
+        auto col = aicolor_convert(c);
+
+        if(col.r > 0.f || col.g > 0.f || col.b > 0.f)
+        {
+            theMaterial->emission = col;
 //            theMaterial->set_blending(false);
-//        }
-//    }
-//
-//    ret1 = aiGetMaterialFloat(mtl, AI_MATKEY_SHININESS, &shininess);
-//    ret2 = aiGetMaterialFloat(mtl, AI_MATKEY_SHININESS_STRENGTH, &strength);
-//    float roughness = 1.f;
-//
-//    if((ret1 == AI_SUCCESS) && (ret2 == AI_SUCCESS))
-//    {
-//        roughness = 1.f - crocore::clamp(shininess * strength / 80.f, 0.f, 1.f);
-//    }
-//    theMaterial->set_roughness(roughness);
-//
-//    if(AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_ENABLE_WIREFRAME, &wireframe))
-//    {
+        }
+    }
+
+    ret1 = aiGetMaterialFloat(mtl, AI_MATKEY_SHININESS, &shininess);
+    ret2 = aiGetMaterialFloat(mtl, AI_MATKEY_SHININESS_STRENGTH, &strength);
+    float roughness = 1.f;
+
+    if((ret1 == AI_SUCCESS) && (ret2 == AI_SUCCESS))
+    {
+        roughness = 1.f - crocore::clamp(shininess * strength / 80.f, 0.f, 1.f);
+    }
+    theMaterial->roughness = roughness;
+
+    if(AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_ENABLE_WIREFRAME, &wireframe))
+    {
 //        theMaterial->set_wireframe(wireframe);
-//    }
-//
-//    if((AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_TWOSIDED, &two_sided)))
-//    {
+    }
+
+    if((AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_TWOSIDED, &two_sided)))
+    {
 //        theMaterial->set_two_sided(two_sided);
-//    }
-//
-//    auto create_tex_image = [the_scene, the_img_map](const std::string the_path) -> crocore::ImagePtr
-//    {
-//        crocore::ImagePtr img;
-//
-//        if(the_img_map)
-//        {
-//            auto it = the_img_map->find(the_path);
-//            if(it != the_img_map->end())
-//            {
-//                img = it->second;
-//                LOG_TRACE << "using cached image: " << the_path;
-//            }
-//        }
-//        if(!img)
-//        {
-//            if(!the_path.empty() && the_path[0] == '*')
-//            {
-//                size_t tex_index = crocore::string_to<size_t>(the_path.substr(1));
-//                const aiTexture *ai_tex = the_scene->mTextures[tex_index];
-//
-//                // compressed image -> decode
-//                if(ai_tex->mHeight == 0)
-//                {
-//                    img = crocore::create_image_from_data((uint8_t *) ai_tex->pcData, ai_tex->mWidth);
-//                }
-//            }
-//            else{ img = crocore::create_image_from_file(the_path); }
-//            if(the_img_map){ (*the_img_map)[the_path] = img; }
-//        }
-//        return img;
-//    };
-//
-//    std::string ao_map_path;
-//
-//    // DIFFUSE
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DIFFUSE), 0, &path_buf))
-//    {
-//        LOG_TRACE << "adding color map: '" << path_buf.data << "'";
+    }
+
+    auto create_tex_image = [the_scene, the_img_map](const std::string the_path) -> crocore::ImagePtr
+    {
+        crocore::ImagePtr img;
+
+        if(the_img_map)
+        {
+            auto it = the_img_map->find(the_path);
+            if(it != the_img_map->end())
+            {
+                img = it->second;
+                LOG_TRACE << "using cached image: " << the_path;
+            }
+        }
+        if(!img)
+        {
+            if(!the_path.empty() && the_path[0] == '*')
+            {
+                size_t tex_index = crocore::string_to<size_t>(the_path.substr(1));
+                const aiTexture *ai_tex = the_scene->mTextures[tex_index];
+
+                // compressed image -> decode
+                if(ai_tex->mHeight == 0)
+                {
+                    img = crocore::create_image_from_data((uint8_t *) ai_tex->pcData, ai_tex->mWidth);
+                }
+            }
+            else{ img = crocore::create_image_from_file(the_path); }
+            if(the_img_map){ (*the_img_map)[the_path] = img; }
+        }
+        return img;
+    };
+
+    std::string ao_map_path;
+
+    // DIFFUSE
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DIFFUSE), 0, &path_buf))
+    {
+        LOG_TRACE << "adding color map: '" << path_buf.data << "'";
 //        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
 //                                     (uint32_t) gl::Texture::Usage::COLOR);
-//    }
-//
-//    // EMISSION
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_EMISSIVE), 0, &path_buf))
-//    {
-//        LOG_TRACE << "adding emission map: '" << path_buf.data << "'";
+    }
+
+    // EMISSION
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_EMISSIVE), 0, &path_buf))
+    {
+        LOG_TRACE << "adding emission map: '" << path_buf.data << "'";
 //        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
 //                                     (uint32_t) gl::Texture::Usage::EMISSION);
-//    }
-//
-//    // ambient occlusion or lightmap
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_LIGHTMAP), 0, &path_buf))
-//    {
-//        LOG_TRACE << "adding ambient occlusion map: '" << path_buf.data << "'";
-//        ao_map_path = path_buf.data;
-//    }
-//
-//    // SHINYNESS
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_SPECULAR), 0, &path_buf))
-//    {
-//        LOG_TRACE << "adding spec/roughness map: '" << path_buf.data << "'";
+    }
+
+    // ambient occlusion or lightmap
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_LIGHTMAP), 0, &path_buf))
+    {
+        LOG_TRACE << "adding ambient occlusion map: '" << path_buf.data << "'";
+        ao_map_path = path_buf.data;
+    }
+
+    // SHINYNESS
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_SPECULAR), 0, &path_buf))
+    {
+        LOG_TRACE << "adding spec/roughness map: '" << path_buf.data << "'";
 //        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
 //                                     (uint32_t) gl::Texture::Usage::SPECULAR);
-//    }
-//
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_NORMALS), 0, &path_buf))
-//    {
-//        LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
+    }
+
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_NORMALS), 0, &path_buf))
+    {
+        LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
 //        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
 //                                     (uint32_t) gl::Texture::Usage::NORMAL);
-//    }
-//
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DISPLACEMENT), 0, &path_buf))
-//    {
-//        LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
+    }
+
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DISPLACEMENT), 0, &path_buf))
+    {
+        LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
 //        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
 //                                     (uint32_t) gl::Texture::Usage::NORMAL);
-//    }
-//
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_HEIGHT), 0, &path_buf))
-//    {
-//        LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
+    }
+
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_HEIGHT), 0, &path_buf))
+    {
+        LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
 //        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
 //                                     (uint32_t) gl::Texture::Usage::NORMAL);
-//    }
-//
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_UNKNOWN), 0, &path_buf))
-//    {
-//        LOG_TRACE << "unknown texture usage (assuming AO/ROUGHNESS/METAL ): '" << path_buf.data << "'";
-//        auto ao_rough_metal_img = create_tex_image(path_buf.data);
-//        constexpr size_t ao_offset = 0;
-//        uint8_t *dst = (uint8_t *) ao_rough_metal_img->data(), *dst_end = dst + ao_rough_metal_img->num_bytes();
-//
-//        // there was no texture data for AO -> generate default data
-//        if(ao_map_path.empty())
-//        {
-//            for(; dst < dst_end; dst += ao_rough_metal_img->num_components()){ dst[ao_offset] = 255; }
-//        }
-//            // there was texture data for AO in a separate map -> combine
-//        else if(ao_map_path != path_buf.data)
-//        {
-//            auto ao_img = create_tex_image(ao_map_path)->resize(ao_rough_metal_img->width(),
-//                                                                ao_rough_metal_img->height());
-//            uint8_t *src = (uint8_t *) ao_img->data();
-//
-//            for(; dst < dst_end;)
-//            {
-//                dst[ao_offset] = src[ao_offset];
-//                dst += ao_rough_metal_img->num_components();
-//                src += ao_img->num_components();
-//            }
-//        }
+    }
+
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_UNKNOWN), 0, &path_buf))
+    {
+        LOG_TRACE << "unknown texture usage (assuming AO/ROUGHNESS/METAL ): '" << path_buf.data << "'";
+
+        auto ao_rough_metal_img = create_tex_image(path_buf.data);
+
+        if(ao_rough_metal_img)
+        {
+            constexpr size_t ao_offset = 0;
+            uint8_t *dst = (uint8_t *) ao_rough_metal_img->data(), *dst_end = dst + ao_rough_metal_img->num_bytes();
+
+            // there was no texture data for AO -> generate default data
+            if(ao_map_path.empty())
+            {
+                for(; dst < dst_end; dst += ao_rough_metal_img->num_components()){ dst[ao_offset] = 255; }
+            }
+            else if(ao_map_path != path_buf.data)
+            {
+                // there was texture data for AO in a separate map -> combine
+                auto ao_img = create_tex_image(ao_map_path)->resize(ao_rough_metal_img->width(),
+                                                                    ao_rough_metal_img->height());
+                uint8_t *src = (uint8_t *) ao_img->data();
+
+                for(; dst < dst_end;)
+                {
+                    dst[ao_offset] = src[ao_offset];
+                    dst += ao_rough_metal_img->num_components();
+                    src += ao_img->num_components();
+                }
+            }
+        }
 //        theMaterial->enqueue_texture(path_buf.data, ao_rough_metal_img,
 //                                     (uint32_t) gl::Texture::Usage::AO_ROUGHNESS_METAL);
-//    }
-//    return theMaterial;
-//}
+    }
+    return theMaterial;
+}
 
 /////////////////////////////////////////////////////////////////
 
@@ -487,7 +500,7 @@ void merge_geometries(vierkant::GeometryPtr src, vierkant::GeometryPtr dst)
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::GeometryPtr load_model(const std::string &path)
+mesh_assets_t load_model(const std::string &path)
 {
     Assimp::Importer importer;
     std::string found_path;
@@ -496,7 +509,7 @@ vierkant::GeometryPtr load_model(const std::string &path)
     catch(crocore::fs::FileNotFoundException &e)
     {
         LOG_ERROR << e.what();
-        return nullptr;
+        return {};
     }
 //    load_scene(theModelPath);
 
@@ -512,44 +525,50 @@ vierkant::GeometryPtr load_model(const std::string &path)
     if(theScene)
     {
         std::vector<vierkant::GeometryPtr> geometries;
-
         std::vector<vierkant::MaterialPtr> materials;
         materials.resize(theScene->mNumMaterials, vierkant::Material::create());
 
         uint32_t current_base_index = 0, current_base_vertex = 0;
-        vierkant::GeometryPtr combined_geom = vierkant::Geometry::create();
+//        vierkant::GeometryPtr combined_geom = vierkant::Geometry::create();
+
+        size_t num_vertices = 0, num_indices = 0;
+
+        vierkant::AABB aabb;
         bone_map_t bonemap;
         weight_map_t weightmap;
 
-//        std::map<std::string, crocore::ImagePtr> mat_image_cache;
+        std::map<std::string, crocore::ImagePtr> mat_image_cache;
 
         for(uint32_t i = 0; i < theScene->mNumMeshes; i++)
         {
             aiMesh *aMesh = theScene->mMeshes[i];
             vierkant::GeometryPtr g = create_geometry(aMesh, theScene);
-            load_bones_and_weights(aMesh, current_base_vertex, bonemap, weightmap);
 
-            vierkant::Geometry::entry_t entry = {};
-            entry.base_vertex = current_base_vertex;
-            entry.num_vertices = g->vertices.size();
-            entry.base_index = current_base_index;
-            entry.num_indices = g->indices.size();
-            entry.material_index = aMesh->mMaterialIndex;
-            combined_geom->entries.push_back(entry);
+            load_bones_and_weights(aMesh, current_base_vertex, bonemap, weightmap);
+            insert_bone_vertex_data(g, weightmap);
+
+            g->colors.resize(g->vertices.size(), glm::vec4(1));
+
             current_base_vertex += g->vertices.size();
             current_base_index += g->indices.size();
 
+            num_vertices += g->vertices.size();
+            num_indices += g->indices.size();
+
             geometries.push_back(g);
-            merge_geometries(g, combined_geom);
-//            materials[aMesh->mMaterialIndex] = create_material(theScene, theScene->mMaterials[aMesh->mMaterialIndex],
-//                                                               &mat_image_cache);
+
+//            merge_geometries(g, combined_geom);
+            materials[aMesh->mMaterialIndex] = create_material(theScene, theScene->mMaterials[aMesh->mMaterialIndex],
+                                                               &mat_image_cache);
+
+            aabb += vierkant::compute_aabb(g->vertices);
         }
 //        combined_geom->compute_aabb();
 
         // insert colors, if not present
-        combined_geom->colors.resize(combined_geom->vertices.size(), glm::vec4(1));
+//        combined_geom->colors.resize(combined_geom->vertices.size(), glm::vec4(1));
 
-        insert_bone_vertex_data(combined_geom, weightmap);
+//        insert_bone_vertex_data(combined_geom, weightmap);
 
 //        gl::MeshPtr mesh = gl::Mesh::create(combined_geom, materials.empty() ? gl::Material::create() : materials[0]);
 //        mesh->entries() = entries;
@@ -558,6 +577,7 @@ vierkant::GeometryPtr load_model(const std::string &path)
 
         // create bone hierarchy
         auto root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
+        std::vector<vierkant::bones::animation_t> animations;
 
         for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
         {
@@ -566,8 +586,7 @@ vierkant::GeometryPtr load_model(const std::string &path)
             anim.duration = assimpAnimation->mDuration;
             anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
             create_bone_animation(theScene->mRootNode, assimpAnimation, root_bone, anim);
-
-//            mesh->add_animation(anim);
+            animations.push_back(std::move(anim));
         }
 //        gl::ShaderType sh_type;
 //
@@ -586,17 +605,16 @@ vierkant::GeometryPtr load_model(const std::string &path)
         // extract model name from filename
 //        mesh->set_name(crocore::fs::get_filename_part(found_path));
 
-        vierkant::AABB aabb = vierkant::compute_aabb(combined_geom->vertices);
 
-        LOG_DEBUG << "loaded model: " << combined_geom->vertices.size() << " vertices - " <<
-                  combined_geom->indices.size() * 3 << " faces - " << bones::num_bones_in_hierarchy(root_bone)
+        LOG_DEBUG << "loaded model: " << num_vertices << " vertices - " <<
+                  num_indices * 3 << " faces - " << bones::num_bones_in_hierarchy(root_bone)
                   << " bones";
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
 
         importer.FreeScene();
-        return combined_geom;
+        return {std::move(geometries), std::move(materials), root_bone, std::move(animations)};
     }
-    return nullptr;
+    return {};
 }
 
 /////////////////////////////////////////////////////////////////

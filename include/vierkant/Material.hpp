@@ -22,6 +22,12 @@ public:
 
     glm::vec4 color = glm::vec4(1);
 
+    glm::vec4 emission = glm::vec4(0);
+
+    float metalness = 0.f;
+
+    float roughness = 1.f;
+
     std::vector<vierkant::ImagePtr> images;
 
     std::vector<std::vector<uint8_t>> ubos;

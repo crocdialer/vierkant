@@ -23,6 +23,7 @@ uint32_t num_bones_in_hierarchy(const BoneConstPtr &root)
 
 BoneConstPtr bone_by_name(BoneConstPtr root, const std::string &name)
 {
+    if(!root){ return nullptr; }
     if(root->name == name){ return root; }
     for(const auto &c : root->children)
     {

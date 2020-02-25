@@ -68,9 +68,9 @@ set(GLSLANG_VALIDATOR "glslangValidator")
 stringify_shaders("shaders" ${GLSLANG_VALIDATOR})
 
 ## assimp
-find_package(Assimp REQUIRED)
-include_directories(${Assimp_INCLUDE_DIRS})
-SET(LIBS ${LIBS} ${Assimp_LIBRARIES})
+find_package(ASSIMP REQUIRED)
+include_directories(${ASSIMP_INCLUDE_DIRS})
+SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 
 #assimp
 #option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)

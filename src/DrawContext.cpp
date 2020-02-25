@@ -19,7 +19,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         plane->tangents.clear();
         for(auto &v : plane->vertices){ v.xy += glm::vec2(.5f, -.5f); }
 
-        auto mesh = Mesh::create_from_geometry(m_device, plane);
+        auto mesh = Mesh::create_from_geometries(m_device, {plane});
 
         Pipeline::Format fmt = {};
         fmt.blend_state.blendEnable = true;
@@ -83,7 +83,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     {
         // unit cube
         auto geom = vierkant::Geometry::BoxOutline();
-        auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom);
+        auto mesh = vierkant::Mesh::create_from_geometries(m_device, {geom});
         auto material = vierkant::Material::create();
         material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
         m_drawable_aabb = vierkant::Renderer::create_drawable(m_device, mesh, material);
@@ -93,7 +93,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     {
         // unit grid
         auto geom = vierkant::Geometry::Grid();
-        auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom);
+        auto mesh = vierkant::Mesh::create_from_geometries(m_device, {geom});
         auto material = vierkant::Material::create();
         material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
         m_drawable_grid = vierkant::Renderer::create_drawable(m_device, mesh, material);
