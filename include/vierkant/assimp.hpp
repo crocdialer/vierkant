@@ -6,10 +6,29 @@
 namespace vierkant::assimp
 {
 
+struct material_t
+{
+    glm::vec4 diffuse;
+    glm::vec4 specular;
+    glm::vec4 ambient;
+    glm::vec4 emission;
+    float roughness;
+    bool wireframe = false;
+    bool twosided = false;
+
+    crocore::ImagePtr img_diffuse;
+    crocore::ImagePtr img_emission;
+    crocore::ImagePtr img_specular;
+    crocore::ImagePtr img_ambient_occlusion;
+    crocore::ImagePtr img_roughness;
+    crocore::ImagePtr img_normals;
+    crocore::ImagePtr img_ao_roughness_metal;
+};
+
 struct mesh_assets_t
 {
     std::vector<vierkant::GeometryPtr> geometries;
-    std::vector<vierkant::MaterialPtr> materials;
+    std::vector<material_t> materials;
     vierkant::bones::BonePtr root_bone;
     std::vector<vierkant::bones::animation_t> animations;
 };

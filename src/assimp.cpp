@@ -36,8 +36,6 @@ using weight_map_t =  std::map<uint32_t, std::list<weight_t>>;
 
 /////////////////////////////////////////////////////////////////
 
-void merge_geometries(vierkant::GeometryPtr src, vierkant::GeometryPtr dst);
-
 vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theScene);
 
 //vierkant::MaterialPtr create_material(const aiMaterial *mtl);
@@ -296,10 +294,10 @@ void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &wei
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial *mtl,
-                                      std::map<std::string, crocore::ImagePtr> *the_img_map = nullptr)
+material_t create_material(const std::string &base_path, const aiScene *the_scene, const aiMaterial *mtl,
+                           std::map<std::string, crocore::ImagePtr> *the_img_map = nullptr)
 {
-    auto theMaterial = vierkant::Material::create();
+    material_t material = {};
 
 //    theMaterial->set_blending(true);
     int ret1, ret2;
@@ -318,7 +316,7 @@ vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial
 
         // transparent material
         if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c)){ col.a = c.a; }
-        theMaterial->color = col;
+        material.diffuse = col;
     }
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &c))
@@ -337,7 +335,7 @@ vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial
 
         if(col.r > 0.f || col.g > 0.f || col.b > 0.f)
         {
-            theMaterial->emission = col;
+            material.emission = col;
 //            theMaterial->set_blending(false);
         }
     }
@@ -350,7 +348,7 @@ vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial
     {
         roughness = 1.f - crocore::clamp(shininess * strength / 80.f, 0.f, 1.f);
     }
-    theMaterial->roughness = roughness;
+    material.roughness = roughness;
 
     if(AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_ENABLE_WIREFRAME, &wireframe))
     {
@@ -362,24 +360,24 @@ vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial
 //        theMaterial->set_two_sided(two_sided);
     }
 
-    auto create_tex_image = [the_scene, the_img_map](const std::string the_path) -> crocore::ImagePtr
+    auto create_tex_image = [base_path, the_scene, the_img_map](const std::string &path) -> crocore::ImagePtr
     {
         crocore::ImagePtr img;
 
         if(the_img_map)
         {
-            auto it = the_img_map->find(the_path);
+            auto it = the_img_map->find(path);
             if(it != the_img_map->end())
             {
                 img = it->second;
-                LOG_TRACE << "using cached image: " << the_path;
+                LOG_TRACE << "using cached image: " << path;
             }
         }
         if(!img)
         {
-            if(!the_path.empty() && the_path[0] == '*')
+            if(!path.empty() && path[0] == '*')
             {
-                size_t tex_index = crocore::string_to<size_t>(the_path.substr(1));
+                size_t tex_index = crocore::string_to<size_t>(path.substr(1));
                 const aiTexture *ai_tex = the_scene->mTextures[tex_index];
 
                 // compressed image -> decode
@@ -388,8 +386,12 @@ vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial
                     img = crocore::create_image_from_data((uint8_t *) ai_tex->pcData, ai_tex->mWidth);
                 }
             }
-            else{ img = crocore::create_image_from_file(the_path); }
-            if(the_img_map){ (*the_img_map)[the_path] = img; }
+            else
+            {
+                auto combined_path = crocore::fs::join_paths(base_path, path);
+                img = crocore::create_image_from_file(combined_path);
+            }
+            if(the_img_map){ (*the_img_map)[path] = img; }
         }
         return img;
     };
@@ -400,16 +402,14 @@ vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DIFFUSE), 0, &path_buf))
     {
         LOG_TRACE << "adding color map: '" << path_buf.data << "'";
-//        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
-//                                     (uint32_t) gl::Texture::Usage::COLOR);
+        material.img_diffuse = create_tex_image(path_buf.data);
     }
 
     // EMISSION
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_EMISSIVE), 0, &path_buf))
     {
         LOG_TRACE << "adding emission map: '" << path_buf.data << "'";
-//        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
-//                                     (uint32_t) gl::Texture::Usage::EMISSION);
+        material.img_emission = create_tex_image(path_buf.data);
     }
 
     // ambient occlusion or lightmap
@@ -423,29 +423,25 @@ vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_SPECULAR), 0, &path_buf))
     {
         LOG_TRACE << "adding spec/roughness map: '" << path_buf.data << "'";
-//        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
-//                                     (uint32_t) gl::Texture::Usage::SPECULAR);
+        material.img_specular = create_tex_image(path_buf.data);
     }
 
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_NORMALS), 0, &path_buf))
     {
         LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
-//        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
-//                                     (uint32_t) gl::Texture::Usage::NORMAL);
+        material.img_normals = create_tex_image(path_buf.data);
     }
 
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DISPLACEMENT), 0, &path_buf))
     {
         LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
-//        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
-//                                     (uint32_t) gl::Texture::Usage::NORMAL);
+        material.img_normals = create_tex_image(path_buf.data);
     }
 
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_HEIGHT), 0, &path_buf))
     {
         LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
-//        theMaterial->enqueue_texture(path_buf.data, create_tex_image(path_buf.data),
-//                                     (uint32_t) gl::Texture::Usage::NORMAL);
+        material.img_normals = create_tex_image(path_buf.data);
     }
 
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_UNKNOWN), 0, &path_buf))
@@ -479,10 +475,9 @@ vierkant::MaterialPtr create_material(const aiScene *the_scene, const aiMaterial
                 }
             }
         }
-//        theMaterial->enqueue_texture(path_buf.data, ao_rough_metal_img,
-//                                     (uint32_t) gl::Texture::Usage::AO_ROUGHNESS_METAL);
+        material.img_ao_roughness_metal = create_tex_image(path_buf.data);
     }
-    return theMaterial;
+    return material;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -513,6 +508,8 @@ mesh_assets_t load_model(const std::string &path)
     }
 //    load_scene(theModelPath);
 
+    auto base_path = crocore::fs::get_directory_part(found_path);
+
     LOG_DEBUG << "loading model '" << path << "' ...";
     const aiScene *theScene = importer.ReadFile(found_path, 0);
 
@@ -525,8 +522,8 @@ mesh_assets_t load_model(const std::string &path)
     if(theScene)
     {
         std::vector<vierkant::GeometryPtr> geometries;
-        std::vector<vierkant::MaterialPtr> materials;
-        materials.resize(theScene->mNumMaterials, vierkant::Material::create());
+        std::vector<material_t> materials;
+        materials.resize(theScene->mNumMaterials);
 
         uint32_t current_base_index = 0, current_base_vertex = 0;
 //        vierkant::GeometryPtr combined_geom = vierkant::Geometry::create();
@@ -558,7 +555,8 @@ mesh_assets_t load_model(const std::string &path)
             geometries.push_back(g);
 
 //            merge_geometries(g, combined_geom);
-            materials[aMesh->mMaterialIndex] = create_material(theScene, theScene->mMaterials[aMesh->mMaterialIndex],
+            materials[aMesh->mMaterialIndex] = create_material(base_path, theScene,
+                                                               theScene->mMaterials[aMesh->mMaterialIndex],
                                                                &mat_image_cache);
 
             aabb += vierkant::compute_aabb(g->vertices);

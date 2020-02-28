@@ -337,7 +337,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
             crocore::g_logger.set_severity(crocore::Severity(log_level));
         }
         ImGui::Spacing();
-        ImGui::Text("time: %.1f", app->application_time());
+        ImGui::Text("time: %s", crocore::secs_to_time_str(app->application_time()).c_str());
         ImGui::Spacing();
 
         ImGui::Text("%.0f x %.0f", io.DisplaySize.x, io.DisplaySize.y);
