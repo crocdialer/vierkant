@@ -370,7 +370,7 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         num_vertices += geom->vertices.size();
 
         // combine with aabb
-//        mesh->boundingbox += vierkant::compute_aabb(geom->vertices);
+        mesh->boundingbox += vierkant::compute_aabb(geom->vertices);
 
         // set topology
         mesh->topology = geom->topology;
@@ -388,7 +388,6 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         // insert new entry
         mesh->entries.push_back(entry);
     }
-    mesh->boundingbox = vierkant::compute_aabb(geometries.back()->vertices);
 
     // use indices
     if(!indices.empty())

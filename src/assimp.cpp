@@ -352,12 +352,12 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
     if(AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_ENABLE_WIREFRAME, &wireframe))
     {
-//        theMaterial->set_wireframe(wireframe);
+        material.wireframe = wireframe;
     }
 
     if((AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_TWOSIDED, &two_sided)))
     {
-//        theMaterial->set_two_sided(two_sided);
+        material.twosided = two_sided;
     }
 
     auto create_tex_image = [base_path, the_scene, the_img_map](const std::string &path) -> crocore::ImagePtr
@@ -390,6 +390,28 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
             {
                 auto combined_path = crocore::fs::join_paths(base_path, path);
                 img = crocore::create_image_from_file(combined_path);
+            }
+
+            if(img && img->num_components() == 3)
+            {
+                auto new_img = crocore::Image_<uint8_t>::create(img->width(), img->height(), 4);
+
+                size_t src_stride = 3, dst_stride = 4;
+
+                auto src = static_cast<uint8_t*>(img->data());
+                auto dst = static_cast<uint8_t*>(new_img->data());
+                uint8_t* dst_end = dst + new_img->num_bytes();
+                constexpr size_t alpha_offset = 3;
+
+                for(; dst < dst_end;)
+                {
+                    memcpy(dst, src, src_stride);
+                    dst[alpha_offset] = 255;
+                    dst += dst_stride;
+                    src += src_stride;
+                }
+
+                img = new_img;
             }
             if(the_img_map){ (*the_img_map)[path] = img; }
         }
@@ -515,7 +537,7 @@ mesh_assets_t load_model(const std::string &path)
 
     // super useful postprocessing steps
     theScene = importer.ApplyPostProcessing(aiProcess_Triangulate
-                                            //                                            | aiProcess_GenSmoothNormals
+                                            | aiProcess_FlipUVs
                                             | aiProcess_JoinIdenticalVertices
                                             | aiProcess_CalcTangentSpace
                                             | aiProcess_LimitBoneWeights);
