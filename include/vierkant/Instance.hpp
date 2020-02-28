@@ -30,6 +30,11 @@ class Instance
 public:
 
     /**
+     * @brief the vulkan-api version used
+     */
+    static constexpr int apiVersion = VK_API_VERSION_1_1;
+
+    /**
      * @brief   construct an initialized vulkan instance
      * @param   use_validation_layers       use validation layers (VK_LAYER_LUNARG_standard_validation) or not
      * @param   the_required_extensions     a list of required extensions (e.g. VK_KHR_SWAPCHAIN_EXTENSION_NAME)

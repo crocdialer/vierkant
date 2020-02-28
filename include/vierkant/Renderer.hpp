@@ -47,6 +47,9 @@ public:
 
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
+
+        uint32_t base_vertex = 0;
+        uint32_t num_vertices = 0;
     };
 
     /**

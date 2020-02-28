@@ -204,6 +204,7 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
 
         // create VMA allocator instance
         VmaAllocatorCreateInfo allocator_info = {};
+        allocator_info.vulkanApiVersion = Instance::apiVersion;
         allocator_info.physicalDevice = physical_device;
         allocator_info.device = m_device;
         vmaCreateAllocator(&allocator_info, &m_vk_mem_allocator);

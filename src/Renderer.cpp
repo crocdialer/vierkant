@@ -15,8 +15,9 @@ Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device
     // copy mesh-drawable
     Renderer::drawable_t drawable = {};
     drawable.mesh = mesh;
-    drawable.num_indices = mesh->num_elements;
-//    drawable.num_indices = mesh->entries.front().num_indices;
+//    drawable.num_indices = mesh->num_elements;
+    drawable.num_vertices = mesh->entries.front().num_vertices;
+    drawable.num_indices = mesh->entries.front().num_indices;
 
 //    drawable.matrices.model = mesh->global_transform();
 
@@ -295,7 +296,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 if(drawable->mesh->index_buffer)
                 {
                     vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index, 0, 0);
-                }else{ vkCmdDraw(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index, 0); }
+                }else{ vkCmdDraw(command_buffer.handle(), drawable->num_vertices, 1, drawable->base_vertex, 0); }
             }
         }
     }
