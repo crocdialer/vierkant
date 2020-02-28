@@ -174,22 +174,18 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
 
 void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_t &bonemap, weight_map_t &weightmap)
 {
-    int num_bones = 0;
-//    if(base_vertex == 0) num_bones = 0;
-
     if(aMesh->HasBones())
     {
-        uint32_t bone_index = 0, start_index = bonemap.size();
+        uint32_t bone_index = 0;
 
         for(uint32_t i = 0; i < aMesh->mNumBones; ++i)
         {
             aiBone *bone = aMesh->mBones[i];
             if(bonemap.find(bone->mName.data) == bonemap.end())
             {
-                bone_index = num_bones + start_index;
+                bone_index = bonemap.size();
                 bonemap[bone->mName.data] = std::make_pair(bone_index,
                                                            aimatrix_to_glm_mat4(bone->mOffsetMatrix));
-                num_bones++;
             }
             else{ bone_index = bonemap[bone->mName.data].first; }
 
@@ -398,9 +394,9 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
                 size_t src_stride = 3, dst_stride = 4;
 
-                auto src = static_cast<uint8_t*>(img->data());
-                auto dst = static_cast<uint8_t*>(new_img->data());
-                uint8_t* dst_end = dst + new_img->num_bytes();
+                auto src = static_cast<uint8_t *>(img->data());
+                auto dst = static_cast<uint8_t *>(new_img->data());
+                uint8_t *dst_end = dst + new_img->num_bytes();
                 constexpr size_t alpha_offset = 3;
 
                 for(; dst < dst_end;)
@@ -547,14 +543,11 @@ mesh_assets_t load_model(const std::string &path)
         std::vector<material_t> materials;
         materials.resize(theScene->mNumMaterials);
 
-        uint32_t current_base_index = 0, current_base_vertex = 0;
-//        vierkant::GeometryPtr combined_geom = vierkant::Geometry::create();
-
         size_t num_vertices = 0, num_indices = 0;
 
         vierkant::AABB aabb;
         bone_map_t bonemap;
-        weight_map_t weightmap;
+
 
         std::map<std::string, crocore::ImagePtr> mat_image_cache;
 
@@ -563,37 +556,23 @@ mesh_assets_t load_model(const std::string &path)
             aiMesh *aMesh = theScene->mMeshes[i];
             vierkant::GeometryPtr g = create_geometry(aMesh, theScene);
 
-            load_bones_and_weights(aMesh, current_base_vertex, bonemap, weightmap);
-            insert_bone_vertex_data(g, weightmap);
+            weight_map_t weightmap;
+            load_bones_and_weights(aMesh, 0, bonemap, weightmap);
+            insert_bone_vertex_data(g, weightmap, 0);
 
             g->colors.resize(g->vertices.size(), glm::vec4(1));
-
-            current_base_vertex += g->vertices.size();
-            current_base_index += g->indices.size();
 
             num_vertices += g->vertices.size();
             num_indices += g->indices.size();
 
             geometries.push_back(g);
 
-//            merge_geometries(g, combined_geom);
             materials[aMesh->mMaterialIndex] = create_material(base_path, theScene,
                                                                theScene->mMaterials[aMesh->mMaterialIndex],
                                                                &mat_image_cache);
 
             aabb += vierkant::compute_aabb(g->vertices);
         }
-//        combined_geom->compute_aabb();
-
-        // insert colors, if not present
-//        combined_geom->colors.resize(combined_geom->vertices.size(), glm::vec4(1));
-
-//        insert_bone_vertex_data(combined_geom, weightmap);
-
-//        gl::MeshPtr mesh = gl::Mesh::create(combined_geom, materials.empty() ? gl::Material::create() : materials[0]);
-//        mesh->entries() = entries;
-
-//        if(!materials.empty()){ mesh->materials() = materials; }
 
         // create bone hierarchy
         auto root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
@@ -608,27 +587,14 @@ mesh_assets_t load_model(const std::string &path)
             create_bone_animation(theScene->mRootNode, assimpAnimation, root_bone, anim);
             animations.push_back(std::move(anim));
         }
-//        gl::ShaderType sh_type;
-//
-//        try
-//        {
-//            if(geom->has_bones()){ sh_type = gl::ShaderType::PHONG_SKIN; }
-//            else{ sh_type = gl::ShaderType::PHONG; }
-//
-//        } catch(std::exception &e){ LOG_WARNING << e.what(); }
-//
-//        for(uint32_t i = 0; i < materials.size(); i++)
-//        {
-//            materials[i]->enqueue_shader(sh_type);
-//        }
 
         // extract model name from filename
-//        mesh->set_name(crocore::fs::get_filename_part(found_path));
+        auto model_name = crocore::fs::get_filename_part(found_path);
 
 
-        LOG_DEBUG << "loaded model: " << num_vertices << " vertices - " <<
-                  num_indices * 3 << " faces - " << bones::num_bones_in_hierarchy(root_bone)
-                  << " bones";
+        LOG_DEBUG << crocore::format("loaded model: geometries: %d -- vertices: %d -- faces: %d -- bones: %d ",
+                                     geometries.size(), num_vertices, num_indices * 3,
+                                     bones::num_bones_in_hierarchy(root_bone));
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
 
         importer.FreeScene();

@@ -168,7 +168,7 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
     glm::mat4 scale_mat = glm::scale(glm::mat4(1), glm::vec3(aabb.width(),
                                                              aabb.height(),
                                                              aabb.depth()));
-    drawable.matrices.model = scale_mat * center_mat * model_view;
+    drawable.matrices.model = model_view * center_mat * scale_mat;
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }

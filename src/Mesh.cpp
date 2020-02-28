@@ -227,7 +227,7 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
     std::vector<vertex_data_t> vertex_data;
 
     auto add_offset = [](const auto &array, std::vector<vertex_data_t> &vertex_data, size_t &offset, size_t &stride,
-                         size_t &num_bytes)
+                         size_t &num_bytes, size_t &num_attribs)
     {
         if(!array.empty())
         {
@@ -239,38 +239,42 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
             offset += elem_size;
             stride += elem_size;
             num_bytes += array.size() * elem_size;
+            num_attribs++;
         }
     };
 
-    size_t stride = 0, num_bytes = 0;
+    size_t stride = 0, num_bytes = 0, num_attribs = 0;
 
     // sanity check array sizes
-    auto check_and_insert = [add_offset, &stride, &num_bytes](const GeometryConstPtr &g,
+    auto check_and_insert = [add_offset, &stride, &num_bytes, &num_attribs](const GeometryConstPtr &g,
                                                               std::vector<vertex_data_t> &vertex_data) -> bool
     {
         size_t offset = 0;
+        size_t num_geom_attribs = 0;
         auto num_vertices = g->vertices.size();
 
         if(g->vertices.empty()){ return false; }
-        add_offset(g->vertices, vertex_data, offset, stride, num_bytes);
+        add_offset(g->vertices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->colors.empty() && g->colors.size() != num_vertices){ return false; }
-        add_offset(g->colors, vertex_data, offset, stride, num_bytes);
+        add_offset(g->colors, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
-        add_offset(g->tex_coords, vertex_data, offset, stride, num_bytes);
+        add_offset(g->tex_coords, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
-        add_offset(g->normals, vertex_data, offset, stride, num_bytes);
+        add_offset(g->normals, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
-        add_offset(g->tangents, vertex_data, offset, stride, num_bytes);
+        add_offset(g->tangents, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices){ return false; }
-        add_offset(g->bone_indices, vertex_data, offset, stride, num_bytes);
+        add_offset(g->bone_indices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
-        add_offset(g->bone_weights, vertex_data, offset, stride, num_bytes);
+        add_offset(g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+
+        num_attribs = std::max(num_attribs, num_geom_attribs);
 
         return true;
     };
