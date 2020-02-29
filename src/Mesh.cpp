@@ -249,6 +249,7 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
     auto check_and_insert = [add_offset, &stride, &num_bytes, &num_attribs](const GeometryConstPtr &g,
                                                               std::vector<vertex_data_t> &vertex_data) -> bool
     {
+        stride = 0;
         size_t offset = 0;
         size_t num_geom_attribs = 0;
         auto num_vertices = g->vertices.size();
@@ -274,14 +275,19 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
         add_offset(g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
-        num_attribs = std::max(num_attribs, num_geom_attribs);
+        if(num_attribs && num_geom_attribs != num_attribs){ return false; }
+        num_attribs = num_geom_attribs;
 
         return true;
     };
 
+    std::vector<size_t> vertex_offsets;
+
     // insert all geometries
     for(auto &geom : geometries)
     {
+        vertex_offsets.push_back(num_bytes);
+
         if(!check_and_insert(geom, vertex_data))
         {
             LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
@@ -303,14 +309,9 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
 
     if(interleave_data)
     {
-        for(uint32_t i = 0; i < vertex_data.size(); ++i)
+        for(uint32_t i = 0; i < num_attribs; ++i)
         {
             const auto &v = vertex_data[i];
-
-            for(uint32_t j = 0; j < v.num_elems; ++j)
-            {
-                memcpy(staging_data + v.offset + j * stride, v.data + j * v.elem_size, v.elem_size);
-            }
 
             vierkant::Mesh::attrib_t attrib;
             attrib.location = i;
@@ -321,43 +322,58 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
             attrib.format = v.format;
             mesh->vertex_attribs.push_back(attrib);
         }
-    }
-    else
-    {
-        size_t offset = 0;
-        auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
-        {
-            using elem_t = typename std::decay<decltype(array)>::type::value_type;
 
-            if(!array.empty())
+        for(uint32_t o = 0; o < vertex_offsets.size(); ++o)
+        {
+            auto buf_data = staging_data + vertex_offsets[o];
+
+            for(uint32_t i = o * num_attribs; i < (o + 1) * num_attribs; ++i)
             {
-                size_t value_size = sizeof(elem_t);
-                size_t num_bytes = array.size() * value_size;
-                memcpy(staging_data + offset, array.data(), num_bytes);
+                const auto &v = vertex_data[i];
 
-                vierkant::Mesh::attrib_t attrib;
-                attrib.location = location;
-                attrib.offset = 0;
-                attrib.stride = static_cast<uint32_t>(value_size);
-                attrib.buffer = vertex_buffer;
-                attrib.buffer_offset = offset;
-                attrib.format = vierkant::format<elem_t>();
-                mesh->vertex_attribs.push_back(attrib);
-                offset += num_bytes;
+                for(uint32_t j = 0; j < v.num_elems; ++j)
+                {
+                    memcpy(buf_data + v.offset + j * stride, v.data + j * v.elem_size, v.elem_size);
+                }
             }
-        };
-
-        // insert all geometries
-        for(auto &geom : geometries)
-        {
-            // vertex attributes
-            insert_data(geom->vertices, 0);
-            insert_data(geom->colors, 1);
-            insert_data(geom->tex_coords, 2);
-            insert_data(geom->normals, 3);
-            insert_data(geom->tangents, 4);
         }
     }
+//    else
+//    {
+//        size_t offset = 0;
+//        auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
+//        {
+//            using elem_t = typename std::decay<decltype(array)>::type::value_type;
+//
+//            if(!array.empty())
+//            {
+//                size_t value_size = sizeof(elem_t);
+//                size_t num_bytes = array.size() * value_size;
+//                memcpy(staging_data + offset, array.data(), num_bytes);
+//
+//                vierkant::Mesh::attrib_t attrib;
+//                attrib.location = location;
+//                attrib.offset = 0;
+//                attrib.stride = static_cast<uint32_t>(value_size);
+//                attrib.buffer = vertex_buffer;
+//                attrib.buffer_offset = offset;
+//                attrib.format = vierkant::format<elem_t>();
+//                mesh->vertex_attribs.push_back(attrib);
+//                offset += num_bytes;
+//            }
+//        };
+//
+//        // insert all geometries
+//        for(auto &geom : geometries)
+//        {
+//            // vertex attributes
+//            insert_data(geom->vertices, 0);
+//            insert_data(geom->colors, 1);
+//            insert_data(geom->tex_coords, 2);
+//            insert_data(geom->normals, 3);
+//            insert_data(geom->tangents, 4);
+//        }
+//    }
 
     // copy combined vertex data to device-buffer
     stage_buffer->copy_to(vertex_buffer);
@@ -375,9 +391,6 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
 
         // combine with aabb
         mesh->boundingbox += vierkant::compute_aabb(geom->vertices);
-
-        // set topology
-        mesh->topology = geom->topology;
 
         vierkant::Mesh::entry_t entry = {};
         entry.primitive_type = geom->topology;
@@ -398,9 +411,7 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
     {
         mesh->index_buffer = vierkant::Buffer::create(device, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_GPU_ONLY);
-        mesh->num_elements = static_cast<uint32_t>(indices.size());
     }
-    else{ mesh->num_elements = num_vertices; }
 
     return mesh;
 }

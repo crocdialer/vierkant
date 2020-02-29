@@ -5,7 +5,8 @@
 #include <crocore/Area.hpp>
 #include "vierkant/Renderer.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -15,15 +16,17 @@ Renderer::drawable_t Renderer::create_drawable(const vierkant::DevicePtr &device
     // copy mesh-drawable
     Renderer::drawable_t drawable = {};
     drawable.mesh = mesh;
-//    drawable.num_indices = mesh->num_elements;
-    drawable.num_vertices = mesh->entries.front().num_vertices;
-    drawable.num_indices = mesh->entries.front().num_indices;
 
-//    drawable.matrices.model = mesh->global_transform();
+    auto &entry = mesh->entries.front();
+
+    drawable.base_index = entry.base_index;
+    drawable.num_indices = entry.num_indices;
+    drawable.base_vertex = entry.base_vertex;
+    drawable.num_vertices = entry.num_vertices;
 
     drawable.pipeline_format.binding_descriptions = mesh->binding_descriptions();
     drawable.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
-    drawable.pipeline_format.primitive_topology = mesh->topology;
+    drawable.pipeline_format.primitive_topology = entry.primitive_type;
     drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
     drawable.pipeline_format.blend_state.blendEnable = false;
     drawable.pipeline_format.depth_test = true;
@@ -269,7 +272,8 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     render_asset.uniform_buffer = uniform_buf;
                     render_asset.descriptor_set = descriptor_set;
                     current_assets.render_assets[key].push_back(std::move(render_asset));
-                }else
+                }
+                else
                 {
                     auto render_asset = std::move(descriptor_it->second.front());
                     descriptor_it->second.pop_front();
@@ -295,8 +299,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 // issue (indexed) drawing command
                 if(drawable->mesh->index_buffer)
                 {
-                    vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index, 0, 0);
-                }else{ vkCmdDraw(command_buffer.handle(), drawable->num_vertices, 1, drawable->base_vertex, 0); }
+                    vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index, drawable->base_vertex, 0);
+                }
+                else{ vkCmdDraw(command_buffer.handle(), drawable->num_vertices, 1, drawable->base_vertex, 0); }
             }
         }
     }

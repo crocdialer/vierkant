@@ -20,6 +20,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         for(auto &v : plane->vertices){ v.xy += glm::vec2(.5f, -.5f); }
 
         auto mesh = Mesh::create_from_geometries(m_device, {plane});
+        auto entry = mesh->entries.front();
 
         Pipeline::Format fmt = {};
         fmt.blend_state.blendEnable = true;
@@ -28,7 +29,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.shader_stages = shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
         fmt.binding_descriptions = mesh->binding_descriptions();
         fmt.attribute_descriptions = mesh->attribute_descriptions();
-        fmt.primitive_topology = mesh->topology;
+        fmt.primitive_topology = entry.primitive_type;
 
         // descriptors
         vierkant::descriptor_t desc_ubo = {};
@@ -42,7 +43,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         desc_texture.binding = 1;
 
         m_drawable_image.mesh = mesh;
-        m_drawable_image.num_indices = mesh->num_elements;
+        m_drawable_image.num_indices = entry.num_indices;
         m_drawable_image.descriptors = {desc_ubo, desc_texture};
         m_drawable_image.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
                                                                                         m_drawable_image.descriptors);
@@ -106,6 +107,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
                             const glm::vec2 &pos, const glm::vec4 &color)
 {
     auto mesh = font->create_mesh(text, color);
+    auto entry = mesh->entries.front();
 
     if(m_drawable_text.pipeline_format.attribute_descriptions.empty())
     {
@@ -119,7 +121,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
                                                 1.0f);
     drawable.matrices.model[3] = glm::vec4(pos.x, pos.y, 0, 1);
     drawable.descriptors[1].image_samplers = {font->glyph_texture()};
-    drawable.num_indices = mesh->num_elements;
+    drawable.num_indices = entry.num_indices;
     renderer.stage_drawable(std::move(drawable));
 }
 

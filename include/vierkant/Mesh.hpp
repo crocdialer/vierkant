@@ -203,19 +203,16 @@ public:
      */
     std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
 
-    std::vector<entry_t> entries;
+    // vertex attributes
+    std::vector<attrib_t> vertex_attribs;
 
-    // TODO: migrate to entries
-    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    uint32_t num_elements = 0;
+    // entries for sub-meshes
+    std::vector<entry_t> entries;
 
     // index buffer
     vierkant::BufferPtr index_buffer;
     VkDeviceSize index_buffer_offset = 0;
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
-
-    // vertex attributes
-    std::vector<attrib_t> vertex_attribs;
 
     // boundingbox
     vierkant::AABB boundingbox;

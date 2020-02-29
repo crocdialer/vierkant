@@ -94,7 +94,7 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     auto mesh = vierkant::Mesh::create();
-    mesh->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+//    mesh->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // vertex attrib -> position
     vierkant::Mesh::attrib_t position_attrib;
@@ -366,6 +366,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
 
     // pipeline format
     vierkant::Pipeline::Format pipeline_fmt = {};
+    pipeline_fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     pipeline_fmt.shader_stages = vierkant::create_shader_stages(device, vierkant::ShaderType::UNLIT_TEXTURE);
     pipeline_fmt.attribute_descriptions = mesh->attribute_descriptions();
     pipeline_fmt.binding_descriptions = mesh->binding_descriptions();
