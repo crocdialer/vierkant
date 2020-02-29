@@ -148,8 +148,8 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
 
     if(aMesh->HasVertexColors(0))
     {
-        geom->colors.insert(geom->colors.end(), (glm::vec4 *) aMesh->mColors,
-                            (glm::vec4 *) aMesh->mColors + aMesh->mNumVertices);
+        geom->colors.insert(geom->colors.end(), (glm::vec4 *) aMesh->mColors[0],
+                            (glm::vec4 *) aMesh->mColors[0] + aMesh->mNumVertices);
     }
 //        else{ geom->colors().resize(aMesh->mNumVertices, gl::COLOR_WHITE); }
 
@@ -543,13 +543,15 @@ mesh_assets_t load_model(const std::string &path)
         std::vector<material_t> materials;
         materials.resize(theScene->mNumMaterials);
 
+        std::vector<uint32_t> material_indices(theScene->mNumMeshes);
+
         size_t num_vertices = 0, num_indices = 0;
 
         vierkant::AABB aabb;
         bone_map_t bonemap;
 
 
-        std::map<std::string, crocore::ImagePtr> mat_image_cache;
+        std::map<std::string, crocore::ImagePtr> image_cache;
 
         for(uint32_t i = 0; i < theScene->mNumMeshes; i++)
         {
@@ -567,9 +569,10 @@ mesh_assets_t load_model(const std::string &path)
 
             geometries.push_back(g);
 
+            material_indices[i] = aMesh->mMaterialIndex;
             materials[aMesh->mMaterialIndex] = create_material(base_path, theScene,
                                                                theScene->mMaterials[aMesh->mMaterialIndex],
-                                                               &mat_image_cache);
+                                                               &image_cache);
 
             aabb += vierkant::compute_aabb(g->vertices);
         }
@@ -598,7 +601,8 @@ mesh_assets_t load_model(const std::string &path)
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
 
         importer.FreeScene();
-        return {std::move(geometries), std::move(materials), root_bone, std::move(animations)};
+        return {std::move(geometries), std::move(material_indices), std::move(materials), root_bone,
+                std::move(animations)};
     }
     return {};
 }

@@ -9,6 +9,7 @@
 #include "vierkant/Image.hpp"
 #include "vierkant/Object3D.hpp"
 #include "vierkant/Geometry.hpp"
+#include "vierkant/Material.hpp"
 
 namespace vierkant
 {
@@ -208,6 +209,8 @@ public:
 
     // entries for sub-meshes
     std::vector<entry_t> entries;
+
+    std::vector<vierkant::MaterialPtr> materials;
 
     // index buffer
     vierkant::BufferPtr index_buffer;

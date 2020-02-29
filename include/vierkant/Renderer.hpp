@@ -13,7 +13,8 @@
 #include "vierkant/Camera.hpp"
 #include "vierkant/Material.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 class Renderer
 {
@@ -60,8 +61,8 @@ public:
      * @param   material    a material object
      * @return  a newly constructed drawable_t
      */
-    static drawable_t create_drawable(const vierkant::DevicePtr &device, const MeshPtr &mesh,
-                                      const MaterialPtr &material);
+    static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device, const MeshPtr &mesh,
+                                                    const std::vector<MaterialPtr> &materials);
 
     /**
      * @brief   Viewport parameters currently used.
@@ -107,19 +108,19 @@ public:
     /**
      * @return  the current swapchain index.
      */
-    uint32_t current_index() const { return m_current_index; }
+    uint32_t current_index() const{ return m_current_index; }
 
     /**
      * @return  the number of swapchain indices.
      */
-    uint32_t num_indices() const { return m_render_assets.size(); }
+    uint32_t num_indices() const{ return m_render_assets.size(); }
 
     /**
      * @brief   Release all cached rendering assets.
      */
     void reset();
 
-    vierkant::DevicePtr device() const { return m_device; }
+    vierkant::DevicePtr device() const{ return m_device; }
 
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 

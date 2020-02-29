@@ -87,7 +87,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         auto mesh = vierkant::Mesh::create_from_geometries(m_device, {geom});
         auto material = vierkant::Material::create();
         material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
-        m_drawable_aabb = vierkant::Renderer::create_drawable(m_device, mesh, material);
+        m_drawable_aabb = vierkant::Renderer::create_drawables(m_device, mesh, {material}).front();
     }
 
     // grid
@@ -97,7 +97,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         auto mesh = vierkant::Mesh::create_from_geometries(m_device, {geom});
         auto material = vierkant::Material::create();
         material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
-        m_drawable_grid = vierkant::Renderer::create_drawable(m_device, mesh, material);
+        m_drawable_grid = vierkant::Renderer::create_drawables(m_device, mesh, {material}).front();
     }
 }
 

@@ -17,9 +17,8 @@
 #include <stack>
 
 #include "vierkant/Object3D.hpp"
-//#include "Mesh.hpp"
-//#include "Light.hpp"
-//#include "Camera.hpp"
+#include "vierkant/Mesh.hpp"
+#include "vierkant/Camera.hpp"
 
 namespace vierkant {
 
@@ -37,7 +36,7 @@ public:
 
     inline void set_visit_only_enabled(bool b) { m_visit_only_enabled = b; }
 
-    virtual void visit(Object3D &theNode)
+    virtual void visit(vierkant::Object3D &theNode)
     {
         if(theNode.enabled() || !visit_only_enabled())
         {
@@ -46,9 +45,9 @@ public:
             m_transform_stack.pop();
         }
     }
-//        virtual void visit(gl::Mesh &theNode){ visit(static_cast<Object3D&>(theNode)); };
-//        virtual void visit(gl::Light &theNode){ visit(static_cast<Object3D&>(theNode)); };
-//        virtual void visit(gl::Camera &theNode){ visit(static_cast<Object3D&>(theNode)); };
+
+    virtual void visit(vierkant::Mesh &theNode){ visit(static_cast<Object3D&>(theNode)); };
+    virtual void visit(vierkant::Camera &theNode){ visit(static_cast<Object3D&>(theNode)); };
 
 protected:
 
