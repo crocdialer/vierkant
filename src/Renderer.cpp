@@ -116,7 +116,7 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
     // we also need a DescriptorPool ...
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024},
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1024}};
-    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
+    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 4096);
 
     if(pipeline_cache){ m_pipeline_cache = std::move(pipeline_cache); }
     else{ m_pipeline_cache = vierkant::PipelineCache::create(m_device); }
