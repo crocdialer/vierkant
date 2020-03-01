@@ -37,14 +37,19 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         desc_ubo.binding = 0;
 
+        vierkant::descriptor_t desc_material = {};
+        desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_material.binding = 1;
+
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_texture.binding = 1;
+        desc_texture.binding = 2;
 
         m_drawable_image.mesh = mesh;
         m_drawable_image.num_indices = entry.num_indices;
-        m_drawable_image.descriptors = {desc_ubo, desc_texture};
+        m_drawable_image.descriptors = {desc_ubo, desc_material, desc_texture};
         m_drawable_image.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
                                                                                         m_drawable_image.descriptors);
         fmt.descriptor_set_layouts = {m_drawable_image.descriptor_set_layout.get()};
@@ -68,13 +73,18 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         desc_ubo.binding = 0;
 
+        vierkant::descriptor_t desc_material = {};
+        desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_material.binding = 1;
+
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_texture.binding = 1;
+        desc_texture.binding = 2;
 
         m_drawable_text.pipeline_format = std::move(pipeline_fmt);
-        m_drawable_text.descriptors = {desc_ubo, desc_texture};
+        m_drawable_text.descriptors = {desc_ubo, desc_material, desc_texture};
         m_drawable_text.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
                                                                                        m_drawable_text.descriptors);
         m_drawable_text.pipeline_format.descriptor_set_layouts = {m_drawable_text.descriptor_set_layout.get()};

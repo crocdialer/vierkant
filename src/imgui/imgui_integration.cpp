@@ -5,7 +5,8 @@
 #include "vierkant/imgui/imgui_integration.h"
 #include "imgui_internal.h"
 
-namespace vierkant::gui {
+namespace vierkant::gui
+{
 
 // 1 double per second
 using double_sec_t = std::chrono::duration<double, std::chrono::seconds::period>;
@@ -188,15 +189,15 @@ Context::Context(const vierkant::DevicePtr &device, const std::string &font, flo
     im_style.ScaleAllSizes(1.5f);
 
     auto &mouse_delegate = m_imgui_assets.mouse_delegate;
-    mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e) { mouse_press(ctx, e); };
-    mouse_delegate.mouse_release = [ctx = m_imgui_context](const MouseEvent &e) { mouse_release(ctx, e); };
-    mouse_delegate.mouse_wheel = [ctx = m_imgui_context](const MouseEvent &e) { mouse_wheel(ctx, e); };
-    mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
+    mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e){ mouse_press(ctx, e); };
+    mouse_delegate.mouse_release = [ctx = m_imgui_context](const MouseEvent &e){ mouse_release(ctx, e); };
+    mouse_delegate.mouse_wheel = [ctx = m_imgui_context](const MouseEvent &e){ mouse_wheel(ctx, e); };
+    mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e){ mouse_move(ctx, e); };
 
     auto &key_delegate = m_imgui_assets.key_delegate;
-    key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e) { key_press(ctx, e); };
-    key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e) { key_release(ctx, e); };
-    key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
+    key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e){ key_press(ctx, e); };
+    key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e){ key_release(ctx, e); };
+    key_delegate.character_input = [ctx = m_imgui_context](uint32_t c){ character_input(ctx, c); };
 
     create_device_objects(device);
 }
@@ -249,8 +250,8 @@ void Context::draw_gui(vierkant::Renderer &renderer)
     io.DeltaTime = double_sec_t(now - m_imgui_assets.time_point).count();
     m_imgui_assets.time_point = now;
 
-    int fb_width = (int)(io.DisplaySize.x * io.DisplayFramebufferScale.x);
-    int fb_height = (int)(io.DisplaySize.y * io.DisplayFramebufferScale.y);
+    int fb_width = (int) (io.DisplaySize.x * io.DisplayFramebufferScale.x);
+    int fb_height = (int) (io.DisplaySize.y * io.DisplayFramebufferScale.y);
     if(fb_width == 0 || fb_height == 0){ return; }
 
     // fire draw delegates
@@ -291,13 +292,13 @@ void Context::draw_gui(vierkant::Renderer &renderer)
             else
             {
                 auto tex = vierkant::ImagePtr(static_cast<vierkant::Image *>(pcmd->TextureId),
-                                              [](vierkant::Image *) {});
+                                              [](vierkant::Image *){});
 
                 // create a new drawable
                 auto drawable = m_imgui_assets.drawable;
                 drawable.mesh = mesh_assets[n].mesh;
                 drawable.matrices = matrices;
-                drawable.descriptors[1].image_samplers = {tex};
+                drawable.descriptors[2].image_samplers = {tex};
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;
 
@@ -382,15 +383,20 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
     desc_ubo.binding = 0;
 
+    vierkant::descriptor_t desc_material = {};
+    desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_material.binding = 1;
+
     vierkant::descriptor_t desc_texture = {};
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.binding = 1;
+    desc_texture.binding = 2;
 
     auto &drawable = m_imgui_assets.drawable;
     drawable.mesh = mesh;
     drawable.pipeline_format = std::move(pipeline_fmt);
-    drawable.descriptors = {desc_ubo, desc_texture};
+    drawable.descriptors = {desc_ubo, desc_material, desc_texture};
     drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
     drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
     return true;
@@ -470,7 +476,7 @@ void key_release(ImGuiContext *ctx, const KeyEvent &e)
 void character_input(ImGuiContext *ctx, uint32_t c)
 {
     ImGuiIO &io = ctx->IO;
-    if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short)c); }
+    if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short) c); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

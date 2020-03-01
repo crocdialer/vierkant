@@ -25,8 +25,11 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         Renderer::drawable_t drawable = {};
         drawable.mesh = mesh;
 
-        // tmp!?
+        // matrices tmp!?
         drawable.matrices.model = mesh->global_transform();
+
+        // material params
+        drawable.material.color = material->color;
 
         drawable.base_index = entry.base_index;
         drawable.num_indices = entry.num_indices;
@@ -42,11 +45,17 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.pipeline_format.depth_write = true;
 
         // descriptors
-        vierkant::descriptor_t desc_ubo = {};
-        desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        desc_ubo.binding = SLOT_MATRIX;
-        drawable.descriptors.push_back(desc_ubo);
+        vierkant::descriptor_t desc_matrices = {};
+        desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        desc_matrices.binding = SLOT_MATRIX;
+        drawable.descriptors.push_back(desc_matrices);
+
+        vierkant::descriptor_t desc_material = {};
+        desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_material.binding = SLOT_MATERIAL;
+        drawable.descriptors.push_back(desc_material);
 
         // textures
         if(!material->images.empty())
@@ -258,9 +267,18 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     render_asset_t render_asset = {};
 
                     // create new uniform-buffer for matrices
-                    auto uniform_buf = vierkant::Buffer::create(m_device, &drawable->matrices, sizeof(matrix_struct_t),
-                                                                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                VMA_MEMORY_USAGE_CPU_TO_GPU);
+                    auto matrix_buf = vierkant::Buffer::create(m_device, &drawable->matrices, sizeof(matrix_struct_t),
+                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+                    descriptors[SLOT_MATRIX].buffer = matrix_buf;
+
+                    // create new uniform-buffer for matrices
+                    auto material_buf = vierkant::Buffer::create(m_device, &drawable->material, sizeof(material_struct_t),
+                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+                    descriptors[SLOT_MATERIAL].buffer = material_buf;
 
                     // transition image layouts
                     for(auto &desc : descriptors)
@@ -270,7 +288,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                             img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
                         }
                     }
-                    descriptors[SLOT_MATRIX].buffer = uniform_buf;
 
                     // create a new descriptor set
                     descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
@@ -280,7 +297,8 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
                     // insert all created assets and store in map
-                    render_asset.uniform_buffer = uniform_buf;
+                    render_asset.matrix_buffer = matrix_buf;
+                    render_asset.material_buffer = material_buf;
                     render_asset.descriptor_set = descriptor_set;
                     current_assets.render_assets[key].push_back(std::move(render_asset));
                 }
@@ -293,10 +311,12 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     descriptor_set = render_asset.descriptor_set;
 
                     // update data in existing uniform-buffer
-                    render_asset.uniform_buffer->set_data(&drawable->matrices, sizeof(matrix_struct_t));
+                    render_asset.matrix_buffer->set_data(&drawable->matrices, sizeof(matrix_struct_t));
+                    render_asset.material_buffer->set_data(&drawable->material, sizeof(material_struct_t));
 
                     // update existing descriptor set
-                    descriptors[SLOT_MATRIX].buffer = render_asset.uniform_buffer;
+                    descriptors[SLOT_MATRIX].buffer = render_asset.matrix_buffer;
+                    descriptors[SLOT_MATERIAL].buffer = render_asset.material_buffer;
                     vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
                     current_assets.render_assets[key].push_back(std::move(render_asset));

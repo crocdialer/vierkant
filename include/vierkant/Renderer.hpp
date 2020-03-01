@@ -22,7 +22,10 @@ public:
 
     enum DescriptorSlot
     {
-        SLOT_MATRIX = 0, SLOT_TEXTURES, MIN_NUM_DESCRIPTORS
+        SLOT_MATRIX = 0,
+        SLOT_MATERIAL = 1,
+        SLOT_TEXTURES = 2,
+        MIN_NUM_DESCRIPTORS
     };
 
     struct matrix_struct_t
@@ -33,14 +36,31 @@ public:
         glm::mat4 texture = glm::mat4(1);
     };
 
+    struct material_struct_t
+    {
+        glm::vec4 color = glm::vec4(1);
+
+        glm::vec4 emission = glm::vec4(0);
+
+        float metalness = 0.f;
+
+        float roughness = 1.f;
+
+        int padding[2];
+    };
+
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
      */
     struct drawable_t
     {
         MeshPtr mesh;
+
         Pipeline::Format pipeline_format = {};
+
         matrix_struct_t matrices = {};
+
+        material_struct_t material = {};
 
         // descriptors -> layout
         std::vector<descriptor_t> descriptors;
@@ -128,7 +148,8 @@ private:
 
     struct render_asset_t
     {
-        vierkant::BufferPtr uniform_buffer;
+        vierkant::BufferPtr matrix_buffer;
+        vierkant::BufferPtr material_buffer;
         vierkant::DescriptorSetPtr descriptor_set;
     };
 
