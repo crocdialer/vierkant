@@ -49,6 +49,11 @@ public:
         int padding[2];
     };
 
+    struct push_constants_t
+    {
+        int drawable_index = 0;
+    };
+
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
      */
@@ -171,6 +176,8 @@ private:
     struct frame_assets_t
     {
         asset_map_t render_assets;
+        vierkant::BufferPtr matrix_buffer;
+        vierkant::BufferPtr material_buffer;
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
     };

@@ -13,6 +13,7 @@ struct material_t
     glm::vec4 ambient;
     glm::vec4 emission;
     float roughness;
+    bool blending = false;
     bool wireframe = false;
     bool twosided = false;
 

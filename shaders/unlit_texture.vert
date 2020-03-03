@@ -9,6 +9,15 @@ struct matrix_struct_t
     mat4 texture;
 };
 
+struct push_constants_t
+{
+    int drawable_index;
+};
+
+layout(push_constant) uniform PushConstants {
+    push_constants_t push_constants;
+};
+
 layout(std140, binding = 0) uniform UBOMatrices
 {
     matrix_struct_t matrices[1];

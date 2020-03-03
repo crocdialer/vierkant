@@ -28,6 +28,8 @@ public:
 
     float roughness = 1.f;
 
+    bool blending = false;
+
     std::vector<vierkant::ImagePtr> images;
 
     std::vector<std::vector<uint8_t>> ubos;

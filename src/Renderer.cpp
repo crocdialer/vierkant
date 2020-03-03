@@ -40,9 +40,9 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
-        drawable.pipeline_format.blend_state.blendEnable = false;
+        drawable.pipeline_format.blend_state.blendEnable = material->blending;
         drawable.pipeline_format.depth_test = true;
-        drawable.pipeline_format.depth_write = true;
+        drawable.pipeline_format.depth_write = !material->blending;
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};
@@ -178,6 +178,12 @@ void Renderer::stage_drawable(drawable_t drawable)
     fmt.viewport = viewport;
     fmt.sample_count = m_sample_count;
 
+    VkPushConstantRange push_constant_range = {};
+    push_constant_range.offset = 0;
+    push_constant_range.size = sizeof(push_constants_t);
+    push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
+    fmt.push_constant_ranges = {push_constant_range};
+
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_staged_drawables[m_current_index].push_back(std::move(drawable));
 }
@@ -193,24 +199,56 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
         m_current_index = (m_current_index + 1) % m_staged_drawables.size();
         m_render_assets[last_index].drawables = std::move(m_staged_drawables[last_index]);
     }
-    auto &last_assets = m_render_assets[last_index];
-    frame_assets_t current_assets = {};
+    auto &current_assets = m_render_assets[last_index];
+    frame_assets_t next_assets = {};
 
     // fetch and start commandbuffer
-    current_assets.command_buffer = std::move(last_assets.command_buffer);
-    auto &command_buffer = current_assets.command_buffer;
+    next_assets.command_buffer = std::move(current_assets.command_buffer);
+    auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, inheritance);
 
     // sort by pipelines
-    std::unordered_map<Pipeline::Format, std::vector<drawable_t *>> pipelines;
-    for(auto &drawable : last_assets.drawables){ pipelines[drawable.pipeline_format].push_back(&drawable); }
+    struct indexed_drawable_t
+    {
+        uint32_t staging_index = 0;
+        drawable_t *drawable = nullptr;
+    };
+    std::unordered_map<Pipeline::Format, std::vector<indexed_drawable_t>> pipelines;
+
+    // joined drawable buffers
+    std::vector<matrix_struct_t> matrix_data(current_assets.drawables.size());
+    std::vector<material_struct_t> material_data(current_assets.drawables.size());
+
+    for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
+    {
+        pipelines[current_assets.drawables[i].pipeline_format].push_back({i, &current_assets.drawables[i]});
+
+        matrix_data[i] = current_assets.drawables[i].matrices;
+        material_data[i] = current_assets.drawables[i].material;
+    }
+
+    // create/upload joined buffers
+    if(!next_assets.matrix_buffer)
+    {
+        next_assets.matrix_buffer = vierkant::Buffer::create(m_device, matrix_data.data(),
+                                                             sizeof(matrix_struct_t) * matrix_data.size(),
+                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ next_assets.matrix_buffer->set_data(matrix_data); }
+
+    if(!next_assets.material_buffer)
+    {
+        next_assets.material_buffer = vierkant::Buffer::create(m_device, material_data.data(),
+                                                             sizeof(material_struct_t) * material_data.size(),
+                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ next_assets.material_buffer->set_data(material_data); }
 
     // grouped by pipelines
-    for(auto &pair : pipelines)
+    for(auto &[pipe_fmt, indexed_drawables] : pipelines)
     {
-        auto &pipe_fmt = pair.first;
-        auto &drawables = pair.second;
-
         // select/create pipeline
         auto pipeline = m_pipeline_cache->get(pipe_fmt);
 
@@ -233,8 +271,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 //        for(auto &[mesh, drawables] : meshes)
         vierkant::MeshPtr current_mesh;
 
-        for(auto &drawable : drawables)
+        for(auto &indexed_drawable : indexed_drawables)
         {
+            auto &drawable = indexed_drawable.drawable;
 
             if(current_mesh != drawable->mesh)
             {
@@ -257,12 +296,12 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
                 // search/create descriptor set
                 asset_key_t key = {current_mesh, drawable->descriptors};
-                auto descriptor_it = last_assets.render_assets.find(key);
+                auto descriptor_it = current_assets.render_assets.find(key);
 
                 vierkant::DescriptorSetPtr descriptor_set;
 
                 // not found or empty queue
-                if(descriptor_it == last_assets.render_assets.end() || descriptor_it->second.empty())
+                if(descriptor_it == current_assets.render_assets.end() || descriptor_it->second.empty())
                 {
                     render_asset_t render_asset = {};
 
@@ -274,9 +313,10 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     descriptors[SLOT_MATRIX].buffer = matrix_buf;
 
                     // create new uniform-buffer for matrices
-                    auto material_buf = vierkant::Buffer::create(m_device, &drawable->material, sizeof(material_struct_t),
-                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
+                    auto material_buf = vierkant::Buffer::create(m_device, &drawable->material,
+                                                                 sizeof(material_struct_t),
+                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
 
                     descriptors[SLOT_MATERIAL].buffer = material_buf;
 
@@ -300,7 +340,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     render_asset.matrix_buffer = matrix_buf;
                     render_asset.material_buffer = material_buf;
                     render_asset.descriptor_set = descriptor_set;
-                    current_assets.render_assets[key].push_back(std::move(render_asset));
+                    next_assets.render_assets[key].push_back(std::move(render_asset));
                 }
                 else
                 {
@@ -319,7 +359,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     descriptors[SLOT_MATERIAL].buffer = render_asset.material_buffer;
                     vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
-                    current_assets.render_assets[key].push_back(std::move(render_asset));
+                    next_assets.render_assets[key].push_back(std::move(render_asset));
                 }
 
                 // bind descriptor sets (uniforms, samplers)
@@ -327,10 +367,17 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(),
                                         0, 1, &descriptor_handle, 0, nullptr);
 
+                // update push_constants for each draw call
+                push_constants_t push_constants = {};
+                push_constants.drawable_index = indexed_drawable.staging_index;
+                vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
+                                   sizeof(push_constants_t), &push_constants);
+
                 // issue (indexed) drawing command
                 if(drawable->mesh->index_buffer)
                 {
-                    vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index, drawable->base_vertex, 0);
+                    vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index,
+                                     drawable->base_vertex, 0);
                 }
                 else{ vkCmdDraw(command_buffer.handle(), drawable->num_vertices, 1, drawable->base_vertex, 0); }
             }
@@ -338,11 +385,11 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     }
 
     // keep the stuff in use
-    last_assets = std::move(current_assets);
+    current_assets = std::move(next_assets);
 
     // end and return commandbuffer
-    last_assets.command_buffer.end();
-    return last_assets.command_buffer.handle();
+    current_assets.command_buffer.end();
+    return current_assets.command_buffer.handle();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

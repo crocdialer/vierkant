@@ -295,7 +295,6 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 {
     material_t material = {};
 
-//    theMaterial->set_blending(true);
     int ret1, ret2;
     aiColor4D c;
     float shininess, strength;
@@ -313,6 +312,8 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
         // transparent material
         if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c)){ col.a = c.a; }
         material.diffuse = col;
+
+        material.blending = col.a < 1.f;
     }
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &c))
@@ -335,6 +336,11 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 //            theMaterial->set_blending(false);
         }
     }
+
+    float opacity = 1.f;
+    aiGetMaterialFloat(mtl, AI_MATKEY_OPACITY, &opacity);
+    material.blending = material.blending || opacity != 1.f;
+    material.twosided = material.twosided || opacity != 1.f;
 
     ret1 = aiGetMaterialFloat(mtl, AI_MATKEY_SHININESS, &shininess);
     ret2 = aiGetMaterialFloat(mtl, AI_MATKEY_SHININESS_STRENGTH, &strength);
