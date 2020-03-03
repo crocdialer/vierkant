@@ -296,8 +296,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             // not found or empty queue
             if(descriptor_it == current_assets.render_assets.end() || descriptor_it->second.empty())
             {
-                render_asset_t render_asset = {};
-
                 descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffer;
                 descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffer;
 
@@ -318,23 +316,20 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
                 // insert all created assets and store in map
-                render_asset.descriptor_set = descriptor_set;
-                next_assets.render_assets[key].push_back(std::move(render_asset));
+                next_assets.render_assets[key].push_back(descriptor_set);
             }
             else
             {
-                auto render_asset = std::move(descriptor_it->second.front());
-                descriptor_it->second.pop_front();
-
                 // use existing set
-                descriptor_set = render_asset.descriptor_set;
+                descriptor_set = std::move(descriptor_it->second.front());
+                descriptor_it->second.pop_front();
 
                 // update existing descriptor set
                 descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffer;
                 descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffer;
                 vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
-                next_assets.render_assets[key].push_back(std::move(render_asset));
+                next_assets.render_assets[key].push_back(descriptor_set);
             }
 
             // bind descriptor sets (uniforms, samplers)

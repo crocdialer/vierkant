@@ -151,13 +151,6 @@ public:
 
 private:
 
-    struct render_asset_t
-    {
-//        vierkant::BufferPtr matrix_buffer;
-//        vierkant::BufferPtr material_buffer;
-        vierkant::DescriptorSetPtr descriptor_set;
-    };
-
     struct asset_key_t
     {
         vierkant::MeshPtr mesh;
@@ -171,7 +164,7 @@ private:
         size_t operator()(const asset_key_t &key) const;
     };
 
-    using asset_map_t = std::unordered_map<asset_key_t, std::deque<render_asset_t>, asset_key_hash_t>;
+    using asset_map_t = std::unordered_map<asset_key_t, std::deque<vierkant::DescriptorSetPtr>, asset_key_hash_t>;
 
     struct frame_assets_t
     {
