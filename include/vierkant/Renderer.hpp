@@ -153,8 +153,8 @@ private:
 
     struct render_asset_t
     {
-        vierkant::BufferPtr matrix_buffer;
-        vierkant::BufferPtr material_buffer;
+//        vierkant::BufferPtr matrix_buffer;
+//        vierkant::BufferPtr material_buffer;
         vierkant::DescriptorSetPtr descriptor_set;
     };
 

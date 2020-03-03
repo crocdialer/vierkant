@@ -240,9 +240,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     if(!next_assets.material_buffer)
     {
         next_assets.material_buffer = vierkant::Buffer::create(m_device, material_data.data(),
-                                                             sizeof(material_struct_t) * material_data.size(),
-                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                               sizeof(material_struct_t) * material_data.size(),
+                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
     else{ next_assets.material_buffer->set_data(material_data); }
 
@@ -263,12 +263,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
         }
 
-//        // sort by meshes
-//        std::unordered_map<vierkant::MeshPtr, std::vector<drawable_t *>> meshes;
-//        for(auto &d : drawables){ meshes[d->mesh].push_back(d); }
-
-        // grouped by meshes
-//        for(auto &[mesh, drawables] : meshes)
+        // keep track of current mesh, fallback instead of iterating sorted-by-mesh to respect order of drawcalls
         vierkant::MeshPtr current_mesh;
 
         for(auto &indexed_drawable : indexed_drawables)
@@ -283,104 +278,83 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 current_mesh->bind_buffers(command_buffer.handle());
             }
 
-//            for(auto drawable : drawables)
+            if(dynamic_scissor)
             {
-                if(dynamic_scissor)
-                {
-                    // set dynamic scissor
-                    vkCmdSetScissor(command_buffer.handle(), 0, 1, &drawable->pipeline_format.scissor);
-                }
-
-                // update/create descriptor set
-                auto &descriptors = drawable->descriptors;
-
-                // search/create descriptor set
-                asset_key_t key = {current_mesh, drawable->descriptors};
-                auto descriptor_it = current_assets.render_assets.find(key);
-
-                vierkant::DescriptorSetPtr descriptor_set;
-
-                // not found or empty queue
-                if(descriptor_it == current_assets.render_assets.end() || descriptor_it->second.empty())
-                {
-                    render_asset_t render_asset = {};
-
-                    // create new uniform-buffer for matrices
-                    auto matrix_buf = vierkant::Buffer::create(m_device, &drawable->matrices, sizeof(matrix_struct_t),
-                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-                    descriptors[SLOT_MATRIX].buffer = matrix_buf;
-
-                    // create new uniform-buffer for matrices
-                    auto material_buf = vierkant::Buffer::create(m_device, &drawable->material,
-                                                                 sizeof(material_struct_t),
-                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-                    descriptors[SLOT_MATERIAL].buffer = material_buf;
-
-                    // transition image layouts
-                    for(auto &desc : descriptors)
-                    {
-                        for(auto &img : desc.image_samplers)
-                        {
-                            img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
-                        }
-                    }
-
-                    // create a new descriptor set
-                    descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                     drawable->descriptor_set_layout);
-
-                    // update the newly created descriptor set
-                    vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
-
-                    // insert all created assets and store in map
-                    render_asset.matrix_buffer = matrix_buf;
-                    render_asset.material_buffer = material_buf;
-                    render_asset.descriptor_set = descriptor_set;
-                    next_assets.render_assets[key].push_back(std::move(render_asset));
-                }
-                else
-                {
-                    auto render_asset = std::move(descriptor_it->second.front());
-                    descriptor_it->second.pop_front();
-
-                    // use existing set
-                    descriptor_set = render_asset.descriptor_set;
-
-                    // update data in existing uniform-buffer
-                    render_asset.matrix_buffer->set_data(&drawable->matrices, sizeof(matrix_struct_t));
-                    render_asset.material_buffer->set_data(&drawable->material, sizeof(material_struct_t));
-
-                    // update existing descriptor set
-                    descriptors[SLOT_MATRIX].buffer = render_asset.matrix_buffer;
-                    descriptors[SLOT_MATERIAL].buffer = render_asset.material_buffer;
-                    vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
-
-                    next_assets.render_assets[key].push_back(std::move(render_asset));
-                }
-
-                // bind descriptor sets (uniforms, samplers)
-                VkDescriptorSet descriptor_handle = descriptor_set.get();
-                vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(),
-                                        0, 1, &descriptor_handle, 0, nullptr);
-
-                // update push_constants for each draw call
-                push_constants_t push_constants = {};
-                push_constants.drawable_index = indexed_drawable.staging_index;
-                vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
-                                   sizeof(push_constants_t), &push_constants);
-
-                // issue (indexed) drawing command
-                if(drawable->mesh->index_buffer)
-                {
-                    vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index,
-                                     drawable->base_vertex, 0);
-                }
-                else{ vkCmdDraw(command_buffer.handle(), drawable->num_vertices, 1, drawable->base_vertex, 0); }
+                // set dynamic scissor
+                vkCmdSetScissor(command_buffer.handle(), 0, 1, &drawable->pipeline_format.scissor);
             }
+
+            // update/create descriptor set
+            auto &descriptors = drawable->descriptors;
+
+            // search/create descriptor set
+            asset_key_t key = {current_mesh, drawable->descriptors};
+            auto descriptor_it = current_assets.render_assets.find(key);
+
+            vierkant::DescriptorSetPtr descriptor_set;
+
+            // not found or empty queue
+            if(descriptor_it == current_assets.render_assets.end() || descriptor_it->second.empty())
+            {
+                render_asset_t render_asset = {};
+
+                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffer;
+                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffer;
+
+                // transition image layouts
+                for(auto &desc : descriptors)
+                {
+                    for(auto &img : desc.image_samplers)
+                    {
+                        img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
+                    }
+                }
+
+                // create a new descriptor set
+                descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
+                                                                 drawable->descriptor_set_layout);
+
+                // update the newly created descriptor set
+                vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
+
+                // insert all created assets and store in map
+                render_asset.descriptor_set = descriptor_set;
+                next_assets.render_assets[key].push_back(std::move(render_asset));
+            }
+            else
+            {
+                auto render_asset = std::move(descriptor_it->second.front());
+                descriptor_it->second.pop_front();
+
+                // use existing set
+                descriptor_set = render_asset.descriptor_set;
+
+                // update existing descriptor set
+                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffer;
+                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffer;
+                vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
+
+                next_assets.render_assets[key].push_back(std::move(render_asset));
+            }
+
+            // bind descriptor sets (uniforms, samplers)
+            VkDescriptorSet descriptor_handle = descriptor_set.get();
+            vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(),
+                                    0, 1, &descriptor_handle, 0, nullptr);
+
+            // update push_constants for each draw call
+            push_constants_t push_constants = {};
+            push_constants.drawable_index = indexed_drawable.staging_index;
+            vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
+                               sizeof(push_constants_t), &push_constants);
+
+            // issue (indexed) drawing command
+            if(drawable->mesh->index_buffer)
+            {
+                vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index,
+                                 drawable->base_vertex, 0);
+            }
+            else{ vkCmdDraw(command_buffer.handle(), drawable->num_vertices, 1, drawable->base_vertex, 0); }
         }
     }
 

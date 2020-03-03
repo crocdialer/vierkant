@@ -1,6 +1,15 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 
+struct push_constants_t
+{
+    int drawable_index;
+};
+
+layout(push_constant) uniform PushConstants {
+    push_constants_t push_constants;
+};
+
 struct matrix_struct_t
 {
     mat4 model;
@@ -11,7 +20,7 @@ struct matrix_struct_t
 
 layout(std140, binding = 0) uniform UBOMatrices
 {
-    matrix_struct_t matrices[1];
+    matrix_struct_t matrices[4096];
 };
 
 out gl_PerVertex
@@ -29,7 +38,7 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    matrix_struct_t m = matrices[gl_InstanceIndex];
+    matrix_struct_t m = matrices[push_constants.drawable_index];//matrices[gl_InstanceIndex];
     gl_Position = m.projection * m.view * m.model * vec4(a_position, 1.0);
     vertex_out.color = a_color;
 }
