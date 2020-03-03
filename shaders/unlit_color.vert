@@ -1,6 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 
+#define MAX_NUM_DRAWABLES 4096
+
 struct push_constants_t
 {
     int drawable_index;
@@ -20,7 +22,7 @@ struct matrix_struct_t
 
 layout(std140, binding = 0) uniform UBOMatrices
 {
-    matrix_struct_t matrices[4096];
+    matrix_struct_t matrices[MAX_NUM_DRAWABLES];
 };
 
 out gl_PerVertex

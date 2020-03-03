@@ -1,6 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 
+#define MAX_NUM_DRAWABLES 4096
+
 struct push_constants_t
 {
     int drawable_index;
@@ -20,7 +22,7 @@ struct material_struct_t
 
 layout(std140, binding = 1) uniform ubo_materials
 {
-    material_struct_t materials[4096];
+    material_struct_t materials[MAX_NUM_DRAWABLES];
 };
 
 layout(binding = 2) uniform sampler2D m_sampler_2D[1];

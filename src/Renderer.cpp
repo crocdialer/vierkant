@@ -246,6 +246,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     }
     else{ next_assets.material_buffer->set_data(material_data); }
 
+    // push constants
+    push_constants_t push_constants = {};
+
     // grouped by pipelines
     for(auto &[pipe_fmt, indexed_drawables] : pipelines)
     {
@@ -338,7 +341,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                                     0, 1, &descriptor_handle, 0, nullptr);
 
             // update push_constants for each draw call
-            push_constants_t push_constants = {};
             push_constants.drawable_index = indexed_drawable.staging_index;
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
                                sizeof(push_constants_t), &push_constants);
