@@ -219,13 +219,24 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     {
         uint32_t matrix_index = 0;
         uint32_t material_index = 0;
+        uint32_t matrix_buffer_index = 0;
+        uint32_t material_buffer_index = 0;
         drawable_t *drawable = nullptr;
     };
     std::unordered_map<Pipeline::Format, std::vector<indexed_drawable_t>> pipelines;
+    size_t max_num_uniform_bytes = m_physical_device_properties.limits.maxUniformBufferRange;
 
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
-        pipelines[current_assets.drawables[i].pipeline_format].push_back({i, i, &current_assets.drawables[i]});
+        indexed_drawable_t indexed_drawable = {};
+        indexed_drawable.matrix_buffer_index = i * sizeof(matrix_struct_t) / max_num_uniform_bytes;
+        indexed_drawable.material_buffer_index = i * sizeof(material_struct_t) / max_num_uniform_bytes;
+
+        indexed_drawable.matrix_index = i % (max_num_uniform_bytes / sizeof(matrix_struct_t));
+        indexed_drawable.material_index = i % (max_num_uniform_bytes / sizeof(material_struct_t));
+
+        indexed_drawable.drawable = &current_assets.drawables[i];
+        pipelines[current_assets.drawables[i].pipeline_format].push_back(indexed_drawable);
     }
 
     // push constants
@@ -281,8 +292,8 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             // not found or empty queue
             if(descriptor_it == current_assets.render_assets.end() || descriptor_it->second.empty())
             {
-                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[0];
-                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[0];
+                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
+                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
 
                 // transition image layouts
                 for(auto &desc : descriptors)
@@ -310,8 +321,8 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 descriptor_it->second.pop_front();
 
                 // update existing descriptor set
-                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[0];
-                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[0];
+                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
+                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
                 vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
                 next_assets.render_assets[key].push_back(descriptor_set);
@@ -414,25 +425,6 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
     // create/upload joined buffers
     copy_to_uniform_buffers(matrix_data, frame_asset.matrix_buffers);
     copy_to_uniform_buffers(material_data, frame_asset.material_buffers);
-
-//    // create/upload joined buffers
-//    if(!frame_asset.matrix_buffers[0])
-//    {
-//        frame_asset.matrix_buffers[0] = vierkant::Buffer::create(m_device, matrix_data.data(),
-//                                                                 sizeof(matrix_struct_t) * matrix_data.size(),
-//                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-//                                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
-//    }
-//    else{ frame_asset.matrix_buffers[0]->set_data(matrix_data); }
-//
-//    if(!frame_asset.material_buffers[0])
-//    {
-//        frame_asset.material_buffers[0] = vierkant::Buffer::create(m_device, material_data.data(),
-//                                                                   sizeof(material_struct_t) * material_data.size(),
-//                                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-//                                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
-//    }
-//    else{ frame_asset.material_buffers[0]->set_data(material_data); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
