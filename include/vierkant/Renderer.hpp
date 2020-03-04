@@ -174,6 +174,9 @@ private:
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
     };
+
+    void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t& frame_asset);
+
     DevicePtr m_device;
 
     vierkant::RenderPassPtr m_renderpass;
@@ -192,6 +195,8 @@ private:
     std::mutex m_staging_mutex;
 
     uint32_t m_current_index = 0;
+
+    VkPhysicalDeviceProperties m_physical_device_properties = {};
 };
 
 }//namespace vierkant

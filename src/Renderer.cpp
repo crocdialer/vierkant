@@ -129,6 +129,9 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
 
     if(pipeline_cache){ m_pipeline_cache = std::move(pipeline_cache); }
     else{ m_pipeline_cache = vierkant::PipelineCache::create(m_device); }
+
+    // query physical-device features
+    vkGetPhysicalDeviceProperties(m_device->physical_device(), &m_physical_device_properties);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -192,20 +195,23 @@ void Renderer::stage_drawable(drawable_t drawable)
 
 VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 {
-    uint32_t last_index;
+    uint32_t current_index;
     {
         std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
-        last_index = m_current_index;
+        current_index = m_current_index;
         m_current_index = (m_current_index + 1) % m_staged_drawables.size();
-        m_render_assets[last_index].drawables = std::move(m_staged_drawables[last_index]);
+        m_render_assets[current_index].drawables = std::move(m_staged_drawables[current_index]);
     }
-    auto &current_assets = m_render_assets[last_index];
+    auto &current_assets = m_render_assets[current_index];
     frame_assets_t next_assets = {};
 
     // fetch and start commandbuffer
     next_assets.command_buffer = std::move(current_assets.command_buffer);
     auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, inheritance);
+
+    // update uniform buffers
+    update_uniform_buffers(current_assets.drawables, next_assets);
 
     // sort by pipelines
     struct indexed_drawable_t
@@ -215,36 +221,10 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     };
     std::unordered_map<Pipeline::Format, std::vector<indexed_drawable_t>> pipelines;
 
-    // joined drawable buffers
-    std::vector<matrix_struct_t> matrix_data(current_assets.drawables.size());
-    std::vector<material_struct_t> material_data(current_assets.drawables.size());
-
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
         pipelines[current_assets.drawables[i].pipeline_format].push_back({i, &current_assets.drawables[i]});
-
-        matrix_data[i] = current_assets.drawables[i].matrices;
-        material_data[i] = current_assets.drawables[i].material;
     }
-
-    // create/upload joined buffers
-    if(!next_assets.matrix_buffer)
-    {
-        next_assets.matrix_buffer = vierkant::Buffer::create(m_device, matrix_data.data(),
-                                                             sizeof(matrix_struct_t) * matrix_data.size(),
-                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-    else{ next_assets.matrix_buffer->set_data(matrix_data); }
-
-    if(!next_assets.material_buffer)
-    {
-        next_assets.material_buffer = vierkant::Buffer::create(m_device, material_data.data(),
-                                                               sizeof(material_struct_t) * material_data.size(),
-                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-    else{ next_assets.material_buffer->set_data(material_data); }
 
     // push constants
     push_constants_t push_constants = {};
@@ -371,6 +351,40 @@ void Renderer::reset()
     m_current_index = 0;
     m_staged_drawables.clear();
     for(auto &frame_asset : m_render_assets){ frame_asset = {}; }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, Renderer::frame_assets_t &frame_asset)
+{
+    // joined drawable buffers
+    std::vector<matrix_struct_t> matrix_data(drawables.size());
+    std::vector<material_struct_t> material_data(drawables.size());
+
+    for(uint32_t i = 0; i <drawables.size(); i++)
+    {
+        matrix_data[i] = drawables[i].matrices;
+        material_data[i] = drawables[i].material;
+    }
+
+    // create/upload joined buffers
+    if(!frame_asset.matrix_buffer)
+    {
+        frame_asset.matrix_buffer = vierkant::Buffer::create(m_device, matrix_data.data(),
+                                                             sizeof(matrix_struct_t) * matrix_data.size(),
+                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ frame_asset.matrix_buffer->set_data(matrix_data); }
+
+    if(!frame_asset.material_buffer)
+    {
+        frame_asset.material_buffer = vierkant::Buffer::create(m_device, material_data.data(),
+                                                               sizeof(material_struct_t) * material_data.size(),
+                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ frame_asset.material_buffer->set_data(material_data); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
