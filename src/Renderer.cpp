@@ -170,6 +170,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_staged_drawables, rhs.m_staged_drawables);
     std::swap(lhs.m_render_assets, rhs.m_render_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
+    std::swap(lhs.m_physical_device_properties, rhs.m_physical_device_properties);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -216,14 +217,15 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     // sort by pipelines
     struct indexed_drawable_t
     {
-        uint32_t staging_index = 0;
+        uint32_t matrix_index = 0;
+        uint32_t material_index = 0;
         drawable_t *drawable = nullptr;
     };
     std::unordered_map<Pipeline::Format, std::vector<indexed_drawable_t>> pipelines;
 
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
-        pipelines[current_assets.drawables[i].pipeline_format].push_back({i, &current_assets.drawables[i]});
+        pipelines[current_assets.drawables[i].pipeline_format].push_back({i, i, &current_assets.drawables[i]});
     }
 
     // push constants
@@ -279,8 +281,8 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             // not found or empty queue
             if(descriptor_it == current_assets.render_assets.end() || descriptor_it->second.empty())
             {
-                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffer;
-                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffer;
+                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[0];
+                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[0];
 
                 // transition image layouts
                 for(auto &desc : descriptors)
@@ -308,8 +310,8 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 descriptor_it->second.pop_front();
 
                 // update existing descriptor set
-                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffer;
-                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffer;
+                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[0];
+                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[0];
                 vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
                 next_assets.render_assets[key].push_back(descriptor_set);
@@ -321,7 +323,8 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                                     0, 1, &descriptor_handle, 0, nullptr);
 
             // update push_constants for each draw call
-            push_constants.drawable_index = indexed_drawable.staging_index;
+            push_constants.matrix_index = indexed_drawable.matrix_index;
+            push_constants.material_index = indexed_drawable.material_index;
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
                                sizeof(push_constants_t), &push_constants);
 
@@ -361,30 +364,75 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
     std::vector<matrix_struct_t> matrix_data(drawables.size());
     std::vector<material_struct_t> material_data(drawables.size());
 
-    for(uint32_t i = 0; i <drawables.size(); i++)
+    for(uint32_t i = 0; i < drawables.size(); i++)
     {
         matrix_data[i] = drawables[i].matrices;
         material_data[i] = drawables[i].material;
     }
 
-    // create/upload joined buffers
-    if(!frame_asset.matrix_buffer)
+    // define a copy-utility
+    auto max_num_bytes = m_physical_device_properties.limits.maxUniformBufferRange;
+    auto copy_to_uniform_buffers = [&device = m_device, max_num_bytes](const auto &array,
+                                                                       std::vector<vierkant::BufferPtr> &out_buffers)
     {
-        frame_asset.matrix_buffer = vierkant::Buffer::create(m_device, matrix_data.data(),
-                                                             sizeof(matrix_struct_t) * matrix_data.size(),
-                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-    else{ frame_asset.matrix_buffer->set_data(matrix_data); }
+        if(array.empty()){ return; }
 
-    if(!frame_asset.material_buffer)
-    {
-        frame_asset.material_buffer = vierkant::Buffer::create(m_device, material_data.data(),
-                                                               sizeof(material_struct_t) * material_data.size(),
-                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-    else{ frame_asset.material_buffer->set_data(material_data); }
+        // tame template nastyness
+        using elem_t = typename std::decay<decltype(array)>::type::value_type;
+        size_t elem_size = sizeof(elem_t);
+
+        size_t num_bytes = elem_size * array.size();
+        size_t num_buffers = 1 + num_bytes / max_num_bytes;
+
+        // grow if necessary
+        if(out_buffers.size() < num_buffers){ out_buffers.resize(num_buffers); }
+
+        // init values
+        const size_t max_num_elems = max_num_bytes / elem_size;
+        size_t num_elems = array.size();
+        const elem_t *data_start = array.data();
+
+        for(uint32_t i = 0; i < num_buffers; ++i)
+        {
+            size_t num_buffer_elems = std::min(num_elems, max_num_elems);
+            num_elems -= num_buffer_elems;
+
+            // create/upload joined buffers
+            if(!out_buffers[i])
+            {
+                out_buffers[i] = vierkant::Buffer::create(device, data_start, elem_size * num_buffer_elems,
+                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
+            }
+            else{ out_buffers[i]->set_data(data_start, elem_size * num_buffer_elems); }
+
+            // advance data ptr
+            data_start += num_buffer_elems;
+        }
+    };
+
+    // create/upload joined buffers
+    copy_to_uniform_buffers(matrix_data, frame_asset.matrix_buffers);
+    copy_to_uniform_buffers(material_data, frame_asset.material_buffers);
+
+//    // create/upload joined buffers
+//    if(!frame_asset.matrix_buffers[0])
+//    {
+//        frame_asset.matrix_buffers[0] = vierkant::Buffer::create(m_device, matrix_data.data(),
+//                                                                 sizeof(matrix_struct_t) * matrix_data.size(),
+//                                                                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+//                                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
+//    }
+//    else{ frame_asset.matrix_buffers[0]->set_data(matrix_data); }
+//
+//    if(!frame_asset.material_buffers[0])
+//    {
+//        frame_asset.material_buffers[0] = vierkant::Buffer::create(m_device, material_data.data(),
+//                                                                   sizeof(material_struct_t) * material_data.size(),
+//                                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+//                                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+//    }
+//    else{ frame_asset.material_buffers[0]->set_data(material_data); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

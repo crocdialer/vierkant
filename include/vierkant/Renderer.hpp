@@ -51,7 +51,8 @@ public:
 
     struct push_constants_t
     {
-        int drawable_index = 0;
+        int matrix_index = 0;
+        int material_index = 0;
     };
 
     /**
@@ -169,8 +170,8 @@ private:
     struct frame_assets_t
     {
         asset_map_t render_assets;
-        vierkant::BufferPtr matrix_buffer;
-        vierkant::BufferPtr material_buffer;
+        std::vector<vierkant::BufferPtr> matrix_buffers;
+        std::vector<vierkant::BufferPtr> material_buffers;
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
     };
