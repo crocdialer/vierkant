@@ -36,28 +36,33 @@ using weight_map_t =  std::map<uint32_t, std::list<weight_t>>;
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theScene);
+vierkant::GeometryPtr create_geometry(const aiMesh* aMesh, const aiScene* theScene);
 
 //vierkant::MaterialPtr create_material(const aiMaterial *mtl);
 
-void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_t &bonemap, weight_map_t &weightmap);
+void load_bones_and_weights(const aiMesh* aMesh, uint32_t base_vertex, bone_map_t& bonemap,
+                            weight_map_t& weightmap);
 
-void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &weightmap, uint32_t start_index = 0);
+void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t& weightmap,
+                             uint32_t start_index = 0);
 
 
-vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm::mat4 &parentTransform,
-                                               const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
-                                               vierkant::bones::BonePtr parentBone = nullptr);
+vierkant::bones::BonePtr
+create_bone_hierarchy(const aiNode* theNode, const glm::mat4& parentTransform,
+                      const std::map<std::string, std::pair<int, glm::mat4>>& boneMap,
+                      vierkant::bones::BonePtr parentBone = nullptr);
 
-void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
-                           vierkant::bones::BonePtr root_bone, vierkant::bones::animation_t &outAnim);
+void create_bone_animation(const aiNode* theNode, const aiAnimation* theAnimation,
+                           vierkant::bones::BonePtr root_bone,
+                           vierkant::bones::animation_t& outAnim);
 
 //void get_node_transform(const aiNode *the_node, mat4 &the_transform);
 
-bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm::mat4 &the_out_transform);
+bool get_mesh_transform(const aiScene* the_scene, const aiMesh* the_ai_mesh,
+                        glm::mat4& the_out_transform);
 
-void process_node(const aiScene *the_scene, const aiNode *the_in_node,
-                  const vierkant::Object3DPtr &the_parent_node);
+void process_node(const aiScene* the_scene, const aiNode* the_in_node,
+                  const vierkant::Object3DPtr& the_parent_node);
 
 /////////////////////////////////////////////////////////////////
 
@@ -70,96 +75,100 @@ inline glm::mat4 aimatrix_to_glm_mat4(aiMatrix4x4 theMat)
 
 /////////////////////////////////////////////////////////////////
 
-inline glm::vec3 aivector_to_glm_vec3(const aiVector3D &the_vec)
+inline glm::vec3 aivector_to_glm_vec3(const aiVector3D& the_vec)
 {
     glm::vec3 ret;
-    for(int i = 0; i < 3; ++i){ ret[i] = the_vec[i]; }
+    for (int i = 0; i < 3; ++i) { ret[i] = the_vec[i]; }
     return ret;
 }
 
 /////////////////////////////////////////////////////////////////
 
-inline glm::vec4 aicolor_convert(const aiColor4D &the_color)
+inline glm::vec4 aicolor_convert(const aiColor4D& the_color)
 {
     glm::vec4 ret;
-    for(int i = 0; i < 4; ++i){ ret[i] = the_color[i]; }
+    for (int i = 0; i < 4; ++i) { ret[i] = the_color[i]; }
     return ret;
 }
 
 /////////////////////////////////////////////////////////////////
 
-inline glm::vec4 aicolor_convert(const aiColor3D &the_color)
+inline glm::vec4 aicolor_convert(const aiColor3D& the_color)
 {
     glm::vec4 ret;
-    for(int i = 0; i < 3; ++i){ ret[i] = the_color[i]; }
+    for (int i = 0; i < 3; ++i) { ret[i] = the_color[i]; }
     return ret;
 }
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theScene)
+vierkant::GeometryPtr create_geometry(const aiMesh* aMesh, const aiScene* theScene)
 {
     auto geom = vierkant::Geometry::create();
 
     glm::mat4 model_matrix;
-    if(!get_mesh_transform(theScene, aMesh, model_matrix)){ LOG_WARNING << "could not find mesh transform"; }
+    if (!get_mesh_transform(theScene, aMesh, model_matrix))
+    {
+        LOG_WARNING << "could not find mesh transform";
+    }
     glm::mat3 normal_matrix = glm::inverseTranspose(glm::mat3(model_matrix));
 
-    geom->vertices.insert(geom->vertices.end(), (glm::vec3 *) aMesh->mVertices,
-                          (glm::vec3 *) aMesh->mVertices + aMesh->mNumVertices);
+    geom->vertices.insert(geom->vertices.end(), (glm::vec3*) aMesh->mVertices,
+                          (glm::vec3*) aMesh->mVertices + aMesh->mNumVertices);
 
     // transform loaded verts
-    for(auto &v : geom->vertices){ v = (model_matrix * glm::vec4(v, 1.f)).xyz; }
+    for (auto& v : geom->vertices) { v = (model_matrix * glm::vec4(v, 1.f)).xyz; }
 
-    if(aMesh->HasTextureCoords(0))
+    if (aMesh->HasTextureCoords(0))
     {
         geom->tex_coords.reserve(aMesh->mNumVertices);
 
-        for(uint32_t i = 0; i < aMesh->mNumVertices; i++)
+        for (uint32_t i = 0; i < aMesh->mNumVertices; i++)
         {
-            geom->tex_coords.emplace_back(aMesh->mTextureCoords[0][i].x, aMesh->mTextureCoords[0][i].y);
+            geom->tex_coords.emplace_back(aMesh->mTextureCoords[0][i].x,
+                                          aMesh->mTextureCoords[0][i].y);
         }
     }
-    else{ geom->tex_coords.resize(aMesh->mNumVertices, glm::vec2(0)); }
+    else { geom->tex_coords.resize(aMesh->mNumVertices, glm::vec2(0)); }
 
     geom->indices.reserve(aMesh->mNumFaces * 3);
 
-    for(uint32_t i = 0; i < aMesh->mNumFaces; ++i)
+    for (uint32_t i = 0; i < aMesh->mNumFaces; ++i)
     {
-        const aiFace &f = aMesh->mFaces[i];
-        if(f.mNumIndices != 3) throw std::runtime_error("Non triangle mesh loaded");
+        const aiFace& f = aMesh->mFaces[i];
+        if (f.mNumIndices != 3) throw std::runtime_error("Non triangle mesh loaded");
         geom->indices.insert(geom->indices.end(), f.mIndices, f.mIndices + 3);
     }
 //    geom->faces().resize(aMesh->mNumFaces);
 //    ::memcpy(&geom->faces()[0], &indices[0], indices.size() * sizeof(gl::index_t));
 
-    if(aMesh->HasNormals())
+    if (aMesh->HasNormals())
     {
-        geom->normals.insert(geom->normals.end(), (glm::vec3 *) aMesh->mNormals,
-                             (glm::vec3 *) aMesh->mNormals + aMesh->mNumVertices);
+        geom->normals.insert(geom->normals.end(), (glm::vec3*) aMesh->mNormals,
+                             (glm::vec3*) aMesh->mNormals + aMesh->mNumVertices);
 
         // transform loaded normals
-        for(auto &n : geom->normals){ n = normal_matrix * n; }
+        for (auto& n : geom->normals) { n = normal_matrix * n; }
     }
     else
     {
         geom->compute_vertex_normals();
     }
 
-    if(aMesh->HasVertexColors(0))
+    if (aMesh->HasVertexColors(0))
     {
-        geom->colors.insert(geom->colors.end(), (glm::vec4 *) aMesh->mColors[0],
-                            (glm::vec4 *) aMesh->mColors[0] + aMesh->mNumVertices);
+        geom->colors.insert(geom->colors.end(), (glm::vec4*) aMesh->mColors[0],
+                            (glm::vec4*) aMesh->mColors[0] + aMesh->mNumVertices);
     }
 //        else{ geom->colors().resize(aMesh->mNumVertices, gl::COLOR_WHITE); }
 
-    if(aMesh->HasTangentsAndBitangents())
+    if (aMesh->HasTangentsAndBitangents())
     {
-        geom->tangents.insert(geom->tangents.end(), (glm::vec3 *) aMesh->mTangents,
-                              (glm::vec3 *) aMesh->mTangents + aMesh->mNumVertices);
+        geom->tangents.insert(geom->tangents.end(), (glm::vec3*) aMesh->mTangents,
+                              (glm::vec3*) aMesh->mTangents + aMesh->mNumVertices);
 
         // transform loaded tangents
-        for(auto &t : geom->tangents){ t = normal_matrix * t; }
+        for (auto& t : geom->tangents) { t = normal_matrix * t; }
     }
     else
     {
@@ -172,27 +181,30 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
 
 /////////////////////////////////////////////////////////////////
 
-void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_t &bonemap, weight_map_t &weightmap)
+void load_bones_and_weights(const aiMesh* aMesh, uint32_t base_vertex, bone_map_t& bonemap,
+                            weight_map_t& weightmap)
 {
-    if(aMesh->HasBones())
+    if (aMesh->HasBones())
     {
         uint32_t bone_index = 0;
 
-        for(uint32_t i = 0; i < aMesh->mNumBones; ++i)
+        for (uint32_t i = 0; i < aMesh->mNumBones; ++i)
         {
-            aiBone *bone = aMesh->mBones[i];
-            if(bonemap.find(bone->mName.data) == bonemap.end())
+            aiBone* bone = aMesh->mBones[i];
+            if (bonemap.find(bone->mName.data) == bonemap.end())
             {
                 bone_index = bonemap.size();
                 bonemap[bone->mName.data] = std::make_pair(bone_index,
-                                                           aimatrix_to_glm_mat4(bone->mOffsetMatrix));
+                                                           aimatrix_to_glm_mat4(
+                                                                   bone->mOffsetMatrix));
             }
-            else{ bone_index = bonemap[bone->mName.data].first; }
+            else { bone_index = bonemap[bone->mName.data].first; }
 
-            for(uint32_t j = 0; j < bone->mNumWeights; ++j)
+            for (uint32_t j = 0; j < bone->mNumWeights; ++j)
             {
-                const aiVertexWeight &w = bone->mWeights[j];
-                weightmap[w.mVertexId + base_vertex].push_back({bone_index, static_cast<float>(w.mWeight)});
+                const aiVertexWeight& w = bone->mWeights[j];
+                weightmap[w.mVertexId + base_vertex].push_back(
+                        {bone_index, static_cast<float>(w.mWeight)});
             }
         }
     }
@@ -200,30 +212,37 @@ void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_
 
 /////////////////////////////////////////////////////////////////
 
-void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &weightmap, uint32_t start_index)
+void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t& weightmap,
+                             uint32_t start_index)
 {
-    if(weightmap.empty()) return;
+    if (weightmap.empty()) return;
 
     // allocate storage for indices and weights
     geom->bone_indices.resize(geom->vertices.size());
     geom->bone_weights.resize(geom->vertices.size());
 
-    for(const auto&[index, weights] : weightmap)
+    for (const auto& pair : weightmap)
     {
-        auto &bone_index = geom->bone_indices[index + start_index];
-        auto &bone_weight = geom->bone_weights[index + start_index];
+        auto &index = pair.first;
+        auto &weights = pair.second;
 
-        constexpr uint32_t max_num_weights = glm::ivec4::length();
+        auto& bone_index = geom->bone_indices[index + start_index];
+        auto& bone_weight = geom->bone_weights[index + start_index];
+
+        constexpr uint32_t max_num_weights = 4;//glm::ivec4::length();
 
         // sort by weight decreasing
         auto weights_sorted = weights;
-        weights_sorted.sort([](const weight_t &lhs, const weight_t &rhs){ return lhs.weight > rhs.weight; });
+        weights_sorted.sort([](const weight_t& lhs, const weight_t& rhs)
+                            {
+                                return lhs.weight > rhs.weight;
+                            });
 
         uint32_t i = 0;
 
-        for(auto &w : weights_sorted)
+        for (auto& w : weights_sorted)
         {
-            if(i >= max_num_weights) break;
+            if (i >= max_num_weights) break;
             bone_index[i] = w.index;
             bone_weight[i] = w.weight;
             i++;
@@ -290,8 +309,9 @@ void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &wei
 
 /////////////////////////////////////////////////////////////////
 
-material_t create_material(const std::string &base_path, const aiScene *the_scene, const aiMaterial *mtl,
-                           std::map<std::string, crocore::ImagePtr> *the_img_map = nullptr)
+material_t
+create_material(const std::string& base_path, const aiScene* the_scene, const aiMaterial* mtl,
+                std::map<std::string, crocore::ImagePtr>* the_img_map = nullptr)
 {
     material_t material = {};
 
@@ -302,35 +322,37 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
     int wireframe;
     aiString path_buf;
 
-    LOG_TRACE_IF(the_scene->mNumTextures) << "num embedded textures: " << the_scene->mNumTextures;
+    LOG_TRACE_IF(the_scene->mNumTextures) << "num embedded textures: "
+                                          << the_scene->mNumTextures;
 
-    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &c))
+    if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &c))
     {
         auto col = aicolor_convert(c);
         col.a = 1.f;
 
         // transparent material
-        if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c)){ col.a = c.a; }
+        if (AI_SUCCESS ==
+            aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c)) { col.a = c.a; }
         material.diffuse = col;
 
         material.blending = col.a < 1.f;
     }
 
-    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &c))
+    if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &c))
     {
         //TODO: introduce cavity param!?
     }
 
-    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &c))
+    if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &c))
     {
         // got rid of constant ambient
     }
 
-    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &c))
+    if (AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &c))
     {
         auto col = aicolor_convert(c);
 
-        if(col.r > 0.f || col.g > 0.f || col.b > 0.f)
+        if (col.r > 0.f || col.g > 0.f || col.b > 0.f)
         {
             material.emission = col;
 //            theMaterial->set_blending(false);
@@ -346,46 +368,48 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
     ret2 = aiGetMaterialFloat(mtl, AI_MATKEY_SHININESS_STRENGTH, &strength);
     float roughness = 1.f;
 
-    if((ret1 == AI_SUCCESS) && (ret2 == AI_SUCCESS))
+    if ((ret1 == AI_SUCCESS) && (ret2 == AI_SUCCESS))
     {
         roughness = 1.f - crocore::clamp(shininess * strength / 80.f, 0.f, 1.f);
     }
     material.roughness = roughness;
 
-    if(AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_ENABLE_WIREFRAME, &wireframe))
+    if (AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_ENABLE_WIREFRAME, &wireframe))
     {
         material.wireframe = wireframe;
     }
 
-    if((AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_TWOSIDED, &two_sided)))
+    if ((AI_SUCCESS == aiGetMaterialInteger(mtl, AI_MATKEY_TWOSIDED, &two_sided)))
     {
         material.twosided = two_sided;
     }
 
-    auto create_tex_image = [base_path, the_scene, the_img_map](const std::string &path) -> crocore::ImagePtr
+    auto create_tex_image = [base_path, the_scene, the_img_map](
+            const std::string& path) -> crocore::ImagePtr
     {
         crocore::ImagePtr img;
 
-        if(the_img_map)
+        if (the_img_map)
         {
             auto it = the_img_map->find(path);
-            if(it != the_img_map->end())
+            if (it != the_img_map->end())
             {
                 img = it->second;
                 LOG_TRACE << "using cached image: " << path;
             }
         }
-        if(!img)
+        if (!img)
         {
-            if(!path.empty() && path[0] == '*')
+            if (!path.empty() && path[0] == '*')
             {
                 size_t tex_index = crocore::string_to<size_t>(path.substr(1));
-                const aiTexture *ai_tex = the_scene->mTextures[tex_index];
+                const aiTexture* ai_tex = the_scene->mTextures[tex_index];
 
                 // compressed image -> decode
-                if(ai_tex->mHeight == 0)
+                if (ai_tex->mHeight == 0)
                 {
-                    img = crocore::create_image_from_data((uint8_t *) ai_tex->pcData, ai_tex->mWidth);
+                    img = crocore::create_image_from_data((uint8_t*) ai_tex->pcData,
+                                                          ai_tex->mWidth);
                 }
             }
             else
@@ -394,18 +418,19 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
                 img = crocore::create_image_from_file(combined_path);
             }
 
-            if(img && img->num_components() == 3)
+            if (img && img->num_components() == 3)
             {
-                auto new_img = crocore::Image_<uint8_t>::create(img->width(), img->height(), 4);
+                auto new_img = crocore::Image_<uint8_t>::create(img->width(), img->height(),
+                                                                4);
 
                 size_t src_stride = 3, dst_stride = 4;
 
-                auto src = static_cast<uint8_t *>(img->data());
-                auto dst = static_cast<uint8_t *>(new_img->data());
-                uint8_t *dst_end = dst + new_img->num_bytes();
+                auto src = static_cast<uint8_t*>(img->data());
+                auto dst = static_cast<uint8_t*>(new_img->data());
+                uint8_t* dst_end = dst + new_img->num_bytes();
                 constexpr size_t alpha_offset = 3;
 
-                for(; dst < dst_end;)
+                for (; dst < dst_end;)
                 {
                     memcpy(dst, src, src_stride);
                     dst[alpha_offset] = 255;
@@ -415,7 +440,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
                 img = new_img;
             }
-            if(the_img_map){ (*the_img_map)[path] = img; }
+            if (the_img_map) { (*the_img_map)[path] = img; }
         }
         return img;
     };
@@ -423,75 +448,79 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
     std::string ao_map_path;
 
     // DIFFUSE
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DIFFUSE), 0, &path_buf))
+    if (AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DIFFUSE), 0, &path_buf))
     {
         LOG_TRACE << "adding color map: '" << path_buf.data << "'";
         material.img_diffuse = create_tex_image(path_buf.data);
     }
 
     // EMISSION
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_EMISSIVE), 0, &path_buf))
+    if (AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_EMISSIVE), 0, &path_buf))
     {
         LOG_TRACE << "adding emission map: '" << path_buf.data << "'";
         material.img_emission = create_tex_image(path_buf.data);
     }
 
     // ambient occlusion or lightmap
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_LIGHTMAP), 0, &path_buf))
+    if (AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_LIGHTMAP), 0, &path_buf))
     {
         LOG_TRACE << "adding ambient occlusion map: '" << path_buf.data << "'";
         ao_map_path = path_buf.data;
     }
 
     // SHINYNESS
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_SPECULAR), 0, &path_buf))
+    if (AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_SPECULAR), 0, &path_buf))
     {
         LOG_TRACE << "adding spec/roughness map: '" << path_buf.data << "'";
         material.img_specular = create_tex_image(path_buf.data);
     }
 
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_NORMALS), 0, &path_buf))
+    if (AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_NORMALS), 0, &path_buf))
     {
         LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
         material.img_normals = create_tex_image(path_buf.data);
     }
 
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DISPLACEMENT), 0, &path_buf))
+    if (AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DISPLACEMENT), 0, &path_buf))
     {
         LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
         material.img_normals = create_tex_image(path_buf.data);
     }
 
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_HEIGHT), 0, &path_buf))
+    if (AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_HEIGHT), 0, &path_buf))
     {
         LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
         material.img_normals = create_tex_image(path_buf.data);
     }
 
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_UNKNOWN), 0, &path_buf))
+    if (AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_UNKNOWN), 0, &path_buf))
     {
-        LOG_TRACE << "unknown texture usage (assuming AO/ROUGHNESS/METAL ): '" << path_buf.data << "'";
+        LOG_TRACE << "unknown texture usage (assuming AO/ROUGHNESS/METAL ): '" << path_buf.data
+                  << "'";
 
         auto ao_rough_metal_img = create_tex_image(path_buf.data);
 
-        if(ao_rough_metal_img)
+        if (ao_rough_metal_img)
         {
             constexpr size_t ao_offset = 0;
-            uint8_t *dst = (uint8_t *) ao_rough_metal_img->data(), *dst_end = dst + ao_rough_metal_img->num_bytes();
+            uint8_t* dst = (uint8_t*) ao_rough_metal_img->data(), * dst_end =
+                    dst + ao_rough_metal_img->num_bytes();
 
             // there was no texture data for AO -> generate default data
-            if(ao_map_path.empty())
+            if (ao_map_path.empty())
             {
-                for(; dst < dst_end; dst += ao_rough_metal_img->num_components()){ dst[ao_offset] = 255; }
+                for (; dst < dst_end;
+                       dst += ao_rough_metal_img->num_components()) { dst[ao_offset] = 255; }
             }
-            else if(ao_map_path != path_buf.data)
+            else if (ao_map_path != path_buf.data)
             {
                 // there was texture data for AO in a separate map -> combine
-                auto ao_img = create_tex_image(ao_map_path)->resize(ao_rough_metal_img->width(),
-                                                                    ao_rough_metal_img->height());
-                uint8_t *src = (uint8_t *) ao_img->data();
+                auto ao_img = create_tex_image(ao_map_path)->resize(
+                        ao_rough_metal_img->width(),
+                        ao_rough_metal_img->height());
+                uint8_t* src = (uint8_t*) ao_img->data();
 
-                for(; dst < dst_end;)
+                for (; dst < dst_end;)
                 {
                     dst[ao_offset] = src[ao_offset];
                     dst += ao_rough_metal_img->num_components();
@@ -512,20 +541,22 @@ void merge_geometries(vierkant::GeometryPtr src, vierkant::GeometryPtr dst)
     dst->normals.insert(dst->normals.end(), src->normals.begin(), src->normals.end());
     dst->colors.insert(dst->colors.end(), src->colors.begin(), src->colors.end());
     dst->tangents.insert(dst->tangents.end(), src->tangents.begin(), src->tangents.end());
-    dst->tex_coords.insert(dst->tex_coords.end(), src->tex_coords.begin(), src->tex_coords.end());
-    dst->bone_weights.insert(dst->bone_weights.end(), src->bone_weights.begin(), src->bone_weights.end());
+    dst->tex_coords.insert(dst->tex_coords.end(), src->tex_coords.begin(),
+                           src->tex_coords.end());
+    dst->bone_weights.insert(dst->bone_weights.end(), src->bone_weights.begin(),
+                             src->bone_weights.end());
     dst->indices.insert(dst->indices.end(), src->indices.begin(), src->indices.end());
 }
 
 /////////////////////////////////////////////////////////////////
 
-mesh_assets_t load_model(const std::string &path)
+mesh_assets_t load_model(const std::string& path)
 {
     Assimp::Importer importer;
     std::string found_path;
 
-    try{ found_path = crocore::fs::search_file(path); }
-    catch(crocore::fs::FileNotFoundException &e)
+    try { found_path = crocore::fs::search_file(path); }
+    catch (crocore::fs::FileNotFoundException& e)
     {
         LOG_ERROR << e.what();
         return {};
@@ -535,7 +566,7 @@ mesh_assets_t load_model(const std::string &path)
     auto base_path = crocore::fs::get_directory_part(found_path);
 
     LOG_DEBUG << "loading model '" << path << "' ...";
-    const aiScene *theScene = importer.ReadFile(found_path, 0);
+    const aiScene* theScene = importer.ReadFile(found_path, 0);
 
     // super useful postprocessing steps
     theScene = importer.ApplyPostProcessing(aiProcess_Triangulate
@@ -543,7 +574,7 @@ mesh_assets_t load_model(const std::string &path)
                                             | aiProcess_JoinIdenticalVertices
                                             | aiProcess_CalcTangentSpace
                                             | aiProcess_LimitBoneWeights);
-    if(theScene)
+    if (theScene)
     {
         std::vector<vierkant::GeometryPtr> geometries;
         std::vector<material_t> materials;
@@ -559,9 +590,9 @@ mesh_assets_t load_model(const std::string &path)
 
         std::map<std::string, crocore::ImagePtr> image_cache;
 
-        for(uint32_t i = 0; i < theScene->mNumMeshes; i++)
+        for (uint32_t i = 0; i < theScene->mNumMeshes; i++)
         {
-            aiMesh *aMesh = theScene->mMeshes[i];
+            aiMesh* aMesh = theScene->mMeshes[i];
             vierkant::GeometryPtr g = create_geometry(aMesh, theScene);
 
             weight_map_t weightmap;
@@ -587,9 +618,9 @@ mesh_assets_t load_model(const std::string &path)
         auto root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
         std::vector<vierkant::bones::animation_t> animations;
 
-        for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
+        for (uint32_t i = 0; i < theScene->mNumAnimations; i++)
         {
-            aiAnimation *assimpAnimation = theScene->mAnimations[i];
+            aiAnimation* assimpAnimation = theScene->mAnimations[i];
             vierkant::bones::animation_t anim;
             anim.duration = assimpAnimation->mDuration;
             anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
@@ -601,13 +632,16 @@ mesh_assets_t load_model(const std::string &path)
         auto model_name = crocore::fs::get_filename_part(found_path);
 
 
-        LOG_DEBUG << crocore::format("loaded model: geometries: %d -- vertices: %d -- faces: %d -- bones: %d ",
-                                     geometries.size(), num_vertices, num_indices * 3,
-                                     bones::num_bones_in_hierarchy(root_bone));
-        LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
+        LOG_DEBUG << crocore::format(
+                "loaded model: geometries: %d -- vertices: %d -- faces: %d -- bones: %d ",
+                geometries.size(), num_vertices, num_indices * 3,
+                bones::num_bones_in_hierarchy(root_bone));
+        LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - "
+                  << glm::to_string(aabb.max);
 
         importer.FreeScene();
-        return {std::move(geometries), std::move(material_indices), std::move(materials), root_bone,
+        return {std::move(geometries), std::move(material_indices), std::move(materials),
+                root_bone,
                 std::move(animations)};
     }
     return {};
@@ -615,37 +649,38 @@ mesh_assets_t load_model(const std::string &path)
 
 /////////////////////////////////////////////////////////////////
 
-bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm::mat4 &the_out_transform)
+bool get_mesh_transform(const aiScene* the_scene, const aiMesh* the_ai_mesh,
+                        glm::mat4& the_out_transform)
 {
     struct node_t
     {
-        const aiNode *node;
+        const aiNode* node;
         glm::mat4 global_transform;
     };
 
     std::deque<node_t> node_queue;
     node_queue.push_back({the_scene->mRootNode, glm::mat4(1)});
 
-    while(!node_queue.empty())
+    while (!node_queue.empty())
     {
         // dequeue node struct
-        const aiNode *p = node_queue.front().node;
+        const aiNode* p = node_queue.front().node;
         glm::mat4 node_transform = node_queue.front().global_transform;
         node_queue.pop_front();
 
-        for(uint32_t i = 0; i < p->mNumMeshes; ++i)
+        for (uint32_t i = 0; i < p->mNumMeshes; ++i)
         {
-            const aiMesh *m = the_scene->mMeshes[p->mMeshes[i]];
+            const aiMesh* m = the_scene->mMeshes[p->mMeshes[i]];
 
             // we found the mesh and are done
-            if(m == the_ai_mesh)
+            if (m == the_ai_mesh)
             {
                 the_out_transform = node_transform;
                 return true;
             }
         }
 
-        for(uint32_t c = 0; c < p->mNumChildren; ++c)
+        for (uint32_t c = 0; c < p->mNumChildren; ++c)
         {
             glm::mat4 child_transform = aimatrix_to_glm_mat4(p->mChildren[c]->mTransformation);
 
@@ -658,10 +693,10 @@ bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm
 
 /////////////////////////////////////////////////////////////////
 
-void process_node(const aiScene *the_scene, const aiNode *the_in_node,
-                  const vierkant::Object3DPtr &the_parent_node)
+void process_node(const aiScene* the_scene, const aiNode* the_in_node,
+                  const vierkant::Object3DPtr& the_parent_node)
 {
-    if(!the_in_node){ return; }
+    if (!the_in_node) { return; }
 
 //    string node_name(the_in_node->mName.data);
 
@@ -670,12 +705,12 @@ void process_node(const aiScene *the_scene, const aiNode *the_in_node,
     the_parent_node->add_child(node);
 
     // meshes assigned to this node
-    for(uint32_t n = 0; n < the_in_node->mNumMeshes; ++n)
+    for (uint32_t n = 0; n < the_in_node->mNumMeshes; ++n)
     {
 //        const aiMesh *mesh = the_scene->mMeshes[the_in_node->mMeshes[n]];
     }
 
-    for(uint32_t i = 0; i < the_in_node->mNumChildren; ++i)
+    for (uint32_t i = 0; i < the_in_node->mNumChildren; ++i)
     {
         process_node(the_scene, the_in_node->mChildren[i], node);
     }
@@ -683,9 +718,10 @@ void process_node(const aiScene *the_scene, const aiNode *the_in_node,
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm::mat4 &parentTransform,
-                                               const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
-                                               vierkant::bones::BonePtr parentBone)
+vierkant::bones::BonePtr
+create_bone_hierarchy(const aiNode* theNode, const glm::mat4& parentTransform,
+                      const std::map<std::string, std::pair<int, glm::mat4>>& boneMap,
+                      vierkant::bones::BonePtr parentBone)
 {
     vierkant::bones::BonePtr currentBone;
     std::string nodeName(theNode->mName.data);
@@ -695,10 +731,10 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm:
     auto it = boneMap.find(nodeName);
 
     // current node corresponds to a bone
-    if(it != boneMap.end())
+    if (it != boneMap.end())
     {
         int boneIndex = it->second.first;
-        const glm::mat4 &offset = it->second.second;
+        const glm::mat4& offset = it->second.second;
         currentBone = std::make_shared<vierkant::bones::bone_t>();
         currentBone->name = nodeName;
         currentBone->index = boneIndex;
@@ -708,13 +744,14 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm:
         currentBone->parent = std::move(parentBone);
     }
 
-    for(uint32_t i = 0; i < theNode->mNumChildren; i++)
+    for (uint32_t i = 0; i < theNode->mNumChildren; i++)
     {
-        vierkant::bones::BonePtr child = create_bone_hierarchy(theNode->mChildren[i], globalTransform,
+        vierkant::bones::BonePtr child = create_bone_hierarchy(theNode->mChildren[i],
+                                                               globalTransform,
                                                                boneMap, currentBone);
 
-        if(currentBone && child){ currentBone->children.push_back(child); }
-        else if(child)
+        if (currentBone && child) { currentBone->children.push_back(child); }
+        else if (child)
         {
             // we are at root lvl
             currentBone = child;
@@ -725,19 +762,20 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm:
 
 /////////////////////////////////////////////////////////////////
 
-void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
-                           vierkant::bones::BonePtr root_bone, vierkant::bones::animation_t &outAnim)
+void create_bone_animation(const aiNode* theNode, const aiAnimation* theAnimation,
+                           vierkant::bones::BonePtr root_bone,
+                           vierkant::bones::animation_t& outAnim)
 {
     std::string nodeName(theNode->mName.data);
-    const aiNodeAnim *nodeAnim = nullptr;
+    const aiNodeAnim* nodeAnim = nullptr;
 
-    if(theAnimation)
+    if (theAnimation)
     {
-        for(uint32_t i = 0; i < theAnimation->mNumChannels; i++)
+        for (uint32_t i = 0; i < theAnimation->mNumChannels; i++)
         {
-            aiNodeAnim *ptr = theAnimation->mChannels[i];
+            aiNodeAnim* ptr = theAnimation->mChannels[i];
 
-            if(std::string(ptr->mNodeName.data) == nodeName)
+            if (std::string(ptr->mNodeName.data) == nodeName)
             {
                 nodeAnim = ptr;
                 break;
@@ -749,7 +787,7 @@ void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimatio
 
     // this node corresponds to a bone node in the hierarchy
     // and we have animation keys for this bone
-    if(bone && nodeAnim)
+    if (bone && nodeAnim)
     {
         char buf[1024];
         sprintf(buf, "Found animation for %s: %d posKeys -- %d rotKeys -- %d scaleKeys",
@@ -764,30 +802,33 @@ void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimatio
         glm::vec3 boneScale;
         glm::quat boneRotation;
 
-        for(uint32_t i = 0; i < nodeAnim->mNumRotationKeys; i++)
+        for (uint32_t i = 0; i < nodeAnim->mNumRotationKeys; i++)
         {
             aiQuaternion rot = nodeAnim->mRotationKeys[i].mValue;
             boneRotation = glm::quat(rot.w, rot.x, rot.y, rot.z);
-            animKeys.rotation_keys.push_back({static_cast<float>(nodeAnim->mRotationKeys[i].mTime), boneRotation});
+            animKeys.rotation_keys.push_back(
+                    {static_cast<float>(nodeAnim->mRotationKeys[i].mTime), boneRotation});
         }
 
-        for(uint32_t i = 0; i < nodeAnim->mNumPositionKeys; i++)
+        for (uint32_t i = 0; i < nodeAnim->mNumPositionKeys; i++)
         {
             aiVector3D pos = nodeAnim->mPositionKeys[i].mValue;
             bonePosition = glm::vec3(pos.x, pos.y, pos.z);
-            animKeys.position_keys.push_back({static_cast<float>(nodeAnim->mPositionKeys[i].mTime), bonePosition});
+            animKeys.position_keys.push_back(
+                    {static_cast<float>(nodeAnim->mPositionKeys[i].mTime), bonePosition});
         }
 
-        for(uint32_t i = 0; i < nodeAnim->mNumScalingKeys; i++)
+        for (uint32_t i = 0; i < nodeAnim->mNumScalingKeys; i++)
         {
             aiVector3D scaleTmp = nodeAnim->mScalingKeys[i].mValue;
             boneScale = glm::vec3(scaleTmp.x, scaleTmp.y, scaleTmp.z);
-            animKeys.scale_keys.push_back({static_cast<float>(nodeAnim->mScalingKeys[i].mTime), boneScale});
+            animKeys.scale_keys.push_back(
+                    {static_cast<float>(nodeAnim->mScalingKeys[i].mTime), boneScale});
         }
         outAnim.bone_keys[bone] = animKeys;
     }
 
-    for(uint32_t i = 0; i < theNode->mNumChildren; i++)
+    for (uint32_t i = 0; i < theNode->mNumChildren; i++)
     {
         create_bone_animation(theNode->mChildren[i], theAnimation, root_bone, outAnim);
     }
@@ -810,16 +851,16 @@ void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimatio
 
 /////////////////////////////////////////////////////////////////
 
-size_t add_animations_to_mesh(const std::string &path, vierkant::GeometryPtr mesh)
+size_t add_animations_to_mesh(const std::string& path, vierkant::GeometryPtr mesh)
 {
     LOG_TRACE << "loading animations from '" << path << "' ...";
 
     Assimp::Importer importer;
     std::string found_path;
-    const aiScene *theScene = nullptr;
+    const aiScene* theScene = nullptr;
 
-    try{ theScene = importer.ReadFile(crocore::fs::search_file(path), 0); }
-    catch(crocore::fs::FileNotFoundException &e)
+    try { theScene = importer.ReadFile(crocore::fs::search_file(path), 0); }
+    catch (crocore::fs::FileNotFoundException& e)
     {
         LOG_WARNING << e.what();
         return 0;

@@ -250,8 +250,11 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     push_constants_t push_constants = {};
 
     // grouped by pipelines
-    for(auto &[pipe_fmt, indexed_drawables] : pipelines)
+    for(auto &pair : pipelines)
     {
+        auto &pipe_fmt = pair.first;
+        auto &indexed_drawables = pair.second;
+        
         // select/create pipeline
         auto pipeline = m_pipeline_cache->get(pipe_fmt);
 

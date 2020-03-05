@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.3)
 project(vierkant)
 
 ## request C++17
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread -Wall -Wformat=0")
@@ -50,7 +50,7 @@ set(LIBS ${LIBS} ${Boost_LIBRARIES})
 #####
 
 ## GLFW
-find_package(glfw3 3.3 REQUIRED)
+find_package(glfw3 3.2 REQUIRED)
 set(LIBS ${LIBS} glfw)
 
 ## Vulkan
@@ -68,17 +68,17 @@ set(GLSLANG_VALIDATOR "glslangValidator")
 stringify_shaders("shaders" ${GLSLANG_VALIDATOR})
 
 ## assimp
-find_package(ASSIMP REQUIRED)
-include_directories(${ASSIMP_INCLUDE_DIRS})
-SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
+#find_package(ASSIMP REQUIRED)
+#include_directories(${ASSIMP_INCLUDE_DIRS})
+#SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 
 #assimp
-#option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
-#option(ASSIMP_BUILD_SAMPLES OFF)
-#option(ASSIMP_BUILD_TESTS OFF)
-#add_subdirectory("assimp")
-#include_directories(assimp/include)
-#set(LIBS ${LIBS} assimp)
+option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
+option(ASSIMP_BUILD_SAMPLES OFF)
+option(ASSIMP_BUILD_TESTS OFF)
+add_subdirectory("assimp")
+include_directories(assimp/include)
+set(LIBS ${LIBS} assimp)
 
 #vierkant
 add_subdirectory("src")
