@@ -5,7 +5,8 @@
 
 struct push_constants_t
 {
-    int drawable_index;
+    int matrix_index;
+    int material_index;
 };
 
 layout(push_constant) uniform PushConstants {
@@ -40,7 +41,7 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    matrix_struct_t m = matrices[push_constants.drawable_index];//matrices[gl_InstanceIndex];
+    matrix_struct_t m = matrices[push_constants.matrix_index];//matrices[gl_InstanceIndex];
     gl_Position = m.projection * m.view * m.model * vec4(a_position, 1.0);
     vertex_out.color = a_color;
 }
