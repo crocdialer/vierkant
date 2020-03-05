@@ -51,7 +51,8 @@ public:
 
     struct push_constants_t
     {
-        int drawable_index = 0;
+        int matrix_index = 0;
+        int material_index = 0;
     };
 
     /**
@@ -169,11 +170,14 @@ private:
     struct frame_assets_t
     {
         asset_map_t render_assets;
-        vierkant::BufferPtr matrix_buffer;
-        vierkant::BufferPtr material_buffer;
+        std::vector<vierkant::BufferPtr> matrix_buffers;
+        std::vector<vierkant::BufferPtr> material_buffers;
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
     };
+
+    void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t& frame_asset);
+
     DevicePtr m_device;
 
     vierkant::RenderPassPtr m_renderpass;
@@ -192,6 +196,8 @@ private:
     std::mutex m_staging_mutex;
 
     uint32_t m_current_index = 0;
+
+    VkPhysicalDeviceProperties m_physical_device_properties = {};
 };
 
 }//namespace vierkant
