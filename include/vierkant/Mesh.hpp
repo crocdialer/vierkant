@@ -218,6 +218,7 @@ public:
 
     // bone animations
     uint32_t bone_animation_index = 0;
+    float bone_animation_speed = 1.f;
     std::vector<vierkant::bones::animation_t> bone_animations;
 
     // index buffer
