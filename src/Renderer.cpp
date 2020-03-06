@@ -291,6 +291,10 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 vkCmdSetScissor(command_buffer.handle(), 0, 1, &drawable->pipeline_format.scissor);
             }
 
+            // search/create descriptor set
+            asset_key_t key = {current_mesh, drawable->descriptors};
+            auto render_asset_it = current_assets.render_assets.find(key);
+
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
             descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
@@ -305,10 +309,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                                            command_buffer.handle());
                 }
             }
-
-            // search/create descriptor set
-            asset_key_t key = {current_mesh, drawable->descriptors};
-            auto render_asset_it = current_assets.render_assets.find(key);
 
             VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
 
@@ -328,12 +328,12 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     new_render_asset.descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
                                                                                       drawable->descriptor_set_layout);
 
-//                    // update bone buffers, if necessary
-//                    if(current_mesh->root_bone)
-//                    {
-//                        update_bone_uniform_buffer(current_mesh, new_render_asset.bone_buffer);
-//                        descriptors[SLOT_BONES].buffer = new_render_asset.bone_buffer;
-//                    }
+                    // update bone buffers, if necessary
+                    if(current_mesh->root_bone)
+                    {
+                        update_bone_uniform_buffer(current_mesh, new_render_asset.bone_buffer);
+                        descriptors[SLOT_BONES].buffer = new_render_asset.bone_buffer;
+                    }
 
                     // keep handle
                     descriptor_set_handle = new_render_asset.descriptor_set.get();
