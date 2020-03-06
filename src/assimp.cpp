@@ -45,7 +45,7 @@ void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_
 void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &weightmap, uint32_t start_index = 0);
 
 
-vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm::mat4 &parentTransform,
+vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
                                                const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
                                                vierkant::bones::BonePtr parentBone = nullptr);
 
@@ -668,7 +668,7 @@ void process_node(const aiScene *the_scene, const aiNode *the_in_node,
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm::mat4 &parentTransform,
+vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
                                                const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
                                                vierkant::bones::BonePtr parentBone)
 {
@@ -676,7 +676,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm:
     std::string nodeName(theNode->mName.data);
     glm::mat4 nodeTransform = aimatrix_to_glm_mat4(theNode->mTransformation);
 
-    glm::mat4 globalTransform = parentTransform * nodeTransform;
+    world_transform = world_transform * nodeTransform;
     auto it = boneMap.find(nodeName);
 
     // current node corresponds to a bone
@@ -688,14 +688,14 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm:
         currentBone->name = nodeName;
         currentBone->index = boneIndex;
         currentBone->transform = nodeTransform;
-        currentBone->world_transform = globalTransform;
+        currentBone->world_transform = world_transform;
         currentBone->offset = offset;
         currentBone->parent = std::move(parentBone);
     }
 
     for(uint32_t i = 0; i < theNode->mNumChildren; i++)
     {
-        vierkant::bones::BonePtr child = create_bone_hierarchy(theNode->mChildren[i], globalTransform,
+        vierkant::bones::BonePtr child = create_bone_hierarchy(theNode->mChildren[i], world_transform,
                                                                boneMap, currentBone);
 
         if(currentBone && child){ currentBone->children.push_back(child); }

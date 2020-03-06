@@ -50,91 +50,94 @@ void build_bone_matrices_helper(const BoneConstPtr &bone,
 
     auto it = animation.bone_keys.find(bone);
 
-    if(it == animation.bone_keys.end()){ return; }
-
-    const auto &bonekeys = it->second;
-
-    bool boneHasKeys = false;
-
-    // translation
-    glm::mat4 translation(1);
-
-    if(!bonekeys.position_keys.empty())
+    if(it != animation.bone_keys.end())
     {
-        boneHasKeys = true;
-        uint32_t i = 0;
 
-        for(; i < bonekeys.position_keys.size() - 1; i++)
-        {
-            const auto &key = bonekeys.position_keys[i + 1];
-            if(key.time >= time){ break; }
-        }
-        // i now holds the correct time index
-        const key_t<glm::vec3> &key1 = bonekeys.position_keys[i];
-        const key_t<glm::vec3> &key2 = bonekeys.position_keys[(i + 1) % bonekeys.position_keys.size()];
+        const auto &bonekeys = it->second;
 
-        float startTime = key1.time;
-        float endTime = key2.time < key1.time ? key2.time + animation.duration : key2.time;
-        float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
-        glm::vec3 pos = glm::mix(key1.value, key2.value, frac);
-        translation = glm::translate(translation, pos);
-    }
+        bool boneHasKeys = false;
 
-    // rotation
-    glm::mat4 rotation(1);
-    if(!bonekeys.rotation_keys.empty())
-    {
-        boneHasKeys = true;
-        uint32_t i = 0;
-        for(; i < bonekeys.rotation_keys.size() - 1; i++)
-        {
-            const key_t<glm::quat> &key = bonekeys.rotation_keys[i + 1];
-            if(key.time >= time){ break; }
-        }
-        // i now holds the correct time index
-        const key_t<glm::quat> &key1 = bonekeys.rotation_keys[i];
-        const key_t<glm::quat> &key2 = bonekeys.rotation_keys[(i + 1) % bonekeys.rotation_keys.size()];
+        // translation
+        glm::mat4 translation(1);
 
-        float startTime = key1.time;
-        float endTime = key2.time < key1.time ? key2.time + animation.duration : key2.time;
-        float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
-
-        // quaternion spherical linear interpolation
-        glm::quat interpolRot = glm::slerp(key1.value, key2.value, frac);
-        rotation = glm::mat4_cast(interpolRot);
-    }
-
-    // scale
-    glm::mat4 scaleMatrix(1);
-
-    if(!bonekeys.scale_keys.empty())
-    {
-        if(bonekeys.scale_keys.size() == 1)
-        {
-            scaleMatrix = glm::scale(scaleMatrix, bonekeys.scale_keys.front().value);
-        }
-        else
+        if(!bonekeys.position_keys.empty())
         {
             boneHasKeys = true;
             uint32_t i = 0;
 
-            for(; i < bonekeys.scale_keys.size() - 1; i++)
+            for(; i < bonekeys.position_keys.size() - 1; i++)
             {
-                const key_t<glm::vec3> &key = bonekeys.scale_keys[i + 1];
+                const auto &key = bonekeys.position_keys[i + 1];
                 if(key.time >= time){ break; }
             }
             // i now holds the correct time index
-            const key_t<glm::vec3> &key1 = bonekeys.scale_keys[i];
-            const key_t<glm::vec3> &key2 = bonekeys.scale_keys[(i + 1) % bonekeys.scale_keys.size()];
+            const key_t<glm::vec3> &key1 = bonekeys.position_keys[i];
+            const key_t<glm::vec3> &key2 = bonekeys.position_keys[(i + 1) % bonekeys.position_keys.size()];
 
             float startTime = key1.time;
             float endTime = key2.time < key1.time ? key2.time + animation.duration : key2.time;
             float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
-            glm::vec3 scale = glm::mix(key1.value, key2.value, frac);
-            scaleMatrix = glm::scale(scaleMatrix, scale);
+            glm::vec3 pos = glm::mix(key1.value, key2.value, frac);
+            translation = glm::translate(translation, pos);
         }
+
+        // rotation
+        glm::mat4 rotation(1);
+        if(!bonekeys.rotation_keys.empty())
+        {
+            boneHasKeys = true;
+            uint32_t i = 0;
+            for(; i < bonekeys.rotation_keys.size() - 1; i++)
+            {
+                const key_t<glm::quat> &key = bonekeys.rotation_keys[i + 1];
+                if(key.time >= time){ break; }
+            }
+            // i now holds the correct time index
+            const key_t<glm::quat> &key1 = bonekeys.rotation_keys[i];
+            const key_t<glm::quat> &key2 = bonekeys.rotation_keys[(i + 1) % bonekeys.rotation_keys.size()];
+
+            float startTime = key1.time;
+            float endTime = key2.time < key1.time ? key2.time + animation.duration : key2.time;
+            float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
+
+            // quaternion spherical linear interpolation
+            glm::quat interpolRot = glm::slerp(key1.value, key2.value, frac);
+            rotation = glm::mat4_cast(interpolRot);
+        }
+
+        // scale
+        glm::mat4 scaleMatrix(1);
+
+        if(!bonekeys.scale_keys.empty())
+        {
+            if(bonekeys.scale_keys.size() == 1)
+            {
+                scaleMatrix = glm::scale(scaleMatrix, bonekeys.scale_keys.front().value);
+            }
+            else
+            {
+                boneHasKeys = true;
+                uint32_t i = 0;
+
+                for(; i < bonekeys.scale_keys.size() - 1; i++)
+                {
+                    const key_t<glm::vec3> &key = bonekeys.scale_keys[i + 1];
+                    if(key.time >= time){ break; }
+                }
+                // i now holds the correct time index
+                const key_t<glm::vec3> &key1 = bonekeys.scale_keys[i];
+                const key_t<glm::vec3> &key2 = bonekeys.scale_keys[(i + 1) % bonekeys.scale_keys.size()];
+
+                float startTime = key1.time;
+                float endTime = key2.time < key1.time ? key2.time + animation.duration : key2.time;
+                float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
+                glm::vec3 scale = glm::mix(key1.value, key2.value, frac);
+                scaleMatrix = glm::scale(scaleMatrix, scale);
+            }
+        }
+        if(boneHasKeys){ boneTransform = translation * rotation * scaleMatrix; }
+
     }
-    if(boneHasKeys){ boneTransform = translation * rotation * scaleMatrix; }
     world_transform = world_transform * boneTransform;
 
     // add final transform
