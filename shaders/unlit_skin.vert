@@ -59,7 +59,7 @@ void main()
 
     for (int i = 0; i < 4; i++)
     {
-        new_vertex += /*u_bones[a_bone_ids[i]] * */ vec4(a_position, 1.0) * a_bone_weights[i];
+        new_vertex += u_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
     }
 
     gl_Position = m.projection * m.view * m.model * vec4(new_vertex.xyz, 1.0);

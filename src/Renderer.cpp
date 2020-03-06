@@ -292,8 +292,14 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             }
 
             // search/create descriptor set
-            asset_key_t key = {current_mesh, drawable->descriptors};
+            asset_key_t key = {};
+            key.mesh = current_mesh;
+            key.descriptors = drawable->descriptors;
+            key.matrix_buffer_index = indexed_drawable.matrix_buffer_index;
+            key.material_buffer_index = indexed_drawable.material_buffer_index;
             auto render_asset_it = current_assets.render_assets.find(key);
+
+            VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
 
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
@@ -309,8 +315,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                                            command_buffer.handle());
                 }
             }
-
-            VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
 
             // not found in current assets
             if(render_asset_it == current_assets.render_assets.end())
@@ -491,6 +495,8 @@ void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vi
 bool Renderer::asset_key_t::operator==(const Renderer::asset_key_t &other) const
 {
     if(mesh != other.mesh){ return false; }
+    if(matrix_buffer_index != other.matrix_buffer_index){ return false; }
+    if(material_buffer_index != other.material_buffer_index){ return false; }
     if(descriptors != other.descriptors){ return false; }
     return true;
 }
@@ -501,6 +507,8 @@ size_t Renderer::asset_key_hash_t::operator()(const Renderer::asset_key_t &key) 
 {
     size_t h = 0;
     crocore::hash_combine(h, key.mesh);
+    crocore::hash_combine(h, key.matrix_buffer_index);
+    crocore::hash_combine(h, key.material_buffer_index);
     for(const auto &descriptor : key.descriptors){ crocore::hash_combine(h, descriptor); }
     return h;
 }

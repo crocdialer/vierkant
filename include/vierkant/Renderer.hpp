@@ -161,6 +161,8 @@ private:
     struct asset_key_t
     {
         vierkant::MeshPtr mesh;
+        uint32_t matrix_buffer_index = 0;
+        uint32_t material_buffer_index = 0;
         std::vector<vierkant::descriptor_t> descriptors;
 
         bool operator==(const asset_key_t &other) const;
