@@ -25,7 +25,7 @@ public:
         SLOT_MATERIAL = 1,
         SLOT_TEXTURES = 2,
         SLOT_BONES = 3,
-        MAX_NUM_DESCRIPTORS
+        MAX_DESCRIPTOR_SLOT
     };
 
     struct matrix_struct_t
@@ -69,7 +69,7 @@ public:
         material_struct_t material = {};
 
         // descriptors -> layout
-        std::vector<descriptor_t> descriptors;
+        std::map<uint32_t, descriptor_t> descriptors;
         DescriptorSetLayoutPtr descriptor_set_layout;
 
         uint32_t base_index = 0;
@@ -163,7 +163,7 @@ private:
         vierkant::MeshPtr mesh;
         uint32_t matrix_buffer_index = 0;
         uint32_t material_buffer_index = 0;
-        std::vector<vierkant::descriptor_t> descriptors;
+        std::map<uint32_t, vierkant::descriptor_t> descriptors;
 
         bool operator==(const asset_key_t &other) const;
     };
@@ -185,9 +185,9 @@ private:
     };
 
     // update the combined uniform buffers
-    void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t& frame_asset);
+    void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
-    void update_bone_uniform_buffer(const vierkant::MeshConstPtr& mesh, vierkant::BufferPtr &out_buffer);
+    void update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer);
 
     DevicePtr m_device;
 

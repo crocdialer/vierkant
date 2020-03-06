@@ -97,12 +97,13 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
-                                                    const std::vector<descriptor_t> &descriptors)
+                                                    const std::map<uint32_t, descriptor_t> &descriptors)
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-    for(const auto &desc : descriptors)
+    for(const auto &[slot, desc] : descriptors)
     {
+        (void) slot;
         VkDescriptorSetLayoutBinding ubo_layout_binding = {};
         ubo_layout_binding.binding = desc.binding;
         ubo_layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
@@ -153,10 +154,10 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
-                           const std::vector<descriptor_t> &descriptors)
+                           const std::map<uint32_t, descriptor_t> &descriptors)
 {
     size_t num_writes = 0;
-    for(const auto &desc : descriptors){ num_writes += std::max<size_t>(1, desc.image_samplers.size()); }
+    for(const auto &pair : descriptors){ num_writes += std::max<size_t>(1, pair.second.image_samplers.size()); }
 
     std::vector<VkWriteDescriptorSet> descriptor_writes;
 
@@ -166,8 +167,10 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
     // keep all VkDescriptorImageInfo structs around until vkUpdateDescriptorSets has processed them
     std::vector<std::vector<VkDescriptorImageInfo>> image_infos_collection;
 
-    for(const auto &desc : descriptors)
+    for(const auto &pair : descriptors)
     {
+        auto &desc = pair.second;
+
         VkWriteDescriptorSet desc_write = {};
         desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         desc_write.descriptorType = desc.type;
@@ -247,7 +250,7 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
 
     // sanity check array sizes
     auto check_and_insert = [add_offset, &stride, &num_bytes, &num_attribs](const GeometryConstPtr &g,
-                                                              std::vector<vertex_data_t> &vertex_data) -> bool
+                                                                            std::vector<vertex_data_t> &vertex_data) -> bool
     {
         stride = 0;
         size_t offset = 0;

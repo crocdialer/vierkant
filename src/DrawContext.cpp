@@ -32,24 +32,26 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.primitive_topology = entry.primitive_type;
 
         // descriptors
-        vierkant::descriptor_t desc_ubo = {};
-        desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        desc_ubo.binding = 0;
+        vierkant::descriptor_t desc_matrix = {};
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        desc_matrix.binding = vierkant::Renderer::SLOT_MATRIX;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_material.binding = 1;
+        desc_material.binding = vierkant::Renderer::SLOT_MATERIAL;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATERIAL] = desc_material;
 
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_texture.binding = 2;
+        desc_texture.binding = vierkant::Renderer::SLOT_TEXTURES;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
 
         m_drawable_image.mesh = mesh;
         m_drawable_image.num_indices = entry.num_indices;
-        m_drawable_image.descriptors = {desc_ubo, desc_material, desc_texture};
         m_drawable_image.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
                                                                                         m_drawable_image.descriptors);
         fmt.descriptor_set_layouts = {m_drawable_image.descriptor_set_layout.get()};
@@ -68,23 +70,25 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
 
         // descriptors
-        vierkant::descriptor_t desc_ubo = {};
-        desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        desc_ubo.binding = 0;
+        vierkant::descriptor_t desc_matrix = {};
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        desc_matrix.binding = vierkant::Renderer::SLOT_MATRIX;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_material.binding = 1;
+        desc_material.binding = vierkant::Renderer::SLOT_MATERIAL;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATERIAL] = desc_material;
 
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_texture.binding = 2;
+        desc_texture.binding = vierkant::Renderer::SLOT_TEXTURES;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
 
         m_drawable_text.pipeline_format = std::move(pipeline_fmt);
-        m_drawable_text.descriptors = {desc_ubo, desc_material, desc_texture};
         m_drawable_text.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
                                                                                        m_drawable_text.descriptors);
         m_drawable_text.pipeline_format.descriptor_set_layouts = {m_drawable_text.descriptor_set_layout.get()};

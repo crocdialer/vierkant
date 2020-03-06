@@ -50,13 +50,13 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         desc_matrices.binding = SLOT_MATRIX;
-        drawable.descriptors.push_back(desc_matrices);
+        drawable.descriptors[SLOT_MATRIX] = desc_matrices;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         desc_material.binding = SLOT_MATERIAL;
-        drawable.descriptors.push_back(desc_material);
+        drawable.descriptors[SLOT_MATERIAL] = desc_material;
 
         // textures
         if(!material->images.empty())
@@ -66,20 +66,20 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
             desc_texture.binding = SLOT_TEXTURES;
             desc_texture.image_samplers = material->images;
-            drawable.descriptors.push_back(desc_texture);
+            drawable.descriptors[SLOT_TEXTURES] = desc_texture;
         }
 
         // bone matrices
-        if(material->shader_type == vierkant::ShaderType::UNLIT_SKIN)
+        if(mesh->root_bone)
         {
             vierkant::descriptor_t desc_bones = {};
             desc_bones.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
             desc_bones.binding = SLOT_BONES;
-            drawable.descriptors.push_back(desc_bones);
+            drawable.descriptors[SLOT_BONES] = desc_bones;
         }
 
-        uint32_t binding = MAX_NUM_DESCRIPTORS;
+        uint32_t binding = MAX_DESCRIPTOR_SLOT;
 
         // custom ubos
         for(auto &ubo : material->ubos)
@@ -90,7 +90,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             custom_desc.binding = binding++;
             custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                           VMA_MEMORY_USAGE_CPU_TO_GPU);
-            drawable.descriptors.push_back(custom_desc);
+            drawable.descriptors[binding] = custom_desc;
         }
 
         drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
@@ -305,8 +305,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
 
             // transition image layouts
-            for(auto &desc : descriptors)
+            for(auto &pair : descriptors)
             {
+                auto &desc = pair.second;
                 for(auto &img : desc.image_samplers)
                 {
                     img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -514,7 +515,12 @@ size_t Renderer::asset_key_hash_t::operator()(const Renderer::asset_key_t &key) 
     crocore::hash_combine(h, key.mesh);
     crocore::hash_combine(h, key.matrix_buffer_index);
     crocore::hash_combine(h, key.material_buffer_index);
-    for(const auto &descriptor : key.descriptors){ crocore::hash_combine(h, descriptor); }
+
+    for(const auto &pair : key.descriptors)
+    {
+        crocore::hash_combine(h, pair.first);
+        crocore::hash_combine(h, pair.second);
+    }
     return h;
 }
 
