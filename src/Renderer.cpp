@@ -299,8 +299,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             key.material_buffer_index = indexed_drawable.material_buffer_index;
             auto render_asset_it = current_assets.render_assets.find(key);
 
-            VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
-
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
             descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
@@ -315,6 +313,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                                            command_buffer.handle());
                 }
             }
+
+            // handle for a descriptor-set
+            VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
 
             // not found in current assets
             if(render_asset_it == current_assets.render_assets.end())
@@ -360,7 +361,11 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 current_assets.render_assets.erase(render_asset_it);
 
                 // update bone buffers, if necessary
-                update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
+                if(current_mesh->root_bone)
+                {
+                    update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
+                    descriptors[SLOT_BONES].buffer = render_asset.bone_buffer;
+                }
 
                 // keep handle
                 descriptor_set_handle = render_asset.descriptor_set.get();
@@ -478,6 +483,8 @@ void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vi
         std::vector<glm::mat4> bones_matrices;
         vierkant::bones::build_bone_matrices(mesh->root_bone, mesh->bone_animations[mesh->bone_animation_index],
                                              bones_matrices);
+
+        for(auto &m : bones_matrices){ m = glm::mat4(1); }
 
         if(!out_buffer)
         {
