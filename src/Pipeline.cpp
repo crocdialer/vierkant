@@ -44,6 +44,10 @@ std::map<VkShaderStageFlagBits, ShaderModulePtr> create_shader_stages(const Devi
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_texture_frag);
             break;
 
+        case ShaderType::UNLIT_SKIN:
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit_skin_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_texture_frag);
+            break;
         default:
             break;
     }

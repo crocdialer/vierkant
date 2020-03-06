@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <deque>
 #include "crocore/Area.hpp"
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Framebuffer.hpp"
@@ -25,7 +24,8 @@ public:
         SLOT_MATRIX = 0,
         SLOT_MATERIAL = 1,
         SLOT_TEXTURES = 2,
-        MIN_NUM_DESCRIPTORS
+        SLOT_BONES = 3,
+        MAX_NUM_DESCRIPTORS
     };
 
     struct matrix_struct_t
@@ -152,6 +152,12 @@ public:
 
 private:
 
+    struct render_asset_t
+    {
+        vierkant::BufferPtr bone_buffer;
+        vierkant::DescriptorSetPtr descriptor_set;
+    };
+
     struct asset_key_t
     {
         vierkant::MeshPtr mesh;
@@ -165,7 +171,7 @@ private:
         size_t operator()(const asset_key_t &key) const;
     };
 
-    using asset_map_t = std::unordered_map<asset_key_t, std::deque<vierkant::DescriptorSetPtr>, asset_key_hash_t>;
+    using asset_map_t = std::unordered_map<asset_key_t, render_asset_t, asset_key_hash_t>;
 
     struct frame_assets_t
     {
@@ -176,7 +182,10 @@ private:
         vierkant::CommandBuffer command_buffer;
     };
 
+    // update the combined uniform buffers
     void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t& frame_asset);
+
+    void update_bone_uniform_buffer(const vierkant::MeshConstPtr& mesh, vierkant::BufferPtr &out_buffer);
 
     DevicePtr m_device;
 

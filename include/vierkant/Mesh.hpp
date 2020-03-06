@@ -210,7 +210,15 @@ public:
     // entries for sub-meshes
     std::vector<entry_t> entries;
 
+    // materials for submeshes
     std::vector<vierkant::MaterialPtr> materials;
+
+    // root bone
+    vierkant::bones::BonePtr root_bone;
+
+    // bone animations
+    uint32_t bone_animation_index = 0;
+    std::vector<vierkant::bones::animation_t> bone_animations;
 
     // index buffer
     vierkant::BufferPtr index_buffer;
