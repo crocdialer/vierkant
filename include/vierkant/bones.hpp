@@ -20,7 +20,7 @@ struct bone_t
     std::string name;
     glm::mat4 transform = glm::mat4(1);
     glm::mat4 world_transform = glm::mat4(1);
-    glm::mat4 offset = glm::mat4(0);
+    glm::mat4 offset = glm::mat4(1);
     uint32_t index = 0;
     BonePtr parent = nullptr;
     std::list<BonePtr> children;

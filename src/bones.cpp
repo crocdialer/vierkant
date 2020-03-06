@@ -37,7 +37,7 @@ void build_bone_matrices(const BoneConstPtr &root, const animation_t &animation,
 {
     if(!root){ return; }
     matrices.resize(num_bones_in_hierarchy(root));
-    return build_bone_matrices_helper(root, animation, matrices, root->world_transform);
+    return build_bone_matrices_helper(root, animation, matrices, glm::mat4(1));
 }
 
 void build_bone_matrices_helper(const BoneConstPtr &bone,
@@ -57,7 +57,7 @@ void build_bone_matrices_helper(const BoneConstPtr &bone,
     bool boneHasKeys = false;
 
     // translation
-    glm::mat4 translation;
+    glm::mat4 translation(1);
 
     if(!bonekeys.position_keys.empty())
     {
@@ -81,7 +81,7 @@ void build_bone_matrices_helper(const BoneConstPtr &bone,
     }
 
     // rotation
-    glm::mat4 rotation;
+    glm::mat4 rotation(1);
     if(!bonekeys.rotation_keys.empty())
     {
         boneHasKeys = true;
@@ -105,7 +105,7 @@ void build_bone_matrices_helper(const BoneConstPtr &bone,
     }
 
     // scale
-    glm::mat4 scaleMatrix;
+    glm::mat4 scaleMatrix(1);
 
     if(!bonekeys.scale_keys.empty())
     {

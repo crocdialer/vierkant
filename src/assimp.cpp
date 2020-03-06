@@ -32,7 +32,7 @@ struct weight_t
 
 using bone_map_t = std::map<std::string, std::pair<int, glm::mat4>>;
 
-using weight_map_t =  std::map<uint32_t, std::list<weight_t>>;
+using weight_map_t =  std::unordered_map<uint32_t, std::list<weight_t>>;
 
 /////////////////////////////////////////////////////////////////
 
@@ -50,7 +50,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm:
                                                vierkant::bones::BonePtr parentBone = nullptr);
 
 void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
-                           vierkant::bones::BonePtr root_bone, vierkant::bones::animation_t &outAnim);
+                           const vierkant::bones::BonePtr& root_bone, vierkant::bones::animation_t &outAnim);
 
 //void get_node_transform(const aiNode *the_node, mat4 &the_transform);
 
@@ -130,8 +130,6 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
         if(f.mNumIndices != 3) throw std::runtime_error("Non triangle mesh loaded");
         geom->indices.insert(geom->indices.end(), f.mIndices, f.mIndices + 3);
     }
-//    geom->faces().resize(aMesh->mNumFaces);
-//    ::memcpy(&geom->faces()[0], &indices[0], indices.size() * sizeof(gl::index_t));
 
     if(aMesh->HasNormals())
     {
@@ -506,19 +504,6 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
 /////////////////////////////////////////////////////////////////
 
-void merge_geometries(vierkant::GeometryPtr src, vierkant::GeometryPtr dst)
-{
-    dst->vertices.insert(dst->vertices.end(), src->vertices.begin(), src->vertices.end());
-    dst->normals.insert(dst->normals.end(), src->normals.begin(), src->normals.end());
-    dst->colors.insert(dst->colors.end(), src->colors.begin(), src->colors.end());
-    dst->tangents.insert(dst->tangents.end(), src->tangents.begin(), src->tangents.end());
-    dst->tex_coords.insert(dst->tex_coords.end(), src->tex_coords.begin(), src->tex_coords.end());
-    dst->bone_weights.insert(dst->bone_weights.end(), src->bone_weights.begin(), src->bone_weights.end());
-    dst->indices.insert(dst->indices.end(), src->indices.begin(), src->indices.end());
-}
-
-/////////////////////////////////////////////////////////////////
-
 mesh_assets_t load_model(const std::string &path)
 {
     Assimp::Importer importer;
@@ -726,7 +711,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, const glm:
 /////////////////////////////////////////////////////////////////
 
 void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
-                           vierkant::bones::BonePtr root_bone, vierkant::bones::animation_t &outAnim)
+                           const vierkant::bones::BonePtr& root_bone, vierkant::bones::animation_t &outAnim)
 {
     std::string nodeName(theNode->mName.data);
     const aiNodeAnim *nodeAnim = nullptr;

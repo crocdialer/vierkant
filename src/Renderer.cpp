@@ -484,8 +484,6 @@ void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vi
         vierkant::bones::build_bone_matrices(mesh->root_bone, mesh->bone_animations[mesh->bone_animation_index],
                                              bones_matrices);
 
-        for(auto &m : bones_matrices){ m = glm::mat4(1); }
-
         if(!out_buffer)
         {
             out_buffer = vierkant::Buffer::create(m_device, bones_matrices.data(),
