@@ -40,6 +40,6 @@ struct mesh_assets_t
 mesh_assets_t load_model(const std::string &path);
 
 //! load animations from file and add to existing geometry
-//size_t add_animations_to_mesh(const std::string &path, vierkant::MeshPtr mesh);
+size_t add_animations_to_mesh(const std::string &path, mesh_assets_t& mesh_assets);
 
 } //namespace vierkant::assimp

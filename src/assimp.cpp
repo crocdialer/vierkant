@@ -50,7 +50,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
                                                vierkant::bones::BonePtr parentBone = nullptr);
 
 void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
-                           const vierkant::bones::BonePtr& root_bone, vierkant::bones::animation_t &outAnim);
+                           const vierkant::bones::BonePtr &root_bone, vierkant::bones::animation_t &outAnim);
 
 //void get_node_transform(const aiNode *the_node, mat4 &the_transform);
 
@@ -592,8 +592,15 @@ mesh_assets_t load_model(const std::string &path)
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
 
         importer.FreeScene();
-        return {std::move(geometries), std::move(material_indices), std::move(materials), root_bone,
-                std::move(animations)};
+
+        mesh_assets_t ret = {std::move(geometries), std::move(material_indices), std::move(materials), root_bone,
+                             std::move(animations)};
+
+        // search for external animations
+        auto anim_files = crocore::fs::get_directory_entries(crocore::fs::join_paths(base_path, "animations"),
+                                                             crocore::fs::FileType::MODEL, 2);
+        for(auto &p : anim_files){ add_animations_to_mesh(p, ret); }
+        return ret;
     }
     return {};
 }
@@ -711,7 +718,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
 /////////////////////////////////////////////////////////////////
 
 void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
-                           const vierkant::bones::BonePtr& root_bone, vierkant::bones::animation_t &outAnim)
+                           const vierkant::bones::BonePtr &root_bone, vierkant::bones::animation_t &outAnim)
 {
     std::string nodeName(theNode->mName.data);
     const aiNodeAnim *nodeAnim = nullptr;
@@ -795,7 +802,7 @@ void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimatio
 
 /////////////////////////////////////////////////////////////////
 
-size_t add_animations_to_mesh(const std::string &path, vierkant::GeometryPtr mesh)
+size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_assets)
 {
     LOG_TRACE << "loading animations from '" << path << "' ...";
 
@@ -810,18 +817,18 @@ size_t add_animations_to_mesh(const std::string &path, vierkant::GeometryPtr mes
         return 0;
     }
 
-//    if(theScene && m)
-//    {
-//        for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
-//        {
-//            aiAnimation *assimpAnimation = theScene->mAnimations[i];
-//            gl::MeshAnimation anim;
-//            anim.duration = assimpAnimation->mDuration;
-//            anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
-//            create_bone_animation(theScene->mRootNode, assimpAnimation, m->root_bone(), anim);
-//            m->add_animation(anim);
-//        }
-//    }
+    if(theScene)
+    {
+        for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
+        {
+            aiAnimation *assimpAnimation = theScene->mAnimations[i];
+            vierkant::bones::animation_t anim;
+            anim.duration = assimpAnimation->mDuration;
+            anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
+            create_bone_animation(theScene->mRootNode, assimpAnimation, mesh_assets.root_bone, anim);
+            mesh_assets.animations.push_back(std::move(anim));
+        }
+    }
     return theScene ? theScene->mNumAnimations : 0;
 }
 
