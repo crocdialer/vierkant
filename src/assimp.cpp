@@ -42,7 +42,8 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
 
 void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_t &bonemap, weight_map_t &weightmap);
 
-void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &weightmap, uint32_t start_index = 0);
+void
+insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map_t &weightmap, uint32_t start_index = 0);
 
 
 vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
@@ -101,15 +102,15 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
 {
     auto geom = vierkant::Geometry::create();
 
-    glm::mat4 model_matrix;
-    if(!get_mesh_transform(theScene, aMesh, model_matrix)){ LOG_WARNING << "could not find mesh transform"; }
-    glm::mat3 normal_matrix = glm::inverseTranspose(glm::mat3(model_matrix));
+//    glm::mat4 model_matrix;
+//    if(!get_mesh_transform(theScene, aMesh, model_matrix)){ LOG_WARNING << "could not find mesh transform"; }
+//    glm::mat3 normal_matrix = glm::inverseTranspose(glm::mat3(model_matrix));
 
     geom->vertices.insert(geom->vertices.end(), (glm::vec3 *) aMesh->mVertices,
                           (glm::vec3 *) aMesh->mVertices + aMesh->mNumVertices);
 
-    // transform loaded verts
-    for(auto &v : geom->vertices){ v = (model_matrix * glm::vec4(v, 1.f)).xyz; }
+//    // transform loaded verts
+//    for(auto &v : geom->vertices){ v = (model_matrix * glm::vec4(v, 1.f)).xyz; }
 
     if(aMesh->HasTextureCoords(0))
     {
@@ -136,8 +137,8 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
         geom->normals.insert(geom->normals.end(), (glm::vec3 *) aMesh->mNormals,
                              (glm::vec3 *) aMesh->mNormals + aMesh->mNumVertices);
 
-        // transform loaded normals
-        for(auto &n : geom->normals){ n = normal_matrix * n; }
+//        // transform loaded normals
+//        for(auto &n : geom->normals){ n = normal_matrix * n; }
     }
     else
     {
@@ -156,8 +157,8 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
         geom->tangents.insert(geom->tangents.end(), (glm::vec3 *) aMesh->mTangents,
                               (glm::vec3 *) aMesh->mTangents + aMesh->mNumVertices);
 
-        // transform loaded tangents
-        for(auto &t : geom->tangents){ t = normal_matrix * t; }
+//        // transform loaded tangents
+//        for(auto &t : geom->tangents){ t = normal_matrix * t; }
     }
     else
     {
@@ -198,7 +199,7 @@ void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_
 
 /////////////////////////////////////////////////////////////////
 
-void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t &weightmap, uint32_t start_index)
+void insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map_t &weightmap, uint32_t start_index)
 {
     if(weightmap.empty()) return;
 
@@ -531,6 +532,7 @@ mesh_assets_t load_model(const std::string &path)
     if(theScene)
     {
         std::vector<vierkant::GeometryPtr> geometries;
+        std::vector<glm::mat4> transforms;
         std::vector<material_t> materials;
         materials.resize(theScene->mNumMaterials);
 
@@ -559,6 +561,10 @@ mesh_assets_t load_model(const std::string &path)
             num_indices += g->indices.size();
 
             geometries.push_back(g);
+
+            glm::mat4 transform = glm::mat4(1);
+            if(!get_mesh_transform(theScene, aMesh, transform)){ LOG_WARNING << "could not find mesh transform"; }
+            transforms.push_back(transform);
 
             material_indices[i] = aMesh->mMaterialIndex;
             materials[aMesh->mMaterialIndex] = create_material(base_path, theScene,
@@ -593,8 +599,8 @@ mesh_assets_t load_model(const std::string &path)
 
         importer.FreeScene();
 
-        mesh_assets_t ret = {std::move(geometries), std::move(material_indices), std::move(materials), root_bone,
-                             std::move(animations)};
+        mesh_assets_t ret = {std::move(geometries), std::move(transforms), std::move(material_indices),
+                             std::move(materials), root_bone, std::move(animations)};
 
         // search for external animations
         auto anim_files = crocore::fs::get_directory_entries(crocore::fs::join_paths(base_path, "animations"),

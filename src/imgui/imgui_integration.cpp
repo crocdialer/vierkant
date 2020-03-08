@@ -298,7 +298,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
                 auto drawable = m_imgui_assets.drawable;
                 drawable.mesh = mesh_assets[n].mesh;
                 drawable.matrices = matrices;
-                drawable.descriptors[2].image_samplers = {tex};
+                drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {tex};
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;
 
@@ -400,8 +400,6 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     desc_texture.binding = vierkant::Renderer::SLOT_TEXTURES;
     drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
 
-    drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
-    drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
     return true;
 }
 

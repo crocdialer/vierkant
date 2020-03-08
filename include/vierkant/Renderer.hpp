@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <mutex>
 #include "crocore/Area.hpp"
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Framebuffer.hpp"
@@ -32,6 +33,7 @@ public:
     {
         glm::mat4 modelview = glm::mat4(1);
         glm::mat4 projection = glm::mat4(1);
+        glm::mat4 normal = glm::mat4(1);
         glm::mat4 texture = glm::mat4(1);
     };
 
@@ -68,8 +70,8 @@ public:
         material_struct_t material = {};
 
         // descriptors -> layout
-        std::map<uint32_t, descriptor_t> descriptors;
-        DescriptorSetLayoutPtr descriptor_set_layout;
+        descriptor_map_t descriptors;
+//        DescriptorSetLayoutPtr descriptor_set_layout;
 
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
@@ -162,7 +164,7 @@ private:
         vierkant::MeshPtr mesh;
         uint32_t matrix_buffer_index = 0;
         uint32_t material_buffer_index = 0;
-        std::map<uint32_t, vierkant::descriptor_t> descriptors;
+        descriptor_map_t descriptors;
 
         bool operator==(const asset_key_t &other) const;
     };
@@ -176,6 +178,7 @@ private:
 
     struct frame_assets_t
     {
+        std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_set_layouts;
         asset_map_t render_assets;
         std::vector<vierkant::BufferPtr> matrix_buffers;
         std::vector<vierkant::BufferPtr> material_buffers;

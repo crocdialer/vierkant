@@ -17,6 +17,7 @@ struct matrix_struct_t
 {
     mat4 modelview;
     mat4 projection;
+    mat4 normal;
     mat4 texture;
 };
 

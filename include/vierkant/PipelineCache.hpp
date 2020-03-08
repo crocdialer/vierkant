@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 #include "vierkant/Pipeline.hpp"
 
@@ -44,14 +44,19 @@ public:
      */
     const PipelinePtr &get(const Pipeline::Format &format)
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        auto it = m_pipelines.find(format);
+        // read-only locked for searching
+        std::unordered_map<Pipeline::Format, PipelinePtr>::const_iterator it;
+        {
+            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            it = m_pipelines.find(format);
+        }
 
         // found
         if(it != m_pipelines.end()){ return it->second; }
         else
         {
             // not found -> create pipeline
+            std::unique_lock<std::shared_mutex> lock(m_mutex);
             auto new_pipeline = Pipeline::create(m_device, format);
             auto pipe_it = m_pipelines.insert(std::make_pair(format, std::move(new_pipeline))).first;
             return pipe_it->second;
@@ -60,7 +65,7 @@ public:
 
     void clear()
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
+        std::unique_lock<std::shared_mutex> lock(m_mutex);
         m_pipelines.clear();
     }
 
@@ -70,7 +75,7 @@ private:
 
     vierkant::DevicePtr m_device;
 
-    std::mutex m_mutex;
+    std::shared_mutex m_mutex;
 
     std::unordered_map<Pipeline::Format, PipelinePtr> m_pipelines;
 };

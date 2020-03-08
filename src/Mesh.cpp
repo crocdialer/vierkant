@@ -62,10 +62,10 @@ VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void add_descriptor_counts(const std::vector<descriptor_t> &descriptors, descriptor_count_t &counts)
+void add_descriptor_counts(const descriptor_map_t &descriptors, descriptor_count_t &counts)
 {
     std::map<VkDescriptorType, uint32_t> mesh_counts;
-    for(const auto &desc : descriptors){ mesh_counts[desc.type]++; }
+    for(const auto &pair : descriptors){ mesh_counts[pair.second.type]++; }
     for(const auto &pair : mesh_counts){ counts.push_back(pair); }
 }
 
@@ -97,13 +97,13 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
-                                                    const std::map<uint32_t, descriptor_t> &descriptors)
+                                                    const descriptor_map_t &descriptors)
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-    for(const auto &[slot, desc] : descriptors)
+    for(const auto &pair : descriptors)
     {
-        (void) slot;
+        auto &desc = pair.second;
         VkDescriptorSetLayoutBinding ubo_layout_binding = {};
         ubo_layout_binding.binding = desc.binding;
         ubo_layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
@@ -154,7 +154,7 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
-                           const std::map<uint32_t, descriptor_t> &descriptors)
+                           const descriptor_map_t &descriptors)
 {
     size_t num_writes = 0;
     for(const auto &pair : descriptors){ num_writes += std::max<size_t>(1, pair.second.image_samplers.size()); }
@@ -215,7 +215,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 vierkant::MeshPtr
 Mesh::create_from_geometries(const vierkant::DevicePtr &device,
                              const std::vector<GeometryPtr> &geometries,
-                             bool interleave_data)
+                             const std::vector<glm::mat4> &transforms)
 {
     if(geometries.empty()){ return nullptr; }
 
@@ -315,73 +315,35 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
     auto staging_data = (uint8_t *) stage_buffer->map();
 
-    if(interleave_data)
+
+    for(uint32_t i = 0; i < num_attribs; ++i)
     {
-        for(uint32_t i = 0; i < num_attribs; ++i)
+        const auto &v = vertex_data[i];
+
+        vierkant::Mesh::attrib_t attrib;
+        attrib.location = v.attrib_location;
+        attrib.offset = v.offset;
+        attrib.stride = static_cast<uint32_t>(stride);
+        attrib.buffer = vertex_buffer;
+        attrib.buffer_offset = 0;
+        attrib.format = v.format;
+        mesh->vertex_attribs[i] = attrib;
+    }
+
+    for(uint32_t o = 0; o < vertex_offsets.size(); ++o)
+    {
+        auto buf_data = staging_data + vertex_offsets[o];
+
+        for(uint32_t i = o * num_attribs; i < (o + 1) * num_attribs; ++i)
         {
             const auto &v = vertex_data[i];
 
-            vierkant::Mesh::attrib_t attrib;
-            attrib.location = v.attrib_location;
-            attrib.offset = v.offset;
-            attrib.stride = static_cast<uint32_t>(stride);
-            attrib.buffer = vertex_buffer;
-            attrib.buffer_offset = 0;
-            attrib.format = v.format;
-            mesh->vertex_attribs[i] = attrib;
-        }
-
-        for(uint32_t o = 0; o < vertex_offsets.size(); ++o)
-        {
-            auto buf_data = staging_data + vertex_offsets[o];
-
-            for(uint32_t i = o * num_attribs; i < (o + 1) * num_attribs; ++i)
+            for(uint32_t j = 0; j < v.num_elems; ++j)
             {
-                const auto &v = vertex_data[i];
-
-                for(uint32_t j = 0; j < v.num_elems; ++j)
-                {
-                    memcpy(buf_data + v.offset + j * stride, v.data + j * v.elem_size, v.elem_size);
-                }
+                memcpy(buf_data + v.offset + j * stride, v.data + j * v.elem_size, v.elem_size);
             }
         }
     }
-//    else
-//    {
-//        size_t offset = 0;
-//        auto insert_data = [&mesh, &staging_data, &offset, &vertex_buffer](const auto &array, uint32_t location)
-//        {
-//            using elem_t = typename std::decay<decltype(array)>::type::value_type;
-//
-//            if(!array.empty())
-//            {
-//                size_t value_size = sizeof(elem_t);
-//                size_t num_bytes = array.size() * value_size;
-//                memcpy(staging_data + offset, array.data(), num_bytes);
-//
-//                vierkant::Mesh::attrib_t attrib;
-//                attrib.location = location;
-//                attrib.offset = 0;
-//                attrib.stride = static_cast<uint32_t>(value_size);
-//                attrib.buffer = vertex_buffer;
-//                attrib.buffer_offset = offset;
-//                attrib.format = vierkant::format<elem_t>();
-//                mesh->vertex_attribs.push_back(attrib);
-//                offset += num_bytes;
-//            }
-//        };
-//
-//        // insert all geometries
-//        for(auto &geom : geometries)
-//        {
-//            // vertex attributes
-//            insert_data(geom->vertices, 0);
-//            insert_data(geom->colors, 1);
-//            insert_data(geom->tex_coords, 2);
-//            insert_data(geom->normals, 3);
-//            insert_data(geom->tangents, 4);
-//        }
-//    }
 
     // copy combined vertex data to device-buffer
     stage_buffer->copy_to(vertex_buffer);
@@ -409,6 +371,9 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         entry.material_index = i;
         current_base_vertex += geom->vertices.size();
         current_base_index += geom->indices.size();
+
+        // use provided transforms for sub-meshes, if any
+        if(i < transforms.size()){ entry.transform = transforms[i]; }
 
         // insert new entry
         mesh->entries.push_back(entry);
@@ -557,5 +522,17 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     hash_combine(h, descriptor.buffer);
     hash_combine(h, descriptor.buffer_offset);
     for(const auto &img : descriptor.image_samplers){ hash_combine(h, img); }
+    return h;
+}
+
+size_t std::hash<vierkant::descriptor_map_t>::operator()(const vierkant::descriptor_map_t &map) const
+{
+    size_t h = 0;
+
+    for(auto &pair : map)
+    {
+        hash_combine(h, pair.first);
+        hash_combine(h, pair.second);
+    }
     return h;
 }

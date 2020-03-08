@@ -28,10 +28,13 @@ struct material_t
 
 struct mesh_assets_t
 {
+    // per submesh
     std::vector<vierkant::GeometryPtr> geometries;
+    std::vector<glm::mat4> transforms;
     std::vector<uint32_t> material_indices;
-    std::vector<material_t> materials;
 
+    // global for mesh
+    std::vector<material_t> materials;
     vierkant::bones::BonePtr root_bone;
     std::vector<vierkant::bones::animation_t> animations;
 };

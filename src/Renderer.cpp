@@ -17,17 +17,22 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
 {
     std::vector<Renderer::drawable_t> ret;
 
+    // same for all entries
+    auto binding_descriptions = mesh->binding_descriptions();
+    auto attribute_descriptions = mesh->attribute_descriptions();
+
     for(const auto &entry : mesh->entries)
     {
         // wonky
-        auto material = materials[entry.material_index];
+        const auto &material = materials[entry.material_index];
 
         // copy mesh-drawable
         Renderer::drawable_t drawable = {};
         drawable.mesh = mesh;
 
-        // matrices tmp!?
-        drawable.matrices.modelview = mesh->global_transform();
+        // TODO: combine mesh- with entry-transform
+        drawable.matrices.modelview = mesh->global_transform() * entry.transform;
+        drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
 
         // material params
         drawable.material.color = material->color;
@@ -37,8 +42,8 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.base_vertex = entry.base_vertex;
         drawable.num_vertices = entry.num_vertices;
 
-        drawable.pipeline_format.binding_descriptions = mesh->binding_descriptions();
-        drawable.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
+        drawable.pipeline_format.binding_descriptions = binding_descriptions;
+        drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
         drawable.pipeline_format.blend_state.blendEnable = material->blending;
@@ -92,10 +97,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
                                                           VMA_MEMORY_USAGE_CPU_TO_GPU);
             drawable.descriptors[binding] = custom_desc;
         }
-
-        drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
-        drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
-
         ret.push_back(std::move(drawable));
     }
     return ret;
@@ -247,6 +248,27 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
         indexed_drawable.material_index = i % (max_num_uniform_bytes / sizeof(material_struct_t));
 
         indexed_drawable.drawable = &current_assets.drawables[i];
+
+        // retrieve set-layout
+        auto set_it = current_assets.descriptor_set_layouts.find(current_assets.drawables[i].descriptors);
+
+        if(set_it != current_assets.descriptor_set_layouts.end())
+        {
+            auto new_it = next_assets.descriptor_set_layouts.insert(std::move(*set_it)).first;
+            current_assets.descriptor_set_layouts.erase(set_it);
+            set_it = new_it;
+        }
+        else{ set_it = next_assets.descriptor_set_layouts.find(current_assets.drawables[i].descriptors); }
+
+        // not found -> create and insert descriptor-set layout
+        if(set_it == next_assets.descriptor_set_layouts.end())
+        {
+            auto new_set = vierkant::create_descriptor_set_layout(m_device, current_assets.drawables[i].descriptors);
+            set_it = next_assets.descriptor_set_layouts.insert(
+                    std::make_pair(current_assets.drawables[i].descriptors, std::move(new_set))).first;
+        }
+        current_assets.drawables[i].pipeline_format.descriptor_set_layouts = {set_it->second.get()};
+
         pipelines[current_assets.drawables[i].pipeline_format].push_back(indexed_drawable);
     }
 
@@ -299,6 +321,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             key.material_buffer_index = indexed_drawable.material_buffer_index;
             auto render_asset_it = current_assets.render_assets.find(key);
 
+            // retrieve descriptorset-layout
+            auto descriptor_layout = next_assets.descriptor_set_layouts[drawable->descriptors];
+
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
             descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
@@ -332,7 +357,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
                     // create a new descriptor set
                     new_render_asset.descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                                      drawable->descriptor_set_layout);
+                                                                                      descriptor_layout);
 
                     // update bone buffers, if necessary
                     if(current_mesh->root_bone)
