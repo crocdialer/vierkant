@@ -221,6 +221,7 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
 
     struct vertex_data_t
     {
+        uint32_t attrib_location;
         const uint8_t *data;
         size_t offset;
         size_t elem_size;
@@ -229,16 +230,20 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
     };
     std::vector<vertex_data_t> vertex_data;
 
-    auto add_offset = [](const auto &array, std::vector<vertex_data_t> &vertex_data, size_t &offset, size_t &stride,
+    auto add_offset = [](uint32_t location, const auto &array, std::vector<vertex_data_t> &vertex_data, size_t &offset,
+                         size_t &stride,
                          size_t &num_bytes, size_t &num_attribs)
     {
         if(!array.empty())
         {
             using elem_t = typename std::decay<decltype(array)>::type::value_type;
             size_t elem_size = sizeof(elem_t);
-            vertex_data.push_back(
-                    {(uint8_t *) array.data(), offset, static_cast<uint32_t>(elem_size), array.size(),
-                     vierkant::format<elem_t>()});
+            vertex_data.push_back({location,
+                                   (uint8_t *) array.data(),
+                                   offset,
+                                   static_cast<uint32_t>(elem_size),
+                                   array.size(),
+                                   vierkant::format<elem_t>()});
             offset += elem_size;
             stride += elem_size;
             num_bytes += array.size() * elem_size;
@@ -258,25 +263,25 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         auto num_vertices = g->vertices.size();
 
         if(g->vertices.empty()){ return false; }
-        add_offset(g->vertices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_POSITION, g->vertices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->colors.empty() && g->colors.size() != num_vertices){ return false; }
-        add_offset(g->colors, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_COLOR, g->colors, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
-        add_offset(g->tex_coords, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_TEX_COORD, g->tex_coords, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
-        add_offset(g->normals, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_NORMAL, g->normals, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
-        add_offset(g->tangents, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_TANGENT, g->tangents, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices){ return false; }
-        add_offset(g->bone_indices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
-        add_offset(g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_BONE_WIEGHTS, g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(num_attribs && num_geom_attribs != num_attribs){ return false; }
         num_attribs = num_geom_attribs;
@@ -317,13 +322,13 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
             const auto &v = vertex_data[i];
 
             vierkant::Mesh::attrib_t attrib;
-            attrib.location = i;
+            attrib.location = v.attrib_location;
             attrib.offset = v.offset;
             attrib.stride = static_cast<uint32_t>(stride);
             attrib.buffer = vertex_buffer;
             attrib.buffer_offset = 0;
             attrib.format = v.format;
-            mesh->vertex_attribs.push_back(attrib);
+            mesh->vertex_attribs[i] = attrib;
         }
 
         for(uint32_t o = 0; o < vertex_offsets.size(); ++o)
@@ -433,8 +438,10 @@ MeshPtr Mesh::create()
 void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
 {
     buffer_binding_set_t buf_tuples;
-    for(auto &att : vertex_attribs)
+
+    for(auto &pair : vertex_attribs)
     {
+        auto &att = pair.second;
         buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
     }
 
@@ -463,8 +470,9 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
 std::vector<VkVertexInputAttributeDescription> Mesh::attribute_descriptions() const
 {
     buffer_binding_set_t buf_tuples;
-    for(auto &att : vertex_attribs)
+    for(auto &pair : vertex_attribs)
     {
+        auto &att = pair.second;
         buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
     }
 
@@ -481,8 +489,9 @@ std::vector<VkVertexInputAttributeDescription> Mesh::attribute_descriptions() co
 
     std::vector<VkVertexInputAttributeDescription> ret;
 
-    for(const auto &att_in : vertex_attribs)
+    for(const auto &pair : vertex_attribs)
     {
+        auto &att_in = pair.second;
         auto binding = binding_index(att_in, buf_tuples);
 
         if(binding >= 0 && att_in.location >= 0)
@@ -503,8 +512,9 @@ std::vector<VkVertexInputAttributeDescription> Mesh::attribute_descriptions() co
 std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
 {
     buffer_binding_set_t buf_tuples;
-    for(auto &att : vertex_attribs)
+    for(auto &pair : vertex_attribs)
     {
+        auto &att = pair.second;
         buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
     }
     std::vector<VkVertexInputBindingDescription> ret;

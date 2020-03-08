@@ -133,7 +133,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
     drawable.mesh = mesh;
     drawable.matrices.projection = glm::orthoRH(0.f, renderer.viewport.width, 0.f, renderer.viewport.height, 0.0f,
                                                 1.0f);
-    drawable.matrices.model[3] = glm::vec4(pos.x, pos.y, 0, 1);
+    drawable.matrices.modelview[3] = glm::vec4(pos.x, pos.y, 0, 1);
     drawable.descriptors[1].image_samplers = {font->glyph_texture()};
     drawable.num_indices = entry.num_indices;
     renderer.stage_drawable(std::move(drawable));
@@ -152,8 +152,8 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
     auto drawable = m_drawable_image;
     drawable.matrices.projection = glm::orthoRH(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
-    drawable.matrices.model = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
-    drawable.matrices.model[3] = glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0, 1);
+    drawable.matrices.modelview = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
+    drawable.matrices.modelview[3] = glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0, 1);
 
     // set image
     drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {image};
@@ -168,7 +168,7 @@ void DrawContext::draw_grid(vierkant::Renderer &renderer, float scale, uint32_t 
                             const glm::mat4 &projection)
 {
     auto drawable = m_drawable_grid;
-    drawable.matrices.model = glm::scale(model_view, glm::vec3(scale));
+    drawable.matrices.modelview = glm::scale(model_view, glm::vec3(scale));
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }
@@ -184,7 +184,7 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
     glm::mat4 scale_mat = glm::scale(glm::mat4(1), glm::vec3(aabb.width(),
                                                              aabb.height(),
                                                              aabb.depth()));
-    drawable.matrices.model = model_view * center_mat * scale_mat;
+    drawable.matrices.modelview = model_view * center_mat * scale_mat;
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }

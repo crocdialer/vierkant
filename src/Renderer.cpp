@@ -27,7 +27,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.mesh = mesh;
 
         // matrices tmp!?
-        drawable.matrices.model = mesh->global_transform();
+        drawable.matrices.modelview = mesh->global_transform();
 
         // material params
         drawable.material.color = material->color;
@@ -43,7 +43,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
         drawable.pipeline_format.blend_state.blendEnable = material->blending;
         drawable.pipeline_format.depth_test = true;
-        drawable.pipeline_format.depth_write = !material->blending;
+        drawable.pipeline_format.depth_write = true;//!material->blending;
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};

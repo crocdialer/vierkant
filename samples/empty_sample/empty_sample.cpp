@@ -92,7 +92,7 @@ void HelloTriangleApplication::load_model()
 
 void HelloTriangleApplication::update(double time_delta)
 {
-    m_drawable.matrices.view = m_camera->view_matrix();
+    m_drawable.matrices.modelview = m_camera->view_matrix();
     m_drawable.matrices.projection = m_camera->projection_matrix();
 
     // issue top-level draw-command

@@ -5,8 +5,7 @@
 
 struct matrix_struct_t
 {
-    mat4 model;
-    mat4 view;
+    mat4 modelview;
     mat4 projection;
     mat4 texture;
 };
@@ -44,7 +43,7 @@ layout(location = 0) out VertexData
 void main()
 {
     matrix_struct_t m = matrices[push_constants.matrix_index];//matrices[gl_InstanceIndex];
-    gl_Position = m.projection * m.view * m.model * vec4(a_position, 1.0);
+    gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
     vertex_out.color = a_color;
     vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
 }

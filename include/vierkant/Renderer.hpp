@@ -30,8 +30,7 @@ public:
 
     struct matrix_struct_t
     {
-        glm::mat4 model = glm::mat4(1);
-        glm::mat4 view = glm::mat4(1);
+        glm::mat4 modelview = glm::mat4(1);
         glm::mat4 projection = glm::mat4(1);
         glm::mat4 texture = glm::mat4(1);
     };

@@ -125,7 +125,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DEFINE_CLASS_PTR(Mesh);
+DEFINE_CLASS_PTR(Mesh)
 
 /**
  * @brief   Mesh groups all sorts of resources,
@@ -134,6 +134,32 @@ DEFINE_CLASS_PTR(Mesh);
 class Mesh : public Object3D
 {
 public:
+
+    enum AttribLocation : uint32_t
+    {
+        ATTRIB_POSITION = 0,
+        ATTRIB_COLOR = 1,
+        ATTRIB_TEX_COORD = 2,
+        ATTRIB_NORMAL = 3,
+        ATTRIB_TANGENT = 4,
+        ATTRIB_BONE_INDICES = 5,
+        ATTRIB_BONE_WIEGHTS = 6,
+        ATTRIB_MAX
+    };
+
+    /**
+     * @brief   Mesh::VertexAttrib defines a vertex-attribute available in the vertex-shader-stage.
+     */
+    struct attrib_t
+    {
+        uint32_t location = 0;
+        vierkant::BufferPtr buffer;
+        VkDeviceSize buffer_offset = 0;
+        uint32_t offset = 0;
+        uint32_t stride = 0;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
+    };
 
     struct entry_t
     {
@@ -144,20 +170,6 @@ public:
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         bool enabled = true;
-    };
-
-    /**
-     * @brief   Mesh::VertexAttrib defines a vertex-attribute available in the vertex-shader-stage.
-     */
-    struct attrib_t
-    {
-        int32_t location = -1;
-        vierkant::BufferPtr buffer;
-        VkDeviceSize buffer_offset = 0;
-        uint32_t offset = 0;
-        uint32_t stride = 0;
-        VkFormat format = VK_FORMAT_UNDEFINED;
-        VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
     };
 
     static MeshPtr create();
@@ -205,7 +217,7 @@ public:
     std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
 
     // vertex attributes
-    std::vector<attrib_t> vertex_attribs;
+    std::map<uint32_t, attrib_t> vertex_attribs;
 
     // entries for sub-meshes
     std::vector<entry_t> entries;
