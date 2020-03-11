@@ -56,7 +56,7 @@ using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, 
 
 /**
  * @brief   descriptor_t defines a resource-descriptor available in a shader program.
- *          it is default constructable, trivially copyable, movable and hashable.
+ *          it is default constructable, copyable, movable and hashable.
  */
 struct descriptor_t
 {
@@ -72,13 +72,15 @@ struct descriptor_t
     bool operator!=(const descriptor_t &other) const{ return !(*this == other); };
 };
 
+using descriptor_map_t = std::map<uint32_t, descriptor_t>;
+
 /**
  * @brief   Extract the types of descriptors and their counts for a given vierkant::Mesh.
  *
  * @param   descriptors an array of descriptors to extract the descriptor counts from
  * @param   counts      a reference to a descriptor_count_map_t to hold the results
  */
-void add_descriptor_counts(const std::vector<descriptor_t> &descriptors, descriptor_count_t &counts);
+void add_descriptor_counts(const descriptor_map_t &descriptors, descriptor_count_t &counts);
 
 /**
  * @brief   Create a shared VkDescriptorPool (DescriptorPoolPtr)
@@ -99,7 +101,7 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
  * @return  the newly created DescriptorSetLayoutPtr
  */
 DescriptorSetLayoutPtr
-create_descriptor_set_layout(const vierkant::DevicePtr &device, const std::vector<descriptor_t> &descriptors);
+create_descriptor_set_layout(const vierkant::DevicePtr &device, const descriptor_map_t &descriptors);
 
 /**
  * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a provided DescriptorLayout
@@ -121,11 +123,11 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
  * @param   descriptors     an array of descriptor_t to use for updating the DescriptorSet
  */
 void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
-                           const std::vector<descriptor_t> &descriptors);
+                           const descriptor_map_t &descriptors);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DEFINE_CLASS_PTR(Mesh);
+DEFINE_CLASS_PTR(Mesh)
 
 /**
  * @brief   Mesh groups all sorts of resources,
@@ -135,15 +137,16 @@ class Mesh : public Object3D
 {
 public:
 
-    struct entry_t
+    enum AttribLocation : uint32_t
     {
-        index_t base_vertex = 0;
-        uint32_t num_vertices = 0;
-        index_t base_index = 0;
-        uint32_t num_indices = 0;
-        uint32_t material_index = 0;
-        VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        bool enabled = true;
+        ATTRIB_POSITION = 0,
+        ATTRIB_COLOR = 1,
+        ATTRIB_TEX_COORD = 2,
+        ATTRIB_NORMAL = 3,
+        ATTRIB_TANGENT = 4,
+        ATTRIB_BONE_INDICES = 5,
+        ATTRIB_BONE_WIEGHTS = 6,
+        ATTRIB_MAX
     };
 
     /**
@@ -151,13 +154,25 @@ public:
      */
     struct attrib_t
     {
-        int32_t location = -1;
+        uint32_t location = 0;
         vierkant::BufferPtr buffer;
         VkDeviceSize buffer_offset = 0;
         uint32_t offset = 0;
         uint32_t stride = 0;
         VkFormat format = VK_FORMAT_UNDEFINED;
         VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
+    };
+
+    struct entry_t
+    {
+        glm::mat4 transform = glm::mat4(1);
+        index_t base_vertex = 0;
+        uint32_t num_vertices = 0;
+        index_t base_index = 0;
+        uint32_t num_indices = 0;
+        uint32_t material_index = 0;
+        VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        bool enabled = true;
     };
 
     static MeshPtr create();
@@ -173,7 +188,7 @@ public:
     static vierkant::MeshPtr
     create_from_geometries(const vierkant::DevicePtr &device,
                            const std::vector<GeometryPtr> &geometries,
-                           bool interleave_data = true);
+                           const std::vector<glm::mat4> &transforms = {});
 
     Mesh(const Mesh &) = delete;
 
@@ -205,12 +220,21 @@ public:
     std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
 
     // vertex attributes
-    std::vector<attrib_t> vertex_attribs;
+    std::map<uint32_t, attrib_t> vertex_attribs;
 
     // entries for sub-meshes
     std::vector<entry_t> entries;
 
+    // materials for submeshes
     std::vector<vierkant::MaterialPtr> materials;
+
+    // root bone
+    vierkant::bones::BonePtr root_bone;
+
+    // bone animations
+    uint32_t bone_animation_index = 0;
+    float bone_animation_speed = 1.f;
+    std::vector<vierkant::bones::animation_t> bone_animations;
 
     // index buffer
     vierkant::BufferPtr index_buffer;
@@ -234,4 +258,11 @@ struct hash<vierkant::descriptor_t>
 {
     size_t operator()(const vierkant::descriptor_t &descriptor) const;
 };
+
+template<>
+struct hash<vierkant::descriptor_map_t>
+{
+    size_t operator()(const vierkant::descriptor_map_t &map) const;
+};
+
 }

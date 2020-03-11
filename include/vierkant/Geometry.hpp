@@ -44,8 +44,8 @@ public:
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     std::vector<glm::vec3> vertices;
-    std::vector<glm::vec2> tex_coords;
     std::vector<glm::vec4> colors;
+    std::vector<glm::vec2> tex_coords;
     std::vector<glm::vec3> normals;
     std::vector<glm::vec3> tangents;
 

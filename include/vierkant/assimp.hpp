@@ -28,10 +28,13 @@ struct material_t
 
 struct mesh_assets_t
 {
+    // per submesh
     std::vector<vierkant::GeometryPtr> geometries;
+    std::vector<glm::mat4> transforms;
     std::vector<uint32_t> material_indices;
-    std::vector<material_t> materials;
 
+    // global for mesh
+    std::vector<material_t> materials;
     vierkant::bones::BonePtr root_bone;
     std::vector<vierkant::bones::animation_t> animations;
 };
@@ -40,6 +43,6 @@ struct mesh_assets_t
 mesh_assets_t load_model(const std::string &path);
 
 //! load animations from file and add to existing geometry
-//size_t add_animations_to_mesh(const std::string &path, vierkant::MeshPtr mesh);
+size_t add_animations_to_mesh(const std::string &path, mesh_assets_t& mesh_assets);
 
 } //namespace vierkant::assimp

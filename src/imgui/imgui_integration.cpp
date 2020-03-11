@@ -99,33 +99,33 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
 
     // vertex attrib -> position
     vierkant::Mesh::attrib_t position_attrib;
-    position_attrib.location = 0;
+    position_attrib.location = vierkant::Mesh::ATTRIB_POSITION;
     position_attrib.offset = offsetof(ImDrawVert, pos);
     position_attrib.stride = sizeof(ImDrawVert);
     position_attrib.buffer = vertex_buffer;
     position_attrib.buffer_offset = 0;
     position_attrib.format = vierkant::format<glm::vec2>();
-    mesh->vertex_attribs.push_back(position_attrib);
+    mesh->vertex_attribs[vierkant::Mesh::ATTRIB_POSITION] = position_attrib;
 
     // vertex attrib -> color
     vierkant::Mesh::attrib_t color_attrib;
-    color_attrib.location = 1;
+    color_attrib.location = vierkant::Mesh::ATTRIB_COLOR;
     color_attrib.offset = offsetof(ImDrawVert, col);
     color_attrib.stride = sizeof(ImDrawVert);
     color_attrib.buffer = vertex_buffer;
     color_attrib.buffer_offset = 0;
     color_attrib.format = VK_FORMAT_R8G8B8A8_UNORM;
-    mesh->vertex_attribs.push_back(color_attrib);
+    mesh->vertex_attribs[vierkant::Mesh::ATTRIB_COLOR] = color_attrib;
 
     // vertex attrib -> tex coords
     vierkant::Mesh::attrib_t tex_coord_attrib;
-    tex_coord_attrib.location = 2;
+    tex_coord_attrib.location = vierkant::Mesh::ATTRIB_TEX_COORD;
     tex_coord_attrib.offset = offsetof(ImDrawVert, uv);
     tex_coord_attrib.stride = sizeof(ImDrawVert);
     tex_coord_attrib.buffer = vertex_buffer;
     tex_coord_attrib.buffer_offset = 0;
     tex_coord_attrib.format = vierkant::format<glm::vec2>();
-    mesh->vertex_attribs.push_back(tex_coord_attrib);
+    mesh->vertex_attribs[vierkant::Mesh::ATTRIB_TEX_COORD] = tex_coord_attrib;
 
     // index buffer
     mesh->index_buffer = index_buffer;
@@ -298,7 +298,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
                 auto drawable = m_imgui_assets.drawable;
                 drawable.mesh = mesh_assets[n].mesh;
                 drawable.matrices = matrices;
-                drawable.descriptors[2].image_samplers = {tex};
+                drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {tex};
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;
 
@@ -377,28 +377,29 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     pipeline_fmt.cull_mode = VK_CULL_MODE_NONE;
     pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
+    auto &drawable = m_imgui_assets.drawable;
+    drawable.mesh = mesh;
+    drawable.pipeline_format = std::move(pipeline_fmt);
+
     // descriptors
-    vierkant::descriptor_t desc_ubo = {};
-    desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    desc_ubo.binding = 0;
+    vierkant::descriptor_t desc_matrix = {};
+    desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+    desc_matrix.binding = vierkant::Renderer::SLOT_MATRIX;
+    drawable.descriptors[vierkant::Renderer::SLOT_MATRIX] = desc_matrix;
 
     vierkant::descriptor_t desc_material = {};
     desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_material.binding = 1;
+    desc_material.binding = vierkant::Renderer::SLOT_MATERIAL;
+    drawable.descriptors[vierkant::Renderer::SLOT_MATERIAL] = desc_material;
 
     vierkant::descriptor_t desc_texture = {};
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.binding = 2;
+    desc_texture.binding = vierkant::Renderer::SLOT_TEXTURES;
+    drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
 
-    auto &drawable = m_imgui_assets.drawable;
-    drawable.mesh = mesh;
-    drawable.pipeline_format = std::move(pipeline_fmt);
-    drawable.descriptors = {desc_ubo, desc_material, desc_texture};
-    drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
-    drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
     return true;
 }
 

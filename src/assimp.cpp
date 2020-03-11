@@ -32,7 +32,7 @@ struct weight_t
 
 using bone_map_t = std::map<std::string, std::pair<int, glm::mat4>>;
 
-using weight_map_t =  std::map<uint32_t, std::list<weight_t>>;
+using weight_map_t =  std::unordered_map<uint32_t, std::list<weight_t>>;
 
 /////////////////////////////////////////////////////////////////
 
@@ -43,18 +43,16 @@ vierkant::GeometryPtr create_geometry(const aiMesh* aMesh, const aiScene* theSce
 void load_bones_and_weights(const aiMesh* aMesh, uint32_t base_vertex, bone_map_t& bonemap,
                             weight_map_t& weightmap);
 
-void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t& weightmap,
-                             uint32_t start_index = 0);
+void
+insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map_t &weightmap, uint32_t start_index = 0);
 
 
-vierkant::bones::BonePtr
-create_bone_hierarchy(const aiNode* theNode, const glm::mat4& parentTransform,
-                      const std::map<std::string, std::pair<int, glm::mat4>>& boneMap,
-                      vierkant::bones::BonePtr parentBone = nullptr);
+vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
+                                               const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
+                                               vierkant::bones::BonePtr parentBone = nullptr);
 
-void create_bone_animation(const aiNode* theNode, const aiAnimation* theAnimation,
-                           vierkant::bones::BonePtr root_bone,
-                           vierkant::bones::animation_t& outAnim);
+void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
+                           const vierkant::bones::BonePtr &root_bone, vierkant::bones::animation_t &outAnim);
 
 //void get_node_transform(const aiNode *the_node, mat4 &the_transform);
 
@@ -106,18 +104,15 @@ vierkant::GeometryPtr create_geometry(const aiMesh* aMesh, const aiScene* theSce
 {
     auto geom = vierkant::Geometry::create();
 
-    glm::mat4 model_matrix;
-    if (!get_mesh_transform(theScene, aMesh, model_matrix))
-    {
-        LOG_WARNING << "could not find mesh transform";
-    }
-    glm::mat3 normal_matrix = glm::inverseTranspose(glm::mat3(model_matrix));
+//    glm::mat4 model_matrix;
+//    if(!get_mesh_transform(theScene, aMesh, model_matrix)){ LOG_WARNING << "could not find mesh transform"; }
+//    glm::mat3 normal_matrix = glm::inverseTranspose(glm::mat3(model_matrix));
 
     geom->vertices.insert(geom->vertices.end(), (glm::vec3*) aMesh->mVertices,
                           (glm::vec3*) aMesh->mVertices + aMesh->mNumVertices);
 
-    // transform loaded verts
-    for (auto& v : geom->vertices) { v = (model_matrix * glm::vec4(v, 1.f)).xyz; }
+//    // transform loaded verts
+//    for(auto &v : geom->vertices){ v = (model_matrix * glm::vec4(v, 1.f)).xyz; }
 
     if (aMesh->HasTextureCoords(0))
     {
@@ -139,16 +134,14 @@ vierkant::GeometryPtr create_geometry(const aiMesh* aMesh, const aiScene* theSce
         if (f.mNumIndices != 3) throw std::runtime_error("Non triangle mesh loaded");
         geom->indices.insert(geom->indices.end(), f.mIndices, f.mIndices + 3);
     }
-//    geom->faces().resize(aMesh->mNumFaces);
-//    ::memcpy(&geom->faces()[0], &indices[0], indices.size() * sizeof(gl::index_t));
 
     if (aMesh->HasNormals())
     {
         geom->normals.insert(geom->normals.end(), (glm::vec3*) aMesh->mNormals,
                              (glm::vec3*) aMesh->mNormals + aMesh->mNumVertices);
 
-        // transform loaded normals
-        for (auto& n : geom->normals) { n = normal_matrix * n; }
+//        // transform loaded normals
+//        for(auto &n : geom->normals){ n = normal_matrix * n; }
     }
     else
     {
@@ -167,8 +160,8 @@ vierkant::GeometryPtr create_geometry(const aiMesh* aMesh, const aiScene* theSce
         geom->tangents.insert(geom->tangents.end(), (glm::vec3*) aMesh->mTangents,
                               (glm::vec3*) aMesh->mTangents + aMesh->mNumVertices);
 
-        // transform loaded tangents
-        for (auto& t : geom->tangents) { t = normal_matrix * t; }
+//        // transform loaded tangents
+//        for(auto &t : geom->tangents){ t = normal_matrix * t; }
     }
     else
     {
@@ -212,8 +205,7 @@ void load_bones_and_weights(const aiMesh* aMesh, uint32_t base_vertex, bone_map_
 
 /////////////////////////////////////////////////////////////////
 
-void insert_bone_vertex_data(vierkant::GeometryPtr geom, const weight_map_t& weightmap,
-                             uint32_t start_index)
+void insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map_t &weightmap, uint32_t start_index)
 {
     if (weightmap.empty()) return;
 
@@ -535,22 +527,7 @@ create_material(const std::string& base_path, const aiScene* the_scene, const ai
 
 /////////////////////////////////////////////////////////////////
 
-void merge_geometries(vierkant::GeometryPtr src, vierkant::GeometryPtr dst)
-{
-    dst->vertices.insert(dst->vertices.end(), src->vertices.begin(), src->vertices.end());
-    dst->normals.insert(dst->normals.end(), src->normals.begin(), src->normals.end());
-    dst->colors.insert(dst->colors.end(), src->colors.begin(), src->colors.end());
-    dst->tangents.insert(dst->tangents.end(), src->tangents.begin(), src->tangents.end());
-    dst->tex_coords.insert(dst->tex_coords.end(), src->tex_coords.begin(),
-                           src->tex_coords.end());
-    dst->bone_weights.insert(dst->bone_weights.end(), src->bone_weights.begin(),
-                             src->bone_weights.end());
-    dst->indices.insert(dst->indices.end(), src->indices.begin(), src->indices.end());
-}
-
-/////////////////////////////////////////////////////////////////
-
-mesh_assets_t load_model(const std::string& path)
+mesh_assets_t load_model(const std::string &path)
 {
     Assimp::Importer importer;
     std::string found_path;
@@ -577,6 +554,7 @@ mesh_assets_t load_model(const std::string& path)
     if (theScene)
     {
         std::vector<vierkant::GeometryPtr> geometries;
+        std::vector<glm::mat4> transforms;
         std::vector<material_t> materials;
         materials.resize(theScene->mNumMaterials);
 
@@ -605,6 +583,10 @@ mesh_assets_t load_model(const std::string& path)
             num_indices += g->indices.size();
 
             geometries.push_back(g);
+
+            glm::mat4 transform = glm::mat4(1);
+            if(!get_mesh_transform(theScene, aMesh, transform)){ LOG_WARNING << "could not find mesh transform"; }
+            transforms.push_back(transform);
 
             material_indices[i] = aMesh->mMaterialIndex;
             materials[aMesh->mMaterialIndex] = create_material(base_path, theScene,
@@ -640,9 +622,15 @@ mesh_assets_t load_model(const std::string& path)
                   << glm::to_string(aabb.max);
 
         importer.FreeScene();
-        return {std::move(geometries), std::move(material_indices), std::move(materials),
-                root_bone,
-                std::move(animations)};
+
+        mesh_assets_t ret = {std::move(geometries), std::move(transforms), std::move(material_indices),
+                             std::move(materials), root_bone, std::move(animations)};
+
+        // search for external animations
+        auto anim_files = crocore::fs::get_directory_entries(crocore::fs::join_paths(base_path, "animations"),
+                                                             crocore::fs::FileType::MODEL, 2);
+        for(auto &p : anim_files){ add_animations_to_mesh(p, ret); }
+        return ret;
     }
     return {};
 }
@@ -718,16 +706,15 @@ void process_node(const aiScene* the_scene, const aiNode* the_in_node,
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::bones::BonePtr
-create_bone_hierarchy(const aiNode* theNode, const glm::mat4& parentTransform,
-                      const std::map<std::string, std::pair<int, glm::mat4>>& boneMap,
-                      vierkant::bones::BonePtr parentBone)
+vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
+                                               const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
+                                               vierkant::bones::BonePtr parentBone)
 {
     vierkant::bones::BonePtr currentBone;
     std::string nodeName(theNode->mName.data);
     glm::mat4 nodeTransform = aimatrix_to_glm_mat4(theNode->mTransformation);
 
-    glm::mat4 globalTransform = parentTransform * nodeTransform;
+    world_transform = world_transform * nodeTransform;
     auto it = boneMap.find(nodeName);
 
     // current node corresponds to a bone
@@ -739,15 +726,14 @@ create_bone_hierarchy(const aiNode* theNode, const glm::mat4& parentTransform,
         currentBone->name = nodeName;
         currentBone->index = boneIndex;
         currentBone->transform = nodeTransform;
-        currentBone->world_transform = globalTransform;
+        currentBone->world_transform = world_transform;
         currentBone->offset = offset;
         currentBone->parent = std::move(parentBone);
     }
 
     for (uint32_t i = 0; i < theNode->mNumChildren; i++)
     {
-        vierkant::bones::BonePtr child = create_bone_hierarchy(theNode->mChildren[i],
-                                                               globalTransform,
+        vierkant::bones::BonePtr child = create_bone_hierarchy(theNode->mChildren[i], world_transform,
                                                                boneMap, currentBone);
 
         if (currentBone && child) { currentBone->children.push_back(child); }
@@ -762,9 +748,8 @@ create_bone_hierarchy(const aiNode* theNode, const glm::mat4& parentTransform,
 
 /////////////////////////////////////////////////////////////////
 
-void create_bone_animation(const aiNode* theNode, const aiAnimation* theAnimation,
-                           vierkant::bones::BonePtr root_bone,
-                           vierkant::bones::animation_t& outAnim)
+void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
+                           const vierkant::bones::BonePtr &root_bone, vierkant::bones::animation_t &outAnim)
 {
     std::string nodeName(theNode->mName.data);
     const aiNodeAnim* nodeAnim = nullptr;
@@ -851,7 +836,7 @@ void create_bone_animation(const aiNode* theNode, const aiAnimation* theAnimatio
 
 /////////////////////////////////////////////////////////////////
 
-size_t add_animations_to_mesh(const std::string& path, vierkant::GeometryPtr mesh)
+size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_assets)
 {
     LOG_TRACE << "loading animations from '" << path << "' ...";
 
@@ -866,18 +851,18 @@ size_t add_animations_to_mesh(const std::string& path, vierkant::GeometryPtr mes
         return 0;
     }
 
-//    if(theScene && m)
-//    {
-//        for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
-//        {
-//            aiAnimation *assimpAnimation = theScene->mAnimations[i];
-//            gl::MeshAnimation anim;
-//            anim.duration = assimpAnimation->mDuration;
-//            anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
-//            create_bone_animation(theScene->mRootNode, assimpAnimation, m->root_bone(), anim);
-//            m->add_animation(anim);
-//        }
-//    }
+    if(theScene)
+    {
+        for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
+        {
+            aiAnimation *assimpAnimation = theScene->mAnimations[i];
+            vierkant::bones::animation_t anim;
+            anim.duration = assimpAnimation->mDuration;
+            anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
+            create_bone_animation(theScene->mRootNode, assimpAnimation, mesh_assets.root_bone, anim);
+            mesh_assets.animations.push_back(std::move(anim));
+        }
+    }
     return theScene ? theScene->mNumAnimations : 0;
 }
 

@@ -32,27 +32,26 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.primitive_topology = entry.primitive_type;
 
         // descriptors
-        vierkant::descriptor_t desc_ubo = {};
-        desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        desc_ubo.binding = 0;
+        vierkant::descriptor_t desc_matrix = {};
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        desc_matrix.binding = vierkant::Renderer::SLOT_MATRIX;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_material.binding = 1;
+        desc_material.binding = vierkant::Renderer::SLOT_MATERIAL;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATERIAL] = desc_material;
 
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_texture.binding = 2;
+        desc_texture.binding = vierkant::Renderer::SLOT_TEXTURES;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
 
         m_drawable_image.mesh = mesh;
         m_drawable_image.num_indices = entry.num_indices;
-        m_drawable_image.descriptors = {desc_ubo, desc_material, desc_texture};
-        m_drawable_image.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
-                                                                                        m_drawable_image.descriptors);
-        fmt.descriptor_set_layouts = {m_drawable_image.descriptor_set_layout.get()};
         m_drawable_image.pipeline_format = fmt;
     }
 
@@ -68,26 +67,25 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
 
         // descriptors
-        vierkant::descriptor_t desc_ubo = {};
-        desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        desc_ubo.binding = 0;
+        vierkant::descriptor_t desc_matrix = {};
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        desc_matrix.binding = vierkant::Renderer::SLOT_MATRIX;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_material.binding = 1;
+        desc_material.binding = vierkant::Renderer::SLOT_MATERIAL;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATERIAL] = desc_material;
 
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_texture.binding = 2;
+        desc_texture.binding = vierkant::Renderer::SLOT_TEXTURES;
+        m_drawable_image.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
 
         m_drawable_text.pipeline_format = std::move(pipeline_fmt);
-        m_drawable_text.descriptors = {desc_ubo, desc_material, desc_texture};
-        m_drawable_text.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
-                                                                                       m_drawable_text.descriptors);
-        m_drawable_text.pipeline_format.descriptor_set_layouts = {m_drawable_text.descriptor_set_layout.get()};
     }
 
     // aabb
@@ -129,7 +127,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
     drawable.mesh = mesh;
     drawable.matrices.projection = glm::orthoRH(0.f, renderer.viewport.width, 0.f, renderer.viewport.height, 0.0f,
                                                 1.0f);
-    drawable.matrices.model[3] = glm::vec4(pos.x, pos.y, 0, 1);
+    drawable.matrices.modelview[3] = glm::vec4(pos.x, pos.y, 0, 1);
     drawable.descriptors[1].image_samplers = {font->glyph_texture()};
     drawable.num_indices = entry.num_indices;
     renderer.stage_drawable(std::move(drawable));
@@ -148,8 +146,8 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
     auto drawable = m_drawable_image;
     drawable.matrices.projection = glm::orthoRH(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
-    drawable.matrices.model = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
-    drawable.matrices.model[3] = glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0, 1);
+    drawable.matrices.modelview = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
+    drawable.matrices.modelview[3] = glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0, 1);
 
     // set image
     drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {image};
@@ -164,7 +162,7 @@ void DrawContext::draw_grid(vierkant::Renderer &renderer, float scale, uint32_t 
                             const glm::mat4 &projection)
 {
     auto drawable = m_drawable_grid;
-    drawable.matrices.model = glm::scale(model_view, glm::vec3(scale));
+    drawable.matrices.modelview = glm::scale(model_view, glm::vec3(scale));
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }
@@ -180,7 +178,7 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
     glm::mat4 scale_mat = glm::scale(glm::mat4(1), glm::vec3(aabb.width(),
                                                              aabb.height(),
                                                              aabb.depth()));
-    drawable.matrices.model = model_view * center_mat * scale_mat;
+    drawable.matrices.modelview = model_view * center_mat * scale_mat;
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }

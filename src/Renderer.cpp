@@ -3,6 +3,7 @@
 //
 
 #include <crocore/Area.hpp>
+#include <vierkant/Pipeline.hpp>
 #include "vierkant/Renderer.hpp"
 
 namespace vierkant
@@ -12,21 +13,27 @@ namespace vierkant
 
 std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::DevicePtr &device,
                                                              const MeshPtr &mesh,
-                                                             const std::vector<MaterialPtr> &materials)
+                                                             const std::vector<MaterialPtr> &materials,
+                                                             vierkant::PipelineCachePtr pipeline_cache)
 {
     std::vector<Renderer::drawable_t> ret;
+
+    // same for all entries
+    auto binding_descriptions = mesh->binding_descriptions();
+    auto attribute_descriptions = mesh->attribute_descriptions();
 
     for(const auto &entry : mesh->entries)
     {
         // wonky
-        auto material = materials[entry.material_index];
+        const auto &material = mesh->materials[entry.material_index];
 
         // copy mesh-drawable
         Renderer::drawable_t drawable = {};
         drawable.mesh = mesh;
 
-        // matrices tmp!?
-        drawable.matrices.model = mesh->global_transform();
+        // TODO: combine mesh- with entry-transform
+        drawable.matrices.modelview = mesh->global_transform() * entry.transform;
+        drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
 
         // material params
         drawable.material.color = material->color;
@@ -36,26 +43,31 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.base_vertex = entry.base_vertex;
         drawable.num_vertices = entry.num_vertices;
 
-        drawable.pipeline_format.binding_descriptions = mesh->binding_descriptions();
-        drawable.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
+        drawable.pipeline_format.binding_descriptions = binding_descriptions;
+        drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
-        drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
         drawable.pipeline_format.blend_state.blendEnable = material->blending;
         drawable.pipeline_format.depth_test = true;
-        drawable.pipeline_format.depth_write = !material->blending;
+        drawable.pipeline_format.depth_write = true;//!material->blending;
+
+        if(pipeline_cache)
+        {
+            drawable.pipeline_format.shader_stages = pipeline_cache->get_shader_stages(material->shader_type);
+        }
+        else{ drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type); }
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};
         desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         desc_matrices.binding = SLOT_MATRIX;
-        drawable.descriptors.push_back(desc_matrices);
+        drawable.descriptors[SLOT_MATRIX] = desc_matrices;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         desc_material.binding = SLOT_MATERIAL;
-        drawable.descriptors.push_back(desc_material);
+        drawable.descriptors[SLOT_MATERIAL] = desc_material;
 
         // textures
         if(!material->images.empty())
@@ -65,10 +77,20 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
             desc_texture.binding = SLOT_TEXTURES;
             desc_texture.image_samplers = material->images;
-            drawable.descriptors.push_back(desc_texture);
+            drawable.descriptors[SLOT_TEXTURES] = desc_texture;
         }
 
-        uint32_t binding = MIN_NUM_DESCRIPTORS;
+        // bone matrices
+        if(mesh->root_bone)
+        {
+            vierkant::descriptor_t desc_bones = {};
+            desc_bones.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+            desc_bones.binding = SLOT_BONES;
+            drawable.descriptors[SLOT_BONES] = desc_bones;
+        }
+
+        uint32_t binding = MAX_DESCRIPTOR_SLOT;
 
         // custom ubos
         for(auto &ubo : material->ubos)
@@ -79,12 +101,8 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             custom_desc.binding = binding++;
             custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                           VMA_MEMORY_USAGE_CPU_TO_GPU);
-            drawable.descriptors.push_back(custom_desc);
+            drawable.descriptors[binding] = custom_desc;
         }
-
-        drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
-        drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
-
         ret.push_back(std::move(drawable));
     }
     return ret;
@@ -236,6 +254,27 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
         indexed_drawable.material_index = i % (max_num_uniform_bytes / sizeof(material_struct_t));
 
         indexed_drawable.drawable = &current_assets.drawables[i];
+
+        // retrieve set-layout
+        auto set_it = current_assets.descriptor_set_layouts.find(current_assets.drawables[i].descriptors);
+
+        if(set_it != current_assets.descriptor_set_layouts.end())
+        {
+            auto new_it = next_assets.descriptor_set_layouts.insert(std::move(*set_it)).first;
+            current_assets.descriptor_set_layouts.erase(set_it);
+            set_it = new_it;
+        }
+        else{ set_it = next_assets.descriptor_set_layouts.find(current_assets.drawables[i].descriptors); }
+
+        // not found -> create and insert descriptor-set layout
+        if(set_it == next_assets.descriptor_set_layouts.end())
+        {
+            auto new_set = vierkant::create_descriptor_set_layout(m_device, current_assets.drawables[i].descriptors);
+            set_it = next_assets.descriptor_set_layouts.insert(
+                    std::make_pair(current_assets.drawables[i].descriptors, std::move(new_set))).first;
+        }
+        current_assets.drawables[i].pipeline_format.descriptor_set_layouts = {set_it->second.get()};
+
         pipelines[current_assets.drawables[i].pipeline_format].push_back(indexed_drawable);
     }
 
@@ -283,58 +322,98 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 vkCmdSetScissor(command_buffer.handle(), 0, 1, &drawable->pipeline_format.scissor);
             }
 
+            // search/create descriptor set
+            asset_key_t key = {};
+            key.mesh = current_mesh;
+            key.descriptors = drawable->descriptors;
+            key.matrix_buffer_index = indexed_drawable.matrix_buffer_index;
+            key.material_buffer_index = indexed_drawable.material_buffer_index;
+            auto render_asset_it = current_assets.render_assets.find(key);
+
+            // retrieve descriptorset-layout
+            auto descriptor_layout = next_assets.descriptor_set_layouts[drawable->descriptors];
+
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
+            descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
+            descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
 
-            // search/create descriptor set
-            asset_key_t key = {current_mesh, drawable->descriptors};
-            auto descriptor_it = current_assets.render_assets.find(key);
-
-            vierkant::DescriptorSetPtr descriptor_set;
-
-            // not found or empty queue
-            if(descriptor_it == current_assets.render_assets.end() || descriptor_it->second.empty())
+            // transition image layouts
+            for(auto &pair : descriptors)
             {
-                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
-                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
-
-                // transition image layouts
-                for(auto &desc : descriptors)
+                auto &desc = pair.second;
+                for(auto &img : desc.image_samplers)
                 {
-                    for(auto &img : desc.image_samplers)
-                    {
-                        img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
-                    }
+                    img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                           command_buffer.handle());
                 }
+            }
 
-                // create a new descriptor set
-                descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                 drawable->descriptor_set_layout);
+            // handle for a descriptor-set
+            VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
 
-                // update the newly created descriptor set
-                vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
+            // not found in current assets
+            if(render_asset_it == current_assets.render_assets.end())
+            {
+                // search in next assets (might already been processed for this frame)
+                auto next_assets_it = next_assets.render_assets.find(key);
 
-                // insert all created assets and store in map
-                next_assets.render_assets[key].push_back(descriptor_set);
+                // not found in next assets
+                if(next_assets_it == next_assets.render_assets.end())
+                {
+                    // create a new render_asset
+                    render_asset_t new_render_asset = {};
+
+                    // create a new descriptor set
+                    new_render_asset.descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
+                                                                                      descriptor_layout);
+
+                    // update bone buffers, if necessary
+                    if(current_mesh->root_bone)
+                    {
+                        update_bone_uniform_buffer(current_mesh, new_render_asset.bone_buffer);
+                        descriptors[SLOT_BONES].buffer = new_render_asset.bone_buffer;
+                    }
+
+                    // keep handle
+                    descriptor_set_handle = new_render_asset.descriptor_set.get();
+
+                    // update the newly created descriptor set
+                    vierkant::update_descriptor_set(m_device, new_render_asset.descriptor_set, descriptors);
+
+                    // insert all created assets and store in map
+                    next_assets.render_assets[key] = std::move(new_render_asset);
+                }
+                else
+                {
+                    descriptor_set_handle = next_assets_it->second.descriptor_set.get();
+                }
             }
             else
             {
-                // use existing set
-                descriptor_set = std::move(descriptor_it->second.front());
-                descriptor_it->second.pop_front();
+                // use existing render_asset
+                render_asset_t render_asset = std::move(render_asset_it->second);
+                current_assets.render_assets.erase(render_asset_it);
+
+                // update bone buffers, if necessary
+                if(current_mesh->root_bone)
+                {
+                    update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
+                    descriptors[SLOT_BONES].buffer = render_asset.bone_buffer;
+                }
+
+                // keep handle
+                descriptor_set_handle = render_asset.descriptor_set.get();
 
                 // update existing descriptor set
-                descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
-                descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
-                vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
+                vierkant::update_descriptor_set(m_device, render_asset.descriptor_set, descriptors);
 
-                next_assets.render_assets[key].push_back(descriptor_set);
+                next_assets.render_assets[key] = std::move(render_asset);
             }
 
             // bind descriptor sets (uniforms, samplers)
-            VkDescriptorSet descriptor_handle = descriptor_set.get();
             vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(),
-                                    0, 1, &descriptor_handle, 0, nullptr);
+                                    0, 1, &descriptor_set_handle, 0, nullptr);
 
             // update push_constants for each draw call
             push_constants.matrix_index = indexed_drawable.matrix_index;
@@ -432,9 +511,32 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer)
+{
+    if(mesh && mesh->root_bone && mesh->bone_animation_index < mesh->bone_animations.size())
+    {
+        std::vector<glm::mat4> bones_matrices;
+        vierkant::bones::build_bone_matrices(mesh->root_bone, mesh->bone_animations[mesh->bone_animation_index],
+                                             bones_matrices);
+
+        if(!out_buffer)
+        {
+            out_buffer = vierkant::Buffer::create(m_device, bones_matrices.data(),
+                                                  bones_matrices.size() * sizeof(glm::mat4),
+                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
+        }
+        else{ out_buffer->set_data(bones_matrices); }
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool Renderer::asset_key_t::operator==(const Renderer::asset_key_t &other) const
 {
     if(mesh != other.mesh){ return false; }
+    if(matrix_buffer_index != other.matrix_buffer_index){ return false; }
+    if(material_buffer_index != other.material_buffer_index){ return false; }
     if(descriptors != other.descriptors){ return false; }
     return true;
 }
@@ -445,7 +547,14 @@ size_t Renderer::asset_key_hash_t::operator()(const Renderer::asset_key_t &key) 
 {
     size_t h = 0;
     crocore::hash_combine(h, key.mesh);
-    for(const auto &descriptor : key.descriptors){ crocore::hash_combine(h, descriptor); }
+    crocore::hash_combine(h, key.matrix_buffer_index);
+    crocore::hash_combine(h, key.material_buffer_index);
+
+    for(const auto &pair : key.descriptors)
+    {
+        crocore::hash_combine(h, pair.first);
+        crocore::hash_combine(h, pair.second);
+    }
     return h;
 }
 

@@ -5,7 +5,8 @@
 
 struct push_constants_t
 {
-    int drawable_index;
+    int matrix_index;
+    int material_index;
 };
 
 layout(push_constant) uniform PushConstants {
@@ -35,5 +36,5 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = vertex_in.color * materials[push_constants.drawable_index].color;
+    out_color = vertex_in.color * materials[push_constants.material_index].color;
 }

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <deque>
+#include <mutex>
 #include "crocore/Area.hpp"
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Framebuffer.hpp"
@@ -25,14 +25,15 @@ public:
         SLOT_MATRIX = 0,
         SLOT_MATERIAL = 1,
         SLOT_TEXTURES = 2,
-        MIN_NUM_DESCRIPTORS
+        SLOT_BONES = 3,
+        MAX_DESCRIPTOR_SLOT
     };
 
     struct matrix_struct_t
     {
-        glm::mat4 model = glm::mat4(1);
-        glm::mat4 view = glm::mat4(1);
+        glm::mat4 modelview = glm::mat4(1);
         glm::mat4 projection = glm::mat4(1);
+        glm::mat4 normal = glm::mat4(1);
         glm::mat4 texture = glm::mat4(1);
     };
 
@@ -69,8 +70,8 @@ public:
         material_struct_t material = {};
 
         // descriptors -> layout
-        std::vector<descriptor_t> descriptors;
-        DescriptorSetLayoutPtr descriptor_set_layout;
+        descriptor_map_t descriptors;
+//        DescriptorSetLayoutPtr descriptor_set_layout;
 
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
@@ -87,8 +88,10 @@ public:
      * @param   material    a material object
      * @return  a newly constructed drawable_t
      */
-    static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device, const MeshPtr &mesh,
-                                                    const std::vector<MaterialPtr> &materials);
+    static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device,
+                                                    const MeshPtr &mesh,
+                                                    const std::vector<MaterialPtr> &materials,
+                                                    vierkant::PipelineCachePtr pipeline_cache = nullptr);
 
     /**
      * @brief   Viewport parameters currently used.
@@ -152,10 +155,18 @@ public:
 
 private:
 
+    struct render_asset_t
+    {
+        vierkant::BufferPtr bone_buffer;
+        vierkant::DescriptorSetPtr descriptor_set;
+    };
+
     struct asset_key_t
     {
         vierkant::MeshPtr mesh;
-        std::vector<vierkant::descriptor_t> descriptors;
+        uint32_t matrix_buffer_index = 0;
+        uint32_t material_buffer_index = 0;
+        descriptor_map_t descriptors;
 
         bool operator==(const asset_key_t &other) const;
     };
@@ -165,10 +176,11 @@ private:
         size_t operator()(const asset_key_t &key) const;
     };
 
-    using asset_map_t = std::unordered_map<asset_key_t, std::deque<vierkant::DescriptorSetPtr>, asset_key_hash_t>;
+    using asset_map_t = std::unordered_map<asset_key_t, render_asset_t, asset_key_hash_t>;
 
     struct frame_assets_t
     {
+        std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_set_layouts;
         asset_map_t render_assets;
         std::vector<vierkant::BufferPtr> matrix_buffers;
         std::vector<vierkant::BufferPtr> material_buffers;
@@ -176,7 +188,10 @@ private:
         vierkant::CommandBuffer command_buffer;
     };
 
-    void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t& frame_asset);
+    // update the combined uniform buffers
+    void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
+
+    void update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer);
 
     DevicePtr m_device;
 
