@@ -13,7 +13,8 @@ namespace vierkant
 
 std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::DevicePtr &device,
                                                              const MeshPtr &mesh,
-                                                             const std::vector<MaterialPtr> &materials)
+                                                             const std::vector<MaterialPtr> &materials,
+                                                             vierkant::PipelineCachePtr pipeline_cache)
 {
     std::vector<Renderer::drawable_t> ret;
 
@@ -24,7 +25,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
     for(const auto &entry : mesh->entries)
     {
         // wonky
-        const auto &material = materials[entry.material_index];
+        const auto &material = mesh->materials[entry.material_index];
 
         // copy mesh-drawable
         Renderer::drawable_t drawable = {};
@@ -45,10 +46,15 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.pipeline_format.binding_descriptions = binding_descriptions;
         drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
-        drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type);
         drawable.pipeline_format.blend_state.blendEnable = material->blending;
         drawable.pipeline_format.depth_test = true;
         drawable.pipeline_format.depth_write = true;//!material->blending;
+
+        if(pipeline_cache)
+        {
+            drawable.pipeline_format.shader_stages = pipeline_cache->get_shader_stages(material->shader_type);
+        }
+        else{ drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type); }
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};

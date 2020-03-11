@@ -386,6 +386,8 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
                                                       VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
+    mesh->materials.resize(geometries.size());
+    for(auto &m : mesh->materials){ m = vierkant::Material::create(); }
     return mesh;
 }
 

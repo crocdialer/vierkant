@@ -18,7 +18,7 @@ public:
 
     static MaterialPtr create() { return MaterialPtr(new Material()); };
 
-    vierkant::ShaderType shader_type = vierkant::ShaderType::UNLIT_TEXTURE;
+    vierkant::ShaderType shader_type = vierkant::ShaderType::UNLIT_COLOR;
 
     glm::vec4 color = glm::vec4(1);
 

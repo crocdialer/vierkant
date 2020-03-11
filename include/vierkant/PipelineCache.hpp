@@ -47,7 +47,7 @@ public:
         // read-only locked for searching
         std::unordered_map<Pipeline::Format, PipelinePtr>::const_iterator it;
         {
-            std::shared_lock<std::shared_mutex> lock(m_mutex);
+            std::shared_lock<std::shared_mutex> lock(m_pipeline_mutex);
             it = m_pipelines.find(format);
         }
 
@@ -56,16 +56,37 @@ public:
         else
         {
             // not found -> create pipeline
-            std::unique_lock<std::shared_mutex> lock(m_mutex);
+            std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
             auto new_pipeline = Pipeline::create(m_device, format);
             auto pipe_it = m_pipelines.insert(std::make_pair(format, std::move(new_pipeline))).first;
             return pipe_it->second;
         }
     }
 
+    const vierkant::shader_stage_map_t& get_shader_stages(ShaderType shader_type)
+    {
+        // read-only locked for searching
+        std::unordered_map<vierkant::ShaderType, vierkant::shader_stage_map_t>::const_iterator it;
+        {
+            std::shared_lock<std::shared_mutex> lock(m_shader_stage_mutex);
+            it = m_shader_stages.find(shader_type);
+        }
+
+        // found
+        if(it != m_shader_stages.end()){ return it->second; }
+        else
+        {
+            // not found -> create pipeline
+            std::unique_lock<std::shared_mutex> lock(m_shader_stage_mutex);
+            auto new_shader_stages = vierkant::create_shader_stages(m_device, shader_type);
+            auto shader_stage_it = m_shader_stages.insert(std::make_pair(shader_type, std::move(new_shader_stages))).first;
+            return shader_stage_it->second;
+        }
+    }
+
     void clear()
     {
-        std::unique_lock<std::shared_mutex> lock(m_mutex);
+        std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
         m_pipelines.clear();
     }
 
@@ -75,8 +96,12 @@ private:
 
     vierkant::DevicePtr m_device;
 
-    std::shared_mutex m_mutex;
+    std::shared_mutex m_pipeline_mutex;
 
     std::unordered_map<Pipeline::Format, PipelinePtr> m_pipelines;
+
+    std::shared_mutex m_shader_stage_mutex;
+
+    std::unordered_map<vierkant::ShaderType, vierkant::shader_stage_map_t> m_shader_stages;
 };
 }

@@ -88,8 +88,10 @@ public:
      * @param   material    a material object
      * @return  a newly constructed drawable_t
      */
-    static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device, const MeshPtr &mesh,
-                                                    const std::vector<MaterialPtr> &materials);
+    static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device,
+                                                    const MeshPtr &mesh,
+                                                    const std::vector<MaterialPtr> &materials,
+                                                    vierkant::PipelineCachePtr pipeline_cache = nullptr);
 
     /**
      * @brief   Viewport parameters currently used.
