@@ -252,35 +252,14 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
         indexed_drawable.drawable = &current_assets.drawables[i];
 
-        // clean descriptor-map to enable sharing
-        auto descriptors = current_assets.drawables[i].descriptors;
-        for(auto &pair : descriptors)
+        if(!current_assets.drawables[i].descriptor_set_layout)
         {
-            pair.second.image_samplers.clear();
-            pair.second.buffer.reset();
+            indexed_drawable.descriptor_set_layout = find_set_layout(current_assets.drawables[i].descriptors,
+                                                                     current_assets, next_assets);
+            current_assets.drawables[i].pipeline_format.descriptor_set_layouts = {
+                    indexed_drawable.descriptor_set_layout.get()};
         }
-
-        // retrieve set-layout
-        auto set_it = current_assets.descriptor_set_layouts.find(descriptors);
-
-        if(set_it != current_assets.descriptor_set_layouts.end())
-        {
-            auto new_it = next_assets.descriptor_set_layouts.insert(std::move(*set_it)).first;
-            current_assets.descriptor_set_layouts.erase(set_it);
-            set_it = new_it;
-        }
-        else{ set_it = next_assets.descriptor_set_layouts.find(descriptors); }
-
-        // not found -> create and insert descriptor-set layout
-        if(set_it == next_assets.descriptor_set_layouts.end())
-        {
-            auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
-            set_it = next_assets.descriptor_set_layouts.insert(
-                    std::make_pair(descriptors, std::move(new_set))).first;
-        }
-
-        indexed_drawable.descriptor_set_layout = set_it->second;
-        current_assets.drawables[i].pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
+        else{ indexed_drawable.descriptor_set_layout = std::move(current_assets.drawables[i].descriptor_set_layout); }
 
         pipelines[current_assets.drawables[i].pipeline_format].push_back(indexed_drawable);
     }
@@ -529,6 +508,40 @@ void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vi
         }
         else{ out_buffer->set_data(bones_matrices); }
     }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
+                                                 frame_assets_t &current,
+                                                 frame_assets_t &next)
+{
+    // clean descriptor-map to enable sharing
+    for(auto &pair : descriptors)
+    {
+        pair.second.image_samplers.clear();
+        pair.second.buffer.reset();
+    }
+
+    // retrieve set-layout
+    auto set_it = current.descriptor_set_layouts.find(descriptors);
+
+    if(set_it != current.descriptor_set_layouts.end())
+    {
+        auto new_it = next.descriptor_set_layouts.insert(std::move(*set_it)).first;
+        current.descriptor_set_layouts.erase(set_it);
+        set_it = new_it;
+    }
+    else{ set_it = next.descriptor_set_layouts.find(descriptors); }
+
+    // not found -> create and insert descriptor-set layout
+    if(set_it == next.descriptor_set_layouts.end())
+    {
+        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
+        set_it = next.descriptor_set_layouts.insert(
+                std::make_pair(descriptors, std::move(new_set))).first;
+    }
+    return set_it->second;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
