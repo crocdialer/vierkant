@@ -31,7 +31,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         Renderer::drawable_t drawable = {};
         drawable.mesh = mesh;
 
-        // TODO: combine mesh- with entry-transform
+        // combine mesh- with entry-transform
         drawable.matrices.modelview = mesh->global_transform() * entry.transform;
         drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
 
@@ -60,13 +60,11 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         vierkant::descriptor_t desc_matrices = {};
         desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        desc_matrices.binding = SLOT_MATRIX;
         drawable.descriptors[SLOT_MATRIX] = desc_matrices;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_material.binding = SLOT_MATERIAL;
         drawable.descriptors[SLOT_MATERIAL] = desc_material;
 
         // textures
@@ -75,7 +73,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             vierkant::descriptor_t desc_texture = {};
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            desc_texture.binding = SLOT_TEXTURES;
             desc_texture.image_samplers = material->images;
             drawable.descriptors[SLOT_TEXTURES] = desc_texture;
         }
@@ -86,7 +83,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             vierkant::descriptor_t desc_bones = {};
             desc_bones.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-            desc_bones.binding = SLOT_BONES;
             drawable.descriptors[SLOT_BONES] = desc_bones;
         }
 
@@ -98,10 +94,9 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             vierkant::descriptor_t custom_desc = {};
             custom_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             custom_desc.stage_flags = VK_SHADER_STAGE_ALL;
-            custom_desc.binding = binding++;
             custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                           VMA_MEMORY_USAGE_CPU_TO_GPU);
-            drawable.descriptors[binding] = custom_desc;
+            drawable.descriptors[binding++] = custom_desc;
         }
         ret.push_back(std::move(drawable));
     }
@@ -148,6 +143,11 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
     if(pipeline_cache){ m_pipeline_cache = std::move(pipeline_cache); }
     else{ m_pipeline_cache = vierkant::PipelineCache::create(m_device); }
 
+    // push constant range
+    m_push_constant_range.offset = 0;
+    m_push_constant_range.size = sizeof(push_constants_t);
+    m_push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
+
     // query physical-device features
     vkGetPhysicalDeviceProperties(m_device->physical_device(), &m_physical_device_properties);
 }
@@ -188,6 +188,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_staged_drawables, rhs.m_staged_drawables);
     std::swap(lhs.m_render_assets, rhs.m_render_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
+    std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
     std::swap(lhs.m_physical_device_properties, rhs.m_physical_device_properties);
 }
 
@@ -199,12 +200,7 @@ void Renderer::stage_drawable(drawable_t drawable)
     fmt.renderpass = m_renderpass.get();
     fmt.viewport = viewport;
     fmt.sample_count = m_sample_count;
-
-    VkPushConstantRange push_constant_range = {};
-    push_constant_range.offset = 0;
-    push_constant_range.size = sizeof(push_constants_t);
-    push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
-    fmt.push_constant_ranges = {push_constant_range};
+    fmt.push_constant_ranges = {m_push_constant_range};
 
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_staged_drawables[m_current_index].push_back(std::move(drawable));

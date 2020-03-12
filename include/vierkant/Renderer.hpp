@@ -71,7 +71,7 @@ public:
 
         // descriptors -> layout
         descriptor_map_t descriptors;
-//        DescriptorSetLayoutPtr descriptor_set_layout;
+        DescriptorSetLayoutPtr descriptor_set_layout;
 
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
@@ -206,11 +206,14 @@ private:
     vierkant::DescriptorPoolPtr m_descriptor_pool;
 
     std::vector<std::vector<drawable_t>> m_staged_drawables;
+
     std::vector<frame_assets_t> m_render_assets;
 
     std::mutex m_staging_mutex;
 
     uint32_t m_current_index = 0;
+
+    VkPushConstantRange m_push_constant_range = {};
 
     VkPhysicalDeviceProperties m_physical_device_properties = {};
 };

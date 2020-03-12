@@ -62,7 +62,6 @@ struct descriptor_t
 {
     VkDescriptorType type;
     VkShaderStageFlags stage_flags;
-    uint32_t binding = 0;
     vierkant::BufferPtr buffer;
     VkDeviceSize buffer_offset = 0;
     std::vector<vierkant::ImagePtr> image_samplers;

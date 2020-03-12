@@ -105,7 +105,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
     {
         auto &desc = pair.second;
         VkDescriptorSetLayoutBinding ubo_layout_binding = {};
-        ubo_layout_binding.binding = desc.binding;
+        ubo_layout_binding.binding = pair.first;
         ubo_layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
         ubo_layout_binding.descriptorType = desc.type;
         ubo_layout_binding.pImmutableSamplers = nullptr;
@@ -175,7 +175,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
         desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         desc_write.descriptorType = desc.type;
         desc_write.dstSet = descriptor_set.get();
-        desc_write.dstBinding = desc.binding;
+        desc_write.dstBinding = pair.first;
         desc_write.dstArrayElement = 0;
         desc_write.descriptorCount = 1;
 
@@ -504,7 +504,6 @@ bool descriptor_t::operator==(const descriptor_t &other) const
 {
     if(type != other.type){ return false; }
     if(stage_flags != other.stage_flags){ return false; }
-    if(binding != other.binding){ return false; }
     if(buffer != other.buffer){ return false; }
     if(buffer_offset != other.buffer_offset){ return false; }
     if(image_samplers != other.image_samplers){ return false; }
@@ -520,7 +519,6 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     size_t h = 0;
     hash_combine(h, descriptor.type);
     hash_combine(h, descriptor.stage_flags);
-    hash_combine(h, descriptor.binding);
     hash_combine(h, descriptor.buffer);
     hash_combine(h, descriptor.buffer_offset);
     for(const auto &img : descriptor.image_samplers){ hash_combine(h, img); }
