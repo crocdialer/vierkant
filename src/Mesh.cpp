@@ -359,9 +359,6 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         indices.insert(indices.end(), geom->indices.begin(), geom->indices.end());
         num_vertices += geom->vertices.size();
 
-        // combine with aabb
-        mesh->boundingbox += vierkant::compute_aabb(geom->vertices);
-
         vierkant::Mesh::entry_t entry = {};
         entry.primitive_type = geom->topology;
         entry.base_vertex = current_base_vertex;
@@ -374,6 +371,11 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
 
         // use provided transforms for sub-meshes, if any
         if(i < transforms.size()){ entry.transform = transforms[i]; }
+
+        // combine with aabb
+        auto sub_mesh_aabb = vierkant::compute_aabb(geom->vertices);
+        sub_mesh_aabb.transform(entry.transform);
+        mesh->boundingbox += sub_mesh_aabb;
 
         // insert new entry
         mesh->entries.push_back(entry);
