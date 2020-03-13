@@ -95,11 +95,9 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     auto mesh = vierkant::Mesh::create();
-//    mesh->topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // vertex attrib -> position
     vierkant::Mesh::attrib_t position_attrib;
-    position_attrib.location = vierkant::Mesh::ATTRIB_POSITION;
     position_attrib.offset = offsetof(ImDrawVert, pos);
     position_attrib.stride = sizeof(ImDrawVert);
     position_attrib.buffer = vertex_buffer;
@@ -109,7 +107,6 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
 
     // vertex attrib -> color
     vierkant::Mesh::attrib_t color_attrib;
-    color_attrib.location = vierkant::Mesh::ATTRIB_COLOR;
     color_attrib.offset = offsetof(ImDrawVert, col);
     color_attrib.stride = sizeof(ImDrawVert);
     color_attrib.buffer = vertex_buffer;
@@ -119,7 +116,6 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
 
     // vertex attrib -> tex coords
     vierkant::Mesh::attrib_t tex_coord_attrib;
-    tex_coord_attrib.location = vierkant::Mesh::ATTRIB_TEX_COORD;
     tex_coord_attrib.offset = offsetof(ImDrawVert, uv);
     tex_coord_attrib.stride = sizeof(ImDrawVert);
     tex_coord_attrib.buffer = vertex_buffer;

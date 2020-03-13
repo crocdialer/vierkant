@@ -321,13 +321,13 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         const auto &v = vertex_data[i];
 
         vierkant::Mesh::attrib_t attrib;
-        attrib.location = v.attrib_location;
+//        attrib.location = v.attrib_location;
         attrib.offset = v.offset;
         attrib.stride = static_cast<uint32_t>(stride);
         attrib.buffer = vertex_buffer;
         attrib.buffer_offset = 0;
         attrib.format = v.format;
-        mesh->vertex_attribs[i] = attrib;
+        mesh->vertex_attribs[v.attrib_location] = attrib;
     }
 
     for(uint32_t o = 0; o < vertex_offsets.size(); ++o)
@@ -463,12 +463,12 @@ std::vector<VkVertexInputAttributeDescription> Mesh::attribute_descriptions() co
         auto &att_in = pair.second;
         auto binding = binding_index(att_in, buf_tuples);
 
-        if(binding >= 0 && att_in.location >= 0)
+        if(binding >= 0)
         {
             VkVertexInputAttributeDescription att;
             att.offset = att_in.offset;
             att.binding = static_cast<uint32_t>(binding);
-            att.location = static_cast<uint32_t>(att_in.location);
+            att.location = pair.first;
             att.format = att_in.format;
             ret.push_back(att);
         }

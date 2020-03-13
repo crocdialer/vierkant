@@ -153,7 +153,6 @@ public:
      */
     struct attrib_t
     {
-        uint32_t location = 0;
         vierkant::BufferPtr buffer;
         VkDeviceSize buffer_offset = 0;
         uint32_t offset = 0;
