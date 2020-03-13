@@ -51,7 +51,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
                                                vierkant::bones::BonePtr parentBone = nullptr);
 
 void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
-                           const vierkant::bones::BonePtr &root_bone, vierkant::bones::animation_t &outAnim);
+                           const vierkant::bones::BonePtr &root_bone, vierkant::bones::bone_animation_t &outAnim);
 
 //void get_node_transform(const aiNode *the_node, mat4 &the_transform);
 
@@ -546,6 +546,8 @@ mesh_assets_t load_model(const std::string &path)
 
         std::map<std::string, crocore::ImagePtr> image_cache;
 
+        // iterate node hierarchy, find geometries and node animations
+
         for(uint32_t i = 0; i < theScene->mNumMeshes; i++)
         {
             aiMesh *aMesh = theScene->mMeshes[i];
@@ -576,12 +578,12 @@ mesh_assets_t load_model(const std::string &path)
 
         // create bone hierarchy
         auto root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
-        std::vector<vierkant::bones::animation_t> animations;
+        std::vector<vierkant::bones::bone_animation_t> animations;
 
         for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
         {
             aiAnimation *assimpAnimation = theScene->mAnimations[i];
-            vierkant::bones::animation_t anim;
+            vierkant::bones::bone_animation_t anim;
             anim.duration = assimpAnimation->mDuration;
             anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
             create_bone_animation(theScene->mRootNode, assimpAnimation, root_bone, anim);
@@ -724,7 +726,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
 /////////////////////////////////////////////////////////////////
 
 void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
-                           const vierkant::bones::BonePtr &root_bone, vierkant::bones::animation_t &outAnim)
+                           const vierkant::bones::BonePtr &root_bone, vierkant::bones::bone_animation_t &outAnim)
 {
     std::string nodeName(theNode->mName.data);
     const aiNodeAnim *nodeAnim = nullptr;
@@ -757,7 +759,7 @@ void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimatio
                 nodeAnim->mNumScalingKeys);
         LOG_TRACE << buf;
 
-        vierkant::bones::animation_keys_t animKeys;
+        vierkant::animation_keys_t animKeys;
         glm::vec3 bonePosition;
         glm::vec3 boneScale;
         glm::quat boneRotation;
@@ -766,23 +768,23 @@ void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimatio
         {
             aiQuaternion rot = nodeAnim->mRotationKeys[i].mValue;
             boneRotation = glm::quat(rot.w, rot.x, rot.y, rot.z);
-            animKeys.rotation_keys.push_back({static_cast<float>(nodeAnim->mRotationKeys[i].mTime), boneRotation});
+            animKeys.rotations.push_back({static_cast<float>(nodeAnim->mRotationKeys[i].mTime), boneRotation});
         }
 
         for(uint32_t i = 0; i < nodeAnim->mNumPositionKeys; i++)
         {
             aiVector3D pos = nodeAnim->mPositionKeys[i].mValue;
             bonePosition = glm::vec3(pos.x, pos.y, pos.z);
-            animKeys.position_keys.push_back({static_cast<float>(nodeAnim->mPositionKeys[i].mTime), bonePosition});
+            animKeys.positions.push_back({static_cast<float>(nodeAnim->mPositionKeys[i].mTime), bonePosition});
         }
 
         for(uint32_t i = 0; i < nodeAnim->mNumScalingKeys; i++)
         {
             aiVector3D scaleTmp = nodeAnim->mScalingKeys[i].mValue;
             boneScale = glm::vec3(scaleTmp.x, scaleTmp.y, scaleTmp.z);
-            animKeys.scale_keys.push_back({static_cast<float>(nodeAnim->mScalingKeys[i].mTime), boneScale});
+            animKeys.scales.push_back({static_cast<float>(nodeAnim->mScalingKeys[i].mTime), boneScale});
         }
-        outAnim.bone_keys[bone] = animKeys;
+        outAnim.keys[bone] = animKeys;
     }
 
     for(uint32_t i = 0; i < theNode->mNumChildren; i++)
@@ -828,7 +830,7 @@ size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_asset
         for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
         {
             aiAnimation *assimpAnimation = theScene->mAnimations[i];
-            vierkant::bones::animation_t anim;
+            vierkant::bones::bone_animation_t anim;
             anim.duration = assimpAnimation->mDuration;
             anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
             create_bone_animation(theScene->mRootNode, assimpAnimation, mesh_assets.root_bone, anim);

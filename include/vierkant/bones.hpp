@@ -8,6 +8,7 @@
 #include <map>
 #include <list>
 #include <vierkant/math.hpp>
+#include <vierkant/animation.hpp>
 
 namespace vierkant::bones
 {
@@ -26,29 +27,10 @@ struct bone_t
     std::list<BonePtr> children;
 };
 
-template<typename T>
-struct key_t
-{
-    float time = 0.f;
-    T value = T(0);
-};
+//! define a bone_animation type
+using bone_animation_t = vierkant::animation_t<BoneConstPtr>;
 
-struct animation_keys_t
-{
-    std::vector<key_t<glm::vec3>> position_keys;
-    std::vector<key_t<glm::quat>> rotation_keys;
-    std::vector<key_t<glm::vec3>> scale_keys;
-};
-
-struct animation_t
-{
-    float current_time = 0.f;
-    float duration = 0.f;
-    float ticks_per_sec = 0.f;
-    std::map<BoneConstPtr, animation_keys_t> bone_keys;
-};
-
-// each vertex can reference up to 4 bones
+//! each vertex can reference up to 4 bones
 struct vertex_data_t
 {
     glm::ivec4 indices = glm::ivec4(0);
@@ -84,6 +66,6 @@ BoneConstPtr bone_by_name(BoneConstPtr root, const std::string &name);
  *
  * @param   matrices    ref to an array of transformation-matrices. will be recursively populated by this function.
  */
-void build_bone_matrices(const BoneConstPtr& root, const animation_t &animation, std::vector<glm::mat4> &matrices);
+void build_bone_matrices(const BoneConstPtr& root, const bone_animation_t &animation, std::vector<glm::mat4> &matrices);
 
 }// namespace vierkant::bones
