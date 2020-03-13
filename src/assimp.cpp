@@ -531,12 +531,9 @@ mesh_assets_t load_model(const std::string &path)
                                             | aiProcess_LimitBoneWeights);
     if(theScene)
     {
-        std::vector<vierkant::GeometryPtr> geometries;
-        std::vector<glm::mat4> transforms;
-        std::vector<material_t> materials;
-        materials.resize(theScene->mNumMaterials);
-
-        std::vector<uint32_t> material_indices(theScene->mNumMeshes);
+        mesh_assets_t mesh_assets = {};
+        mesh_assets.materials.resize(theScene->mNumMaterials);
+        mesh_assets.material_indices.resize(theScene->mNumMeshes);
 
         size_t num_vertices = 0, num_indices = 0;
 
@@ -562,23 +559,22 @@ mesh_assets_t load_model(const std::string &path)
             num_vertices += g->vertices.size();
             num_indices += g->indices.size();
 
-            geometries.push_back(g);
+            mesh_assets.geometries.push_back(g);
 
             glm::mat4 transform = glm::mat4(1);
             if(!get_mesh_transform(theScene, aMesh, transform)){ LOG_WARNING << "could not find mesh transform"; }
-            transforms.push_back(transform);
+            mesh_assets.transforms.push_back(transform);
 
-            material_indices[i] = aMesh->mMaterialIndex;
-            materials[aMesh->mMaterialIndex] = create_material(base_path, theScene,
-                                                               theScene->mMaterials[aMesh->mMaterialIndex],
-                                                               &image_cache);
+            mesh_assets.material_indices[i] = aMesh->mMaterialIndex;
+            mesh_assets.materials[aMesh->mMaterialIndex] = create_material(base_path, theScene,
+                                                                           theScene->mMaterials[aMesh->mMaterialIndex],
+                                                                           &image_cache);
 
             aabb += vierkant::compute_aabb(g->vertices);
         }
 
         // create bone hierarchy
         auto root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
-        std::vector<vierkant::bones::bone_animation_t> animations;
 
         for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
         {
@@ -587,7 +583,7 @@ mesh_assets_t load_model(const std::string &path)
             anim.duration = assimpAnimation->mDuration;
             anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
             create_bone_animation(theScene->mRootNode, assimpAnimation, root_bone, anim);
-            animations.push_back(std::move(anim));
+            mesh_assets.animations.push_back(std::move(anim));
         }
 
         // extract model name from filename
@@ -595,25 +591,27 @@ mesh_assets_t load_model(const std::string &path)
 
 
         LOG_DEBUG << crocore::format("loaded model: geometries: %d -- vertices: %d -- faces: %d -- bones: %d ",
-                                     geometries.size(), num_vertices, num_indices * 3,
+                                     mesh_assets.geometries.size(), num_vertices, num_indices * 3,
                                      bones::num_bones_in_hierarchy(root_bone));
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
 
         importer.FreeScene();
 
-        mesh_assets_t ret = {std::move(geometries), std::move(transforms), std::move(material_indices),
-                             std::move(materials), root_bone, std::move(animations)};
-
         // search for external animations
         auto anim_files = crocore::fs::get_directory_entries(crocore::fs::join_paths(base_path, "animations"),
                                                              crocore::fs::FileType::MODEL, 2);
-        for(auto &p : anim_files){ add_animations_to_mesh(p, ret); }
-        return ret;
+        for(auto &p : anim_files){ add_animations_to_mesh(p, mesh_assets); }
+        return mesh_assets;
     }
     return {};
 }
 
 /////////////////////////////////////////////////////////////////
+
+void process_node_hierarchy()
+{
+
+}
 
 bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm::mat4 &the_out_transform)
 {
@@ -629,13 +627,13 @@ bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm
     while(!node_queue.empty())
     {
         // dequeue node struct
-        const aiNode *p = node_queue.front().node;
+        const aiNode *ai_node = node_queue.front().node;
         glm::mat4 node_transform = node_queue.front().global_transform;
         node_queue.pop_front();
 
-        for(uint32_t i = 0; i < p->mNumMeshes; ++i)
+        for(uint32_t i = 0; i < ai_node->mNumMeshes; ++i)
         {
-            const aiMesh *m = the_scene->mMeshes[p->mMeshes[i]];
+            const aiMesh *m = the_scene->mMeshes[ai_node->mMeshes[i]];
 
             // we found the mesh and are done
             if(m == the_ai_mesh)
@@ -645,12 +643,12 @@ bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm
             }
         }
 
-        for(uint32_t c = 0; c < p->mNumChildren; ++c)
+        for(uint32_t c = 0; c < ai_node->mNumChildren; ++c)
         {
-            glm::mat4 child_transform = aimatrix_to_glm_mat4(p->mChildren[c]->mTransformation);
+            glm::mat4 child_transform = aimatrix_to_glm_mat4(ai_node->mChildren[c]->mTransformation);
 
             // enqueue child node and transform
-            node_queue.push_back({p->mChildren[c], node_transform * child_transform});
+            node_queue.push_back({ai_node->mChildren[c], node_transform * child_transform});
         }
     }
     return false;
