@@ -518,19 +518,15 @@ mesh_assets_t load_model(const std::string &path)
         mesh_assets_t mesh_assets = {};
         mesh_assets.materials.resize(theScene->mNumMaterials);
 
-        size_t num_vertices = 0, num_indices = 0;
-
-        vierkant::AABB aabb;
         bone_map_t bonemap;
-
-
-        std::map<std::string, crocore::ImagePtr> image_cache;
+        vierkant::AABB aabb;
+        size_t num_vertices = 0, num_indices = 0;
 
         // iterate node hierarchy, find geometries and node animations
         process_node_hierarchy(theScene, base_path, mesh_assets, bonemap, aabb, num_vertices, num_indices);
 
         // create bone hierarchy
-        auto root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
+        mesh_assets.root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
 
         for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
         {
@@ -538,7 +534,7 @@ mesh_assets_t load_model(const std::string &path)
             vierkant::bones::bone_animation_t anim;
             anim.duration = assimpAnimation->mDuration;
             anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
-            create_bone_animation(theScene->mRootNode, assimpAnimation, root_bone, anim);
+            create_bone_animation(theScene->mRootNode, assimpAnimation, mesh_assets.root_bone, anim);
             mesh_assets.animations.push_back(std::move(anim));
         }
 
@@ -548,7 +544,7 @@ mesh_assets_t load_model(const std::string &path)
 
         LOG_DEBUG << crocore::format("loaded model: geometries: %d -- vertices: %d -- faces: %d -- bones: %d ",
                                      mesh_assets.geometries.size(), num_vertices, num_indices * 3,
-                                     bones::num_bones_in_hierarchy(root_bone));
+                                     bones::num_bones_in_hierarchy(mesh_assets.root_bone));
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
 
         importer.FreeScene();
