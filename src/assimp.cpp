@@ -38,8 +38,6 @@ using weight_map_t =  std::unordered_map<uint32_t, std::list<weight_t>>;
 
 vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theScene);
 
-//vierkant::MaterialPtr create_material(const aiMaterial *mtl);
-
 void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_t &bonemap, weight_map_t &weightmap);
 
 void
@@ -53,12 +51,14 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
 void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimation,
                            const vierkant::bones::BonePtr &root_bone, vierkant::bones::bone_animation_t &outAnim);
 
-//void get_node_transform(const aiNode *the_node, mat4 &the_transform);
 
-bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm::mat4 &the_out_transform);
-
-void process_node(const aiScene *the_scene, const aiNode *the_in_node,
-                  const vierkant::Object3DPtr &the_parent_node);
+void process_node_hierarchy(const aiScene *scene,
+                            const std::string &base_path,
+                            mesh_assets_t &out_assets,
+                            bone_map_t &bonemap,
+                            vierkant::AABB &aabb,
+                            size_t &num_vertices,
+                            size_t &num_indices);
 
 /////////////////////////////////////////////////////////////////
 
@@ -102,15 +102,8 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
 {
     auto geom = vierkant::Geometry::create();
 
-//    glm::mat4 model_matrix;
-//    if(!get_mesh_transform(theScene, aMesh, model_matrix)){ LOG_WARNING << "could not find mesh transform"; }
-//    glm::mat3 normal_matrix = glm::inverseTranspose(glm::mat3(model_matrix));
-
     geom->vertices.insert(geom->vertices.end(), (glm::vec3 *) aMesh->mVertices,
                           (glm::vec3 *) aMesh->mVertices + aMesh->mNumVertices);
-
-//    // transform loaded verts
-//    for(auto &v : geom->vertices){ v = (model_matrix * glm::vec4(v, 1.f)).xyz; }
 
     if(aMesh->HasTextureCoords(0))
     {
@@ -136,9 +129,6 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
     {
         geom->normals.insert(geom->normals.end(), (glm::vec3 *) aMesh->mNormals,
                              (glm::vec3 *) aMesh->mNormals + aMesh->mNumVertices);
-
-//        // transform loaded normals
-//        for(auto &n : geom->normals){ n = normal_matrix * n; }
     }
     else
     {
@@ -150,22 +140,17 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
         geom->colors.insert(geom->colors.end(), (glm::vec4 *) aMesh->mColors[0],
                             (glm::vec4 *) aMesh->mColors[0] + aMesh->mNumVertices);
     }
-//        else{ geom->colors().resize(aMesh->mNumVertices, gl::COLOR_WHITE); }
 
     if(aMesh->HasTangentsAndBitangents())
     {
         geom->tangents.insert(geom->tangents.end(), (glm::vec3 *) aMesh->mTangents,
                               (glm::vec3 *) aMesh->mTangents + aMesh->mNumVertices);
-
-//        // transform loaded tangents
-//        for(auto &t : geom->tangents){ t = normal_matrix * t; }
     }
     else
     {
         // compute tangents
         geom->compute_tangents();
     }
-//    geom->compute_aabb();
     return geom;
 }
 
@@ -516,7 +501,6 @@ mesh_assets_t load_model(const std::string &path)
         LOG_ERROR << e.what();
         return {};
     }
-//    load_scene(theModelPath);
 
     auto base_path = crocore::fs::get_directory_part(found_path);
 
@@ -533,7 +517,6 @@ mesh_assets_t load_model(const std::string &path)
     {
         mesh_assets_t mesh_assets = {};
         mesh_assets.materials.resize(theScene->mNumMaterials);
-        mesh_assets.material_indices.resize(theScene->mNumMeshes);
 
         size_t num_vertices = 0, num_indices = 0;
 
@@ -544,34 +527,7 @@ mesh_assets_t load_model(const std::string &path)
         std::map<std::string, crocore::ImagePtr> image_cache;
 
         // iterate node hierarchy, find geometries and node animations
-
-        for(uint32_t i = 0; i < theScene->mNumMeshes; i++)
-        {
-            aiMesh *aMesh = theScene->mMeshes[i];
-            vierkant::GeometryPtr g = create_geometry(aMesh, theScene);
-
-            weight_map_t weightmap;
-            load_bones_and_weights(aMesh, 0, bonemap, weightmap);
-            insert_bone_vertex_data(g, weightmap, 0);
-
-            g->colors.resize(g->vertices.size(), glm::vec4(1));
-
-            num_vertices += g->vertices.size();
-            num_indices += g->indices.size();
-
-            mesh_assets.geometries.push_back(g);
-
-            glm::mat4 transform = glm::mat4(1);
-            if(!get_mesh_transform(theScene, aMesh, transform)){ LOG_WARNING << "could not find mesh transform"; }
-            mesh_assets.transforms.push_back(transform);
-
-            mesh_assets.material_indices[i] = aMesh->mMaterialIndex;
-            mesh_assets.materials[aMesh->mMaterialIndex] = create_material(base_path, theScene,
-                                                                           theScene->mMaterials[aMesh->mMaterialIndex],
-                                                                           &image_cache);
-
-            aabb += vierkant::compute_aabb(g->vertices);
-        }
+        process_node_hierarchy(theScene, base_path, mesh_assets, bonemap, aabb, num_vertices, num_indices);
 
         // create bone hierarchy
         auto root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
@@ -608,12 +564,13 @@ mesh_assets_t load_model(const std::string &path)
 
 /////////////////////////////////////////////////////////////////
 
-void process_node_hierarchy()
-{
-
-}
-
-bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm::mat4 &the_out_transform)
+void process_node_hierarchy(const aiScene *scene,
+                            const std::string &base_path,
+                            mesh_assets_t &out_assets,
+                            bone_map_t &bonemap,
+                            vierkant::AABB &aabb,
+                            size_t &num_vertices,
+                            size_t &num_indices)
 {
     struct node_t
     {
@@ -621,8 +578,14 @@ bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm
         glm::mat4 global_transform;
     };
 
+    // cache duplicate geometries
+    std::unordered_map<const aiMesh *, vierkant::GeometryPtr> geometry_map;
+
+    // cache duplicate images
+    std::map<std::string, crocore::ImagePtr> image_cache;
+
     std::deque<node_t> node_queue;
-    node_queue.push_back({the_scene->mRootNode, glm::mat4(1)});
+    node_queue.push_back({scene->mRootNode, glm::mat4(1)});
 
     while(!node_queue.empty())
     {
@@ -633,14 +596,38 @@ bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm
 
         for(uint32_t i = 0; i < ai_node->mNumMeshes; ++i)
         {
-            const aiMesh *m = the_scene->mMeshes[ai_node->mMeshes[i]];
+            const aiMesh *ai_mesh = scene->mMeshes[ai_node->mMeshes[i]];
+            vierkant::GeometryPtr geometry;
 
-            // we found the mesh and are done
-            if(m == the_ai_mesh)
+            // search geometry cache
+            auto geom_it = geometry_map.find(ai_mesh);
+
+            if(geom_it != geometry_map.end()){ geometry = geom_it->second; }
+            else
             {
-                the_out_transform = node_transform;
-                return true;
+                geometry = create_geometry(ai_mesh, scene);
+                geometry_map[ai_mesh] = geometry;
             }
+
+            // add this node's mesh-assets
+            weight_map_t weightmap;
+            load_bones_and_weights(ai_mesh, 0, bonemap, weightmap);
+            insert_bone_vertex_data(geometry, weightmap, 0);
+
+            geometry->colors.resize(geometry->vertices.size(), glm::vec4(1));
+
+            num_vertices += geometry->vertices.size();
+            num_indices += geometry->indices.size();
+
+            out_assets.geometries.push_back(geometry);
+            out_assets.transforms.push_back(node_transform);
+            out_assets.material_indices.push_back(ai_mesh->mMaterialIndex);
+
+            out_assets.materials[ai_mesh->mMaterialIndex] = create_material(base_path, scene,
+                                                                            scene->mMaterials[ai_mesh->mMaterialIndex],
+                                                                            &image_cache);
+
+            aabb += vierkant::compute_aabb(geometry->vertices).transform(node_transform);
         }
 
         for(uint32_t c = 0; c < ai_node->mNumChildren; ++c)
@@ -651,33 +638,32 @@ bool get_mesh_transform(const aiScene *the_scene, const aiMesh *the_ai_mesh, glm
             node_queue.push_back({ai_node->mChildren[c], node_transform * child_transform});
         }
     }
-    return false;
 }
 
 /////////////////////////////////////////////////////////////////
 
-void process_node(const aiScene *the_scene, const aiNode *the_in_node,
-                  const vierkant::Object3DPtr &the_parent_node)
-{
-    if(!the_in_node){ return; }
-
-//    string node_name(the_in_node->mName.data);
-
-    auto node = vierkant::Object3D::create(the_in_node->mName.data);
-    node->set_transform(aimatrix_to_glm_mat4(the_in_node->mTransformation));
-    the_parent_node->add_child(node);
-
-    // meshes assigned to this node
-    for(uint32_t n = 0; n < the_in_node->mNumMeshes; ++n)
-    {
-//        const aiMesh *mesh = the_scene->mMeshes[the_in_node->mMeshes[n]];
-    }
-
-    for(uint32_t i = 0; i < the_in_node->mNumChildren; ++i)
-    {
-        process_node(the_scene, the_in_node->mChildren[i], node);
-    }
-}
+//void process_node(const aiScene *the_scene, const aiNode *the_in_node,
+//                  const vierkant::Object3DPtr &the_parent_node)
+//{
+//    if(!the_in_node){ return; }
+//
+////    string node_name(the_in_node->mName.data);
+//
+//    auto node = vierkant::Object3D::create(the_in_node->mName.data);
+//    node->set_transform(aimatrix_to_glm_mat4(the_in_node->mTransformation));
+//    the_parent_node->add_child(node);
+//
+//    // meshes assigned to this node
+//    for(uint32_t n = 0; n < the_in_node->mNumMeshes; ++n)
+//    {
+////        const aiMesh *mesh = the_scene->mMeshes[the_in_node->mMeshes[n]];
+//    }
+//
+//    for(uint32_t i = 0; i < the_in_node->mNumChildren; ++i)
+//    {
+//        process_node(the_scene, the_in_node->mChildren[i], node);
+//    }
+//}
 
 /////////////////////////////////////////////////////////////////
 
@@ -790,21 +776,6 @@ void create_bone_animation(const aiNode *theNode, const aiAnimation *theAnimatio
         create_bone_animation(theNode->mChildren[i], theAnimation, root_bone, outAnim);
     }
 }
-
-/////////////////////////////////////////////////////////////////
-
-//void get_node_transform(const aiNode *the_node, mat4 &the_transform)
-//{
-//    if(the_node)
-//    {
-//        the_transform *= aimatrix_to_glm_mat4(the_node->mTransformation);
-//
-//        for (uint32_t i = 0 ; i < the_node->mNumChildren ; i++)
-//        {
-//            get_node_transform(the_node->mChildren[i], the_transform);
-//        }
-//    }
-//}
 
 /////////////////////////////////////////////////////////////////
 
