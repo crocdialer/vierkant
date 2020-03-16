@@ -69,9 +69,11 @@ public:
 
         material_struct_t material = {};
 
-        // descriptors -> layout
+        //! a descriptormap
         descriptor_map_t descriptors;
-//        DescriptorSetLayoutPtr descriptor_set_layout;
+
+        //! optional descriptor-set-layout
+        DescriptorSetLayoutPtr descriptor_set_layout;
 
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
@@ -188,10 +190,16 @@ private:
         vierkant::CommandBuffer command_buffer;
     };
 
-    // update the combined uniform buffers
+    //! update the combined uniform buffers
     void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
+    //! create bone data and update uniform buffer
     void update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer);
+
+    //! helper routine to find and move assets
+    DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
+                                           frame_assets_t &current,
+                                           frame_assets_t &next);
 
     DevicePtr m_device;
 
@@ -206,11 +214,14 @@ private:
     vierkant::DescriptorPoolPtr m_descriptor_pool;
 
     std::vector<std::vector<drawable_t>> m_staged_drawables;
+
     std::vector<frame_assets_t> m_render_assets;
 
     std::mutex m_staging_mutex;
 
     uint32_t m_current_index = 0;
+
+    VkPushConstantRange m_push_constant_range = {};
 
     VkPhysicalDeviceProperties m_physical_device_properties = {};
 };

@@ -105,7 +105,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
     {
         auto &desc = pair.second;
         VkDescriptorSetLayoutBinding ubo_layout_binding = {};
-        ubo_layout_binding.binding = desc.binding;
+        ubo_layout_binding.binding = pair.first;
         ubo_layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
         ubo_layout_binding.descriptorType = desc.type;
         ubo_layout_binding.pImmutableSamplers = nullptr;
@@ -175,7 +175,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
         desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         desc_write.descriptorType = desc.type;
         desc_write.dstSet = descriptor_set.get();
-        desc_write.dstBinding = desc.binding;
+        desc_write.dstBinding = pair.first;
         desc_write.dstArrayElement = 0;
         desc_write.descriptorCount = 1;
 
@@ -321,13 +321,13 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         const auto &v = vertex_data[i];
 
         vierkant::Mesh::attrib_t attrib;
-        attrib.location = v.attrib_location;
+//        attrib.location = v.attrib_location;
         attrib.offset = v.offset;
         attrib.stride = static_cast<uint32_t>(stride);
         attrib.buffer = vertex_buffer;
         attrib.buffer_offset = 0;
         attrib.format = v.format;
-        mesh->vertex_attribs[i] = attrib;
+        mesh->vertex_attribs[v.attrib_location] = attrib;
     }
 
     for(uint32_t o = 0; o < vertex_offsets.size(); ++o)
@@ -359,9 +359,6 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         indices.insert(indices.end(), geom->indices.begin(), geom->indices.end());
         num_vertices += geom->vertices.size();
 
-        // combine with aabb
-        mesh->boundingbox += vierkant::compute_aabb(geom->vertices);
-
         vierkant::Mesh::entry_t entry = {};
         entry.primitive_type = geom->topology;
         entry.base_vertex = current_base_vertex;
@@ -374,6 +371,11 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
 
         // use provided transforms for sub-meshes, if any
         if(i < transforms.size()){ entry.transform = transforms[i]; }
+
+        // combine with aabb
+        auto sub_mesh_aabb = vierkant::compute_aabb(geom->vertices);
+        sub_mesh_aabb.transform(entry.transform);
+        mesh->boundingbox += sub_mesh_aabb;
 
         // insert new entry
         mesh->entries.push_back(entry);
@@ -461,12 +463,12 @@ std::vector<VkVertexInputAttributeDescription> Mesh::attribute_descriptions() co
         auto &att_in = pair.second;
         auto binding = binding_index(att_in, buf_tuples);
 
-        if(binding >= 0 && att_in.location >= 0)
+        if(binding >= 0)
         {
             VkVertexInputAttributeDescription att;
             att.offset = att_in.offset;
             att.binding = static_cast<uint32_t>(binding);
-            att.location = static_cast<uint32_t>(att_in.location);
+            att.location = pair.first;
             att.format = att_in.format;
             ret.push_back(att);
         }
@@ -504,7 +506,6 @@ bool descriptor_t::operator==(const descriptor_t &other) const
 {
     if(type != other.type){ return false; }
     if(stage_flags != other.stage_flags){ return false; }
-    if(binding != other.binding){ return false; }
     if(buffer != other.buffer){ return false; }
     if(buffer_offset != other.buffer_offset){ return false; }
     if(image_samplers != other.image_samplers){ return false; }
@@ -520,7 +521,6 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     size_t h = 0;
     hash_combine(h, descriptor.type);
     hash_combine(h, descriptor.stage_flags);
-    hash_combine(h, descriptor.binding);
     hash_combine(h, descriptor.buffer);
     hash_combine(h, descriptor.buffer_offset);
     for(const auto &img : descriptor.image_samplers){ hash_combine(h, img); }

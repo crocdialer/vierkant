@@ -31,7 +31,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         Renderer::drawable_t drawable = {};
         drawable.mesh = mesh;
 
-        // TODO: combine mesh- with entry-transform
+        // combine mesh- with entry-transform
         drawable.matrices.modelview = mesh->global_transform() * entry.transform;
         drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
 
@@ -60,13 +60,11 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         vierkant::descriptor_t desc_matrices = {};
         desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        desc_matrices.binding = SLOT_MATRIX;
         drawable.descriptors[SLOT_MATRIX] = desc_matrices;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_material.binding = SLOT_MATERIAL;
         drawable.descriptors[SLOT_MATERIAL] = desc_material;
 
         // textures
@@ -75,7 +73,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             vierkant::descriptor_t desc_texture = {};
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            desc_texture.binding = SLOT_TEXTURES;
             desc_texture.image_samplers = material->images;
             drawable.descriptors[SLOT_TEXTURES] = desc_texture;
         }
@@ -86,7 +83,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             vierkant::descriptor_t desc_bones = {};
             desc_bones.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-            desc_bones.binding = SLOT_BONES;
             drawable.descriptors[SLOT_BONES] = desc_bones;
         }
 
@@ -98,10 +94,9 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             vierkant::descriptor_t custom_desc = {};
             custom_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             custom_desc.stage_flags = VK_SHADER_STAGE_ALL;
-            custom_desc.binding = binding++;
             custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                           VMA_MEMORY_USAGE_CPU_TO_GPU);
-            drawable.descriptors[binding] = custom_desc;
+            drawable.descriptors[binding++] = custom_desc;
         }
         ret.push_back(std::move(drawable));
     }
@@ -148,6 +143,11 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
     if(pipeline_cache){ m_pipeline_cache = std::move(pipeline_cache); }
     else{ m_pipeline_cache = vierkant::PipelineCache::create(m_device); }
 
+    // push constant range
+    m_push_constant_range.offset = 0;
+    m_push_constant_range.size = sizeof(push_constants_t);
+    m_push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
+
     // query physical-device features
     vkGetPhysicalDeviceProperties(m_device->physical_device(), &m_physical_device_properties);
 }
@@ -188,6 +188,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_staged_drawables, rhs.m_staged_drawables);
     std::swap(lhs.m_render_assets, rhs.m_render_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
+    std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
     std::swap(lhs.m_physical_device_properties, rhs.m_physical_device_properties);
 }
 
@@ -199,12 +200,7 @@ void Renderer::stage_drawable(drawable_t drawable)
     fmt.renderpass = m_renderpass.get();
     fmt.viewport = viewport;
     fmt.sample_count = m_sample_count;
-
-    VkPushConstantRange push_constant_range = {};
-    push_constant_range.offset = 0;
-    push_constant_range.size = sizeof(push_constants_t);
-    push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
-    fmt.push_constant_ranges = {push_constant_range};
+    fmt.push_constant_ranges = {m_push_constant_range};
 
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_staged_drawables[m_current_index].push_back(std::move(drawable));
@@ -239,6 +235,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
         uint32_t material_index = 0;
         uint32_t matrix_buffer_index = 0;
         uint32_t material_buffer_index = 0;
+        vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
         drawable_t *drawable = nullptr;
     };
     std::unordered_map<Pipeline::Format, std::vector<indexed_drawable_t>> pipelines;
@@ -255,25 +252,14 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
         indexed_drawable.drawable = &current_assets.drawables[i];
 
-        // retrieve set-layout
-        auto set_it = current_assets.descriptor_set_layouts.find(current_assets.drawables[i].descriptors);
-
-        if(set_it != current_assets.descriptor_set_layouts.end())
+        if(!current_assets.drawables[i].descriptor_set_layout)
         {
-            auto new_it = next_assets.descriptor_set_layouts.insert(std::move(*set_it)).first;
-            current_assets.descriptor_set_layouts.erase(set_it);
-            set_it = new_it;
+            indexed_drawable.descriptor_set_layout = find_set_layout(current_assets.drawables[i].descriptors,
+                                                                     current_assets, next_assets);
+            current_assets.drawables[i].pipeline_format.descriptor_set_layouts = {
+                    indexed_drawable.descriptor_set_layout.get()};
         }
-        else{ set_it = next_assets.descriptor_set_layouts.find(current_assets.drawables[i].descriptors); }
-
-        // not found -> create and insert descriptor-set layout
-        if(set_it == next_assets.descriptor_set_layouts.end())
-        {
-            auto new_set = vierkant::create_descriptor_set_layout(m_device, current_assets.drawables[i].descriptors);
-            set_it = next_assets.descriptor_set_layouts.insert(
-                    std::make_pair(current_assets.drawables[i].descriptors, std::move(new_set))).first;
-        }
-        current_assets.drawables[i].pipeline_format.descriptor_set_layouts = {set_it->second.get()};
+        else{ indexed_drawable.descriptor_set_layout = std::move(current_assets.drawables[i].descriptor_set_layout); }
 
         pipelines[current_assets.drawables[i].pipeline_format].push_back(indexed_drawable);
     }
@@ -330,9 +316,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             key.material_buffer_index = indexed_drawable.material_buffer_index;
             auto render_asset_it = current_assets.render_assets.find(key);
 
-            // retrieve descriptorset-layout
-            auto descriptor_layout = next_assets.descriptor_set_layouts[drawable->descriptors];
-
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
             descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
@@ -366,7 +349,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
                     // create a new descriptor set
                     new_render_asset.descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                                      descriptor_layout);
+                                                                                      indexed_drawable.descriptor_set_layout);
 
                     // update bone buffers, if necessary
                     if(current_mesh->root_bone)
@@ -528,6 +511,40 @@ void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vi
         }
         else{ out_buffer->set_data(bones_matrices); }
     }
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
+                                                 frame_assets_t &current,
+                                                 frame_assets_t &next)
+{
+    // clean descriptor-map to enable sharing
+    for(auto &pair : descriptors)
+    {
+        pair.second.image_samplers.clear();
+        pair.second.buffer.reset();
+    }
+
+    // retrieve set-layout
+    auto set_it = current.descriptor_set_layouts.find(descriptors);
+
+    if(set_it != current.descriptor_set_layouts.end())
+    {
+        auto new_it = next.descriptor_set_layouts.insert(std::move(*set_it)).first;
+        current.descriptor_set_layouts.erase(set_it);
+        set_it = new_it;
+    }
+    else{ set_it = next.descriptor_set_layouts.find(descriptors); }
+
+    // not found -> create and insert descriptor-set layout
+    if(set_it == next.descriptor_set_layouts.end())
+    {
+        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
+        set_it = next.descriptor_set_layouts.insert(
+                std::make_pair(descriptors, std::move(new_set))).first;
+    }
+    return set_it->second;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

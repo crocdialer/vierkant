@@ -62,7 +62,6 @@ struct descriptor_t
 {
     VkDescriptorType type;
     VkShaderStageFlags stage_flags;
-    uint32_t binding = 0;
     vierkant::BufferPtr buffer;
     VkDeviceSize buffer_offset = 0;
     std::vector<vierkant::ImagePtr> image_samplers;
@@ -154,7 +153,6 @@ public:
      */
     struct attrib_t
     {
-        uint32_t location = 0;
         vierkant::BufferPtr buffer;
         VkDeviceSize buffer_offset = 0;
         uint32_t offset = 0;
@@ -166,9 +164,9 @@ public:
     struct entry_t
     {
         glm::mat4 transform = glm::mat4(1);
-        index_t base_vertex = 0;
+        uint32_t base_vertex = 0;
         uint32_t num_vertices = 0;
-        index_t base_index = 0;
+        uint32_t base_index = 0;
         uint32_t num_indices = 0;
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -234,7 +232,7 @@ public:
     // bone animations
     uint32_t bone_animation_index = 0;
     float bone_animation_speed = 1.f;
-    std::vector<vierkant::bones::animation_t> bone_animations;
+    std::vector<vierkant::bones::bone_animation_t> bone_animations;
 
     // index buffer
     vierkant::BufferPtr index_buffer;

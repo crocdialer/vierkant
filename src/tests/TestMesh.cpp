@@ -55,28 +55,28 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
     position.stride = sizeof(Vertex);
     position.buffer = vertex_buffer;
     position.format = vk::format<decltype(Vertex::position)>();
-    ret->vertex_attribs.push_back(position);
+    ret->vertex_attribs[0] = position;
 
     color.location = 1;
     color.offset = offsetof(Vertex, color);
     color.stride = sizeof(Vertex);
     color.buffer = vertex_buffer;
     color.format = vk::format<decltype(Vertex::color)>();
-    ret->vertex_attribs.push_back(color);
+    ret->vertex_attribs[1] = color;
 
     tex_coord.location = 2;
     tex_coord.offset = offsetof(Vertex, tex_coord);
     tex_coord.stride = sizeof(Vertex);
     tex_coord.buffer = vertex_buffer;
     tex_coord.format = vk::format<decltype(Vertex::tex_coord)>();
-    ret->vertex_attribs.push_back(tex_coord);
+    ret->vertex_attribs[2] = tex_coord;
 
     ret->index_buffer = vk::Buffer::create(device, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                            VMA_MEMORY_USAGE_GPU_ONLY);
     return ret;
 }
 
-std::vector<vk::descriptor_t> create_descriptors(const vk::DevicePtr &device)
+vierkant::descriptor_map_t create_descriptors(const vk::DevicePtr &device)
 {
     // host visible, empty uniform-buffer
     auto uniform_buffer = vk::Buffer::create(device, nullptr, sizeof(UniformBuffer),
@@ -96,15 +96,13 @@ std::vector<vk::descriptor_t> create_descriptors(const vk::DevicePtr &device)
     vk::descriptor_t desc_ubo, desc_texture;
     desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    desc_ubo.binding = 0;
     desc_ubo.buffer = uniform_buffer;
 
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.binding = 1;
     desc_texture.image_samplers = {texture};
 
-    return {desc_ubo, desc_texture};
+    return {{0, desc_ubo}, {1, desc_texture}};
 }
 
 BOOST_AUTO_TEST_CASE(TestMesh_Constructor)
