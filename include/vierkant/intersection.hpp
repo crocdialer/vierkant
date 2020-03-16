@@ -235,8 +235,8 @@ struct Sphere
  */
 struct AABB
 {
-    glm::vec3 min = glm::vec3(0);
-    glm::vec3 max = glm::vec3(0);
+    glm::vec3 min = glm::vec3(std::numeric_limits<float>::max());
+    glm::vec3 max = glm::vec3(std::numeric_limits<float>::min());
 
     AABB() = default;
 
