@@ -226,13 +226,16 @@ public:
     // materials for submeshes
     std::vector<vierkant::MaterialPtr> materials;
 
-    // root bone
-    vierkant::bones::BonePtr root_bone;
+    // animations general
+    uint32_t animation_index = 0;
+    float animation_speed = 1.f;
 
     // bone animations
-    uint32_t bone_animation_index = 0;
-    float bone_animation_speed = 1.f;
+    vierkant::bones::BonePtr root_bone;
     std::vector<vierkant::bones::bone_animation_t> bone_animations;
+
+    // entry-transform (submesh) animations
+    std::vector<vierkant::animation_t<uint32_t>> entry_animations;
 
     // index buffer
     vierkant::BufferPtr index_buffer;

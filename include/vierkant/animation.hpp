@@ -47,6 +47,14 @@ struct animation_t
     std::map<T, animation_keys_t> keys;
 };
 
+template<typename T>
+void update_animation(animation_t<T>& animation, float time_delta, float animation_speed)
+{
+    animation.current_time = animation.current_time + time_delta * animation.ticks_per_sec * animation_speed;
+    if(animation.current_time > animation.duration){ animation.current_time -= animation.duration; }
+    animation.current_time += animation.current_time < 0.f ? animation.duration : 0.f;
+}
+
 /**
  * @brief   Evaluate provided animation-keys for a given time and duration. If successful, write out transformation.
  *

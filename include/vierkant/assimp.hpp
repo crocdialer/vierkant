@@ -36,7 +36,8 @@ struct mesh_assets_t
     // global for mesh
     std::vector<material_t> materials;
     vierkant::bones::BonePtr root_bone;
-    std::vector<vierkant::bones::bone_animation_t> animations;
+    std::vector<vierkant::bones::bone_animation_t> bone_animations;
+    std::vector<vierkant::animation_t<uint32_t>> entry_animations;
 };
 
 //! load a single 3D model from file
