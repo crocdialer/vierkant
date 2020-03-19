@@ -10,25 +10,25 @@
 #include <vierkant/math.hpp>
 #include <vierkant/animation.hpp>
 
-namespace vierkant::bones
+namespace vierkant::nodes
 {
 
-using BonePtr = std::shared_ptr<struct bone_t>;
-using BoneConstPtr = std::shared_ptr<const struct bone_t>;
+using NodePtr = std::shared_ptr<struct node_t>;
+using NodeConstPtr = std::shared_ptr<const struct node_t>;
 
-struct bone_t
+struct node_t
 {
     std::string name;
     glm::mat4 transform = glm::mat4(1);
     glm::mat4 world_transform = glm::mat4(1);
     glm::mat4 offset = glm::mat4(1);
     uint32_t index = 0;
-    BonePtr parent = nullptr;
-    std::list<BonePtr> children;
+    NodePtr parent = nullptr;
+    std::list<NodePtr> children;
 };
 
 //! define a bone_animation type
-using bone_animation_t = vierkant::animation_t<BoneConstPtr>;
+using node_animation_t = vierkant::animation_t<NodeConstPtr>;
 
 //! each vertex can reference up to 4 bones
 struct vertex_data_t
@@ -38,13 +38,13 @@ struct vertex_data_t
 };
 
 /**
- * @brief   Return the total number of bones.
+ * @brief   Return the total number of nodes.
  *
- * @param   root    the root-bone of a hierarchy.
+ * @param   root    the root-node of a hierarchy.
  *
- * @return  the total number of bones.
+ * @return  the total number of nodes.
  */
-uint32_t num_bones_in_hierarchy(const BoneConstPtr &root);
+uint32_t num_nodes_in_hierarchy(const NodeConstPtr &root);
 
 /**
  * @brief   Attempt to find a bone by name.
@@ -55,7 +55,7 @@ uint32_t num_bones_in_hierarchy(const BoneConstPtr &root);
  *
  * @return  the found BonePtr or nullptr, if the name could not be found in the hierarchy.
  */
-BoneConstPtr bone_by_name(BoneConstPtr root, const std::string &name);
+NodeConstPtr node_by_name(NodeConstPtr root, const std::string &name);
 
 /**
  * @brief   Create transformation matrices, matching the provided bone-hierarchy and animation.
@@ -66,6 +66,6 @@ BoneConstPtr bone_by_name(BoneConstPtr root, const std::string &name);
  *
  * @param   matrices    ref to an array of transformation-matrices. will be recursively populated by this function.
  */
-void build_bone_matrices(const BoneConstPtr& root, const bone_animation_t &animation, std::vector<glm::mat4> &matrices);
+void build_node_matrices(const NodeConstPtr& root, const node_animation_t &animation, std::vector<glm::mat4> &matrices);
 
 }// namespace vierkant::bones

@@ -231,8 +231,8 @@ public:
     float animation_speed = 1.f;
 
     // bone animations
-    vierkant::bones::BonePtr root_bone;
-    std::vector<vierkant::bones::bone_animation_t> bone_animations;
+    vierkant::nodes::NodePtr root_bone;
+    std::vector<vierkant::nodes::node_animation_t> bone_animations;
 
     // entry-transform (submesh) animations
     std::vector<vierkant::animation_t<uint32_t>> entry_animations;

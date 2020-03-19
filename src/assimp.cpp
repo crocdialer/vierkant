@@ -46,13 +46,13 @@ void
 insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map_t &weightmap, uint32_t start_index = 0);
 
 
-vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
+vierkant::nodes::NodePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
                                                const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
-                                               vierkant::bones::BonePtr parentBone = nullptr);
+                                               vierkant::nodes::NodePtr parentBone = nullptr);
 
 void create_bone_animation(const aiAnimation *theAnimation,
-                           const vierkant::bones::BonePtr &root_bone,
-                           vierkant::bones::bone_animation_t &out_animation);
+                           const vierkant::nodes::NodePtr &root_bone,
+                           vierkant::nodes::node_animation_t &out_animation);
 
 
 void process_node_hierarchy(const aiScene *scene,
@@ -546,7 +546,7 @@ mesh_assets_t load_model(const std::string &path)
 
             if(mesh_assets.root_bone)
             {
-                vierkant::bones::bone_animation_t anim;
+                vierkant::nodes::node_animation_t anim;
                 anim.duration = assimpAnimation->mDuration;
                 anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
                 create_bone_animation(assimpAnimation, mesh_assets.root_bone, anim);
@@ -568,7 +568,7 @@ mesh_assets_t load_model(const std::string &path)
 
         LOG_DEBUG << crocore::format("loaded model: geometries: %d -- vertices: %d -- faces: %d -- bones: %d ",
                                      mesh_assets.geometries.size(), num_vertices, num_indices * 3,
-                                     bones::num_bones_in_hierarchy(mesh_assets.root_bone));
+                                     nodes::num_nodes_in_hierarchy(mesh_assets.root_bone));
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
 
         importer.FreeScene();
@@ -692,11 +692,11 @@ void process_node_hierarchy(const aiScene *scene,
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
+vierkant::nodes::NodePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 world_transform,
                                                const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
-                                               vierkant::bones::BonePtr parentBone)
+                                               vierkant::nodes::NodePtr parentBone)
 {
-    vierkant::bones::BonePtr currentBone;
+    vierkant::nodes::NodePtr currentBone;
     std::string nodeName(theNode->mName.data);
     glm::mat4 nodeTransform = aimatrix_to_glm_mat4(theNode->mTransformation);
 
@@ -708,7 +708,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
     {
         int boneIndex = it->second.first;
         const glm::mat4 &offset = it->second.second;
-        currentBone = std::make_shared<vierkant::bones::bone_t>();
+        currentBone = std::make_shared<vierkant::nodes::node_t>();
         currentBone->name = nodeName;
         currentBone->index = boneIndex;
         currentBone->transform = nodeTransform;
@@ -719,7 +719,7 @@ vierkant::bones::BonePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
 
     for(uint32_t i = 0; i < theNode->mNumChildren; i++)
     {
-        vierkant::bones::BonePtr child = create_bone_hierarchy(theNode->mChildren[i], world_transform,
+        vierkant::nodes::NodePtr child = create_bone_hierarchy(theNode->mChildren[i], world_transform,
                                                                boneMap, currentBone);
 
         if(currentBone && child){ currentBone->children.push_back(child); }
@@ -775,15 +775,15 @@ vierkant::animation_keys_t create_animation_keys(const aiNodeAnim *ai_animation)
 /////////////////////////////////////////////////////////////////
 
 void create_bone_animation(const aiAnimation *theAnimation,
-                           const vierkant::bones::BonePtr &root_bone,
-                           vierkant::bones::bone_animation_t &out_animation)
+                           const vierkant::nodes::NodePtr &root_bone,
+                           vierkant::nodes::node_animation_t &out_animation)
 {
     if(theAnimation)
     {
         for(uint32_t i = 0; i < theAnimation->mNumChannels; i++)
         {
             aiNodeAnim *node_animation = theAnimation->mChannels[i];
-            auto bone = vierkant::bones::bone_by_name(root_bone, node_animation->mNodeName.data);
+            auto bone = vierkant::nodes::node_by_name(root_bone, node_animation->mNodeName.data);
 
             // corresponds to a bone node in the hierarchy
             if(bone){ out_animation.keys[bone] = create_animation_keys(node_animation); }
@@ -834,7 +834,7 @@ size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_asset
         for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
         {
             aiAnimation *assimpAnimation = theScene->mAnimations[i];
-            vierkant::bones::bone_animation_t anim;
+            vierkant::nodes::node_animation_t anim;
             anim.duration = assimpAnimation->mDuration;
             anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
             create_bone_animation(assimpAnimation, mesh_assets.root_bone, anim);
