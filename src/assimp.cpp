@@ -50,15 +50,14 @@ vierkant::nodes::NodePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
                                                const std::map<std::string, std::pair<int, glm::mat4>> &boneMap,
                                                vierkant::nodes::NodePtr parentBone = nullptr);
 
-void create_bone_animation(const aiAnimation *theAnimation,
-                           const vierkant::nodes::NodePtr &root_bone,
+void create_node_animation(const aiAnimation *theAnimation,
+                           const vierkant::nodes::NodePtr &root_node,
                            vierkant::nodes::node_animation_t &out_animation);
 
 
 void process_node_hierarchy(const aiScene *scene,
                             const std::string &base_path,
                             mesh_assets_t &out_assets,
-                            entry_index_map_t &entry_indices,
                             bone_map_t &bonemap,
                             vierkant::AABB &aabb,
                             size_t &num_vertices,
@@ -534,32 +533,24 @@ mesh_assets_t load_model(const std::string &path)
         size_t num_vertices = 0, num_indices = 0;
 
         // iterate node hierarchy, find geometries and node animations
-        process_node_hierarchy(theScene, base_path, mesh_assets, entry_indices, bonemap, aabb, num_vertices,
+        process_node_hierarchy(theScene, base_path, mesh_assets, bonemap, aabb, num_vertices,
                                num_indices);
 
-        // create bone hierarchy
+        // create bone hierarchy, if any
         mesh_assets.root_bone = create_bone_hierarchy(theScene->mRootNode, glm::mat4(1), bonemap);
+
+        // animation are either defined for a bone- or the node-hierarchy itself
+        auto animation_root = mesh_assets.root_bone ? mesh_assets.root_bone : mesh_assets.root_node;
 
         for(uint32_t i = 0; i < theScene->mNumAnimations; i++)
         {
             aiAnimation *assimpAnimation = theScene->mAnimations[i];
 
-            if(mesh_assets.root_bone)
-            {
-                vierkant::nodes::node_animation_t anim;
-                anim.duration = assimpAnimation->mDuration;
-                anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
-                create_bone_animation(assimpAnimation, mesh_assets.root_bone, anim);
-                mesh_assets.bone_animations.push_back(std::move(anim));
-            }
-            else
-            {
-                vierkant::animation_t<uint32_t > anim;
-                anim.duration = assimpAnimation->mDuration;
-                anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
-                create_entry_animation(assimpAnimation, entry_indices, anim);
-                mesh_assets.entry_animations.push_back(std::move(anim));
-            }
+            vierkant::nodes::node_animation_t anim;
+            anim.duration = assimpAnimation->mDuration;
+            anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
+            create_node_animation(assimpAnimation, animation_root, anim);
+            mesh_assets.node_animations.push_back(std::move(anim));
         }
 
         // extract model name from filename
@@ -587,7 +578,6 @@ mesh_assets_t load_model(const std::string &path)
 void process_node_hierarchy(const aiScene *scene,
                             const std::string &base_path,
                             mesh_assets_t &out_assets,
-                            entry_index_map_t &entry_indices,
                             bone_map_t &bonemap,
                             vierkant::AABB &aabb,
                             size_t &num_vertices,
@@ -595,8 +585,10 @@ void process_node_hierarchy(const aiScene *scene,
 {
     struct node_t
     {
-        const aiNode *node;
+        const aiNode *ai_node;
         glm::mat4 global_transform;
+
+        vierkant::nodes::NodePtr node;
     };
 
     // cache duplicate geometries
@@ -605,15 +597,22 @@ void process_node_hierarchy(const aiScene *scene,
     // cache duplicate images
     std::map<std::string, crocore::ImagePtr> image_cache;
 
+    // create vierkant::node root
+    out_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
+    out_assets.root_node->name = scene->mRootNode->mName.data;
+    uint32_t current_node_index = 0;
+
     std::deque<node_t> node_queue;
-    node_queue.push_back({scene->mRootNode, glm::mat4(1)});
+    node_queue.push_back({scene->mRootNode, glm::mat4(1), out_assets.root_node});
 
     while(!node_queue.empty())
     {
         // dequeue node struct
-        const aiNode *ai_node = node_queue.front().node;
-
+        const aiNode *ai_node = node_queue.front().ai_node;
         glm::mat4 node_transform = node_queue.front().global_transform;
+        vierkant::nodes::NodePtr current_node = node_queue.front().node;
+
+        // pop queue
         node_queue.pop_front();
 
         for(uint32_t i = 0; i < ai_node->mNumMeshes; ++i)
@@ -641,11 +640,9 @@ void process_node_hierarchy(const aiScene *scene,
             num_vertices += geometry->vertices.size();
             num_indices += geometry->indices.size();
 
-            // keep track of name -> index mapping
-            entry_indices[ai_node->mName.data] = out_assets.geometries.size();
-
             out_assets.geometries.push_back(geometry);
             out_assets.transforms.push_back(node_transform);
+            out_assets.node_indices.push_back(current_node->index);
             out_assets.material_indices.push_back(ai_mesh->mMaterialIndex);
 
             out_assets.materials[ai_mesh->mMaterialIndex] = create_material(base_path, scene,
@@ -659,36 +656,21 @@ void process_node_hierarchy(const aiScene *scene,
         {
             glm::mat4 child_transform = aimatrix_to_glm_mat4(ai_node->mChildren[c]->mTransformation);
 
+            // create vierkant::node
+            auto child_node = std::make_shared<vierkant::nodes::node_t>();
+            child_node->name = ai_node->mChildren[c]->mName.data;
+            child_node->index = ++current_node_index;
+            child_node->parent = current_node;
+            child_node->transform = child_transform;
+
+            // add child to current node
+            current_node->children.push_back(child_node);
+
             // enqueue child node and transform
-            node_queue.push_back({ai_node->mChildren[c], node_transform * child_transform});
+            node_queue.push_back({ai_node->mChildren[c], node_transform * child_transform, child_node});
         }
     }
 }
-
-/////////////////////////////////////////////////////////////////
-
-//void process_node(const aiScene *the_scene, const aiNode *the_in_node,
-//                  const vierkant::Object3DPtr &the_parent_node)
-//{
-//    if(!the_in_node){ return; }
-//
-////    string node_name(the_in_node->mName.data);
-//
-//    auto node = vierkant::Object3D::create(the_in_node->mName.data);
-//    node->set_transform(aimatrix_to_glm_mat4(the_in_node->mTransformation));
-//    the_parent_node->add_child(node);
-//
-//    // meshes assigned to this node
-//    for(uint32_t n = 0; n < the_in_node->mNumMeshes; ++n)
-//    {
-////        const aiMesh *mesh = the_scene->mMeshes[the_in_node->mMeshes[n]];
-//    }
-//
-//    for(uint32_t i = 0; i < the_in_node->mNumChildren; ++i)
-//    {
-//        process_node(the_scene, the_in_node->mChildren[i], node);
-//    }
-//}
 
 /////////////////////////////////////////////////////////////////
 
@@ -774,8 +756,8 @@ vierkant::animation_keys_t create_animation_keys(const aiNodeAnim *ai_animation)
 
 /////////////////////////////////////////////////////////////////
 
-void create_bone_animation(const aiAnimation *theAnimation,
-                           const vierkant::nodes::NodePtr &root_bone,
+void create_node_animation(const aiAnimation *theAnimation,
+                           const vierkant::nodes::NodePtr &root_node,
                            vierkant::nodes::node_animation_t &out_animation)
 {
     if(theAnimation)
@@ -783,7 +765,7 @@ void create_bone_animation(const aiAnimation *theAnimation,
         for(uint32_t i = 0; i < theAnimation->mNumChannels; i++)
         {
             aiNodeAnim *node_animation = theAnimation->mChannels[i];
-            auto bone = vierkant::nodes::node_by_name(root_bone, node_animation->mNodeName.data);
+            auto bone = vierkant::nodes::node_by_name(root_node, node_animation->mNodeName.data);
 
             // corresponds to a bone node in the hierarchy
             if(bone){ out_animation.keys[bone] = create_animation_keys(node_animation); }
@@ -837,8 +819,8 @@ size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_asset
             vierkant::nodes::node_animation_t anim;
             anim.duration = assimpAnimation->mDuration;
             anim.ticks_per_sec = assimpAnimation->mTicksPerSecond;
-            create_bone_animation(assimpAnimation, mesh_assets.root_bone, anim);
-            mesh_assets.bone_animations.push_back(std::move(anim));
+            create_node_animation(assimpAnimation, mesh_assets.root_bone, anim);
+            mesh_assets.node_animations.push_back(std::move(anim));
         }
     }
     return theScene ? theScene->mNumAnimations : 0;

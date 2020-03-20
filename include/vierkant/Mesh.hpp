@@ -170,6 +170,7 @@ public:
         uint32_t num_indices = 0;
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        uint32_t node_index = 0;
         bool enabled = true;
     };
 
@@ -186,7 +187,8 @@ public:
     static vierkant::MeshPtr
     create_from_geometries(const vierkant::DevicePtr &device,
                            const std::vector<GeometryPtr> &geometries,
-                           const std::vector<glm::mat4> &transforms = {});
+                           const std::vector<glm::mat4> &transforms = {},
+                           const std::vector<uint32_t> &node_indices = {});
 
     Mesh(const Mesh &) = delete;
 
@@ -230,12 +232,9 @@ public:
     uint32_t animation_index = 0;
     float animation_speed = 1.f;
 
-    // bone animations
-    vierkant::nodes::NodePtr root_bone;
-    std::vector<vierkant::nodes::node_animation_t> bone_animations;
-
-    // entry-transform (submesh) animations
-    std::vector<vierkant::animation_t<uint32_t>> entry_animations;
+    // node animations
+    vierkant::nodes::NodePtr root_node, root_bone;
+    std::vector<vierkant::nodes::node_animation_t> node_animations;
 
     // index buffer
     vierkant::BufferPtr index_buffer;

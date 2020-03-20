@@ -8,10 +8,10 @@ namespace vierkant::nodes
 {
 
 //! recursion helper-routine
-void build_bone_matrices_helper(const NodeConstPtr &bone,
+void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,
                                 std::vector<glm::mat4> &matrices,
-                                glm::mat4 transform);
+                                glm::mat4 world_transform);
 
 uint32_t num_nodes_in_hierarchy(const NodeConstPtr &root)
 {
@@ -37,33 +37,31 @@ void build_node_matrices(const NodeConstPtr &root, const node_animation_t &anima
 {
     if(!root){ return; }
     matrices.resize(num_nodes_in_hierarchy(root));
-    return build_bone_matrices_helper(root, animation, matrices, glm::mat4(1));
+    return build_node_matrices_helper(root, animation, matrices, glm::mat4(1));
 }
 
-void build_bone_matrices_helper(const NodeConstPtr &bone,
+void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,
                                 std::vector<glm::mat4> &matrices,
                                 glm::mat4 world_transform)
 {
     float time = animation.current_time;
-    glm::mat4 boneTransform = bone->transform;
+    glm::mat4 nodeTransform = node->transform;
 
-    auto it = animation.keys.find(bone);
+    auto it = animation.keys.find(node);
 
     if(it != animation.keys.end())
     {
         const auto &animation_keys = it->second;
-        create_animation_transform(animation_keys, time, animation.duration, boneTransform);
+        create_animation_transform(animation_keys, time, animation.duration, nodeTransform);
     }
-    world_transform = world_transform * boneTransform;
-
-    auto bone_matrix = world_transform * bone->offset;
+    world_transform = world_transform * nodeTransform;
 
     // add final transform
-    matrices[bone->index] = bone_matrix;
+    matrices[node->index] = world_transform * node->offset;
 
     // recursion through all children
-    for(auto &b : bone->children){ build_bone_matrices_helper(b, animation, matrices, world_transform); }
+    for(auto &b : node->children){ build_node_matrices_helper(b, animation, matrices, world_transform); }
 }
 
 }

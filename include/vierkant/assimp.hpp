@@ -31,13 +31,14 @@ struct mesh_assets_t
     // per submesh
     std::vector<vierkant::GeometryPtr> geometries;
     std::vector<glm::mat4> transforms;
+    std::vector<uint32_t> node_indices;
     std::vector<uint32_t> material_indices;
 
     // global for mesh
     std::vector<material_t> materials;
-    vierkant::nodes::NodePtr root_bone;
-    std::vector<vierkant::nodes::node_animation_t> bone_animations;
-    std::vector<vierkant::animation_t<uint32_t>> entry_animations;
+
+    vierkant::nodes::NodePtr root_bone, root_node;
+    std::vector<vierkant::nodes::node_animation_t> node_animations;
 };
 
 //! load a single 3D model from file

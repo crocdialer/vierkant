@@ -493,10 +493,10 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
 
 void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer)
 {
-    if(mesh && mesh->root_bone && mesh->animation_index < mesh->bone_animations.size())
+    if(mesh && mesh->root_bone && mesh->animation_index < mesh->node_animations.size())
     {
         std::vector<glm::mat4> bones_matrices;
-        vierkant::nodes::build_node_matrices(mesh->root_bone, mesh->bone_animations[mesh->animation_index],
+        vierkant::nodes::build_node_matrices(mesh->root_bone, mesh->node_animations[mesh->animation_index],
                                              bones_matrices);
 
         if(!out_buffer)

@@ -215,7 +215,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 vierkant::MeshPtr
 Mesh::create_from_geometries(const vierkant::DevicePtr &device,
                              const std::vector<GeometryPtr> &geometries,
-                             const std::vector<glm::mat4> &transforms)
+                             const std::vector<glm::mat4> &transforms,
+                             const std::vector<uint32_t> &node_indices)
 {
     if(geometries.empty()){ return nullptr; }
 
@@ -321,7 +322,6 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         const auto &v = vertex_data[i];
 
         vierkant::Mesh::attrib_t attrib;
-//        attrib.location = v.attrib_location;
         attrib.offset = v.offset;
         attrib.stride = static_cast<uint32_t>(stride);
         attrib.buffer = vertex_buffer;
@@ -371,6 +371,9 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
 
         // use provided transforms for sub-meshes, if any
         if(i < transforms.size()){ entry.transform = transforms[i]; }
+
+        // use provided node_index for sub-meshes, if any
+        if(i < node_indices.size()){ entry.node_index = node_indices[i]; }
 
         // combine with aabb
         auto sub_mesh_aabb = vierkant::compute_aabb(geom->vertices);
