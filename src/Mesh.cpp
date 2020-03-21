@@ -376,9 +376,7 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         if(i < node_indices.size()){ entry.node_index = node_indices[i]; }
 
         // combine with aabb
-        auto sub_mesh_aabb = vierkant::compute_aabb(geom->vertices);
-        sub_mesh_aabb.transform(entry.transform);
-        mesh->boundingbox += sub_mesh_aabb;
+        entry.boundingbox = vierkant::compute_aabb(geom->vertices);
 
         // insert new entry
         mesh->entries.push_back(entry);
@@ -501,6 +499,15 @@ std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
         ret.push_back(desc);
     }
     return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+vierkant::AABB Mesh::aabb() const
+{
+    vierkant::AABB aabb;
+    for(const auto &entry : entries){ aabb += entry.boundingbox.transform(entry.transform); }
+    return aabb;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

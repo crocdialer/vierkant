@@ -164,13 +164,16 @@ public:
     struct entry_t
     {
         glm::mat4 transform = glm::mat4(1);
+        vierkant::AABB boundingbox;
+        uint32_t node_index = 0;
+
         uint32_t base_vertex = 0;
         uint32_t num_vertices = 0;
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        uint32_t node_index = 0;
+
         bool enabled = true;
     };
 
@@ -196,7 +199,7 @@ public:
 
     Mesh &operator=(Mesh other) = delete;
 
-    vierkant::AABB aabb() const override{ return boundingbox; }
+    vierkant::AABB aabb() const override;
 
     /**
      * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
@@ -240,9 +243,6 @@ public:
     vierkant::BufferPtr index_buffer;
     VkDeviceSize index_buffer_offset = 0;
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
-
-    // boundingbox
-    vierkant::AABB boundingbox;
 
 private:
 
