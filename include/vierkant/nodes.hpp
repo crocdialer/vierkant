@@ -30,13 +30,6 @@ struct node_t
 //! define a bone_animation type
 using node_animation_t = vierkant::animation_t<NodeConstPtr>;
 
-//! each vertex can reference up to 4 bones
-struct vertex_data_t
-{
-    glm::ivec4 indices = glm::ivec4(0);
-    glm::vec4 weights = glm::vec4(0);
-};
-
 /**
  * @brief   Return the total number of nodes.
  *

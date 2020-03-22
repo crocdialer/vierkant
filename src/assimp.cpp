@@ -761,10 +761,10 @@ void create_node_animation(const aiAnimation *theAnimation,
         for(uint32_t i = 0; i < theAnimation->mNumChannels; i++)
         {
             aiNodeAnim *node_animation = theAnimation->mChannels[i];
-            auto bone = vierkant::nodes::node_by_name(root_node, node_animation->mNodeName.data);
+            auto node = vierkant::nodes::node_by_name(root_node, node_animation->mNodeName.data);
 
-            // corresponds to a bone node in the hierarchy
-            if(bone){ out_animation.keys[bone] = create_animation_keys(node_animation); }
+            // corresponds to a node in the hierarchy
+            if(node){ out_animation.keys[node] = create_animation_keys(node_animation); }
         }
     }
 }

@@ -220,6 +220,11 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     auto &current_assets = m_render_assets[current_index];
     frame_assets_t next_assets = {};
 
+
+    // keep uniform buffers
+    next_assets.matrix_buffers = std::move(current_assets.matrix_buffers);
+    next_assets.material_buffers = std::move(current_assets.material_buffers);
+
     // fetch and start commandbuffer
     next_assets.command_buffer = std::move(current_assets.command_buffer);
     auto &command_buffer = next_assets.command_buffer;
@@ -305,6 +310,11 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 vkCmdSetScissor(command_buffer.handle(), 0, 1, &drawable->pipeline_format.scissor);
             }
 
+            // update/create descriptor set
+            auto &descriptors = drawable->descriptors;
+            descriptors[BINDING_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
+            descriptors[BINDING_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
+
             // search/create descriptor set
             asset_key_t key = {};
             key.mesh = current_mesh;
@@ -312,11 +322,6 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             key.matrix_buffer_index = indexed_drawable.matrix_buffer_index;
             key.material_buffer_index = indexed_drawable.material_buffer_index;
             auto render_asset_it = current_assets.render_assets.find(key);
-
-            // update/create descriptor set
-            auto &descriptors = drawable->descriptors;
-            descriptors[BINDING_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
-            descriptors[BINDING_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
 
             // transition image layouts
             for(auto &pair : descriptors)
