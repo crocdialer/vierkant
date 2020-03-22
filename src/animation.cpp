@@ -20,7 +20,13 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
 
         if(keys.positions.size() == 1)
         {
+            // only one key defined
             translation = glm::translate(translation, keys.positions.front().value);
+        }
+        else if(keys.positions.back().time <= time)
+        {
+            // time is past last key
+            translation = glm::translate(translation, keys.positions.back().value);
         }
         else
         {
@@ -51,7 +57,13 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
 
         if(keys.rotations.size() == 1)
         {
+            // only one key defined
             rotation = glm::mat4_cast(keys.rotations.front().value);
+        }
+        else if(keys.rotations.back().time <= time)
+        {
+            // time is past last key
+            rotation = glm::mat4_cast(keys.rotations.back().value);
         }
         else
         {
@@ -84,7 +96,13 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
 
         if(keys.scales.size() == 1)
         {
+            // only one key defined
             scaleMatrix = glm::scale(scaleMatrix, keys.scales.front().value);
+        }
+        else if(keys.scales.back().time <= time)
+        {
+            // time is past last key
+            scaleMatrix = glm::scale(scaleMatrix, keys.scales.back().value);
         }
         else
         {

@@ -65,10 +65,6 @@ void process_node_hierarchy(const aiScene *scene,
 
 vierkant::animation_keys_t create_animation_keys(const aiNodeAnim *ai_animation);
 
-void create_entry_animation(const aiAnimation *theAnimation,
-                            const entry_index_map_t &entry_map,
-                            vierkant::animation_t<uint32_t> &out_animation);
-
 /////////////////////////////////////////////////////////////////
 
 inline glm::mat4 aimatrix_to_glm_mat4(aiMatrix4x4 theMat)
@@ -769,27 +765,6 @@ void create_node_animation(const aiAnimation *theAnimation,
 
             // corresponds to a bone node in the hierarchy
             if(bone){ out_animation.keys[bone] = create_animation_keys(node_animation); }
-        }
-    }
-}
-
-/////////////////////////////////////////////////////////////////
-
-void create_entry_animation(const aiAnimation *theAnimation,
-                            const entry_index_map_t &entry_map,
-                            vierkant::animation_t<uint32_t> &out_animation)
-{
-    if(theAnimation)
-    {
-        for(uint32_t i = 0; i < theAnimation->mNumChannels; i++)
-        {
-            aiNodeAnim *node_animation = theAnimation->mChannels[i];
-            auto it = entry_map.find(node_animation->mNodeName.data);
-
-            if(it != entry_map.end())
-            {
-                out_animation.keys[it->second] = create_animation_keys(node_animation);
-            }
         }
     }
 }
