@@ -53,7 +53,7 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    matrix_struct_t m = u_matrices[push_constants.matrix_index];//matrices[gl_InstanceIndex];
+    matrix_struct_t m = u_matrices[push_constants.matrix_index + gl_InstanceIndex];
 
     vec4 new_vertex = vec4(0);
 

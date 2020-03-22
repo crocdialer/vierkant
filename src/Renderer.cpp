@@ -60,12 +60,12 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         vierkant::descriptor_t desc_matrices = {};
         desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[SLOT_MATRIX] = desc_matrices;
+        drawable.descriptors[BINDING_MATRIX] = desc_matrices;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[SLOT_MATERIAL] = desc_material;
+        drawable.descriptors[BINDING_MATERIAL] = desc_material;
 
         // textures
         if(!material->images.empty())
@@ -74,7 +74,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
             desc_texture.image_samplers = material->images;
-            drawable.descriptors[SLOT_TEXTURES] = desc_texture;
+            drawable.descriptors[BINDING_TEXTURES] = desc_texture;
         }
 
         // bone matrices
@@ -83,10 +83,10 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             vierkant::descriptor_t desc_bones = {};
             desc_bones.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
             desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-            drawable.descriptors[SLOT_BONES] = desc_bones;
+            drawable.descriptors[BINDING_BONES] = desc_bones;
         }
 
-        uint32_t binding = MAX_DESCRIPTOR_SLOT;
+        uint32_t binding = BINDING_MAX_RANGE;
 
         // custom ubos
         for(auto &ubo : material->ubos)
@@ -315,8 +315,8 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
-            descriptors[SLOT_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
-            descriptors[SLOT_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
+            descriptors[BINDING_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
+            descriptors[BINDING_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
 
             // transition image layouts
             for(auto &pair : descriptors)
@@ -352,7 +352,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     if(current_mesh->root_bone)
                     {
                         update_bone_uniform_buffer(current_mesh, new_render_asset.bone_buffer);
-                        descriptors[SLOT_BONES].buffer = new_render_asset.bone_buffer;
+                        descriptors[BINDING_BONES].buffer = new_render_asset.bone_buffer;
                     }
 
                     // keep handle
@@ -379,7 +379,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 if(current_mesh->root_bone)
                 {
                     update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
-                    descriptors[SLOT_BONES].buffer = render_asset.bone_buffer;
+                    descriptors[BINDING_BONES].buffer = render_asset.bone_buffer;
                 }
 
                 // keep handle

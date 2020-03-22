@@ -50,21 +50,18 @@ vk::MeshPtr create_mesh(const vk::DevicePtr &device,
                                             VMA_MEMORY_USAGE_GPU_ONLY);
 
     vk::Mesh::attrib_t position, color, tex_coord;
-    position.location = 0;
     position.offset = offsetof(Vertex, position);
     position.stride = sizeof(Vertex);
     position.buffer = vertex_buffer;
     position.format = vk::format<decltype(Vertex::position)>();
     ret->vertex_attribs[0] = position;
 
-    color.location = 1;
     color.offset = offsetof(Vertex, color);
     color.stride = sizeof(Vertex);
     color.buffer = vertex_buffer;
     color.format = vk::format<decltype(Vertex::color)>();
     ret->vertex_attribs[1] = color;
 
-    tex_coord.location = 2;
     tex_coord.offset = offsetof(Vertex, tex_coord);
     tex_coord.stride = sizeof(Vertex);
     tex_coord.buffer = vertex_buffer;

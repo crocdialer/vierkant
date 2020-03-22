@@ -35,17 +35,17 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         vierkant::descriptor_t desc_matrix = {};
         desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATRIX] = desc_matrix;
+        m_drawable_image.descriptors[vierkant::Renderer::BINDING_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_image.descriptors[vierkant::Renderer::SLOT_MATERIAL] = desc_material;
+        m_drawable_image.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
 
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_image.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
+        m_drawable_image.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
 
         m_drawable_image.mesh = mesh;
         m_drawable_image.num_indices = entry.num_indices;
@@ -67,17 +67,17 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         vierkant::descriptor_t desc_matrix = {};
         desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        m_drawable_text.descriptors[vierkant::Renderer::SLOT_MATRIX] = desc_matrix;
+        m_drawable_text.descriptors[vierkant::Renderer::BINDING_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_text.descriptors[vierkant::Renderer::SLOT_MATERIAL] = desc_material;
+        m_drawable_text.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
 
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_text.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
+        m_drawable_text.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
 
         m_drawable_text.pipeline_format = std::move(pipeline_fmt);
 
@@ -126,7 +126,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
     drawable.matrices.projection = glm::orthoRH(0.f, renderer.viewport.width, 0.f, renderer.viewport.height, 0.0f,
                                                 1.0f);
     drawable.matrices.modelview[3] = glm::vec4(pos.x, pos.y, 0, 1);
-    drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {font->glyph_texture()};
+    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {font->glyph_texture()};
     drawable.num_indices = entry.num_indices;
     drawable.num_vertices = entry.num_vertices;
     renderer.stage_drawable(std::move(drawable));
@@ -149,7 +149,7 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
     drawable.matrices.modelview[3] = glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0, 1);
 
     // set image
-    drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {image};
+    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {image};
 
     // stage image drawable
     renderer.stage_drawable(std::move(drawable));

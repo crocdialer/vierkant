@@ -20,13 +20,13 @@ class Renderer
 {
 public:
 
-    enum DescriptorSlot
+    enum DescriptorBinding
     {
-        SLOT_MATRIX = 0,
-        SLOT_MATERIAL = 1,
-        SLOT_TEXTURES = 2,
-        SLOT_BONES = 3,
-        MAX_DESCRIPTOR_SLOT
+        BINDING_MATRIX = 0,
+        BINDING_MATERIAL = 1,
+        BINDING_TEXTURES = 2,
+        BINDING_BONES = 3,
+        BINDING_MAX_RANGE
     };
 
     struct matrix_struct_t

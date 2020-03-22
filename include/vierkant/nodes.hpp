@@ -47,20 +47,20 @@ struct vertex_data_t
 uint32_t num_nodes_in_hierarchy(const NodeConstPtr &root);
 
 /**
- * @brief   Attempt to find a bone by name.
+ * @brief   Attempt to find a node by name.
  *
- * @param   root    a root bone of a bone-hierarchy.
+ * @param   root    a root bone of a node-hierarchy.
  *
  * @param   name    the name to search for.
  *
- * @return  the found BonePtr or nullptr, if the name could not be found in the hierarchy.
+ * @return  the found NodePtr or nullptr, if the name could not be found in the hierarchy.
  */
 NodeConstPtr node_by_name(NodeConstPtr root, const std::string &name);
 
 /**
- * @brief   Create transformation matrices, matching the provided bone-hierarchy and animation.
+ * @brief   Create transformation matrices, matching the provided node-hierarchy and animation.
  *
- * @param   root        a root bone of a bone-hierarchy.
+ * @param   root        a root node of a node-hierarchy.
  *
  * @param   animation   a const-ref for an animation_t object.
  *
