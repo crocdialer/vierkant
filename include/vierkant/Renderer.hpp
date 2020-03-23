@@ -82,6 +82,15 @@ public:
         uint32_t num_vertices = 0;
     };
 
+    struct create_info_t
+    {
+        VkViewport viewport = {};
+        uint32_t num_frames_in_flight = 0;
+        vierkant::RenderPassPtr renderpass;
+        VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+        vierkant::PipelineCachePtr pipeline_cache = nullptr;
+    };
+
     /**
      * @brief   Factory to create a drawable_t from provided mesh and material.
      *
@@ -111,8 +120,7 @@ public:
      * @brief   Construct a new Renderer object
      * @param   device  handle for the vk::Device to create the Renderer
      */
-    Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &framebuffers,
-             vierkant::PipelineCachePtr pipeline_cache = nullptr);
+    Renderer(DevicePtr device, const create_info_t &create_info);
 
     Renderer(Renderer &&other) noexcept;
 
@@ -151,7 +159,7 @@ public:
      */
     void reset();
 
-    vierkant::DevicePtr device() const{ return m_device; }
+    const vierkant::DevicePtr &device() const{ return m_device; }
 
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 

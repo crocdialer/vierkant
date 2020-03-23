@@ -41,6 +41,7 @@ struct animation_keys_t
 template<typename T>
 struct animation_t
 {
+    bool playing = true;
     float current_time = 0.f;
     float duration = 0.f;
     float ticks_per_sec = 0.f;
@@ -50,9 +51,12 @@ struct animation_t
 template<typename T>
 void update_animation(animation_t<T>& animation, float time_delta, float animation_speed)
 {
-    animation.current_time = animation.current_time + time_delta * animation.ticks_per_sec * animation_speed;
-    if(animation.current_time > animation.duration){ animation.current_time -= animation.duration; }
-    animation.current_time += animation.current_time < 0.f ? animation.duration : 0.f;
+    if(animation.playing)
+    {
+        animation.current_time = animation.current_time + time_delta * animation.ticks_per_sec * animation_speed;
+        if(animation.current_time > animation.duration){ animation.current_time -= animation.duration; }
+        animation.current_time += animation.current_time < 0.f ? animation.duration : 0.f;
+    }
 }
 
 /**

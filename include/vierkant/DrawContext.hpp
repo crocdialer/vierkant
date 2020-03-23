@@ -32,6 +32,12 @@ public:
     void draw_grid(vierkant::Renderer &renderer, float scale, uint32_t num_subs, const glm::mat4 &model_view,
                    const glm::mat4 &projection);
 
+    void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
+                   const glm::mat4 &projection);
+
+    void draw_scene(vierkant::Renderer &renderer, const vierkant::Object3DConstPtr &root,
+                    const vierkant::CameraConstPtr &camera);
+
 private:
 
     const shader_stage_map_t &shader_stages(vierkant::ShaderType type);
@@ -43,6 +49,8 @@ private:
     Renderer::drawable_t m_drawable_aabb = {};
 
     Renderer::drawable_t m_drawable_grid = {};
+
+    vierkant::PipelineCachePtr m_pipeline_cache;
 };
 
 }

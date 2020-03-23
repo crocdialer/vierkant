@@ -105,25 +105,20 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &framebuffers,
-                   vierkant::PipelineCachePtr pipeline_cache) :
+Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
         m_device(std::move(device))
 {
-    for(auto &fb : framebuffers)
+    if(!create_info.renderpass || !create_info.num_frames_in_flight)
     {
-        for(const auto &attach_pair : fb.attachments())
-        {
-            for(const auto &img : attach_pair.second)
-            {
-                m_sample_count = std::max(m_sample_count, img->format().sample_count);
-            }
-        }
-        m_renderpass = fb.renderpass();
-        viewport = {0.f, 0.f, static_cast<float>(fb.extent().width), static_cast<float>(fb.extent().height), 0.f,
-                    static_cast<float>(fb.extent().depth)};
+        throw std::runtime_error("could not create vierkant::Renderer");
     }
-    m_staged_drawables.resize(framebuffers.size());
-    m_render_assets.resize(framebuffers.size());
+
+    m_renderpass = create_info.renderpass;
+    m_sample_count = create_info.sample_count;
+    viewport = create_info.viewport;
+
+    m_staged_drawables.resize(create_info.num_frames_in_flight);
+    m_render_assets.resize(create_info.num_frames_in_flight);
 
     m_command_pool = vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
@@ -140,7 +135,7 @@ Renderer::Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &f
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1024}};
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 4096);
 
-    if(pipeline_cache){ m_pipeline_cache = std::move(pipeline_cache); }
+    if(create_info.pipeline_cache){ m_pipeline_cache = std::move(create_info.pipeline_cache); }
     else{ m_pipeline_cache = vierkant::PipelineCache::create(m_device); }
 
     // push constant range
@@ -321,7 +316,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             key.descriptors = drawable->descriptors;
             key.matrix_buffer_index = indexed_drawable.matrix_buffer_index;
             key.material_buffer_index = indexed_drawable.material_buffer_index;
-            auto render_asset_it = current_assets.render_assets.find(key);
+
+            // start searching in
+            auto render_asset_it = next_assets.render_assets.find(key);
 
             // transition image layouts
             for(auto &pair : descriptors)
@@ -337,14 +334,14 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
             // handle for a descriptor-set
             VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
 
-            // not found in current assets
-            if(render_asset_it == current_assets.render_assets.end())
+            // not found in next assets
+            if(render_asset_it == next_assets.render_assets.end())
             {
-                // search in next assets (might already been processed for this frame)
-                auto next_assets_it = next_assets.render_assets.find(key);
+                // search in current assets (might already been processed for this frame)
+                auto current_assets_it = current_assets.render_assets.find(key);
 
-                // not found in next assets
-                if(next_assets_it == next_assets.render_assets.end())
+                // not found in current assets
+                if(current_assets_it == current_assets.render_assets.end())
                 {
                     // create a new render_asset
                     render_asset_t new_render_asset = {};
@@ -371,29 +368,31 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                 }
                 else
                 {
-                    descriptor_set_handle = next_assets_it->second.descriptor_set.get();
+
+                    // use existing render_asset
+                    render_asset_t render_asset = std::move(current_assets_it->second);
+                    current_assets.render_assets.erase(current_assets_it);
+
+                    // update bone buffers, if necessary
+                    if(current_mesh->root_bone)
+                    {
+                        update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
+                        descriptors[BINDING_BONES].buffer = render_asset.bone_buffer;
+                    }
+
+                    // keep handle
+                    descriptor_set_handle = render_asset.descriptor_set.get();
+
+                    // update existing descriptor set
+                    vierkant::update_descriptor_set(m_device, render_asset.descriptor_set, descriptors);
+
+                    next_assets.render_assets[key] = std::move(render_asset);
                 }
+
             }
             else
             {
-                // use existing render_asset
-                render_asset_t render_asset = std::move(render_asset_it->second);
-                current_assets.render_assets.erase(render_asset_it);
-
-                // update bone buffers, if necessary
-                if(current_mesh->root_bone)
-                {
-                    update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
-                    descriptors[BINDING_BONES].buffer = render_asset.bone_buffer;
-                }
-
-                // keep handle
-                descriptor_set_handle = render_asset.descriptor_set.get();
-
-                // update existing descriptor set
-                vierkant::update_descriptor_set(m_device, render_asset.descriptor_set, descriptors);
-
-                next_assets.render_assets[key] = std::move(render_asset);
+                descriptor_set_handle = render_asset_it->second.descriptor_set.get();
             }
 
             // bind descriptor sets (uniforms, samplers)

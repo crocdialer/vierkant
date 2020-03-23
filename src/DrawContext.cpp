@@ -7,7 +7,28 @@
 namespace vierkant
 {
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
+                            const glm::mat4 &projection)
+{
+    auto drawables = vierkant::Renderer::create_drawables(renderer.device(), mesh, mesh->materials, m_pipeline_cache);
+
+    for(auto &drawable : drawables)
+    {
+        drawable.matrices.modelview = model_view * drawable.matrices.modelview;
+        drawable.matrices.projection = projection;
+        renderer.stage_drawable(std::move(drawable));
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DrawContext::draw_scene(vierkant::Renderer &renderer, const vierkant::Object3DConstPtr &root,
+                             const vierkant::CameraConstPtr &camera)
+{
+    // TODO: create drawables with a CullVisitor
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device))
 {
@@ -105,6 +126,9 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
         m_drawable_grid = vierkant::Renderer::create_drawables(m_device, mesh, {material}).front();
     }
+
+    // create a pipline cache
+    m_pipeline_cache = vierkant::PipelineCache::create(m_device);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -146,7 +170,8 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
     drawable.matrices.projection = glm::orthoRH(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
     drawable.matrices.modelview = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
-    drawable.matrices.modelview[3] = glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0, 1);
+    drawable.matrices.modelview[3] = glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0,
+                                               1);
 
     // set image
     drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {image};
