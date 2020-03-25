@@ -731,21 +731,21 @@ vierkant::animation_keys_t create_animation_keys(const aiNodeAnim *ai_animation)
     {
         aiQuaternion rot = ai_animation->mRotationKeys[i].mValue;
         boneRotation = glm::quat(rot.w, rot.x, rot.y, rot.z);
-        animation_keys.rotations.push_back({static_cast<float>(ai_animation->mRotationKeys[i].mTime), boneRotation});
+        animation_keys.rotations[ai_animation->mRotationKeys[i].mTime] = boneRotation;
     }
 
     for(uint32_t i = 0; i < ai_animation->mNumPositionKeys; i++)
     {
         aiVector3D pos = ai_animation->mPositionKeys[i].mValue;
         bonePosition = glm::vec3(pos.x, pos.y, pos.z);
-        animation_keys.positions.push_back({static_cast<float>(ai_animation->mPositionKeys[i].mTime), bonePosition});
+        animation_keys.positions[ai_animation->mPositionKeys[i].mTime] = bonePosition;
     }
 
     for(uint32_t i = 0; i < ai_animation->mNumScalingKeys; i++)
     {
         aiVector3D scaleTmp = ai_animation->mScalingKeys[i].mValue;
         boneScale = glm::vec3(scaleTmp.x, scaleTmp.y, scaleTmp.z);
-        animation_keys.scales.push_back({static_cast<float>(ai_animation->mScalingKeys[i].mTime), boneScale});
+        animation_keys.scales[ai_animation->mScalingKeys[i].mTime] = boneScale;
     }
     return animation_keys;
 }

@@ -18,33 +18,29 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
     {
         has_keys = true;
 
-        if(keys.positions.size() == 1)
+        // find a key with equal or greater time
+        auto it_rhs = keys.positions.lower_bound(time);
+
+        // lhs iterator (might be invalid)
+        auto it_lhs = it_rhs; it_lhs--;
+
+        if(it_rhs == keys.positions.begin())
         {
             // only one key defined
-            translation = glm::translate(translation, keys.positions.front().value);
+            translation = glm::translate(translation, it_rhs->second);
         }
-        else if(keys.positions.back().time <= time)
+        else if(it_rhs == keys.positions.end())
         {
             // time is past last key
-            translation = glm::translate(translation, keys.positions.back().value);
+            translation = glm::translate(translation, it_lhs->second);
         }
         else
         {
-            uint32_t i = 0;
-
-            for(; i < keys.positions.size() - 1; i++)
-            {
-                const auto &key = keys.positions[(i + 1) % keys.positions.size()];
-                if(key.time >= time){ break; }
-            }
-            // i now holds the correct time index
-            const key_t<glm::vec3> &key1 = keys.positions[i];
-            const key_t<glm::vec3> &key2 = keys.positions[(i + 1) % keys.positions.size()];
-
-            float startTime = key1.time;
-            float endTime = key2.time < key1.time ? key2.time + duration : key2.time;
+            // interpolate two surrounding keys
+            float startTime = it_lhs->first;
+            float endTime = it_rhs->first;
             float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
-            glm::vec3 pos = glm::mix(key1.value, key2.value, frac);
+            glm::vec3 pos = glm::mix(it_lhs->second, it_rhs->second, frac);
             translation = glm::translate(translation, pos);
         }
     }
@@ -55,76 +51,69 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
     {
         has_keys = true;
 
-        if(keys.rotations.size() == 1)
+        // find a key with equal or greater time
+        auto it_rhs = keys.rotations.lower_bound(time);
+
+        // lhs iterator (might be invalid)
+        auto it_lhs = it_rhs; it_lhs--;
+
+        if(it_rhs == keys.rotations.begin())
         {
             // only one key defined
-            rotation = glm::mat4_cast(keys.rotations.front().value);
+            rotation = glm::mat4_cast(it_rhs->second);
         }
-        else if(keys.rotations.back().time <= time)
+        else if(it_rhs == keys.rotations.end())
         {
             // time is past last key
-            rotation = glm::mat4_cast(keys.rotations.back().value);
+            rotation = glm::mat4_cast(it_lhs->second);
         }
         else
         {
-            uint32_t i = 0;
-            for(; i < keys.rotations.size() - 1; i++)
-            {
-                const key_t<glm::quat> &key = keys.rotations[i + 1];
-                if(key.time >= time){ break; }
-            }
-            // i now holds the correct time index
-            const key_t<glm::quat> &key1 = keys.rotations[i];
-            const key_t<glm::quat> &key2 = keys.rotations[(i + 1) % keys.rotations.size()];
-
-            float startTime = key1.time;
-            float endTime = key2.time < key1.time ? key2.time + duration : key2.time;
+            // interpolate two surrounding keys
+            float startTime = it_lhs->first;
+            float endTime = it_rhs->first;
             float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
 
             // quaternion spherical linear interpolation
-            glm::quat interpolRot = glm::slerp(key1.value, key2.value, frac);
+            glm::quat interpolRot = glm::slerp(it_lhs->second, it_rhs->second, frac);
             rotation = glm::mat4_cast(interpolRot);
         }
     }
 
     // scale
-    glm::mat4 scaleMatrix(1);
+    glm::mat4 scale_matrix(1);
 
     if(!keys.scales.empty())
     {
         has_keys = true;
 
-        if(keys.scales.size() == 1)
+        // find a key with equal or greater time
+        auto it_rhs = keys.scales.lower_bound(time);
+
+        // lhs iterator (might be invalid)
+        auto it_lhs = it_rhs; it_lhs--;
+
+        if(it_rhs == keys.scales.begin())
         {
             // only one key defined
-            scaleMatrix = glm::scale(scaleMatrix, keys.scales.front().value);
+            scale_matrix = glm::scale(scale_matrix, it_rhs->second);
         }
-        else if(keys.scales.back().time <= time)
+        else if(it_rhs == keys.scales.end())
         {
             // time is past last key
-            scaleMatrix = glm::scale(scaleMatrix, keys.scales.back().value);
+            scale_matrix = glm::scale(scale_matrix, it_lhs->second);
         }
         else
         {
-            uint32_t i = 0;
-
-            for(; i < keys.scales.size() - 1; i++)
-            {
-                const key_t<glm::vec3> &key = keys.scales[(i + 1) % keys.scales.size()];
-                if(key.time >= time){ break; }
-            }
-            // i now holds the correct time index
-            const key_t<glm::vec3> &key1 = keys.scales[i];
-            const key_t<glm::vec3> &key2 = keys.scales[(i + 1) % keys.scales.size()];
-
-            float startTime = key1.time;
-            float endTime = key2.time < key1.time ? key2.time + duration : key2.time;
+            // interpolate two surrounding keys
+            float startTime = it_lhs->first;
+            float endTime = it_rhs->first;
             float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
-            glm::vec3 scale = glm::mix(key1.value, key2.value, frac);
-            scaleMatrix = glm::scale(scaleMatrix, scale);
+            glm::vec3 scale = glm::mix(it_lhs->second, it_rhs->second, frac);
+            scale_matrix = glm::scale(scale_matrix, scale);
         }
     }
-    if(has_keys){ out_transform = translation * rotation * scaleMatrix; }
+    if(has_keys){ out_transform = translation * rotation * scale_matrix; }
 }
 
 }

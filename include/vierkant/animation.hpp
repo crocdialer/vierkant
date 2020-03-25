@@ -12,25 +12,13 @@ namespace vierkant
 {
 
 /**
- * @brief   key_t groups an arbitrary value with a specific point in time.
- *
- * @tparam  T   value type
- */
-template<typename T>
-struct key_t
-{
-    float time = 0.f;
-    T value = T(0);
-};
-
-/**
  *  @brief  animation_keys_t groups all existing keys for an entity.
  */
 struct animation_keys_t
 {
-    std::vector<key_t<glm::vec3>> positions;
-    std::vector<key_t<glm::quat>> rotations;
-    std::vector<key_t<glm::vec3>> scales;
+    std::map<float, glm::vec3> positions;
+    std::map<float, glm::quat> rotations;
+    std::map<float, glm::vec3> scales;
 };
 
 /**
@@ -49,7 +37,7 @@ struct animation_t
 };
 
 template<typename T>
-void update_animation(animation_t<T>& animation, float time_delta, float animation_speed)
+void update_animation(animation_t<T> &animation, float time_delta, float animation_speed)
 {
     if(animation.playing)
     {
