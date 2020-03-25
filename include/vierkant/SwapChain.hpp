@@ -8,13 +8,14 @@
 #include "vierkant/Image.hpp"
 #include "vierkant/Framebuffer.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 class SwapChain
 {
 public:
 
-    static constexpr uint32_t max_frames_in_flight = 2;
+    static constexpr uint32_t max_frames_in_flight = 3;
 
     /**
      * @brief   sync_objects_t is a helper struct to bundle synchronization data for the SwapChain
@@ -55,7 +56,7 @@ public:
      * @return      true if the call to vkAcquireNextImageKHR was successful
      */
     bool aquire_next_image(uint32_t *image_index,
-                               uint64_t timeout = std::numeric_limits<uint64_t>::max());
+                           uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
     /**
      * @brief   submit the current SwapChain-image to the presentation queue and update frame-indices
@@ -66,12 +67,12 @@ public:
     /**
      * @return  handle for the managed VkSwapchainKHR
      */
-    VkSwapchainKHR handle() const { return m_swap_chain; }
+    VkSwapchainKHR handle() const{ return m_swap_chain; }
 
     /**
      * @return  handle for the device
      */
-    DevicePtr device() const { return m_device; }
+    DevicePtr device() const{ return m_device; }
 
     /**
      * @return  handle for the shared VkRenderPass, used by all contained Framebuffers
@@ -81,41 +82,41 @@ public:
     /**
      * @return  a reference for the contained array of Framebuffers
      */
-    std::vector<vierkant::Framebuffer> &framebuffers() { return m_framebuffers; }
+    std::vector<vierkant::Framebuffer> &framebuffers(){ return m_framebuffers; }
 
     /**
      * @return  a reference for array of SwapChain-Images
      */
-    const std::vector<vierkant::ImagePtr> &images() const { return m_images; }
+    const std::vector<vierkant::ImagePtr> &images() const{ return m_images; }
 
     /**
      * @return  the VkExtent2D (size) of the SwapChain-Images
      */
-    const VkExtent2D &extent() const { return m_extent; }
+    const VkExtent2D &extent() const{ return m_extent; }
 
     /**
      * @return  the VkSampleCountFlagBits stating the number of samples per pixel (MSAA)
      */
-    VkSampleCountFlagBits sample_count() const { return m_num_samples; }
+    VkSampleCountFlagBits sample_count() const{ return m_num_samples; }
 
     /**
      * @return  a flag indicating if vertical synchronization is used
      */
-    bool v_sync() const { return m_use_v_sync; }
+    bool v_sync() const{ return m_use_v_sync; }
 
     /**
      * @return  the current image index inside the SwapChain
      */
-    uint32_t image_index() const { return m_swapchain_image_index; }
+    uint32_t image_index() const{ return m_swapchain_image_index; }
 
     /**
      * @return  a reference to the current sync_objects_t
      */
-    const sync_objects_t &sync_objects() const { return m_sync_objects[m_current_frame_index]; };
+    const sync_objects_t &sync_objects() const{ return m_sync_objects[m_current_frame_index]; };
 
     friend void swap(SwapChain &lhs, SwapChain &rhs);
 
-    inline explicit operator bool() const { return static_cast<bool>(m_swap_chain); };
+    inline explicit operator bool() const{ return static_cast<bool>(m_swap_chain); };
 
 private:
 

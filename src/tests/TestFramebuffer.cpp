@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepth)
 
 
         // 1 color attachment plus depth
-        vk::Framebuffer::Format fmt;
+        vk::Framebuffer::create_info_t fmt;
         fmt.depth = true;
         auto framebuffer = vk::Framebuffer(device, fb_size, fmt);
         BOOST_CHECK(framebuffer);
@@ -122,7 +122,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil)
                                          VK_NULL_HANDLE);
 
         // 1 color attachment plus depth/stencil
-        vk::Framebuffer::Format fmt;
+        vk::Framebuffer::create_info_t fmt;
         fmt.depth = true;
         fmt.stencil = true;
         auto framebuffer = vk::Framebuffer(device, fb_size, fmt);
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_MultiColorDepthStencil)
                                          VK_NULL_HANDLE);
 
         // 4 color attachments plus depth/stencil
-        vk::Framebuffer::Format fmt;
+        vk::Framebuffer::create_info_t fmt;
         fmt.num_color_attachments = 4;
         fmt.depth = true;
         fmt.stencil = true;
@@ -181,7 +181,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil_MSAA)
                                          VK_NULL_HANDLE);
 
         // 1 color attachment (MSAA) | depth/stencil (MSAA) | resolve
-        vk::Framebuffer::Format fmt;
+        vk::Framebuffer::create_info_t fmt;
         fmt.num_color_attachments = 1;
         fmt.depth = true;
         fmt.stencil = true;

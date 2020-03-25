@@ -118,7 +118,8 @@ public:
 
     /**
      * @brief   Construct a new Renderer object
-     * @param   device  handle for the vk::Device to create the Renderer
+     * @param   device          handle for the vk::Device to create the Renderer
+     * @param   create_info     a create_info_t object
      */
     Renderer(DevicePtr device, const create_info_t &create_info);
 

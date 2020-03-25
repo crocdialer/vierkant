@@ -6,15 +6,6 @@ namespace vierkant
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Framebuffer::Format::Format() :
-        num_color_attachments(1), depth(false), stencil(false)
-{
-    color_attachment_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    color_attachment_format.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 RenderPassPtr
 Framebuffer::create_renderpass(const vierkant::DevicePtr& device,
                                const Framebuffer::AttachmentMap& attachments,
@@ -148,9 +139,8 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr& device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Framebuffer::Framebuffer(DevicePtr device, VkExtent3D size, Format format,
-                         RenderPassPtr renderpass) :
-        m_device(std::move(device)), m_extent(size), m_format(std::move(format))
+Framebuffer::Framebuffer(DevicePtr device, create_info_t format, RenderPassPtr renderpass) :
+        m_device(std::move(device)), m_extent(format.size), m_format(std::move(format))
 {
     m_format.color_attachment_format.extent = m_extent;
     init(create_attachments(m_format), std::move(renderpass));
@@ -381,8 +371,10 @@ void Framebuffer::init(AttachmentMap attachments, RenderPassPtr renderpass)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Framebuffer::AttachmentMap Framebuffer::create_attachments(const Framebuffer::Format& fmt)
+Framebuffer::AttachmentMap Framebuffer::create_attachments(Framebuffer::create_info_t fmt)
 {
+    fmt.color_attachment_format.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
     // create vierkant::Image attachments and insert into AttachmentMap
     std::vector<vierkant::ImagePtr> color_attachments, resolve_attachments, depth_stencil_attachments;
 

@@ -85,10 +85,12 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
         extent.height = std::max(caps.minImageExtent.height, std::min(caps.maxImageExtent.height, extent.height));
     }
 
+    uint32_t max_image_count = std::min(swap_chain_support.capabilities.maxImageCount, max_frames_in_flight);
     uint32_t imageCount = swap_chain_support.capabilities.minImageCount + 1;
-    if(swap_chain_support.capabilities.maxImageCount > 0 && imageCount > swap_chain_support.capabilities.maxImageCount)
+
+    if(swap_chain_support.capabilities.maxImageCount > 0 && imageCount > max_image_count)
     {
-        imageCount = swap_chain_support.capabilities.maxImageCount;
+        imageCount = max_image_count;
     }
 
     VkSwapchainCreateInfoKHR create_info = {};
@@ -225,7 +227,7 @@ VkResult SwapChain::present()
 
     // swap buffers
     VkResult result = vkQueuePresentKHR(m_device->queue(Device::Queue::PRESENT), &present_info);
-    m_current_frame_index = (m_current_frame_index + 1) % SwapChain::max_frames_in_flight;
+    m_current_frame_index = (m_current_frame_index + 1) % m_images.size();
     return result;
 }
 
@@ -314,12 +316,12 @@ void SwapChain::create_framebuffers()
 void SwapChain::create_sync_objects()
 {
     // allocate sync-objects
-    m_sync_objects.resize(SwapChain::max_frames_in_flight);
+    m_sync_objects.resize(m_images.size());
 
     VkSemaphoreCreateInfo semaphore_info = {};
     semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    for(size_t i = 0; i < SwapChain::max_frames_in_flight; i++)
+    for(size_t i = 0; i < m_images.size(); i++)
     {
         if(vkCreateSemaphore(m_device->handle(), &semaphore_info, nullptr, &m_sync_objects[i].image_available) !=
            VK_SUCCESS ||
