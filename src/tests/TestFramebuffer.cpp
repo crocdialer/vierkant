@@ -48,8 +48,11 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColor)
                                          instance.use_validation_layers(),
                                          VK_NULL_HANDLE);
 
+        vierkant::Framebuffer::create_info_t create_info = {};
+        create_info.size = fb_size;
+
         // only 1 color attachment, no depth/stencil
-        auto framebuffer = vk::Framebuffer(device, fb_size);
+        auto framebuffer = vk::Framebuffer(device, create_info);
         BOOST_CHECK(framebuffer);
         BOOST_CHECK_EQUAL(framebuffer.extent().width, fb_size.width);
         BOOST_CHECK_EQUAL(framebuffer.extent().height, fb_size.height);
@@ -94,9 +97,10 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepth)
 
 
         // 1 color attachment plus depth
-        vk::Framebuffer::create_info_t fmt;
-        fmt.depth = true;
-        auto framebuffer = vk::Framebuffer(device, fb_size, fmt);
+        vierkant::Framebuffer::create_info_t create_info = {};
+        create_info.size = fb_size;
+        create_info.depth = true;
+        auto framebuffer = vk::Framebuffer(device, create_info);
         BOOST_CHECK(framebuffer);
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 2);
 
@@ -122,10 +126,11 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil)
                                          VK_NULL_HANDLE);
 
         // 1 color attachment plus depth/stencil
-        vk::Framebuffer::create_info_t fmt;
-        fmt.depth = true;
-        fmt.stencil = true;
-        auto framebuffer = vk::Framebuffer(device, fb_size, fmt);
+        vierkant::Framebuffer::create_info_t create_info = {};
+        create_info.size = fb_size;
+        create_info.depth = true;
+        create_info.stencil = true;
+        auto framebuffer = vierkant::Framebuffer(device, create_info);
         BOOST_CHECK(framebuffer);
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 2);
 
@@ -151,17 +156,18 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_MultiColorDepthStencil)
                                          VK_NULL_HANDLE);
 
         // 4 color attachments plus depth/stencil
-        vk::Framebuffer::create_info_t fmt;
-        fmt.num_color_attachments = 4;
-        fmt.depth = true;
-        fmt.stencil = true;
-        auto framebuffer = vk::Framebuffer(device, fb_size, fmt);
+        vierkant::Framebuffer::create_info_t create_info = {};
+        create_info.size = fb_size;
+        create_info.num_color_attachments = 4;
+        create_info.depth = true;
+        create_info.stencil = true;
+        auto framebuffer = vk::Framebuffer(device, create_info);
         BOOST_CHECK(framebuffer);
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 5);
 
         attachment_count_t expected_count;
-        expected_count[vk::Framebuffer::AttachmentType::Color] = 4;
-        expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
+        expected_count[vierkant::Framebuffer::AttachmentType::Color] = 4;
+        expected_count[vierkant::Framebuffer::AttachmentType::DepthStencil] = 1;
         auto res = check_attachment_count(framebuffer.attachments(), expected_count);
         BOOST_CHECK(res);
     }
@@ -181,12 +187,13 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil_MSAA)
                                          VK_NULL_HANDLE);
 
         // 1 color attachment (MSAA) | depth/stencil (MSAA) | resolve
-        vk::Framebuffer::create_info_t fmt;
-        fmt.num_color_attachments = 1;
-        fmt.depth = true;
-        fmt.stencil = true;
-        fmt.color_attachment_format.sample_count = device->max_usable_samples();
-        auto framebuffer = vk::Framebuffer(device, fb_size, fmt);
+        vierkant::Framebuffer::create_info_t create_info = {};
+        create_info.size = fb_size;
+        create_info.num_color_attachments = 1;
+        create_info.depth = true;
+        create_info.stencil = true;
+        create_info.color_attachment_format.sample_count = device->max_usable_samples();
+        auto framebuffer = vierkant::Framebuffer(device, create_info);
         BOOST_CHECK(framebuffer);
         BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 3);
 

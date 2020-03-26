@@ -10,7 +10,7 @@ namespace vierkant
 void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
                             const glm::mat4 &projection)
 {
-    auto drawables = vierkant::Renderer::create_drawables(renderer.device(), mesh, mesh->materials, m_pipeline_cache);
+    auto drawables = vierkant::Renderer::create_drawables(renderer.device(), mesh, m_pipeline_cache);
 
     for(auto &drawable : drawables)
     {
@@ -112,9 +112,8 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         // unit cube
         auto geom = vierkant::Geometry::BoxOutline();
         auto mesh = vierkant::Mesh::create_from_geometries(m_device, {geom});
-        auto material = vierkant::Material::create();
-        material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
-        m_drawable_aabb = vierkant::Renderer::create_drawables(m_device, mesh, {material}).front();
+        mesh->materials.front()->shader_type = vierkant::ShaderType::UNLIT_COLOR;
+        m_drawable_aabb = vierkant::Renderer::create_drawables(m_device, mesh).front();
     }
 
     // grid
@@ -123,8 +122,8 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         auto geom = vierkant::Geometry::Grid();
         auto mesh = vierkant::Mesh::create_from_geometries(m_device, {geom});
         auto material = vierkant::Material::create();
-        material->shader_type = vierkant::ShaderType::UNLIT_COLOR;
-        m_drawable_grid = vierkant::Renderer::create_drawables(m_device, mesh, {material}).front();
+        mesh->materials.front()->shader_type = vierkant::ShaderType::UNLIT_COLOR;
+        m_drawable_grid = vierkant::Renderer::create_drawables(m_device, mesh).front();
     }
 
     // create a pipline cache

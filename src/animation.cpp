@@ -26,7 +26,7 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
 
         if(it_rhs == keys.positions.begin())
         {
-            // only one key defined
+            // time is before first key
             translation = glm::translate(translation, it_rhs->second);
         }
         else if(it_rhs == keys.positions.end())
@@ -59,7 +59,7 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
 
         if(it_rhs == keys.rotations.begin())
         {
-            // only one key defined
+            // time is before first key
             rotation = glm::mat4_cast(it_rhs->second);
         }
         else if(it_rhs == keys.rotations.end())
@@ -95,7 +95,7 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
 
         if(it_rhs == keys.scales.begin())
         {
-            // only one key defined
+            // time is before first key
             scale_matrix = glm::scale(scale_matrix, it_rhs->second);
         }
         else if(it_rhs == keys.scales.end())

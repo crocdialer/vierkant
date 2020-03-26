@@ -95,9 +95,8 @@ void HelloTriangleApplication::load_model()
                     glm::vec4(0.f, 1.f, 0.f, 1.f),
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};
     m_mesh = vk::Mesh::create_from_geometries(m_device, {geom});
-    m_material->shader_type = vk::ShaderType::UNLIT_COLOR;
 
-    m_drawable = vk::Renderer::create_drawables(m_device, m_mesh, {m_material}).front();
+    m_drawable = vk::Renderer::create_drawables(m_device, m_mesh).front();
 }
 
 void HelloTriangleApplication::update(double time_delta)

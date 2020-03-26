@@ -101,8 +101,7 @@ public:
      */
     static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device,
                                                     const MeshPtr &mesh,
-                                                    const std::vector<MaterialPtr> &materials,
-                                                    vierkant::PipelineCachePtr pipeline_cache = nullptr);
+                                                    const vierkant::PipelineCachePtr& pipeline_cache = nullptr);
 
     /**
      * @brief   Viewport parameters currently used.

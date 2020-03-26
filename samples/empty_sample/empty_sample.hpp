@@ -66,8 +66,6 @@ private:
 
     vk::MeshPtr m_mesh = vk::Mesh::create();
 
-    vk::MaterialPtr m_material = vk::Material::create();
-
     vk::Renderer::drawable_t m_drawable;
 
     vk::Renderer m_renderer, m_gui_renderer;

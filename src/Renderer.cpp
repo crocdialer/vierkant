@@ -13,8 +13,7 @@ namespace vierkant
 
 std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::DevicePtr &device,
                                                              const MeshPtr &mesh,
-                                                             const std::vector<MaterialPtr> &materials,
-                                                             vierkant::PipelineCachePtr pipeline_cache)
+                                                             const vierkant::PipelineCachePtr& pipeline_cache)
 {
     std::vector<Renderer::drawable_t> ret;
 
