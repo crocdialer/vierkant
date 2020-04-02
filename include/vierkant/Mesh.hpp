@@ -164,12 +164,16 @@ public:
     struct entry_t
     {
         glm::mat4 transform = glm::mat4(1);
+        vierkant::AABB boundingbox;
+        uint32_t node_index = 0;
+
         uint32_t base_vertex = 0;
         uint32_t num_vertices = 0;
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
         bool enabled = true;
     };
 
@@ -186,7 +190,8 @@ public:
     static vierkant::MeshPtr
     create_from_geometries(const vierkant::DevicePtr &device,
                            const std::vector<GeometryPtr> &geometries,
-                           const std::vector<glm::mat4> &transforms = {});
+                           const std::vector<glm::mat4> &transforms = {},
+                           const std::vector<uint32_t> &node_indices = {});
 
     Mesh(const Mesh &) = delete;
 
@@ -194,7 +199,7 @@ public:
 
     Mesh &operator=(Mesh other) = delete;
 
-    vierkant::AABB aabb() const override{ return boundingbox; }
+    vierkant::AABB aabb() const override;
 
     /**
      * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh
@@ -226,21 +231,18 @@ public:
     // materials for submeshes
     std::vector<vierkant::MaterialPtr> materials;
 
-    // root bone
-    vierkant::bones::BonePtr root_bone;
+    // animations general
+    uint32_t animation_index = 0;
+    float animation_speed = 1.f;
 
-    // bone animations
-    uint32_t bone_animation_index = 0;
-    float bone_animation_speed = 1.f;
-    std::vector<vierkant::bones::bone_animation_t> bone_animations;
+    // node animations
+    vierkant::nodes::NodePtr root_node, root_bone;
+    std::vector<vierkant::nodes::node_animation_t> node_animations;
 
     // index buffer
     vierkant::BufferPtr index_buffer;
     VkDeviceSize index_buffer_offset = 0;
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
-
-    // boundingbox
-    vierkant::AABB boundingbox;
 
 private:
 

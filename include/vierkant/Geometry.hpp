@@ -6,7 +6,7 @@
 
 #include <vierkant/math.hpp>
 #include <vierkant/Device.hpp>
-#include <vierkant/bones.hpp>
+#include <vierkant/nodes.hpp>
 
 namespace vierkant {
 
@@ -49,6 +49,7 @@ public:
     std::vector<glm::vec3> normals;
     std::vector<glm::vec3> tangents;
 
+    //! each vertex can reference up to 4 bones
     std::vector<glm::ivec4> bone_indices;
     std::vector<glm::vec4> bone_weights;
 

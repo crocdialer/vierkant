@@ -12,25 +12,13 @@ namespace vierkant
 {
 
 /**
- * @brief   key_t groups an arbitrary value with a specific point in time.
- *
- * @tparam  T   value type
- */
-template<typename T>
-struct key_t
-{
-    float time = 0.f;
-    T value = T(0);
-};
-
-/**
  *  @brief  animation_keys_t groups all existing keys for an entity.
  */
 struct animation_keys_t
 {
-    std::vector<key_t<glm::vec3>> positions;
-    std::vector<key_t<glm::quat>> rotations;
-    std::vector<key_t<glm::vec3>> scales;
+    std::map<float, glm::vec3> positions;
+    std::map<float, glm::quat> rotations;
+    std::map<float, glm::vec3> scales;
 };
 
 /**
@@ -41,11 +29,23 @@ struct animation_keys_t
 template<typename T>
 struct animation_t
 {
+    bool playing = true;
     float current_time = 0.f;
     float duration = 0.f;
     float ticks_per_sec = 0.f;
     std::map<T, animation_keys_t> keys;
 };
+
+template<typename T>
+void update_animation(animation_t<T> &animation, float time_delta, float animation_speed)
+{
+    if(animation.playing)
+    {
+        animation.current_time = animation.current_time + time_delta * animation.ticks_per_sec * animation_speed;
+        if(animation.current_time > animation.duration){ animation.current_time -= animation.duration; }
+        animation.current_time += animation.current_time < 0.f ? animation.duration : 0.f;
+    }
+}
 
 /**
  * @brief   Evaluate provided animation-keys for a given time and duration. If successful, write out transformation.

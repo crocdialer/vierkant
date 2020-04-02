@@ -294,7 +294,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
                 auto drawable = m_imgui_assets.drawable;
                 drawable.mesh = mesh_assets[n].mesh;
                 drawable.matrices = matrices;
-                drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES].image_samplers = {tex};
+                drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {tex};
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;
 
@@ -381,17 +381,17 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     vierkant::descriptor_t desc_matrix = {};
     desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    drawable.descriptors[vierkant::Renderer::SLOT_MATRIX] = desc_matrix;
+    drawable.descriptors[vierkant::Renderer::BINDING_MATRIX] = desc_matrix;
 
     vierkant::descriptor_t desc_material = {};
     desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    drawable.descriptors[vierkant::Renderer::SLOT_MATERIAL] = desc_material;
+    drawable.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
 
     vierkant::descriptor_t desc_texture = {};
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    drawable.descriptors[vierkant::Renderer::SLOT_TEXTURES] = desc_texture;
+    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
 
     drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
     drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};

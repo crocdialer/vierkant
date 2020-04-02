@@ -20,13 +20,13 @@ class Renderer
 {
 public:
 
-    enum DescriptorSlot
+    enum DescriptorBinding
     {
-        SLOT_MATRIX = 0,
-        SLOT_MATERIAL = 1,
-        SLOT_TEXTURES = 2,
-        SLOT_BONES = 3,
-        MAX_DESCRIPTOR_SLOT
+        BINDING_MATRIX = 0,
+        BINDING_MATERIAL = 1,
+        BINDING_TEXTURES = 2,
+        BINDING_BONES = 3,
+        BINDING_MAX_RANGE
     };
 
     struct matrix_struct_t
@@ -82,6 +82,15 @@ public:
         uint32_t num_vertices = 0;
     };
 
+    struct create_info_t
+    {
+        VkViewport viewport = {};
+        uint32_t num_frames_in_flight = 0;
+        vierkant::RenderPassPtr renderpass;
+        VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+        vierkant::PipelineCachePtr pipeline_cache = nullptr;
+    };
+
     /**
      * @brief   Factory to create a drawable_t from provided mesh and material.
      *
@@ -92,8 +101,7 @@ public:
      */
     static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device,
                                                     const MeshPtr &mesh,
-                                                    const std::vector<MaterialPtr> &materials,
-                                                    vierkant::PipelineCachePtr pipeline_cache = nullptr);
+                                                    const vierkant::PipelineCachePtr& pipeline_cache = nullptr);
 
     /**
      * @brief   Viewport parameters currently used.
@@ -109,10 +117,10 @@ public:
 
     /**
      * @brief   Construct a new Renderer object
-     * @param   device  handle for the vk::Device to create the Renderer
+     * @param   device          handle for the vk::Device to create the Renderer
+     * @param   create_info     a create_info_t object
      */
-    Renderer(DevicePtr device, const std::vector<vierkant::Framebuffer> &framebuffers,
-             vierkant::PipelineCachePtr pipeline_cache = nullptr);
+    Renderer(DevicePtr device, const create_info_t &create_info);
 
     Renderer(Renderer &&other) noexcept;
 
@@ -151,7 +159,7 @@ public:
      */
     void reset();
 
-    vierkant::DevicePtr device() const{ return m_device; }
+    const vierkant::DevicePtr &device() const{ return m_device; }
 
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 

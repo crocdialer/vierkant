@@ -8,7 +8,8 @@
 
 #include "vierkant/Image.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 using RenderPassPtr = std::shared_ptr<VkRenderPass_T>;
 
@@ -19,14 +20,13 @@ public:
     /**
      * @brief   Framebuffer::Format groups information necessary to create a set of Image-Attachments
      */
-    struct Format
+    struct create_info_t
     {
+        VkExtent3D size;
         uint32_t num_color_attachments = 1;
         bool depth = false;
         bool stencil = false;
         Image::Format color_attachment_format;
-
-        Format();
     };
 
     /**
@@ -60,7 +60,7 @@ public:
      * @param   size        the desired size for the Framebuffer in pixels
      * @param   format      an optional Framebuffer::Format object
      */
-    Framebuffer(DevicePtr device, VkExtent3D size, Format format = Format(), RenderPassPtr renderpass = nullptr);
+    Framebuffer(DevicePtr device, create_info_t format, RenderPassPtr renderpass = nullptr);
 
     /**
      *
@@ -112,7 +112,7 @@ public:
     /**
      * @return  the VkExtent3D used by the Image-Attachments
      */
-    const VkExtent3D &extent() const { return m_extent; }
+    const VkExtent3D &extent() const{ return m_extent; }
 
     /**
      *
@@ -124,22 +124,22 @@ public:
     /**
      * @return  const-ref to a map, holding the Image-Attachments
      */
-    const AttachmentMap &attachments() const { return m_attachments; };
+    const AttachmentMap &attachments() const{ return m_attachments; };
 
     /**
      * @return  handle for the managed VkFramebuffer
      */
-    VkFramebuffer handle() const { return m_framebuffer; }
+    VkFramebuffer handle() const{ return m_framebuffer; }
 
     /**
      * @return  handle for the (possibly shared) VkRenderPass
      */
-    RenderPassPtr renderpass() const { return m_renderpass; }
+    RenderPassPtr renderpass() const{ return m_renderpass; }
 
     /**
      * @return  true if this Framebuffer is initialized
      */
-    inline explicit operator bool() const { return m_framebuffer && m_renderpass; };
+    inline explicit operator bool() const{ return m_framebuffer && m_renderpass; };
 
 
     friend void swap(Framebuffer &lhs, Framebuffer &rhs);
@@ -172,9 +172,9 @@ private:
 
     RenderPassPtr m_renderpass;
 
-    Framebuffer::Format m_format;
+    Framebuffer::create_info_t m_format;
 
-    AttachmentMap create_attachments(const Format &fmt);
+    AttachmentMap create_attachments(create_info_t fmt);
 
     void init(AttachmentMap attachments, RenderPassPtr renderpass);
 };

@@ -258,7 +258,7 @@ struct AABB
 
     inline glm::vec3 center() const { return max - halfExtents(); }
 
-    const AABB operator+(const AABB &theAABB) const
+    AABB operator+(const AABB &theAABB) const
     {
         AABB ret(*this);
         ret += theAABB;

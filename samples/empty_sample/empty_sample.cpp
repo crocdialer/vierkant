@@ -70,9 +70,19 @@ void HelloTriangleApplication::create_context_and_window()
 
 void HelloTriangleApplication::create_graphics_pipeline()
 {
-    auto &framebuffers = m_window->swapchain().framebuffers();
-    m_renderer = vk::Renderer(m_device, framebuffers);
-    m_gui_renderer = vk::Renderer(m_device, framebuffers);
+    const auto &framebuffers = m_window->swapchain().framebuffers();
+    auto fb_extent = framebuffers.front().extent();
+
+    vierkant::Renderer::create_info_t create_info = {};
+    create_info.num_frames_in_flight = framebuffers.size();
+    create_info.sample_count = m_window->swapchain().sample_count();
+    create_info.viewport = {0.f, 0.f, static_cast<float>(fb_extent.width),
+                            static_cast<float>(fb_extent.height), 0.f,
+                            static_cast<float>(fb_extent.depth)};
+    create_info.renderpass = m_window->swapchain().framebuffers().front().renderpass();
+
+    m_renderer = vierkant::Renderer(m_device, create_info);
+    m_gui_renderer = vierkant::Renderer(m_device, create_info);
 }
 
 void HelloTriangleApplication::load_model()
@@ -85,9 +95,8 @@ void HelloTriangleApplication::load_model()
                     glm::vec4(0.f, 1.f, 0.f, 1.f),
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};
     m_mesh = vk::Mesh::create_from_geometries(m_device, {geom});
-    m_material->shader_type = vk::ShaderType::UNLIT_COLOR;
 
-    m_drawable = vk::Renderer::create_drawables(m_device, m_mesh, {m_material}).front();
+    m_drawable = vk::Renderer::create_drawables(m_device, m_mesh).front();
 }
 
 void HelloTriangleApplication::update(double time_delta)
