@@ -53,7 +53,7 @@ void build_node_matrices_helper(const NodeConstPtr &node,
     if(it != animation.keys.end())
     {
         const auto &animation_keys = it->second;
-        create_animation_transform(animation_keys, time, animation.duration, nodeTransform);
+        create_animation_transform(animation_keys, time, nodeTransform);
     }
     world_transform = world_transform * nodeTransform;
 

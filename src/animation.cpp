@@ -7,7 +7,7 @@
 namespace vierkant
 {
 
-void create_animation_transform(const animation_keys_t &keys, float time, float duration, glm::mat4 &out_transform)
+void create_animation_transform(const animation_keys_t &keys, float time, glm::mat4 &out_transform)
 {
     bool has_keys = false;
 
@@ -22,7 +22,8 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
         auto it_rhs = keys.positions.lower_bound(time);
 
         // lhs iterator (might be invalid)
-        auto it_lhs = it_rhs; it_lhs--;
+        auto it_lhs = it_rhs;
+        it_lhs--;
 
         if(it_rhs == keys.positions.begin())
         {
@@ -55,7 +56,8 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
         auto it_rhs = keys.rotations.lower_bound(time);
 
         // lhs iterator (might be invalid)
-        auto it_lhs = it_rhs; it_lhs--;
+        auto it_lhs = it_rhs;
+        it_lhs--;
 
         if(it_rhs == keys.rotations.begin())
         {
@@ -91,7 +93,8 @@ void create_animation_transform(const animation_keys_t &keys, float time, float 
         auto it_rhs = keys.scales.lower_bound(time);
 
         // lhs iterator (might be invalid)
-        auto it_lhs = it_rhs; it_lhs--;
+        auto it_lhs = it_rhs;
+        it_lhs--;
 
         if(it_rhs == keys.scales.begin())
         {

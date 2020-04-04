@@ -54,10 +54,8 @@ void update_animation(animation_t<T> &animation, float time_delta, float animati
  *
  * @param   time            provided time for interpolation.
  *
- * @param   duration        the animation duration.
- *
  * @param   out_transform   ref to a mat4, used to write out an interpolated transformation.
  */
-void create_animation_transform(const animation_keys_t &keys, float time, float duration, glm::mat4 &out_transform);
+void create_animation_transform(const animation_keys_t &keys, float time, glm::mat4 &out_transform);
 
 }
