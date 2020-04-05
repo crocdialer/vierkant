@@ -1,5 +1,5 @@
 #include <crocore/Area.hpp>
-#include <crocore/Image.hpp>
+#include <crocore/filesystem.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Pipeline.hpp>
 #include "vierkant/imgui/imgui_integration.h"
@@ -176,8 +176,17 @@ Context::Context(const vierkant::DevicePtr &device, const std::string &font, flo
 
     if(!font.empty())
     {
-        // add custom font
-        io.Fonts->AddFontFromFileTTF(font.c_str(), font_size, nullptr, io.Fonts->GetGlyphRangesDefault());
+        std::vector<uint8_t> font_data;
+
+        font_data = crocore::filesystem::read_binary_file(font);
+
+        ImFontConfig font_cfg;
+        font_cfg.FontData = font_data.data();
+        font_cfg.FontDataSize = font_data.size();
+        font_cfg.FontDataOwnedByAtlas = false;
+        font_cfg.SizePixels = font_size;
+        font_cfg.GlyphRanges = io.Fonts->GetGlyphRangesDefault();
+        io.Fonts->AddFont(&font_cfg);
     }
 
     ImGuiStyle &im_style = ImGui::GetStyle();
