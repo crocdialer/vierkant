@@ -2,7 +2,7 @@
 // Created by crocdialer on 11/14/18.
 //
 
-#include <crocore/Utils.hpp>
+#include <crocore/utils.hpp>
 #include "vierkant/shaders.hpp"
 #include "vierkant/Pipeline.hpp"
 

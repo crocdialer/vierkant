@@ -107,6 +107,11 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
 {
     if(physical_device)
     {
+        // query physical device properties
+        m_physical_device_properties = {};
+        m_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        vkGetPhysicalDeviceProperties2(physical_device, &m_physical_device_properties);
+
         // add some obligatory features here
         device_features.samplerAnisotropy = true;
         device_features.sampleRateShading = true;
@@ -266,5 +271,6 @@ const std::vector<VkQueue> &Device::queues(Queue type) const
     if(queue_it != m_queues.end()){ return queue_it->second; }
     return g_empty_queue;
 }
+
 
 }//namespace vulkan

@@ -141,9 +141,6 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
     m_push_constant_range.offset = 0;
     m_push_constant_range.size = sizeof(push_constants_t);
     m_push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
-
-    // query physical-device features
-    vkGetPhysicalDeviceProperties(m_device->physical_device(), &m_physical_device_properties);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -183,7 +180,6 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_render_assets, rhs.m_render_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
     std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
-    std::swap(lhs.m_physical_device_properties, rhs.m_physical_device_properties);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -238,7 +234,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
         drawable_t *drawable = nullptr;
     };
     std::unordered_map<Pipeline::Format, std::vector<indexed_drawable_t>> pipelines;
-    size_t max_num_uniform_bytes = m_physical_device_properties.limits.maxUniformBufferRange;
+    size_t max_num_uniform_bytes = m_device->properties().limits.maxUniformBufferRange;
 
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
@@ -447,7 +443,7 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
     }
 
     // define a copy-utility
-    auto max_num_bytes = m_physical_device_properties.limits.maxUniformBufferRange;
+    auto max_num_bytes = m_device->properties().limits.maxUniformBufferRange;
     auto copy_to_uniform_buffers = [&device = m_device, max_num_bytes](const auto &array,
                                                                        std::vector<vierkant::BufferPtr> &out_buffers)
     {

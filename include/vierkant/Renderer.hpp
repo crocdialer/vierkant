@@ -230,8 +230,6 @@ private:
     uint32_t m_current_index = 0;
 
     VkPushConstantRange m_push_constant_range = {};
-
-    VkPhysicalDeviceProperties m_physical_device_properties = {};
 };
 
 }//namespace vierkant
