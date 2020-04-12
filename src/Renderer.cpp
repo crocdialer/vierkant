@@ -13,7 +13,7 @@ namespace vierkant
 
 std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::DevicePtr &device,
                                                              const MeshPtr &mesh,
-                                                             const vierkant::PipelineCachePtr& pipeline_cache)
+                                                             const vierkant::PipelineCachePtr &pipeline_cache)
 {
     std::vector<Renderer::drawable_t> ret;
 
@@ -441,6 +441,15 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
         matrix_data[i] = drawables[i].matrices;
         material_data[i] = drawables[i].material;
     }
+
+//    // calculate required alignment based on minimum device offset alignment
+//    size_t minUboAlignment = m_device->properties().limits.minUniformBufferOffsetAlignment;
+//    size_t dynamic_alignment = sizeof(glm::mat4);
+//
+//    if(minUboAlignment > 0)
+//    {
+//        dynamic_alignment = (dynamic_alignment + minUboAlignment - 1) & ~(minUboAlignment - 1);
+//    }
 
     // define a copy-utility
     auto max_num_bytes = m_device->properties().limits.maxUniformBufferRange;
