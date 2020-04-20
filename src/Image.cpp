@@ -6,7 +6,8 @@
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Image.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -166,7 +167,7 @@ VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format &form
     vmaCreatePool(device->vk_mem_allocator(), &pool_create_info, &pool);
 
     // return self-destructing VmaPoolPtr
-    return VmaPoolPtr(pool, [device](VmaPool p) { vmaDestroyPool(device->vk_mem_allocator(), p); });
+    return VmaPoolPtr(pool, [device](VmaPool p){ vmaDestroyPool(device->vk_mem_allocator(), p); });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -185,14 +186,14 @@ ImagePtr Image::create(DevicePtr device, Format format)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr device, const VkImagePtr& shared_image, Format format)
+ImagePtr Image::create(DevicePtr device, const VkImagePtr &shared_image, Format format)
 {
     return ImagePtr(new Image(std::move(device), nullptr, shared_image, std::move(format)));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::Image(DevicePtr device, void *data, const VkImagePtr& shared_image, Format format) :
+Image::Image(DevicePtr device, void *data, const VkImagePtr &shared_image, Format format) :
         m_device(std::move(device)),
         m_format(std::move(format))
 {
@@ -209,7 +210,7 @@ Image::~Image()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::init(void *data, const VkImagePtr& shared_image)
+void Image::init(void *data, const VkImagePtr &shared_image)
 {
     if(!m_format.extent.width || !m_format.extent.height || !m_format.extent.depth)
     {
@@ -238,7 +239,8 @@ void Image::init(void *data, const VkImagePtr& shared_image)
     {
         // use an existing, shared VkImage
         m_image = shared_image;
-    }else
+    }
+    else
     {
         VkImageCreateInfo image_create_info = {};
         image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -252,6 +254,11 @@ void Image::init(void *data, const VkImagePtr& shared_image)
         image_create_info.usage = img_usage;
         image_create_info.samples = m_format.sample_count;
         image_create_info.sharingMode = m_format.sharing_mode;
+
+        if(m_format.view_type == VK_IMAGE_VIEW_TYPE_CUBE || m_format.view_type == VK_IMAGE_VIEW_TYPE_CUBE_ARRAY)
+        {
+            image_create_info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+        }
 
         // ask vma to create the image
         VmaAllocationCreateInfo alloc_info = {};
@@ -337,10 +344,12 @@ void Image::init(void *data, const VkImagePtr& shared_image)
         else if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
         {
             transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        }else if(img_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+        }
+        else if(img_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
         {
             transition_layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        }else if(img_usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+        }
+        else if(img_usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
         {
             transition_layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
         }
