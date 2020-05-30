@@ -48,7 +48,7 @@ void update_animation(animation_t<T> &animation, float time_delta, float animati
 }
 
 /**
- * @brief   Evaluate provided animation-keys for a given time and duration. If successful, write out transformation.
+ * @brief   Evaluate provided animation-keys for a given time. If successful, write out transformation.
  *
  * @param   keys            the animation-keys to evaluate.
  *
