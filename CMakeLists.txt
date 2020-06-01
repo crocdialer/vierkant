@@ -87,7 +87,7 @@ set(LIBS ${LIBS} ${vierkant_LIBRARIES})
 
 # Expose public includes (including Boost transitively) to other
 # subprojects through cache variable.
-set(${PROJECT_NAME}_INCLUDE_DIRS ${crocore_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include
+set(${PROJECT_NAME}_INCLUDE_DIRS ${crocore_INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/include ${PROJECT_BINARY_DIR}/include
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
 set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}

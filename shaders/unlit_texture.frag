@@ -26,7 +26,7 @@ layout(std140, binding = 1) uniform ubo_materials
     material_struct_t materials[MAX_NUM_DRAWABLES];
 };
 
-layout(binding = 2) uniform sampler2D m_sampler_2D[1];
+layout(binding = 2) uniform sampler2D u_sampler_2D[1];
 
 layout(location = 0) in VertexData
 {
@@ -38,6 +38,6 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    vec4 tex_color = texture(m_sampler_2D[0], vertex_in.tex_coord);
+    vec4 tex_color = texture(u_sampler_2D[0], vertex_in.tex_coord);
     out_color = tex_color * materials[push_constants.material_index].color * vertex_in.color;
 }
