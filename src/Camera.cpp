@@ -207,8 +207,8 @@ glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
             {
                     X_AXIS, -Y_AXIS,
                     -X_AXIS, -Y_AXIS,
-                    Y_AXIS, Z_AXIS,
                     -Y_AXIS, -Z_AXIS,
+                    Y_AXIS, Z_AXIS,
                     Z_AXIS, -Y_AXIS,
                     -Z_AXIS, -Y_AXIS
             };
