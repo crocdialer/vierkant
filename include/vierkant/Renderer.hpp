@@ -80,6 +80,8 @@ public:
 
         uint32_t base_vertex = 0;
         uint32_t num_vertices = 0;
+
+        bool use_own_buffers = false;
     };
 
     struct create_info_t

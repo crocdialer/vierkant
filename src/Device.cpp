@@ -113,6 +113,7 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
         vkGetPhysicalDeviceProperties2(physical_device, &m_physical_device_properties);
 
         // add some obligatory features here
+        device_features.geometryShader = true;
         device_features.samplerAnisotropy = true;
         device_features.sampleRateShading = true;
         device_features.independentBlend = true;

@@ -4,7 +4,7 @@
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 18) out;
 
-layout(std140, binding = 1) uniform ubo_materials
+layout(std140, binding = 0) uniform ubo_matrices
 {
     mat4 u_view_matrix[6];
     mat4 u_model_matrix;
@@ -22,8 +22,10 @@ void main()
     {
         for(int i = 0; i < 3; ++i)
         {
-            vertex_out.eye_vec = (gl_in[i].gl_Position).xyz;
-            gl_Position = u_projection_matrix * u_view_matrix[j] * gl_in[i].gl_Position;
+            vec4 tmp = u_view_matrix[j] * u_model_matrix * gl_in[i].gl_Position;
+//            vec4 tmp = gl_in[i].gl_Position;
+            vertex_out.eye_vec = tmp.xyz;
+            gl_Position = u_projection_matrix * tmp;
             gl_Layer = j;
             EmitVertex();
         }

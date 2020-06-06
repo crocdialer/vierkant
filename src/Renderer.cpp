@@ -286,7 +286,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
         {
             auto &drawable = indexed_drawable.drawable;
 
-            if(current_mesh != drawable->mesh)
+            if(drawable->mesh && current_mesh != drawable->mesh)
             {
                 current_mesh = drawable->mesh;
 
@@ -302,8 +302,12 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
-            descriptors[BINDING_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
-            descriptors[BINDING_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
+
+            if(!drawable->use_own_buffers)
+            {
+                descriptors[BINDING_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
+                descriptors[BINDING_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
+            }
 
             // search/create descriptor set
             asset_key_t key = {};
@@ -346,7 +350,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                                                                                       indexed_drawable.descriptor_set_layout);
 
                     // update bone buffers, if necessary
-                    if(current_mesh->root_bone)
+                    if(!drawable->use_own_buffers && current_mesh && current_mesh->root_bone)
                     {
                         update_bone_uniform_buffer(current_mesh, new_render_asset.bone_buffer);
                         descriptors[BINDING_BONES].buffer = new_render_asset.bone_buffer;
