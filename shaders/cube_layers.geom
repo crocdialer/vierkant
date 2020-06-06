@@ -4,6 +4,11 @@
 layout (triangles) in;
 layout (triangle_strip, max_vertices = 18) out;
 
+in gl_PerVertex
+{
+    vec4 gl_Position;
+}gl_in[3];
+
 layout(std140, binding = 0) uniform ubo_matrices
 {
     mat4 u_view_matrix[6];

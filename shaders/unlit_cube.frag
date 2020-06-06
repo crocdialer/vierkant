@@ -16,7 +16,6 @@ layout(push_constant) uniform PushConstants {
     push_constants_t push_constants;
 };
 
-
 struct material_struct_t
 {
     vec4 color;
@@ -30,14 +29,19 @@ layout(std140, binding = 1) uniform ubo_materials
     material_struct_t materials[MAX_NUM_DRAWABLES];
 };
 
+layout(binding = 2) uniform samplerCube u_sampler_cube[1];
+
 layout(location = 0) in VertexData
 {
-    vec4 color;
+    vec3 eye_vec;
 } vertex_in;
+
+//float u_gamma = 1.0;
 
 layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = vertex_in.color * materials[push_constants.material_index].color;
+    out_color = texture(u_sampler_cube[0], vertex_in.eye_vec);
+    if(push_constants.gamma != 1.0){ out_color.rgb = pow(out_color.rgb, vec3(1.0 / push_constants.gamma)); }
 }

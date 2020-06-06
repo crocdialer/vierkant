@@ -9,12 +9,18 @@
 namespace vierkant
 {
 
+using std::chrono::steady_clock;
+using std::chrono::duration_cast;
+using duration_t = std::chrono::duration<float>;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::DevicePtr &device,
                                                              const MeshPtr &mesh,
                                                              const vierkant::PipelineCachePtr &pipeline_cache)
 {
+    if(!device || !mesh){ return {}; }
+
     std::vector<Renderer::drawable_t> ret;
 
     // same for all entries
@@ -46,8 +52,9 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.blend_state.blendEnable = material->blending;
-        drawable.pipeline_format.depth_test = true;
-        drawable.pipeline_format.depth_write = true;//!material->blending;
+        drawable.pipeline_format.depth_test = material->depth_test;
+        drawable.pipeline_format.depth_write = material->depth_write;
+        drawable.pipeline_format.cull_mode = material->cull_mode;
 
         if(pipeline_cache)
         {
@@ -261,6 +268,9 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
 
     // push constants
     push_constants_t push_constants = {};
+    push_constants.size = {viewport.width, viewport.height};
+    push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
+    push_constants.gamma = 1.f;
 
     // grouped by pipelines
     for(auto &[pipe_fmt, indexed_drawables] : pipelines)
@@ -373,7 +383,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
                     current_assets.render_assets.erase(current_assets_it);
 
                     // update bone buffers, if necessary
-                    if(current_mesh->root_bone)
+                    if(!drawable->use_own_buffers && current_mesh->root_bone)
                     {
                         update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
                         descriptors[BINDING_BONES].buffer = render_asset.bone_buffer;

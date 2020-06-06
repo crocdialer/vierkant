@@ -8,7 +8,7 @@
 namespace vierkant
 {
 
-vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img)
+vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size)
 {
     if(!panorama_img){ return nullptr; }
 
@@ -23,7 +23,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img)
 
     // create cube framebuffer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
-    fb_create_info.size = {1024, 1024, 1};
+    fb_create_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
     fb_create_info.color_attachment_format = img_fmt;
 
     auto cube_fb = vierkant::Framebuffer(device, fb_create_info);

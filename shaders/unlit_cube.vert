@@ -39,12 +39,12 @@ layout(location = 1) in vec4 a_color;
 
 layout(location = 0) out VertexData
 {
-    vec4 color;
+    vec3 eye_vec;
 } vertex_out;
 
 void main()
 {
     matrix_struct_t m = matrices[push_constants.matrix_index + gl_InstanceIndex];
+    vertex_out.eye_vec = a_position.xyz;
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
-    vertex_out.color = a_color;
 }

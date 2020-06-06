@@ -36,7 +36,7 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
  */
 enum class ShaderType
 {
-    UNLIT_COLOR, UNLIT_COLOR_SKIN, UNLIT_TEXTURE, UNLIT_TEXTURE_SKIN, CUSTOM
+    UNLIT_COLOR, UNLIT_COLOR_SKIN, UNLIT_TEXTURE, UNLIT_TEXTURE_SKIN, UNLIT_CUBE, CUSTOM
 };
 
 /**

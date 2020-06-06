@@ -30,6 +30,12 @@ public:
 
     bool blending = false;
 
+    bool depth_test = true;
+
+    bool depth_write = true;
+
+    VkCullModeFlagBits cull_mode = VK_CULL_MODE_BACK_BIT;
+
     std::vector<vierkant::ImagePtr> images;
 
     std::vector<std::vector<uint8_t>> ubos;

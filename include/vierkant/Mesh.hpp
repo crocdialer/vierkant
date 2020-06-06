@@ -144,7 +144,7 @@ public:
         ATTRIB_NORMAL = 3,
         ATTRIB_TANGENT = 4,
         ATTRIB_BONE_INDICES = 5,
-        ATTRIB_BONE_WIEGHTS = 6,
+        ATTRIB_BONE_WEIGHTS = 6,
         ATTRIB_MAX
     };
 

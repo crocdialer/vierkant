@@ -7,6 +7,9 @@ struct push_constants_t
 {
     int matrix_index;
     int material_index;
+    vec2 size;
+    float gamma;
+    float time;
 };
 
 layout(push_constant) uniform PushConstants {

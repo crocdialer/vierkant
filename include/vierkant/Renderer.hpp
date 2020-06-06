@@ -6,6 +6,7 @@
 
 #include <mutex>
 #include "crocore/Area.hpp"
+
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Framebuffer.hpp"
 #include "vierkant/PipelineCache.hpp"
@@ -54,6 +55,9 @@ public:
     {
         int matrix_index = 0;
         int material_index = 0;
+        glm::vec2 size;
+        float gamma;
+        float time;
     };
 
     /**
@@ -232,6 +236,8 @@ private:
     uint32_t m_current_index = 0;
 
     VkPushConstantRange m_push_constant_range = {};
+
+    std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };
 
 }//namespace vierkant

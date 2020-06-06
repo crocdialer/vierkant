@@ -282,7 +282,7 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         add_offset(ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
-        add_offset(ATTRIB_BONE_WIEGHTS, g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_BONE_WEIGHTS, g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(num_attribs && num_geom_attribs != num_attribs){ return false; }
         num_attribs = num_geom_attribs;

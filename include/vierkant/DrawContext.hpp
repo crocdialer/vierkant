@@ -16,7 +16,7 @@ namespace vierkant
  * @param   panorama_img    the equirectangular panorama.
  * @return  a vierkant::ImagePtr holding a cubemap.
  */
-vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img);
+vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size);
 
 class DrawContext
 {
