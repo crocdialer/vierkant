@@ -10,6 +10,14 @@
 namespace vierkant
 {
 
+/**
+ * @brief   Create a cubemap from an equi-recangular panorama image.
+ *
+ * @param   panorama_img    the equirectangular panorama.
+ * @return  a vierkant::ImagePtr holding a cubemap.
+ */
+vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img);
+
 class DrawContext
 {
 public:

@@ -109,6 +109,11 @@ public:
      */
     void copy_to(const BufferPtr& dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE);
 
+    /**
+     * @return  the vierkant::DevicePtr used to create the buffer.
+     */
+    vierkant::DevicePtr device() const{ return m_device; }
+
 private:
 
     DevicePtr m_device;

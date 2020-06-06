@@ -6,7 +6,8 @@
 #include "vierkant/Device.hpp"
 #include "vierkant/Buffer.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 DEFINE_CLASS_PTR(Image)
 
@@ -56,7 +57,7 @@ public:
 
         bool operator==(const Format &other) const;
 
-        bool operator!=(const Format &other) const { return !(*this == other); };
+        bool operator!=(const Format &other) const{ return !(*this == other); };
     };
 
     /**
@@ -70,7 +71,7 @@ public:
      * @param   vma_flags       the VmaPoolCreateFlags. can be used to change the memory-pool's allocation strategy
      * @return  the newly created VmaPoolPtr
      */
-    static VmaPoolPtr create_pool(const DevicePtr &device, const Format& fmt, VkDeviceSize block_size = 0,
+    static VmaPoolPtr create_pool(const DevicePtr &device, const Format &fmt, VkDeviceSize block_size = 0,
                                   size_t min_block_count = 0, size_t max_block_count = 0,
                                   VmaPoolCreateFlags vma_flags = 0);
 
@@ -93,7 +94,7 @@ public:
      *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr device, const VkImagePtr& shared_image, Format format);
+    static ImagePtr create(DevicePtr device, const VkImagePtr &shared_image, Format format);
 
     Image(const Image &) = delete;
 
@@ -106,57 +107,57 @@ public:
     /**
      * @return  the image extent
      */
-    inline const VkExtent3D &extent() const { return m_format.extent; }
+    inline const VkExtent3D &extent() const{ return m_format.extent; }
 
     /**
      * @return  the width of the image in pixels
      */
-    inline uint32_t width() const { return m_format.extent.width; }
+    inline uint32_t width() const{ return m_format.extent.width; }
 
     /**
      * @return  the height of the image in pixels
      */
-    inline uint32_t height() const { return m_format.extent.height; }
+    inline uint32_t height() const{ return m_format.extent.height; }
 
     /**
      * @return  the depth of the image in pixels
      */
-    inline uint32_t depth() const { return m_format.extent.depth; }
+    inline uint32_t depth() const{ return m_format.extent.depth; }
 
     /**
      * @return  number of array layers
      */
-    inline uint32_t num_layers() const { return m_format.num_layers; }
+    inline uint32_t num_layers() const{ return m_format.num_layers; }
 
     /**
      * @return  the current format struct
      */
-    const Format &format() const { return m_format; }
+    const Format &format() const{ return m_format; }
 
     /**
      * @return  handle to the managed VkImage
      */
-    VkImage image() const { return m_image.get(); };
+    VkImage image() const{ return m_image.get(); };
 
     /**
      * @return  shared handle to the managed VkImage
      */
-    const VkImagePtr& shared_image() const { return m_image; };
+    const VkImagePtr &shared_image() const{ return m_image; };
 
     /**
      * @return  image view handle
      */
-    VkImageView image_view() const { return m_image_view; };
+    VkImageView image_view() const{ return m_image_view; };
 
     /**
      * @return  image sampler handle
      */
-    VkSampler sampler() const { return m_sampler; };
+    VkSampler sampler() const{ return m_sampler; };
 
     /**
      * @return  current image layout
      */
-    VkImageLayout image_layout() const { return m_image_layout; };
+    VkImageLayout image_layout() const{ return m_image_layout; };
 
     /**
      * @return  request transition to a new image layout
@@ -187,11 +188,16 @@ public:
                  VkOffset3D the_offset = {0, 0, 0}, VkExtent3D the_extent = {0, 0, 0},
                  uint32_t the_layer = 0);
 
+    /**
+     * @return  the vierkant::DevicePtr used to create the image.
+     */
+    vierkant::DevicePtr device() const{ return m_device; }
+
 private:
 
-    Image(DevicePtr device, void *data, const VkImagePtr& shared_image, Format format);
+    Image(DevicePtr device, void *data, const VkImagePtr &shared_image, Format format);
 
-    void init(void *data, const VkImagePtr& shared_image = nullptr);
+    void init(void *data, const VkImagePtr &shared_image = nullptr);
 
     void generate_mipmaps(VkCommandBuffer command_buffer = VK_NULL_HANDLE);
 
@@ -222,7 +228,8 @@ private:
 
 }//namespace vierkant
 
-namespace std {
+namespace std
+{
 template<>
 struct hash<vierkant::Image::Format>
 {
