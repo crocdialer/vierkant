@@ -20,13 +20,13 @@ void main()
 {
     for(int j = 0; j < 6; ++j)
     {
+        gl_Layer = j;
+
         for(int i = 0; i < 3; ++i)
         {
-            vec4 tmp = u_view_matrix[j] * u_model_matrix * gl_in[i].gl_Position;
-//            vec4 tmp = gl_in[i].gl_Position;
+            vec4 tmp = u_model_matrix * gl_in[i].gl_Position;
             vertex_out.eye_vec = tmp.xyz;
-            gl_Position = u_projection_matrix * tmp;
-            gl_Layer = j;
+            gl_Position = u_projection_matrix * u_view_matrix[j] * tmp;
             EmitVertex();
         }
         EndPrimitive();
