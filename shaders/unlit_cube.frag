@@ -1,27 +1,10 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
-
-#define MAX_NUM_DRAWABLES 4096
-
-struct push_constants_t
-{
-    int matrix_index;
-    int material_index;
-    vec2 size;
-    float gamma;
-    float time;
-};
+#extension GL_GOOGLE_include_directive : enable
+#include "types.glsl"
 
 layout(push_constant) uniform PushConstants {
     push_constants_t push_constants;
-};
-
-struct material_struct_t
-{
-    vec4 color;
-    vec4 emission;
-    float metalness;
-    float roughness;
 };
 
 layout(std140, binding = 1) uniform ubo_materials
@@ -35,8 +18,6 @@ layout(location = 0) in VertexData
 {
     vec3 eye_vec;
 } vertex_in;
-
-//float u_gamma = 1.0;
 
 layout(location = 0) out vec4 out_color;
 

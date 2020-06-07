@@ -1,24 +1,9 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+#include "types.glsl"
 
 #define MAX_NUM_DRAWABLES 4096
-
-struct matrix_struct_t
-{
-    mat4 modelview;
-    mat4 projection;
-    mat4 normal;
-    mat4 texture;
-};
-
-struct push_constants_t
-{
-    int matrix_index;
-    int material_index;
-    vec2 size;
-    float gamma;
-    float time;
-};
 
 layout(push_constant) uniform PushConstants {
     push_constants_t push_constants;
@@ -34,9 +19,9 @@ out gl_PerVertex
     vec4 gl_Position;
 };
 
-layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec4 a_color;
-layout(location = 2) in vec2 a_tex_coord;
+layout(location = ATTRIB_POSITION) in vec3 a_position;
+layout(location = ATTRIB_COLOR) in vec4 a_color;
+layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;
 
 layout(location = 0) out VertexData
 {

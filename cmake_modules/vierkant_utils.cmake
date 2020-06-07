@@ -21,7 +21,6 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "${GLSL_FOLDER}/*.frag"
             "${GLSL_FOLDER}/*.tesc"
             "${GLSL_FOLDER}/*.tese"
-            "${GLSL_FOLDER}/*.glsl"
             "${GLSL_FOLDER}/*.comp"
             "${GLSL_FOLDER}/*.rgen"
             "${GLSL_FOLDER}/*.rchit"

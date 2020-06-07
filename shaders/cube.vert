@@ -1,12 +1,14 @@
 #version 460 core
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+#include "types.glsl"
 
 out gl_PerVertex
 {
     vec4 gl_Position;
 };
 
-layout(location = 0) in vec3 a_position;
+layout(location = ATTRIB_POSITION) in vec3 a_position;
 
 void main()
 {

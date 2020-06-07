@@ -1,9 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
-
-#define MAX_NUM_DRAWABLES 4096
-
-#define ONE_OVER_PI 0.31830988618379067153776752674503
+#extension GL_GOOGLE_include_directive : enable
+#include "types.glsl"
 
 #define COLOR 0
 

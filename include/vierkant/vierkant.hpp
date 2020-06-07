@@ -22,5 +22,6 @@
 #include "vierkant/intersection.hpp"
 #include "vierkant/DrawContext.hpp"
 #include "vierkant/Scene.hpp"
+#include "vierkant/SceneRenderer.hpp"
 
 namespace vk = vierkant;
