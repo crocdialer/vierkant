@@ -8,6 +8,44 @@
 namespace vierkant
 {
 
+vierkant::ImagePtr render_offscreen(vierkant::Framebuffer &framebuffer,
+                                    vierkant::Renderer &renderer,
+                                    const std::function<void()> &stage_fn,
+                                    VkQueue queue,
+                                    bool sync)
+{
+    // wait for prior frame to finish
+    framebuffer.wait_fence();
+
+    VkCommandBufferInheritanceInfo inheritance = {};
+    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritance.framebuffer = framebuffer.handle();
+    inheritance.renderPass = framebuffer.renderpass().get();
+
+    // invoke function-object to stage drawables
+    stage_fn();
+
+    // create a commandbuffer
+    VkCommandBuffer cmd_buffer = renderer.render(&inheritance);
+
+    // submit rendering commands to queue
+    auto fence = framebuffer.submit({cmd_buffer}, queue ? queue : renderer.device()->queue());
+
+    if(sync){ vkWaitForFences(renderer.device()->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max()); }
+
+    // check for resolve-attachment, fallback to color-attachment
+    auto attach_it = framebuffer.attachments().find(vierkant::Framebuffer::AttachmentType::Resolve);
+
+    if(attach_it == framebuffer.attachments().end())
+    {
+        attach_it = framebuffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
+    }
+
+    // return color-attachment
+    if(attach_it != framebuffer.attachments().end()){ return attach_it->second.front(); }
+    return nullptr;
+}
+
 vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size)
 {
     if(!panorama_img){ return nullptr; }
