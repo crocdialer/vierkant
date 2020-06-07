@@ -58,7 +58,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
 
         if(pipeline_cache)
         {
-            drawable.pipeline_format.shader_stages = pipeline_cache->get_shader_stages(material->shader_type);
+            drawable.pipeline_format.shader_stages = pipeline_cache->shader_stages(material->shader_type);
         }
         else{ drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type); }
 
@@ -276,7 +276,7 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     for(auto &[pipe_fmt, indexed_drawables] : pipelines)
     {
         // select/create pipeline
-        auto pipeline = m_pipeline_cache->get(pipe_fmt);
+        auto pipeline = m_pipeline_cache->pipeline(pipe_fmt);
 
         // bind pipeline
         pipeline->bind(command_buffer.handle());
