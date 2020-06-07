@@ -9,12 +9,12 @@ layout(push_constant) uniform PushConstants {
     push_constants_t push_constants;
 };
 
-layout(std140, binding = 1) uniform ubo_materials
+layout(std140, binding = BINDING_MATERIAL) uniform ubo_materials
 {
     material_struct_t materials[MAX_NUM_DRAWABLES];
 };
 
-layout(binding = 2) uniform sampler2D u_sampler_2D[1];
+layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[1];
 
 layout(location = 0) in VertexData
 {

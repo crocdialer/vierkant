@@ -43,7 +43,7 @@ struct push_constants_t
     float time;
 };
 
-// attribute locations in vierkant
+//! attribute locations in vierkant::Mesh
 #define ATTRIB_POSITION 0
 #define ATTRIB_COLOR 1
 #define ATTRIB_TEX_COORD 2
@@ -51,6 +51,12 @@ struct push_constants_t
 #define ATTRIB_TANGENT 4
 #define ATTRIB_BONE_INDICES 5
 #define ATTRIB_BONE_WEIGHTS 6
+
+//! descriptorset-bindings in vierkant::Renderer
+#define BINDING_MATRIX 0
+#define BINDING_MATERIAL 1
+#define BINDING_TEXTURES 2
+#define BINDING_BONES 3
 
 #define MAX_NUM_DRAWABLES 4096
 

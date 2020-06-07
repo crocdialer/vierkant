@@ -7,12 +7,12 @@ layout(push_constant) uniform PushConstants {
     push_constants_t push_constants;
 };
 
-layout(std140, binding = 0) uniform UBOMatrices
+layout(std140, binding = BINDING_MATRIX) uniform UBOMatrices
 {
     matrix_struct_t u_matrices[MAX_NUM_DRAWABLES];
 };
 
-layout(std140, binding = 3) uniform UBOBones
+layout(std140, binding = BINDING_BONES) uniform UBOBones
 {
     mat4 u_bones[MAX_NUM_BONES];
 };
