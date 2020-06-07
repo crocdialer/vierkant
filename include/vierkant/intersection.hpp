@@ -408,7 +408,7 @@ struct Frustum
             //positive vertex outside ?
             if(p->distance(aabb.pos_vertex(p->normal())) < 0){ return REJECT; }
 
-                //negative vertex outside ?
+            //negative vertex outside ?
             else if(p->distance(aabb.neg_vertex(p->normal())) < 0){ ret = INTERSECT; }
         }
         return ret;

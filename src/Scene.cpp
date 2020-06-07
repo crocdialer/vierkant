@@ -1,5 +1,6 @@
 #include "vierkant/Scene.hpp"
 #include "vierkant/Visitor.hpp"
+#include "vierkant/DrawContext.hpp"
 
 namespace vierkant
 {
@@ -73,13 +74,16 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
         {
 //            if(high_precision)
 //            {
-//                if(const auto *m = dynamic_cast<const vierkant::Mesh *>(the_object))
+//                const vierkant::Mesh *m = dynamic_cast<const vierkant::Mesh *>(object);
+//                if(!m){ continue; }
+//
+////                if()
 //                {
-//                    vierkant::Ray ray_in_object_space = ray.transform(glm::inverse(the_object->global_transform()));
+//                    vierkant::Ray ray_in_object_space = ray.transform(glm::inverse(object->global_transform()));
 //                    const auto &vertices = m->geometry()->vertices();
 //                    const auto &indices = m->geometry()->indices();
 //
-//                    for(const auto &e : m->entries())
+//                    for(const auto &e : m->entries)
 //                    {
 ////                            if(e.primitive_type && e.primitive_type != GL_TRIANGLES){ continue; }
 //
@@ -91,10 +95,10 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
 //
 //                            if(ray_triangle_intersection ray_tri_hit = t.intersect(ray_in_object_space))
 //                            {
-//                                float distance_scale = glm::length(the_object->global_scale() *
-//                                                                   ray_in_object_space.direction);
+//                                float distance_scale = glm::length(
+//                                        object->global_scale() * ray_in_object_space.direction);
 //                                ray_tri_hit.distance *= distance_scale;
-//                                clicked_items.push_back(range_item_t(the_object, ray_tri_hit.distance));
+//                                clicked_items.push_back(range_item_t(object, ray_tri_hit.distance));
 //                                LOG_TRACE_2 << "hit distance: " << ray_tri_hit.distance;
 //                                break;
 //                            }
@@ -145,32 +149,26 @@ std::vector<vierkant::Object3DPtr> Scene::objects_by_tag(const std::string &tag)
 
 void Scene::set_skybox(const vierkant::ImagePtr &img)
 {
-//    if(!img)
-//    {
-//        m_skybox.reset();
-//        return;
-//    }
-//
-//    auto mat = vierkant::Material::create();
-//    mat->set_culling(vierkant::Material::CULL_FRONT);
-//    m_skybox = vierkant::Mesh::create(vierkant::Geometry::create_box(vierkant::vec3(.5f)), mat);
-//
-//    switch(t.target())
-//    {
-//        case GL_TEXTURE_CUBE_MAP:
-//            LOG_DEBUG << "adding cubical skybox";
-//            mat->set_shader(vierkant::create_shader(vierkant::ShaderType::UNLIT_CUBE));
-//            mat->add_texture(t, Texture::Usage::ENVIROMENT);
-//            break;
-//        case GL_TEXTURE_2D:
-//            LOG_DEBUG << "adding panorama skybox";
-//            mat->set_shader(vierkant::create_shader(vierkant::ShaderType::UNLIT_CUBE));
-//            mat->add_texture(vierkant::create_cube_texture_from_panorama(t, 1024, true, true),
-//                             Texture::Usage::ENVIROMENT);
-//            break;
-//        default:
-//            break;
-//    }
+    if(!img)
+    {
+        m_skybox.reset();
+        return;
+    }
+
+    float res = crocore::next_pow_2(std::max(img->width(), img->height()) / 4);
+    auto cubemap = vierkant::cubemap_from_panorama(img, {res, res});
+
+    if(!m_skybox)
+    {
+        auto box = vierkant::Geometry::Box();
+        m_skybox = vierkant::Mesh::create_from_geometries(img->device(), {box});
+        auto &mat = m_skybox->materials.front();
+        mat->shader_type = vierkant::ShaderType::UNLIT_CUBE;
+        mat->depth_write = false;
+        mat->depth_test = true;
+        mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
+    }
+    for(auto &mat : m_skybox->materials){ mat->images = {cubemap}; }
 }
 
 }//namespace
