@@ -37,8 +37,15 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
         execute_process(
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
                 COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
-                OUTPUT_QUIET
+                OUTPUT_VARIABLE glslangvalidator_std_out
+                ERROR_VARIABLE glslangvalidator_std_err
+                RESULT_VARIABLE ret
+#                OUTPUT_QUIET
         )
+
+        if(NOT "${ret}" STREQUAL "0")
+            message(WARNING "Failed to compile shader: ${glslangvalidator_std_out}")
+        endif()
 
         # read spirv binary
         file(READ "${SPIRV}" contents HEX)
