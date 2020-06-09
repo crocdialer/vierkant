@@ -4,7 +4,7 @@
 #include "renderer/types.glsl"
 
 layout(push_constant) uniform PushConstants {
-    push_constants_t push_constants;
+    render_context_t context;
 };
 
 layout(std140, binding = BINDING_MATERIAL) uniform ubo_materials
@@ -21,5 +21,5 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = vertex_in.color * materials[push_constants.material_index].color;
+    out_color = vertex_in.color * materials[context.material_index].color;
 }

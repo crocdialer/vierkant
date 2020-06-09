@@ -34,7 +34,7 @@ struct lightsource_t
 };
 
 //!
-struct push_constants_t
+struct render_context_t
 {
     int matrix_index;
     int material_index;

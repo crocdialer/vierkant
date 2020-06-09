@@ -4,7 +4,7 @@
 #include "renderer/types.glsl"
 
 layout(push_constant) uniform PushConstants {
-    push_constants_t push_constants;
+    render_context_t context;
 };
 
 layout(std140, binding = BINDING_MATERIAL) uniform ubo_materials
@@ -24,5 +24,5 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     out_color = texture(u_sampler_cube[0], vertex_in.eye_vec);
-    if(push_constants.gamma != 1.0){ out_color.rgb = pow(out_color.rgb, vec3(1.0 / push_constants.gamma)); }
+    if(context.gamma != 1.0){ out_color.rgb = pow(out_color.rgb, vec3(1.0 / context.gamma)); }
 }

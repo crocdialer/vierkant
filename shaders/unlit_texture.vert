@@ -4,7 +4,7 @@
 #include "renderer/types.glsl"
 
 layout(push_constant) uniform PushConstants {
-    push_constants_t push_constants;
+    render_context_t context;
 };
 
 layout(std140, binding = BINDING_MATRIX) uniform UBOMatrices
@@ -29,7 +29,7 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    matrix_struct_t m = matrices[push_constants.matrix_index];//matrices[gl_InstanceIndex];
+    matrix_struct_t m = matrices[context.matrix_index];//matrices[gl_InstanceIndex];
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
     vertex_out.color = a_color;
     vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
