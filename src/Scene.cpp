@@ -19,12 +19,26 @@ class UpdateVisitor : public Visitor
 public:
     explicit UpdateVisitor(float time_step) : Visitor(), m_time_step(time_step){};
 
-    void visit(vierkant::Object3D &theNode) override
+    void visit(vierkant::Object3D &object) override
     {
-        theNode.update(m_time_step);
-        Visitor::visit(static_cast<vierkant::Object3D &>(theNode));
+        object.update(m_time_step);
+        Visitor::visit(static_cast<vierkant::Object3D &>(object));
     };
+
+    void visit(vierkant::Mesh &mesh) override
+    {
+        if(mesh.animation_index < mesh.node_animations.size())
+        {
+            // update node animation
+            vierkant::update_animation(mesh.node_animations[mesh.animation_index],
+                                       m_time_step,
+                                       mesh.animation_speed);
+        }
+        visit(static_cast<vierkant::Object3D&>(mesh));
+    }
+
 private:
+
     float m_time_step;
 };
 

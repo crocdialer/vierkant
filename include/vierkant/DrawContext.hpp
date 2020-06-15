@@ -5,6 +5,8 @@
 #pragma once
 
 #include "vierkant/Renderer.hpp"
+#include "vierkant/Scene.hpp"
+#include "vierkant/Camera.hpp"
 #include "vierkant/Font.hpp"
 
 namespace vierkant

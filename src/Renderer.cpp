@@ -27,6 +27,17 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
     auto binding_descriptions = mesh->binding_descriptions();
     auto attribute_descriptions = mesh->attribute_descriptions();
 
+    if(mesh->animation_index < mesh->node_animations.size())
+    {
+        // entry animation transforms
+        std::vector<glm::mat4> node_matrices;
+        vierkant::nodes::build_node_matrices(mesh->root_node,
+                                             mesh->node_animations[mesh->animation_index],
+                                             node_matrices);
+
+        for(auto &entry : mesh->entries){ entry.transform = node_matrices[entry.node_index]; }
+    }
+
     for(const auto &entry : mesh->entries)
     {
         // wonky

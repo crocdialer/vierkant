@@ -20,7 +20,8 @@
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Camera.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 class Visitor
 {
@@ -32,9 +33,9 @@ public:
         m_transform_stack.push(glm::mat4());
     }
 
-    inline bool visit_only_enabled() const { return m_visit_only_enabled; }
+    inline bool visit_only_enabled() const{ return m_visit_only_enabled; }
 
-    inline void set_visit_only_enabled(bool b) { m_visit_only_enabled = b; }
+    inline void set_visit_only_enabled(bool b){ m_visit_only_enabled = b; }
 
     virtual void visit(vierkant::Object3D &theNode)
     {
@@ -46,13 +47,13 @@ public:
         }
     }
 
-    virtual void visit(vierkant::Mesh &theNode){ visit(static_cast<Object3D&>(theNode)); };
-    virtual void visit(vierkant::Camera &theNode){ visit(static_cast<Object3D&>(theNode)); };
+    virtual void visit(vierkant::Mesh &mesh){ visit(static_cast<Object3D &>(mesh)); };
 
-protected:
+    virtual void visit(vierkant::Camera &camera){ visit(static_cast<Object3D &>(camera)); };
 
-    inline bool check_tags(const std::set<std::string> &filter_tags,
-                           const std::set<std::string> &obj_tags)
+
+    inline static bool check_tags(const std::set<std::string> &filter_tags,
+                                  const std::set<std::string> &obj_tags)
     {
         for(const auto &t : obj_tags)
         {
@@ -78,7 +79,7 @@ public:
 
     explicit SelectVisitor(std::set<std::string> tags = {}, bool select_only_enabled = true) :
             Visitor(select_only_enabled),
-            tags(std::move(tags)) {}
+            tags(std::move(tags)){}
 
     void visit(T &theNode) override
     {

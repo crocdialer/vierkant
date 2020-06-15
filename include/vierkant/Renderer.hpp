@@ -88,6 +88,20 @@ public:
         bool use_own_buffers = false;
     };
 
+    struct lightsource_t
+    {
+        glm::vec3 position;
+        int type;
+        glm::vec4 diffuse;
+        glm::vec4 ambient;
+        glm::vec3 direction;
+        float intensity;
+        float radius;
+        float spot_cos_cutoff;
+        float spot_exponent;
+        float quadratic_attenuation;
+    };
+
     struct create_info_t
     {
         VkViewport viewport = {};
@@ -107,7 +121,7 @@ public:
      */
     static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device,
                                                     const MeshPtr &mesh,
-                                                    const vierkant::PipelineCachePtr& pipeline_cache = nullptr);
+                                                    const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
 
     /**
      * @brief   Viewport parameters currently used.
