@@ -30,20 +30,18 @@ public:
     explicit Visitor(bool visit_only_enabled = true) :
             m_visit_only_enabled(visit_only_enabled)
     {
-        m_transform_stack.push(glm::mat4());
+
     }
 
     inline bool visit_only_enabled() const{ return m_visit_only_enabled; }
 
     inline void set_visit_only_enabled(bool b){ m_visit_only_enabled = b; }
 
-    virtual void visit(vierkant::Object3D &theNode)
+    virtual void visit(vierkant::Object3D &object)
     {
-        if(theNode.enabled() || !visit_only_enabled())
+        if(should_visit(object))
         {
-            m_transform_stack.push(m_transform_stack.top() * theNode.transform());
-            for(Object3DPtr &child : theNode.children()){ child->accept(*this); }
-            m_transform_stack.pop();
+            for(Object3DPtr &child : object.children()){ child->accept(*this); }
         }
     }
 
@@ -51,19 +49,9 @@ public:
 
     virtual void visit(vierkant::Camera &camera){ visit(static_cast<Object3D &>(camera)); };
 
-
-    inline static bool check_tags(const std::set<std::string> &filter_tags,
-                                  const std::set<std::string> &obj_tags)
-    {
-        for(const auto &t : obj_tags)
-        {
-            if(crocore::contains(filter_tags, t)){ return true; }
-        }
-        return filter_tags.empty();
-    }
+    virtual bool should_visit(vierkant::Object3D &object){ return true; }
 
 private:
-    std::stack<glm::mat4> m_transform_stack;
 
     bool m_visit_only_enabled;
 };
@@ -73,22 +61,27 @@ class SelectVisitor : public Visitor
 {
 public:
 
-    std::vector<T *> objects;
-
-    std::set<std::string> tags;
-
     explicit SelectVisitor(std::set<std::string> tags = {}, bool select_only_enabled = true) :
             Visitor(select_only_enabled),
             tags(std::move(tags)){}
 
-    void visit(T &theNode) override
+    void visit(T &object) override
     {
-        if(theNode.enabled() || !visit_only_enabled())
+        if(should_visit(object))
         {
-            if(check_tags(tags, theNode.tags())){ objects.push_back(&theNode); }
-            Visitor::visit(static_cast<Object3D &>(theNode));
+            objects.push_back(&object);
+            Visitor::visit(static_cast<Object3D &>(object));
         }
     };
+
+    bool should_visit(vierkant::Object3D &object) override
+    {
+        return (object.enabled() || !visit_only_enabled()) && check_tags(tags, object.tags());
+    }
+
+    std::vector<T *> objects;
+
+    std::set<std::string> tags;
 };
 
 }//namespace

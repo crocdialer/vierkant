@@ -112,16 +112,12 @@ public:
     };
 
     /**
-     * @brief   Factory to create a drawable_t from provided mesh and material.
+     * @brief   Factory to create drawables from a provided mesh.
      *
-     * @param   device      handle for the vk::Device to create any vulkan assets with.
-     * @param   mesh        a mesh object containing vertex information
-     * @param   material    a material object
-     * @return  a newly constructed drawable_t
+     * @param   mesh        a mesh object containing entries with vertex information.
+     * @return  an array of drawables for the mesh-entries.
      */
-    static std::vector<drawable_t> create_drawables(const vierkant::DevicePtr &device,
-                                                    const MeshPtr &mesh,
-                                                    const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
+    static std::vector<drawable_t> create_drawables(const MeshPtr &mesh);
 
     /**
      * @brief   Viewport parameters currently used.

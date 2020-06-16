@@ -154,12 +154,13 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
 }
 
 void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
-                            const glm::mat4 &projection)
+                            const glm::mat4 &projection, vierkant::ShaderType shader_type)
 {
-    auto drawables = vierkant::Renderer::create_drawables(renderer.device(), mesh, m_pipeline_cache);
+    auto drawables = vierkant::Renderer::create_drawables(mesh);
 
     for(auto &drawable : drawables)
     {
+        drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(shader_type);
         drawable.matrices.modelview = model_view * drawable.matrices.modelview;
         drawable.matrices.projection = projection;
         renderer.stage_drawable(std::move(drawable));
@@ -178,6 +179,9 @@ void DrawContext::draw_scene(vierkant::Renderer &renderer, const vierkant::Objec
 
 DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device))
 {
+    // create a pipline cache
+    m_pipeline_cache = vierkant::PipelineCache::create(m_device);
+
     // images
     {
         // create plane-geometry
@@ -258,8 +262,9 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         // unit cube
         auto geom = vierkant::Geometry::BoxOutline();
         auto mesh = vierkant::Mesh::create_from_geometries(m_device, {geom});
-        mesh->materials.front()->shader_type = vierkant::ShaderType::UNLIT_COLOR;
-        m_drawable_aabb = vierkant::Renderer::create_drawables(m_device, mesh).front();
+        m_drawable_aabb = vierkant::Renderer::create_drawables(mesh).front();
+        m_drawable_aabb.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(
+                vierkant::ShaderType::UNLIT_COLOR);
     }
 
     // grid
@@ -267,13 +272,10 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         // unit grid
         auto geom = vierkant::Geometry::Grid();
         auto mesh = vierkant::Mesh::create_from_geometries(m_device, {geom});
-        auto material = vierkant::Material::create();
-        mesh->materials.front()->shader_type = vierkant::ShaderType::UNLIT_COLOR;
-        m_drawable_grid = vierkant::Renderer::create_drawables(m_device, mesh).front();
+        m_drawable_grid = vierkant::Renderer::create_drawables(mesh).front();
+        m_drawable_grid.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(
+                vierkant::ShaderType::UNLIT_COLOR);
     }
-
-    // create a pipline cache
-    m_pipeline_cache = vierkant::PipelineCache::create(m_device);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -15,11 +15,9 @@ using duration_t = std::chrono::duration<float>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::DevicePtr &device,
-                                                             const MeshPtr &mesh,
-                                                             const vierkant::PipelineCachePtr &pipeline_cache)
+std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh)
 {
-    if(!device || !mesh){ return {}; }
+    if(!mesh){ return {}; }
 
     std::vector<Renderer::drawable_t> ret;
 
@@ -67,11 +65,11 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
         drawable.pipeline_format.depth_write = material->depth_write;
         drawable.pipeline_format.cull_mode = material->cull_mode;
 
-        if(pipeline_cache)
-        {
-            drawable.pipeline_format.shader_stages = pipeline_cache->shader_stages(material->shader_type);
-        }
-        else{ drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type); }
+//        if(pipeline_cache)
+//        {
+//            drawable.pipeline_format.shader_stages = pipeline_cache->shader_stages(material->shader_type);
+//        }
+//        else{ drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type); }
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};
@@ -103,18 +101,17 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const vierkant::Dev
             drawable.descriptors[BINDING_BONES] = desc_bones;
         }
 
-        uint32_t binding = BINDING_MAX_RANGE;
-
-        // custom ubos
-        for(auto &ubo : material->ubos)
-        {
-            vierkant::descriptor_t custom_desc = {};
-            custom_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            custom_desc.stage_flags = VK_SHADER_STAGE_ALL;
-            custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-            drawable.descriptors[binding++] = custom_desc;
-        }
+//        uint32_t binding = BINDING_MAX_RANGE;
+//        // custom ubos
+//        for(auto &ubo : material->ubos)
+//        {
+//            vierkant::descriptor_t custom_desc = {};
+//            custom_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+//            custom_desc.stage_flags = VK_SHADER_STAGE_ALL;
+//            custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+//                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
+//            drawable.descriptors[binding++] = custom_desc;
+//        }
         ret.push_back(std::move(drawable));
     }
     return ret;

@@ -27,6 +27,6 @@ struct cull_result_t
  * @param   cam     a provided camera.
  * @return  a cull_result_t struct.
  */
-cull_result_t cull(const vierkant::SceneConstPtr &scene, const CameraPtr &cam, const std::set<std::string> &tags);
+cull_result_t cull(const vierkant::SceneConstPtr &scene, const CameraPtr &cam, const std::set<std::string> &tags = {});
 
 }

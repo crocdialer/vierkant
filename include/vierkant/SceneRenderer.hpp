@@ -11,8 +11,12 @@
 namespace vierkant
 {
 
+DEFINE_CLASS_PTR(SceneRenderer);
+
 class SceneRenderer
 {
+public:
+
     /**
      * @brief   Render a scene with a provided camera.
      *

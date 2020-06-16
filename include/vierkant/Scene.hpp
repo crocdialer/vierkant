@@ -19,11 +19,11 @@ public:
     void update(float time_delta);
 
     Object3DPtr pick(const Ray &ray, bool high_precision = false,
-                     const std::set<std::string> &the_tags = {}) const;
+                     const std::set<std::string> &tags = {}) const;
 
-    void add_object(const Object3DPtr &the_object);
+    void add_object(const Object3DPtr &object);
 
-    void remove_object(const Object3DPtr &the_object);
+    void remove_object(const Object3DPtr &object);
 
     void clear();
 

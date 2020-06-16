@@ -199,6 +199,8 @@ public:
 
     Mesh &operator=(Mesh other) = delete;
 
+    void accept(Visitor &visitor) override;
+
     vierkant::AABB aabb() const override;
 
     /**

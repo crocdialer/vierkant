@@ -59,7 +59,7 @@ public:
                    const glm::mat4 &projection);
 
     void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
-                   const glm::mat4 &projection);
+                   const glm::mat4 &projection, vierkant::ShaderType shader_type);
 
     void draw_scene(vierkant::Renderer &renderer, const vierkant::Object3DConstPtr &root,
                     const vierkant::CameraConstPtr &camera);

@@ -18,7 +18,7 @@ public:
 
     static MaterialPtr create() { return MaterialPtr(new Material()); };
 
-    vierkant::ShaderType shader_type = vierkant::ShaderType::UNLIT_COLOR;
+//    vierkant::ShaderType shader_type = vierkant::ShaderType::UNLIT_COLOR;
 
     glm::vec4 color = glm::vec4(1);
 
@@ -37,9 +37,6 @@ public:
     VkCullModeFlagBits cull_mode = VK_CULL_MODE_BACK_BIT;
 
     std::vector<vierkant::ImagePtr> images;
-
-    std::vector<std::vector<uint8_t>> ubos;
-
 
 private:
     Material() = default;

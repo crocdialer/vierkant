@@ -6,6 +6,7 @@
 #include <map>
 #include <set>
 
+#include "vierkant/Visitor.hpp"
 #include "vierkant/Mesh.hpp"
 
 namespace vierkant
@@ -499,6 +500,13 @@ std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
         ret.push_back(desc);
     }
     return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Mesh::accept(Visitor &visitor)
+{
+    visitor.visit(*this);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

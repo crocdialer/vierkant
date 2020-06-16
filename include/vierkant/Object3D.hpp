@@ -8,11 +8,28 @@
 #include <crocore/crocore.hpp>
 #include "vierkant/intersection.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 DEFINE_CLASS_PTR(Object3D);
 
 class Visitor;
+
+/**
+ * @brief   Utility to check if one set of tags contains at least one item from another set.
+ *
+ * @param   whitelist the tags that shall pass the check.
+ * @param   obj_tags    the tags to check against the whitelist
+ * @return
+ */
+inline static bool check_tags(const std::set<std::string> &whitelist, const std::set<std::string> &obj_tags)
+{
+    for(const auto &t : obj_tags)
+    {
+        if(crocore::contains(whitelist, t)){ return true; }
+    }
+    return whitelist.empty();
+}
 
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
@@ -24,43 +41,43 @@ public:
 
     virtual ~Object3D() = default;
 
-    inline uint32_t id() const { return m_id; };
+    inline uint32_t id() const{ return m_id; };
 
-    inline const std::string name() const { return m_name; }
+    inline const std::string name() const{ return m_name; }
 
-    inline void set_name(const std::string &the_name) { m_name = the_name; }
+    inline void set_name(const std::string &the_name){ m_name = the_name; }
 
-    inline const std::set<std::string> &tags() const { return m_tags; };
+    inline const std::set<std::string> &tags() const{ return m_tags; };
 
-    inline std::set<std::string> &tags() { return m_tags; };
+    inline std::set<std::string> &tags(){ return m_tags; };
 
-    inline bool has_tag(const std::string &the_tag) const { return m_tags.count(the_tag); };
+    inline bool has_tag(const std::string &the_tag) const{ return m_tags.count(the_tag); };
 
-    void add_tag(const std::string &the_tag, bool recursive = false);
+    void add_tag(const std::string &tag, bool recursive = false);
 
-    void remove_tag(const std::string &the_tag, bool recursive = false);
+    void remove_tag(const std::string &tag, bool recursive = false);
 
-    inline bool enabled() const { return m_enabled; }
+    inline bool enabled() const{ return m_enabled; }
 
-    void set_enabled(bool b = true) { m_enabled = b; }
+    void set_enabled(bool b = true){ m_enabled = b; }
 
-    bool billboard() const { return m_billboard; };
+    bool billboard() const{ return m_billboard; };
 
-    void set_billboard(bool b) { m_billboard = b; }
+    void set_billboard(bool b){ m_billboard = b; }
 
-    void set_position(const glm::vec3 &thePos);
+    void set_position(const glm::vec3 &pos);
 
-    inline glm::vec3 position() const { return m_transform[3].xyz(); }
+    inline glm::vec3 position() const{ return m_transform[3].xyz(); }
 
-    inline glm::vec3 lookAt() const { return normalize(m_transform[2].xyz()); }
+    inline glm::vec3 lookAt() const{ return normalize(m_transform[2].xyz()); }
 
-    inline glm::vec3 side() const { return normalize(m_transform[0].xyz()); }
+    inline glm::vec3 side() const{ return normalize(m_transform[0].xyz()); }
 
-    inline glm::vec3 up() const { return normalize(m_transform[1].xyz()); }
+    inline glm::vec3 up() const{ return normalize(m_transform[1].xyz()); }
 
-    void set_rotation(const glm::quat &theRot);
+    void set_rotation(const glm::quat &rot);
 
-    void set_rotation(const glm::mat3 &theRot);
+    void set_rotation(const glm::mat3 &rot);
 
     void set_rotation(float pitch, float yaw, float roll);
 
@@ -73,29 +90,29 @@ public:
 
     void set_scale(const glm::vec3 &s);
 
-    inline void set_scale(float s) { set_scale(glm::vec3(s)); }
+    inline void set_scale(float s){ set_scale(glm::vec3(s)); }
 
-    void set_look_at(const glm::vec3 &theLookAt, const glm::vec3 &theUp = glm::vec3(0, 1, 0));
+    void set_look_at(const glm::vec3 &lookAt, const glm::vec3 &up = glm::vec3(0, 1, 0));
 
-    void set_look_at(const Object3DPtr &theLookAt);
+    void set_look_at(const Object3DPtr &lookAt);
 
-    inline void set_transform(const glm::mat4 &theTrans) { m_transform = theTrans; }
+    inline void set_transform(const glm::mat4 &theTrans){ m_transform = theTrans; }
 
-    inline glm::mat4 &transform() { return m_transform; }
+    inline glm::mat4 &transform(){ return m_transform; }
 
-    inline const glm::mat4 &transform() const { return m_transform; };
+    inline const glm::mat4 &transform() const{ return m_transform; };
 
-    void set_parent(const Object3DPtr &the_parent);
+    void set_parent(const Object3DPtr &parent);
 
-    inline Object3DPtr parent() const { return m_parent.lock(); }
+    inline Object3DPtr parent() const{ return m_parent.lock(); }
 
-    void add_child(const Object3DPtr &the_child);
+    void add_child(const Object3DPtr &child);
 
-    void remove_child(const Object3DPtr &the_child, bool recursive = false);
+    void remove_child(const Object3DPtr &child, bool recursive = false);
 
-    inline std::list<Object3DPtr> &children() { return m_children; }
+    inline std::list<Object3DPtr> &children(){ return m_children; }
 
-    inline const std::list<Object3DPtr> &children() const { return m_children; }
+    inline const std::list<Object3DPtr> &children() const{ return m_children; }
 
     glm::mat4 global_transform() const;
 
@@ -129,7 +146,7 @@ public:
     /*!
      * Provide a function object to be called on each update
      */
-    void set_update_function(update_fn_t f) { m_update_function = f; }
+    void set_update_function(update_fn_t f){ m_update_function = f; }
 
     virtual void accept(Visitor &theVisitor);
 

@@ -47,14 +47,14 @@ ScenePtr Scene::create()
     return ScenePtr(new Scene());
 }
 
-void Scene::add_object(const Object3DPtr &the_object)
+void Scene::add_object(const Object3DPtr &object)
 {
-    m_root->add_child(the_object);
+    m_root->add_child(object);
 }
 
-void Scene::remove_object(const Object3DPtr &the_object)
+void Scene::remove_object(const Object3DPtr &object)
 {
-    m_root->remove_child(the_object, true);
+    m_root->remove_child(object, true);
 }
 
 void Scene::clear()
@@ -70,10 +70,10 @@ void Scene::update(float time_delta)
 }
 
 Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
-                        const std::set<std::string> &the_tags) const
+                        const std::set<std::string> &tags) const
 {
     Object3DPtr ret;
-    SelectVisitor<Object3D> sv(the_tags);
+    SelectVisitor<Object3D> sv(tags);
     m_root->accept(sv);
 
     std::list<range_item_t> clicked_items;
@@ -177,7 +177,6 @@ void Scene::set_skybox(const vierkant::ImagePtr &img)
         auto box = vierkant::Geometry::Box();
         m_skybox = vierkant::Mesh::create_from_geometries(img->device(), {box});
         auto &mat = m_skybox->materials.front();
-        mat->shader_type = vierkant::ShaderType::UNLIT_CUBE;
         mat->depth_write = false;
         mat->depth_test = true;
         mat->cull_mode = VK_CULL_MODE_FRONT_BIT;

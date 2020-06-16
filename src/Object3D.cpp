@@ -1,7 +1,8 @@
 #include "vierkant/Object3D.hpp"
 #include "vierkant/Visitor.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 uint32_t Object3D::s_id_pool = 0;
 
@@ -21,24 +22,24 @@ Object3D::Object3D(std::string name) :
     if(m_name.empty()){ m_name = "Object3D_" + std::to_string(m_id); }
 }
 
-void Object3D::set_position(const glm::vec3 &thePos)
+void Object3D::set_position(const glm::vec3 &pos)
 {
-    glm::vec3& dst = *reinterpret_cast<glm::vec3 *>(&m_transform[3].x);
-    dst = thePos;
+    glm::vec3 &dst = *reinterpret_cast<glm::vec3 *>(&m_transform[3].x);
+    dst = pos;
 }
 
-void Object3D::set_rotation(const glm::quat &theRot)
+void Object3D::set_rotation(const glm::quat &rot)
 {
     glm::vec3 pos_tmp(position()), scale_tmp(scale());
-    m_transform = glm::mat4_cast(theRot);
+    m_transform = glm::mat4_cast(rot);
     set_position(pos_tmp);
     set_scale(scale_tmp);
 }
 
-void Object3D::set_rotation(const glm::mat3 &theRot)
+void Object3D::set_rotation(const glm::mat3 &rot)
 {
     glm::vec3 pos_tmp(position()), scale_tmp(scale());
-    m_transform = glm::mat4(theRot);
+    m_transform = glm::mat4(rot);
     set_position(pos_tmp);
     set_scale(scale_tmp);
 }
@@ -56,14 +57,14 @@ glm::quat Object3D::rotation() const
     return glm::normalize(glm::quat_cast(m_transform));
 }
 
-void Object3D::set_look_at(const glm::vec3 &theLookAt, const glm::vec3 &theUp)
+void Object3D::set_look_at(const glm::vec3 &lookAt, const glm::vec3 &up)
 {
-    set_transform(glm::inverse(glm::lookAt(position(), theLookAt, theUp)) * glm::scale(glm::mat4(1), scale()));
+    set_transform(glm::inverse(glm::lookAt(position(), lookAt, up)) * glm::scale(glm::mat4(1), scale()));
 }
 
-void Object3D::set_look_at(const Object3DPtr &theLookAt)
+void Object3D::set_look_at(const Object3DPtr &lookAt)
 {
-    set_look_at(-theLookAt->position() + position(), theLookAt->up());
+    set_look_at(-lookAt->position() + position(), lookAt->up());
 }
 
 void Object3D::set_scale(const glm::vec3 &s)
@@ -122,67 +123,59 @@ void Object3D::set_global_rotation(const glm::quat &rotation)
     set_rotation(glm::inverse(parent_rotation) * rotation);
 }
 
-void Object3D::set_global_scale(const glm::vec3 &the_scale)
+void Object3D::set_global_scale(const glm::vec3 &scale)
 {
     glm::vec3 parent_scale = parent() ? parent()->global_scale() : glm::vec3(1);
-    set_scale(the_scale / parent_scale);
+    set_scale(scale / parent_scale);
 }
 
-void Object3D::set_parent(const Object3DPtr &the_parent)
+void Object3D::set_parent(const Object3DPtr &parent_object)
 {
     // detach object from former parent
-    if(Object3DPtr p = parent())
-    {
-        p->remove_child(shared_from_this());
-    }
+    if(auto p = parent()){ p->remove_child(shared_from_this()); }
 
-    if(the_parent)
-    {
-        the_parent->add_child(shared_from_this());
-    }else
-    {
-        m_parent.reset();
-    }
+    if(parent_object){ parent_object->add_child(shared_from_this()); }
+    else{ m_parent.reset(); }
 }
 
-void Object3D::add_child(const Object3DPtr &the_child)
+void Object3D::add_child(const Object3DPtr &child)
 {
-    if(the_child)
+    if(child)
     {
         // avoid cyclic refs -> new child must not be an ancestor
         Object3DPtr ancestor = parent();
 
         while(ancestor)
         {
-            if(ancestor == the_child) return;
+            if(ancestor == child) return;
             ancestor = ancestor->parent();
         }
 
-        the_child->set_parent(Object3DPtr());
-        the_child->m_parent = shared_from_this();
+        child->set_parent(Object3DPtr());
+        child->m_parent = shared_from_this();
 
         // prevent multiple insertions
-        if(std::find(m_children.begin(), m_children.end(), the_child) == m_children.end())
+        if(std::find(m_children.begin(), m_children.end(), child) == m_children.end())
         {
-            m_children.push_back(the_child);
+            m_children.push_back(child);
         }
     }
 }
 
-void Object3D::remove_child(const Object3DPtr &the_child, bool recursive)
+void Object3D::remove_child(const Object3DPtr &child, bool recursive)
 {
-    auto it = std::find(m_children.begin(), m_children.end(), the_child);
+    auto it = std::find(m_children.begin(), m_children.end(), child);
     if(it != m_children.end())
     {
         m_children.erase(it);
-        if(the_child){ the_child->set_parent(Object3DPtr()); }
+        if(child){ child->set_parent(nullptr); }
     }
         // not a direct descendant, go on recursive if requested
     else if(recursive)
     {
         for(auto &c : children())
         {
-            c->remove_child(the_child, recursive);
+            c->remove_child(child, recursive);
         }
     }
 }
@@ -206,24 +199,24 @@ OBB Object3D::obb() const
     return ret;
 }
 
-void Object3D::add_tag(const std::string &the_tag, bool recursive)
+void Object3D::add_tag(const std::string &tag, bool recursive)
 {
-    m_tags.insert(the_tag);
+    m_tags.insert(tag);
 
     if(recursive)
     {
-        for(auto &c : children()){ c->add_tag(the_tag, recursive); }
+        for(auto &c : children()){ c->add_tag(tag, recursive); }
     }
 
 }
 
-void Object3D::remove_tag(const std::string &the_tag, bool recursive)
+void Object3D::remove_tag(const std::string &tag, bool recursive)
 {
-    m_tags.erase(the_tag);
+    m_tags.erase(tag);
 
     if(recursive)
     {
-        for(auto &c : children()){ c->remove_tag(the_tag, recursive); }
+        for(auto &c : children()){ c->remove_tag(tag, recursive); }
     }
 }
 
