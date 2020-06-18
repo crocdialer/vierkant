@@ -12,7 +12,10 @@ class CullVisitor : public vierkant::Visitor
 {
 public:
 
-    CullVisitor(vierkant::CameraPtr cam) : vierkant::Visitor(true), m_camera(std::move(cam))
+    CullVisitor(vierkant::CameraPtr cam, bool check_intersection) :
+            vierkant::Visitor(true),
+            m_camera(std::move(cam)),
+            m_check_intersection(check_intersection)
     {
         m_transform_stack.push(m_camera->view_matrix());
     };
@@ -41,15 +44,19 @@ public:
 
         // move drawables into cull_result
         std::move(mesh_drawables.begin(), mesh_drawables.end(), std::back_inserter(m_cull_result.drawables));
-        visit(static_cast<vierkant::Object3D&>(mesh));
+        visit(static_cast<vierkant::Object3D &>(mesh));
     }
 
     bool should_visit(vierkant::Object3D &object) override
     {
         if(object.enabled() && check_tags(m_tags, object.tags()))
         {
-            // TODO: check intersection with view-frustum
             bool is_visible = true;
+
+            if(m_check_intersection)
+            {
+                // TODO: check intersection with view-frustum
+            }
 
             return is_visible;
         }
@@ -60,14 +67,17 @@ public:
 
     vierkant::CameraPtr m_camera;
 
+    bool m_check_intersection;
+
     std::stack<glm::mat4> m_transform_stack;
 
     cull_result_t m_cull_result;
 };
 
-cull_result_t cull(const SceneConstPtr &scene, const CameraPtr &cam, const std::set<std::string> &tags)
+cull_result_t cull(const SceneConstPtr &scene, const CameraPtr &cam, bool check_intersection,
+                   const std::set<std::string> &tags)
 {
-    CullVisitor cull_visitor(cam);
+    CullVisitor cull_visitor(cam, false);
     scene->root()->accept(cull_visitor);
     return std::move(cull_visitor.m_cull_result);
 }

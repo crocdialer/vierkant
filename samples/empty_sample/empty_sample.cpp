@@ -96,7 +96,7 @@ void HelloTriangleApplication::load_model()
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};
     m_mesh = vk::Mesh::create_from_geometries(m_device, {geom});
 
-    m_drawable = vk::Renderer::create_drawables(m_device, m_mesh).front();
+    m_drawable = vk::Renderer::create_drawables(m_mesh).front();
 }
 
 void HelloTriangleApplication::update(double time_delta)

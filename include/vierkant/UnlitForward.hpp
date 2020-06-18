@@ -10,19 +10,19 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(ForwardSceneRenderer);
+DEFINE_CLASS_PTR(UnlitForward);
 
-class ForwardSceneRenderer : public vierkant::SceneRenderer
+class UnlitForward : public vierkant::SceneRenderer
 {
 public:
 
-    static ForwardSceneRendererPtr create(const vierkant::DevicePtr& device);
+    static UnlitForwardPtr create(const vierkant::DevicePtr& device);
 
-    ForwardSceneRenderer(const ForwardSceneRenderer &) = delete;
+    UnlitForward(const UnlitForward &) = delete;
 
-    ForwardSceneRenderer(ForwardSceneRenderer &&) = delete;
+    UnlitForward(UnlitForward &&) = delete;
 
-    ForwardSceneRenderer &operator=(ForwardSceneRenderer other) = delete;
+    UnlitForward &operator=(UnlitForward other) = delete;
 
     /**
      * @brief   Render a scene with a provided camera.
@@ -40,7 +40,7 @@ public:
 
 private:
 
-    explicit ForwardSceneRenderer(const vierkant::DevicePtr& device);
+    explicit UnlitForward(const vierkant::DevicePtr& device);
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 };
