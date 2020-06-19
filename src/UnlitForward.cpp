@@ -13,8 +13,6 @@ uint32_t UnlitForward::render_scene(vierkant::Renderer &renderer,
                                     const vierkant::CameraPtr &cam,
                                     const std::set<std::string> &tags)
 {
-    if(!m_pipeline_cache){ m_pipeline_cache = vierkant::PipelineCache::create(renderer.device()); }
-
     auto cull_result = vierkant::cull(scene, cam, true, tags);
     uint32_t num_drawables = cull_result.drawables.size();
 

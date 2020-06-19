@@ -1,7 +1,7 @@
 #define PI 3.1415926535897932384626433832795
 #define ONE_OVER_PI 0.31830988618379067153776752674503
 
-//!
+//! groups transformation matrices
 struct matrix_struct_t
 {
     mat4 modelview;
@@ -10,7 +10,7 @@ struct matrix_struct_t
     mat4 texture;
 };
 
-//!
+//! material parameters
 struct material_struct_t
 {
     vec4 color;
@@ -19,6 +19,7 @@ struct material_struct_t
     float roughness;
 };
 
+//! definition of a directional- or point-light
 struct lightsource_t
 {
     vec3 position;
@@ -33,7 +34,7 @@ struct lightsource_t
     float quadraticAttenuation;
 };
 
-//!
+//! some render-context passed as push-constant
 struct render_context_t
 {
     int matrix_index;
@@ -58,6 +59,8 @@ struct render_context_t
 #define BINDING_TEXTURES 2
 #define BINDING_BONES 3
 
-#define MAX_NUM_DRAWABLES 4096
+//! specialization constant for maximum number of drawables per renderpass
+layout (constant_id = 0) const int MAX_NUM_DRAWABLES = 4096;
 
-#define MAX_NUM_BONES 512
+//! specialization constant for maximum number of bones per mesh
+layout (constant_id = 1) const int MAX_NUM_BONES = 512;
