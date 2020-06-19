@@ -46,32 +46,71 @@ public:
 
     explicit DrawContext(vierkant::DevicePtr device);
 
+    /**
+     * @brief   Draws text in a 2D context.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   text        a provided text. can contain '\n' line-breaks.
+     * @param   font        a provided vierkant::Font.
+     * @param   pos         the desired position for the text's origin (top-left corner).
+     * @param   color       the desired color for the text.
+     */
     void draw_text(vierkant::Renderer &renderer, const std::string &text, const FontPtr &font, const glm::vec2 &pos,
                    const glm::vec4 &color = glm::vec4(1));
 
+    /**
+     * @brief   Draws an image in a 2D context.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   image       a provided vierkant::Image, assumed to contain a sampler2D.
+     * @param   area        the desired area to cover.
+     */
     void draw_image(vierkant::Renderer &renderer, const vierkant::ImagePtr &image,
                     const crocore::Area_<int> &area = {});
 
+    /**
+     * @brief   Draws an axis-aligned bounding box.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   aabb        a provided vierkant::AABB.
+     * @param   model_view  the modelview matrix to use for drawing.
+     * @param   projection  the projection matrix to use for drawing.
+     */
     void draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb, const glm::mat4 &model_view,
                           const glm::mat4 &projection);
 
+    /**
+     * @brief   Draws a grid of lines in the xz-plane.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   scale       the desired scaling-value.
+     * @param   num_subs    the number of subdivisions.
+     * @param   model_view  the modelview matrix to use for drawing.
+     * @param   projection  the projection matrix to use for drawing.
+     */
     void draw_grid(vierkant::Renderer &renderer, float scale, uint32_t num_subs, const glm::mat4 &model_view,
                    const glm::mat4 &projection);
 
+    /**
+     * @brief   Draws a mesh.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   mesh        a provided vierkant::MeshPtr.
+     * @param   model_view  the modelview matrix to use for drawing.
+     * @param   projection  the projection matrix to use for drawing.
+     * @param   shader_type the desired vierkant::ShaderType.
+     */
     void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
                    const glm::mat4 &projection, vierkant::ShaderType shader_type);
 
-    void draw_scene(vierkant::Renderer &renderer, const vierkant::Object3DConstPtr &root,
-                    const vierkant::CameraConstPtr &camera);
-
 private:
 
-    const shader_stage_map_t &shader_stages(vierkant::ShaderType type);
-
     vierkant::DevicePtr m_device;
-    std::map<vierkant::ShaderType, shader_stage_map_t> m_shader_stage_cache;
+
     Renderer::drawable_t m_drawable_text = {};
+
     Renderer::drawable_t m_drawable_image = {};
+
     Renderer::drawable_t m_drawable_aabb = {};
 
     Renderer::drawable_t m_drawable_grid = {};

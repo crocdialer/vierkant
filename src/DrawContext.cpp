@@ -169,14 +169,6 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_scene(vierkant::Renderer &renderer, const vierkant::Object3DConstPtr &root,
-                             const vierkant::CameraConstPtr &camera)
-{
-    // TODO: create drawables with a CullVisitor
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device))
 {
     // create a pipline cache
@@ -197,7 +189,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.blend_state.blendEnable = true;
         fmt.depth_test = false;
         fmt.depth_write = false;
-        fmt.shader_stages = shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
+        fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
         fmt.binding_descriptions = mesh->binding_descriptions();
         fmt.attribute_descriptions = mesh->attribute_descriptions();
         fmt.primitive_topology = entry.primitive_type;
@@ -227,7 +219,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     {
         // pipeline format
         vierkant::Pipeline::Format pipeline_fmt = {};
-        pipeline_fmt.shader_stages = shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
+        pipeline_fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
         pipeline_fmt.depth_write = false;
         pipeline_fmt.depth_test = false;
         pipeline_fmt.blend_state.blendEnable = true;
@@ -352,20 +344,6 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
     drawable.matrices.modelview = model_view * center_mat * scale_mat;
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-const shader_stage_map_t &DrawContext::shader_stages(vierkant::ShaderType type)
-{
-    auto it = m_shader_stage_cache.find(type);
-
-    if(it != m_shader_stage_cache.end()){ return it->second; }
-    else
-    {
-        it = m_shader_stage_cache.insert(std::make_pair(type, vierkant::create_shader_stages(m_device, type))).first;
-        return it->second;
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
