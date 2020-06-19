@@ -19,7 +19,8 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
 {
     if(!mesh){ return {}; }
 
-    std::vector<Renderer::drawable_t> ret;
+    // allocate one drawable per mesh-entry
+    std::vector<Renderer::drawable_t> ret(mesh->entries.size());
 
     // same for all entries
     auto binding_descriptions = mesh->binding_descriptions();
@@ -36,13 +37,16 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
         for(auto &entry : mesh->entries){ entry.transform = node_matrices[entry.node_index]; }
     }
 
-    for(const auto &entry : mesh->entries)
+    for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
+        const auto &entry = mesh->entries[i];
+
         // wonky
         const auto &material = mesh->materials[entry.material_index];
 
-        // copy mesh-drawable
-        Renderer::drawable_t drawable = {};
+        // aquire ref for mesh-drawable
+        auto &drawable = ret[i];
+        drawable = {};
         drawable.mesh = mesh;
 
         // combine mesh- with entry-transform
@@ -64,12 +68,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
         drawable.pipeline_format.depth_test = material->depth_test;
         drawable.pipeline_format.depth_write = material->depth_write;
         drawable.pipeline_format.cull_mode = material->cull_mode;
-
-//        if(pipeline_cache)
-//        {
-//            drawable.pipeline_format.shader_stages = pipeline_cache->shader_stages(material->shader_type);
-//        }
-//        else{ drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(device, material->shader_type); }
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};
@@ -100,19 +98,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
             desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
             drawable.descriptors[BINDING_BONES] = desc_bones;
         }
-
-//        uint32_t binding = BINDING_MAX_RANGE;
-//        // custom ubos
-//        for(auto &ubo : material->ubos)
-//        {
-//            vierkant::descriptor_t custom_desc = {};
-//            custom_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-//            custom_desc.stage_flags = VK_SHADER_STAGE_ALL;
-//            custom_desc.buffer = vierkant::Buffer::create(device, ubo, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-//                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-//            drawable.descriptors[binding++] = custom_desc;
-//        }
-        ret.push_back(std::move(drawable));
     }
     return ret;
 }
