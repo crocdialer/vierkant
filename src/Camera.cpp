@@ -58,7 +58,7 @@ void OrthoCamera::update_projection_matrix()
 
 vierkant::Frustum OrthoCamera::frustum() const
 {
-    return vierkant::Frustum(left(), right(), bottom(), top(), near(), far()).transform(global_transform());
+    return vierkant::Frustum(left(), right(), bottom(), top(), near(), far());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +114,7 @@ void PerspectiveCamera::update_projection_matrix()
 
 vierkant::Frustum PerspectiveCamera::frustum() const
 {
-    return vierkant::Frustum(aspect(), fov(), near(), far()).transform(global_transform());
+    return vierkant::Frustum(aspect(), fov(), near(), far());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

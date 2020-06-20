@@ -130,6 +130,9 @@ public:
 
     void set_global_scale(const glm::vec3 &scale);
 
+    /**
+     * @return the axis-aligned boundingbox (AABB) in object coords.
+     */
     virtual AABB aabb() const;
 
     virtual OBB obb() const;

@@ -8,12 +8,22 @@
 namespace vierkant
 {
 
+struct scoped_stack_push
+{
+    std::stack<glm::mat4> &stack;
+
+    scoped_stack_push(std::stack<glm::mat4> &stack, const glm::mat4 &mat) : stack(stack){ stack.push(mat); }
+
+    ~scoped_stack_push(){ stack.pop(); }
+};
+
 class CullVisitor : public vierkant::Visitor
 {
 public:
 
     CullVisitor(vierkant::CameraPtr cam, bool check_intersection) :
             vierkant::Visitor(true),
+            m_frustum(cam->frustum()),
             m_camera(std::move(cam)),
             m_check_intersection(check_intersection)
     {
@@ -24,46 +34,53 @@ public:
     {
         if(should_visit(object))
         {
-            m_transform_stack.push(m_transform_stack.top() * object.transform());
+            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform());
             for(Object3DPtr &child : object.children()){ child->accept(*this); }
-            m_transform_stack.pop();
         }
     }
 
     void visit(vierkant::Mesh &mesh) override
     {
-        // create drawables
-        auto mesh_ptr = std::dynamic_pointer_cast<vierkant::Mesh>(mesh.shared_from_this());
-        auto mesh_drawables = vierkant::Renderer::create_drawables(mesh_ptr);
-
-        for(auto &drawable : mesh_drawables)
+        if(should_visit(mesh))
         {
-            drawable.matrices.modelview = m_transform_stack.top() * drawable.matrices.modelview;
-            drawable.matrices.projection = m_camera->projection_matrix();
-        }
+            // create drawables
+            auto mesh_ptr = std::dynamic_pointer_cast<vierkant::Mesh>(mesh.shared_from_this());
+            auto mesh_drawables = vierkant::Renderer::create_drawables(mesh_ptr);
 
-        // move drawables into cull_result
-        std::move(mesh_drawables.begin(), mesh_drawables.end(), std::back_inserter(m_cull_result.drawables));
-        visit(static_cast<vierkant::Object3D &>(mesh));
+            for(auto &drawable : mesh_drawables)
+            {
+                drawable.matrices.modelview = m_transform_stack.top() * drawable.matrices.modelview;
+                drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
+                drawable.matrices.projection = m_camera->projection_matrix();
+            }
+
+            // move drawables into cull_result
+            std::move(mesh_drawables.begin(), mesh_drawables.end(), std::back_inserter(m_cull_result.drawables));
+
+            // continue scenegraph-traversal
+            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * mesh.transform());
+            visit(static_cast<vierkant::Object3D &>(mesh));
+        }
     }
 
     bool should_visit(vierkant::Object3D &object) override
     {
         if(object.enabled() && check_tags(m_tags, object.tags()))
         {
-            bool is_visible = true;
-
             if(m_check_intersection)
             {
-                // TODO: check intersection with view-frustum
+                // check intersection of aabb in eye-coords with view-frustum
+                auto aabb = object.aabb().transform(m_transform_stack.top() * object.transform());
+                return m_frustum.intersect(aabb);
             }
-
-            return is_visible;
+            return true;
         }
         return false;
     }
 
     std::set<std::string> m_tags;
+
+    vierkant::Frustum m_frustum;
 
     vierkant::CameraPtr m_camera;
 

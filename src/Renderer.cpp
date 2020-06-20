@@ -50,7 +50,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
         drawable.mesh = mesh;
 
         // combine mesh- with entry-transform
-        drawable.matrices.modelview = mesh->global_transform() * entry.transform;
+        drawable.matrices.modelview = mesh->transform() * entry.transform;
         drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
 
         // material params
