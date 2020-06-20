@@ -134,7 +134,7 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1024}};
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 4096);
 
-    if(create_info.pipeline_cache){ m_pipeline_cache = std::move(create_info.pipeline_cache); }
+    if(create_info.pipeline_cache){ m_pipeline_cache = create_info.pipeline_cache; }
     else{ m_pipeline_cache = vierkant::PipelineCache::create(m_device); }
 
     // push constant range

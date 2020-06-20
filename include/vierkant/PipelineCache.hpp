@@ -56,8 +56,9 @@ public:
         }
 
         // not found -> create pipeline
-        std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
         auto new_pipeline = Pipeline::create(m_device, format);
+
+        std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
         auto pipe_it = m_pipelines.insert(std::make_pair(format, std::move(new_pipeline))).first;
         return pipe_it->second;
     }
@@ -75,8 +76,9 @@ public:
         }
 
         // not found -> create pipeline
-        std::unique_lock<std::shared_mutex> lock(m_shader_stage_mutex);
         auto new_shader_stages = vierkant::create_shader_stages(m_device, shader_type);
+
+        std::unique_lock<std::shared_mutex> lock(m_shader_stage_mutex);
         auto shader_stage_it = m_shader_stages.insert(std::make_pair(shader_type, std::move(new_shader_stages))).first;
         return shader_stage_it->second;
     }

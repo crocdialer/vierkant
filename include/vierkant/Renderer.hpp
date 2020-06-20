@@ -51,6 +51,20 @@ public:
         int padding[2];
     };
 
+    struct lightsource_t
+    {
+        glm::vec3 position;
+        int type;
+        glm::vec4 diffuse;
+        glm::vec4 ambient;
+        glm::vec3 direction;
+        float intensity;
+        float radius;
+        float spot_cos_cutoff;
+        float spot_exponent;
+        float quadratic_attenuation;
+    };
+
     struct push_constants_t
     {
         int matrix_index = 0;
@@ -86,20 +100,6 @@ public:
         uint32_t num_vertices = 0;
 
         bool use_own_buffers = false;
-    };
-
-    struct lightsource_t
-    {
-        glm::vec3 position;
-        int type;
-        glm::vec4 diffuse;
-        glm::vec4 ambient;
-        glm::vec3 direction;
-        float intensity;
-        float radius;
-        float spot_cos_cutoff;
-        float spot_exponent;
-        float quadratic_attenuation;
     };
 
     struct create_info_t
