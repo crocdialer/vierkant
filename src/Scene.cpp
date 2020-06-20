@@ -17,7 +17,7 @@ struct range_item_t
 class UpdateVisitor : public Visitor
 {
 public:
-    explicit UpdateVisitor(float time_step) : Visitor(), m_time_step(time_step){};
+    explicit UpdateVisitor(float time_step) : m_time_step(time_step){};
 
     void visit(vierkant::Object3D &object) override
     {
@@ -34,7 +34,12 @@ public:
                                        m_time_step,
                                        mesh.animation_speed);
         }
-        visit(static_cast<vierkant::Object3D&>(mesh));
+        visit(static_cast<vierkant::Object3D &>(mesh));
+    }
+
+    bool should_visit(vierkant::Object3D &object) override
+    {
+        return object.enabled();
     }
 
 private:
@@ -82,9 +87,9 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
     {
         if(object == m_root.get()){ continue; }
 
-        vierkant::OBB obb = object->obb().transform(object->transform());
+        vierkant::Ray ray_in_object_space = ray.transform(glm::inverse(object->global_transform()));
 
-        if(auto ray_hit = obb.intersect(ray))
+        if(auto ray_hit = object->obb().intersect(ray_in_object_space))
         {
 //            if(high_precision)
 //            {

@@ -1,7 +1,8 @@
 #include <crocore/crocore.hpp>
 #include "vierkant/intersection.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -26,26 +27,12 @@ vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices)
 {
     if(vertices.empty()){ return AABB(); }
 
-    AABB ret = AABB(glm::vec3(std::numeric_limits<float>::max()),
-                    glm::vec3(std::numeric_limits<float>::min()));
+    AABB ret;
 
     for(const glm::vec3 &vertex : vertices)
     {
-        // X
-        if(vertex.x < ret.min.x)
-            ret.min.x = vertex.x;
-        else if(vertex.x > ret.max.x)
-            ret.max.x = vertex.x;
-        // Y
-        if(vertex.y < ret.min.y)
-            ret.min.y = vertex.y;
-        else if(vertex.y > ret.max.y)
-            ret.max.y = vertex.y;
-        // Z
-        if(vertex.z < ret.min.z)
-            ret.min.z = vertex.z;
-        else if(vertex.z > ret.max.z)
-            ret.max.z = vertex.z;
+        ret.min = glm::min(ret.min, vertex);
+        ret.max = glm::max(ret.max, vertex);
     }
     return ret;
 }
@@ -118,7 +105,8 @@ ray_intersection intersect(const OBB &theOBB, const Ray &theRay)
             if(t2 < t_max) t_max = t2;
             if(t_min > t_max) return REJECT;
             if(t_max < 0) return REJECT;
-        }else if((-e - theOBB.half_lengths[i]) > 0 || (-e + theOBB.half_lengths[i]) < 0){ return REJECT; }
+        }
+        else if((-e - theOBB.half_lengths[i]) > 0 || (-e + theOBB.half_lengths[i]) < 0){ return REJECT; }
     }
     if(t_min > 0){ return {INTERSECT, t_min}; }
     else{ return {INTERSECT, t_max}; }
@@ -239,7 +227,8 @@ AABB &AABB::transform(const glm::mat4 &t)
             {
                 min[j] += a;
                 max[j] += b;
-            }else
+            }
+            else
             {
                 min[j] += b;
                 max[j] += a;
@@ -457,7 +446,8 @@ int planeBoxOverlap(float normal[3], float vert[3], float maxbox[3])    // -NJMP
         {
             vmin[q] = -maxbox[q] - v;    // -NJMP-
             vmax[q] = maxbox[q] - v;    // -NJMP-
-        }else
+        }
+        else
         {
             vmin[q] = maxbox[q] - v;    // -NJMP-
             vmax[q] = -maxbox[q] - v;    // -NJMP-

@@ -22,7 +22,6 @@ class CullVisitor : public vierkant::Visitor
 public:
 
     CullVisitor(vierkant::CameraPtr cam, bool check_intersection) :
-            vierkant::Visitor(true),
             m_frustum(cam->frustum()),
             m_camera(std::move(cam)),
             m_check_intersection(check_intersection)

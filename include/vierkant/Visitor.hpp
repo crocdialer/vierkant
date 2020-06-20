@@ -27,15 +27,7 @@ class Visitor
 {
 public:
 
-    explicit Visitor(bool visit_only_enabled = true) :
-            m_visit_only_enabled(visit_only_enabled)
-    {
-
-    }
-
-    inline bool visit_only_enabled() const{ return m_visit_only_enabled; }
-
-    inline void set_visit_only_enabled(bool b){ m_visit_only_enabled = b; }
+    Visitor() = default;
 
     virtual void visit(vierkant::Object3D &object)
     {
@@ -49,11 +41,8 @@ public:
 
     virtual void visit(vierkant::Camera &camera){ visit(static_cast<Object3D &>(camera)); };
 
-    virtual bool should_visit(vierkant::Object3D &object){ return true; }
+    virtual bool should_visit(vierkant::Object3D &object) = 0;
 
-private:
-
-    bool m_visit_only_enabled;
 };
 
 template<typename T>
@@ -61,9 +50,9 @@ class SelectVisitor : public Visitor
 {
 public:
 
-    explicit SelectVisitor(std::set<std::string> tags = {}, bool select_only_enabled = true) :
-            Visitor(select_only_enabled),
-            tags(std::move(tags)){}
+    explicit SelectVisitor(std::set<std::string> tags = {}, bool select_only_enabled = true):
+            tags(std::move(tags)),
+            select_only_enabled(select_only_enabled){}
 
     void visit(T &object) override
     {
@@ -76,12 +65,14 @@ public:
 
     bool should_visit(vierkant::Object3D &object) override
     {
-        return (object.enabled() || !visit_only_enabled()) && check_tags(tags, object.tags());
+        return (object.enabled() || !select_only_enabled) && check_tags(tags, object.tags());
     }
 
     std::vector<T *> objects;
 
     std::set<std::string> tags;
+
+    bool select_only_enabled;
 };
 
 }//namespace

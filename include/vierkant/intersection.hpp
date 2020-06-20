@@ -18,7 +18,8 @@
 
 #include "vierkant/math.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 enum intersection_type
 {
@@ -66,7 +67,7 @@ struct Ray
     glm::vec3 direction;
 
     Ray(const glm::vec3 &theOrigin, const glm::vec3 &theDir) :
-            origin(theOrigin), direction(normalize(theDir)) {}
+            origin(theOrigin), direction(normalize(theDir)){}
 
     inline Ray &transform(const glm::mat4 &t)
     {
@@ -81,9 +82,9 @@ struct Ray
         return ret.transform(t);
     };
 
-    inline friend glm::vec3 operator*(const Ray &theRay, float t) { return theRay.origin + t * theRay.direction; }
+    inline friend glm::vec3 operator*(const Ray &theRay, float t){ return theRay.origin + t * theRay.direction; }
 
-    inline friend glm::vec3 operator*(float t, const Ray &theRay) { return theRay.origin + t * theRay.direction; }
+    inline friend glm::vec3 operator*(float t, const Ray &theRay){ return theRay.origin + t * theRay.direction; }
 };
 
 /*!
@@ -95,11 +96,11 @@ struct ray_intersection
     float distance = 0.f;
 
     ray_intersection(intersection_type theType, float theDistance = 0.0f) :
-            type(theType), distance(theDistance) {}
+            type(theType), distance(theDistance){}
 
-    explicit operator intersection_type() const { return type; }
+    explicit operator intersection_type() const{ return type; }
 
-    explicit operator bool() const { return type; }
+    explicit operator bool() const{ return type; }
 };
 
 /*!
@@ -112,7 +113,7 @@ struct ray_triangle_intersection : public ray_intersection
 
     ray_triangle_intersection(intersection_type theType, float theDistance = 0.0f,
                               float theU = 0.0f, float theV = 0.0f)
-            : ray_intersection(theType, theDistance), u(theU), v(theV) {}
+            : ray_intersection(theType, theDistance), u(theU), v(theV){}
 };
 
 struct Plane
@@ -130,7 +131,7 @@ struct Plane
 
     Plane(const glm::vec3 &f, const glm::vec3 &n);
 
-    inline const glm::vec3 &normal() const { return *((glm::vec3 *)(&coefficients[0])); };
+    inline const glm::vec3 &normal() const{ return *((glm::vec3 *) (&coefficients[0])); };
 
     inline float distance(const glm::vec3 &p) const
     {
@@ -162,7 +163,7 @@ struct Triangle
     glm::vec3 v2;
 
     Triangle(const glm::vec3 &_v0, const glm::vec3 &_v1, const glm::vec3 &_v2)
-            : v0(_v0), v1(_v1), v2(_v2) {}
+            : v0(_v0), v1(_v1), v2(_v2){}
 
     inline Triangle &transform(const glm::mat4 &t)
     {
@@ -242,21 +243,21 @@ struct AABB
 
     AABB(const glm::vec3 &theMin, const glm::vec3 &theMax) :
             min(theMin),
-            max(theMax) {}
+            max(theMax){}
 
     explicit AABB(const std::vector<glm::vec3> &points);
 
-    inline float width() const { return max.x - min.x; }
+    inline float width() const{ return max.x - min.x; }
 
-    inline float height() const { return max.y - min.y; }
+    inline float height() const{ return max.y - min.y; }
 
-    inline float depth() const { return max.z - min.z; }
+    inline float depth() const{ return max.z - min.z; }
 
-    inline glm::vec3 halfExtents() const { return (max - min) / 2.f; }
+    inline glm::vec3 halfExtents() const{ return (max - min) / 2.f; }
 
-    inline glm::vec3 size() const { return (max - min); }
+    inline glm::vec3 size() const{ return (max - min); }
 
-    inline glm::vec3 center() const { return max - halfExtents(); }
+    inline glm::vec3 center() const{ return max - halfExtents(); }
 
     AABB operator+(const AABB &theAABB) const
     {
@@ -267,12 +268,8 @@ struct AABB
 
     AABB &operator+=(const AABB &theAABB)
     {
-        min.x = std::min(min.x, theAABB.min.x);
-        min.y = std::min(min.y, theAABB.min.y);
-        min.z = std::min(min.z, theAABB.min.z);
-        max.x = std::max(max.x, theAABB.max.x);
-        max.y = std::max(max.y, theAABB.max.y);
-        max.z = std::max(max.z, theAABB.max.z);
+        min = glm::min(min, theAABB.min);
+        max = glm::max(max, theAABB.max);
         return *this;
     }
 
@@ -408,7 +405,7 @@ struct Frustum
             //positive vertex outside ?
             if(p->distance(aabb.pos_vertex(p->normal())) < 0){ return REJECT; }
 
-            //negative vertex outside ?
+                //negative vertex outside ?
             else if(p->distance(aabb.neg_vertex(p->normal())) < 0){ ret = INTERSECT; }
         }
         return ret;
