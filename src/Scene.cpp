@@ -82,9 +82,9 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
     {
         if(object == m_root.get()){ continue; }
 
-        vierkant::OBB boundingBox = object->obb();
+        vierkant::OBB obb = object->obb().transform(object->transform());
 
-        if(auto ray_hit = boundingBox.intersect(ray))
+        if(auto ray_hit = obb.intersect(ray))
         {
 //            if(high_precision)
 //            {

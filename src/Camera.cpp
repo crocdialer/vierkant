@@ -1,10 +1,11 @@
 #include "vierkant/Camera.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Camera::Camera(const std::string &name) : Object3D(name) {}
+Camera::Camera(const std::string &name) : Object3D(name){}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -147,10 +148,10 @@ void PerspectiveCamera::set_clipping(float near, float far)
 
 vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
 {
-    glm::vec3 click_world_pos, ray_dir;
+    glm::vec3 ray_origin, ray_dir;
 
     // bring click_pos to range -1, 1
-    glm::vec2 click_2D(extent);
+    glm::vec2 click_2D(pos);
     glm::vec2 offset(extent / 2.0f);
     click_2D -= offset;
     click_2D /= offset;
@@ -161,13 +162,13 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
     float vLength = std::tan(rad / 2) * near();
     float hLength = vLength * aspect();
 
-    click_world_pos = position() + lookAt() * near() + side() * hLength * click_2D.x
-                      + up() * vLength * click_2D.y;
-    ray_dir = click_world_pos - position();
+    ray_origin = position() + lookAt() * near() + side() * hLength * click_2D.x
+                 + up() * vLength * click_2D.y;
+    ray_dir = ray_origin - position();
 
-    LOG_TRACE_2 << "clicked_world: (" << click_world_pos.x << ",  " << click_world_pos.y
-                << ",  " << click_world_pos.z << ")";
-    return Ray(click_world_pos, ray_dir);
+    LOG_TRACE_2 << "ray-origin: " << glm::to_string(ray_origin) << " -- dir: "
+                << glm::to_string(glm::normalize(ray_dir));
+    return Ray(ray_origin, ray_dir);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

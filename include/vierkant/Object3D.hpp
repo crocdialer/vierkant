@@ -69,7 +69,7 @@ public:
 
     inline glm::vec3 position() const{ return m_transform[3].xyz(); }
 
-    inline glm::vec3 lookAt() const{ return normalize(m_transform[2].xyz()); }
+    inline glm::vec3 lookAt() const{ return normalize(-m_transform[2].xyz()); }
 
     inline glm::vec3 side() const{ return normalize(m_transform[0].xyz()); }
 
