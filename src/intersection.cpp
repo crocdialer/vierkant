@@ -85,7 +85,7 @@ ray_intersection intersect(const Sphere &theSphere, const Ray &theRay)
 
 ray_intersection intersect(const OBB &theOBB, const Ray &theRay)
 {
-    float t_min = std::numeric_limits<float>::min();
+    float t_min = std::numeric_limits<float>::lowest();
     float t_max = std::numeric_limits<float>::max();
     glm::vec3 p = theOBB.center - theRay.origin;
 
@@ -161,7 +161,7 @@ OBB::OBB(const AABB &theAABB, const glm::mat4 &t)
     axis[0] = normalize(t[0].xyz());
     axis[1] = normalize(t[1].xyz());
     axis[2] = normalize(t[2].xyz());
-    half_lengths = theAABB.halfExtents() * scale;
+    half_lengths = theAABB.half_extents() * scale;
 }
 
 OBB &OBB::transform(const glm::mat4 &t)
@@ -172,7 +172,7 @@ OBB &OBB::transform(const glm::mat4 &t)
     axis[0] = normalize(normal_mat * axis[0]);
     axis[1] = normalize(normal_mat * axis[1]);
     axis[2] = normalize(normal_mat * axis[2]);
-    center += t[3].xyz();
+    center = t * glm::vec4(center, 1.f);
     return *this;
 }
 
@@ -180,7 +180,7 @@ OBB &OBB::transform(const glm::mat4 &t)
 
 AABB::AABB(const std::vector<glm::vec3> &points) :
         AABB(glm::vec3(std::numeric_limits<float>::max()),
-             glm::vec3(std::numeric_limits<float>::min()))
+             glm::vec3(std::numeric_limits<float>::lowest()))
 {
     if(points.empty()){ *this = {}; }
 
@@ -250,7 +250,7 @@ uint32_t AABB::intersect(const Triangle &t) const
                             {t.v1[0], t.v1[1], t.v1[2]},
                             {t.v2[0], t.v2[1], t.v2[2]}
     };
-    return static_cast<uint32_t>(triBoxOverlap(&center()[0], &halfExtents()[0], triVerts));
+    return static_cast<uint32_t>(triBoxOverlap(&center()[0], &half_extents()[0], triVerts));
 }
 
 ///////////////////////////////////////////////////////////////////////////////

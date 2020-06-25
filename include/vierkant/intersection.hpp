@@ -237,7 +237,7 @@ struct Sphere
 struct AABB
 {
     glm::vec3 min = glm::vec3(std::numeric_limits<float>::max());
-    glm::vec3 max = glm::vec3(std::numeric_limits<float>::min());
+    glm::vec3 max = glm::vec3(std::numeric_limits<float>::lowest());
 
     AABB() = default;
 
@@ -253,11 +253,11 @@ struct AABB
 
     inline float depth() const{ return max.z - min.z; }
 
-    inline glm::vec3 halfExtents() const{ return (max - min) / 2.f; }
+    inline glm::vec3 half_extents() const{ return (max - min) / 2.f; }
 
     inline glm::vec3 size() const{ return (max - min); }
 
-    inline glm::vec3 center() const{ return max - halfExtents(); }
+    inline glm::vec3 center() const{ return max - half_extents(); }
 
     AABB operator+(const AABB &theAABB) const
     {
