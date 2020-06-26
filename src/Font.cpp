@@ -247,7 +247,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
     if(mesh_iter != m_impl->string_mesh_map.end())
     {
         mesh_iter->second.counter++;
-        mesh_iter->second.mesh->set_transform(glm::mat4());
+        mesh_iter->second.mesh->set_transform(glm::mat4(1));
         return mesh_iter->second.mesh;
     }
 

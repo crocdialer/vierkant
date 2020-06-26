@@ -245,8 +245,6 @@ struct AABB
             min(theMin),
             max(theMax){}
 
-    explicit AABB(const std::vector<glm::vec3> &points);
-
     inline float width() const{ return max.x - min.x; }
 
     inline float height() const{ return max.y - min.y; }
@@ -259,23 +257,23 @@ struct AABB
 
     inline glm::vec3 center() const{ return max - half_extents(); }
 
-    AABB operator+(const AABB &theAABB) const
+    AABB operator+(const AABB &aabb) const
     {
         AABB ret(*this);
-        ret += theAABB;
+        ret += aabb;
         return ret;
     }
 
-    AABB &operator+=(const AABB &theAABB)
+    AABB &operator+=(const AABB &aabb)
     {
-        min = glm::min(min, theAABB.min);
-        max = glm::max(max, theAABB.max);
+        min = glm::min(min, aabb.min);
+        max = glm::max(max, aabb.max);
         return *this;
     }
 
-    inline bool operator==(const AABB &theAABB) const
+    inline bool operator==(const AABB &aabb) const
     {
-        return min == theAABB.min && max == theAABB.max;
+        return min == aabb.min && max == aabb.max;
     }
 
     /* used for fast AABB <-> Plane intersection test */
@@ -306,15 +304,15 @@ struct AABB
         return ret.transform(t);
     }
 
-    inline uint32_t intersect(const glm::vec3 &thePoint)
+    inline uint32_t intersect(const glm::vec3 &point)
     {
-        if(thePoint.x < min.x || thePoint.x > max.x){ return REJECT; }
-        if(thePoint.y < min.y || thePoint.y > max.y){ return REJECT; }
-        if(thePoint.z < min.z || thePoint.z > max.z){ return REJECT; }
+        if(point.x < min.x || point.x > max.x){ return REJECT; }
+        if(point.y < min.y || point.y > max.y){ return REJECT; }
+        if(point.z < min.z || point.z > max.z){ return REJECT; }
         return INSIDE;
     }
 
-    ray_intersection intersect(const Ray &theRay) const;
+    ray_intersection intersect(const Ray &ray) const;
 
     uint32_t intersect(const Triangle &t) const;
 };
@@ -325,7 +323,7 @@ struct OBB
     glm::vec3 axis[3];
     glm::vec3 half_lengths;
 
-    OBB(const AABB &theAABB, const glm::mat4 &t);
+    OBB(const AABB &aabb, const glm::mat4 &t);
 
     OBB &transform(const glm::mat4 &t);
 

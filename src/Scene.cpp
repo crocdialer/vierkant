@@ -89,7 +89,7 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
 
 //        vierkant::Ray ray_in_object_space = ray.transform(glm::inverse(object->global_transform()));
 //        if(auto ray_hit = object->obb().intersect(ray_in_object_space))
-        if(auto ray_hit = object->obb().transform(object->global_transform()).intersect(ray))
+        if(auto ray_hit = object->aabb().transform(object->global_transform()).intersect(ray))
         {
 //            if(high_precision)
 //            {

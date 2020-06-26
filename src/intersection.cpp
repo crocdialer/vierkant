@@ -152,16 +152,16 @@ Plane::Plane(const glm::vec3 &theFoot, const glm::vec3 &theNormal)
 
 ///////////////////////////////////////////////////////////////////////////////
 
-OBB::OBB(const AABB &theAABB, const glm::mat4 &t)
+OBB::OBB(const AABB &aabb, const glm::mat4 &t)
 {
-    center = (t * glm::vec4(theAABB.center(), 1.0f)).xyz();
+    center = (t * glm::vec4(aabb.center(), 1.0f)).xyz();
     glm::vec3 scale(glm::length(t[0]),
                     glm::length(t[1]),
                     glm::length(t[2]));
     axis[0] = normalize(t[0].xyz());
     axis[1] = normalize(t[1].xyz());
     axis[2] = normalize(t[2].xyz());
-    half_lengths = theAABB.half_extents() * scale;
+    half_lengths = aabb.half_extents() * scale;
 }
 
 OBB &OBB::transform(const glm::mat4 &t)
@@ -174,28 +174,6 @@ OBB &OBB::transform(const glm::mat4 &t)
     axis[2] = normalize(normal_mat * axis[2]);
     center = t * glm::vec4(center, 1.f);
     return *this;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
-AABB::AABB(const std::vector<glm::vec3> &points) :
-        AABB(glm::vec3(std::numeric_limits<float>::max()),
-             glm::vec3(std::numeric_limits<float>::lowest()))
-{
-    if(points.empty()){ *this = {}; }
-
-    for(const glm::vec3 &vertex : points)
-    {
-        // X
-        if(vertex.x < min.x){ min.x = vertex.x; }
-        else if(vertex.x > max.x){ max.x = vertex.x; }
-        // Y
-        if(vertex.y < min.y){ min.y = vertex.y; }
-        else if(vertex.y > max.y){ max.y = vertex.y; }
-        // Z
-        if(vertex.z < min.z){ min.z = vertex.z; }
-        else if(vertex.z > max.z){ max.z = vertex.z; }
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -238,10 +216,10 @@ AABB &AABB::transform(const glm::mat4 &t)
     return *this;
 }
 
-ray_intersection AABB::intersect(const Ray &theRay) const
+ray_intersection AABB::intersect(const Ray &ray) const
 {
-    OBB obb(*this, glm::mat4());
-    return obb.intersect(theRay);
+    OBB obb(*this, glm::mat4(1));
+    return obb.intersect(ray);
 }
 
 uint32_t AABB::intersect(const Triangle &t) const
@@ -276,16 +254,16 @@ Frustum::Frustum(float aspect, float fov, float near, float far)
     planes[0] = Plane(eye + (near * look_at), look_at); // near plane
     planes[1] = Plane(eye + (far * look_at), -look_at); // far plane
 
-    t = glm::rotate(glm::mat4(), angle_y, up);
+    t = glm::rotate(glm::mat4(1), angle_y, up);
     planes[2] = Plane(eye, look_at).transform(t); // left plane
 
-    t = glm::rotate(glm::mat4(), -angle_y, up);
+    t = glm::rotate(glm::mat4(1), -angle_y, up);
     planes[3] = Plane(eye, look_at).transform(t); // right plane
 
-    t = glm::rotate(glm::mat4(), -angle_x, side);
+    t = glm::rotate(glm::mat4(1), -angle_x, side);
     planes[4] = Plane(eye, look_at).transform(t); // top plane
 
-    t = glm::rotate(glm::mat4(), angle_x, side);
+    t = glm::rotate(glm::mat4(1), angle_x, side);
     planes[5] = Plane(eye, look_at).transform(t); // bottom plane
 }
 
