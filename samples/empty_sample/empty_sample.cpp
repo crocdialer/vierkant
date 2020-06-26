@@ -65,7 +65,7 @@ void HelloTriangleApplication::create_context_and_window()
 
     // camera
     m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 100.f);
-    m_camera->set_position(glm::vec3(0.f, 0.f,  2.f));
+    m_camera->set_position(glm::vec3(0.f, 0.f, 2.f));
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()
@@ -97,6 +97,8 @@ void HelloTriangleApplication::load_model()
     m_mesh = vk::Mesh::create_from_geometries(m_device, {geom});
 
     m_drawable = vk::Renderer::create_drawables(m_mesh).front();
+    m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device,
+                                                                              vierkant::ShaderType::UNLIT_COLOR);
 }
 
 void HelloTriangleApplication::update(double time_delta)
@@ -113,21 +115,16 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
     auto image_index = w->swapchain().image_index();
     const auto &framebuffer = m_window->swapchain().framebuffers()[image_index];
 
-    VkCommandBufferInheritanceInfo inheritance = {};
-    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance.framebuffer = framebuffer.handle();
-    inheritance.renderPass = framebuffer.renderpass().get();
-
-    auto render_mesh = [this, &inheritance]() -> VkCommandBuffer
+    auto render_mesh = [this, &framebuffer]() -> VkCommandBuffer
     {
         m_renderer.stage_drawable(m_drawable);
-        return m_renderer.render(&inheritance);
+        return m_renderer.render(framebuffer);
     };
 
-    auto render_gui = [this, &inheritance]() -> VkCommandBuffer
+    auto render_gui = [this, &framebuffer]() -> VkCommandBuffer
     {
         m_gui_context.draw_gui(m_gui_renderer);
-        return m_gui_renderer.render(&inheritance);
+        return m_gui_renderer.render(framebuffer);
     };
 
     bool concurrant_draw = true;
