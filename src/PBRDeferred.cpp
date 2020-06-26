@@ -34,6 +34,10 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
 
         // select shader-stages from cache
         drawable.pipeline_format.shader_stages = m_shader_stages[shader_flags];
+//        drawable.pipeline_format.shader_stages = m_shader_stages[PROP_ALBEDO];
+
+        // set attachment count
+        drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
 
         // stage drawable
         m_g_renderer.stage_drawable(std::move(drawable));
@@ -49,7 +53,6 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     {
         attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
     }
-    if(attach_it != g_buffer.attachments().end()){ attach_it->second; }
     const auto &attachments = attach_it->second;
 
     auto albedo_map = attachments[G_BUFFER_ALBEDO];
@@ -117,6 +120,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_g_renderer = vierkant::Renderer(device, render_create_info);
 
     create_shader_stages(device);
+
+    m_draw_context = vierkant::DrawContext(device);
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
