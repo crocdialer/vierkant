@@ -48,6 +48,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
         auto &drawable = ret[i];
         drawable = {};
         drawable.mesh = mesh;
+        drawable.entry_index = i;
 
         // combine mesh- with entry-transform
         drawable.matrices.modelview = mesh->transform() * entry.transform;
@@ -81,12 +82,12 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
         drawable.descriptors[BINDING_MATERIAL] = desc_material;
 
         // textures
-        if(!material->images.empty())
+        if(!material->textures.empty())
         {
             vierkant::descriptor_t desc_texture = {};
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            desc_texture.image_samplers = material->images;
+            for(auto &p : material->textures){ desc_texture.image_samplers.push_back(p.second); };
             drawable.descriptors[BINDING_TEXTURES] = desc_texture;
         }
 
@@ -198,7 +199,7 @@ void Renderer::stage_drawable(drawable_t drawable)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
+VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 {
     uint32_t current_index;
     {
@@ -215,10 +216,15 @@ VkCommandBuffer Renderer::render(VkCommandBufferInheritanceInfo *inheritance)
     next_assets.matrix_buffers = std::move(current_assets.matrix_buffers);
     next_assets.material_buffers = std::move(current_assets.material_buffers);
 
+    VkCommandBufferInheritanceInfo inheritance = {};
+    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritance.framebuffer = framebuffer.handle();
+    inheritance.renderPass = framebuffer.renderpass().get();
+
     // fetch and start commandbuffer
     next_assets.command_buffer = std::move(current_assets.command_buffer);
     auto &command_buffer = next_assets.command_buffer;
-    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, inheritance);
+    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
     // update uniform buffers
     update_uniform_buffers(current_assets.drawables, next_assets);

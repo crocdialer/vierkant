@@ -48,7 +48,9 @@ public:
 
         float roughness = 1.f;
 
-        int padding[2];
+        float occlusion = 0.f;
+
+        int padding[1];
     };
 
     struct lightsource_t
@@ -80,6 +82,8 @@ public:
     struct drawable_t
     {
         MeshPtr mesh;
+
+        uint32_t entry_index = 0;
 
         Pipeline::Format pipeline_format = {};
 
@@ -158,7 +162,7 @@ public:
      *          current renderpass and framebuffer.
      * @return  handle to the recorded VkCommandBuffer.
      */
-    VkCommandBuffer render(VkCommandBufferInheritanceInfo *inheritance);
+    VkCommandBuffer render(const vierkant::Framebuffer &framebuffer);
 
     /**
      * @return  the current swapchain index.

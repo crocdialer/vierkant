@@ -17,16 +17,11 @@ vierkant::ImagePtr render_offscreen(vierkant::Framebuffer &framebuffer,
     // wait for prior frame to finish
     framebuffer.wait_fence();
 
-    VkCommandBufferInheritanceInfo inheritance = {};
-    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance.framebuffer = framebuffer.handle();
-    inheritance.renderPass = framebuffer.renderpass().get();
-
     // invoke function-object to stage drawables
     stage_fn();
 
     // create a commandbuffer
-    VkCommandBuffer cmd_buffer = renderer.render(&inheritance);
+    VkCommandBuffer cmd_buffer = renderer.render(framebuffer);
 
     // submit rendering commands to queue
     auto fence = framebuffer.submit({cmd_buffer}, queue ? queue : renderer.device()->queue());
@@ -134,12 +129,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
     // stage cube-drawable
     cube_render.stage_drawable(drawable);
 
-    VkCommandBufferInheritanceInfo inheritance = {};
-    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance.framebuffer = cube_fb.handle();
-    inheritance.renderPass = cube_fb.renderpass().get();
-
-    auto cmd_buf = cube_render.render(&inheritance);
+    auto cmd_buf = cube_render.render(cube_fb);
     auto fence = cube_fb.submit({cmd_buf}, device->queue());
 
     // mandatory to sync here

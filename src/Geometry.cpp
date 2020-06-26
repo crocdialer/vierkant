@@ -3,12 +3,14 @@
 #include "vierkant/Geometry.hpp"
 #include "vierkant/intersection.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
-namespace {
-inline uint64_t pack(uint64_t a, uint64_t b) { return (a << 32U) | b; }
+namespace
+{
+inline uint64_t pack(uint64_t a, uint64_t b){ return (a << 32U) | b; }
 
-inline uint64_t swizzle(uint64_t a) { return ((a & 0xFFFFFFFFU) << 32U) | (a >> 32U); }
+inline uint64_t swizzle(uint64_t a){ return ((a & 0xFFFFFFFFU) << 32U) | (a >> 32U); }
 }
 
 std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom)
@@ -66,14 +68,15 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom)
             HalfEdge *twin_edge = it->second;
             twin_edge->twin = current_edge;
             current_edge->twin = twin_edge;
-        }else{ ++boundaryCount; }
+        }
+        else{ ++boundaryCount; }
     }
 
     if(boundaryCount > 0)
     {
         LOG_DEBUG << "mesh is not watertight. contains " << boundaryCount << " boundary edges.";
     }
-    LOG_TRACE << "half-edge computation took " << (int)std::round(timer.time_elapsed() * 1000.0) << " ms";
+    LOG_TRACE << "half-edge computation took " << (int) std::round(timer.time_elapsed() * 1000.0) << " ms";
     return ret;
 }
 
@@ -161,7 +164,7 @@ void Geometry::compute_tangents()
         float t1 = w2.y - w1.y;
         float t2 = w3.y - w1.y;
 
-        float r = 1.0F / (s1 * t2 - s2 * t1);
+        float r = 1.f / (s1 * t2 - s2 * t1);
         glm::vec3 sdir((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r,
                        (t2 * z1 - t1 * z2) * r);
         glm::vec3 tdir((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r,
@@ -172,10 +175,10 @@ void Geometry::compute_tangents()
         tangents_tmp[c] += sdir;
     }
 
-    for (uint32_t a = 0; a < vertices.size(); ++a)
+    for(uint32_t a = 0; a < vertices.size(); ++a)
     {
-        const glm::vec3& n = normals[a];
-        const glm::vec3& t = tangents_tmp[a];
+        const glm::vec3 &n = normals[a];
+        const glm::vec3 &t = tangents_tmp[a];
 
         // Gram-Schmidt orthogonalize
         tangents[a] = glm::normalize(t - n * glm::dot(n, t));
@@ -218,8 +221,8 @@ GeometryPtr Geometry::Grid(float width, float depth, uint32_t numSegments_W, uin
         vertices.emplace_back(-w2 + x * stepX, 0.f, h2);
         colors.push_back(color);
         colors.push_back(color);
-        tex_coords.emplace_back(x / (float)numSegments_W, 0.f);
-        tex_coords.emplace_back(x / (float)numSegments_W, 1.f);
+        tex_coords.emplace_back(x / (float) numSegments_W, 0.f);
+        tex_coords.emplace_back(x / (float) numSegments_W, 1.f);
 
     }
     for(uint32_t z = 0; z <= numSegments_D; ++z)
@@ -232,8 +235,8 @@ GeometryPtr Geometry::Grid(float width, float depth, uint32_t numSegments_W, uin
         vertices.emplace_back(w2, 0.f, -h2 + z * stepZ);
         colors.push_back(color);
         colors.push_back(color);
-        tex_coords.emplace_back(0.f, z / (float)numSegments_D);
-        tex_coords.emplace_back(1.f, z / (float)numSegments_D);
+        tex_coords.emplace_back(0.f, z / (float) numSegments_D);
+        tex_coords.emplace_back(1.f, z / (float) numSegments_D);
     }
     return geom;
 }
@@ -266,7 +269,7 @@ GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, u
             float y = iz * segment_height - height_half;
             vertices.emplace_back(x, -y, 0);
             normals.push_back(normal);
-            tex_coords.emplace_back(ix / (float)gridX, iz / (float)gridZ);
+            tex_coords.emplace_back(ix / (float) gridX, iz / (float) gridZ);
         }
     }
 
@@ -456,8 +459,7 @@ GeometryPtr Geometry::Box(const glm::vec3 &half_extents)
         indices.push_back(i * 4 + 3);
         indices.push_back(i * 4 + 0);
     }
-//    geom->compute_tangents();
-//    geom->compute_aabb();
+    geom->compute_tangents();
     return geom;
 }
 

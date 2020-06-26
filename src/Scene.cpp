@@ -89,7 +89,7 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
 
 //        vierkant::Ray ray_in_object_space = ray.transform(glm::inverse(object->global_transform()));
 //        if(auto ray_hit = object->obb().intersect(ray_in_object_space))
-        if(auto ray_hit = object->aabb().transform(object->global_transform()).intersect(ray))
+        if(auto ray_hit = object->obb().transform(object->global_transform()).intersect(ray))
         {
 //            if(high_precision)
 //            {
@@ -186,7 +186,7 @@ void Scene::set_skybox(const vierkant::ImagePtr &img)
         mat->depth_test = true;
         mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
     }
-    for(auto &mat : m_skybox->materials){ mat->images = {cubemap}; }
+    for(auto &mat : m_skybox->materials){ mat->textures = {{vierkant::Material::TextureType::Environment, cubemap}}; }
 }
 
 }//namespace

@@ -8,7 +8,8 @@
 #include "vierkant/Pipeline.hpp"
 #include "vierkant/Geometry.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 DEFINE_CLASS_PTR(Material);
 
@@ -16,9 +17,12 @@ class Material
 {
 public:
 
-    static MaterialPtr create() { return MaterialPtr(new Material()); };
+    enum TextureType
+    {
+        Color, Normal, Specular, Ao_roughness_metal, Emission, Displacement, Environment
+    };
 
-//    vierkant::ShaderType shader_type = vierkant::ShaderType::UNLIT_COLOR;
+    static MaterialPtr create(){ return MaterialPtr(new Material()); };
 
     glm::vec4 color = glm::vec4(1);
 
@@ -28,6 +32,8 @@ public:
 
     float roughness = 1.f;
 
+    float occlusion = 0.f;
+
     bool blending = false;
 
     bool depth_test = true;
@@ -36,7 +42,7 @@ public:
 
     VkCullModeFlagBits cull_mode = VK_CULL_MODE_BACK_BIT;
 
-    std::vector<vierkant::ImagePtr> images;
+    std::map<TextureType, vierkant::ImagePtr> textures;
 
 private:
     Material() = default;

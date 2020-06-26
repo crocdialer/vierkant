@@ -15,7 +15,15 @@ class PBRDeferred : public vierkant::SceneRenderer
 {
 public:
 
-    static PBRDeferredPtr create(const vierkant::DevicePtr &device);
+    struct create_info_t
+    {
+        VkExtent3D size = {};
+        uint32_t num_frames_in_flight = 0;
+        VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+        vierkant::PipelineCachePtr pipeline_cache = nullptr;
+    };
+
+    static PBRDeferredPtr create(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     PBRDeferred(const PBRDeferred &) = delete;
 
@@ -39,6 +47,16 @@ public:
 
 private:
 
+    enum G_BUFFER
+    {
+        G_BUFFER_ALBEDO = 0,
+        G_BUFFER_NORMAL = 1,
+        G_BUFFER_POSITION = 2,
+        G_BUFFER_EMISSION = 3,
+        G_BUFFER_AO_ROUGH_METAL = 4,
+        G_BUFFER_SIZE = 5
+    };
+
     enum ShaderPropertyFlagBits
     {
         PROP_DEFAULT = 0x00,
@@ -50,11 +68,27 @@ private:
         PROP_EMMISION = 0x20
     };
 
-    explicit PBRDeferred(const vierkant::DevicePtr &device);
+    struct frame_assets_t
+    {
+        vierkant::Framebuffer g_buffer;
+        vierkant::Framebuffer lighting_buffer;
+    };
+
+    explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
+
+    void create_shader_stages(const DevicePtr &device);
+
+    void geometry_pass(const vierkant::cull_result_t &cull_result);
+
+    void lighting_pass(const vierkant::cull_result_t &cull_result);
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 
     std::unordered_map<uint32_t, vierkant::shader_stage_map_t> m_shader_stages;
+
+    std::vector<frame_assets_t> m_frame_assets;
+
+    vierkant::Renderer m_g_renderer;
 };
 
 }// namespace vierkant
