@@ -31,7 +31,8 @@ layout(location = 4) out vec4 out_ao_rough_metal;
 
 void main()
 {
-    vec4 tex_color = vertex_in.color;
+    vec4 tex_color = vertex_in.color * texture(u_sampler_2D[0], vertex_in.tex_coord);
+
     if(smoothstep(0.0, 1.0, tex_color.a) < 0.01){ discard; }
 
     material_struct_t material = materials[context.material_index];

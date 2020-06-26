@@ -122,7 +122,7 @@ public:
      * @return  an array of drawables for the mesh-entries.
      */
     static std::vector<drawable_t> create_drawables(const MeshPtr &mesh);
-
+    
     /**
      * @brief   Viewport parameters currently used.
      */

@@ -205,6 +205,26 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_image.pipeline_format = fmt;
     }
 
+    // fullscreen
+    {
+        Pipeline::Format fmt = {};
+        fmt.blend_state.blendEnable = true;
+        fmt.depth_test = false;
+        fmt.depth_write = false;
+        fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE);
+        fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+        // descriptors
+        vierkant::descriptor_t desc_texture = {};
+        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        m_drawable_image_fullscreen.descriptors[0] = desc_texture;
+        m_drawable_image_fullscreen.num_vertices = 3;
+        m_drawable_image_fullscreen.pipeline_format = fmt;
+        m_drawable_image_fullscreen.use_own_buffers = true;
+    }
+
     // fonts
     {
         // pipeline format
@@ -304,6 +324,20 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
 
     // set image
     drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {image};
+
+    // stage image drawable
+    renderer.stage_drawable(std::move(drawable));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image)
+{
+    // copy image-drawable
+    auto drawable = m_drawable_image_fullscreen;
+
+    // set image
+    drawable.descriptors[0].image_samplers = {image};
 
     // stage image drawable
     renderer.stage_drawable(std::move(drawable));

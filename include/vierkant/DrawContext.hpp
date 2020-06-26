@@ -69,6 +69,14 @@ public:
                     const crocore::Area_<int> &area = {});
 
     /**
+     * @brief   Draws an image in a 2D context.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   image       a provided vierkant::Image, assumed to contain a sampler2D.
+     */
+    void draw_image_fullscreen(vierkant::Renderer &renderer, const vierkant::ImagePtr &image);
+
+    /**
      * @brief   Draws an axis-aligned bounding box.
      *
      * @param   renderer    a provided vierkant::Renderer.
@@ -110,6 +118,8 @@ private:
     Renderer::drawable_t m_drawable_text = {};
 
     Renderer::drawable_t m_drawable_image = {};
+
+    Renderer::drawable_t m_drawable_image_fullscreen = {};
 
     Renderer::drawable_t m_drawable_aabb = {};
 

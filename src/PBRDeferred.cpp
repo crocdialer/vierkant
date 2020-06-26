@@ -38,8 +38,25 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
         // stage drawable
         m_g_renderer.stage_drawable(std::move(drawable));
     }
-    auto cmd_buffer = m_g_renderer.render(m_frame_assets[m_g_renderer.current_index()].g_buffer);
+    auto &g_buffer = m_frame_assets[m_g_renderer.current_index()].g_buffer;
+    auto cmd_buffer = m_g_renderer.render(g_buffer);
+    g_buffer.submit({cmd_buffer}, renderer.device()->queue());
 
+    // check for resolve-attachment, fallback to color-attachment
+    auto attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Resolve);
+
+    if(attach_it == g_buffer.attachments().end())
+    {
+        attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
+    }
+    if(attach_it != g_buffer.attachments().end()){ attach_it->second; }
+    const auto &attachments = attach_it->second;
+
+    auto albedo_map = attachments[G_BUFFER_ALBEDO];
+
+    m_draw_context.draw_image_fullscreen(renderer, albedo_map);
+
+//    g_buffer.attachments()[C]
     // lighting-pass
     // |- use g buffer
     // |- draw light volumes with fancy stencil settings
@@ -83,6 +100,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     for(auto &asset : m_frame_assets)
     {
         asset.g_buffer = vierkant::Framebuffer(device, g_buffer_info, g_renderpass);
+        asset.g_buffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
         g_renderpass = asset.g_buffer.renderpass();
 
         // TODO: init lighting framebuffer
@@ -97,6 +115,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.pipeline_cache = m_pipeline_cache;
     render_create_info.renderpass = g_renderpass;
     m_g_renderer = vierkant::Renderer(device, render_create_info);
+
+    create_shader_stages(device);
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -107,8 +127,13 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 void PBRDeferred::create_shader_stages(const DevicePtr &device)
 {
     auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_vert);
-    m_shader_stages[PROP_DEFAULT][VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_frag);
 
+    // color
+    auto &stages_color = m_shader_stages[PROP_ALBEDO];
+    stages_color[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_color[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
+    m_shader_stages[PROP_DEFAULT] = stages_color;
 }
 
 }// namespace vierkant

@@ -414,7 +414,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                                sizeof(push_constants_t), &push_constants);
 
             // issue (indexed) drawing command
-            if(drawable->mesh->index_buffer)
+            if(drawable->mesh && drawable->mesh->index_buffer)
             {
                 vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index,
                                  drawable->base_vertex, 0);

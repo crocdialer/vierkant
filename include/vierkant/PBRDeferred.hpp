@@ -3,7 +3,9 @@
 //
 #pragma once
 
+#include "vierkant/culling.hpp"
 #include "vierkant/PipelineCache.hpp"
+#include "vierkant/DrawContext.hpp"
 #include "vierkant/SceneRenderer.hpp"
 
 namespace vierkant
@@ -87,6 +89,8 @@ private:
     std::unordered_map<uint32_t, vierkant::shader_stage_map_t> m_shader_stages;
 
     std::vector<frame_assets_t> m_frame_assets;
+
+    vierkant::DrawContext m_draw_context;
 
     vierkant::Renderer m_g_renderer;
 };
