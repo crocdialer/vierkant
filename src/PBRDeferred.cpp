@@ -33,8 +33,10 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
         if(textures.count(vierkant::Material::Ao_roughness_metal)){ shader_flags |= PROP_AO_METAL_ROUGH; }
 
         // select shader-stages from cache
-        drawable.pipeline_format.shader_stages = m_shader_stages[shader_flags];
-//        drawable.pipeline_format.shader_stages = m_shader_stages[PROP_ALBEDO];
+        auto stage_it = m_shader_stages.find(shader_flags);
+
+        if(stage_it != m_shader_stages.end()){ drawable.pipeline_format.shader_stages = stage_it->second; }
+        else{ drawable.pipeline_format.shader_stages = m_shader_stages[PROP_DEFAULT]; }
 
         // set attachment count
         drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
@@ -131,14 +133,26 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 
 void PBRDeferred::create_shader_stages(const DevicePtr &device)
 {
+    auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_vert);
     auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_vert);
-    auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_frag);
+    auto pbr_tangent_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_skin_vert);
 
-    // color
-    auto &stages_color = m_shader_stages[PROP_ALBEDO];
-    stages_color[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_color[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
-    m_shader_stages[PROP_DEFAULT] = stages_color;
+    auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_frag);
+    auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_frag);
+
+    auto &stages_default = m_shader_stages[PROP_DEFAULT];
+    stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_vert;
+    stages_default[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
+
+    // albedo
+    auto &stages_albedo = m_shader_stages[PROP_ALBEDO];
+    stages_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
+
+    // skin + color
+    auto &stages_skin_color = m_shader_stages[PROP_ALBEDO | PROP_SKIN];
+    stages_skin_color[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
+    stages_skin_color[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
 }
 
 }// namespace vierkant

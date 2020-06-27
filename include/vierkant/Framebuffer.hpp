@@ -26,7 +26,10 @@ public:
         uint32_t num_color_attachments = 1;
         bool depth = false;
         bool stencil = false;
+        bool clear_color = true;
+        bool clear_depth = true;
         Image::Format color_attachment_format;
+        Image::Format depth_attachment_format;
     };
 
     /**
@@ -50,6 +53,7 @@ public:
      */
     static
     RenderPassPtr create_renderpass(const vierkant::DevicePtr &device, const AttachmentMap &attachments,
+                                    bool clear_color, bool clear_depth,
                                     const std::vector<VkSubpassDependency> &subpass_dependencies = {});
 
     /**

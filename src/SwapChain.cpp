@@ -299,7 +299,7 @@ void SwapChain::create_framebuffers()
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    auto renderpass = vierkant::Framebuffer::create_renderpass(m_device, attachments, {dependency});
+    auto renderpass = vierkant::Framebuffer::create_renderpass(m_device, attachments, true, true, {dependency});
 
     m_framebuffers.resize(m_images.size());
 
