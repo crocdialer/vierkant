@@ -80,7 +80,9 @@ private:
 
     void create_shader_stages(const DevicePtr &device);
 
-    void geometry_pass(const vierkant::cull_result_t &cull_result);
+    vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
+
+    vierkant::Framebuffer& geometry_pass(vierkant::cull_result_t &cull_result);
 
     void lighting_pass(const vierkant::cull_result_t &cull_result);
 
@@ -93,6 +95,15 @@ private:
     vierkant::DrawContext m_draw_context;
 
     vierkant::Renderer m_g_renderer;
+
+    // 2d brdf lookup-table
+    vierkant::ImagePtr m_brdf_lut;
+
+    // convolved diffuse iradiance cube
+    vierkant::ImagePtr m_conv_diffuse;
+
+    // convolved specular iradiance cube mipmaps
+    vierkant::ImagePtr m_conv_spec;
 };
 
 }// namespace vierkant
