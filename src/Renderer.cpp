@@ -540,7 +540,7 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     // clean descriptor-map to enable sharing
     for(auto &pair : descriptors)
     {
-        pair.second.image_samplers.clear();
+        for(auto &img : pair.second.image_samplers){ img.reset(); };
         pair.second.buffer.reset();
     }
 

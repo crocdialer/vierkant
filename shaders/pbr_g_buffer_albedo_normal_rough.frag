@@ -4,6 +4,8 @@
 #include "renderer/types.glsl"
 
 #define ALBEDO 0
+#define NORMAL 1
+#define AO_ROUGH_METAL 2
 
 layout(push_constant) uniform PushConstants {
     render_context_t context;
@@ -14,12 +16,14 @@ layout(std140, binding = BINDING_MATERIAL) uniform ubo_materials
     material_struct_t materials[MAX_NUM_DRAWABLES];
 };
 
-layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[1];
+layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[3];
 
 layout(location = 0) in VertexData
 {
     vec4 color;
+    vec2 tex_coord;
     vec3 normal;
+    vec3 tangent;
     vec3 eye_vec;
 } vertex_in;
 
@@ -31,14 +35,21 @@ layout(location = 4) out vec4 out_ao_rough_metal;
 
 void main()
 {
+    vec4 tex_color = vertex_in.color * texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord);
+
+    if(smoothstep(0.0, 1.0, tex_color.a) < 0.01){ discard; }
+
     material_struct_t material = materials[context.material_index];
 
-    vec4 color = material.color * vertex_in.color;
-    if(smoothstep(0.0, 1.0, color.a) < 0.01){ discard; }
+    out_color = material.color * tex_color;
 
-    out_color = color;
+    vec3 normal = normalize(2.0 * (texture(u_sampler_2D[NORMAL], vertex_in.tex_coord.xy).xyz - vec3(0.5)));
+    mat3 transpose_tbn = mat3(vertex_in.tangent, cross(vertex_in.normal, vertex_in.tangent), vertex_in.normal);
+    normal = transpose_tbn * normal;
+    out_normal = vec4(normal, 1);
+
     out_normal = vec4(vertex_in.normal, 1);
     out_position = vec4(vertex_in.eye_vec, 1);
-    out_emission = material.emission * color;
-    out_ao_rough_metal = vec4(material.occlusion, material.roughness, material.metalness, 1);
+    out_emission = material.emission * tex_color;
+    out_ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord);
 }

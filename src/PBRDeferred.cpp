@@ -30,7 +30,7 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
         if(textures.count(vierkant::Material::Normal)){ shader_flags |= PROP_NORMAL; }
         if(textures.count(vierkant::Material::Specular)){ shader_flags |= PROP_SPEC; }
         if(textures.count(vierkant::Material::Emission)){ shader_flags |= PROP_EMMISION; }
-        if(textures.count(vierkant::Material::Ao_roughness_metal)){ shader_flags |= PROP_AO_METAL_ROUGH; }
+        if(textures.count(vierkant::Material::Ao_rough_metal)){ shader_flags |= PROP_AO_METAL_ROUGH; }
 
         // select shader-stages from cache
         auto stage_it = m_shader_stages.find(shader_flags);
@@ -133,12 +133,20 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 
 void PBRDeferred::create_shader_stages(const DevicePtr &device)
 {
+    // vertex
     auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_vert);
     auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_vert);
     auto pbr_tangent_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_skin_vert);
 
+    // fragment
     auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_frag);
     auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_frag);
+    auto pbr_g_buffer_albedo_normal_frag =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_normal_frag);
+    auto pbr_g_buffer_albedo_normal_rough_frag =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_normal_rough_frag);
+    auto pbr_g_buffer_complete_frag =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_complete_frag);
 
     auto &stages_default = m_shader_stages[PROP_DEFAULT];
     stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_vert;
@@ -150,9 +158,34 @@ void PBRDeferred::create_shader_stages(const DevicePtr &device)
     stages_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
 
     // skin + color
-    auto &stages_skin_color = m_shader_stages[PROP_ALBEDO | PROP_SKIN];
+    auto &stages_skin_color = m_shader_stages[PROP_SKIN | PROP_ALBEDO];
     stages_skin_color[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
     stages_skin_color[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
+
+    // color + normals
+    auto &stages_color_normal = m_shader_stages[PROP_ALBEDO | PROP_NORMAL];
+    stages_color_normal[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_color_normal[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_frag;
+
+    // color + normals + ao/rough/metal
+    auto &stages_color_normal_rough = m_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
+    stages_color_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_color_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
+
+    // skin + color + normals + ao/rough/metal
+    auto &stages_skin_color_normal_rough = m_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
+    stages_skin_color_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
+    stages_skin_color_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
+
+    // color + normals + ao/rough/metal + emmission
+    auto &stages_complete = m_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH | PROP_EMMISION];
+    stages_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
+
+    // skin + color + normals + ao/rough/metal + emmission
+    auto &stages_skin_complete = m_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH | PROP_EMMISION];
+    stages_skin_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
+    stages_skin_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
 }
 
 }// namespace vierkant

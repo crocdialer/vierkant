@@ -19,7 +19,7 @@ public:
 
     enum TextureType
     {
-        Color, Normal, Specular, Ao_roughness_metal, Emission, Displacement, Environment
+        Color, Normal, Specular, Ao_rough_metal, Emission, Displacement, Environment
     };
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };
