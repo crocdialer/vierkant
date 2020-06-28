@@ -560,7 +560,7 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     {
         auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
         set_it = next.descriptor_set_layouts.insert(
-                std::make_pair(descriptors, std::move(new_set))).first;
+                std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }
     return set_it->second;
 }

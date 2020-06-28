@@ -43,11 +43,15 @@ void main()
     out_color = material.color * tex_color;
 
     vec3 normal = normalize(2.0 * (texture(u_sampler_2D[NORMAL], vertex_in.tex_coord.xy).xyz - vec3(0.5)));
-    mat3 transpose_tbn = mat3(vertex_in.tangent, cross(vertex_in.normal, vertex_in.tangent), vertex_in.normal);
-    normal = transpose_tbn * normal;
-    out_normal = vec4(normal, 1);
 
-    out_normal = vec4(vertex_in.normal, 1);
+    // normal, tangent, bi-tangent
+    vec3 t = normalize(vertex_in.tangent);
+    vec3 n = normalize(vertex_in.normal);
+    vec3 b = normalize(cross(n, t));
+    mat3 transpose_tbn = mat3(t, b, n);
+    normal = transpose_tbn * normal;
+
+    out_normal = vec4(normalize(normal), 1);
     out_position = vec4(vertex_in.eye_vec, 1);
     out_emission = material.emission * tex_color;
     out_ao_rough_metal = vec4(material.occlusion, material.roughness, material.metalness, 1);

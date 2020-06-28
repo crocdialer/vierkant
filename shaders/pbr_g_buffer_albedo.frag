@@ -40,14 +40,7 @@ void main()
     material_struct_t material = materials[context.material_index];
 
     out_color = material.color * tex_color;
-
-//    vec3 normal = normalize(2.0 * (texture(u_sampler_2D[NORMALMAP],
-//    vertex_in.texCoord.xy).xyz - vec3(0.5)));
-//    mat3 transpose_tbn = mat3(vertex_in.tangent, cross(vertex_in.normal, vertex_in.tangent), vertex_in.normal);
-//    normal = transpose_tbn * normal;
-//    out_normal = vec4(normal, 1);
-
-    out_normal = vec4(vertex_in.normal, 1);
+    out_normal = vec4(normalize(vertex_in.normal), 1);
     out_position = vec4(vertex_in.eye_vec, 1);
     out_emission = material.emission * tex_color;
     out_ao_rough_metal = vec4(material.occlusion, material.roughness, material.metalness, 1);

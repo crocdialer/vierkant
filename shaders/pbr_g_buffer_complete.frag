@@ -42,14 +42,17 @@ void main()
 
     material_struct_t material = materials[context.material_index];
 
-    // sample normal, bring to range [-1 , 1]
     vec3 normal = normalize(2.0 * (texture(u_sampler_2D[NORMAL], vertex_in.tex_coord.xy).xyz - vec3(0.5)));
-    mat3 transpose_tbn = mat3(vertex_in.tangent, cross(vertex_in.normal, vertex_in.tangent), vertex_in.normal);
+
+    // normal, tangent, bi-tangent
+    vec3 t = normalize(vertex_in.tangent);
+    vec3 n = normalize(vertex_in.normal);
+    vec3 b = normalize(cross(n, t));
+    mat3 transpose_tbn = mat3(t, b, n);
     normal = transpose_tbn * normal;
 
     out_color = material.color * tex_color;
-    out_normal = vec4(normal, 1);
-    out_normal = vec4(vertex_in.normal, 1);
+    out_normal = vec4(normalize(normal), 1);
     out_position = vec4(vertex_in.eye_vec, 1);
     out_emission = texture(u_sampler_2D[EMMISSION], vertex_in.tex_coord);
     out_ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord);
