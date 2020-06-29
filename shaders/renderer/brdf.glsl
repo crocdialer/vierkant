@@ -18,6 +18,52 @@ float G_Smith(float roughness, float NoV, float NoL)
     return G1(k, NoL) * G1(k, NoV);
 }
 
+vec3 ImportanceSampleCosine(vec2 Xi, vec3 N)
+{
+    float cosTheta = sqrt(max(1.0 - Xi.y, 0.0));
+    float sinTheta = sqrt(max(1.0 - cosTheta * cosTheta, 0.0));
+    float phi = 2.0 * PI * Xi.x;
+
+    vec3 L = vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
+
+    vec3 up = abs(N.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
+    vec3 tangent = normalize(cross(N, up));
+    vec3 bitangent = cross(N, tangent);
+
+    return tangent * L.x + bitangent * L.y + N * L.z;
+}
+
+//vec3 ImportanceSample(vec3 N)
+//{
+//    vec4 result = vec4(0.0);
+//
+//    float cubeWidth = float(textureSize(u_sampler_cube[0], 0).x);
+//
+//    const uint numSamples = 1024;
+//    for (uint i = 0; i < numSamples; ++i)
+//    {
+//        vec2 Xi = Hammersley(i, numSamples);
+//        vec3 L = ImportanceSampleCosine(Xi, N);
+//
+//        float NoL = max(dot(N, L), 0.0);
+//
+//        if (NoL > 0.0)
+//        {
+//            // Compute Lod using inverse solid angle and pdf.
+//            // From Chapter 20.4 Mipmap filtered samples in GPU Gems 3.
+//            // http://http.developer.nvidia.com/GPUGems3/gpugems3_ch20.html
+//            float pdf = NoL * ONE_OVER_PI;
+//            float solidAngleTexel = 4.0 * PI / (6.0 * cubeWidth * cubeWidth);
+//            float solidAngleSample = 1.0 / (numSamples * pdf);
+//            float lod = 0.5 * log2(solidAngleSample / solidAngleTexel);
+//
+//            vec3 hdrRadiance = textureLod(u_sampler_cube[0], L, lod).rgb;
+//            result += vec4(hdrRadiance / pdf, 1.0);
+//        }
+//    }
+//    return result.rgb / result.w;
+//}
+
 // Sample a half-vector in world space
 vec3 ImportanceSampleGGX(vec2 Xi, float roughness, vec3 N)
 {

@@ -80,7 +80,7 @@ private:
 
     void create_shader_stages(const DevicePtr &device);
 
-    vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
+    static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
 
     vierkant::Framebuffer& geometry_pass(vierkant::cull_result_t &cull_result);
 

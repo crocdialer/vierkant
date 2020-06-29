@@ -9,43 +9,6 @@
 namespace vierkant
 {
 
-uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scene, const CameraPtr &cam,
-                                   const std::set<std::string> &tags)
-{
-    auto cull_result = vierkant::cull(scene, cam, true, tags);
-    uint32_t num_drawables = cull_result.drawables.size();
-
-    // create g-buffer
-    auto &g_buffer = geometry_pass(cull_result);
-
-    // check for resolve-attachment, fallback to color-attachment
-    auto attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Resolve);
-
-    if(attach_it == g_buffer.attachments().end())
-    {
-        attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
-    }
-    const auto &attachments = attach_it->second;
-
-    auto albedo_map = attachments[G_BUFFER_ALBEDO];
-
-    m_draw_context.draw_image_fullscreen(renderer, albedo_map);
-
-//    g_buffer.attachments()[C]
-    // lighting-pass
-    // |- use g buffer
-    // |- draw light volumes with fancy stencil settings
-
-    // dof, bloom
-
-    // skybox
-    // compositing, post-fx
-    // |- use lighting buffer
-    // |- stage fullscreen-draw of compositing-pass -> renderer
-
-    return num_drawables;
-}
-
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info)
 {
     m_pipeline_cache = create_info.pipeline_cache ?
@@ -104,6 +67,79 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
 {
     return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info));
+}
+
+uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scene, const CameraPtr &cam,
+                                   const std::set<std::string> &tags)
+{
+    auto cull_result = vierkant::cull(scene, cam, true, tags);
+    uint32_t num_drawables = cull_result.drawables.size();
+
+    // create g-buffer
+    auto &g_buffer = geometry_pass(cull_result);
+
+    // check for resolve-attachment, fallback to color-attachment
+    auto attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Resolve);
+
+    if(attach_it == g_buffer.attachments().end())
+    {
+        attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
+    }
+    const auto &attachments = attach_it->second;
+
+    auto albedo_map = attachments[G_BUFFER_ALBEDO];
+
+    m_draw_context.draw_image_fullscreen(renderer, albedo_map);
+
+//    g_buffer.attachments()[C]
+    // lighting-pass
+    // |- use g buffer
+    // |- draw light volumes with fancy stencil settings
+
+    // dof, bloom
+
+    // skybox
+    // compositing, post-fx
+    // |- use lighting buffer
+    // |- stage fullscreen-draw of compositing-pass -> renderer
+
+    return num_drawables;
+}
+
+vierkant::Framebuffer& PBRDeferred::geometry_pass(cull_result_t &cull_result)
+{
+    // draw all gemoetry
+    for(auto &drawable : cull_result.drawables)
+    {
+        uint32_t shader_flags = PROP_DEFAULT;
+
+        // check if vertex-skinning is required
+        if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
+
+        // check
+        const auto &textures = drawable.mesh->materials[drawable.entry_index]->textures;
+        if(textures.count(vierkant::Material::Color)){ shader_flags |= PROP_ALBEDO; }
+        if(textures.count(vierkant::Material::Normal)){ shader_flags |= PROP_NORMAL; }
+        if(textures.count(vierkant::Material::Specular)){ shader_flags |= PROP_SPEC; }
+        if(textures.count(vierkant::Material::Emission)){ shader_flags |= PROP_EMMISION; }
+        if(textures.count(vierkant::Material::Ao_rough_metal)){ shader_flags |= PROP_AO_METAL_ROUGH; }
+
+        // select shader-stages from cache
+        auto stage_it = m_shader_stages.find(shader_flags);
+
+        if(stage_it != m_shader_stages.end()){ drawable.pipeline_format.shader_stages = stage_it->second; }
+        else{ drawable.pipeline_format.shader_stages = m_shader_stages[PROP_DEFAULT]; }
+
+        // set attachment count
+        drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
+
+        // stage drawable
+        m_g_renderer.stage_drawable(std::move(drawable));
+    }
+    auto &g_buffer = m_frame_assets[m_g_renderer.current_index()].g_buffer;
+    auto cmd_buffer = m_g_renderer.render(g_buffer);
+    g_buffer.submit({cmd_buffer}, m_g_renderer.device()->queue());
+    return g_buffer;
 }
 
 void PBRDeferred::create_shader_stages(const DevicePtr &device)
@@ -170,7 +206,7 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     // framebuffer image-format
     vierkant::Image::Format img_fmt = {};
     img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    img_fmt.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    img_fmt.format = VK_FORMAT_R32G32_SFLOAT;
 
     // create cube framebuffer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
@@ -178,8 +214,6 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     fb_create_info.color_attachment_format = img_fmt;
 
     auto framebuffer = vierkant::Framebuffer(device, fb_create_info);
-
-    // create cube pipeline with geometry shader
 
     // render
     vierkant::Renderer::create_info_t render_create_info = {};
@@ -220,44 +254,6 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     if(attach_it != framebuffer.attachments().end() && !attach_it->second.empty()){ return attach_it->second.front(); }
 
     return vierkant::ImagePtr();
-}
-
-vierkant::Framebuffer& PBRDeferred::geometry_pass(cull_result_t &cull_result)
-{
-    // create g-buffer
-    // |- draw all gemoetry
-    for(auto &drawable : cull_result.drawables)
-    {
-        uint32_t shader_flags = PROP_DEFAULT;
-
-        // check if vertex-skinning is required
-        if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
-
-        // check
-        const auto &textures = drawable.mesh->materials[drawable.entry_index]->textures;
-        if(textures.count(vierkant::Material::Color)){ shader_flags |= PROP_ALBEDO; }
-        if(textures.count(vierkant::Material::Normal)){ shader_flags |= PROP_NORMAL; }
-        if(textures.count(vierkant::Material::Specular)){ shader_flags |= PROP_SPEC; }
-        if(textures.count(vierkant::Material::Emission)){ shader_flags |= PROP_EMMISION; }
-        if(textures.count(vierkant::Material::Ao_rough_metal)){ shader_flags |= PROP_AO_METAL_ROUGH; }
-
-        // select shader-stages from cache
-        auto stage_it = m_shader_stages.find(shader_flags);
-
-        if(stage_it != m_shader_stages.end()){ drawable.pipeline_format.shader_stages = stage_it->second; }
-        else{ drawable.pipeline_format.shader_stages = m_shader_stages[PROP_DEFAULT]; }
-
-        // set attachment count
-        drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
-
-        // stage drawable
-        m_g_renderer.stage_drawable(std::move(drawable));
-    }
-    auto &g_buffer = m_frame_assets[m_g_renderer.current_index()].g_buffer;
-    auto cmd_buffer = m_g_renderer.render(g_buffer);
-    g_buffer.submit({cmd_buffer}, m_g_renderer.device()->queue());
-
-    return g_buffer;
 }
 
 }// namespace vierkant

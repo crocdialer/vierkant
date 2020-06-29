@@ -109,7 +109,7 @@ public:
     struct create_info_t
     {
         VkViewport viewport = {};
-        uint32_t num_frames_in_flight = 0;
+        uint32_t num_frames_in_flight = 1;
         vierkant::RenderPassPtr renderpass;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
