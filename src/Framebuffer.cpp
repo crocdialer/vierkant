@@ -478,6 +478,7 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(Framebuffer::create_i
 
 void swap(Framebuffer &lhs, Framebuffer &rhs)
 {
+    std::swap(lhs.clear_depth_stencil, rhs.clear_depth_stencil);
     std::swap(lhs.clear_color, rhs.clear_color);
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_extent, rhs.m_extent);

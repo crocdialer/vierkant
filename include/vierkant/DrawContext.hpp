@@ -28,14 +28,6 @@ vierkant::ImagePtr render_offscreen(vierkant::Framebuffer &framebuffer,
                                     VkQueue queue = nullptr,
                                     bool sync = false);
 
-/**
- * @brief   Create a cubemap from an equi-recangular panorama image.
- *
- * @param   panorama_img    the equirectangular panorama.
- * @return  a vierkant::ImagePtr holding a cubemap.
- */
-vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size);
-
 class DrawContext
 {
 public:

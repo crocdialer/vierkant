@@ -86,12 +86,6 @@ private:
 
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
 
-    static vierkant::ImagePtr create_diffuse_convolution(const vierkant::DevicePtr &device,
-                                                         const vierkant::ImagePtr &cubemap);
-
-    static vierkant::ImagePtr create_specular_convolution(const vierkant::DevicePtr &device,
-                                                          const vierkant::ImagePtr &cubemap);
-
     vierkant::PipelineCachePtr m_pipeline_cache;
 
     std::unordered_map<uint32_t, vierkant::shader_stage_map_t> m_shader_stages;
@@ -105,10 +99,10 @@ private:
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;
 
-    // convolved diffuse iradiance cube
+    // convolved diffuse irradiance cube
     vierkant::ImagePtr m_conv_diffuse;
 
-    // convolved specular iradiance cube mipmaps
+    // convolved specular irradiance cube mipmaps
     vierkant::ImagePtr m_conv_spec;
 };
 

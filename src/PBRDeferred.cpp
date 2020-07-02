@@ -2,6 +2,7 @@
 // Created by crocdialer on 6/19/20.
 //
 
+#include <vierkant/cubemap_utils.hpp>
 #include "vierkant/shaders.hpp"
 #include "vierkant/culling.hpp"
 #include "vierkant/PBRDeferred.hpp"
@@ -253,16 +254,6 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     // return color-attachment
     if(attach_it != framebuffer.attachments().end() && !attach_it->second.empty()){ return attach_it->second.front(); }
 
-    return vierkant::ImagePtr();
-}
-
-vierkant::ImagePtr PBRDeferred::create_diffuse_convolution(const DevicePtr &device, const ImagePtr &cubemap)
-{
-    return vierkant::ImagePtr();
-}
-
-vierkant::ImagePtr PBRDeferred::create_specular_convolution(const DevicePtr &device, const ImagePtr &cubemap)
-{
     return vierkant::ImagePtr();
 }
 

@@ -169,9 +169,9 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::lock_guard<std::mutex> lock_lhs(lhs.m_staging_mutex, std::adopt_lock);
     std::lock_guard<std::mutex> lock_rhs(rhs.m_staging_mutex, std::adopt_lock);
 
-    std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.viewport, rhs.viewport);
     std::swap(lhs.scissor, rhs.scissor);
+    std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_renderpass, rhs.m_renderpass);
     std::swap(lhs.m_sample_count, rhs.m_sample_count);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
@@ -181,6 +181,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_render_assets, rhs.m_render_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
     std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
+    std::swap(lhs.m_start_time, rhs.m_start_time);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
