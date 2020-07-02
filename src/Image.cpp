@@ -40,9 +40,13 @@ VkDeviceSize num_bytes_per_pixel(VkFormat format)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFormat format,
-                             VkImageLayout old_layout, VkImageLayout new_layout,
-                             uint32_t num_mip_levels)
+void transition_image_layout(VkCommandBuffer command_buffer,
+                             VkImage image,
+                             VkFormat format,
+                             VkImageLayout old_layout,
+                             VkImageLayout new_layout,
+                             uint32_t num_mip_levels,
+                             VkImageAspectFlags aspectMask)
 {
     VkImageMemoryBarrier barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -57,7 +61,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFo
     barrier.subresourceRange.levelCount = num_mip_levels;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = aspectMask;
 
     VkPipelineStageFlags source_stage = 0;
     VkPipelineStageFlags destination_stage = 0;
@@ -88,6 +92,14 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkFo
             barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
             source_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             break;
+
+        case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:
+        {
+            barrier.srcAccessMask =
+                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            source_stage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+            break;
+        }
 
         default:
             break;
@@ -371,7 +383,7 @@ void Image::transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmdB
             cmdBufferHandle = localCommandBuffer.handle();
         }
         transition_image_layout(cmdBufferHandle, m_image.get(), m_format.format, m_image_layout, the_new_layout,
-                                m_num_mip_levels);
+                                m_num_mip_levels, m_format.aspect);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
         if(localCommandBuffer)

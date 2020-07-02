@@ -443,18 +443,18 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(Framebuffer::create_i
     // depth/stencil attachment
     if(fmt.depth || fmt.stencil)
     {
-        vierkant::Image::Format img_fmt;
-        img_fmt.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        img_fmt.sample_count = fmt.color_attachment_format.sample_count;
-        img_fmt.extent = m_extent;
-        img_fmt.format = VK_FORMAT_D24_UNORM_S8_UINT;
-        img_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-
-        if(fmt.stencil)
-        {
-            img_fmt.aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
-        }
-        auto depth_img = vierkant::Image::create(m_device, img_fmt);
+//        vierkant::Image::Format img_fmt;
+//        img_fmt.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+//        img_fmt.sample_count = fmt.color_attachment_format.sample_count;
+//        img_fmt.extent = m_extent;
+//        img_fmt.format = VK_FORMAT_D24_UNORM_S8_UINT;
+//        img_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+//
+//        if(fmt.stencil)
+//        {
+//            img_fmt.aspect |= VK_IMAGE_ASPECT_STENCIL_BIT;
+//        }
+        auto depth_img = vierkant::Image::create(m_device, fmt.depth_attachment_format);
         depth_stencil_attachments.push_back(depth_img);
     }
 

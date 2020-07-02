@@ -123,6 +123,11 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_image_fullscreen.num_vertices = 3;
         m_drawable_image_fullscreen.pipeline_format = fmt;
         m_drawable_image_fullscreen.use_own_buffers = true;
+
+        m_drawable_color_depth_fullscreen = m_drawable_image_fullscreen;
+        m_drawable_color_depth_fullscreen.pipeline_format.depth_write = true;
+        m_drawable_color_depth_fullscreen.pipeline_format.shader_stages =
+                m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE_DEPTH);
     }
 
     // fonts
@@ -231,13 +236,23 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image, const vierkant::ImagePtr &/*depth*/)
+void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth)
 {
-    // copy image-drawable
-    auto drawable = m_drawable_image_fullscreen;
+    // create image-drawable
+    vierkant::Renderer::drawable_t drawable;
 
-    // set image
-    drawable.descriptors[0].image_samplers = {image};
+    if(image && depth)
+    {
+        // set image + depth
+        drawable = m_drawable_color_depth_fullscreen;
+        drawable.descriptors[0].image_samplers = {image, depth};
+    }
+    else if(image)
+    {
+        // set image
+        drawable = m_drawable_image_fullscreen;
+        drawable.descriptors[0].image_samplers = {image};
+    }
 
     // stage image drawable
     renderer.stage_drawable(std::move(drawable));

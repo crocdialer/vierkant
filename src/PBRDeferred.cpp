@@ -21,21 +21,26 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     g_buffer_info.size = create_info.size;
     g_buffer_info.depth = true;
     g_buffer_info.num_color_attachments = G_BUFFER_SIZE;
+
     g_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     g_buffer_info.color_attachment_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     g_buffer_info.color_attachment_format.sample_count = create_info.sample_count;
+
+    g_buffer_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT;
+    g_buffer_info.depth_attachment_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    g_buffer_info.depth_attachment_format.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
     vierkant::RenderPassPtr g_renderpass;
 
     vierkant::Framebuffer::create_info_t lighting_buffer_info = {};
     lighting_buffer_info.size = create_info.size;
 
-    vierkant::Framebuffer::AttachmentType lighting_attachments;
+//    vierkant::Framebuffer::AttachmentType lighting_attachments;
 //    lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] =
-    vierkant::Image::Format fmt = {};
-    fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-
-    fmt.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    vierkant::RenderPassPtr lighting_renderpass;
+//    vierkant::Image::Format fmt = {};
+//    fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+//    fmt.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+//    vierkant::RenderPassPtr lighting_renderpass;
 
     for(auto &asset : m_frame_assets)
     {
@@ -86,11 +91,13 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     {
         attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
     }
-    const auto &attachments = attach_it->second;
+    const auto &color_attachments = attach_it->second;
+    auto albedo_map = color_attachments[G_BUFFER_ALBEDO];
 
-    auto albedo_map = attachments[G_BUFFER_ALBEDO];
+    // depth-attachment
+    auto depth_map = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::DepthStencil)->second.front();
 
-    m_draw_context.draw_image_fullscreen(renderer, albedo_map);
+    m_draw_context.draw_image_fullscreen(renderer, albedo_map, depth_map);
 
 //    g_buffer.attachments()[C]
     // lighting-pass

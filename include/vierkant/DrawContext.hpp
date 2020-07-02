@@ -116,6 +116,8 @@ private:
 
     Renderer::drawable_t m_drawable_image_fullscreen = {};
 
+    Renderer::drawable_t m_drawable_color_depth_fullscreen = {};
+
     Renderer::drawable_t m_drawable_aabb = {};
 
     Renderer::drawable_t m_drawable_grid = {};
