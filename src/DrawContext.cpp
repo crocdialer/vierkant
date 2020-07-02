@@ -331,7 +331,7 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image)
+void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image, const vierkant::ImagePtr &/*depth*/)
 {
     // copy image-drawable
     auto drawable = m_drawable_image_fullscreen;

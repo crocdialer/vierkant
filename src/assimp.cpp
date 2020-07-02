@@ -690,7 +690,6 @@ vierkant::nodes::NodePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
         currentBone->name = nodeName;
         currentBone->index = boneIndex;
         currentBone->transform = nodeTransform;
-        currentBone->world_transform = world_transform;
         currentBone->offset = offset;
         currentBone->parent = std::move(parentBone);
     }

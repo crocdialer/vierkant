@@ -1,7 +1,9 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
-#include "renderer/types.glsl"
+
+#define PI 3.1415926535897932384626433832795
+#define ONE_OVER_PI 0.31830988618379067153776752674503
 
 #define COLOR 0
 

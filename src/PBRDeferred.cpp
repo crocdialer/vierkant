@@ -256,4 +256,14 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     return vierkant::ImagePtr();
 }
 
+vierkant::ImagePtr PBRDeferred::create_diffuse_convolution(const DevicePtr &device, const ImagePtr &cubemap)
+{
+    return vierkant::ImagePtr();
+}
+
+vierkant::ImagePtr PBRDeferred::create_specular_convolution(const DevicePtr &device, const ImagePtr &cubemap)
+{
+    return vierkant::ImagePtr();
+}
+
 }// namespace vierkant

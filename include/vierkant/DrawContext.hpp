@@ -72,9 +72,12 @@ public:
      * @brief   Draws an image in a 2D context.
      *
      * @param   renderer    a provided vierkant::Renderer.
-     * @param   image       a provided vierkant::Image, assumed to contain a sampler2D.
+     * @param   image       a provided vierkant::Image, assumed to contain a sampler2D with VK_ASPECT_COLOR.
+     * @param   depth       an optional vierkant::Image, assumed to contain a sampler2D with VK_ASPECT_DEPTH.
      */
-    void draw_image_fullscreen(vierkant::Renderer &renderer, const vierkant::ImagePtr &image);
+    void draw_image_fullscreen(vierkant::Renderer &renderer,
+                               const vierkant::ImagePtr &image,
+                               const vierkant::ImagePtr &depth = nullptr);
 
     /**
      * @brief   Draws an axis-aligned bounding box.

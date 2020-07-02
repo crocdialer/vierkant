@@ -187,12 +187,6 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
 
 void Renderer::stage_drawable(drawable_t drawable)
 {
-    auto &fmt = drawable.pipeline_format;
-    fmt.renderpass = m_renderpass.get();
-    fmt.viewport = viewport;
-    fmt.sample_count = m_sample_count;
-    fmt.push_constant_ranges = {m_push_constant_range};
-
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_staged_drawables[m_current_index].push_back(std::move(drawable));
 }
@@ -210,7 +204,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     }
     auto &current_assets = m_render_assets[current_index];
     frame_assets_t next_assets = {};
-
 
     // keep uniform buffers
     next_assets.matrix_buffers = std::move(current_assets.matrix_buffers);
@@ -242,8 +235,15 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     std::unordered_map<Pipeline::Format, std::vector<indexed_drawable_t>> pipelines;
     size_t max_num_uniform_bytes = m_device->properties().limits.maxUniformBufferRange;
 
+    // preprocess drawables
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
+        auto &pipeline_format = current_assets.drawables[i].pipeline_format;
+        pipeline_format.renderpass = m_renderpass.get();
+        pipeline_format.viewport = viewport;
+        pipeline_format.sample_count = m_sample_count;
+        pipeline_format.push_constant_ranges = {m_push_constant_range};
+
         indexed_drawable_t indexed_drawable = {};
         indexed_drawable.matrix_buffer_index = i * sizeof(matrix_struct_t) / max_num_uniform_bytes;
         indexed_drawable.material_buffer_index = i * sizeof(material_struct_t) / max_num_uniform_bytes;
@@ -257,12 +257,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         {
             indexed_drawable.descriptor_set_layout = find_set_layout(current_assets.drawables[i].descriptors,
                                                                      current_assets, next_assets);
-            current_assets.drawables[i].pipeline_format.descriptor_set_layouts = {
-                    indexed_drawable.descriptor_set_layout.get()};
+            pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
         else{ indexed_drawable.descriptor_set_layout = std::move(current_assets.drawables[i].descriptor_set_layout); }
 
-        pipelines[current_assets.drawables[i].pipeline_format].push_back(indexed_drawable);
+        pipelines[pipeline_format].push_back(indexed_drawable);
     }
 
     // push constants

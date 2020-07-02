@@ -80,11 +80,17 @@ private:
 
     void create_shader_stages(const DevicePtr &device);
 
-    static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
-
-    vierkant::Framebuffer& geometry_pass(vierkant::cull_result_t &cull_result);
+    vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
     void lighting_pass(const vierkant::cull_result_t &cull_result);
+
+    static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
+
+    static vierkant::ImagePtr create_diffuse_convolution(const vierkant::DevicePtr &device,
+                                                         const vierkant::ImagePtr &cubemap);
+
+    static vierkant::ImagePtr create_specular_convolution(const vierkant::DevicePtr &device,
+                                                          const vierkant::ImagePtr &cubemap);
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 
