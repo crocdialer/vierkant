@@ -125,6 +125,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_image_fullscreen.use_own_buffers = true;
 
         m_drawable_color_depth_fullscreen = m_drawable_image_fullscreen;
+        m_drawable_color_depth_fullscreen.pipeline_format.depth_test = true;
         m_drawable_color_depth_fullscreen.pipeline_format.depth_write = true;
         m_drawable_color_depth_fullscreen.pipeline_format.shader_stages =
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE_DEPTH);
