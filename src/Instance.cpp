@@ -11,7 +11,7 @@ namespace vierkant {
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
-const std::vector<const char *> g_validation_layers = {"VK_LAYER_LUNARG_standard_validation"};
+const std::vector<const char *> g_validation_layers = {"VK_LAYER_KHRONOS_validation"};
 
 bool check_validation_layer_support()
 {
@@ -199,7 +199,7 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Vierkant";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    app_info.apiVersion = VK_API_VERSION_1_1;
+    app_info.apiVersion = VK_API_VERSION_1_2;
 
     VkInstanceCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

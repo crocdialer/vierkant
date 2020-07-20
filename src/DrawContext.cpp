@@ -70,7 +70,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         auto plane = Geometry::Plane();
         plane->normals.clear();
         plane->tangents.clear();
-        for(auto &v : plane->vertices){ v.xy += glm::vec2(.5f, -.5f); }
+        for(auto &v : plane->vertices){ v.xy() += glm::vec2(.5f, -.5f); }
 
         auto mesh = Mesh::create_from_geometries(m_device, {plane});
         auto entry = mesh->entries.front();
