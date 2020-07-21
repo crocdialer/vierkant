@@ -99,17 +99,31 @@ vierkant::ImagePtr create_specular_convolution(const DevicePtr &device, const Im
 
     vierkant::ImagePtr ret = vierkant::Image::create(device, ret_fmt);
 
+    // keep cube-pipelines alive
     std::vector<cube_pipeline_t> cube_pipelines(num_mips);
+
+    // helper
+    struct img_copy_assets_t
+    {
+        vierkant::CommandBuffer command_buffer;
+        vierkant::FencePtr fence;
+    };
+    std::vector<img_copy_assets_t> image_copy_assets(num_mips);
+
+    // collect fences for all operations
+    std::vector<VkFence> fences;
+
+    auto frag_module = vierkant::create_shader_module(device, vierkant::shaders::convolve_ggx_frag);
 
     for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
     {
         auto &cube = cube_pipelines[lvl];
 
         // create a cube-pipeline
-        cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, false);
+        cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, false, false,
+                                              VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
-        cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::convolve_ggx_frag);
+        cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = frag_module;
 
         // increasing roughness in range [0 .. 1]
         float roughness = lvl / static_cast<float>(num_mips - 1);
@@ -132,26 +146,60 @@ vierkant::ImagePtr create_specular_convolution(const DevicePtr &device, const Im
 
         // issue render-command and submit to queue
         auto cmd_buf = cube.renderer.render(cube.framebuffer);
-        cube.framebuffer.submit({cmd_buf}, device->queue());
+        fences.push_back(cube.framebuffer.submit({cmd_buf}, device->queue()));
 
         // copy image into mipmap-chain
+        img_copy_assets_t &image_copy_asset = image_copy_assets[lvl];
+        image_copy_asset.command_buffer = vierkant::CommandBuffer(device, device->command_pool_transient());
+        image_copy_asset.fence = vierkant::create_fence(device);
 
-//        // mandatory to sync here
-//        vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+        image_copy_asset.command_buffer.begin();
+
+        // copy goes here
+        VkImageCopy region = {};
+        region.extent = cube.color_image->extent();
+        region.dstOffset = region.srcOffset = {0, 0, 0};
+        region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.srcSubresource.baseArrayLayer = 0;
+        region.srcSubresource.layerCount = 6;
+        region.srcSubresource.mipLevel = 0;
+
+        region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.dstSubresource.baseArrayLayer = 0;
+        region.dstSubresource.layerCount = 6;
+        region.dstSubresource.mipLevel = lvl;
+
+        // transition layouts for copying
+        cube.color_image->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                            image_copy_asset.command_buffer.handle());
+
+        ret->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               image_copy_asset.command_buffer.handle());
+
+        // actual copy command
+        vkCmdCopyImage(image_copy_asset.command_buffer.handle(), cube.color_image->image(),
+                       cube.color_image->image_layout(), ret->image(), ret->image_layout(), 1, &region);
+
+        image_copy_asset.command_buffer.submit(device->queue(), false, image_copy_asset.fence.get());
+        fences.push_back(image_copy_asset.fence.get());
 
         size = std::max<uint32_t>(size / 2, 1);
     }
+
+    // mandatory to sync here
+    vkWaitForFences(device->handle(), fences.size(), fences.data(), VK_TRUE, std::numeric_limits<uint64_t>::max());
+
     return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t size, VkFormat color_format,
-                                     bool depth, bool mipmap)
+                                     bool depth, bool mipmap, VkImageUsageFlags usage_flags)
 {
     // framebuffer image-format
     vierkant::Image::Format img_fmt = {};
-    img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | usage_flags;
     img_fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
     img_fmt.num_layers = 6;
     img_fmt.use_mipmap = mipmap;

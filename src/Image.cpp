@@ -45,6 +45,7 @@ void transition_image_layout(VkCommandBuffer command_buffer,
                              VkFormat format,
                              VkImageLayout old_layout,
                              VkImageLayout new_layout,
+                             uint32_t num_layers,
                              uint32_t num_mip_levels,
                              VkImageAspectFlags aspectMask)
 {
@@ -60,7 +61,7 @@ void transition_image_layout(VkCommandBuffer command_buffer,
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = num_mip_levels;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = num_layers;
     barrier.subresourceRange.aspectMask = aspectMask;
 
     VkPipelineStageFlags source_stage = 0;
@@ -383,7 +384,7 @@ void Image::transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmdB
             cmdBufferHandle = localCommandBuffer.handle();
         }
         transition_image_layout(cmdBufferHandle, m_image.get(), m_format.format, m_image_layout, the_new_layout,
-                                m_num_mip_levels, m_format.aspect);
+                                m_format.num_layers, m_num_mip_levels, m_format.aspect);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
         if(localCommandBuffer)

@@ -29,7 +29,7 @@ struct cube_pipeline_t
  * @return  a struct grouping assets for a cube-pipeline.
  */
 cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t size, VkFormat color_format,
-                                     bool depth = false, bool mipmap = false);
+                                     bool depth = false, bool mipmap = false, VkImageUsageFlags usage_flags = 0);
 
 /**
  * @brief   Create a cubemap from an equi-recangular panorama image.
