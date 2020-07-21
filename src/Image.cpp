@@ -512,7 +512,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = m_format.num_layers;
     barrier.subresourceRange.levelCount = 1;
 
     int32_t mip_width = width();
@@ -535,16 +535,16 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
         VkImageBlit blit = {};
         blit.srcOffsets[0] = {0, 0, 0};
         blit.srcOffsets[1] = {mip_width, mip_height, 1};
-        blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.srcSubresource.aspectMask = m_format.aspect;
         blit.srcSubresource.mipLevel = i - 1;
         blit.srcSubresource.baseArrayLayer = 0;
-        blit.srcSubresource.layerCount = 1;
+        blit.srcSubresource.layerCount = m_format.num_layers;
         blit.dstOffsets[0] = {0, 0, 0};
         blit.dstOffsets[1] = {std::max(mip_width / 2, 1), std::max(mip_height / 2, 1), 1};
-        blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blit.dstSubresource.aspectMask = m_format.aspect;
         blit.dstSubresource.mipLevel = i;
         blit.dstSubresource.baseArrayLayer = 0;
-        blit.dstSubresource.layerCount = 1;
+        blit.dstSubresource.layerCount = m_format.num_layers;
 
         vkCmdBlitImage(command_buffer,
                        m_image.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,

@@ -7,7 +7,8 @@
 #include <vulkan/vulkan.h>
 #include "crocore/crocore.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 VkFormat find_depth_format(VkPhysicalDevice the_device);
 
@@ -28,6 +29,8 @@ void vkCheck(VkResult res, const std::string &fail_msg);
 class Instance
 {
 public:
+
+    using debug_fn_t = std::function<void(const char *msg)>;
 
     /**
      * @brief the vulkan-api version used
@@ -54,21 +57,28 @@ public:
     /**
      * @return  true if validation layers are in use, false otherwise
      */
-    bool use_validation_layers() const { return m_debug_callback; }
+    bool use_validation_layers() const{ return m_debug_callback; }
+
+    /**
+     * @brief   set a debug-callback, containing output from validation-layers.
+     *
+     * @param   debug_fn    a function-object used as debug-callback.
+     */
+    void set_debug_fn(debug_fn_t debug_fn);
 
     /**
      * @return  a handle to the managed VKInstance
      */
-    VkInstance handle() const { return m_handle; }
+    VkInstance handle() const{ return m_handle; }
 
     /**
      * @return  an array of all available physical GPU-devices
      */
-    const std::vector<VkPhysicalDevice> &physical_devices() const { return m_physical_devices; }
+    const std::vector<VkPhysicalDevice> &physical_devices() const{ return m_physical_devices; }
 
-    const std::vector<const char *> &extensions() const { return m_extensions; }
+    const std::vector<const char *> &extensions() const{ return m_extensions; }
 
-    inline explicit operator bool() const { return static_cast<bool>(m_handle); };
+    inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
 
     friend void swap(Instance &lhs, Instance &rhs);
 
@@ -93,6 +103,9 @@ private:
 
     // debug callback
     VkDebugReportCallbackEXT m_debug_callback = VK_NULL_HANDLE;
+
+    // optional debug-function
+    debug_fn_t m_debug_fn;
 };
 
 }//namespace vulkan

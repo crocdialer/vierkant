@@ -29,7 +29,7 @@ struct cube_pipeline_t
  * @return  a struct grouping assets for a cube-pipeline.
  */
 cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t size, VkFormat color_format,
-                                     bool depth = false);
+                                     bool depth = false, bool mipmap = false);
 
 /**
  * @brief   Create a cubemap from an equi-recangular panorama image.
@@ -37,7 +37,9 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
  * @param   panorama_img    the equirectangular panorama.
  * @return  a vierkant::ImagePtr holding a cubemap.
  */
-vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size);
+vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size,
+                                         bool mipmap = false,
+                                         VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT);
 
 /**
  * @brief   Create a diffuse (lambertian brdf) convolution of a provided cubemap.

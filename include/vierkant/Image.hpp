@@ -165,6 +165,13 @@ public:
     void transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE);
 
     /**
+     * @brief   generate a mipmap-chain by performing linear-filtered blits.
+     *
+     * @param   command_buffer  optional commandbuffer-handle to record into.
+     */
+    void generate_mipmaps(VkCommandBuffer command_buffer = VK_NULL_HANDLE);
+
+    /**
      * @brief   copy contents from a buffer to this image
      *
      * @param   src         the source buffer to copy data from
@@ -198,8 +205,6 @@ private:
     Image(DevicePtr device, void *data, const VkImagePtr &shared_image, Format format);
 
     void init(void *data, const VkImagePtr &shared_image = nullptr);
-
-    void generate_mipmaps(VkCommandBuffer command_buffer = VK_NULL_HANDLE);
 
     DevicePtr m_device;
 

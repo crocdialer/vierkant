@@ -9,13 +9,14 @@ namespace vierkant
 {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size)
+vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size, bool mipmap,
+                                         VkFormat format)
 {
     if(!panorama_img){ return nullptr; }
 
     auto device = panorama_img->device();
 
-    auto cube = vierkant::create_cube_pipeline(device, size.x, VK_FORMAT_R16G16B16A16_SFLOAT, false);
+    auto cube = vierkant::create_cube_pipeline(device, size.x, format, false, mipmap);
 
     // set a fragment stage
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
@@ -30,11 +31,24 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
     // stage cube-drawable
     cube.renderer.stage_drawable(cube.drawable);
 
+    std::vector<VkFence> fences;
+
     auto cmd_buf = cube.renderer.render(cube.framebuffer);
-    auto fence = cube.framebuffer.submit({cmd_buf}, device->queue());
+    fences.push_back(cube.framebuffer.submit({cmd_buf}, device->queue()));
+
+    auto mipmap_cmd = vierkant::CommandBuffer(device, device->command_pool_transient());
+    auto mipmap_fence = vierkant::create_fence(device);
+
+    if(mipmap)
+    {
+        mipmap_cmd.begin();
+        cube.color_image->generate_mipmaps(mipmap_cmd.handle());
+        mipmap_cmd.submit(device->queue(), false, mipmap_fence.get());
+        fences.push_back(mipmap_fence.get());
+    }
 
     // mandatory to sync here
-    vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vkWaitForFences(device->handle(), fences.size(), fences.data(), VK_TRUE, std::numeric_limits<uint64_t>::max());
 
     return cube.color_image;
 }
@@ -47,7 +61,7 @@ vierkant::ImagePtr create_diffuse_convolution(const DevicePtr &device, const Ima
     auto cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, false);
 
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::convolve_diffuse_frag);
+            vierkant::create_shader_module(device, vierkant::shaders::convolve_lambert_frag);
 
     vierkant::descriptor_t desc_image = {};
     desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -71,51 +85,76 @@ vierkant::ImagePtr create_diffuse_convolution(const DevicePtr &device, const Ima
 
 vierkant::ImagePtr create_specular_convolution(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size)
 {
-    // create a cube-pipeline
-    auto cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, false);
+    size = crocore::next_pow_2(size);
+    uint32_t num_mips = std::log2(size) - 1;
 
-    cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::convolve_specular_frag);
+    vierkant::Image::Format ret_fmt = {};
+    ret_fmt.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    ret_fmt.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ret_fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
+    ret_fmt.num_layers = 6;
+    ret_fmt.use_mipmap = true;
+    ret_fmt.autogenerate_mipmaps = false;
+    ret_fmt.extent = {size, size, 1};
 
-    float roughness = 0.f;
+    vierkant::ImagePtr ret = vierkant::Image::create(device, ret_fmt);
 
-    vierkant::descriptor_t desc_ubo = {};
-    desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_ubo.buffer = vierkant::Buffer::create(device, &roughness, sizeof(roughness),
-                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    cube.drawable.descriptors[1] = desc_ubo;
+    std::vector<cube_pipeline_t> cube_pipelines(num_mips);
 
-    vierkant::descriptor_t desc_image = {};
-    desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_image.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_image.image_samplers = {cubemap};
-    cube.drawable.descriptors[2] = desc_image;
+    for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
+    {
+        auto &cube = cube_pipelines[lvl];
 
-    // stage cube-drawable
-    cube.renderer.stage_drawable(cube.drawable);
+        // create a cube-pipeline
+        cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, false);
 
-    // TODO: mipmapchain
+        cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+                vierkant::create_shader_module(device, vierkant::shaders::convolve_ggx_frag);
 
-    auto cmd_buf = cube.renderer.render(cube.framebuffer);
-    auto fence = cube.framebuffer.submit({cmd_buf}, device->queue());
+        // increasing roughness in range [0 .. 1]
+        float roughness = lvl / static_cast<float>(num_mips - 1);
 
-    // mandatory to sync here
-    vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+        vierkant::descriptor_t desc_ubo = {};
+        desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_ubo.buffer = vierkant::Buffer::create(device, &roughness, sizeof(roughness),
+                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        cube.drawable.descriptors[1] = desc_ubo;
 
-    return cube.color_image;
+        vierkant::descriptor_t desc_image = {};
+        desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        desc_image.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_image.image_samplers = {cubemap};
+        cube.drawable.descriptors[2] = desc_image;
+
+        // stage cube-drawable
+        cube.renderer.stage_drawable(cube.drawable);
+
+        // issue render-command and submit to queue
+        auto cmd_buf = cube.renderer.render(cube.framebuffer);
+        cube.framebuffer.submit({cmd_buf}, device->queue());
+
+        // copy image into mipmap-chain
+
+//        // mandatory to sync here
+//        vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+        size = std::max<uint32_t>(size / 2, 1);
+    }
+    return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t size, VkFormat color_format,
-                                     bool depth)
+                                     bool depth, bool mipmap)
 {
     // framebuffer image-format
     vierkant::Image::Format img_fmt = {};
     img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     img_fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
     img_fmt.num_layers = 6;
+    img_fmt.use_mipmap = mipmap;
     img_fmt.format = color_format;
 
     // create cube framebuffer
@@ -186,11 +225,13 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
 
     // ref to color-attachment
     auto attach_it = cube_fb.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
-    if(attach_it != cube_fb.attachments().end() && !attach_it->second.empty()){ color_img = attach_it->second.front(); }
+    if(attach_it != cube_fb.attachments().end() &&
+       !attach_it->second.empty()){ color_img = attach_it->second.front(); }
 
     // ref to depth-attachment
     attach_it = cube_fb.attachments().find(vierkant::Framebuffer::AttachmentType::DepthStencil);
-    if(attach_it != cube_fb.attachments().end() && !attach_it->second.empty()){ depth_img = attach_it->second.front(); }
+    if(attach_it != cube_fb.attachments().end() &&
+       !attach_it->second.empty()){ depth_img = attach_it->second.front(); }
 
     cube_pipeline_t ret = {};
     ret.framebuffer = std::move(cube_fb);

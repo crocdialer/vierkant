@@ -7,7 +7,8 @@
 
 #include "vierkant/Instance.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
@@ -33,7 +34,7 @@ bool check_validation_layer_support()
                 break;
             }
         }
-        if(!layer_found) { return false; }
+        if(!layer_found){ return false; }
     }
     return true;
 }
@@ -42,8 +43,8 @@ VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCa
                                       const VkAllocationCallbacks *pAllocator, VkDebugReportCallbackEXT *pCallback)
 {
     auto func = (PFN_vkCreateDebugReportCallbackEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
-    if(func) { return func(instance, pCreateInfo, pAllocator, pCallback); }
-    else { return VK_ERROR_EXTENSION_NOT_PRESENT; }
+    if(func){ return func(instance, pCreateInfo, pAllocator, pCallback); }
+    else{ return VK_ERROR_EXTENSION_NOT_PRESENT; }
 }
 
 void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback,
@@ -51,7 +52,7 @@ void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT
 {
     auto func = (PFN_vkDestroyDebugReportCallbackEXT) vkGetInstanceProcAddr(instance,
                                                                             "vkDestroyDebugReportCallbackEXT");
-    if(func) { func(instance, callback, pAllocator); }
+    if(func){ func(instance, callback, pAllocator); }
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags,
@@ -63,7 +64,9 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
                                                      const char *msg,
                                                      void *user_data)
 {
-    std::cerr << "validation layer: " << msg << std::endl;
+    Instance::debug_fn_t &debug_fn = *reinterpret_cast<Instance::debug_fn_t *>(user_data);
+    if(debug_fn){ debug_fn(msg); }
+    else{ std::cerr << "validation layer: " << msg << std::endl; }
     return VK_FALSE;
 }
 
@@ -79,7 +82,7 @@ bool check_device_extension_support(VkPhysicalDevice device)
     std::vector<VkExtensionProperties> extensions_available(num_extensions);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &num_extensions, extensions_available.data());
     std::set<std::string> extensions_required(g_device_extensions.begin(), g_device_extensions.end());
-    for(const auto &extension : extensions_available) { extensions_required.erase(extension.extensionName); }
+    for(const auto &extension : extensions_available){ extensions_required.erase(extension.extensionName); }
     return extensions_required.empty();
 }
 
@@ -108,7 +111,8 @@ VkFormat find_supported_format(VkPhysicalDevice the_device,
         if(the_tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & the_features) == the_features)
         {
             return format;
-        }else if(the_tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & the_features) == the_features)
+        }
+        else if(the_tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & the_features) == the_features)
         {
             return format;
         }
@@ -173,7 +177,7 @@ Instance &Instance::operator=(Instance other)
 bool Instance::init(bool use_validation_layers, const std::vector<const char *> &the_required_extensions)
 {
     auto required_extensions = the_required_extensions;
-    if(use_validation_layers) { required_extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME); }
+    if(use_validation_layers){ required_extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME); }
 
     // check support for validation-layers
     if(use_validation_layers && !check_validation_layer_support())
@@ -191,7 +195,7 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, extensions.data());
 
     LOG_TRACE << "available extensions:";
-    for(const auto &ext : extensions) { LOG_TRACE << "\t" << ext.extensionName; }
+    for(const auto &ext : extensions){ LOG_TRACE << "\t" << ext.extensionName; }
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -214,13 +218,13 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     // create the vulkan instance
     vkCheck(vkCreateInstance(&create_info, nullptr, &m_handle), "failed to create instance!");
 
-    if(use_validation_layers) { setup_debug_callback(); }
+    if(use_validation_layers){ setup_debug_callback(); }
     m_extensions = the_required_extensions;
 
     uint32_t num_devices = 0;
     vkEnumeratePhysicalDevices(m_handle, &num_devices, nullptr);
 
-    if(!num_devices) { return false; }
+    if(!num_devices){ return false; }
 
     m_physical_devices.resize(num_devices);
     vkEnumeratePhysicalDevices(m_handle, &num_devices, m_physical_devices.data());
@@ -240,12 +244,27 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void Instance::set_debug_fn(Instance::debug_fn_t debug_fn)
+{
+    m_debug_fn = std::move(debug_fn);
+    setup_debug_callback();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void Instance::setup_debug_callback()
 {
+    if(m_debug_callback)
+    {
+        DestroyDebugReportCallbackEXT(m_handle, m_debug_callback, nullptr);
+        m_debug_callback = nullptr;
+    }
+
     VkDebugReportCallbackCreateInfoEXT create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
     create_info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT |
                         VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT; // | VK_DEBUG_REPORT_DEBUG_BIT_EXT
+    create_info.pUserData = &m_debug_fn;
     create_info.pfnCallback = debug_callback;
 
     vkCheck(CreateDebugReportCallbackEXT(m_handle, &create_info, nullptr, &m_debug_callback),
@@ -260,6 +279,7 @@ void swap(Instance &lhs, Instance &rhs)
     std::swap(lhs.m_handle, rhs.m_handle);
     std::swap(lhs.m_physical_devices, rhs.m_physical_devices);
     std::swap(lhs.m_debug_callback, rhs.m_debug_callback);
+    std::swap(lhs.m_debug_fn, rhs.m_debug_fn);
 }
 
 }//namespace vulkan
