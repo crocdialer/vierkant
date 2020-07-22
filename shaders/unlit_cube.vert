@@ -18,7 +18,6 @@ out gl_PerVertex
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
-layout(location = ATTRIB_COLOR) in vec4 a_color;
 
 layout(location = 0) out VertexData
 {

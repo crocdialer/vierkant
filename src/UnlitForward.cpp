@@ -56,4 +56,9 @@ UnlitForwardPtr UnlitForward::create(const vierkant::DevicePtr &device)
     return vierkant::UnlitForwardPtr(new UnlitForward(device));
 }
 
+void UnlitForward::set_environment(const ImagePtr &cubemap)
+{
+
+}
+
 }

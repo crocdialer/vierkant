@@ -10,7 +10,8 @@
 namespace vierkant
 {
 
-PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info)
+PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) :
+        m_device(device)
 {
     m_pipeline_cache = create_info.pipeline_cache ?
                        create_info.pipeline_cache : vierkant::PipelineCache::create(device);
@@ -28,19 +29,12 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     g_buffer_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT;
     g_buffer_info.depth_attachment_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-    g_buffer_info.depth_attachment_format.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    g_buffer_info.depth_attachment_format.usage =
+            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
     vierkant::RenderPassPtr g_renderpass;
 
-    vierkant::Framebuffer::create_info_t lighting_buffer_info = {};
-    lighting_buffer_info.size = create_info.size;
-
-//    vierkant::Framebuffer::AttachmentType lighting_attachments;
-//    lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] =
-//    vierkant::Image::Format fmt = {};
-//    fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-//    fmt.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-//    vierkant::RenderPassPtr lighting_renderpass;
+    vierkant::RenderPassPtr lighting_renderpass;
 
     for(auto &asset : m_frame_assets)
     {
@@ -48,7 +42,21 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.g_buffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
         g_renderpass = asset.g_buffer.renderpass();
 
-        // TODO: init lighting framebuffer
+        // init lighting framebuffer
+        vierkant::Framebuffer::AttachmentMap lighting_attachments;
+        {
+            vierkant::Image::Format fmt = {};
+            fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            fmt.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+            fmt.extent = create_info.size;
+            lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
+
+            // use depth from g_buffer
+            lighting_attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {
+                    asset.g_buffer.depth_attachment()};
+        }
+        asset.lighting_buffer = vierkant::Framebuffer(device, lighting_attachments, lighting_renderpass);
+        lighting_renderpass = asset.lighting_buffer.renderpass();
     }
 
     vierkant::Renderer::create_info_t render_create_info = {};
@@ -84,25 +92,16 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     // create g-buffer
     auto &g_buffer = geometry_pass(cull_result);
 
-    // check for resolve-attachment, fallback to color-attachment
-    auto attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Resolve);
-
-    if(attach_it == g_buffer.attachments().end())
-    {
-        attach_it = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
-    }
-    const auto &color_attachments = attach_it->second;
-    auto albedo_map = color_attachments[G_BUFFER_ALBEDO];
+    auto albedo_map = g_buffer.color_attachment(G_BUFFER_ALBEDO);
 
     // depth-attachment
-    auto depth_map = g_buffer.attachments().find(vierkant::Framebuffer::AttachmentType::DepthStencil)->second.front();
+    auto depth_map = g_buffer.depth_attachment();
 
-    m_draw_context.draw_image_fullscreen(renderer, albedo_map, depth_map);
-
-//    g_buffer.attachments()[C]
     // lighting-pass
     // |- use g buffer
     // |- draw light volumes with fancy stencil settings
+    // IBL, environment lighting-pass
+    lighting_pass(cull_result);
 
     // dof, bloom
 
@@ -110,11 +109,12 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     // compositing, post-fx
     // |- use lighting buffer
     // |- stage fullscreen-draw of compositing-pass -> renderer
+    m_draw_context.draw_image_fullscreen(renderer, albedo_map, depth_map);
 
     return num_drawables;
 }
 
-vierkant::Framebuffer& PBRDeferred::geometry_pass(cull_result_t &cull_result)
+vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 {
     // draw all gemoetry
     for(auto &drawable : cull_result.drawables)
@@ -202,7 +202,8 @@ void PBRDeferred::create_shader_stages(const DevicePtr &device)
     stages_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
 
     // skin + color + normals + ao/rough/metal + emmission
-    auto &stages_skin_complete = m_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH | PROP_EMMISION];
+    auto &stages_skin_complete = m_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH |
+                                                 PROP_EMMISION];
     stages_skin_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
     stages_skin_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
 }
@@ -262,6 +263,17 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     if(attach_it != framebuffer.attachments().end() && !attach_it->second.empty()){ return attach_it->second.front(); }
 
     return vierkant::ImagePtr();
+}
+
+void PBRDeferred::set_environment(const ImagePtr &cubemap)
+{
+    m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, cubemap->width());
+    m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width());
+}
+
+void PBRDeferred::lighting_pass(const cull_result_t &cull_result)
+{
+
 }
 
 }// namespace vierkant

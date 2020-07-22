@@ -131,6 +131,16 @@ public:
     const AttachmentMap &attachments() const{ return m_attachments; };
 
     /**
+     * @return  the color-attachment for this index or nullptr if not found.
+     */
+    vierkant::ImagePtr color_attachment(uint32_t index) const;
+
+    /**
+     * @return  the depth-attachment or nullptr if not found.
+     */
+    vierkant::ImagePtr depth_attachment() const;
+
+    /**
      * @return  handle for the managed VkFramebuffer
      */
     VkFramebuffer handle() const{ return m_framebuffer; }

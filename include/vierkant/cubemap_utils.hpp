@@ -49,7 +49,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
  * @param   size        the desired output-size.
  * @return  a cubemap containing a diffuse convolution of the input cubemap.
  */
-vierkant::ImagePtr create_diffuse_convolution(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
+vierkant::ImagePtr create_convolution_lambert(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
                                               uint32_t size);
 
 /**
@@ -60,7 +60,7 @@ vierkant::ImagePtr create_diffuse_convolution(const vierkant::DevicePtr &device,
  * @param   size        the desired output-size.
  * @return  a cubemap containing in it's mipmap chain a roughness-cascade of specular convolutions of the input cubemap.
  */
-vierkant::ImagePtr create_specular_convolution(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
-                                               uint32_t size);
+vierkant::ImagePtr create_convolution_ggx(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
+                                          uint32_t size);
 
 }// namespace vierkant

@@ -55,7 +55,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr create_diffuse_convolution(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size)
+vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size)
 {
     // create a cube-pipeline
     auto cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, false);
@@ -83,7 +83,7 @@ vierkant::ImagePtr create_diffuse_convolution(const DevicePtr &device, const Ima
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr create_specular_convolution(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size)
+vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size)
 {
     size = crocore::next_pow_2(size);
     uint32_t num_mips = std::log2(size) - 1;
@@ -233,7 +233,12 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_GEOMETRY_BIT] =
             vierkant::create_shader_module(device, vierkant::shaders::cube_layers_geom);
 
-    drawable.mesh = vierkant::Mesh::create_from_geometries(device, {vierkant::Geometry::Box()});
+    auto box = vierkant::Geometry::Box();
+    box->colors.clear();
+    box->tex_coords.clear();
+    box->normals.clear();
+    box->tangents.clear();
+    drawable.mesh = vierkant::Mesh::create_from_geometries(device, {box});
     const auto &mesh_entry = drawable.mesh->entries.front();
 
     drawable.base_index = mesh_entry.base_index;

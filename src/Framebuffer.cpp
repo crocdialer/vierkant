@@ -476,6 +476,45 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(Framebuffer::create_i
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+vierkant::ImagePtr Framebuffer::color_attachment(uint32_t index) const
+{
+    // check for resolve-attachment, fallback to color-attachment
+    auto it = m_attachments.find(AttachmentType::Resolve);
+
+    if(it == m_attachments.end())
+    {
+        it = m_attachments.find(AttachmentType::Color);
+    }
+
+    if(it != m_attachments.end())
+    {
+        auto &color_attachments = it->second;
+
+        if(!color_attachments.empty())
+        {
+            return color_attachments[std::clamp<uint32_t>(index, 0, color_attachments.size() - 1)];
+        }
+    }
+    return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+vierkant::ImagePtr Framebuffer::depth_attachment() const
+{
+    auto it = m_attachments.find(AttachmentType::DepthStencil);
+
+    if(it != m_attachments.end())
+    {
+        auto &depth_attachments = it->second;
+
+        if(!depth_attachments.empty()){ return depth_attachments.front(); }
+    }
+    return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 void swap(Framebuffer &lhs, Framebuffer &rhs)
 {
     std::swap(lhs.clear_depth_stencil, rhs.clear_depth_stencil);

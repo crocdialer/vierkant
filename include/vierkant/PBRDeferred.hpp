@@ -47,6 +47,13 @@ public:
                           const CameraPtr &cam,
                           const std::set<std::string> &tags) override;
 
+    /**
+     * @brief   Set an environment-cubemap.
+     *
+     * @param   cubemap an environment-cubemap.
+     */
+    void set_environment(const vierkant::ImagePtr &cubemap) override;
+
 private:
 
     enum G_BUFFER
@@ -86,6 +93,8 @@ private:
 
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
 
+    vierkant::DevicePtr m_device;
+
     vierkant::PipelineCachePtr m_pipeline_cache;
 
     std::unordered_map<uint32_t, vierkant::shader_stage_map_t> m_shader_stages;
@@ -100,10 +109,10 @@ private:
     vierkant::ImagePtr m_brdf_lut;
 
     // convolved diffuse irradiance cube
-    vierkant::ImagePtr m_conv_diffuse;
+    vierkant::ImagePtr m_conv_lambert;
 
     // convolved specular irradiance cube mipmaps
-    vierkant::ImagePtr m_conv_spec;
+    vierkant::ImagePtr m_conv_ggx;
 };
 
 }// namespace vierkant
