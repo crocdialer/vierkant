@@ -38,6 +38,11 @@ public:
                           const CameraPtr &cam,
                           const std::set<std::string> &tags) override;
 
+    /**
+     * @brief   Set an environment-cubemap.
+     *
+     * @param   cubemap     an environment-cubemap.
+     */
     void set_environment(const vierkant::ImagePtr &cubemap) override;
 
 private:

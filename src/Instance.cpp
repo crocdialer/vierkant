@@ -246,8 +246,11 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
 
 void Instance::set_debug_fn(Instance::debug_fn_t debug_fn)
 {
-    m_debug_fn = std::move(debug_fn);
-    setup_debug_callback();
+    if(use_validation_layers())
+    {
+        m_debug_fn = std::move(debug_fn);
+        setup_debug_callback();
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
