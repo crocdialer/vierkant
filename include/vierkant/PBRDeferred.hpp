@@ -89,7 +89,7 @@ private:
 
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
-    void lighting_pass(const vierkant::cull_result_t &cull_result);
+    vierkant::Framebuffer & lighting_pass(const vierkant::cull_result_t &cull_result);
 
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
 
@@ -103,7 +103,7 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::Renderer m_g_renderer;
+    vierkant::Renderer m_g_renderer, m_light_renderer;
 
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;

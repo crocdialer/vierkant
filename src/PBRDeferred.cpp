@@ -54,11 +54,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
             // use depth from g_buffer
             lighting_attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {
                     asset.g_buffer.depth_attachment()};
+
+            lighting_renderpass = vierkant::Framebuffer::create_renderpass(device, lighting_attachments, true, false);
         }
         asset.lighting_buffer = vierkant::Framebuffer(device, lighting_attachments, lighting_renderpass);
-        lighting_renderpass = asset.lighting_buffer.renderpass();
     }
 
+    // create renderer for g-buffer-pass
     vierkant::Renderer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
     render_create_info.sample_count = create_info.sample_count;
@@ -68,6 +70,11 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.pipeline_cache = m_pipeline_cache;
     render_create_info.renderpass = g_renderpass;
     m_g_renderer = vierkant::Renderer(device, render_create_info);
+
+    // create renderer for lighting-pass
+//    render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
+    render_create_info.renderpass = lighting_renderpass;
+    m_light_renderer = vierkant::Renderer(device, render_create_info);
 
     // create required permutations of shader-stages
     create_shader_stages(device);
@@ -101,7 +108,7 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     // |- use g buffer
     // |- draw light volumes with fancy stencil settings
     // IBL, environment lighting-pass
-    lighting_pass(cull_result);
+    auto &light_buffer = lighting_pass(cull_result);
 
     // dof, bloom
 
@@ -109,6 +116,9 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     // compositing, post-fx
     // |- use lighting buffer
     // |- stage fullscreen-draw of compositing-pass -> renderer
+
+//    m_draw_context.draw_image_fullscreen(renderer, light_buffer.color_attachment(0), depth_map);
+
     m_draw_context.draw_image_fullscreen(renderer, albedo_map, depth_map);
 
     return num_drawables;
@@ -148,6 +158,17 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     auto cmd_buffer = m_g_renderer.render(g_buffer);
     g_buffer.submit({cmd_buffer}, m_g_renderer.device()->queue());
     return g_buffer;
+}
+
+vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_result)
+{
+    auto &light_buffer = m_frame_assets[m_light_renderer.current_index()].lighting_buffer;
+    auto cmd_buffer = m_light_renderer.render(light_buffer);
+    light_buffer.submit({cmd_buffer}, m_light_renderer.device()->queue());
+
+    // environment lighting-pass
+
+    return light_buffer;
 }
 
 void PBRDeferred::create_shader_stages(const DevicePtr &device)
@@ -275,11 +296,6 @@ void PBRDeferred::set_environment(const ImagePtr &cubemap)
 {
     m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, cubemap->width());
     m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width());
-}
-
-void PBRDeferred::lighting_pass(const cull_result_t &cull_result)
-{
-
 }
 
 }// namespace vierkant

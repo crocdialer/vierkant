@@ -46,9 +46,7 @@ void main()
         new_vertex += u_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
     }
     vertex_out.color = a_color;
-//    vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
     vertex_out.normal = normalize(m.normal * vec4(a_normal, 1.0)).xyz;
-//    vertex_out.tangent = normalize(m.normal * vec4(a_tangent, 1.0)).xyz;
     vertex_out.eye_vec = (m.modelview * vec4(new_vertex.xyz, 1.0)).xyz;
     gl_Position = m.projection * m.modelview * vec4(new_vertex.xyz, 1.0);
 }
