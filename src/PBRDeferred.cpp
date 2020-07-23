@@ -154,6 +154,7 @@ void PBRDeferred::create_shader_stages(const DevicePtr &device)
 {
     // vertex
     auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_vert);
+    auto pbr_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_skin_vert);
     auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_vert);
     auto pbr_tangent_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_skin_vert);
 
@@ -176,32 +177,37 @@ void PBRDeferred::create_shader_stages(const DevicePtr &device)
     stages_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
     stages_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
 
-    // skin + color
+    // skin
+    auto &stages_skin = m_shader_stages[PROP_SKIN];
+    stages_skin[VK_SHADER_STAGE_VERTEX_BIT] = pbr_skin_vert;
+    stages_skin[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
+
+    // skin + albedo
     auto &stages_skin_color = m_shader_stages[PROP_SKIN | PROP_ALBEDO];
     stages_skin_color[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
     stages_skin_color[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
 
-    // color + normals
+    // albedo + normals
     auto &stages_color_normal = m_shader_stages[PROP_ALBEDO | PROP_NORMAL];
     stages_color_normal[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
     stages_color_normal[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_frag;
 
-    // color + normals + ao/rough/metal
+    // albedo + normals + ao/rough/metal
     auto &stages_color_normal_rough = m_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
     stages_color_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
     stages_color_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
 
-    // skin + color + normals + ao/rough/metal
+    // skin + albedo + normals + ao/rough/metal
     auto &stages_skin_color_normal_rough = m_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
     stages_skin_color_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
     stages_skin_color_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
 
-    // color + normals + ao/rough/metal + emmission
+    // albedo + normals + ao/rough/metal + emmission
     auto &stages_complete = m_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH | PROP_EMMISION];
     stages_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
     stages_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
 
-    // skin + color + normals + ao/rough/metal + emmission
+    // skin + albedo + normals + ao/rough/metal + emmission
     auto &stages_skin_complete = m_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH |
                                                  PROP_EMMISION];
     stages_skin_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
