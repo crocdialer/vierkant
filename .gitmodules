@@ -1,3 +1,6 @@
 [submodule "crocore"]
 	path = crocore
 	url = git@github.com:crocdialer/crocore.git
+[submodule "assimp"]
+	path = assimp
+	url = git@github.com:assimp/assimp.git
