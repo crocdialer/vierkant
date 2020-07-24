@@ -72,8 +72,9 @@ public:
         int matrix_index = 0;
         int material_index = 0;
         glm::vec2 size;
-        float gamma;
+        float gamma = 1.f;
         float time;
+        int disable_textures = 0;
     };
 
     /**
