@@ -123,6 +123,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     // bake BRDF into a lookup-table for image-based_lighting
     m_brdf_lut = create_BRDF_lut(device);
 
+    // use provided convolutions
+    m_conv_lambert = create_info.conv_lambert;
+    m_conv_ggx = create_info.conv_ggx;
+
     m_draw_context = vierkant::DrawContext(device);
 }
 

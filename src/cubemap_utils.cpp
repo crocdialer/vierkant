@@ -94,12 +94,12 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
         vkCmdCopyImage(image_copy_asset.command_buffer.handle(), cube.color_image->image(),
                        cube.color_image->image_layout(), mipmap_cube->image(), mipmap_cube->image_layout(), 1, &region);
 
-//        // generate mipmap-chain
+        // generate mipmap-chain
         mipmap_cube->generate_mipmaps(image_copy_asset.command_buffer.handle());
 
-        // submit command, keep fence
-        image_copy_asset.command_buffer.submit(device->queue(), true);
-//        fences.push_back(image_copy_asset.fence.get());
+        // submit command, sync
+        image_copy_asset.command_buffer.submit(device->queue(), false, image_copy_asset.fence.get());
+        fences.push_back(image_copy_asset.fence.get());
     }
 
     // mandatory to sync here

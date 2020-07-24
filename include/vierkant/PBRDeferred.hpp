@@ -24,9 +24,6 @@ public:
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
 
-        // 2d brdf lookup-table
-        vierkant::ImagePtr brdf_lut;
-
         // convolved diffuse irradiance cube
         vierkant::ImagePtr conv_lambert;
 
@@ -62,6 +59,10 @@ public:
      * @param   cubemap an environment-cubemap.
      */
     void set_environment(const vierkant::ImagePtr &cubemap) override;
+
+    vierkant::ImagePtr environment_lambert() const{ return m_conv_lambert; };
+
+    vierkant::ImagePtr environment_ggx() const{ return m_conv_ggx; };
 
 private:
 
@@ -107,7 +108,7 @@ private:
 
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
-    vierkant::Framebuffer & lighting_pass(const vierkant::cull_result_t &cull_result);
+    vierkant::Framebuffer &lighting_pass(const vierkant::cull_result_t &cull_result);
 
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
 
