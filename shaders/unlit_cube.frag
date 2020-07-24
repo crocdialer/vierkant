@@ -23,6 +23,8 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = texture(u_sampler_cube[0], vertex_in.eye_vec);
+    vec3 dir = vertex_in.eye_vec;
+    dir.y = -dir.y;
+    out_color = texture(u_sampler_cube[0], dir);
     if(context.gamma != 1.0){ out_color.rgb = pow(out_color.rgb, vec3(1.0 / context.gamma)); }
 }

@@ -23,6 +23,15 @@ public:
         uint32_t num_frames_in_flight = 0;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
+
+        // 2d brdf lookup-table
+        vierkant::ImagePtr brdf_lut;
+
+        // convolved diffuse irradiance cube
+        vierkant::ImagePtr conv_lambert;
+
+        // convolved specular irradiance cube mipmaps
+        vierkant::ImagePtr conv_ggx;
     };
 
     static PBRDeferredPtr create(const vierkant::DevicePtr &device, const create_info_t &create_info);

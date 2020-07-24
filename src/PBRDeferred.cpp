@@ -360,11 +360,16 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
 
 void PBRDeferred::set_environment(const ImagePtr &cubemap)
 {
-    m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, 64);
-    m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width());
+    constexpr uint32_t lambert_size = 32;
 
-    m_conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    m_conv_ggx->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    if(cubemap)
+    {
+        m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, lambert_size);
+        m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width());
+
+        m_conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        m_conv_ggx->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    }
 }
 
 }// namespace vierkant

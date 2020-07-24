@@ -47,6 +47,7 @@ vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float 
 
     vec3 world_normal = mat3(u_camera_transform) * normal;
     vec3 world_reflect = mat3(u_camera_transform) * r;
+
     vec3 diffIr = sample_diffuse(u_sampler_cube[ENV_DIFFUSE], world_normal);
 
     float spec_mip_lvl = roughness * float(u_num_mip_levels - 1);
