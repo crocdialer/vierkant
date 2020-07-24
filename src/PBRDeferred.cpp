@@ -157,13 +157,20 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     {
         auto &light_buffer = lighting_pass(cull_result);
         m_draw_context.draw_image_fullscreen(renderer, light_buffer.color_attachment(0), depth_map);
-//        m_draw_context.draw_image_fullscreen(renderer, albedo_map, depth_map);
     }
     else{ m_draw_context.draw_image_fullscreen(renderer, albedo_map, depth_map); }
 
     // dof, bloom
 
-    // skybox
+    // skybox rendering
+    if(m_skybox)
+    {
+        glm::mat4 m = cam->view_matrix();
+        m[3] = glm::vec4(0, 0, 0, 1);
+        m = glm::scale(m, glm::vec3(cam->far() * .99f));
+        m_draw_context.draw_mesh(renderer, m_skybox, m, cam->projection_matrix(), vierkant::ShaderType::UNLIT_CUBE);
+    }
+
     // compositing, post-fx
     // |- use lighting buffer
     // |- stage fullscreen-draw of compositing-pass -> renderer
@@ -253,6 +260,8 @@ void PBRDeferred::create_shader_stages(const DevicePtr &device)
     auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_frag);
     auto pbr_g_buffer_albedo_normal_frag =
             vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_normal_frag);
+    auto pbr_g_buffer_albedo_rough_frag =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_rough_frag);
     auto pbr_g_buffer_albedo_normal_rough_frag =
             vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_normal_rough_frag);
     auto pbr_g_buffer_complete_frag =
@@ -273,25 +282,30 @@ void PBRDeferred::create_shader_stages(const DevicePtr &device)
     stages_skin[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
 
     // skin + albedo
-    auto &stages_skin_color = m_g_shader_stages[PROP_SKIN | PROP_ALBEDO];
-    stages_skin_color[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
-    stages_skin_color[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
+    auto &stages_skin_albedo = m_g_shader_stages[PROP_SKIN | PROP_ALBEDO];
+    stages_skin_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
+    stages_skin_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
 
     // albedo + normals
-    auto &stages_color_normal = m_g_shader_stages[PROP_ALBEDO | PROP_NORMAL];
-    stages_color_normal[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_color_normal[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_frag;
+    auto &stages_albedo_normal = m_g_shader_stages[PROP_ALBEDO | PROP_NORMAL];
+    stages_albedo_normal[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_albedo_normal[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_frag;
+
+    // albedo + ao/rough/metal
+    auto &stages_albedo_rough = m_g_shader_stages[PROP_ALBEDO | PROP_AO_METAL_ROUGH];
+    stages_albedo_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_albedo_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_rough_frag;
 
     // albedo + normals + ao/rough/metal
-    auto &stages_color_normal_rough = m_g_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
-    stages_color_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_color_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
+    auto &stages_albedo_normal_rough = m_g_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
+    stages_albedo_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_albedo_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
 
     // skin + albedo + normals + ao/rough/metal
-    auto &stages_skin_color_normal_rough = m_g_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL |
-                                                             PROP_AO_METAL_ROUGH];
-    stages_skin_color_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
-    stages_skin_color_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
+    auto &stages_skin_albedo_normal_rough = m_g_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL |
+                                                              PROP_AO_METAL_ROUGH];
+    stages_skin_albedo_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
+    stages_skin_albedo_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
 
     // albedo + normals + ao/rough/metal + emmission
     auto &stages_complete = m_g_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH | PROP_EMMISION];
@@ -373,6 +387,21 @@ void PBRDeferred::set_environment(const ImagePtr &cubemap)
 
         m_conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         m_conv_ggx->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+        if(!m_skybox)
+        {
+            auto box = vierkant::Geometry::Box();
+            box->colors.clear();
+            box->tex_coords.clear();
+            box->tangents.clear();
+            box->normals.clear();
+            m_skybox = vierkant::Mesh::create_from_geometries(m_device, {box});
+            auto &mat = m_skybox->materials.front();
+            mat->depth_write = false;
+            mat->depth_test = true;
+            mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
+        }
+        for(auto &mat : m_skybox->materials){ mat->textures[vierkant::Material::Environment] = cubemap; }
     }
 }
 

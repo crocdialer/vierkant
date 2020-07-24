@@ -134,6 +134,8 @@ private:
     vierkant::ImagePtr m_conv_ggx;
 
     vierkant::Renderer::drawable_t m_drawable_lighting_env;
+
+    vierkant::MeshPtr m_skybox;
 };
 
 }// namespace vierkant

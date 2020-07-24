@@ -142,7 +142,6 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
 vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size)
 {
     size = crocore::next_pow_2(size);
-    uint32_t num_mips = std::log2(size) - 1;
 
     vierkant::Image::Format ret_fmt = {};
     ret_fmt.format = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -154,6 +153,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
     ret_fmt.extent = {size, size, 1};
 
     vierkant::ImagePtr ret = vierkant::Image::create(device, ret_fmt);
+    uint32_t num_mips = ret->num_mip_levels();
 
     // keep cube-pipelines alive
     std::vector<cube_pipeline_t> cube_pipelines(num_mips);

@@ -160,6 +160,11 @@ public:
     VkImageLayout image_layout() const{ return m_image_layout; };
 
     /**
+     * @return  number of images in the mipmap chain.
+     */
+    uint32_t num_mip_levels() const{ return m_num_mip_levels; };
+
+    /**
      * @return  request transition to a new image layout
      */
     void transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer = VK_NULL_HANDLE);
