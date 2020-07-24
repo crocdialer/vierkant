@@ -39,7 +39,7 @@ vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
     return texture(diff_map, normal).rgb * ONE_OVER_PI;
 }
 
-vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float roughness, float metalness, float aoVal)
+vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float roughness, float metalness, float ambient_occlusion)
 {
     roughness = map_roughness(roughness);
     vec3 v = normalize(position);
@@ -62,7 +62,7 @@ vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float 
     vec3 specColor = mix(dielectricF0, albedo, metalness);// since metal has no albedo, we use the space to store its F0
 
     vec3 distEnvLighting = diffColor * diffIr + specIr * (specColor * brdfTerm.x + brdfTerm.y);
-    distEnvLighting *= u_env_light_strength; // * aoVal;
+    distEnvLighting *= u_env_light_strength * ambient_occlusion;
     return distEnvLighting;
 }
 
@@ -81,6 +81,8 @@ void main()
     vec3 normal = normalize(texture(u_sampler_2D[NORMAL], tex_coord).xyz);
     vec3 position = texture(u_sampler_2D[POSITION], tex_coord).xyz;
     vec3 ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], tex_coord).rgb;
-    out_color = vec4(compute_enviroment_lighting(position, normal, color.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r), 1.0);
-//    out_color = color;
+
+    vec4 env_color = vec4(compute_enviroment_lighting(position, normal, color.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r), 1.0);
+    vec4 emission = texture(u_sampler_2D[EMISSION], tex_coord);
+    out_color = env_color + emission;
 }

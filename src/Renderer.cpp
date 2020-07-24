@@ -56,6 +56,10 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
 
         // material params
         drawable.material.color = material->color;
+        drawable.material.emission = material->emission;
+        drawable.material.ambient = material->ambient;
+        drawable.material.roughness = material->roughness;
+        drawable.material.metalness = material->metalness;
 
         drawable.base_index = entry.base_index;
         drawable.num_indices = entry.num_indices;

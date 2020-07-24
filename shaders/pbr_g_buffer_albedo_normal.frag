@@ -54,5 +54,5 @@ void main()
     out_normal = vec4(normalize(normal), 1);
     out_position = vec4(vertex_in.eye_vec, 1);
     out_emission = material.emission * tex_color;
-    out_ao_rough_metal = vec4(material.occlusion, material.roughness, material.metalness, 1);
+    out_ao_rough_metal = vec4(material.ambient, material.roughness, material.metalness, 1);
 }

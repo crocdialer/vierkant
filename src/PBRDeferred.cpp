@@ -360,7 +360,7 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
 
 void PBRDeferred::set_environment(const ImagePtr &cubemap)
 {
-    m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, 32);
+    m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, 64);
     m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width());
 
     m_conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);

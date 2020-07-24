@@ -32,7 +32,7 @@ public:
 
     float roughness = 1.f;
 
-    float occlusion = 0.f;
+    float ambient = 1.f;
 
     bool blending = false;
 

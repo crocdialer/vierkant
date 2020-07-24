@@ -14,7 +14,7 @@ struct material_struct_t
     vec4 emission;
     float metalness;
     float roughness;
-    float occlusion;
+    float ambient;
 };
 
 //! definition of a directional- or point-light
