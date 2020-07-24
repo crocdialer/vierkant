@@ -163,13 +163,7 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     // dof, bloom
 
     // skybox rendering
-    if(m_skybox)
-    {
-        glm::mat4 m = cam->view_matrix();
-        m[3] = glm::vec4(0, 0, 0, 1);
-        m = glm::scale(m, glm::vec3(cam->far() * .99f));
-        m_draw_context.draw_mesh(renderer, m_skybox, m, cam->projection_matrix(), vierkant::ShaderType::UNLIT_CUBE);
-    }
+    if(scene->environment()){ m_draw_context.draw_skybox(renderer, scene->environment(), cam); }
 
     // compositing, post-fx
     // |- use lighting buffer
@@ -387,21 +381,6 @@ void PBRDeferred::set_environment(const ImagePtr &cubemap)
 
         m_conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         m_conv_ggx->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-        if(!m_skybox)
-        {
-            auto box = vierkant::Geometry::Box();
-            box->colors.clear();
-            box->tex_coords.clear();
-            box->tangents.clear();
-            box->normals.clear();
-            m_skybox = vierkant::Mesh::create_from_geometries(m_device, {box});
-            auto &mat = m_skybox->materials.front();
-            mat->depth_write = false;
-            mat->depth_test = true;
-            mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
-        }
-        for(auto &mat : m_skybox->materials){ mat->textures[vierkant::Material::Environment] = cubemap; }
     }
 }
 

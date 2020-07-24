@@ -65,7 +65,7 @@ void Scene::remove_object(const Object3DPtr &object)
 void Scene::clear()
 {
     m_root = vierkant::Object3D::create("scene root");
-    m_skybox.reset();
+//    m_skybox.reset();
 }
 
 void Scene::update(float time_delta)
@@ -166,27 +166,13 @@ std::vector<vierkant::Object3DPtr> Scene::objects_by_tag(const std::string &tag)
     return objects_by_tags({tag});
 }
 
-void Scene::set_skybox(const vierkant::ImagePtr &img)
+void Scene::set_enironment(const vierkant::ImagePtr &img)
 {
-    if(!img)
-    {
-        m_skybox.reset();
-        return;
-    }
+    if(!img){ return; }
 
+    // derive sane resolution for cube from panorama-width
     float res = crocore::next_pow_2(std::max(img->width(), img->height()) / 4);
-    auto cubemap = vierkant::cubemap_from_panorama(img, {res, res});
-
-    if(!m_skybox)
-    {
-        auto box = vierkant::Geometry::Box();
-        m_skybox = vierkant::Mesh::create_from_geometries(img->device(), {box});
-        auto &mat = m_skybox->materials.front();
-        mat->depth_write = false;
-        mat->depth_test = true;
-        mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
-    }
-    for(auto &mat : m_skybox->materials){ mat->textures = {{vierkant::Material::TextureType::Environment, cubemap}}; }
+    m_skybox = vierkant::cubemap_from_panorama(img, {res, res}, true);
 }
 
 }//namespace

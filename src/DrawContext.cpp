@@ -43,21 +43,6 @@ vierkant::ImagePtr render_offscreen(vierkant::Framebuffer &framebuffer,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
-                            const glm::mat4 &projection, vierkant::ShaderType shader_type)
-{
-    auto drawables = vierkant::Renderer::create_drawables(mesh);
-
-    for(auto &drawable : drawables)
-    {
-        drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(shader_type);
-        drawable.matrices.modelview = model_view * drawable.matrices.modelview;
-        drawable.matrices.projection = projection;
-        renderer.stage_drawable(std::move(drawable));
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device))
 {
@@ -184,6 +169,38 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_grid.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(
                 vierkant::ShaderType::UNLIT_COLOR);
     }
+
+    // skybox
+    {
+        auto box = vierkant::Geometry::Box();
+        box->colors.clear();
+        box->tex_coords.clear();
+        box->tangents.clear();
+        box->normals.clear();
+        auto mesh = vierkant::Mesh::create_from_geometries(m_device, {box});
+        auto &mat = mesh->materials.front();
+        mat->depth_write = false;
+        mat->depth_test = true;
+        mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
+        mat->textures[vierkant::Material::TextureType::Environment] = {};
+        m_drawable_skybox = vierkant::Renderer::create_drawables(mesh).front();
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
+                            const glm::mat4 &projection, vierkant::ShaderType shader_type)
+{
+    auto drawables = vierkant::Renderer::create_drawables(mesh);
+
+    for(auto &drawable : drawables)
+    {
+        drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(shader_type);
+        drawable.matrices.modelview = model_view * drawable.matrices.modelview;
+        drawable.matrices.projection = projection;
+        renderer.stage_drawable(std::move(drawable));
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -284,6 +301,24 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
     drawable.matrices.modelview = model_view * center_mat * scale_mat;
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DrawContext::draw_skybox(vierkant::Renderer &renderer, const vierkant::ImagePtr &environment,
+                              const vierkant::CameraPtr &cam)
+{
+    glm::mat4 m = cam->view_matrix();
+    m[3] = glm::vec4(0, 0, 0, 1);
+    m = glm::scale(m, glm::vec3(cam->far() * .99f));
+
+    auto drawable = m_drawable_skybox;
+    drawable.matrices.modelview = m;
+    drawable.matrices.projection = cam->projection_matrix();
+    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {environment};
+    drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_CUBE);
+
+    renderer.stage_drawable(drawable);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

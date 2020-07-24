@@ -106,6 +106,16 @@ public:
     void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
                    const glm::mat4 &projection, vierkant::ShaderType shader_type);
 
+    /**
+     * @brief   Render a skybox.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   environment a provided vierkant::Image, assumed to contain a samplerCube.
+     * @param   cam         a vierkant::Camera
+     */
+    void draw_skybox(vierkant::Renderer &renderer, const vierkant::ImagePtr &environment,
+                     const vierkant::CameraPtr &cam);
+
 private:
 
     vierkant::DevicePtr m_device;
@@ -121,6 +131,8 @@ private:
     Renderer::drawable_t m_drawable_aabb = {};
 
     Renderer::drawable_t m_drawable_grid = {};
+
+    Renderer::drawable_t m_drawable_skybox = {};
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 };

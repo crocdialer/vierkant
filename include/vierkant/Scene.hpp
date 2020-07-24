@@ -37,15 +37,15 @@ public:
 
     inline Object3DPtr &root(){ return m_root; };
 
-    const vierkant::MeshPtr &skybox() const{ return m_skybox; }
+    const vierkant::ImagePtr &environment() const{ return m_skybox; }
 
-    void set_skybox(const vierkant::ImagePtr &img);
+    void set_enironment(const vierkant::ImagePtr &img);
 
 private:
 
     Scene() = default;
 
-    vierkant::MeshPtr m_skybox = nullptr;
+    vierkant::ImagePtr m_skybox = nullptr;
 
     Object3DPtr m_root = Object3D::create("scene root");
 };
