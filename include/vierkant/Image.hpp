@@ -162,7 +162,7 @@ public:
     /**
      * @return  request transition to a new image layout
      */
-    void transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE);
+    void transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer = VK_NULL_HANDLE);
 
     /**
      * @brief   generate a mipmap-chain by performing linear-filtered blits.

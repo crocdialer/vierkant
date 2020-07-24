@@ -371,19 +371,19 @@ void Image::init(void *data, const VkImagePtr &shared_image)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmdBufferHandle)
+void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer)
 {
-    if(the_new_layout != m_image_layout)
+    if(new_layout != m_image_layout)
     {
         vierkant::CommandBuffer localCommandBuffer;
 
-        if(cmdBufferHandle == VK_NULL_HANDLE)
+        if(cmd_buffer == VK_NULL_HANDLE)
         {
             localCommandBuffer = vierkant::CommandBuffer(m_device, m_device->command_pool_transient());
             localCommandBuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-            cmdBufferHandle = localCommandBuffer.handle();
+            cmd_buffer = localCommandBuffer.handle();
         }
-        transition_image_layout(cmdBufferHandle, m_image.get(), m_format.format, m_image_layout, the_new_layout,
+        transition_image_layout(cmd_buffer, m_image.get(), m_format.format, m_image_layout, new_layout,
                                 m_format.num_layers, m_num_mip_levels, m_format.aspect);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
@@ -391,7 +391,7 @@ void Image::transition_layout(VkImageLayout the_new_layout, VkCommandBuffer cmdB
         {
             localCommandBuffer.submit(m_device->queue(), true);
         }
-        m_image_layout = the_new_layout;
+        m_image_layout = new_layout;
     }
 }
 
