@@ -482,7 +482,11 @@ vierkant::ImagePtr Framebuffer::color_attachment(uint32_t index) const
 
         if(!color_attachments.empty())
         {
-            return color_attachments[std::clamp<uint32_t>(index, 0, color_attachments.size() - 1)];
+            if(index >= color_attachments.size())
+            {
+                throw std::out_of_range("attachment-index out of bounds: " + std::to_string(index));
+            }
+            return color_attachments[index];
         }
     }
     return nullptr;

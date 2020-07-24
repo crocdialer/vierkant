@@ -55,5 +55,5 @@ void main()
     out_normal = vec4(normalize(normal), 1);
     out_position = vec4(vertex_in.eye_vec, 1);
     out_emission = texture(u_sampler_2D[EMMISSION], vertex_in.tex_coord);
-    out_ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord);
+    out_ao_rough_metal = vec4(texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord).xyz, 1.0);
 }

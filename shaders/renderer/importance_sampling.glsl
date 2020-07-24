@@ -75,7 +75,9 @@ vec3 ImportanceSampleDiffuse(vec3 N, samplerCube cubemap)
             float solidAngleSample = 1.0 / (numSamples * pdf);
             float lod = 0.5 * log2(solidAngleSample / solidAngleTexel);
 
-            vec3 hdrRadiance = textureLod(cubemap, L, lod).rgb;
+//            vec3 hdrRadiance = textureLod(cubemap, L, lod).rgb;
+            vec3 hdrRadiance = texture(cubemap, L).rgb;
+
             result += vec4(hdrRadiance / pdf, 1.0);
         }
     }

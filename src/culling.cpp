@@ -95,6 +95,8 @@ cull_result_t cull(const SceneConstPtr &scene, const CameraPtr &cam, bool check_
 {
     CullVisitor cull_visitor(cam, false);
     scene->root()->accept(cull_visitor);
+    cull_visitor.m_cull_result.scene = scene;
+    cull_visitor.m_cull_result.camera = cam;
     return std::move(cull_visitor.m_cull_result);
 }
 

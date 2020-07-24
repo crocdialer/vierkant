@@ -3,7 +3,6 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "renderer/types.glsl"
 
-#define PI 3.1415926535897932384626433832795
 #define ONE_OVER_PI 0.31830988618379067153776752674503
 
 layout(push_constant) uniform PushConstants {
@@ -40,8 +39,7 @@ vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
     return texture(diff_map, normal).rgb * ONE_OVER_PI;
 }
 
-vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float roughness,
-float metalness, float aoVal)
+vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float roughness, float metalness, float aoVal)
 {
     roughness = map_roughness(roughness);
     vec3 v = normalize(position);
@@ -60,11 +58,11 @@ float metalness, float aoVal)
     vec2 brdfTerm = texture(u_sampler_2D[BRDF_LUT], vec2(NoV, roughness)).rg;
 
     const vec3 dielectricF0 = vec3(0.04);
-    vec3 diffColor = albedo * (1.0 - metalness); // if it is metal, no diffuse color
-    vec3 specColor = mix(dielectricF0, albedo, metalness); // since metal has no albedo, we use the space to store its F0
+    vec3 diffColor = albedo * (1.0 - metalness);// if it is metal, no diffuse color
+    vec3 specColor = mix(dielectricF0, albedo, metalness);// since metal has no albedo, we use the space to store its F0
 
     vec3 distEnvLighting = diffColor * diffIr + specIr * (specColor * brdfTerm.x + brdfTerm.y);
-    distEnvLighting *= u_env_light_strength * aoVal;
+    distEnvLighting *= u_env_light_strength; // * aoVal;
     return distEnvLighting;
 }
 
@@ -83,6 +81,6 @@ void main()
     vec3 normal = normalize(texture(u_sampler_2D[NORMAL], tex_coord).xyz);
     vec3 position = texture(u_sampler_2D[POSITION], tex_coord).xyz;
     vec3 ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], tex_coord).rgb;
-    out_color = vec4(compute_enviroment_lighting(position, normal, color.rgb, ao_rough_metal.g,
-    ao_rough_metal.b, ao_rough_metal.r), 1.0);
+    out_color = vec4(compute_enviroment_lighting(position, normal, color.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r), 1.0);
+//    out_color = color;
 }

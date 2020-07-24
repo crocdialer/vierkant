@@ -19,6 +19,11 @@ struct cull_result_t
 
     //! a list of lightsources in eye-coordinates
     std::vector<vierkant::Renderer::lightsource_t> lightsources;
+
+    //! the camera used to perform culling
+    CameraPtr camera;
+
+    vierkant::SceneConstPtr scene;
 };
 
 /**

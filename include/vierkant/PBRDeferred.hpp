@@ -81,6 +81,15 @@ private:
     {
         vierkant::Framebuffer g_buffer;
         vierkant::Framebuffer lighting_buffer;
+        vierkant::BufferPtr lighting_ubo;
+    };
+
+    struct environment_lighting_ubo_t
+    {
+        glm::mat4 camera_transform = glm::mat4(1);
+        int num_mip_levels = 0;
+        float env_light_strength = 1.f;
+//        int padding[2];
     };
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
@@ -97,7 +106,7 @@ private:
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 
-    std::unordered_map<uint32_t, vierkant::shader_stage_map_t> m_shader_stages;
+    std::unordered_map<uint32_t, vierkant::shader_stage_map_t> m_g_shader_stages;
 
     std::vector<frame_assets_t> m_frame_assets;
 
@@ -113,6 +122,8 @@ private:
 
     // convolved specular irradiance cube mipmaps
     vierkant::ImagePtr m_conv_ggx;
+
+    vierkant::Renderer::drawable_t m_drawable_lighting_env;
 };
 
 }// namespace vierkant
