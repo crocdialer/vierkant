@@ -212,7 +212,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
 vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_result)
 {
-    auto &frame_assets = m_frame_assets[m_light_renderer.current_index()];
+    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    auto &frame_assets = m_frame_assets[index];
     auto &light_buffer = frame_assets.lighting_buffer;
 
     environment_lighting_ubo_t ubo = {};
@@ -362,12 +363,7 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     // mandatory to sync here
     vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
 
-    auto attach_it = framebuffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
-
-    // return color-attachment
-    if(attach_it != framebuffer.attachments().end() && !attach_it->second.empty()){ return attach_it->second.front(); }
-
-    return vierkant::ImagePtr();
+    return framebuffer.color_attachment(0);
 }
 
 void PBRDeferred::set_environment(const ImagePtr &cubemap)

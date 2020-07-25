@@ -470,24 +470,17 @@ vierkant::ImagePtr Framebuffer::color_attachment(uint32_t index) const
 {
     // check for resolve-attachment, fallback to color-attachment
     auto it = m_attachments.find(AttachmentType::Resolve);
-
-    if(it == m_attachments.end())
-    {
-        it = m_attachments.find(AttachmentType::Color);
-    }
+    if(it == m_attachments.end()){ it = m_attachments.find(AttachmentType::Color); }
 
     if(it != m_attachments.end())
     {
         auto &color_attachments = it->second;
 
-        if(!color_attachments.empty())
+        if(index >= color_attachments.size())
         {
-            if(index >= color_attachments.size())
-            {
-                throw std::out_of_range("attachment-index out of bounds: " + std::to_string(index));
-            }
-            return color_attachments[index];
+            throw std::out_of_range("attachment-index out of bounds: " + std::to_string(index));
         }
+        return color_attachments[index];
     }
     return nullptr;
 }

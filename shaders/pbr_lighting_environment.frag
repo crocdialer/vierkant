@@ -69,7 +69,6 @@ vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float 
 
 layout(location = 0) in VertexData
 {
-    vec4 color;
     vec2 tex_coord;
 } vertex_in;
 
@@ -77,13 +76,12 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    vec2 tex_coord = gl_FragCoord.xy / textureSize(u_sampler_2D[ALBEDO], 0);
-    vec4 color = texture(u_sampler_2D[ALBEDO], tex_coord);
-    vec3 normal = normalize(texture(u_sampler_2D[NORMAL], tex_coord).xyz);
-    vec3 position = texture(u_sampler_2D[POSITION], tex_coord).xyz;
-    vec3 ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], tex_coord).rgb;
+    vec4 color = texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord);
+    vec3 normal = normalize(texture(u_sampler_2D[NORMAL], vertex_in.tex_coord).xyz);
+    vec3 position = texture(u_sampler_2D[POSITION], vertex_in.tex_coord).xyz;
+    vec3 ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord).rgb;
 
     vec4 env_color = vec4(compute_enviroment_lighting(position, normal, color.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r), 1.0);
-    vec4 emission = texture(u_sampler_2D[EMISSION], tex_coord);
+    vec4 emission = texture(u_sampler_2D[EMISSION], vertex_in.tex_coord);
     out_color = env_color + emission;
 }
