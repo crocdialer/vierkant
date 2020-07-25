@@ -32,9 +32,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     g_buffer_info.depth_attachment_format.usage =
             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-    vierkant::RenderPassPtr g_renderpass;
+    vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
+    post_fx_buffer_info.size = create_info.size;
+    post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    post_fx_buffer_info.color_attachment_format.usage =
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-    vierkant::RenderPassPtr lighting_renderpass;
+    vierkant::RenderPassPtr g_renderpass, lighting_renderpass, post_fx_renderpass;
 
     for(auto &asset : m_frame_assets)
     {
@@ -60,6 +64,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.lighting_buffer = vierkant::Framebuffer(device, lighting_attachments, lighting_renderpass);
         asset.lighting_ubo = vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        // create post_fx buffer
+        asset.post_fx_buffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
+        asset.post_fx_buffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
     }
 
     // create renderer for g-buffer-pass
@@ -117,6 +125,30 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         m_drawable_lighting_env.use_own_buffers = true;
     }
 
+    // create drawable for post-fx-pass
+    {
+        Pipeline::Format fmt = {};
+        fmt.depth_test = true;
+        fmt.depth_write = true;
+        fmt.blend_state.blendEnable = true;
+
+        fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_texture_vert);
+        fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_pbr_post_frag);
+        fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+        // descriptor
+        vierkant::descriptor_t desc_texture = {};
+        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        m_drawable_post_fx.descriptors[0] = desc_texture;
+        m_drawable_post_fx.num_vertices = 3;
+        m_drawable_post_fx.pipeline_format = fmt;
+        m_drawable_post_fx.use_own_buffers = true;
+    }
+
     // create required permutations of shader-stages
     create_shader_stages(device);
 
@@ -149,6 +181,9 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     // depth-attachment
     auto depth_map = g_buffer.depth_attachment();
 
+    // deault to color image
+    auto out_img = albedo_map;
+
     // lighting-pass
     // |- use g buffer
     // |- draw light volumes with fancy stencil settings
@@ -156,19 +191,18 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     if(m_conv_lambert && m_conv_ggx)
     {
         auto &light_buffer = lighting_pass(cull_result);
-        m_draw_context.draw_image_fullscreen(renderer, light_buffer.color_attachment(0), depth_map);
+        out_img = light_buffer.color_attachment(0);
     }
-    else{ m_draw_context.draw_image_fullscreen(renderer, albedo_map, depth_map); }
 
-    // dof, bloom
+    // dof, bloom, anti-aliasing
+    post_fx_pass(renderer, out_img, depth_map);
+//    m_draw_context.draw_image_fullscreen(renderer, out_img, depth_map);
 
     // skybox rendering
     if(scene->environment()){ m_draw_context.draw_skybox(renderer, scene->environment(), cam); }
 
-    // compositing, post-fx
     // |- use lighting buffer
     // |- stage fullscreen-draw of compositing-pass -> renderer
-//    m_draw_context.draw_image_fullscreen(renderer, albedo_map, depth_map);
 
     return num_drawables;
 }
@@ -236,11 +270,28 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
+
     auto cmd_buffer = m_light_renderer.render(light_buffer);
     light_buffer.submit({cmd_buffer}, m_light_renderer.device()->queue());
 
     return light_buffer;
 }
+
+void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const vierkant::ImagePtr &color,
+                               const vierkant::ImagePtr &depth)
+{
+    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    auto &frame_assets = m_frame_assets[index];
+//    auto &post_fx_buffer = frame_assets.post_fx_buffer;
+
+    // post-fx-pass
+    auto drawable = m_drawable_post_fx;
+    drawable.descriptors[0].image_samplers = {color, depth};
+
+    // stage, render, submit
+    renderer.stage_drawable(std::move(drawable));
+}
+
 
 void PBRDeferred::create_shader_stages(const DevicePtr &device)
 {

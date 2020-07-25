@@ -91,6 +91,7 @@ private:
     {
         vierkant::Framebuffer g_buffer;
         vierkant::Framebuffer lighting_buffer;
+        vierkant::Framebuffer post_fx_buffer;
         vierkant::BufferPtr lighting_ubo;
     };
 
@@ -109,6 +110,9 @@ private:
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
     vierkant::Framebuffer &lighting_pass(const vierkant::cull_result_t &cull_result);
+
+    void post_fx_pass(vierkant::Renderer &renderer, const vierkant::ImagePtr &color,
+                      const vierkant::ImagePtr &depth);
 
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
 
@@ -133,9 +137,7 @@ private:
     // convolved specular irradiance cube mipmaps
     vierkant::ImagePtr m_conv_ggx;
 
-    vierkant::Renderer::drawable_t m_drawable_lighting_env;
-
-    vierkant::MeshPtr m_skybox;
+    vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_post_fx;
 };
 
 }// namespace vierkant
