@@ -280,8 +280,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const vierkant::ImagePtr &color,
                                const vierkant::ImagePtr &depth)
 {
-    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
-    auto &frame_assets = m_frame_assets[index];
+//    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+//    auto &frame_assets = m_frame_assets[index];
 //    auto &post_fx_buffer = frame_assets.post_fx_buffer;
 
     // post-fx-pass

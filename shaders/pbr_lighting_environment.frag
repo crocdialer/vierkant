@@ -52,7 +52,6 @@ vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float 
 
     float spec_mip_lvl = roughness * float(u_num_mip_levels - 1);
 
-    // vec3 specIr = sample_reflection(u_sampler_cube[ENV_SPEC], world_reflect, roughness);
     vec3 specIr = textureLod(u_sampler_cube[ENV_SPEC], world_reflect, spec_mip_lvl).rgb;
     float NoV = clamp(dot(normal, v), 0.0, 1.0);
 
