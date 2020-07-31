@@ -29,11 +29,6 @@ layout(binding = 1) uniform sampler2D u_sampler_2D[6];
 #define ENV_SPEC 1
 layout(binding = 2) uniform samplerCube u_sampler_cube[2];
 
-//float map_roughness(float r)
-//{
-//    return mix(0.025, 0.975, r);
-//}
-
 vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
 {
     return texture(diff_map, normal).rgb * ONE_OVER_PI;
@@ -41,7 +36,6 @@ vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
 
 vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float roughness, float metalness, float ambient_occlusion)
 {
-//    roughness = map_roughness(roughness);
     vec3 v = normalize(position);
     vec3 r = normalize(reflect(v, normal));
 

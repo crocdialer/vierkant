@@ -74,7 +74,7 @@ public:
         glm::vec2 size;
         float gamma = 1.f;
         float time;
-        int disable_textures = 0;
+        int disable_material = 0;
     };
 
     /**

@@ -36,7 +36,7 @@ void main()
     out_color = vec4(1);
     out_emission = vec4(0);
 
-    if(context.disable_textures == 0)
+    if(context.disable_material == 0)
     {
         vec4 color = material.color * vertex_in.color;
         if(smoothstep(0.0, 1.0, color.a) < 0.01){ discard; }

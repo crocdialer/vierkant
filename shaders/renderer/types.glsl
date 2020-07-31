@@ -40,7 +40,7 @@ struct render_context_t
     vec2 size;
     float gamma;
     float time;
-    int disable_textures;
+    int disable_material;
 };
 
 //! attribute locations in vierkant::Mesh

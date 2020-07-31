@@ -21,6 +21,6 @@ void main()
 {
     vec3 N = normalize(vertex_in.eye_vec);
 
-    // convolve the environment map with a GGX lobe along R
+    // convolve the environment map with a cosine lobe along N
     out_color = vec4(ImportanceSampleDiffuse(N, u_sampler_cube), 1.0);
 }
