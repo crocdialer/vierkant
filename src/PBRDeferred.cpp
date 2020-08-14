@@ -181,13 +181,10 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     // depth-attachment
     auto depth_map = g_buffer.depth_attachment();
 
-    // deault to color image
+    // default to color image
     auto out_img = albedo_map;
 
     // lighting-pass
-    // |- use g buffer
-    // |- draw light volumes with fancy stencil settings
-    // IBL, environment lighting-pass
     if(m_conv_lambert && m_conv_ggx)
     {
         auto &light_buffer = lighting_pass(cull_result);
@@ -195,8 +192,8 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     }
 
     // dof, bloom, anti-aliasing
-    post_fx_pass(renderer, out_img, depth_map);
-//    m_draw_context.draw_image_fullscreen(renderer, out_img, depth_map);
+    if(settings.use_fxaa){ post_fx_pass(renderer, out_img, depth_map); }
+    else{ m_draw_context.draw_image_fullscreen(renderer, out_img, depth_map); }
 
     // skybox rendering
     if(scene->environment()){ m_draw_context.draw_skybox(renderer, scene->environment(), cam); }
@@ -246,6 +243,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
 vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_result)
 {
+    // lighting-pass
+    // |- IBL, environment lighting-pass + emission
+    // |- TODO: draw light volumes with fancy stencil settings
+
     size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
     auto &frame_assets = m_frame_assets[index];
     auto &light_buffer = frame_assets.lighting_buffer;

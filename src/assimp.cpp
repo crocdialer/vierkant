@@ -15,6 +15,7 @@
 
 #include <crocore/filesystem.hpp>
 #include <crocore/Image.hpp>
+#include <crocore/ThreadPool.hpp>
 
 #include "vierkant/Object3D.hpp"
 #include "vierkant/Material.hpp"
@@ -495,7 +496,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
 /////////////////////////////////////////////////////////////////
 
-mesh_assets_t load_model(const std::string &path)
+mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool& threadpool)
 {
     Assimp::Importer importer;
     std::string found_path;

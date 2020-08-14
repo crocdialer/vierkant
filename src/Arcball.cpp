@@ -65,7 +65,7 @@ void Arcball::mouse_move(const MouseEvent &e)
  * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
  * sphere, return the nearest point on the virtual ball surface.
  */
-glm::vec3 Arcball::get_arcball_vector(const glm::vec2 &screen_pos)
+glm::vec3 Arcball::get_arcball_vector(const glm::vec2 &screen_pos) const
 {
     // screenpos in range [-1 .. 1]
     glm::vec3 surface_point = glm::vec3(screen_pos / screen_size * 2.f - 1.f, 0.f);

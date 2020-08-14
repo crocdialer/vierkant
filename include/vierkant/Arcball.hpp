@@ -38,7 +38,7 @@ public:
 
 private:
 
-    glm::vec3 get_arcball_vector(const glm::vec2 &screen_pos);
+    glm::vec3 get_arcball_vector(const glm::vec2 &screen_pos) const;
 
     glm::ivec2 m_last_pos = {};
     glm::ivec2 m_current_pos = {};

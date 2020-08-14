@@ -31,6 +31,15 @@ public:
         vierkant::ImagePtr conv_ggx;
     };
 
+    struct settings_t
+    {
+        bool disable_materials = false;
+        bool use_fxaa = true;
+    };
+
+    //! settings struct
+    settings_t settings;
+
     static PBRDeferredPtr create(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     PBRDeferred(const PBRDeferred &) = delete;

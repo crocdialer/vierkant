@@ -132,10 +132,9 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const ImVec4 im_vec_cast(const glm::vec3 &the_vec)
+ImVec4 im_vec_cast(const glm::vec3 &v)
 {
-    auto tmp = glm::vec4(the_vec, 1.f);
-    return *reinterpret_cast<const ImVec4 *>(&tmp);
+    return ImVec4(v.x, v.y, v.z, 1.f);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

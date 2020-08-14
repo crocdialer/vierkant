@@ -88,16 +88,16 @@ public:
 
     MouseEvent() : Event() {}
 
-    MouseEvent(int the_initiator, int the_x, int the_y, unsigned int the_modifiers,
-               glm::ivec2 the_wheel_inc, int the_touch_idx = 0, int the_touch_id = 0) :
+    MouseEvent(int initiator, int x, int y, unsigned int modifiers,
+               glm::ivec2 wheel_inc, int touch_idx = 0, int touch_id = 0) :
             Event(),
-            m_initiator(the_initiator),
-            m_x(the_x),
-            m_y(the_y),
-            m_modifiers(the_modifiers),
-            m_wheel_inc(the_wheel_inc),
-            m_touch_index(the_touch_idx),
-            m_touch_id(the_touch_id) {}
+            m_initiator(initiator),
+            m_x(x),
+            m_y(y),
+            m_modifiers(modifiers),
+            m_wheel_inc(wheel_inc),
+            m_touch_index(touch_idx),
+            m_touch_id(touch_id) {}
 
     //! Returns the X coordinate of the mouse event
     int get_x() const { return m_x; }
@@ -176,11 +176,11 @@ class KeyEvent : public Event
 {
 public:
 
-    KeyEvent(int the_code, uint32_t the_char, uint32_t the_modifiers) :
+    KeyEvent(int code, uint32_t character, uint32_t modifiers) :
             Event(),
-            m_code(the_code),
-            m_char(the_char),
-            m_modifiers(the_modifiers) {}
+            m_code(code),
+            m_char(character),
+            m_modifiers(modifiers) {}
 
     //! Returns the key code associated with the event (maps into Key::Type enum)
     int code() const { return m_code; }
