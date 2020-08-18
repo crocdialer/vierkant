@@ -35,7 +35,7 @@ public:
     /**
      * @brief the vulkan-api version used
      */
-    static constexpr int apiVersion = VK_API_VERSION_1_1;
+    static constexpr int api_version = VK_API_VERSION_1_2;
 
     /**
      * @brief   construct an initialized vulkan instance
