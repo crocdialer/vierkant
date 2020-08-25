@@ -35,9 +35,11 @@ std::vector<JoystickState> get_joystick_states();
  */
 struct mouse_delegate_t
 {
+    using enabled_cb_t = std::function<bool()>;
     using mouse_cb_t = std::function<void(const MouseEvent &)>;
     using file_drop_cb_t = std::function<void(const MouseEvent &, const std::vector<std::string> &)>;
 
+    enabled_cb_t enabled;
     mouse_cb_t mouse_press;
     mouse_cb_t mouse_release;
     mouse_cb_t mouse_move;
@@ -63,9 +65,11 @@ struct touch_delegate_t
  */
 struct key_delegate_t
 {
+    using enabled_cb_t = std::function<bool()>;
     using key_cb_t = std::function<void(const KeyEvent &)>;
     using char_cb_t = std::function<void(uint32_t)>;
 
+    enabled_cb_t enabled;
     key_cb_t key_press;
     key_cb_t key_release;
     char_cb_t character_input;
@@ -236,9 +240,9 @@ public:
 
     using ButtonMap = std::unordered_map<Mapping, uint32_t, MapHash>;
 
-    JoystickState(const std::string &n,
-                  const std::vector<uint8_t> &b,
-                  const std::vector<float> &a);
+    JoystickState(std::string n,
+                  std::vector<uint8_t> b,
+                  std::vector<float> a);
 
     const std::string &name() const;
 
@@ -246,13 +250,13 @@ public:
 
     const std::vector<float> &axis() const;
 
-    const glm::vec2 analog_left() const;
+    glm::vec2 analog_left() const;
 
-    const glm::vec2 analog_right() const;
+    glm::vec2 analog_right() const;
 
-    const glm::vec2 trigger() const;
+    glm::vec2 trigger() const;
 
-    const glm::vec2 dpad() const;
+    glm::vec2 dpad() const;
 
     static ButtonMap &mapping() { return s_button_map; }
 

@@ -38,21 +38,35 @@ void get_modifiers(GLFWwindow *window, uint32_t &buttonModifiers, uint32_t &keyM
 {
     buttonModifiers = 0;
     if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT))
+    {
         buttonModifiers |= MouseEvent::BUTTON_LEFT;
+    }
     if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
+    {
         buttonModifiers |= MouseEvent::BUTTON_MIDDLE;
+    }
     if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT))
+    {
         buttonModifiers |= MouseEvent::BUTTON_RIGHT;
+    }
 
     keyModifiers = 0;
     if(glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL))
+    {
         keyModifiers |= KeyEvent::CTRL_DOWN;
+    }
     if(glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) || glfwGetKey(window, GLFW_KEY_RIGHT_SHIFT))
+    {
         keyModifiers |= KeyEvent::SHIFT_DOWN;
+    }
     if(glfwGetKey(window, GLFW_KEY_LEFT_ALT) || glfwGetKey(window, GLFW_KEY_RIGHT_ALT))
+    {
         keyModifiers |= KeyEvent::ALT_DOWN;
+    }
     if(glfwGetKey(window, GLFW_KEY_LEFT_SUPER) || glfwGetKey(window, GLFW_KEY_RIGHT_SUPER))
+    {
         keyModifiers |= KeyEvent::META_DOWN;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -403,6 +417,7 @@ void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 
         for(auto &pair : self->mouse_delegates)
         {
+            if(pair.second.enabled && !pair.second.enabled()){ continue; }
             if(pair.second.mouse_move){ pair.second.mouse_move(e); }
             if(button_mods && pair.second.mouse_drag){ pair.second.mouse_drag(e); }
         }
@@ -442,6 +457,7 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
 
         for(auto &pair : self->mouse_delegates)
         {
+            if(pair.second.enabled && !pair.second.enabled()){ continue; }
             if(action == GLFW_PRESS && pair.second.mouse_press){ pair.second.mouse_press(e); }
             else if(action == GLFW_RELEASE && pair.second.mouse_release)
             {
@@ -461,6 +477,7 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
     {
         for(auto &pair : self->mouse_delegates)
         {
+            if(pair.second.enabled && !pair.second.enabled()){ continue; }
             glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
             double posX, posY;
             glfwGetCursorPos(window, &posX, &posY);
@@ -487,6 +504,8 @@ void Window::glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, 
 
         for(auto &pair : self->key_delegates)
         {
+            if(pair.second.enabled && !pair.second.enabled()){ continue; }
+
             switch(action)
             {
                 case GLFW_REPEAT:
@@ -513,6 +532,7 @@ void Window::glfw_char_cb(GLFWwindow *window, unsigned int key)
 
     for(auto &pair : self->key_delegates)
     {
+        if(pair.second.enabled && !pair.second.enabled()){ continue; }
         if(pair.second.character_input){ pair.second.character_input(key); }
     }
 }
@@ -536,6 +556,7 @@ void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **p
 
         for(auto &pair : self->mouse_delegates)
         {
+            if(pair.second.enabled && !pair.second.enabled()){ continue; }
             if(pair.second.file_drop){ pair.second.file_drop(e, files); }
         }
     }
@@ -572,7 +593,7 @@ void Window::set_fullscreen(bool b, uint32_t monitor_index)
 
     int num;
     GLFWmonitor **monitors = glfwGetMonitors(&num);
-    if(monitor_index >= static_cast<uint32_t>(num)) return;
+    if(monitor_index >= static_cast<uint32_t>(num)){ return; }
     const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor_index]);
 
     int w, h, x, y;
