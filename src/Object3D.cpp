@@ -147,7 +147,7 @@ void Object3D::add_child(const Object3DPtr &child)
 
         while(ancestor)
         {
-            if(ancestor == child) return;
+            if(ancestor == child){ return; }
             ancestor = ancestor->parent();
         }
 
@@ -170,9 +170,9 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
         m_children.erase(it);
         if(child){ child->set_parent(nullptr); }
     }
-        // not a direct descendant, go on recursive if requested
     else if(recursive)
     {
+        // not a direct descendant, go on recursive if requested
         for(auto &c : children())
         {
             c->remove_child(child, recursive);
@@ -183,7 +183,7 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
 AABB Object3D::aabb() const
 {
     AABB ret;
-    for(auto &c :children()){ if(c->enabled()){ ret += c->aabb().transform(m_transform); }}
+    for(auto &c :children()){ if(c->enabled()){ ret += c->aabb().transform(c->transform()); }}
     return ret;
 }
 

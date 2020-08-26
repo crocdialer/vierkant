@@ -1,11 +1,14 @@
-#include <cmath>
-
 //
 // Created by crocdialer on 4/20/18.
 //
 
-#include "vierkant/imgui/imgui_util.h"
-#include "vierkant/imgui/ImGuizmo.h"
+#include <cmath>
+
+#include <vierkant/Mesh.hpp>
+
+#include <vierkant/imgui/imgui_util.h>
+
+#include "imgui_internal.h"
 
 using namespace crocore;
 
@@ -405,6 +408,210 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
         }
     }
     ImGui::End();
+}
+
+void draw_scene_renderer_ui(const SceneRendererConstPtr &scene_renderer)
+{
+    ImGui::Begin("renderer");
+
+    ImGui::End();
+}
+
+vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj,
+                                                const std::set<vierkant::Object3DPtr> *selection)
+{
+    vierkant::Object3DPtr ret;
+    ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+    node_flags |= selection && selection->count(obj) ? ImGuiTreeNodeFlags_Selected : 0;
+
+    // push object id
+    ImGui::PushID(obj->id());
+    bool is_enabled = obj->enabled();
+    if(ImGui::Checkbox("", &is_enabled)){ obj->set_enabled(is_enabled); }
+    ImGui::SameLine();
+
+    const ImVec4 gray(.6, .6, .6, 1.);
+    if(!is_enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
+
+    if(obj->children().empty())
+    {
+        node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
+        ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj->name().c_str());
+        if(ImGui::IsItemClicked()){ ret = obj; }
+    }
+    else
+    {
+        bool is_open = ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s",
+                                         obj->name().c_str());
+        if(ImGui::IsItemClicked()){ ret = obj; }
+
+        if(is_open)
+        {
+            for(auto &c : obj->children())
+            {
+                auto clicked_obj = draw_scenegraph_ui_helper(c, selection);
+                if(!ret){ ret = clicked_obj; }
+            }
+            ImGui::TreePop();
+        }
+    }
+    if(!is_enabled){ ImGui::PopStyleColor(); }
+    ImGui::PopID();
+    return ret;
+}
+
+void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &camera,
+                   std::set<vierkant::Object3DPtr> *selection)
+{
+    constexpr char window_name[] = "scene";
+    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
+
+    if(is_child_window){ ImGui::BeginChild(window_name); }
+    else{ ImGui::Begin(window_name); }
+
+    // draw a tree for the scene-objects
+    auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection);
+
+    // add / remove an object from selection
+    if(clicked_obj && selection)
+    {
+        if(ImGui::GetIO().KeyCtrl)
+        {
+            if(selection->count(clicked_obj)){ selection->erase(clicked_obj); }
+            else{ selection->insert(clicked_obj); }
+        }
+        else
+        {
+            selection->clear();
+            selection->insert(clicked_obj);
+        }
+    }
+
+    ImGui::Separator();
+
+    if(selection){ for(auto &obj : *selection){ draw_object_ui(obj, camera); }}
+
+    // end window
+    if(is_child_window){ ImGui::EndChild(); }
+    else{ ImGui::End(); }
+}
+
+void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera = nullptr)
+{
+
+}
+
+void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &camera)
+{
+    constexpr char window_name[] = "object";
+    constexpr int32_t gizmo_inactive = -1;
+    static int32_t current_gizmo = gizmo_inactive;
+
+    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
+    bool draw_guizmo = false;
+
+    if(is_child_window){ ImGui::BeginChild(window_name); }
+    else{ ImGui::Begin(window_name); }
+
+    // name
+    size_t buf_size = object->name().size() + 4;
+    char text_buf[buf_size];
+    strcpy(text_buf, object->name().c_str());
+
+    if(ImGui::InputText("name", text_buf, IM_ARRAYSIZE(text_buf), ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+        object->set_name(text_buf);
+    }
+
+    ImGui::Separator();
+
+    // transform
+    if(object && ImGui::TreeNode("transform"))
+    {
+        glm::mat4 transform = object->transform();
+        glm::vec3 position = transform[3].xyz();
+        glm::vec3 rotation = glm::degrees(glm::eulerAngles(glm::quat_cast(transform)));
+        glm::vec3 scale = glm::vec3(length(transform[0]), length(transform[1]), length(transform[2]));
+
+        bool changed = ImGui::InputFloat3("position", glm::value_ptr(position), 3);
+        changed = ImGui::InputFloat3("rotation", glm::value_ptr(rotation), 3) || changed;
+        changed = ImGui::InputFloat3("scale", glm::value_ptr(scale), 3) || changed;
+
+        if(changed)
+        {
+            auto m = glm::mat4_cast(glm::quat(glm::radians(rotation)));
+            m[3] = glm::vec4(position, 1.f);
+            m = glm::scale(m, scale);
+            object->set_transform(m);
+        }
+
+        ImGui::Separator();
+
+        // imguizmo handle
+        draw_guizmo = true;
+        if(ImGui::RadioButton("None", current_gizmo == gizmo_inactive)){ current_gizmo = gizmo_inactive; }
+        ImGui::SameLine();
+        if(ImGui::RadioButton("Translate", current_gizmo == ImGuizmo::TRANSLATE)){ current_gizmo = ImGuizmo::TRANSLATE; }
+        ImGui::SameLine();
+        if(ImGui::RadioButton("Rotate", current_gizmo == ImGuizmo::ROTATE)){ current_gizmo = ImGuizmo::ROTATE; }
+        ImGui::SameLine();
+        if(ImGui::RadioButton("Scale", current_gizmo == ImGuizmo::SCALE)){ current_gizmo = ImGuizmo::SCALE; }
+        ImGui::Separator();
+
+        ImGui::TreePop();
+    }
+
+    // cast to mesh
+    auto mesh = std::dynamic_pointer_cast<vierkant::Mesh>(object);
+
+    // animation
+    if(mesh && !mesh->node_animations.empty() && ImGui::TreeNode("animation"))
+    {
+        auto &animation = mesh->node_animations[mesh->animation_index];
+
+        // animation index
+        int animation_index = mesh->animation_index;
+
+        if(ImGui::SliderInt("index", &animation_index, 0, static_cast<int>(mesh->node_animations.size() - 1)))
+        {
+            mesh->animation_index = animation_index;
+        }
+
+        // animation speed
+        if(ImGui::SliderFloat("speed", &mesh->animation_speed, -3.f, 3.f)){}
+        ImGui::SameLine();
+        if(ImGui::Checkbox("play", &animation.playing)){}
+
+        float current_time = animation.current_time / animation.ticks_per_sec;
+        float duration = animation.duration / animation.ticks_per_sec;
+
+        // animation current time / max time
+        if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(),
+                              &current_time, 0.f, duration))
+        {
+            animation.current_time = current_time * animation.ticks_per_sec;
+        }
+        ImGui::Separator();
+        ImGui::TreePop();
+    }
+    if(is_child_window){ ImGui::EndChild(); }
+    else{ ImGui::End(); }
+
+    // imguizmo drawing is in fact another window
+    if(draw_guizmo && camera && (current_gizmo != gizmo_inactive))
+    {
+        glm::mat4 transform = object->global_transform();
+        bool is_ortho = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
+        auto z_val = transform[3].z;
+
+        ImGuizmo::SetOrthographic(is_ortho);
+        auto proj = camera->projection_matrix();
+        proj[1][1] *= -1;
+        ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
+                             ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(transform));
+        if(is_ortho){ transform[3].z = z_val; }
+        object->set_global_transform(transform);
+    }
 }
 
 }// namespace vierkant::gui
