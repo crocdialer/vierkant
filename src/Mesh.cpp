@@ -211,16 +211,20 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
     vkUpdateDescriptorSets(device->handle(), descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 }
 
+vierkant::MeshPtr
+Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry)
+{
+    entry_create_info_t create_info = {};
+    create_info.geometry = geometry;
+    return create_with_entries(device, {create_info});
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::MeshPtr
-Mesh::create_from_geometries(const vierkant::DevicePtr &device,
-                             const std::vector<GeometryPtr> &geometries,
-                             const std::vector<glm::mat4> &transforms,
-                             const std::vector<uint32_t> &node_indices,
-                             const std::vector<uint32_t> &material_indices)
+Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &create_infos)
 {
-    if(geometries.empty()){ return nullptr; }
+    if(create_infos.empty()){ return nullptr; }
 
     struct vertex_data_t
     {
@@ -295,11 +299,11 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
     std::vector<size_t> vertex_offsets;
 
     // insert all geometries
-    for(auto &geom : geometries)
+    for(auto &ci : create_infos)
     {
         vertex_offsets.push_back(num_bytes);
 
-        if(!check_and_insert(geom, vertex_data))
+        if(!check_and_insert(ci.geometry, vertex_data))
         {
             LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
             return nullptr;
@@ -358,9 +362,9 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
     // one default/fallback material-index
     std::set<uint32_t> material_index_set = {0};
 
-    for(uint32_t i = 0; i < geometries.size(); ++i)
+    for(const auto &create_info : create_infos)
     {
-        const auto &geom = geometries[i];
+        const auto &geom = create_info.geometry;
         indices.insert(indices.end(), geom->indices.begin(), geom->indices.end());
         num_vertices += geom->vertices.size();
 
@@ -374,17 +378,14 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         current_base_index += geom->indices.size();
 
         // use provided transforms for sub-meshes, if any
-        if(i < transforms.size()){ entry.transform = transforms[i]; }
+        entry.transform = create_info.transform;
 
         // use provided node_index for sub-meshes, if any
-        if(i < node_indices.size()){ entry.node_index = node_indices[i]; }
+        entry.node_index = create_info.node_index;
 
         // use provided material_index for sub-meshes, if any
-        if(i < material_indices.size())
-        {
-            entry.material_index = material_indices[i];
-            material_index_set.insert(material_indices[i]);
-        }
+        entry.material_index = create_info.material_index;
+        material_index_set.insert(create_info.material_index);
 
         // combine with aabb
         entry.boundingbox = vierkant::compute_aabb(geom->vertices);

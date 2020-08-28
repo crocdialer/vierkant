@@ -288,7 +288,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     box->tex_coords.clear();
     box->normals.clear();
     box->tangents.clear();
-    drawable.mesh = vierkant::Mesh::create_from_geometries(device, {box});
+    drawable.mesh = vierkant::Mesh::create_from_geometry(device, box);
     const auto &mesh_entry = drawable.mesh->entries.front();
 
     drawable.base_index = mesh_entry.base_index;

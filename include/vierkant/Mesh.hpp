@@ -188,19 +188,15 @@ public:
     static MeshPtr create();
 
     /**
-     * @brief   Create a vierkant::MeshPtr from provided Geometries
+     * @brief   Create a vierkant::MeshPtr from provided Geometry
      *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
      *
-     * @param   device  handle for the vierkant::Device to create subresources with
-     * @param   geom    a Geometry struct to extract the vertex information from
+     * @param   device      handle for the vierkant::Device to create subresources with
+     * @param   geometry    a Geometry struct to extract the vertex information from
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr
-    create_from_geometries(const vierkant::DevicePtr &device,
-                           const std::vector<GeometryPtr> &geometries,
-                           const std::vector<glm::mat4> &transforms = {},
-                           const std::vector<uint32_t> &node_indices = {},
-                           const std::vector<uint32_t> &material_indices = {});
+    create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry);
 
     /**
      * @brief   Create a vierkant::MeshPtr with provided information about entries.

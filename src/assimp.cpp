@@ -555,7 +555,7 @@ mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool& thr
 
 
         LOG_DEBUG << crocore::format("loaded model: geometries: %d -- vertices: %d -- faces: %d -- bones: %d ",
-                                     mesh_assets.geometries.size(), num_vertices, num_indices * 3,
+                                     mesh_assets.entry_create_infos.size(), num_vertices, num_indices * 3,
                                      nodes::num_nodes_in_hierarchy(mesh_assets.root_bone));
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
 
@@ -637,11 +637,16 @@ void process_node_hierarchy(const aiScene *scene,
             num_vertices += geometry->vertices.size();
             num_indices += geometry->indices.size();
 
-            out_assets.geometries.push_back(geometry);
-            out_assets.transforms.push_back(node_transform);
-            out_assets.node_indices.push_back(current_node->index);
-            out_assets.material_indices.push_back(ai_mesh->mMaterialIndex);
+            vierkant::Mesh::entry_create_info_t create_info = {};
+            create_info.geometry = geometry;
+            create_info.transform = node_transform;
+            create_info.node_index = current_node->index;
+            create_info.material_index = ai_mesh->mMaterialIndex;
 
+            // pushback new entry
+            out_assets.entry_create_infos.push_back(std::move(create_info));
+
+            // create material
             out_assets.materials[ai_mesh->mMaterialIndex] = create_material(base_path, scene,
                                                                             scene->mMaterials[ai_mesh->mMaterialIndex],
                                                                             &image_cache);

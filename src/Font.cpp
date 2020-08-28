@@ -21,7 +21,8 @@ std::wstring utf8_to_wstring(const std::string &str)
 
 #define BITMAP_WIDTH(font_sz) font_sz > 50 ? 2048 : 1024
 
-namespace vierkant {
+namespace vierkant
+{
 
 struct string_mesh_container
 {
@@ -29,7 +30,7 @@ struct string_mesh_container
     MeshPtr mesh = nullptr;
     uint64_t counter = 0;
 
-    bool operator<(const string_mesh_container &other) const { return counter < other.counter; }
+    bool operator<(const string_mesh_container &other) const{ return counter < other.counter; }
 };
 
 FontPtr Font::create(vierkant::DevicePtr device, const std::string &the_path, size_t size, bool use_sdf)
@@ -38,7 +39,7 @@ FontPtr Font::create(vierkant::DevicePtr device, const std::string &the_path, si
     {
         auto p = crocore::fs::search_file(the_path);
         return FontPtr(new Font(std::move(device), the_path, size, use_sdf));
-    }catch(const std::exception &e)
+    } catch(const std::exception &e)
     {
         LOG_ERROR << e.what();
         return nullptr;
@@ -78,7 +79,7 @@ struct FontImpl
 
         // rect packing
         stbtt_pack_context spc;
-        stbtt_PackBegin(&spc, (uint8_t *)img->data(), img->width(), img->height(), 0, the_padding, nullptr);
+        stbtt_PackBegin(&spc, (uint8_t *) img->data(), img->width(), img->height(), 0, the_padding, nullptr);
 
         int num_chars = 768;
         stbtt_PackFontRange(&spc, const_cast<uint8_t *>(the_font.data()), 0, the_font_size, 32,
@@ -176,9 +177,9 @@ void Font::set_line_height(uint32_t the_line_height)
     m_impl->line_height = the_line_height;
 }
 
-bool Font::use_sdf() const { return m_impl->use_sdf; }
+bool Font::use_sdf() const{ return m_impl->use_sdf; }
 
-void Font::set_use_sdf(bool b) { m_impl->use_sdf = b; }
+void Font::set_use_sdf(bool b){ m_impl->use_sdf = b; }
 
 vierkant::AABB Font::create_aabb(const std::string &theText) const
 {
@@ -294,7 +295,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
         indices.push_back(i + 3);
     }
 
-    auto mesh = vierkant::Mesh::create_from_geometries(m_impl->device, {geom});
+    auto mesh = vierkant::Mesh::create_from_geometry(m_impl->device, geom);
 
     // free the less frequent used half of our buffered string-meshes
     if(m_impl->string_mesh_map.size() >= m_impl->max_mesh_buffer_size)
@@ -358,10 +359,12 @@ vierkant::Object3DPtr Font::create_text_object(std::list<std::string> the_lines,
                 root->add_child(parent);
                 reformat = true;
                 insert_it = the_lines.insert(insert_it, last_word);
-            }else if(insert_it != the_lines.end())
+            }
+            else if(insert_it != the_lines.end())
             {
                 *insert_it = last_word + " " + *insert_it;
-            }else{ the_lines.push_back(last_word); }
+            }
+            else{ the_lines.push_back(last_word); }
 
             // new aabb
             line_aabb = create_aabb(l);

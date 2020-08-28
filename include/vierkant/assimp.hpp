@@ -2,6 +2,7 @@
 
 #include <crocore/ThreadPool.hpp>
 #include <vierkant/Geometry.hpp>
+#include <vierkant/Mesh.hpp>
 #include <vierkant/Material.hpp>
 
 namespace vierkant::assimp
@@ -30,10 +31,7 @@ struct material_t
 struct mesh_assets_t
 {
     // per submesh
-    std::vector<vierkant::GeometryPtr> geometries;
-    std::vector<glm::mat4> transforms;
-    std::vector<uint32_t> node_indices;
-    std::vector<uint32_t> material_indices;
+    std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
 
     // global for mesh
     std::vector<material_t> materials;
@@ -43,9 +41,9 @@ struct mesh_assets_t
 };
 
 //! load a single 3D model from file
-mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool& threadpool);
+mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool &threadpool);
 
 //! load animations from file and add to existing geometry
-size_t add_animations_to_mesh(const std::string &path, mesh_assets_t& mesh_assets);
+size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_assets);
 
 } //namespace vierkant::assimp
