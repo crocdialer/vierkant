@@ -70,6 +70,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.post_fx_buffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
     }
 
+    // blendstates for g-buffer pass
+//    m_g_attachment_blend_states.resize(G_BUFFER_SIZE);
+//    m_g_attachment_blend_states[G_BUFFER_ALBEDO].blendEnable = true;
+
     // create renderer for g-buffer-pass
     vierkant::Renderer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
@@ -231,6 +235,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         // set attachment count
         drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
+
+        // set attachment blendstates
+        drawable.pipeline_format.attachment_blend_states = m_g_attachment_blend_states;
 
         // stage drawable
         m_g_renderer.stage_drawable(std::move(drawable));

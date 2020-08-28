@@ -94,7 +94,7 @@ void HelloTriangleApplication::load_model()
     geom->colors = {glm::vec4(1.f, 0.f, 0.f, 1.f),
                     glm::vec4(0.f, 1.f, 0.f, 1.f),
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};
-    m_mesh = vk::Mesh::create_from_geometries(m_device, {geom});
+    m_mesh = vk::Mesh::create_from_geometry(m_device, geom);
 
     m_drawable = vk::Renderer::create_drawables(m_mesh).front();
     m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device,

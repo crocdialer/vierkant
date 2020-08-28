@@ -137,6 +137,8 @@ private:
 
     vierkant::Renderer m_g_renderer, m_light_renderer;
 
+    std::vector<VkPipelineColorBlendAttachmentState> m_g_attachment_blend_states;
+
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;
 
