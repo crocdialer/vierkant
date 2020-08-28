@@ -412,9 +412,17 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
 
 void draw_scene_renderer_ui(const SceneRendererConstPtr &scene_renderer)
 {
-    ImGui::Begin("renderer");
+    constexpr char window_name[] = "renderer";
+    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
 
-    ImGui::End();
+    if(is_child_window){ ImGui::BeginChild(window_name); }
+    else{ ImGui::Begin(window_name); }
+
+    // ...
+
+    // end window
+    if(is_child_window){ ImGui::EndChild(); }
+    else{ ImGui::End(); }
 }
 
 vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj,
@@ -465,40 +473,177 @@ void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &c
 {
     constexpr char window_name[] = "scene";
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
+    bool is_open = false;
 
-    if(is_child_window){ ImGui::BeginChild(window_name); }
-    else{ ImGui::Begin(window_name); }
+    if(is_child_window){ is_open = ImGui::BeginChild(window_name); }
+    else{ is_open = ImGui::Begin(window_name); }
 
-    // draw a tree for the scene-objects
-    auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection);
-
-    // add / remove an object from selection
-    if(clicked_obj && selection)
+    if(is_open)
     {
-        if(ImGui::GetIO().KeyCtrl)
+        // draw a tree for the scene-objects
+        auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection);
+
+        // add / remove an object from selection
+        if(clicked_obj && selection)
         {
-            if(selection->count(clicked_obj)){ selection->erase(clicked_obj); }
-            else{ selection->insert(clicked_obj); }
+            if(ImGui::GetIO().KeyCtrl)
+            {
+                if(selection->count(clicked_obj)){ selection->erase(clicked_obj); }
+                else{ selection->insert(clicked_obj); }
+            }
+            else
+            {
+                selection->clear();
+                selection->insert(clicked_obj);
+            }
         }
-        else
-        {
-            selection->clear();
-            selection->insert(clicked_obj);
-        }
+
+        ImGui::Separator();
+
+        if(selection){ for(auto &obj : *selection){ draw_object_ui(obj, camera); }}
     }
-
-    ImGui::Separator();
-
-    if(selection){ for(auto &obj : *selection){ draw_object_ui(obj, camera); }}
 
     // end window
     if(is_child_window){ ImGui::EndChild(); }
     else{ ImGui::End(); }
 }
 
-void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera = nullptr)
+void draw_material_ui(const MaterialPtr &material)
 {
+    const float w = ImGui::GetContentRegionAvailWidth();
 
+    // base color
+    if(material->textures.count(vierkant::Material::TextureType::Color))
+    {
+        auto img = material->textures[vierkant::Material::TextureType::Color];
+        ImVec2 sz(w, w / (img->width() / (float) img->height()));
+        ImGui::BulletText("base color (%d x %d)", img->width(), img->height());
+        ImGui::Image((ImTextureID) (img.get()), sz);
+        ImGui::Separator();
+    }
+    else{ ImGui::ColorEdit4("base color", glm::value_ptr(material->color)); }
+
+    // emissive color
+    ImGui::ColorEdit4("emission color", glm::value_ptr(material->emission));
+
+    // normalmap
+    if(material->textures.count(vierkant::Material::TextureType::Normal))
+    {
+        auto img = material->textures[vierkant::Material::TextureType::Normal];
+        ImVec2 sz(w, w / (img->width() / (float) img->height()));
+        ImGui::BulletText("normals (%d x %d)", img->width(), img->height());
+        ImGui::Image((ImTextureID) (img.get()), sz);
+        ImGui::Separator();
+    }
+
+    // ambient-occlusion / roughness / metalness
+    if(material->textures.count(vierkant::Material::TextureType::Ao_rough_metal))
+    {
+        auto img = material->textures[vierkant::Material::TextureType::Ao_rough_metal];
+        ImVec2 sz(w, w / (img->width() / (float) img->height()));
+        ImGui::BulletText("ambient-occlusion / roughness / metalness (%d x %d)", img->width(), img->height());
+        ImGui::Image((ImTextureID) (img.get()), sz);
+        ImGui::Separator();
+    }
+    else
+    {
+        // roughness
+        ImGui::SliderFloat("roughness", &material->roughness, 0.f, 1.f);
+
+        // metalness
+        ImGui::SliderFloat("metalness", &material->metalness, 0.f, 1.f);
+
+        // ambient occlusion
+        ImGui::SliderFloat("ambient occlusion", &material->ambient, 0.f, 1.f);
+    }
+
+    // two-sided
+    ImGui::Checkbox("two-sided", &material->two_sided);
+
+    // blending
+    ImGui::Checkbox("blending", &material->blending);
+}
+
+void draw_mesh_ui(const vierkant::MeshPtr &mesh)
+{
+    if(!mesh){ return; }
+
+
+    size_t num_vertices = 0, num_faces = 0;
+
+    for(auto &e : mesh->entries)
+    {
+        num_vertices += e.num_vertices;
+        num_faces += e.num_indices / 3;
+    }
+    ImGui::Separator();
+    ImGui::BulletText("%d vertices", num_vertices);
+    ImGui::BulletText("%d faces", num_faces);
+    ImGui::BulletText("%d sub-meshes", mesh->entries.size());
+    ImGui::BulletText("%d bones", vierkant::nodes::num_nodes_in_hierarchy(mesh->root_bone));
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // entries
+    if(!mesh->entries.empty() && ImGui::TreeNode("entries"))
+    {
+        size_t index = 0;
+
+        for(auto &e : mesh->entries)
+        {
+            if(ImGui::TreeNodeEx((void *) (mesh->id() + index), 0, "entry %d", index))
+            {
+                ImGui::Checkbox("enabled", &e.enabled);
+
+                std::stringstream ss;
+                ss << "vertices: " << std::to_string(e.num_vertices) << "\n";
+                ss << "faces: " << std::to_string(e.num_indices / 3) << "\n";
+
+                ImGui::Text("%s", ss.str().c_str());
+                ImGui::Separator();
+
+                // material ui
+                draw_material_ui(mesh->materials[e.material_index]);
+
+                ImGui::TreePop();
+            }
+            index++;
+        }
+
+        ImGui::Separator();
+        ImGui::TreePop();
+    }
+
+    // animation
+    if(!mesh->node_animations.empty() && ImGui::TreeNode("animation"))
+    {
+        auto &animation = mesh->node_animations[mesh->animation_index];
+
+        // animation index
+        int animation_index = mesh->animation_index;
+
+        if(ImGui::SliderInt("index", &animation_index, 0, static_cast<int>(mesh->node_animations.size() - 1)))
+        {
+            mesh->animation_index = animation_index;
+        }
+
+        // animation speed
+        if(ImGui::SliderFloat("speed", &mesh->animation_speed, -3.f, 3.f)){}
+        ImGui::SameLine();
+        if(ImGui::Checkbox("play", &animation.playing)){}
+
+        float current_time = animation.current_time / animation.ticks_per_sec;
+        float duration = animation.duration / animation.ticks_per_sec;
+
+        // animation current time / max time
+        if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(),
+                              &current_time, 0.f, duration))
+        {
+            animation.current_time = current_time * animation.ticks_per_sec;
+        }
+        ImGui::Separator();
+        ImGui::TreePop();
+    }
 }
 
 void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &camera)
@@ -512,6 +657,9 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
 
     if(is_child_window){ ImGui::BeginChild(window_name); }
     else{ ImGui::Begin(window_name); }
+
+    ImGui::BulletText("%s", window_name);
+    ImGui::Spacing();
 
     // name
     size_t buf_size = object->name().size() + 4;
@@ -551,7 +699,8 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
         draw_guizmo = true;
         if(ImGui::RadioButton("None", current_gizmo == gizmo_inactive)){ current_gizmo = gizmo_inactive; }
         ImGui::SameLine();
-        if(ImGui::RadioButton("Translate", current_gizmo == ImGuizmo::TRANSLATE)){ current_gizmo = ImGuizmo::TRANSLATE; }
+        if(ImGui::RadioButton("Translate",
+                              current_gizmo == ImGuizmo::TRANSLATE)){ current_gizmo = ImGuizmo::TRANSLATE; }
         ImGui::SameLine();
         if(ImGui::RadioButton("Rotate", current_gizmo == ImGuizmo::ROTATE)){ current_gizmo = ImGuizmo::ROTATE; }
         ImGui::SameLine();
@@ -563,37 +712,8 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
 
     // cast to mesh
     auto mesh = std::dynamic_pointer_cast<vierkant::Mesh>(object);
+    if(mesh){ draw_mesh_ui(mesh); }
 
-    // animation
-    if(mesh && !mesh->node_animations.empty() && ImGui::TreeNode("animation"))
-    {
-        auto &animation = mesh->node_animations[mesh->animation_index];
-
-        // animation index
-        int animation_index = mesh->animation_index;
-
-        if(ImGui::SliderInt("index", &animation_index, 0, static_cast<int>(mesh->node_animations.size() - 1)))
-        {
-            mesh->animation_index = animation_index;
-        }
-
-        // animation speed
-        if(ImGui::SliderFloat("speed", &mesh->animation_speed, -3.f, 3.f)){}
-        ImGui::SameLine();
-        if(ImGui::Checkbox("play", &animation.playing)){}
-
-        float current_time = animation.current_time / animation.ticks_per_sec;
-        float duration = animation.duration / animation.ticks_per_sec;
-
-        // animation current time / max time
-        if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(),
-                              &current_time, 0.f, duration))
-        {
-            animation.current_time = current_time * animation.ticks_per_sec;
-        }
-        ImGui::Separator();
-        ImGui::TreePop();
-    }
     if(is_child_window){ ImGui::EndChild(); }
     else{ ImGui::End(); }
 
@@ -608,7 +728,7 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
         auto proj = camera->projection_matrix();
         proj[1][1] *= -1;
         ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
-                             ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(transform));
+                             ImGuizmo::OPERATION(current_gizmo), ImGuizmo::LOCAL, glm::value_ptr(transform));
         if(is_ortho){ transform[3].z = z_val; }
         object->set_global_transform(transform);
     }

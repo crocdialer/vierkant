@@ -34,6 +34,8 @@ public:
 
     float ambient = 1.f;
 
+    bool two_sided = false;
+
     bool blending = false;
 
     bool depth_test = true;

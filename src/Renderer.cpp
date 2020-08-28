@@ -19,8 +19,9 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
 {
     if(!mesh){ return {}; }
 
-    // allocate one drawable per mesh-entry
-    std::vector<Renderer::drawable_t> ret(mesh->entries.size());
+    // reserve space for one drawable per mesh-entry
+    std::vector<Renderer::drawable_t> ret;
+    ret.reserve(mesh->entries.size());
 
     // same for all entries
     auto binding_descriptions = mesh->binding_descriptions();
@@ -41,12 +42,14 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
     {
         const auto &entry = mesh->entries[i];
 
+        // skip disabled entries
+        if(!entry.enabled){ continue; }
+
         // wonky
         const auto &material = mesh->materials[entry.material_index];
 
         // aquire ref for mesh-drawable
-        auto &drawable = ret[i];
-        drawable = {};
+        Renderer::drawable_t drawable = {};
         drawable.mesh = mesh;
         drawable.entry_index = i;
 
@@ -103,6 +106,9 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
             desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
             drawable.descriptors[BINDING_BONES] = desc_bones;
         }
+
+        // push drawable to vector
+        ret.push_back(std::move(drawable));
     }
     return ret;
 }
