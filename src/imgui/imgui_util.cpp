@@ -524,7 +524,15 @@ void draw_material_ui(const MaterialPtr &material)
     else{ ImGui::ColorEdit4("base color", glm::value_ptr(material->color)); }
 
     // emissive color
-    ImGui::ColorEdit4("emission color", glm::value_ptr(material->emission));
+    if(material->textures.count(vierkant::Material::TextureType::Emission))
+    {
+        auto img = material->textures[vierkant::Material::TextureType::Emission];
+        ImVec2 sz(w, w / (img->width() / (float) img->height()));
+        ImGui::BulletText("emission color (%d x %d)", img->width(), img->height());
+        ImGui::Image((ImTextureID) (img.get()), sz);
+        ImGui::Separator();
+    }
+    else{ ImGui::ColorEdit4("emission color", glm::value_ptr(material->emission)); }
 
     // normalmap
     if(material->textures.count(vierkant::Material::TextureType::Normal))
@@ -579,13 +587,12 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
     ImGui::Separator();
     ImGui::BulletText("%d vertices", num_vertices);
     ImGui::BulletText("%d faces", num_faces);
-    ImGui::BulletText("%d sub-meshes", mesh->entries.size());
     ImGui::BulletText("%d bones", vierkant::nodes::num_nodes_in_hierarchy(mesh->root_bone));
     ImGui::Separator();
     ImGui::Spacing();
 
     // entries
-    if(!mesh->entries.empty() && ImGui::TreeNode("entries"))
+    if(!mesh->entries.empty() && ImGui::TreeNode("entries", "entries (%d)", mesh->entries.size()))
     {
         size_t index = 0;
 
@@ -598,6 +605,7 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
                 std::stringstream ss;
                 ss << "vertices: " << std::to_string(e.num_vertices) << "\n";
                 ss << "faces: " << std::to_string(e.num_indices / 3) << "\n";
+                ss << "material index: " << std::to_string(e.material_index);
 
                 ImGui::Text("%s", ss.str().c_str());
                 ImGui::Separator();
@@ -608,6 +616,25 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
                 ImGui::TreePop();
             }
             index++;
+        }
+
+        ImGui::Separator();
+        ImGui::TreePop();
+    }
+
+    // materials
+    if(!mesh->entries.empty() && ImGui::TreeNode("materials", "materials (%d)", mesh->materials.size()))
+    {
+        for(uint32_t i = 0; i < mesh->materials.size(); ++i)
+        {
+            auto &mat = mesh->materials[i];
+
+            if(mat && ImGui::TreeNode((void *) (mat.get()), "material %d", i))
+            {
+                draw_material_ui(mat);
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
         }
 
         ImGui::Separator();

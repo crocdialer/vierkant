@@ -215,7 +215,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
 
         // check
-        const auto &textures = drawable.mesh->materials[drawable.entry_index]->textures;
+        const auto &textures = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index]->textures;
         if(textures.count(vierkant::Material::Color)){ shader_flags |= PROP_ALBEDO; }
         if(textures.count(vierkant::Material::Normal)){ shader_flags |= PROP_NORMAL; }
         if(textures.count(vierkant::Material::Specular)){ shader_flags |= PROP_SPEC; }

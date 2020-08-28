@@ -217,7 +217,8 @@ vierkant::MeshPtr
 Mesh::create_from_geometries(const vierkant::DevicePtr &device,
                              const std::vector<GeometryPtr> &geometries,
                              const std::vector<glm::mat4> &transforms,
-                             const std::vector<uint32_t> &node_indices)
+                             const std::vector<uint32_t> &node_indices,
+                             const std::vector<uint32_t> &material_indices)
 {
     if(geometries.empty()){ return nullptr; }
 
@@ -354,6 +355,9 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
     size_t num_vertices = 0;
     size_t current_base_vertex = 0, current_base_index = 0;
 
+    // one default/fallback material-index
+    std::set<uint32_t> material_index_set = {0};
+
     for(uint32_t i = 0; i < geometries.size(); ++i)
     {
         const auto &geom = geometries[i];
@@ -366,7 +370,6 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
         entry.num_vertices = geom->vertices.size();
         entry.base_index = current_base_index;
         entry.num_indices = geom->indices.size();
-        entry.material_index = i;
         current_base_vertex += geom->vertices.size();
         current_base_index += geom->indices.size();
 
@@ -375,6 +378,13 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
 
         // use provided node_index for sub-meshes, if any
         if(i < node_indices.size()){ entry.node_index = node_indices[i]; }
+
+        // use provided material_index for sub-meshes, if any
+        if(i < material_indices.size())
+        {
+            entry.material_index = material_indices[i];
+            material_index_set.insert(material_indices[i]);
+        }
 
         // combine with aabb
         entry.boundingbox = vierkant::compute_aabb(geom->vertices);
@@ -390,8 +400,9 @@ Mesh::create_from_geometries(const vierkant::DevicePtr &device,
                                                       VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
-    mesh->materials.resize(geometries.size());
+    mesh->materials.resize(material_index_set.size());
     for(auto &m : mesh->materials){ m = vierkant::Material::create(); }
+
     return mesh;
 }
 

@@ -161,6 +161,14 @@ public:
         VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
     };
 
+    struct entry_create_info_t
+    {
+        GeometryPtr geometry = nullptr;
+        glm::mat4 transform = glm::mat4(1);
+        uint32_t node_index = 0;
+        uint32_t material_index = 0;
+    };
+
     struct entry_t
     {
         glm::mat4 transform = glm::mat4(1);
@@ -180,7 +188,7 @@ public:
     static MeshPtr create();
 
     /**
-     * @brief   Create a vierkant::MeshPtr from provided Geometry
+     * @brief   Create a vierkant::MeshPtr from provided Geometries
      *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
      *
      * @param   device  handle for the vierkant::Device to create subresources with
@@ -191,7 +199,19 @@ public:
     create_from_geometries(const vierkant::DevicePtr &device,
                            const std::vector<GeometryPtr> &geometries,
                            const std::vector<glm::mat4> &transforms = {},
-                           const std::vector<uint32_t> &node_indices = {});
+                           const std::vector<uint32_t> &node_indices = {},
+                           const std::vector<uint32_t> &material_indices = {});
+
+    /**
+     * @brief   Create a vierkant::MeshPtr with provided information about entries.
+     *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
+     *
+     * @param   device          handle for the vierkant::Device to create subresources with
+     * @param   create_infos    an array of entry_create_info_t structs.
+     * @return  the newly created vierkant::MeshPtr
+     */
+    static vierkant::MeshPtr
+    create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &create_infos);
 
     Mesh(const Mesh &) = delete;
 
