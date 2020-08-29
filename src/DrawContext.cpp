@@ -46,7 +46,7 @@ vierkant::ImagePtr render_offscreen(vierkant::Framebuffer &framebuffer,
 
 DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device))
 {
-    // create a pipline cache
+    // create a pipeline cache
     m_pipeline_cache = vierkant::PipelineCache::create(m_device);
 
     // images

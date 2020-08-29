@@ -7,6 +7,7 @@
 #include <vierkant/Mesh.hpp>
 
 #include <vierkant/imgui/imgui_util.h>
+#include <vierkant/PBRDeferred.hpp>
 
 #include "imgui_internal.h"
 
@@ -391,7 +392,11 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
 void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
 {
-    ImGui::Begin("textures");
+    constexpr char window_name[] = "textures";
+    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
+
+    if(is_child_window){ ImGui::BeginChild(window_name); }
+    else{ ImGui::Begin(window_name); }
 
     const float w = ImGui::GetContentRegionAvailWidth();
     const ImVec2 uv_0(0, 0), uv_1(1, 1);
@@ -407,10 +412,12 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
             ImGui::Spacing();
         }
     }
-    ImGui::End();
+    // end window
+    if(is_child_window){ ImGui::EndChild(); }
+    else{ ImGui::End(); }
 }
 
-void draw_scene_renderer_ui(const SceneRendererConstPtr &scene_renderer)
+void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer)
 {
     constexpr char window_name[] = "renderer";
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
@@ -418,7 +425,33 @@ void draw_scene_renderer_ui(const SceneRendererConstPtr &scene_renderer)
     if(is_child_window){ ImGui::BeginChild(window_name); }
     else{ ImGui::Begin(window_name); }
 
-    // ...
+    ImGui::Checkbox("draw grid", &scene_renderer->settings.draw_grid);
+    ImGui::Checkbox("disable material", &scene_renderer->settings.disable_material);
+    ImGui::Checkbox("use fxaa", &scene_renderer->settings.use_fxaa);
+
+    auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer);
+
+    if(pbr_renderer)
+    {
+        if(ImGui::TreeNode("g-buffer", "g-buffer (%d)", vierkant::PBRDeferred::G_BUFFER_SIZE))
+        {
+            std::vector<vierkant::ImagePtr> images;
+
+            for(uint32_t i = 0; i < vierkant::PBRDeferred::G_BUFFER_SIZE; ++i)
+            {
+                images.push_back(pbr_renderer->g_buffer().color_attachment(i));
+            }
+            vierkant::gui::draw_images_ui(images);
+
+            ImGui::TreePop();
+        }
+        if(ImGui::TreeNode("lighting buffer"))
+        {
+            vierkant::gui::draw_images_ui({pbr_renderer->lighting_buffer().color_attachment()});
+
+            ImGui::TreePop();
+        }
+    }
 
     // end window
     if(is_child_window){ ImGui::EndChild(); }
@@ -576,7 +609,6 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
 {
     if(!mesh){ return; }
 
-
     size_t num_vertices = 0, num_faces = 0;
 
     for(auto &e : mesh->entries)
@@ -598,10 +630,16 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
 
         for(auto &e : mesh->entries)
         {
+            // push object id
+            ImGui::PushID(mesh->id() + index);
+            ImGui::Checkbox("", &e.enabled);
+            ImGui::SameLine();
+
+            const ImVec4 gray(.6, .6, .6, 1.);
+            if(!e.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
+
             if(ImGui::TreeNodeEx((void *) (mesh->id() + index), 0, "entry %d", index))
             {
-                ImGui::Checkbox("enabled", &e.enabled);
-
                 std::stringstream ss;
                 ss << "vertices: " << std::to_string(e.num_vertices) << "\n";
                 ss << "faces: " << std::to_string(e.num_indices / 3) << "\n";
@@ -615,9 +653,11 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
 
                 ImGui::TreePop();
             }
+
+            if(!e.enabled){ ImGui::PopStyleColor(); }
+            ImGui::PopID();
             index++;
         }
-
         ImGui::Separator();
         ImGui::TreePop();
     }
@@ -636,7 +676,6 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
                 ImGui::TreePop();
             }
         }
-
         ImGui::Separator();
         ImGui::TreePop();
     }

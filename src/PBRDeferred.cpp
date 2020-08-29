@@ -71,8 +71,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     }
 
     // blendstates for g-buffer pass
-//    m_g_attachment_blend_states.resize(G_BUFFER_SIZE);
-//    m_g_attachment_blend_states[G_BUFFER_ALBEDO].blendEnable = true;
+    vierkant::Pipeline::Format default_pipeline_fmt = {};
+    m_g_attachment_blend_states.resize(G_BUFFER_SIZE, default_pipeline_fmt.blend_state);
+    m_g_attachment_blend_states[G_BUFFER_ALBEDO].blendEnable = true;
 
     // create renderer for g-buffer-pass
     vierkant::Renderer::create_info_t render_create_info = {};
@@ -202,8 +203,10 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     // skybox rendering
     if(scene->environment()){ m_draw_context.draw_skybox(renderer, scene->environment(), cam); }
 
-    // |- use lighting buffer
-    // |- stage fullscreen-draw of compositing-pass -> renderer
+    if(settings.draw_grid)
+    {
+        m_draw_context.draw_grid(renderer, 10.f, 100, cam->view_matrix(), cam->projection_matrix());
+    }
 
     return num_drawables;
 }
@@ -242,6 +245,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         // stage drawable
         m_g_renderer.stage_drawable(std::move(drawable));
     }
+    // material override
+    m_g_renderer.disable_material = settings.disable_material;
+
     auto &g_buffer = m_frame_assets[m_g_renderer.current_index()].g_buffer;
     auto cmd_buffer = m_g_renderer.render(g_buffer);
     g_buffer.submit({cmd_buffer}, m_g_renderer.device()->queue());
@@ -437,6 +443,19 @@ void PBRDeferred::set_environment(const ImagePtr &cubemap)
         m_conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         m_conv_ggx->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     }
+}
+
+const vierkant::Framebuffer &PBRDeferred::g_buffer() const
+{
+    size_t last_index = (m_g_renderer.num_indices() + m_g_renderer.current_index() - 1) % m_g_renderer.num_indices();
+    return m_frame_assets[last_index].g_buffer;
+}
+
+const vierkant::Framebuffer &PBRDeferred::lighting_buffer() const
+{
+    size_t last_index =
+            (m_light_renderer.num_indices() + m_light_renderer.current_index() - 1) % m_light_renderer.num_indices();
+    return m_frame_assets[last_index].lighting_buffer;
 }
 
 }// namespace vierkant

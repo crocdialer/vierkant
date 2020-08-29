@@ -280,6 +280,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     push_constants.size = {viewport.width, viewport.height};
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.gamma = 1.f;
+    push_constants.disable_material = disable_material;
 
     // grouped by pipelines
     for(auto &[pipe_fmt, indexed_drawables] : pipelines)

@@ -17,6 +17,21 @@ class SceneRenderer
 {
 public:
 
+    struct settings_t
+    {
+        //! disable colors from textures, material, vertices
+        bool disable_material = false;
+
+        //! draw a grid for orientation
+        bool draw_grid = true;
+
+        //! apply anti-aliasing using fxaa
+        bool use_fxaa = true;
+    };
+
+    //! settings struct
+    settings_t settings;
+
     /**
      * @brief   Render a scene with a provided camera.
      *

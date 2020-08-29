@@ -22,7 +22,7 @@ void draw_scene_ui(const vierkant::SceneConstPtr &scene,
                    const vierkant::CameraConstPtr &camera = nullptr,
                    std::set<vierkant::Object3DPtr> *selection = nullptr);
 
-void draw_scene_renderer_ui(const vierkant::SceneRendererConstPtr &scene_renderer);
+void draw_scene_renderer_ui(const vierkant::SceneRendererPtr &scene_renderer);
 
 void draw_object_ui(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera = nullptr);
 

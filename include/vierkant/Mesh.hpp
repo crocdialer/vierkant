@@ -188,7 +188,7 @@ public:
     static MeshPtr create();
 
     /**
-     * @brief   Create a vierkant::MeshPtr from provided Geometry
+     * @brief   Create a vierkant::MeshPtr from a provided Geometry.
      *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
      *
      * @param   device      handle for the vierkant::Device to create subresources with

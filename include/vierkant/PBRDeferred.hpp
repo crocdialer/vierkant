@@ -17,6 +17,16 @@ class PBRDeferred : public vierkant::SceneRenderer
 {
 public:
 
+    enum G_BUFFER
+    {
+        G_BUFFER_ALBEDO = 0,
+        G_BUFFER_NORMAL = 1,
+        G_BUFFER_POSITION = 2,
+        G_BUFFER_EMISSION = 3,
+        G_BUFFER_AO_ROUGH_METAL = 4,
+        G_BUFFER_SIZE = 5
+    };
+
     struct create_info_t
     {
         VkExtent3D size = {};
@@ -30,15 +40,6 @@ public:
         // convolved specular irradiance cube mipmaps
         vierkant::ImagePtr conv_ggx;
     };
-
-    struct settings_t
-    {
-        bool disable_materials = false;
-        bool use_fxaa = true;
-    };
-
-    //! settings struct
-    settings_t settings;
 
     static PBRDeferredPtr create(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
@@ -73,17 +74,17 @@ public:
 
     vierkant::ImagePtr environment_ggx() const{ return m_conv_ggx; };
 
-private:
+    /**
+     * @return a const ref to the g-buffer used for last rendering.
+     */
+    const vierkant::Framebuffer& g_buffer() const;
 
-    enum G_BUFFER
-    {
-        G_BUFFER_ALBEDO = 0,
-        G_BUFFER_NORMAL = 1,
-        G_BUFFER_POSITION = 2,
-        G_BUFFER_EMISSION = 3,
-        G_BUFFER_AO_ROUGH_METAL = 4,
-        G_BUFFER_SIZE = 5
-    };
+    /**
+     * @return a const ref to the lighting-buffer used for last rendering.
+     */
+    const vierkant::Framebuffer& lighting_buffer() const;
+
+private:
 
     enum ShaderPropertyFlagBits
     {

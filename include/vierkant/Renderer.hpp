@@ -124,15 +124,14 @@ public:
      */
     static std::vector<drawable_t> create_drawables(const MeshPtr &mesh);
     
-    /**
-     * @brief   Viewport parameters currently used.
-     */
+    //! Viewport parameters currently used.
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
 
-    /**
-     * @brief   Scissor parameters currently used.
-     */
+    //! Scissor parameters currently used.
     VkRect2D scissor = {.offset = {0, 0}, .extent = {0, 0}};
+
+    //! option to disable colors from materials.
+    bool disable_material = false;
 
     Renderer() = default;
 
@@ -157,7 +156,8 @@ public:
     void stage_drawable(drawable_t drawable);
 
     /**
-     * @brief   Creates a secondary VkCommandBuffer, that will render all staged drawables.
+     * @brief   Records drawing-commands for all staged drawables into a secondary VkCommandBuffer.
+     *          Also advances the current in-flight-index.
      *
      * @param   inheritance pointer to a VkCommandBufferInheritanceInfo that contains information about the
      *          current renderpass and framebuffer.

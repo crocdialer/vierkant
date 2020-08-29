@@ -133,7 +133,7 @@ public:
     /**
      * @return  the color-attachment for this index or nullptr if not found.
      */
-    vierkant::ImagePtr color_attachment(uint32_t index) const;
+    vierkant::ImagePtr color_attachment(uint32_t index = 0) const;
 
     /**
      * @return  the depth-attachment or nullptr if not found.
