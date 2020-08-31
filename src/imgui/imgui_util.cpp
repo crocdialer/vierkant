@@ -395,8 +395,7 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     constexpr char window_name[] = "textures";
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
 
-    if(is_child_window){ ImGui::BeginChild(window_name); }
-    else{ ImGui::Begin(window_name); }
+    if(!is_child_window){ ImGui::Begin(window_name); }
 
     const float w = ImGui::GetContentRegionAvailWidth();
     const ImVec2 uv_0(0, 0), uv_1(1, 1);
@@ -413,17 +412,43 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
         }
     }
     // end window
-    if(is_child_window){ ImGui::EndChild(); }
-    else{ ImGui::End(); }
+    if(!is_child_window){ ImGui::End(); }
 }
 
-void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer)
+void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
 {
     constexpr char window_name[] = "renderer";
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
 
     if(is_child_window){ ImGui::BeginChild(window_name); }
     else{ ImGui::Begin(window_name); }
+
+    if(cam)
+    {
+        if(ImGui::TreeNode("camera"))
+        {
+            auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
+
+            if(perspective_cam)
+            {
+                // fov
+                float fov = perspective_cam->fov();
+                if(ImGui::SliderFloat("fov", &fov, 0.f, 180.f)){ perspective_cam->set_fov(fov); }
+
+                // fov
+                float clipping[2] = {perspective_cam->near(), perspective_cam->far()};
+                if(ImGui::InputFloat2("clipping near/far", clipping))
+                {
+                    perspective_cam->set_clipping(clipping[0], clipping[1]);
+                }
+            }
+
+            ImGui::TreePop();
+        }
+
+        ImGui::Separator();
+        ImGui::Spacing();
+    }
 
     ImGui::Checkbox("draw grid", &scene_renderer->settings.draw_grid);
     ImGui::Checkbox("disable material", &scene_renderer->settings.disable_material);

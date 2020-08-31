@@ -388,7 +388,7 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     img_fmt.format = VK_FORMAT_R32G32_SFLOAT;
 
-    // create cube framebuffer
+    // create framebuffer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
     fb_create_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
     fb_create_info.color_attachment_format = img_fmt;

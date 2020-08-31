@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 #include "utils/fxaa.glsl"
+#include "utils/dof.glsl"
 
 #define COLOR 0
 #define DEPTH 1

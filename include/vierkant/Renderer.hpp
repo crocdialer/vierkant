@@ -69,11 +69,25 @@ public:
 
     struct push_constants_t
     {
+        //! index into matrix uniform-buffer
         int matrix_index = 0;
+
+        //! index into material uniform-buffer
         int material_index = 0;
+
+        //! current viewport-size
         glm::vec2 size;
+
+        //! near- and far-clipping planes
+        glm::vec2 clipping = glm::vec2(0.f, 1.f);
+
+        //! current gamma-setting
         float gamma = 1.f;
+
+        //! current time since start in seconds
         float time;
+
+        //! optional flag to disable colors from materials
         int disable_material = 0;
     };
 
@@ -229,6 +243,8 @@ private:
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
                                            frame_assets_t &current,
                                            frame_assets_t &next);
+
+    glm::vec2 clipping_distances(const glm::mat4 &projection);
 
     DevicePtr m_device;
 

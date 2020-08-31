@@ -421,6 +421,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             // update push_constants for each draw call
             push_constants.matrix_index = indexed_drawable.matrix_index;
             push_constants.material_index = indexed_drawable.material_index;
+            push_constants.clipping = clipping_distances(indexed_drawable.drawable->matrices.projection);
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
                                sizeof(push_constants_t), &push_constants);
 
@@ -574,6 +575,21 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
                 std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }
     return set_it->second;
+}
+
+glm::vec2 Renderer::clipping_distances(const glm::mat4 &projection)
+{
+    glm::vec2 ret;
+    auto &c = projection[2][2]; //= (-f - n) / ( f - n);
+    auto &d = projection[2][3]; // = (-2 f n ) / ( f - n)
+
+    // n = near clip plane distance
+    ret.x = d / (c);
+
+    // f  = far clip plane distance
+    ret.y = d / (c + 1.0);
+
+    return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

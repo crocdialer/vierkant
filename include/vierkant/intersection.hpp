@@ -119,9 +119,9 @@ struct ray_triangle_intersection : public ray_intersection
 struct Plane
 {
     // Ax + By + Cz + D = 0
-    glm::vec4 coefficients{0};
+    glm::vec4 coefficients = glm::vec4(0, 1, 0, 0);
 
-    Plane();
+    Plane() = default;
 
     explicit Plane(const glm::vec4 &theCoefficients);
 
@@ -220,7 +220,9 @@ struct Sphere
     inline uint32_t intersect(const glm::vec3 &thePoint) const
     {
         if(glm::length2(center - thePoint) > radius * radius)
+        {
             return REJECT;
+        }
 
         return INSIDE;
     }
@@ -351,7 +353,17 @@ struct OBB
 
 struct Frustum
 {
-    Plane planes[6];
+    enum CLippingPlane
+    {
+        NEAR = 0,
+        FAR = 1,
+        LEFT = 2,
+        RIGHT = 3,
+        TOP = 4,
+        BOTTOM = 5,
+        NUM_PLANES = 6
+    };
+    Plane planes[NUM_PLANES];
 
     explicit Frustum(const glm::mat4 &the_VP_martix);
 
@@ -362,7 +374,7 @@ struct Frustum
 
     inline Frustum &transform(const glm::mat4 &t)
     {
-        Plane *end = planes + 6;
+        Plane *end = planes + NUM_PLANES;
         for(Plane *p = planes; p < end; p++){ p->transform(t); }
         return *this;
     }
@@ -375,7 +387,7 @@ struct Frustum
 
     inline uint32_t intersect(const glm::vec3 &v)
     {
-        Plane *end = planes + 6;
+        Plane *end = planes + NUM_PLANES;
         for(Plane *p = planes; p < end; p++)
         {
             if(p->distance(v) < 0){ return REJECT; }
@@ -385,7 +397,7 @@ struct Frustum
 
     inline uint32_t intersect(const Sphere &s)
     {
-        Plane *end = planes + 6;
+        Plane *end = planes + NUM_PLANES;
         for(Plane *p = planes; p < end; p++)
         {
             if(-p->distance(s.center) > s.radius){ return REJECT; }
@@ -397,7 +409,7 @@ struct Frustum
     {
         uint32_t ret = INSIDE;
 
-        Plane *end = planes + 6;
+        Plane *end = planes + NUM_PLANES;
         for(Plane *p = planes; p < end; p++)
         {
             //positive vertex outside ?
