@@ -43,14 +43,8 @@ changelog:
 
 struct dof_settings_t
 {
-    //! viewport size
-    vec2 viewport_size;
-
-    //! camera clipping near
-    float near;
-
-    //! camera clipping far
-    float far;
+    //! flag indicating if DoF should be applied
+    bool enabled;
 
     //! focal distance value in meters, but you may use u_auto_focus option below
     float focal_depth;
@@ -77,17 +71,15 @@ struct dof_settings_t
     bool debug_focus;
 };
 
-// define default settings
-const dof_settings_t dof_default_settings = dof_settings_t( vec2(1920, 1080), // viewport size
-                                                            0.1, 100.0, // near / far
-                                                            0, // focal depth
-                                                            0, // focal length
-                                                            0, // f-stop
-                                                            0.03, // circle of confusion
-                                                            2.0, // gain
-                                                            0.7, // fringe
-                                                            false, // auto-focus
-                                                            false); // debug focus
+//// define default settings
+//const dof_settings_t dof_default_settings = dof_settings_t( 0, // focal depth
+//                                                            0, // focal length
+//                                                            0, // f-stop
+//                                                            0.03, // circle of confusion
+//                                                            2.0, // gain
+//                                                            0.7, // fringe
+//                                                            false, // auto-focus
+//                                                            false); // debug focus
 
 
 #define PI 3.1415926535897932384626433832795
@@ -183,7 +175,7 @@ float penta(vec2 coords)//pentagonal shape
 }
 
 // blur depth values
-float blur_depth(sampler2D tex, vec2 coord, const dof_settings_t p)
+float blur_depth(sampler2D tex, vec2 coord, vec2 viewport_size)
 {
     float d = 0.0;
 
@@ -195,7 +187,7 @@ float blur_depth(sampler2D tex, vec2 coord, const dof_settings_t p)
     vec2 offset[9];
 
     // texel size
-    vec2 texel = vec2(1.0 / p.viewport_size.x, 1.0 / p.viewport_size.y);
+    vec2 texel = vec2(1.0 / viewport_size.x, 1.0 / viewport_size.y);
     vec2 wh = vec2(texel.x, texel.y) * dbsize;
 
     offset[0] = vec2(-wh.x, -wh.y);
@@ -219,12 +211,12 @@ float blur_depth(sampler2D tex, vec2 coord, const dof_settings_t p)
 }
 
 // processing the sample
-vec3 color(sampler2D tex, vec2 coord, float blur, const dof_settings_t p)
+vec3 color(sampler2D tex, vec2 coord, vec2 viewport_size, float blur, const dof_settings_t p)
 {
     vec3 col = vec3(0.0);
 
     // texel size
-    vec2 texel = vec2(1.0 / p.viewport_size.x, 1.0 / p.viewport_size.y);
+    vec2 texel = vec2(1.0 / viewport_size.x, 1.0 / viewport_size.y);
 
     col.r = texture(tex, coord + vec2(0.0, 1.0) * texel * p.fringe * blur).r;
     col.g = texture(tex, coord + vec2(-0.866, -0.5) * texel * p.fringe * blur).g;
@@ -233,10 +225,11 @@ vec3 color(sampler2D tex, vec2 coord, float blur, const dof_settings_t p)
     vec3 lumcoeff = vec3(0.299, 0.587, 0.114);
     float lum = dot(col.rgb, lumcoeff);
     float thresh = max((lum - threshold) * p.gain, 0.0);
-    return col+mix(vec3(0.0), col, thresh * blur);
+    return col + mix(vec3(0.0), col, thresh * blur);
 }
 
-vec2 rand(vec2 size, vec2 coord)//generating noise/pattern texture for dithering
+//generating noise/pattern texture for dithering
+vec2 rand(vec2 size, vec2 coord)
 {
     float noiseX = ((fract(1.0 - coord.s*(size.x/2.0))*0.25)+(fract(coord.t*(size.y/2.0))*0.75))*2.0-1.0;
     float noiseY = ((fract(1.0-coord.s*(size.x/2.0))*0.75)+(fract(coord.t*(size.y/2.0))*0.25))*2.0-1.0;
@@ -254,17 +247,18 @@ vec3 debugFocus(vec3 col, float blur, float depth)
     //distance based edge smoothing
     float edge = 0.002 * depth;
     float m = clamp(smoothstep(0.0, edge, blur), 0.0, 1.0);
-    float e = clamp(smoothstep(1.0-edge, 1.0, blur), 0.0, 1.0);
+    float e = clamp(smoothstep(1.0 - edge, 1.0, blur), 0.0, 1.0);
 
-    col = mix(col, vec3(1.0, 0.5, 0.0), (1.0-m)*0.6);
-    col = mix(col, vec3(0.0, 0.5, 1.0), ((1.0-e)-(1.0-m))*0.2);
+    col = mix(col, vec3(1.0, 0.5, 0.0), (1.0 - m) * 0.6);
+    col = mix(col, vec3(0.0, 0.5, 1.0), ((1.0 - e) - (1.0 - m)) * 0.2);
 
     return col;
 }
 
-float linearize(float depth, const dof_settings_t p)
+float linearize(float depth, float near, float far)
 {
-    return -p.far * p.near / (depth * (p.far - p.near) - p.far);
+//    return -far * near / (depth * (far - near) - far);
+    return near * far / (far + depth * (near - far));
 }
 
 float vignette(vec2 coord, dof_settings_t p)
@@ -274,18 +268,24 @@ float vignette(vec2 coord, dof_settings_t p)
     return clamp(dist, 0.0, 1.0);
 }
 
-vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, const dof_settings_t params)
+vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 viewport_size, vec2 clip_distances,
+                    const dof_settings_t params)
 {
     // scene depth calculation
     float raw_depth = texture(depth_map, coord).x;
-    float depth = linearize(raw_depth, params);
+    float depth = linearize(raw_depth, clip_distances.x, clip_distances.y);
 
-    if(depthblur){ depth = linearize(blur_depth(depth_map, coord, params), params); }
+    if(depthblur)
+    {
+        float depth_blurred = blur_depth(depth_map, coord, viewport_size);
+        depth = linearize(depth_blurred, clip_distances.x, clip_distances.y);
+    }
 
     // focal plane calculation
     float fDepth = params.focal_depth;
 
-    if(params.auto_focus){ fDepth = linearize(texture(depth_map, focus).x, params); }
+    // autofocus will use a sampled depth-value at the focus point
+    if(params.auto_focus){ fDepth = linearize(texture(depth_map, focus).x, clip_distances.x, clip_distances.y); }
 
     // dof blur factor calculation
     float blur = 0.0;
@@ -307,10 +307,10 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, const 
         // focal length in mm
         float f = params.focal_length;
 
-        //focal plane in mm
+        // focal plane in mm
         float d = fDepth * 1000.0;
 
-        //depth in mm
+        // depth in mm
         float o = depth * 1000.0;
 
         float a = (o * f) / (o - f);
@@ -323,19 +323,17 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, const 
     blur = clamp(blur, 0.0, maxblur);
 
     // calculation of pattern for ditering
-    vec2 noise = rand(params.viewport_size, coord) * namount * blur;
+    vec2 noise = rand(viewport_size, coord) * namount * blur;
 
     // getting blur x and y step factor
-    float w = (1.0 / params.viewport_size.x) * blur * maxblur + noise.x;
-    float h = (1.0 / params.viewport_size.y) * blur * maxblur + noise.y;
+    float w = (1.0 / viewport_size.x) * blur * maxblur + noise.x;
+    float h = (1.0 / viewport_size.y) * blur * maxblur + noise.y;
 
     // calculation of final color
     vec3 col = vec3(0.0);
 
-    if (blur < 0.05)//some optimization thingy
-    {
-        col = texture(color_map, coord).rgb;
-    }
+    //some optimization thingy
+    if (blur < 0.05){ col = texture(color_map, coord).rgb; }
     else
     {
         col = texture(color_map, coord).rgb;
@@ -349,14 +347,14 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, const 
             for (int j = 0; j < ringsamples; j += 1)
             {
                 float step = PI * 2.0 / float(ringsamples);
-                float pw = (cos(float(j)*step)*float(i));
-                float ph = (sin(float(j)*step)*float(i));
+                float pw = (cos(float(j) * step) * float(i));
+                float ph = (sin(float(j) * step) * float(i));
                 float p = 1.0;
 
                 // pentagon shape
                 if (pentagon){ p = penta(vec2(pw, ph)); }
 
-                col += color(color_map, coord + vec2(pw*w, ph*h), blur, params) * mix(1.0, (float(i))/(float(rings)), bias) * p;
+                col += color(color_map, coord + vec2(pw * w, ph * h), viewport_size, blur, params) * mix(1.0, float(i) / float(rings), bias) * p;
                 s += 1.0 * mix(1.0, (float(i))/(float(rings)), bias)*p;
             }
         }

@@ -26,6 +26,10 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "${GLSL_FOLDER}/*.rchit"
             "${GLSL_FOLDER}/*.rmiss")
 
+    # remove existing spirv files
+    file(GLOB SPIRV_FILES "${PROJECT_BINARY_DIR}/shaders/*.spv")
+    file(REMOVE ${SPIRV_FILES})
+
     foreach (GLSL ${GLSL_SOURCE_FILES})
 
         get_filename_component(FILE_NAME ${GLSL} NAME)

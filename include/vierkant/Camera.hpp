@@ -34,13 +34,11 @@ protected:
 
     explicit Camera(const std::string &name);
 
-    void set_projection_matrix(const glm::mat4 &theMatrix) { m_projection = theMatrix; };
+    glm::mat4 m_projection{};
 
 private:
 
     virtual void update_projection_matrix() = 0;
-
-    glm::mat4 m_projection{};
 };
 
 class OrthoCamera : public Camera

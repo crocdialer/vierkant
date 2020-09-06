@@ -16,6 +16,8 @@ using namespace crocore;
 namespace vierkant::gui
 {
 
+const ImVec4 gray(.6, .6, .6, 1.);
+
 // int
 void draw_property_ui(const Property_<int>::Ptr &the_property)
 {
@@ -435,12 +437,34 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
                 float fov = perspective_cam->fov();
                 if(ImGui::SliderFloat("fov", &fov, 0.f, 180.f)){ perspective_cam->set_fov(fov); }
 
-                // fov
+                // clipping planes
                 float clipping[2] = {perspective_cam->near(), perspective_cam->far()};
                 if(ImGui::InputFloat2("clipping near/far", clipping))
                 {
                     perspective_cam->set_clipping(clipping[0], clipping[1]);
                 }
+
+                // dof
+                auto &dof = scene_renderer->settings.dof;
+
+                ImGui::Checkbox("dof enabled", reinterpret_cast<bool*>(std::addressof(dof.enabled)));
+                ImGui::SameLine();
+                if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
+
+                if(ImGui::TreeNode("dof"))
+                {
+
+                    ImGui::Checkbox("autofocus", reinterpret_cast<bool*>(std::addressof(dof.auto_focus)));
+                    ImGui::SliderFloat("focal distance (m)", &dof.focal_depth, 0.f, cam->far());
+                    ImGui::SliderFloat("focal length (mm)", &dof.focal_length, 0.f, 280.f);
+                    ImGui::SliderFloat("f-stop", &dof.fstop, 0.f, 180.f);
+                    ImGui::InputFloat("circle of confusion (mm)", &dof.circle_of_confusion_sz, 0.001f, .01f);
+                    ImGui::SliderFloat("gain", &dof.gain, 0.f, 10.f);
+                    ImGui::SliderFloat("color fringe", &dof.fringe, 0.f, 10.f);
+                    ImGui::Checkbox("debug focus", reinterpret_cast<bool*>(std::addressof(dof.debug_focus)));
+                    ImGui::TreePop();
+                }
+                if(!dof.enabled){ ImGui::PopStyleColor(); }
             }
 
             ImGui::TreePop();
@@ -496,7 +520,6 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     if(ImGui::Checkbox("", &is_enabled)){ obj->set_enabled(is_enabled); }
     ImGui::SameLine();
 
-    const ImVec4 gray(.6, .6, .6, 1.);
     if(!is_enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
     if(obj->children().empty())

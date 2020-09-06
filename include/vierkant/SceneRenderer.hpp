@@ -7,6 +7,7 @@
 #include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
 #include "vierkant/Renderer.hpp"
+#include "vierkant/DepthOfField.h"
 
 namespace vierkant
 {
@@ -27,6 +28,9 @@ public:
 
         //! apply anti-aliasing using fxaa
         bool use_fxaa = true;
+
+        //! desired depth-of-field settings, disabled by default
+        postfx::dof_settings_t dof = {};
     };
 
     //! settings struct

@@ -140,7 +140,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen_texture_vert);
         fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_pbr_post_frag);
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_fxaa_frag);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptor
@@ -148,14 +148,32 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        m_drawable_post_fx.descriptors[0] = desc_texture;
-        m_drawable_post_fx.num_vertices = 3;
-        m_drawable_post_fx.pipeline_format = fmt;
-        m_drawable_post_fx.use_own_buffers = true;
+        m_drawable_fxaa.descriptors[0] = desc_texture;
+        m_drawable_fxaa.num_vertices = 3;
+        m_drawable_fxaa.pipeline_format = fmt;
+        m_drawable_fxaa.use_own_buffers = true;
+
+        // dof
+        m_drawable_dof = m_drawable_fxaa;
+        m_drawable_dof.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_dof_frag);
+
+        // descriptor
+        vierkant::descriptor_t desc_settings_ubo = {};
+        desc_settings_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_settings_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_settings_ubo.buffer = vierkant::Buffer::create(m_device, &settings.dof, sizeof(postfx::dof_settings_t),
+                                                            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                            VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        m_drawable_dof.descriptors[1] = std::move(desc_settings_ubo);
     }
 
     // create required permutations of shader-stages
     create_shader_stages(device);
+
+    // use provided settings
+    settings = create_info.settings;
 
     // bake BRDF into a lookup-table for image-based_lighting
     m_brdf_lut = create_BRDF_lut(device);
@@ -197,8 +215,7 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     }
 
     // dof, bloom, anti-aliasing
-    if(settings.use_fxaa){ post_fx_pass(renderer, out_img, depth_map); }
-    else{ m_draw_context.draw_image_fullscreen(renderer, out_img, depth_map); }
+    post_fx_pass(renderer, cam, out_img, depth_map);
 
     // skybox rendering
     if(scene->environment()){ m_draw_context.draw_skybox(renderer, scene->environment(), cam); }
@@ -291,16 +308,43 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     return light_buffer;
 }
 
-void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const vierkant::ImagePtr &color,
+void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
+                               const CameraPtr &cam,
+                               const vierkant::ImagePtr &color,
                                const vierkant::ImagePtr &depth)
 {
 //    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
 //    auto &frame_assets = m_frame_assets[index];
 //    auto &post_fx_buffer = frame_assets.post_fx_buffer;
 
-    // post-fx-pass
-    auto drawable = m_drawable_post_fx;
-    drawable.descriptors[0].image_samplers = {color, depth};
+    Renderer::drawable_t drawable = {};
+
+    // dof, bloom, anti-aliasing
+    if(settings.use_fxaa)
+    {
+        // fxaa
+        drawable = m_drawable_fxaa;
+        drawable.descriptors[0].image_samplers = {color, depth};
+    }
+    else if(settings.dof.enabled)
+    {
+        // dof
+        drawable = m_drawable_dof;
+        drawable.descriptors[0].image_samplers = {color, depth};
+
+        if(drawable.descriptors[1].buffer)
+        {
+            drawable.descriptors[1].buffer->set_data(&settings.dof, sizeof(postfx::dof_settings_t));
+        }
+    }
+    else
+    {
+        m_draw_context.draw_image_fullscreen(renderer, color, depth);
+        return;
+    }
+
+    // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
+    drawable.matrices.projection = cam->projection_matrix();
 
     // stage, render, submit
     renderer.stage_drawable(std::move(drawable));

@@ -244,6 +244,12 @@ private:
                                            frame_assets_t &current,
                                            frame_assets_t &next);
 
+    /**
+     * @brief   Extract the near- and far-clipping distances from a projection matrix.
+     *
+     * @param   projection  a provided 4x4 projection matrix.
+     * @return  a glm::vec2 containing (near, far) distances
+     */
     glm::vec2 clipping_distances(const glm::mat4 &projection);
 
     DevicePtr m_device;

@@ -52,7 +52,7 @@ void OrthoCamera::update_projection_matrix()
 {
     auto m = glm::orthoRH(m_left, m_right, m_bottom, m_top, m_near, m_far);
     m[1][1] *= -1;
-    set_projection_matrix(m);
+    m_projection = m;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -108,7 +108,7 @@ void PerspectiveCamera::update_projection_matrix()
 {
     auto m = glm::perspectiveRH(glm::radians(m_fov), m_aspect, m_near, m_far);
     m[1][1] *= -1;
-    set_projection_matrix(m);
+    m_projection = m;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,7 +187,7 @@ void CubeCamera::update_projection_matrix()
 {
     auto m = glm::perspectiveRH(glm::radians(90.f), 1.f, m_near, m_far);
     m[1][1] *= -1;
-    set_projection_matrix(m);
+    m_projection = m;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

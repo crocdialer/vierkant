@@ -34,6 +34,9 @@ public:
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
 
+        // base settings for a SceneRenderer
+        SceneRenderer::settings_t settings = {};
+
         // convolved diffuse irradiance cube
         vierkant::ImagePtr conv_lambert;
 
@@ -121,7 +124,9 @@ private:
 
     vierkant::Framebuffer &lighting_pass(const vierkant::cull_result_t &cull_result);
 
-    void post_fx_pass(vierkant::Renderer &renderer, const vierkant::ImagePtr &color,
+    void post_fx_pass(vierkant::Renderer &renderer,
+                      const CameraPtr &cam,
+                      const vierkant::ImagePtr &color,
                       const vierkant::ImagePtr &depth);
 
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
@@ -149,7 +154,7 @@ private:
     // convolved specular irradiance cube mipmaps
     vierkant::ImagePtr m_conv_ggx;
 
-    vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_post_fx;
+    vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof;
 };
 
 }// namespace vierkant

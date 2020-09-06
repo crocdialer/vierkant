@@ -580,14 +580,14 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
 glm::vec2 Renderer::clipping_distances(const glm::mat4 &projection)
 {
     glm::vec2 ret;
-    auto &c = projection[2][2]; //= (-f - n) / ( f - n);
-    auto &d = projection[2][3]; // = (-2 f n ) / ( f - n)
+    auto &c = projection[2][2]; // zFar / (zNear - zFar);
+    auto &d = projection[3][2]; // -(zFar * zNear) / (zFar - zNear);
 
     // n = near clip plane distance
-    ret.x = d / (c);
+    ret.x = d / c;
 
     // f  = far clip plane distance
-    ret.y = d / (c + 1.0);
+    ret.y = d / (c + 1.f);
 
     return ret;
 }
