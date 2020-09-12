@@ -344,13 +344,9 @@ void Framebuffer::wait_fence()
 
 size_t Framebuffer::num_attachments(vierkant::Framebuffer::AttachmentType type) const
 {
-    size_t ret = 0;
-
-    for(const auto &pair : m_attachments)
-    {
-        if(type == pair.first || type == AttachmentType::Any){ ret += pair.second.size(); }
-    }
-    return ret;
+    auto attach_it = m_attachments.find(type);
+    if(attach_it != m_attachments.end()){ return attach_it->second.size(); }
+    return 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

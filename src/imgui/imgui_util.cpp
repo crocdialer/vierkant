@@ -447,7 +447,10 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
                 // dof
                 auto &dof = scene_renderer->settings.dof;
 
-                ImGui::Checkbox("dof enabled", reinterpret_cast<bool*>(std::addressof(dof.enabled)));
+                ImGui::PushID(std::addressof(dof));
+                ImGui::Checkbox("", reinterpret_cast<bool*>(std::addressof(dof.enabled)));
+                ImGui::PopID();
+
                 ImGui::SameLine();
                 if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 

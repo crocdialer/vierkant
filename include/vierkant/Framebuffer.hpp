@@ -37,7 +37,7 @@ public:
      */
     enum class AttachmentType
     {
-        Any = 0, Color = 1, Resolve = 2, DepthStencil = 3
+        Color, Resolve, DepthStencil
     };
 
     using AttachmentMap = std::map<AttachmentType, std::vector<vierkant::ImagePtr>>;
@@ -132,7 +132,7 @@ public:
      * @param   type an Attachment-Enum specifying the type of Attachment to query for
      * @return  the number of Image-Attachments for the specified type
      */
-    size_t num_attachments(AttachmentType type = AttachmentType::Any) const;
+    size_t num_attachments(AttachmentType type = AttachmentType::Color) const;
 
     /**
      * @return  const-ref to a map, holding the Image-Attachments
