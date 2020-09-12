@@ -71,17 +71,6 @@ struct dof_settings_t
     bool debug_focus;
 };
 
-//// define default settings
-//const dof_settings_t dof_default_settings = dof_settings_t( 0, // focal depth
-//                                                            0, // focal length
-//                                                            0, // f-stop
-//                                                            0.03, // circle of confusion
-//                                                            2.0, // gain
-//                                                            0.7, // fringe
-//                                                            false, // auto-focus
-//                                                            false); // debug focus
-
-
 #define PI 3.1415926535897932384626433832795
 
 //------------------------------------------

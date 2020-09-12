@@ -43,6 +43,15 @@ public:
     using AttachmentMap = std::map<AttachmentType, std::vector<vierkant::ImagePtr>>;
 
     /**
+     * @brief   Utility to create an AttachmentMap.
+     *
+     * @param   device  handle for the vierkant::Device to create the attachments with
+     * @param   fmt
+     * @return  a newly created AttachmentMap.
+     */
+    static AttachmentMap create_attachments(const vierkant::DevicePtr &device, create_info_t fmt);
+
+    /**
      * @brief                           Utility function to create a shared RenderPass.
      *
      * @param   device                  handle for the vierkant::Device to create the RenderPass with
@@ -187,8 +196,6 @@ private:
     RenderPassPtr m_renderpass;
 
     Framebuffer::create_info_t m_format;
-
-    AttachmentMap create_attachments(create_info_t fmt);
 
     void init(AttachmentMap attachments, RenderPassPtr renderpass);
 };

@@ -80,12 +80,12 @@ public:
     /**
      * @return a const ref to the g-buffer used for last rendering.
      */
-    const vierkant::Framebuffer& g_buffer() const;
+    const vierkant::Framebuffer &g_buffer() const;
 
     /**
      * @return a const ref to the lighting-buffer used for last rendering.
      */
-    const vierkant::Framebuffer& lighting_buffer() const;
+    const vierkant::Framebuffer &lighting_buffer() const;
 
 private:
 
@@ -104,8 +104,15 @@ private:
     {
         vierkant::Framebuffer g_buffer;
         vierkant::Framebuffer lighting_buffer;
-        vierkant::Framebuffer post_fx_buffer;
         vierkant::BufferPtr lighting_ubo;
+
+        //! ping-pong post-fx framebuffers
+        struct ping_pong_t
+        {
+            vierkant::Framebuffer framebuffer;
+            vierkant::Renderer renderer;
+        };
+        std::array<ping_pong_t, 2> post_fx_ping_pongs;
     };
 
     struct environment_lighting_ubo_t
@@ -141,7 +148,7 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::Renderer m_g_renderer, m_light_renderer;
+    vierkant::Renderer m_g_renderer, m_light_renderer, m_post_fx_renderer;
 
     std::vector<VkPipelineColorBlendAttachmentState> m_g_attachment_blend_states;
 

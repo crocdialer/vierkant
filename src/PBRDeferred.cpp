@@ -40,6 +40,15 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     vierkant::RenderPassPtr g_renderpass, lighting_renderpass, post_fx_renderpass;
 
+    // create renderer for g-buffer-pass
+    vierkant::Renderer::create_info_t post_render_info = {};
+    post_render_info.num_frames_in_flight = create_info.num_frames_in_flight;
+    post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
+    post_render_info.viewport.width = create_info.size.width;
+    post_render_info.viewport.height = create_info.size.height;
+    post_render_info.viewport.maxDepth = 1;
+    post_render_info.pipeline_cache = m_pipeline_cache;
+
     for(auto &asset : m_frame_assets)
     {
         asset.g_buffer = vierkant::Framebuffer(device, g_buffer_info, g_renderpass);
@@ -65,9 +74,16 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.lighting_ubo = vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        // create post_fx buffer
-        asset.post_fx_buffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
-        asset.post_fx_buffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+        // create post_fx ping pong buffers and renderers
+        for(auto &post_fx_ping_pong : asset.post_fx_ping_pongs)
+        {
+            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
+            post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+            post_fx_renderpass = post_fx_ping_pong.framebuffer.renderpass();
+
+            post_render_info.renderpass = post_fx_renderpass;
+            post_fx_ping_pong.renderer = vierkant::Renderer(device, post_render_info);
+        }
     }
 
     // blendstates for g-buffer pass
@@ -313,9 +329,21 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
                                const vierkant::ImagePtr &color,
                                const vierkant::ImagePtr &depth)
 {
-//    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
-//    auto &frame_assets = m_frame_assets[index];
-//    auto &post_fx_buffer = frame_assets.post_fx_buffer;
+    size_t frame_index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    auto &frame_assets = m_frame_assets[frame_index];
+
+    size_t buffer_index = 0;
+    vierkant::ImagePtr output_img = color;
+    auto next_ping_pong = [&frame_assets, &buffer_index, &output_img]() -> frame_assets_t::ping_pong_t &
+    {
+        auto &ret = frame_assets.post_fx_ping_pongs[buffer_index];
+        output_img = ret.framebuffer.color_attachment(0);
+        buffer_index = (buffer_index + 1) % frame_assets.post_fx_ping_pongs.size();
+        return ret;
+    };
+
+
+    // TODO: ping pong thingeling
 
     Renderer::drawable_t drawable = {};
 
@@ -324,30 +352,40 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     {
         // fxaa
         drawable = m_drawable_fxaa;
-        drawable.descriptors[0].image_samplers = {color, depth};
+        drawable.descriptors[0].image_samplers = {output_img, depth};
+
+        auto &pingpong = next_ping_pong();
+        pingpong.renderer.stage_drawable(drawable);
+        auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
+        pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
     }
-    else if(settings.dof.enabled)
+    if(settings.dof.enabled)
     {
         // dof
         drawable = m_drawable_dof;
-        drawable.descriptors[0].image_samplers = {color, depth};
+        drawable.descriptors[0].image_samplers = {output_img, depth};
+
+        // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
+        drawable.matrices.projection = cam->projection_matrix();
 
         if(drawable.descriptors[1].buffer)
         {
             drawable.descriptors[1].buffer->set_data(&settings.dof, sizeof(postfx::dof_settings_t));
         }
-    }
-    else
-    {
-        m_draw_context.draw_image_fullscreen(renderer, color, depth);
-        return;
-    }
 
-    // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
-    drawable.matrices.projection = cam->projection_matrix();
-
-    // stage, render, submit
-    renderer.stage_drawable(std::move(drawable));
+        auto &pingpong = next_ping_pong();
+        pingpong.renderer.stage_drawable(drawable);
+        auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
+        pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
+    }
+//    else
+//    {
+        m_draw_context.draw_image_fullscreen(renderer, output_img, depth);
+//        return;
+//    }
+//
+//    // stage, render, submit
+//    renderer.stage_drawable(std::move(drawable));
 }
 
 

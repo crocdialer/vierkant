@@ -29,9 +29,6 @@ void main()
 {
     gl_FragDepth = texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x;
 
-//    float depth_linear = linearize(gl_FragDepth, context.clipping.x, context.clipping.y);
-//    out_color = vec4(depth_linear, depth_linear, depth_linear, 1.0);
-
     // depth of field
     out_color = depth_of_field(u_sampler_2D[COLOR], u_sampler_2D[DEPTH], vertex_in.tex_coord, context.size,
                                context.clipping, dof_settings);
