@@ -74,7 +74,7 @@ void main()
     vec3 position = texture(u_sampler_2D[POSITION], vertex_in.tex_coord).xyz;
     vec3 ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord).rgb;
 
-    vec4 env_color = vec4(compute_enviroment_lighting(position, normal, color.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r), 1.0);
-    vec4 emission = texture(u_sampler_2D[EMISSION], vertex_in.tex_coord);
-    out_color = env_color + emission;
+    vec3 env_color = compute_enviroment_lighting(position, normal, color.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r);
+    vec3 emission = texture(u_sampler_2D[EMISSION], vertex_in.tex_coord).rgb;
+    out_color = vec4(env_color + emission, color.a);
 }

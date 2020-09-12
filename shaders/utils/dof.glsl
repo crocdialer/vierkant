@@ -318,14 +318,17 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 v
     float w = (1.0 / viewport_size.x) * blur * maxblur + noise.x;
     float h = (1.0 / viewport_size.y) * blur * maxblur + noise.y;
 
+    // keep raw color
+    vec4 raw_color = texture(color_map, coord);
+
     // calculation of final color
     vec3 col = vec3(0.0);
 
     //some optimization thingy
-    if (blur < 0.05){ col = texture(color_map, coord).rgb; }
+    if (blur < 0.05){ col = raw_color.rgb; }
     else
     {
-        col = texture(color_map, coord).rgb;
+        col = raw_color.rgb;
         float s = 1.0;
         int ringsamples;
 
@@ -356,5 +359,5 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 v
     // optional vignetting
     if(vignetting){ col *= vignette(coord, params); }
 
-    return vec4(col, 1.0);
+    return vec4(col, raw_color.a);
 }

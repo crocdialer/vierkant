@@ -334,6 +334,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
     size_t buffer_index = 0;
     vierkant::ImagePtr output_img = color;
+
+    // get next set of pingpong assets, increment index
     auto next_ping_pong = [&frame_assets, &buffer_index, &output_img]() -> frame_assets_t::ping_pong_t &
     {
         auto &ret = frame_assets.post_fx_ping_pongs[buffer_index];
@@ -342,9 +344,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         return ret;
     };
 
-
-    // TODO: ping pong thingeling
-
     Renderer::drawable_t drawable = {};
 
     // dof, bloom, anti-aliasing
@@ -352,7 +351,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     {
         // fxaa
         drawable = m_drawable_fxaa;
-        drawable.descriptors[0].image_samplers = {output_img, depth};
+        drawable.descriptors[0].image_samplers = {output_img};
 
         auto &pingpong = next_ping_pong();
         pingpong.renderer.stage_drawable(drawable);
@@ -378,14 +377,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
         pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
     }
-//    else
-//    {
-        m_draw_context.draw_image_fullscreen(renderer, output_img, depth);
-//        return;
-//    }
-//
-//    // stage, render, submit
-//    renderer.stage_drawable(std::move(drawable));
+    m_draw_context.draw_image_fullscreen(renderer, output_img, depth);
 }
 
 

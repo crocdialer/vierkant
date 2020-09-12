@@ -4,10 +4,10 @@ struct fxaa_settings_t
     float mul_reduce;
     float min_reduce;
     float max_span;
-    int show_edges;
+    bool show_edges;
 };
 
-const fxaa_settings_t fxaa_default_settings = fxaa_settings_t(0.5, 1.0 / 256.0, 1.0 / 512.0, 16.0, 0);
+const fxaa_settings_t fxaa_default_settings = fxaa_settings_t(0.5, 1.0 / 256.0, 1.0 / 512.0, 16.0, false);
 
 // fast approximate anti-aliasing, by the book
 // @see http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf
@@ -86,6 +86,6 @@ vec4 fxaa(sampler2D tex, vec2 coord, fxaa_settings_t settings)
     else{ ret.rgb = rgbFourTab; }
 
     // Show edges for debug purposes.
-    if(settings.show_edges != 0){ ret.r = 1.0; }
+    if(settings.show_edges){ ret.r = 1.0; }
     return ret;
 }
