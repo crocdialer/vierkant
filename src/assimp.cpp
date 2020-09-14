@@ -33,7 +33,7 @@ struct weight_t
 
 using bone_map_t = std::map<std::string, std::pair<int, glm::mat4>>;
 
-using weight_map_t =  std::unordered_map<uint32_t, std::list<weight_t>>;
+using weight_map_t = std::unordered_map<uint32_t, std::list<weight_t>>;
 
 using entry_index_map_t = std::map<std::string, uint32_t>;
 
@@ -127,7 +127,7 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theSce
     for(uint32_t i = 0; i < aMesh->mNumFaces; ++i)
     {
         const aiFace &f = aMesh->mFaces[i];
-        if(f.mNumIndices != 3) throw std::runtime_error("Non triangle mesh loaded");
+        if(f.mNumIndices != 3){ throw std::runtime_error("Non triangle mesh loaded"); }
         geom->indices.insert(geom->indices.end(), f.mIndices, f.mIndices + 3);
     }
 
@@ -192,7 +192,7 @@ void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_
 
 void insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map_t &weightmap, uint32_t start_index)
 {
-    if(weightmap.empty()) return;
+    if(weightmap.empty()){ return; }
 
     // allocate storage for indices and weights
     geom->bone_indices.resize(geom->vertices.size());
@@ -213,7 +213,7 @@ void insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map
 
         for(auto &w : weights_sorted)
         {
-            if(i >= max_num_weights) break;
+            if(i >= max_num_weights){ break; }
             bone_index[i] = w.index;
             bone_weight[i] = w.weight;
             i++;
@@ -496,7 +496,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
 /////////////////////////////////////////////////////////////////
 
-mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool& threadpool)
+mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool &threadpool)
 {
     Assimp::Importer importer;
     std::string found_path;

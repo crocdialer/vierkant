@@ -270,24 +270,19 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
         auto num_vertices = g->vertices.size();
 
         if(g->vertices.empty()){ return false; }
-        add_offset(ATTRIB_POSITION, g->vertices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-
         if(!g->colors.empty() && g->colors.size() != num_vertices){ return false; }
-        add_offset(ATTRIB_COLOR, g->colors, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-
         if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
-        add_offset(ATTRIB_TEX_COORD, g->tex_coords, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-
         if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
-        add_offset(ATTRIB_NORMAL, g->normals, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-
         if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
-        add_offset(ATTRIB_TANGENT, g->tangents, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-
         if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices){ return false; }
-        add_offset(ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-
         if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
+
+        add_offset(ATTRIB_POSITION, g->vertices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_COLOR, g->colors, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_TEX_COORD, g->tex_coords, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_NORMAL, g->normals, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_TANGENT, g->tangents, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_offset(ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
         add_offset(ATTRIB_BONE_WEIGHTS, g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(num_attribs && num_geom_attribs != num_attribs){ return false; }
@@ -298,15 +293,26 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
 
     std::vector<size_t> vertex_offsets;
 
+    std::map<vierkant::GeometryConstPtr, size_t> geom_base_vertices;
+    size_t current_base_vertex = 0;
+
     // insert all geometries
     for(auto &ci : create_infos)
     {
-        vertex_offsets.push_back(num_bytes);
+        auto geom_it = geom_base_vertices.find(ci.geometry);
 
-        if(!check_and_insert(ci.geometry, vertex_data))
+        if(geom_it == geom_base_vertices.end())
         {
-            LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
-            return nullptr;
+            vertex_offsets.push_back(num_bytes);
+
+            if(!check_and_insert(ci.geometry, vertex_data))
+            {
+                LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
+                return nullptr;
+            }
+
+            geom_base_vertices[ci.geometry] = current_base_vertex;
+            current_base_vertex += ci.geometry->vertices.size();
         }
     }
 
@@ -356,8 +362,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
 
     // concat indices
     std::vector<vierkant::index_t> indices;
-    size_t num_vertices = 0;
-    size_t current_base_vertex = 0, current_base_index = 0;
+    size_t current_base_index = 0;
 
     // one default/fallback material-index
     std::set<uint32_t> material_index_set = {0};
@@ -366,11 +371,10 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
     {
         const auto &geom = create_info.geometry;
         indices.insert(indices.end(), geom->indices.begin(), geom->indices.end());
-        num_vertices += geom->vertices.size();
 
         vierkant::Mesh::entry_t entry = {};
         entry.primitive_type = geom->topology;
-        entry.base_vertex = current_base_vertex;
+        entry.base_vertex = geom_base_vertices[geom];
         entry.num_vertices = geom->vertices.size();
         entry.base_index = current_base_index;
         entry.num_indices = geom->indices.size();
