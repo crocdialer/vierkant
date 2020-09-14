@@ -64,6 +64,9 @@ struct dof_settings_t
     //! bokeh chromatic aberration/fringing
     float fringe;
 
+    //! determines max blur amount
+    float max_blur;
+
     //! use auto-focus in shader? disable if you use external focal_depth value
     bool auto_focus;
 
@@ -93,28 +96,25 @@ float vignin = 0.0;//vignetting inner border
 float vignfade = 22.0;//f-stops till vignete fades
 
 // u_auto_focus point on screen (0.0,0.0 - left lower corner, 1.0,1.0 - upper right)
-vec2 focus = vec2(0.5, 0.5);
-
-//clamp value of max blur (0.0 = no blur,1.0 default)
-float maxblur = 1.0;
+vec2 g_focus = vec2(0.5, 0.5);
 
 // highlight threshold;
-float threshold = 0.5;
+float g_highlight_thresh = 0.5;
 
-//bokeh edge bias
-float bias = 0.5;
+// bokeh edge bias
+float g_bokeh_bias = 0.5;
 
-//use noise instead of pattern for sample dithering
+// use noise instead of pattern for sample dithering
 bool noise = true;
 
-//dither amount
+// dither amount
 float namount = 0.0001;
 
-//blur the depth buffer?
-bool depthblur = false;
+// blur the depth buffer?
+bool g_use_depth_blur = false;
 
-//depthblursize
-float dbsize = 1.25;
+// depthblursize
+float g_depth_blur_size = 1.25;
 
 /*
 next part is experimental
@@ -177,7 +177,7 @@ float blur_depth(sampler2D tex, vec2 coord, vec2 viewport_size)
 
     // texel size
     vec2 texel = vec2(1.0 / viewport_size.x, 1.0 / viewport_size.y);
-    vec2 wh = vec2(texel.x, texel.y) * dbsize;
+    vec2 wh = vec2(texel.x, texel.y) * g_depth_blur_size;
 
     offset[0] = vec2(-wh.x, -wh.y);
     offset[1] = vec2(0.0, -wh.y);
@@ -213,7 +213,7 @@ vec3 color(sampler2D tex, vec2 coord, vec2 viewport_size, float blur, const dof_
 
     vec3 lumcoeff = vec3(0.299, 0.587, 0.114);
     float lum = dot(col.rgb, lumcoeff);
-    float thresh = max((lum - threshold) * p.gain, 0.0);
+    float thresh = max((lum - g_highlight_thresh) * p.gain, 0.0);
     return col + mix(vec3(0.0), col, thresh * blur);
 }
 
@@ -264,7 +264,7 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 v
     float raw_depth = texture(depth_map, coord).x;
     float depth = linearize(raw_depth, clip_distances.x, clip_distances.y);
 
-    if(depthblur)
+    if(g_use_depth_blur)
     {
         float depth_blurred = blur_depth(depth_map, coord, viewport_size);
         depth = linearize(depth_blurred, clip_distances.x, clip_distances.y);
@@ -274,7 +274,7 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 v
     float fDepth = params.focal_depth;
 
     // autofocus will use a sampled depth-value at the focus point
-    if(params.auto_focus){ fDepth = linearize(texture(depth_map, focus).x, clip_distances.x, clip_distances.y); }
+    if(params.auto_focus){ fDepth = linearize(texture(depth_map, g_focus).x, clip_distances.x, clip_distances.y); }
 
     // dof blur factor calculation
     float blur = 0.0;
@@ -309,14 +309,14 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 v
         blur = abs(a - b) * c;
     }
 
-    blur = clamp(blur, 0.0, maxblur);
+    blur = clamp(blur, 0.0, params.max_blur);
 
     // calculation of pattern for ditering
     vec2 noise = rand(viewport_size, coord) * namount * blur;
 
     // getting blur x and y step factor
-    float w = (1.0 / viewport_size.x) * blur * maxblur + noise.x;
-    float h = (1.0 / viewport_size.y) * blur * maxblur + noise.y;
+    float w = (1.0 / viewport_size.x) * blur + noise.x;
+    float h = (1.0 / viewport_size.y) * blur + noise.y;
 
     // keep raw color
     vec4 raw_color = texture(color_map, coord);
@@ -346,8 +346,9 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 v
                 // pentagon shape
                 if (pentagon){ p = penta(vec2(pw, ph)); }
 
-                col += color(color_map, coord + vec2(pw * w, ph * h), viewport_size, blur, params) * mix(1.0, float(i) / float(rings), bias) * p;
-                s += 1.0 * mix(1.0, (float(i))/(float(rings)), bias)*p;
+                col += color(color_map, coord + vec2(pw * w, ph * h), viewport_size, blur, params) *
+                    mix(1.0, float(i) / float(rings), g_bokeh_bias) * p;
+                s += 1.0 * mix(1.0, (float(i))/(float(rings)), g_bokeh_bias) * p;
             }
         }
         col /= s;//divide by sample count

@@ -624,6 +624,7 @@ void process_node_hierarchy(const aiScene *scene,
             else
             {
                 geometry = create_geometry(ai_mesh, scene);
+                geometry->colors.resize(geometry->vertices.size(), glm::vec4(1));
                 geometry_map[ai_mesh] = geometry;
             }
 
@@ -631,8 +632,6 @@ void process_node_hierarchy(const aiScene *scene,
             weight_map_t weightmap;
             load_bones_and_weights(ai_mesh, 0, bonemap, weightmap);
             insert_bone_vertex_data(geometry, weightmap, 0);
-
-            geometry->colors.resize(geometry->vertices.size(), glm::vec4(1));
 
             num_vertices += geometry->vertices.size();
             num_indices += geometry->indices.size();

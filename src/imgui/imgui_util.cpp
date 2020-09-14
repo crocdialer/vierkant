@@ -464,6 +464,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
                     ImGui::InputFloat("circle of confusion (mm)", &dof.circle_of_confusion_sz, 0.001f, .01f);
                     ImGui::SliderFloat("gain", &dof.gain, 0.f, 10.f);
                     ImGui::SliderFloat("color fringe", &dof.fringe, 0.f, 10.f);
+                    ImGui::SliderFloat("max blur", &dof.max_blur, 0.f, 10.f);
                     ImGui::Checkbox("debug focus", reinterpret_cast<bool*>(std::addressof(dof.debug_focus)));
                     ImGui::TreePop();
                 }
