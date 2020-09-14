@@ -76,5 +76,5 @@ void main()
 
     vec3 env_color = compute_enviroment_lighting(position, normal, color.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r);
     vec3 emission = texture(u_sampler_2D[EMISSION], vertex_in.tex_coord).rgb;
-    out_color = vec4(env_color + emission, color.a);
+    out_color = vec4(env_color + emission, 1.0);
 }
