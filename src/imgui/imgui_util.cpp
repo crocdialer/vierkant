@@ -846,7 +846,7 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
         auto proj = camera->projection_matrix();
         proj[1][1] *= -1;
         ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
-                             ImGuizmo::OPERATION(current_gizmo), ImGuizmo::LOCAL, glm::value_ptr(transform));
+                             ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(transform));
         if(is_ortho){ transform[3].z = z_val; }
         object->set_global_transform(transform);
     }

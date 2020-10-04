@@ -2,6 +2,8 @@
 // Created by crocdialer on 6/19/20.
 //
 
+#include <crocore/gaussian.hpp>
+
 #include <vierkant/cubemap_utils.hpp>
 #include "vierkant/shaders.hpp"
 #include "vierkant/culling.hpp"
@@ -34,7 +36,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
     post_fx_buffer_info.size = create_info.size;
-    post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+//    post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     post_fx_buffer_info.color_attachment_format.usage =
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -199,6 +201,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_conv_ggx = create_info.conv_ggx;
 
     m_draw_context = vierkant::DrawContext(device);
+
+    auto gaussian2D = crocore::createGaussianKernel_2D<5, double>(5.f, 5.f);
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)

@@ -29,16 +29,7 @@ vierkant::ImagePtr render_offscreen(vierkant::Framebuffer &framebuffer,
     if(sync){ vkWaitForFences(renderer.device()->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max()); }
 
     // check for resolve-attachment, fallback to color-attachment
-    auto attach_it = framebuffer.attachments().find(vierkant::Framebuffer::AttachmentType::Resolve);
-
-    if(attach_it == framebuffer.attachments().end())
-    {
-        attach_it = framebuffer.attachments().find(vierkant::Framebuffer::AttachmentType::Color);
-    }
-
-    // return color-attachment
-    if(attach_it != framebuffer.attachments().end()){ return attach_it->second.front(); }
-    return nullptr;
+    return framebuffer.color_attachment();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
