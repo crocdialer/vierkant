@@ -202,7 +202,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_draw_context = vierkant::DrawContext(device);
 
-    auto gaussian2D = crocore::createGaussianKernel_2D<5, double>(5.f, 5.f);
+    auto gaussian = crocore::createGaussianKernel_1D<7, double>(0);
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
