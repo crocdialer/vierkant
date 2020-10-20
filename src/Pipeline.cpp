@@ -105,6 +105,7 @@ Pipeline::Pipeline(DevicePtr device, Format format) :
         stage_info.stage = pair.first;
         stage_info.module = pair.second.get();
         stage_info.pName = "main";
+        stage_info.pSpecializationInfo = format.specialization_info;
         shader_stage_create_infos.push_back(stage_info);
     }
 
@@ -311,6 +312,7 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
     if(subpass != other.subpass){ return false; }
     if(base_pipeline != other.base_pipeline){ return false; }
     if(base_pipeline_index != other.base_pipeline_index){ return false; }
+    if(specialization_info != other.specialization_info){ return false; }
     if(pipeline_cache != other.pipeline_cache){ return false; }
 
     if(dynamic_states != other.dynamic_states){ return false; }
@@ -536,6 +538,7 @@ size_t std::hash<vierkant::Pipeline::Format>::operator()(vierkant::Pipeline::For
     hash_combine(h, fmt.subpass);
     hash_combine(h, fmt.base_pipeline);
     hash_combine(h, fmt.base_pipeline_index);
+    hash_combine(h, fmt.specialization_info);
     hash_combine(h, fmt.pipeline_cache);
     for(const auto &ds : fmt.dynamic_states){ hash_combine(h, ds); }
     for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }

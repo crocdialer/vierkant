@@ -285,12 +285,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     // grouped by pipelines
     for(auto &[pipe_fmt, indexed_drawables] : pipelines)
     {
-        if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT))
-        {
-            // set dynamic viewport
-            vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
-        }
-
         // select/create pipeline
         auto pipeline = m_pipeline_cache->pipeline(pipe_fmt);
 
@@ -298,6 +292,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline->bind(command_buffer.handle());
 
         bool dynamic_scissor = crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
+
+        if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT))
+        {
+            // set dynamic viewport
+            vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
+        }
 
         // keep track of current mesh, fallback instead of iterating sorted-by-mesh to respect order of drawcalls
         vierkant::MeshPtr current_mesh;

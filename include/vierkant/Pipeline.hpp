@@ -132,6 +132,8 @@ public:
         VkPipeline base_pipeline = VK_NULL_HANDLE;
         int32_t base_pipeline_index = -1;
 
+        const VkSpecializationInfo* specialization_info = nullptr;
+
         VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
         std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
 
