@@ -9,7 +9,7 @@ layout(binding = 0) uniform sampler2D u_sampler_2D[1];
 
 layout(std140, binding = 1) uniform gaussian_ubo
 {
-    gaussian_weights_t u_gaussian_weights;
+    gaussian_ubo_t u_gaussian_weights;
 };
 
 layout(location = 0) in VertexData

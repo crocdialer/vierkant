@@ -8,6 +8,7 @@
 #include "vierkant/shaders.hpp"
 #include "vierkant/culling.hpp"
 #include "vierkant/PBRDeferred.hpp"
+#include "vierkant/GaussianBlur.hpp"
 
 namespace vierkant
 {
@@ -202,7 +203,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_draw_context = vierkant::DrawContext(device);
 
-    auto gaussian = crocore::createGaussianKernel_1D<7, double>(0);
+    GaussianBlur_9_Tap::create_info_t gaussian_info = {};
+    auto gaussian = GaussianBlur_9_Tap::create(device, gaussian_info);
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
