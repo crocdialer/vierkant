@@ -8,7 +8,6 @@
 #include "vierkant/shaders.hpp"
 #include "vierkant/culling.hpp"
 #include "vierkant/PBRDeferred.hpp"
-#include "vierkant/GaussianBlur.hpp"
 
 namespace vierkant
 {
@@ -82,11 +81,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         {
             post_fx_ping_pong.framebuffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
             post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
-            post_fx_renderpass = post_fx_ping_pong.framebuffer.renderpass();
-
-            post_render_info.renderpass = post_fx_renderpass;
             post_fx_ping_pong.renderer = vierkant::Renderer(device, post_render_info);
         }
+
+        // tmp Gaussian blur here. placeholder for bloom
+        GaussianBlur_9_Tap::create_info_t gaussian_info = {};
+        gaussian_info.size = create_info.size;
+        asset.gaussian = GaussianBlur_<9>::create(device, gaussian_info);
     }
 
     // blendstates for g-buffer pass
@@ -102,12 +103,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.viewport.height = create_info.size.height;
     render_create_info.viewport.maxDepth = 1;
     render_create_info.pipeline_cache = m_pipeline_cache;
-    render_create_info.renderpass = g_renderpass;
     m_g_renderer = vierkant::Renderer(device, render_create_info);
 
     // create renderer for lighting-pass
     render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    render_create_info.renderpass = lighting_renderpass;
     m_light_renderer = vierkant::Renderer(device, render_create_info);
 
     // create drawable for environment lighting-pass
@@ -202,9 +201,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_conv_ggx = create_info.conv_ggx;
 
     m_draw_context = vierkant::DrawContext(device);
-
-    GaussianBlur_9_Tap::create_info_t gaussian_info = {};
-    auto gaussian = GaussianBlur_9_Tap::create(device, gaussian_info);
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -235,6 +231,11 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
         auto &light_buffer = lighting_pass(cull_result);
         out_img = light_buffer.color_attachment(0);
     }
+
+    // tmp test gaussian
+    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    auto &frame_assets = m_frame_assets[index];
+    out_img = frame_assets.gaussian->apply(out_img);
 
     // dof, bloom, anti-aliasing
     post_fx_pass(renderer, cam, out_img, depth_map);
@@ -477,7 +478,6 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
 
     // render
     vierkant::Renderer::create_info_t render_create_info = {};
-    render_create_info.renderpass = framebuffer.renderpass();
     render_create_info.num_frames_in_flight = 1;
     render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     render_create_info.viewport.width = framebuffer.extent().width;

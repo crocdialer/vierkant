@@ -185,7 +185,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
             VkDescriptorBufferInfo buffer_info = {};
             buffer_info.buffer = desc.buffer->handle();
             buffer_info.offset = desc.buffer_offset;
-            buffer_info.range = desc.buffer->num_bytes();
+            buffer_info.range = desc.buffer->num_bytes() - desc.buffer_offset;
             buffer_infos.push_back(buffer_info);
             desc_write.pBufferInfo = &buffer_infos.back();
         }

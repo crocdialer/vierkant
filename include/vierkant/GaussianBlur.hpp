@@ -19,11 +19,12 @@ public:
     struct create_info_t
     {
         VkExtent3D size = {};
+        VkFormat color_format = VK_FORMAT_R8G8B8A8_UNORM;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
         glm::vec2 sigma = glm::vec2(0);
     };
 
-    static std::unique_ptr<GaussianBlur_> create(DevicePtr device, const create_info_t &create_info);
+    static std::unique_ptr<GaussianBlur_> create(const DevicePtr &device, const create_info_t &create_info);
 
     vierkant::ImagePtr apply(const vierkant::ImagePtr &image);
 
@@ -41,12 +42,25 @@ private:
         glm::vec4 weights[ubo_array_size]{};
     };
 
-    GaussianBlur_(DevicePtr device, const create_info_t &create_info);
+    GaussianBlur_(const DevicePtr &device, const create_info_t &create_info);
 
     //! ping-pong post-fx framebuffers
-    std::array<vierkant::Framebuffer, 2> m_framebuffers;
+    struct ping_pong_t
+    {
+        vierkant::Framebuffer framebuffer;
+        vierkant::BufferPtr ubo;
+        vierkant::Renderer::drawable_t drawable;
+    };
+    std::array<ping_pong_t, 2> m_ping_pongs;
+
     vierkant::Renderer m_renderer;
+
+    VkSpecializationInfo m_specialization_info = {};
+    VkSpecializationMapEntry m_specialization_entry = {};
 };
+
+template<uint32_t NUM_TAPS> using GaussianBlurUPtr_ = std::unique_ptr<GaussianBlur_<NUM_TAPS>>;
+template<uint32_t NUM_TAPS> using GaussianBlurPtr_ = std::shared_ptr<GaussianBlur_<NUM_TAPS>>;
 
 extern template
 class GaussianBlur_<5>;

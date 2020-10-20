@@ -1,5 +1,5 @@
 //! specialization constant for maximum
-layout (constant_id = 0) const int gaussian_array_size = 3;
+layout (constant_id = 0) const uint gaussian_array_size = 3;
 
 struct gaussian_ubo_t
 {

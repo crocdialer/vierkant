@@ -118,12 +118,11 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
 Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
         m_device(std::move(device))
 {
-    if(!create_info.renderpass || !create_info.num_frames_in_flight)
+    if(!create_info.num_frames_in_flight)
     {
         throw std::runtime_error("could not create vierkant::Renderer");
     }
 
-    m_renderpass = create_info.renderpass;
     m_sample_count = create_info.sample_count;
     viewport = create_info.viewport;
 
@@ -182,7 +181,6 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.viewport, rhs.viewport);
     std::swap(lhs.scissor, rhs.scissor);
     std::swap(lhs.m_device, rhs.m_device);
-    std::swap(lhs.m_renderpass, rhs.m_renderpass);
     std::swap(lhs.m_sample_count, rhs.m_sample_count);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_command_pool, rhs.m_command_pool);
@@ -250,7 +248,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
         auto &pipeline_format = current_assets.drawables[i].pipeline_format;
-        pipeline_format.renderpass = m_renderpass.get();
+        pipeline_format.renderpass = framebuffer.renderpass().get();
         pipeline_format.viewport = viewport;
         pipeline_format.sample_count = m_sample_count;
         pipeline_format.push_constant_ranges = {m_push_constant_range};

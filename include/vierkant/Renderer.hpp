@@ -125,7 +125,6 @@ public:
     {
         VkViewport viewport = {};
         uint32_t num_frames_in_flight = 1;
-        vierkant::RenderPassPtr renderpass;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
     };
@@ -250,11 +249,9 @@ private:
      * @param   projection  a provided 4x4 projection matrix.
      * @return  a glm::vec2 containing (near, far) distances
      */
-    glm::vec2 clipping_distances(const glm::mat4 &projection);
+    static glm::vec2 clipping_distances(const glm::mat4 &projection);
 
     DevicePtr m_device;
-
-    vierkant::RenderPassPtr m_renderpass;
 
     VkSampleCountFlagBits m_sample_count = VK_SAMPLE_COUNT_1_BIT;
 

@@ -268,7 +268,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
 
     // render
     vierkant::Renderer::create_info_t cuber_render_create_info = {};
-    cuber_render_create_info.renderpass = cube_fb.renderpass();
+//    cuber_render_create_info.renderpass = cube_fb.renderpass();
     cuber_render_create_info.num_frames_in_flight = 1;
     cuber_render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     cuber_render_create_info.viewport.width = cube_fb.extent().width;
