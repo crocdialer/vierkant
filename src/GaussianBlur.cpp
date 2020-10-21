@@ -13,10 +13,10 @@ template
 class GaussianBlur_<5>;
 
 template
-class GaussianBlur_<7>;
+class GaussianBlur_<9>;
 
 template
-class GaussianBlur_<9>;
+class GaussianBlur_<13>;
 
 template<uint32_t NUM_TAPS>
 std::unique_ptr<GaussianBlur_<NUM_TAPS>>
@@ -45,9 +45,6 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 
     m_ping_pongs[0].framebuffer = vierkant::Framebuffer(device, framebuffer_info);
     m_ping_pongs[1].framebuffer = vierkant::Framebuffer(device, framebuffer_info);
-
-//    m_ubo = vierkant::Buffer::create(device, nullptr, sizeof(ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-//                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // symmetric 1D gaussian kernels
     auto gaussian_x = crocore::createGaussianKernel_1D<NUM_TAPS>(create_info.sigma.x);
@@ -146,9 +143,9 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 }
 
 template<uint32_t NUM_TAPS>
-vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image)
+vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue queue)
 {
-    VkQueue queue = image->device()->queue();
+    if(!queue){ queue = image->device()->queue(); }
 
     auto &ping = m_ping_pongs[0], &pong = m_ping_pongs[1];
 

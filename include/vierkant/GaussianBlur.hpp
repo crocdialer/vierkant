@@ -26,20 +26,22 @@ public:
 
     static std::unique_ptr<GaussianBlur_> create(const DevicePtr &device, const create_info_t &create_info);
 
-    vierkant::ImagePtr apply(const vierkant::ImagePtr &image);
+    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue = VK_NULL_HANDLE);
 
 private:
 
-    static constexpr uint32_t ubo_array_size = NUM_TAPS / 4 + 1;
+    static constexpr uint32_t max_ubo_array_size = 4;
+
+    static constexpr uint32_t ubo_array_size = (NUM_TAPS / 2 + 1) / 2 + 1;
 
     //! ubo_t models the ubo-layout for providing offsets and weights.
     struct ubo_t
     {
         //! weighted offsets. array of floats, encoded as vec4
-        glm::vec4 offsets[ubo_array_size]{};
+        glm::vec4 offsets[max_ubo_array_size]{};
 
         //! distribution weights. array of floats, encoded as vec4
-        glm::vec4 weights[ubo_array_size]{};
+        glm::vec4 weights[max_ubo_array_size]{};
     };
 
     GaussianBlur_(const DevicePtr &device, const create_info_t &create_info);
@@ -59,23 +61,20 @@ private:
     VkSpecializationMapEntry m_specialization_entry = {};
 };
 
-template<uint32_t NUM_TAPS> using GaussianBlurUPtr_ = std::unique_ptr<GaussianBlur_<NUM_TAPS>>;
-template<uint32_t NUM_TAPS> using GaussianBlurPtr_ = std::shared_ptr<GaussianBlur_<NUM_TAPS>>;
-
 extern template
 class GaussianBlur_<5>;
-
-using GaussianBlur_5_Tap = GaussianBlur_<5>;
-
-extern template
-class GaussianBlur_<7>;
-
-using GaussianBlur_7_Tap = GaussianBlur_<7>;
 
 extern template
 class GaussianBlur_<9>;
 
-using GaussianBlur_9_Tap = GaussianBlur_<9>;
+extern template
+class GaussianBlur_<13>;
+
+template<uint32_t NUM_TAPS> using GaussianBlurUPtr_ = std::unique_ptr<GaussianBlur_<NUM_TAPS>>;
+template<uint32_t NUM_TAPS> using GaussianBlurPtr_ = std::shared_ptr<GaussianBlur_<NUM_TAPS>>;
+
+using GaussianBlur = GaussianBlur_<9>;
+using GaussianBlurPtr = std::shared_ptr<GaussianBlur>;
 
 }// namespace vierkant
 

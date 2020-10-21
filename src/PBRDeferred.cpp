@@ -85,9 +85,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         }
 
         // tmp Gaussian blur here. placeholder for bloom
-        GaussianBlur_9_Tap::create_info_t gaussian_info = {};
+        GaussianBlur::create_info_t gaussian_info = {};
         gaussian_info.size = create_info.size;
-        asset.gaussian = GaussianBlur_<9>::create(device, gaussian_info);
+        asset.gaussian = GaussianBlur::create(device, gaussian_info);
     }
 
     // blendstates for g-buffer pass

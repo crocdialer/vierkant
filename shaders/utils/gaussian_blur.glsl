@@ -1,10 +1,13 @@
-//! specialization constant for maximum
+//! support up to 13-tap
+const uint max_array_size = 4;
+
+//! specialization constant for actual size
 layout (constant_id = 0) const uint gaussian_array_size = 3;
 
 struct gaussian_ubo_t
 {
-    vec4 offsets[gaussian_array_size];
-    vec4 weights[gaussian_array_size];
+    vec4 offsets[max_array_size];
+    vec4 weights[max_array_size];
 };
 
 //! 1 dimensional gaussian-blur subpass

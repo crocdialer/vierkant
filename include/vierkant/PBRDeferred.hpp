@@ -115,7 +115,7 @@ private:
         };
         std::array<ping_pong_t, 2> post_fx_ping_pongs;
 
-        GaussianBlurPtr_<9> gaussian;
+        GaussianBlurPtr gaussian;
     };
 
     struct environment_lighting_ubo_t
