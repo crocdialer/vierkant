@@ -18,10 +18,20 @@ public:
 
     struct create_info_t
     {
+        //! framebuffer size
         VkExtent3D size = {};
+
+        //! framebuffer color-format
         VkFormat color_format = VK_FORMAT_R8G8B8A8_UNORM;
-        vierkant::PipelineCachePtr pipeline_cache = nullptr;
+
+        //! number of iterations
+        uint32_t num_iterations = 1;
+
+        //! optional sigma, if zero(default) will be deduced from kernel size (num taps)
         glm::vec2 sigma = glm::vec2(0);
+
+        //! optional pipeline-cache to share shaders and piplines
+        vierkant::PipelineCachePtr pipeline_cache = nullptr;
     };
 
     static std::unique_ptr<GaussianBlur_> create(const DevicePtr &device, const create_info_t &create_info);
@@ -32,7 +42,7 @@ private:
 
     static constexpr uint32_t max_ubo_array_size = 4;
 
-    static constexpr uint32_t ubo_array_size = (NUM_TAPS / 2 + 1) / 2 + 1;
+    static constexpr uint32_t ubo_array_size = NUM_TAPS / 4 + 1;
 
     //! ubo_t models the ubo-layout for providing offsets and weights.
     struct ubo_t

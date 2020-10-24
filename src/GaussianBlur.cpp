@@ -30,7 +30,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 {
     // create renderer for blur-passes
     vierkant::Renderer::create_info_t post_render_info = {};
-    post_render_info.num_frames_in_flight = 2;
+    post_render_info.num_frames_in_flight = 2 * create_info.num_iterations;
     post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     post_render_info.viewport.width = create_info.size.width;
     post_render_info.viewport.height = create_info.size.height;
@@ -152,16 +152,20 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
     ping.drawable.descriptors[0].image_samplers = {image};
     pong.drawable.descriptors[0].image_samplers = {ping.framebuffer.color_attachment()};
 
-    // horizontal pass
-    m_renderer.stage_drawable(ping.drawable);
-    auto cmd_buffer = m_renderer.render(ping.framebuffer);
-    ping.framebuffer.submit({cmd_buffer}, queue);
+    for(uint32_t i = 0; i < m_renderer.num_indices() / 2; ++i)
+    {
+        // horizontal pass
+        m_renderer.stage_drawable(ping.drawable);
+        auto cmd_buffer = m_renderer.render(ping.framebuffer);
+        ping.framebuffer.submit({cmd_buffer}, queue);
 
-    // vertical pass
-    m_renderer.stage_drawable(pong.drawable);
-    cmd_buffer = m_renderer.render(pong.framebuffer);
-    pong.framebuffer.submit({cmd_buffer}, queue);
+        // vertical pass
+        m_renderer.stage_drawable(pong.drawable);
+        cmd_buffer = m_renderer.render(pong.framebuffer);
+        pong.framebuffer.submit({cmd_buffer}, queue);
 
+        ping.drawable.descriptors[0].image_samplers = {pong.framebuffer.color_attachment()};
+    }
     return pong.framebuffer.color_attachment();
 }
 
