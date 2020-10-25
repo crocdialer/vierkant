@@ -87,7 +87,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         // tmp Gaussian blur here. placeholder for bloom
         GaussianBlur::create_info_t gaussian_info = {};
         gaussian_info.size = create_info.size;
-        gaussian_info.num_iterations = 5;
+        gaussian_info.size.width /= 2;
+        gaussian_info.size.height /= 2;
+
+        gaussian_info.num_iterations = 3;
         asset.gaussian = GaussianBlur::create(device, gaussian_info);
     }
 
@@ -233,10 +236,10 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
         out_img = light_buffer.color_attachment(0);
     }
 
-    // tmp test gaussian
-    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
-    auto &frame_assets = m_frame_assets[index];
-    out_img = frame_assets.gaussian->apply(out_img);
+//    // tmp test gaussian
+//    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+//    auto &frame_assets = m_frame_assets[index];
+//    out_img = frame_assets.gaussian->apply(out_img);
 
     // dof, bloom, anti-aliasing
     post_fx_pass(renderer, cam, out_img, depth_map);

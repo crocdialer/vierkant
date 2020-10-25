@@ -52,6 +52,9 @@ private:
 
         //! distribution weights. array of floats, encoded as vec4
         glm::vec4 weights[max_ubo_array_size]{};
+
+        //! output-size used to derive texel-size
+        glm::vec2 size{};
     };
 
     GaussianBlur_(const DevicePtr &device, const create_info_t &create_info);
@@ -59,11 +62,12 @@ private:
     //! ping-pong post-fx framebuffers
     struct ping_pong_t
     {
-        vierkant::Framebuffer framebuffer;
         vierkant::BufferPtr ubo;
         vierkant::Renderer::drawable_t drawable;
     };
     std::array<ping_pong_t, 2> m_ping_pongs;
+
+    std::vector<vierkant::Framebuffer> m_framebuffers;
 
     vierkant::Renderer m_renderer;
 

@@ -79,7 +79,6 @@ void HelloTriangleApplication::create_graphics_pipeline()
     create_info.viewport = {0.f, 0.f, static_cast<float>(fb_extent.width),
                             static_cast<float>(fb_extent.height), 0.f,
                             static_cast<float>(fb_extent.depth)};
-    create_info.renderpass = m_window->swapchain().framebuffers().front().renderpass();
 
     m_renderer = vierkant::Renderer(m_device, create_info);
     m_gui_renderer = vierkant::Renderer(m_device, create_info);

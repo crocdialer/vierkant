@@ -8,15 +8,22 @@ struct gaussian_ubo_t
 {
     vec4 offsets[max_array_size];
     vec4 weights[max_array_size];
+    vec2 size;
 };
 
 //! 1 dimensional gaussian-blur subpass
 vec4 gaussian_blur(in sampler2D the_texture, in vec2 tex_coord, in gaussian_ubo_t settings)
 {
-    vec4 color = texture(the_texture, tex_coord) * settings.weights[0].x;
-    vec2 texel = 1.0 / textureSize(the_texture, 0);
+    vec4 color = vec4(0);
 
-    for(int i = 1; i < gaussian_array_size; i++)
+    if(gaussian_array_size % 2 != 0)
+    {
+        color += texture(the_texture, tex_coord) * settings.weights[0].x;
+    }
+
+    vec2 texel = 1.0 / settings.size;
+
+    for(uint i = gaussian_array_size % 2; i < gaussian_array_size; i++)
     {
         vec2 offset = texel * settings.offsets[i].xy;
 

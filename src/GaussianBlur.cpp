@@ -38,25 +38,41 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     post_render_info.pipeline_cache = create_info.pipeline_cache;
     m_renderer = vierkant::Renderer(device, post_render_info);
 
-    vierkant::Framebuffer::create_info_t framebuffer_info = {};
-    framebuffer_info.size = create_info.size;
-    framebuffer_info.color_attachment_format.format = create_info.color_format;
-    framebuffer_info.color_attachment_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    // init framebuffers
+    vierkant::Framebuffer::AttachmentMap fb_attachments_ping, fb_attachments_pong;
+    vierkant::Image::Format fmt = {};
+    fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    fmt.format = create_info.color_format;
+    fmt.extent = create_info.size;
 
-    m_ping_pongs[0].framebuffer = vierkant::Framebuffer(device, framebuffer_info);
-    m_ping_pongs[1].framebuffer = vierkant::Framebuffer(device, framebuffer_info);
+    fb_attachments_ping[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
+    fb_attachments_pong[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
+
+    vierkant::RenderPassPtr renderpass;
+    renderpass = vierkant::Framebuffer::create_renderpass(device, fb_attachments_ping, true, false);
+
+    m_framebuffers.resize(2 * create_info.num_iterations);
+
+    for(uint32_t i = 0; i < m_framebuffers.size(); i += 2)
+    {
+        m_framebuffers[i] = vierkant::Framebuffer(device, fb_attachments_ping, renderpass);
+        m_framebuffers[i + 1] = vierkant::Framebuffer(device, fb_attachments_pong, renderpass);
+    }
 
     // symmetric 1D gaussian kernels
     auto gaussian_x = crocore::createGaussianKernel_1D<NUM_TAPS>(create_info.sigma.x);
     auto gaussian_y = crocore::createGaussianKernel_1D<NUM_TAPS>(create_info.sigma.y);
 
-    auto create_weights = [](const auto &kernel, bool horizontal) -> ubo_t
+    auto size = glm::vec2(create_info.size.width, create_info.size.height);
+
+    auto create_weights = [&size](const auto &kernel, bool horizontal) -> ubo_t
     {
         // [-NUM_TAPS / 2, ..., NUM_TAPS / 2]
         std::array<float, NUM_TAPS> offsets;
         std::iota(offsets.begin(), offsets.end(), -static_cast<float>(NUM_TAPS / 2));
 
         ubo_t ubo = {};
+        ubo.size = size;
 
         uint32_t k = 1;
         ubo.offsets[0] = glm::vec4(0.f);
@@ -147,26 +163,30 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
 {
     if(!queue){ queue = image->device()->queue(); }
 
+    auto current_img = image;
     auto &ping = m_ping_pongs[0], &pong = m_ping_pongs[1];
 
-    ping.drawable.descriptors[0].image_samplers = {image};
-    pong.drawable.descriptors[0].image_samplers = {ping.framebuffer.color_attachment()};
-
-    for(uint32_t i = 0; i < m_renderer.num_indices() / 2; ++i)
+    for(uint32_t i = 0; i < m_framebuffers.size(); i += 2)
     {
+        auto &fb_ping = m_framebuffers[i];
+        auto &fb_pong = m_framebuffers[i + 1];
+
+        ping.drawable.descriptors[0].image_samplers = {current_img};
+        pong.drawable.descriptors[0].image_samplers = {fb_ping.color_attachment()};
+
         // horizontal pass
         m_renderer.stage_drawable(ping.drawable);
-        auto cmd_buffer = m_renderer.render(ping.framebuffer);
-        ping.framebuffer.submit({cmd_buffer}, queue);
+        auto cmd_buffer = m_renderer.render(fb_ping);
+        fb_ping.submit({cmd_buffer}, queue);
 
         // vertical pass
         m_renderer.stage_drawable(pong.drawable);
-        cmd_buffer = m_renderer.render(pong.framebuffer);
-        pong.framebuffer.submit({cmd_buffer}, queue);
+        cmd_buffer = m_renderer.render(fb_pong);
+        fb_pong.submit({cmd_buffer}, queue);
 
-        ping.drawable.descriptors[0].image_samplers = {pong.framebuffer.color_attachment()};
+        current_img = fb_pong.color_attachment();
     }
-    return pong.framebuffer.color_attachment();
+    return current_img;
 }
 
 }// namespace vierkant
