@@ -8,11 +8,11 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "/* Generated file, do not edit! */\n\n"
             "#pragma once\n\n"
             "#include <array>\n\n"
-            "namespace vierkant::shaders{\n\n")
+            "namespace vierkant::shaders\n{\n\n")
     file(WRITE ${OUTPUT_SOURCE}
             "/* Generated file, do not edit! */\n\n"
             "#include \"${PROJECT_NAME}/shaders.hpp\"\n\n"
-            "namespace vierkant::shaders{\n")
+            "namespace vierkant::shaders\n{\n")
 
     # gather all shader files
     file(GLOB GLSL_SOURCE_FILES

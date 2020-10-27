@@ -1,10 +1,11 @@
-//! support up to 13-tap
-const uint max_array_size = 4;
-
 //! specialization constant for number of taps
 layout (constant_id = 0) const uint num_taps = 9;
 
+//! the number of weights and offsets provided
 const uint gaussian_array_size = num_taps / 4 + 1;
+
+//! support up to 13-tap
+const uint max_array_size = 4;
 
 const bool odd_num_samples = (num_taps / 2) % 2 == 0;
 
