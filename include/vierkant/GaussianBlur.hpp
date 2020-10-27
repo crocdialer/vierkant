@@ -40,9 +40,10 @@ public:
 
 private:
 
-    static constexpr uint32_t max_ubo_array_size = 4;
+    //! used as data for specialization constant
+    static constexpr uint32_t num_taps = NUM_TAPS;
 
-    static constexpr uint32_t ubo_array_size = NUM_TAPS / 4 + 1;
+    static constexpr uint32_t max_ubo_array_size = 4;
 
     //! ubo_t models the ubo-layout for providing offsets and weights.
     struct ubo_t
@@ -79,7 +80,13 @@ extern template
 class GaussianBlur_<5>;
 
 extern template
+class GaussianBlur_<7>;
+
+extern template
 class GaussianBlur_<9>;
+
+extern template
+class GaussianBlur_<11>;
 
 extern template
 class GaussianBlur_<13>;

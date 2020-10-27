@@ -22,9 +22,14 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "${GLSL_FOLDER}/*.tesc"
             "${GLSL_FOLDER}/*.tese"
             "${GLSL_FOLDER}/*.comp"
-            "${GLSL_FOLDER}/*.rgen"
-            "${GLSL_FOLDER}/*.rchit"
-            "${GLSL_FOLDER}/*.rmiss")
+            "${GLSL_FOLDER}/*.rgen"     # ray generation shader
+            "${GLSL_FOLDER}/*.rint"     # ray intersection shader
+            "${GLSL_FOLDER}/*.rahit"    # ray any hit shader
+            "${GLSL_FOLDER}/*.rchit"    # ray closest hit shader
+            "${GLSL_FOLDER}/*.rmiss"    # ray miss shader
+            "${GLSL_FOLDER}/*.rcall"    # ray callable shader
+            "${GLSL_FOLDER}/*.mesh"
+            "${GLSL_FOLDER}/*.task")
 
     # remove existing spirv files
     file(GLOB SPIRV_FILES "${PROJECT_BINARY_DIR}/shaders/*.spv")

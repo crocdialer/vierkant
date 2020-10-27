@@ -13,7 +13,13 @@ template
 class GaussianBlur_<5>;
 
 template
+class GaussianBlur_<7>;
+
+template
 class GaussianBlur_<9>;
+
+template
+class GaussianBlur_<11>;
 
 template
 class GaussianBlur_<13>;
@@ -74,16 +80,31 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
         ubo_t ubo = {};
         ubo.size = size;
 
-        uint32_t k = 1;
-        ubo.offsets[0] = glm::vec4(0.f);
-        ubo.weights[0] = glm::vec4(kernel[kernel.size() / 2]);
+        // modify weights locally
+        auto kernel_tmp = kernel;
 
-        for(uint32_t i = kernel.size() / 2 + 1; i < kernel.size(); i += 2)
+        // odd or even number of samples
+        bool odd_num_samples = (num_taps / 2) % 2 == 0;
+
+        if(odd_num_samples)
         {
-            float weight_sum = kernel[i] + kernel[i + 1];
+            ubo.offsets[0] = glm::vec4(0.f);
+            ubo.weights[0] = glm::vec4(kernel[kernel.size() / 2]);
+        }
+        else
+        {
+            // center weight will be used twice
+            kernel_tmp[kernel.size() / 2] /= 2.f;
+        }
+
+        uint32_t k = odd_num_samples ? 1 : 0;
+
+        for(uint32_t i = kernel_tmp.size() / 2 + k; i < kernel_tmp.size(); i += 2)
+        {
+            float weight_sum = kernel_tmp[i] + kernel_tmp[i + 1];
             ubo.weights[k] = glm::vec4(weight_sum);
 
-            float offset = offsets[i] * kernel[i] + offsets[i + 1] * kernel[i + 1];
+            float offset = offsets[i] * kernel_tmp[i] + offsets[i + 1] * kernel_tmp[i + 1];
             offset /= weight_sum;
 
             // set 2d offset
@@ -111,12 +132,12 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     {
         m_specialization_entry.constantID = 0;
         m_specialization_entry.offset = 0;
-        m_specialization_entry.size = sizeof(ubo_array_size);
+        m_specialization_entry.size = sizeof(num_taps);
 
         m_specialization_info.mapEntryCount = 1;
         m_specialization_info.pMapEntries = &m_specialization_entry;
-        m_specialization_info.pData = &ubo_array_size;
-        m_specialization_info.dataSize = sizeof(ubo_array_size);
+        m_specialization_info.pData = &num_taps;
+        m_specialization_info.dataSize = sizeof(num_taps);
 
         vierkant::Renderer::drawable_t drawable = {};
 

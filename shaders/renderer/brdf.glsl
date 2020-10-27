@@ -5,11 +5,6 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-float map_roughness(float r)
-{
-    return mix(0.025, 0.975, r);
-}
-
 vec3 BRDF_Lambertian(vec3 color, float metalness)
 {
 	return mix(color, vec3(0.0), metalness) * ONE_OVER_PI;
@@ -45,13 +40,11 @@ float D_GGX(float NoH, float roughness)
 vec4 shade(in lightsource_t light, in vec3 normal, in vec3 eyeVec, in vec4 base_color,
            float roughness, float metalness, float shade_factor)
 {
-    roughness = map_roughness(roughness);
     vec3 lightDir = light.type > 0 ? (light.position - eyeVec) : -light.direction;
     vec3 L = normalize(lightDir);
     vec3 E = normalize(-eyeVec);
     vec3 H = normalize(L + E);
 
-    // vec3 ambient = light.ambient.rgb;
     float nDotL = max(0.f, dot(normal, L));
     float nDotH = max(0.f, dot(normal, H));
     float nDotV = max(0.f, dot(normal, E));
