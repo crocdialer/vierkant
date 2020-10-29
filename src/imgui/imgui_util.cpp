@@ -480,7 +480,8 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
 
     ImGui::Checkbox("draw grid", &scene_renderer->settings.draw_grid);
     ImGui::Checkbox("disable material", &scene_renderer->settings.disable_material);
-    ImGui::Checkbox("use fxaa", &scene_renderer->settings.use_fxaa);
+    ImGui::Checkbox("fxaa", &scene_renderer->settings.use_fxaa);
+    ImGui::Checkbox("bloom", &scene_renderer->settings.use_bloom);
 
     auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer);
 

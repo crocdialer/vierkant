@@ -40,6 +40,7 @@ struct render_context_t
     vec2 size;
     vec2 clipping;
     float gamma;
+    float exposure;
     float time;
     int disable_material;
 };

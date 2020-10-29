@@ -164,7 +164,7 @@ private:
     // convolved specular irradiance cube mipmaps
     vierkant::ImagePtr m_conv_ggx;
 
-    vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof;
+    vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom;
 };
 
 }// namespace vierkant

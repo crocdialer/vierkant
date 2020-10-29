@@ -151,31 +151,35 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         m_drawable_lighting_env.use_own_buffers = true;
     }
 
-    // create drawable for post-fx-pass
+    // create drawables for post-fx-pass
     {
-        Pipeline::Format fmt = {};
-        fmt.depth_test = true;
-        fmt.depth_write = true;
-        fmt.blend_state.blendEnable = true;
+        vierkant::Renderer::drawable_t fullscreen_drawable = {};
 
-        fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
+        fullscreen_drawable.num_vertices = 3;
+        fullscreen_drawable.use_own_buffers = true;
+
+        fullscreen_drawable.pipeline_format.depth_test = true;
+        fullscreen_drawable.pipeline_format.depth_write = true;
+        fullscreen_drawable.pipeline_format.blend_state.blendEnable = true;
+
+        // same for all fullscreen passes
+        fullscreen_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen_texture_vert);
-        fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_fxaa_frag);
-        fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+//        fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+//                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_fxaa_frag);
+        fullscreen_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptor
-        vierkant::descriptor_t desc_texture = {};
-        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fullscreen_drawable.descriptors[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        fullscreen_drawable.descriptors[0].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        m_drawable_fxaa.descriptors[0] = desc_texture;
-        m_drawable_fxaa.num_vertices = 3;
-        m_drawable_fxaa.pipeline_format = fmt;
-        m_drawable_fxaa.use_own_buffers = true;
+        // fxaa
+        m_drawable_fxaa = fullscreen_drawable;
+        m_drawable_fxaa.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_fxaa_frag);
 
         // dof
-        m_drawable_dof = m_drawable_fxaa;
+        m_drawable_dof = fullscreen_drawable;
         m_drawable_dof.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen_dof_frag);
 
@@ -188,6 +192,11 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         m_drawable_dof.descriptors[1] = std::move(desc_settings_ubo);
+
+        // bloom
+        m_drawable_bloom = fullscreen_drawable;
+        m_drawable_bloom.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_bloom_composition_frag);
     }
 
     // create required permutations of shader-stages
@@ -233,15 +242,6 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     {
         auto &light_buffer = lighting_pass(cull_result);
         out_img = light_buffer.color_attachment(0);
-
-        // bloom
-        if(settings.use_bloom)
-        {
-            // tmp test bloom
-            size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
-            auto &frame_assets = m_frame_assets[index];
-            auto bloom_img = frame_assets.bloom->apply(out_img);
-        }
     }
 
     // dof, bloom, anti-aliasing
@@ -360,13 +360,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         return ret;
     };
 
-    Renderer::drawable_t drawable = {};
-
     // dof, bloom, anti-aliasing
     if(settings.use_fxaa)
     {
         // fxaa
-        drawable = m_drawable_fxaa;
+        auto drawable = m_drawable_fxaa;
         drawable.descriptors[0].image_samplers = {output_img};
 
         auto &pingpong = next_ping_pong();
@@ -374,10 +372,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
         pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
     }
+
     if(settings.dof.enabled)
     {
         // dof
-        drawable = m_drawable_dof;
+        auto drawable = m_drawable_dof;
         drawable.descriptors[0].image_samplers = {output_img, depth};
 
         // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
@@ -393,7 +392,15 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
         pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
     }
-    m_draw_context.draw_image_fullscreen(renderer, output_img, depth);
+
+    // bloom
+    if(settings.use_bloom)
+    {
+        auto bloom_img = frame_assets.bloom->apply(output_img);
+        m_drawable_bloom.descriptors[0].image_samplers = {output_img, bloom_img, depth};
+        renderer.stage_drawable(m_drawable_bloom);
+    }
+    else{ m_draw_context.draw_image_fullscreen(renderer, output_img, depth); }
 }
 
 

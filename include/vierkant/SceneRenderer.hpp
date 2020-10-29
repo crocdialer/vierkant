@@ -30,7 +30,7 @@ public:
         bool use_fxaa = true;
 
         //! bloom settings
-        bool use_bloom = true;
+        bool use_bloom = false;
 
         //! desired depth-of-field settings, disabled by default
         postfx::dof_settings_t dof = {};
