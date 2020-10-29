@@ -25,7 +25,7 @@ void main()
 {
     vec3 dir = vertex_in.eye_vec;
     dir.y = -dir.y;
-    hdr_color = texture(u_sampler_cube[0], dir);
+    vec3 hdr_color = texture(u_sampler_cube[0], dir).rgb;
 
     // tone mapping
     vec3 result = vec3(1.0) - exp(-hdr_color * context.exposure);
