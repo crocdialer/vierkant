@@ -7,7 +7,7 @@
 #include "vierkant/PipelineCache.hpp"
 #include "vierkant/DrawContext.hpp"
 #include "vierkant/SceneRenderer.hpp"
-#include "vierkant/GaussianBlur.hpp"
+#include "vierkant/Bloom.hpp"
 
 namespace vierkant
 {
@@ -115,7 +115,7 @@ private:
         };
         std::array<ping_pong_t, 2> post_fx_ping_pongs;
 
-        GaussianBlurPtr gaussian;
+        BloomUPtr bloom;
     };
 
     struct environment_lighting_ubo_t

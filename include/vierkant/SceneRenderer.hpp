@@ -29,6 +29,9 @@ public:
         //! apply anti-aliasing using fxaa
         bool use_fxaa = true;
 
+        //! bloom settings
+        bool use_bloom = true;
+
         //! desired depth-of-field settings, disabled by default
         postfx::dof_settings_t dof = {};
     };

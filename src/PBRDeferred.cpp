@@ -85,13 +85,12 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         }
 
         // tmp Gaussian blur here. placeholder for bloom
-        GaussianBlur::create_info_t gaussian_info = {};
-        gaussian_info.size = create_info.size;
-        gaussian_info.size.width /= 2;
-        gaussian_info.size.height /= 2;
-
-        gaussian_info.num_iterations = 3;
-        asset.gaussian = GaussianBlur::create(device, gaussian_info);
+        Bloom::create_info_t bloom_info = {};
+        bloom_info.size = create_info.size;
+        bloom_info.size.width /= 2;
+        bloom_info.size.height /= 2;
+        bloom_info.num_blur_iterations = 3;
+        asset.bloom = Bloom::create(device, bloom_info);
     }
 
     // blendstates for g-buffer pass
@@ -234,18 +233,24 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
     {
         auto &light_buffer = lighting_pass(cull_result);
         out_img = light_buffer.color_attachment(0);
-    }
 
-//    // tmp test gaussian
-//    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
-//    auto &frame_assets = m_frame_assets[index];
-//    out_img = frame_assets.gaussian->apply(out_img);
+        // bloom
+        if(settings.use_bloom)
+        {
+            // tmp test bloom
+            size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+            auto &frame_assets = m_frame_assets[index];
+            auto bloom_img = frame_assets.bloom->apply(out_img);
+        }
+    }
 
     // dof, bloom, anti-aliasing
     post_fx_pass(renderer, cam, out_img, depth_map);
 
     // skybox rendering
-    if(scene->environment()){ m_draw_context.draw_skybox(renderer, scene->environment(), cam); }
+    auto environment = scene->environment();
+//    environment = m_conv_ggx;
+    if(scene->environment()){ m_draw_context.draw_skybox(renderer, environment, cam); }
 
     if(settings.draw_grid)
     {
