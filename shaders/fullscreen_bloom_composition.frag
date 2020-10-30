@@ -1,18 +1,17 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
-#extension GL_GOOGLE_include_directive : enable
-#include "renderer/types.glsl"
 
 #define COLOR 0
 #define BLOOM 1
 #define DEPTH 2
 
-layout(push_constant) uniform PushConstants
-{
-    render_context_t context;
-};
-
 layout(binding = 0) uniform sampler2D u_sampler_2D[3];
+
+layout(std140, binding = 1) uniform ubo_t
+{
+    float u_gamma;
+    float u_exposure;
+};
 
 layout(location = 0) in VertexData
 {
@@ -30,12 +29,12 @@ void main()
     hdr_color += bloom;
 
     // tone mapping
-    vec3 result = vec3(1.0) - exp(-hdr_color * context.exposure);
+    vec3 result = vec3(1.0) - exp(-hdr_color * u_exposure);
 
     // gamma correction
-    result = pow(result, vec3(1.0 / context.gamma));
+    result = pow(result, vec3(1.0 / u_gamma));
     out_color = vec4(result, 1.0);
 
-    // passthru fragment depth
+    // passthrough fragment depth
     gl_FragDepth = texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x;
 }

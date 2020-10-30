@@ -108,9 +108,16 @@ public:
 
     /**
      * @brief   Execute a provided array of secondary VkCommandBuffers within a Renderpass for this Framebuffer.
+     *
+     * @param   command_buffers an array of secondary VkCommandBuffers to render into this Framebuffer.
+     */
+    VkCommandBuffer record_commandbuffer(const std::vector<VkCommandBuffer> &commandbuffers);
+
+    /**
+     * @brief   Execute a provided array of secondary VkCommandBuffers within a Renderpass for this Framebuffer.
      *          Submit to a VkQUeue with optional submit_info.
      *
-     * @param   command_buffers an array of VkCommandBuffers to render into this Framebuffer.
+     * @param   command_buffers an array of secondary VkCommandBuffers to render into this Framebuffer.
      * @param   queue           a VkQueue to submit the primary VkCommandBuffer to.
      * @param   submit_info     an optional VkSubmitInfo struct.
      * @return  a fence that will be signaled when rendering is done.

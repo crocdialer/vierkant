@@ -298,16 +298,8 @@ void Framebuffer::end_renderpass() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkFence
-Framebuffer::submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue,
-                    VkSubmitInfo submit_info)
+VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuffer> &commandbuffers)
 {
-    // wait for prior fence
-    VkFence fence = m_fence.get();
-    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE,
-                    std::numeric_limits<uint64_t>::max());
-    vkResetFences(m_device->handle(), 1, &fence);
-
     // record commandbuffer
     m_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
 
@@ -323,6 +315,27 @@ Framebuffer::submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue 
 
     // end renderpass
     end_renderpass();
+
+    // end commandbuffer
+    m_commandbuffer.end();
+
+    return m_commandbuffer.handle();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+VkFence
+Framebuffer::submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue,
+                    VkSubmitInfo submit_info)
+{
+    // wait for prior fence
+    VkFence fence = m_fence.get();
+    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE,
+                    std::numeric_limits<uint64_t>::max());
+    vkResetFences(m_device->handle(), 1, &fence);
+
+    // record a renderpass into a primary commandbuffer
+    record_commandbuffer(commandbuffers);
 
     // submit primary commandbuffer
     m_commandbuffer.submit(queue, false, fence, submit_info);

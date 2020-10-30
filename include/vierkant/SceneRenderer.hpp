@@ -32,6 +32,12 @@ public:
         //! bloom settings
         bool use_bloom = false;
 
+        //! gamma correction of output
+        float gamma = 2.2;
+
+        //! exposure setting for tone-mapping
+        float exposure = 1.0;
+
         //! desired depth-of-field settings, disabled by default
         postfx::dof_settings_t dof = {};
     };

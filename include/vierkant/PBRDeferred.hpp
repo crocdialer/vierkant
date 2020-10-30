@@ -106,6 +106,7 @@ private:
         vierkant::Framebuffer g_buffer;
         vierkant::Framebuffer lighting_buffer;
         vierkant::BufferPtr lighting_ubo;
+        vierkant::BufferPtr composition_ubo;
 
         //! ping-pong post-fx framebuffers
         struct ping_pong_t
@@ -123,7 +124,13 @@ private:
         glm::mat4 camera_transform = glm::mat4(1);
         int num_mip_levels = 0;
         float env_light_strength = 1.f;
-//        int padding[2];
+    };
+
+    struct composition_ubo_t
+    {
+        float gamma = 2.2f;
+        float exposure = 1.f;
+        int padding[2]{};
     };
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);

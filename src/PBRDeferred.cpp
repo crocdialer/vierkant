@@ -84,13 +84,17 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
             post_fx_ping_pong.renderer = vierkant::Renderer(device, post_render_info);
         }
 
-        // tmp Gaussian blur here. placeholder for bloom
+        // create bloom
         Bloom::create_info_t bloom_info = {};
         bloom_info.size = create_info.size;
         bloom_info.size.width /= 2;
         bloom_info.size.height /= 2;
         bloom_info.num_blur_iterations = 3;
         asset.bloom = Bloom::create(device, bloom_info);
+
+        asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
+                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
 
     // blendstates for g-buffer pass
@@ -160,7 +164,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         fullscreen_drawable.pipeline_format.depth_test = true;
         fullscreen_drawable.pipeline_format.depth_write = true;
-        fullscreen_drawable.pipeline_format.blend_state.blendEnable = true;
+//        fullscreen_drawable.pipeline_format.blend_state.blendEnable = true;
 
         // same for all fullscreen passes
         fullscreen_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
@@ -195,8 +199,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         // bloom
         m_drawable_bloom = fullscreen_drawable;
+        m_drawable_bloom.pipeline_format.depth_test = false;
+        m_drawable_bloom.pipeline_format.depth_write = true;
         m_drawable_bloom.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen_bloom_composition_frag);
+
+        // composition ubo
+        m_drawable_bloom.descriptors[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        m_drawable_bloom.descriptors[1].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     }
 
     // create required permutations of shader-stages
@@ -246,11 +256,6 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
 
     // dof, bloom, anti-aliasing
     post_fx_pass(renderer, cam, out_img, depth_map);
-
-    // skybox rendering
-    auto environment = scene->environment();
-//    environment = m_conv_ggx;
-    if(scene->environment()){ m_draw_context.draw_skybox(renderer, environment, cam); }
 
     if(settings.draw_grid)
     {
@@ -334,6 +339,14 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
 
+    // skybox rendering
+    auto environment = cull_result.scene->environment();
+
+    if(cull_result.scene->environment())
+    {
+        m_draw_context.draw_skybox(m_light_renderer, environment, cull_result.camera);
+    }
+
     auto cmd_buffer = m_light_renderer.render(light_buffer);
     light_buffer.submit({cmd_buffer}, m_light_renderer.device()->queue());
 
@@ -396,8 +409,17 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     // bloom
     if(settings.use_bloom)
     {
+        // generate bloom image
         auto bloom_img = frame_assets.bloom->apply(output_img);
+
+        composition_ubo_t comp_ubo = {};
+        comp_ubo.exposure = settings.exposure;
+        comp_ubo.gamma = settings.gamma;
+        frame_assets.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
+
         m_drawable_bloom.descriptors[0].image_samplers = {output_img, bloom_img, depth};
+        m_drawable_bloom.descriptors[1].buffer = frame_assets.composition_ubo;
+
         renderer.stage_drawable(m_drawable_bloom);
     }
     else{ m_draw_context.draw_image_fullscreen(renderer, output_img, depth); }
