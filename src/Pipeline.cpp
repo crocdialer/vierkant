@@ -165,7 +165,7 @@ Pipeline::Pipeline(DevicePtr device, Format format) :
     depth_stencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
     depth_stencil.depthTestEnable = static_cast<VkBool32>(format.depth_test);
     depth_stencil.depthWriteEnable = static_cast<VkBool32>(format.depth_write);
-    depth_stencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depth_stencil.depthCompareOp = format.depth_compare_op;
     depth_stencil.depthBoundsTestEnable = VK_FALSE;
     depth_stencil.minDepthBounds = 0.0f;
     depth_stencil.maxDepthBounds = 1.0f;
@@ -299,6 +299,7 @@ bool Pipeline::Format::operator==(const Pipeline::Format &other) const
     if(depth_test != other.depth_test){ return false; }
     if(depth_write != other.depth_write){ return false; }
     if(depth_clamp != other.depth_clamp){ return false; }
+    if(depth_compare_op != other.depth_compare_op){ return false; }
     if(stencil_test != other.stencil_test){ return false; }
     if(stencil_state_front != other.stencil_state_front){ return false; }
     if(stencil_state_back != other.stencil_state_back){ return false; }
@@ -525,6 +526,7 @@ size_t std::hash<vierkant::Pipeline::Format>::operator()(vierkant::Pipeline::For
     hash_combine(h, fmt.depth_test);
     hash_combine(h, fmt.depth_write);
     hash_combine(h, fmt.depth_clamp);
+    hash_combine(h, fmt.depth_compare_op);
     hash_combine(h, fmt.stencil_test);
     hash_combine(h, fmt.stencil_state_front);
     hash_combine(h, fmt.stencil_state_back);

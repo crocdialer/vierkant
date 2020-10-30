@@ -199,8 +199,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         // bloom
         m_drawable_bloom = fullscreen_drawable;
-        m_drawable_bloom.pipeline_format.depth_test = false;
-        m_drawable_bloom.pipeline_format.depth_write = true;
+        m_drawable_bloom.pipeline_format.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
+
         m_drawable_bloom.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen_bloom_composition_frag);
 

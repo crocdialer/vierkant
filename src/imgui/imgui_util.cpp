@@ -449,7 +449,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
 
                 // gamma
                 ImGui::SliderFloat("gamma", &scene_renderer->settings.gamma, 0.f, 10.f);
-                
+
                 // dof
                 auto &dof = scene_renderer->settings.dof;
 

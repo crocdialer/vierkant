@@ -81,12 +81,6 @@ public:
         //! near- and far-clipping planes
         glm::vec2 clipping = glm::vec2(0.f, 1.f);
 
-        //! gamma-setting
-        float gamma = 1.f;
-
-        //! exposure for tonemapping
-        float exposure = 1.f;
-
         //! current time since start in seconds
         float time;
 
