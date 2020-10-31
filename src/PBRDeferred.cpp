@@ -164,13 +164,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         fullscreen_drawable.pipeline_format.depth_test = true;
         fullscreen_drawable.pipeline_format.depth_write = true;
-//        fullscreen_drawable.pipeline_format.blend_state.blendEnable = true;
 
         // same for all fullscreen passes
         fullscreen_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen_texture_vert);
-//        fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-//                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_fxaa_frag);
         fullscreen_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptor

@@ -1,5 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+#include "utils/tonemap.glsl"
 
 #define COLOR 0
 #define BLOOM 1
@@ -25,11 +27,8 @@ void main()
     vec3 hdr_color = texture(u_sampler_2D[COLOR], vertex_in.tex_coord).rgb;
     vec3 bloom = texture(u_sampler_2D[BLOOM], vertex_in.tex_coord).rgb;
 
-    // additive blending
-    hdr_color += bloom;
-
-    // tone mapping
-    vec3 result = vec3(1.0) - exp(-hdr_color * u_exposure);
+    // additive blending + tone mapping
+    vec3 result = tonemap_exposure(hdr_color + bloom, u_exposure);
 
     // gamma correction
     result = pow(result, vec3(1.0 / u_gamma));
