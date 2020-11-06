@@ -362,12 +362,15 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     vierkant::ImagePtr output_img = color;
 
     // get next set of pingpong assets, increment index
-    auto next_ping_pong = [&frame_assets, &buffer_index, &output_img]() -> frame_assets_t::ping_pong_t &
+    auto pingpong_render = [&frame_assets, &buffer_index](
+            Renderer::drawable_t &drawable) -> vierkant::ImagePtr
     {
-        auto &ret = frame_assets.post_fx_ping_pongs[buffer_index];
-        output_img = ret.framebuffer.color_attachment(0);
+        auto &pingpong = frame_assets.post_fx_ping_pongs[buffer_index];
         buffer_index = (buffer_index + 1) % frame_assets.post_fx_ping_pongs.size();
-        return ret;
+        pingpong.renderer.stage_drawable(drawable);
+        auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
+        pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
+        return pingpong.framebuffer.color_attachment(0);
     };
 
     // dof, bloom, anti-aliasing
@@ -377,10 +380,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto drawable = m_drawable_fxaa;
         drawable.descriptors[0].image_samplers = {output_img};
 
-        auto &pingpong = next_ping_pong();
-        pingpong.renderer.stage_drawable(drawable);
-        auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-        pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
+        output_img = pingpong_render(drawable);
     }
 
     if(settings.dof.enabled)
@@ -396,11 +396,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         {
             drawable.descriptors[1].buffer->set_data(&settings.dof, sizeof(postfx::dof_settings_t));
         }
-
-        auto &pingpong = next_ping_pong();
-        pingpong.renderer.stage_drawable(drawable);
-        auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-        pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
+        output_img = pingpong_render(drawable);
     }
 
     // bloom
@@ -421,7 +417,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     }
     else{ m_draw_context.draw_image_fullscreen(renderer, output_img, depth); }
 }
-
 
 void PBRDeferred::create_shader_stages(const DevicePtr &device)
 {
