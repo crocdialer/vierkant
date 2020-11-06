@@ -373,6 +373,23 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         return pingpong.framebuffer.color_attachment(0);
     };
 
+    // bloom
+    if(settings.use_bloom)
+    {
+        // generate bloom image
+        auto bloom_img = frame_assets.bloom->apply(output_img);
+
+        composition_ubo_t comp_ubo = {};
+        comp_ubo.exposure = settings.exposure;
+        comp_ubo.gamma = settings.gamma;
+        frame_assets.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
+
+        m_drawable_bloom.descriptors[0].image_samplers = {output_img, bloom_img};
+        m_drawable_bloom.descriptors[1].buffer = frame_assets.composition_ubo;
+
+        output_img = pingpong_render(m_drawable_bloom);
+    }
+
     // dof, bloom, anti-aliasing
     if(settings.use_fxaa)
     {
@@ -399,23 +416,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         output_img = pingpong_render(drawable);
     }
 
-    // bloom
-    if(settings.use_bloom)
-    {
-        // generate bloom image
-        auto bloom_img = frame_assets.bloom->apply(output_img);
-
-        composition_ubo_t comp_ubo = {};
-        comp_ubo.exposure = settings.exposure;
-        comp_ubo.gamma = settings.gamma;
-        frame_assets.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
-
-        m_drawable_bloom.descriptors[0].image_samplers = {output_img, bloom_img, depth};
-        m_drawable_bloom.descriptors[1].buffer = frame_assets.composition_ubo;
-
-        renderer.stage_drawable(m_drawable_bloom);
-    }
-    else{ m_draw_context.draw_image_fullscreen(renderer, output_img, depth); }
+    // draw final color+depth with provided renderer
+    m_draw_context.draw_image_fullscreen(renderer, output_img, depth, true);
 }
 
 void PBRDeferred::create_shader_stages(const DevicePtr &device)

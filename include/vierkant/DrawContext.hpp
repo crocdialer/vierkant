@@ -69,7 +69,8 @@ public:
      */
     void draw_image_fullscreen(vierkant::Renderer &renderer,
                                const vierkant::ImagePtr &image,
-                               const vierkant::ImagePtr &depth = nullptr);
+                               const vierkant::ImagePtr &depth = nullptr,
+                               bool depth_test = false);
 
     /**
      * @brief   Draws an axis-aligned bounding box.

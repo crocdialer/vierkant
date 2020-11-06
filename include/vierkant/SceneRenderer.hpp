@@ -30,13 +30,13 @@ public:
         bool use_fxaa = true;
 
         //! bloom settings
-        bool use_bloom = false;
+        bool use_bloom = true;
 
         //! gamma correction of output
-        float gamma = 2.2;
+        float gamma = 1.0;
 
         //! exposure setting for tone-mapping
-        float exposure = 1.0;
+        float exposure = 2.0;
 
         //! desired depth-of-field settings, disabled by default
         postfx::dof_settings_t dof = {};

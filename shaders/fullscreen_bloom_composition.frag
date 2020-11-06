@@ -5,9 +5,8 @@
 
 #define COLOR 0
 #define BLOOM 1
-#define DEPTH 2
 
-layout(binding = 0) uniform sampler2D u_sampler_2D[3];
+layout(binding = 0) uniform sampler2D u_sampler_2D[2];
 
 layout(std140, binding = 1) uniform ubo_t
 {
@@ -33,7 +32,4 @@ void main()
     // gamma correction
     result = pow(result, vec3(1.0 / u_gamma));
     out_color = vec4(result, 1.0);
-
-    // passthrough fragment depth
-    gl_FragDepth = texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x;
 }

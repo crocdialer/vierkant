@@ -99,6 +99,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_image_fullscreen.num_vertices = 3;
         m_drawable_image_fullscreen.pipeline_format = fmt;
         m_drawable_image_fullscreen.use_own_buffers = true;
+        m_drawable_image_fullscreen.pipeline_format.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 
         m_drawable_color_depth_fullscreen = m_drawable_image_fullscreen;
         m_drawable_color_depth_fullscreen.pipeline_format.depth_test = false;
@@ -245,7 +246,8 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth)
+void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth,
+                                        bool depth_test)
 {
     // create image-drawable
     vierkant::Renderer::drawable_t drawable;
@@ -254,12 +256,14 @@ void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &imag
     {
         // set image + depth
         drawable = m_drawable_color_depth_fullscreen;
+        drawable.pipeline_format.depth_test = depth_test;
         drawable.descriptors[0].image_samplers = {image, depth};
     }
     else if(image)
     {
         // set image
         drawable = m_drawable_image_fullscreen;
+        drawable.pipeline_format.depth_test = depth_test;
         drawable.descriptors[0].image_samplers = {image};
     }
 
