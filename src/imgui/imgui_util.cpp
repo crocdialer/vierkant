@@ -484,8 +484,9 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
         ImGui::Spacing();
     }
 
-    ImGui::Checkbox("draw grid", &scene_renderer->settings.draw_grid);
-    ImGui::Checkbox("disable material", &scene_renderer->settings.disable_material);
+    ImGui::Checkbox("skybox", &scene_renderer->settings.draw_skybox);
+    ImGui::Checkbox("grid", &scene_renderer->settings.draw_grid);
+    ImGui::Checkbox("material", &scene_renderer->settings.disable_material);
     ImGui::Checkbox("fxaa", &scene_renderer->settings.use_fxaa);
     ImGui::Checkbox("bloom", &scene_renderer->settings.use_bloom);
 
@@ -493,19 +494,21 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
 
     if(pbr_renderer)
     {
+        auto extent = pbr_renderer->lighting_buffer().extent();
+
         if(ImGui::TreeNode("g-buffer", "g-buffer (%d)", vierkant::PBRDeferred::G_BUFFER_SIZE))
         {
-            std::vector<vierkant::ImagePtr> images;
+            std::vector<vierkant::ImagePtr> images(vierkant::PBRDeferred::G_BUFFER_SIZE);
 
             for(uint32_t i = 0; i < vierkant::PBRDeferred::G_BUFFER_SIZE; ++i)
             {
-                images.push_back(pbr_renderer->g_buffer().color_attachment(i));
+                images[i] = pbr_renderer->g_buffer().color_attachment(i);
             }
             vierkant::gui::draw_images_ui(images);
 
             ImGui::TreePop();
         }
-        if(ImGui::TreeNode("lighting buffer"))
+        if(ImGui::TreeNode("lighting buffer", "lighting buffer (%d x %d)", extent.width, extent.height))
         {
             vierkant::gui::draw_images_ui({pbr_renderer->lighting_buffer().color_attachment()});
 

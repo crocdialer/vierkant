@@ -23,6 +23,9 @@ public:
         //! disable colors from textures, material, vertices
         bool disable_material = false;
 
+        //! draw the skybox, if any
+        bool draw_skybox = true;
+
         //! draw a grid for orientation
         bool draw_grid = true;
 

@@ -66,6 +66,7 @@ public:
      * @param   renderer    a provided vierkant::Renderer.
      * @param   image       a provided vierkant::Image, assumed to contain a sampler2D with VK_ASPECT_COLOR.
      * @param   depth       an optional vierkant::Image, assumed to contain a sampler2D with VK_ASPECT_DEPTH.
+     * @param   depth_test  an optional flag to enable depth-testing. only used when a deph-buffer is provided.
      */
     void draw_image_fullscreen(vierkant::Renderer &renderer,
                                const vierkant::ImagePtr &image,

@@ -4,9 +4,10 @@
 
 #include "vierkant/CommandBuffer.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
-SemaphorePtr create_semaphore(const vierkant::DevicePtr& device)
+SemaphorePtr create_semaphore(const vierkant::DevicePtr &device)
 {
     VkSemaphoreCreateInfo semaphore_create_info = {};
     semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -19,9 +20,9 @@ SemaphorePtr create_semaphore(const vierkant::DevicePtr& device)
     });
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FencePtr create_fence(const vierkant::DevicePtr& device, bool signaled)
+FencePtr create_fence(const vierkant::DevicePtr &device, bool signaled)
 {
     VkFence fence = VK_NULL_HANDLE;
     VkFenceCreateInfo fence_create_info = {};
@@ -36,7 +37,21 @@ FencePtr create_fence(const vierkant::DevicePtr& device, bool signaled)
     });
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr& fence, bool reset)
+{
+    // wait for prior fence
+    VkFence handle = fence.get();
+
+    if(handle)
+    {
+        vkWaitForFences(device->handle(), 1, &handle, VK_TRUE, std::numeric_limits<uint64_t>::max());
+        if(reset){ vkResetFences(device->handle(), 1, &handle); }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void submit(const vierkant::DevicePtr &device,
             VkQueue queue,
@@ -66,7 +81,7 @@ void submit(const vierkant::DevicePtr &device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandPoolPtr create_command_pool(const vierkant::DevicePtr& device, vierkant::Device::Queue queue_type,
+CommandPoolPtr create_command_pool(const vierkant::DevicePtr &device, vierkant::Device::Queue queue_type,
                                    VkCommandPoolCreateFlags flags)
 {
     // command pool

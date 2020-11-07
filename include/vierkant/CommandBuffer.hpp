@@ -30,6 +30,14 @@ using FencePtr = std::shared_ptr<VkFence_T>;
 FencePtr create_fence(const vierkant::DevicePtr& device, bool signaled = false);
 
 /**
+ * @brief   Wait for a fence to be signaled, optionally reset it.
+ *
+ * @param   fence   the fence to wait for.
+ * @param   reset   flag indicating if the fence shall be reset to unsignaled after waiting for it.
+ */
+void wait_fence(const vierkant::DevicePtr& device, const vierkant::FencePtr& fence, bool reset = true);
+
+/**
  * @brief   Submit an array of VkCommandBuffer to a VkQueue.
  *
  * @param   device          shared handle to a VkDevice

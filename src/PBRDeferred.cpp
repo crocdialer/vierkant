@@ -337,11 +337,14 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     m_light_renderer.stage_drawable(drawable);
 
     // skybox rendering
-    auto environment = cull_result.scene->environment();
-
-    if(cull_result.scene->environment())
+    if(settings.draw_skybox)
     {
-        m_draw_context.draw_skybox(m_light_renderer, environment, cull_result.camera);
+        auto environment = cull_result.scene->environment();
+
+        if(cull_result.scene->environment())
+        {
+            m_draw_context.draw_skybox(m_light_renderer, environment, cull_result.camera);
+        }
     }
 
     auto cmd_buffer = m_light_renderer.render(light_buffer);
