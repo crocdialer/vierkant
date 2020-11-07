@@ -1,7 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
-#include "renderer/types.glsl"
+#include "../renderer/types.glsl"
 
 layout(push_constant) uniform PushConstants {
     render_context_t context;
@@ -18,19 +18,15 @@ out gl_PerVertex
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
-layout(location = ATTRIB_COLOR) in vec4 a_color;
-layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;
 
 layout(location = 0) out VertexData
 {
-    vec4 color;
-    vec2 tex_coord;
+    vec3 eye_vec;
 } vertex_out;
 
 void main()
 {
-    matrix_struct_t m = matrices[context.matrix_index];//matrices[gl_InstanceIndex];
+    matrix_struct_t m = matrices[context.matrix_index + gl_InstanceIndex];
+    vertex_out.eye_vec = a_position.xyz;
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
-    vertex_out.color = a_color;
-    vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
 }

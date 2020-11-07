@@ -146,9 +146,9 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
         fmt.depth_write = false;
 
         fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_texture_vert);
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
         fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_gaussian_blur_frag);
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::gaussian_blur_frag);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // set the specialization info

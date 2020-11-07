@@ -129,9 +129,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         fmt.blend_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
 
         fmt.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_texture_vert);
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
         fmt.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::pbr_lighting_environment_frag);
+                vierkant::create_shader_module(device, vierkant::shaders::pbr::lighting_environment_frag);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptors
@@ -167,7 +167,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         // same for all fullscreen passes
         fullscreen_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_texture_vert);
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
         fullscreen_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptor
@@ -177,12 +177,12 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         // fxaa
         m_drawable_fxaa = fullscreen_drawable;
         m_drawable_fxaa.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_fxaa_frag);
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::fxaa_frag);
 
         // dof
         m_drawable_dof = fullscreen_drawable;
         m_drawable_dof.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_dof_frag);
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::dof_frag);
 
         // descriptor
         vierkant::descriptor_t desc_settings_ubo = {};
@@ -199,7 +199,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         m_drawable_bloom.pipeline_format.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 
         m_drawable_bloom.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-                vierkant::create_shader_module(device, vierkant::shaders::fullscreen_bloom_composition_frag);
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::bloom_composition_frag);
 
         // composition ubo
         m_drawable_bloom.descriptors[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -426,22 +426,22 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 void PBRDeferred::create_shader_stages(const DevicePtr &device)
 {
     // vertex
-    auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_vert);
-    auto pbr_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_skin_vert);
-    auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_vert);
-    auto pbr_tangent_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr_tangent_skin_vert);
+    auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::default_vert);
+    auto pbr_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::skin_vert);
+    auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::tangent_vert);
+    auto pbr_tangent_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::tangent_skin_vert);
 
     // fragment
-    auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_frag);
-    auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_frag);
+    auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_frag);
+    auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_frag);
     auto pbr_g_buffer_albedo_normal_frag =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_normal_frag);
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_normal_frag);
     auto pbr_g_buffer_albedo_rough_frag =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_rough_frag);
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_rough_frag);
     auto pbr_g_buffer_albedo_normal_rough_frag =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_albedo_normal_rough_frag);
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_normal_rough_frag);
     auto pbr_g_buffer_complete_frag =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr_g_buffer_complete_frag);
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_complete_frag);
 
     auto &stages_default = m_g_shader_stages[PROP_DEFAULT];
     stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_vert;
@@ -523,9 +523,9 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     // create a drawable
     vierkant::Renderer::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::fullscreen_texture_vert);
+            vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr_brdf_lut_frag);
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::brdf_lut_frag);
 
     drawable.num_vertices = 3;
 

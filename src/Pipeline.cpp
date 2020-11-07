@@ -35,38 +35,38 @@ std::map<VkShaderStageFlagBits, ShaderModulePtr> create_shader_stages(const Devi
     switch(t)
     {
         case ShaderType::UNLIT_COLOR:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit_color_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_color_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::color_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::color_frag);
             break;
 
         case ShaderType::UNLIT_TEXTURE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit_texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_texture_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::texture_frag);
             break;
 
         case ShaderType::FULLSCREEN_TEXTURE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen_texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen_texture_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen::texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen::texture_frag);
             break;
 
         case ShaderType::FULLSCREEN_TEXTURE_DEPTH:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen_texture_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen_texture_depth_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen::texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen::texture_depth_frag);
             break;
 
         case ShaderType::UNLIT_COLOR_SKIN:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit_skin_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_color_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::skin_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::color_frag);
             break;
 
         case ShaderType::UNLIT_TEXTURE_SKIN:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit_skin_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_texture_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::skin_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::texture_frag);
             break;
 
         case ShaderType::UNLIT_CUBE:
-            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit_cube_vert);
-            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit_cube_frag);
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::unlit::cube_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::cube_frag);
             break;
 
         default:

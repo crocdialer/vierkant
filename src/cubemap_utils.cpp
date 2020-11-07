@@ -31,7 +31,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
 
     // set a fragment stage
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::unlit_panorama_frag);
+            vierkant::create_shader_module(device, vierkant::shaders::unlit::panorama_frag);
 
     vierkant::descriptor_t desc_image = {};
     desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -117,7 +117,7 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
                                                VK_IMAGE_USAGE_SAMPLED_BIT);
 
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr_convolve_lambert_frag);
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::convolve_lambert_frag);
 
     vierkant::descriptor_t desc_image = {};
     desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -163,7 +163,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
     // collect fences for all operations
     std::vector<VkFence> fences;
 
-    auto frag_module = vierkant::create_shader_module(device, vierkant::shaders::pbr_convolve_ggx_frag);
+    auto frag_module = vierkant::create_shader_module(device, vierkant::shaders::pbr::convolve_ggx_frag);
 
     for(uint32_t lvl = 0; lvl < num_mips; ++lvl)
     {
@@ -279,9 +279,9 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     // create a drawable
     vierkant::Renderer::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::cube_vert);
+            vierkant::create_shader_module(device, vierkant::shaders::cube::cube_vert);
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_GEOMETRY_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::cube_layers_geom);
+            vierkant::create_shader_module(device, vierkant::shaders::cube::cube_layers_geom);
 
     auto box = vierkant::Geometry::Box();
     box->colors.clear();

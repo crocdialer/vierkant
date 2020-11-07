@@ -1,7 +1,7 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
-#include "renderer/types.glsl"
+#include "../renderer/types.glsl"
 
 #define ALBEDO 0
 
@@ -19,9 +19,7 @@ layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[1];
 layout(location = 0) in VertexData
 {
     vec4 color;
-    vec2 tex_coord;
     vec3 normal;
-    vec3 tangent;
     vec3 eye_vec;
 } vertex_in;
 
@@ -40,10 +38,10 @@ void main()
 
     if(context.disable_material == 0)
     {
-        vec4 tex_color = vertex_in.color * texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord);
-        if(smoothstep(0.0, 1.0, tex_color.a) < 0.01){ discard; }
-        out_color = material.color * tex_color;
-        out_emission = material.emission * tex_color;
+        vec4 color = material.color * vertex_in.color;
+        if(smoothstep(0.0, 1.0, color.a) < 0.01){ discard; }
+        out_color = color;
+        out_emission = material.emission * vertex_in.color;
     }
 
     out_normal = vec4(normalize(vertex_in.normal), 1);
