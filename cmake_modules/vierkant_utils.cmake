@@ -33,6 +33,10 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
     subdirlist(SUBDIRS ${GLSL_FOLDER})
 
     foreach (SUBDIR ${SUBDIRS})
+
+        # start namespace for subdir
+        get_filename_component(DIR_NAME ${SUBDIR} NAME)
+
         # gather all shader files
         file(GLOB GLSL_SOURCE_FILES
                 "${SUBDIR}/*.vert"
@@ -51,9 +55,8 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
                 "${SUBDIR}/*.task")
 
         if(GLSL_SOURCE_FILES)
-            # start namespace for subdir
-            get_filename_component(DIR_NAME ${SUBDIR} NAME)
-            message("namespace: ${DIR_NAME}")
+
+            message("compiling shaders: ${DIR_NAME}")
 
             # open namespace
             file(APPEND ${OUTPUT_HEADER} "\nnamespace ${DIR_NAME}\n{\n\n")
@@ -64,7 +67,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
 
             get_filename_component(FILE_NAME ${GLSL} NAME)
             string(REGEX REPLACE "[.]" "_" NAME ${FILE_NAME})
-            set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${NAME}.spv")
+            set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${DIR_NAME}_${NAME}.spv")
             #        message(${SPIRV})
             list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 
