@@ -1,7 +1,9 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 
-const float brightness_thresh = 1.0;
+//! smooth threshold values
+const float luma_thresh_min = 0.9;
+const float luma_thresh_max = 1.1;
 
 layout(binding = 0) uniform sampler2D u_sampler_2D[1];
 
@@ -20,5 +22,6 @@ void main()
     const vec3 to_luma = vec3(0.299, 0.587, 0.114);
     float brightness = dot(out_color.rgb, to_luma);
 
-    out_color = brightness > brightness_thresh ? out_color : vec4(0.0, 0.0, 0.0, 1.0);
+    // apply smooth threshold
+    out_color = mix(vec4(0.0, 0.0, 0.0, 1.0), out_color, smoothstep(luma_thresh_min, luma_thresh_max, brightness));
 }
