@@ -1,3 +1,14 @@
+macro(SUBDIRLIST result curdir)
+    FILE(GLOB children ${curdir}/*)
+    SET(dirlist "")
+    FOREACH(child ${children})
+        IF(IS_DIRECTORY ${child})
+            LIST(APPEND dirlist ${child})
+        ENDIF()
+    ENDFOREACH()
+    SET(${result} ${dirlist})
+endmacro()
+
 function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
 
     set(OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/shaders.hpp")
@@ -13,6 +24,13 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "/* Generated file, do not edit! */\n\n"
             "#include \"${PROJECT_NAME}/shaders.hpp\"\n\n"
             "namespace vierkant::shaders\n{\n")
+
+    # search subdirs
+    subdirlist(SUBDIRS ${GLSL_FOLDER})
+
+    foreach (SUBDIR ${SUBDIRS})
+        
+    endforeach (SUBDIR)
 
     # gather all shader files
     file(GLOB GLSL_SOURCE_FILES
