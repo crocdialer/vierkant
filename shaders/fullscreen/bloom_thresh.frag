@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 
 //! smooth threshold values
-const float luma_thresh_min = 0.9;
+const float luma_thresh_min = 0.95;
 const float luma_thresh_max = 1.1;
 
 layout(binding = 0) uniform sampler2D u_sampler_2D[1];

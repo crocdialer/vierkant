@@ -11,6 +11,8 @@ endmacro()
 
 function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
 
+    set(TOP_NAMESPACE "vierkant::shaders")
+
     # remove existing spirv files
     file(GLOB SPIRV_FILES "${PROJECT_BINARY_DIR}/shaders/*.spv")
     file(REMOVE "${SPIRV_FILES}")
@@ -23,11 +25,11 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "/* Generated file, do not edit! */\n\n"
             "#pragma once\n\n"
             "#include <array>\n\n"
-            "namespace vierkant::shaders\n{\n\n")
+            "namespace ${TOP_NAMESPACE}\n{\n\n")
     file(WRITE ${OUTPUT_SOURCE}
             "/* Generated file, do not edit! */\n\n"
             "#include \"${PROJECT_NAME}/shaders.hpp\"\n\n"
-            "namespace vierkant::shaders\n{\n")
+            "namespace ${TOP_NAMESPACE}\n{\n")
 
     # search subdirs
     subdirlist(SUBDIRS ${GLSL_FOLDER})
@@ -56,7 +58,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
 
         if(GLSL_SOURCE_FILES)
 
-            message("compiling shaders: ${DIR_NAME}")
+            message(STATUS "compiling shaders: ${DIR_NAME}")
 
             # open namespace
             file(APPEND ${OUTPUT_HEADER} "\nnamespace ${DIR_NAME}\n{\n\n")
@@ -99,19 +101,16 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
         endforeach (GLSL)
 
         if(GLSL_SOURCE_FILES)
-            # close namespace for subdir
-            get_filename_component(DIR_NAME ${SUBDIR} NAME)
-
             # close namespace
-            file(APPEND ${OUTPUT_HEADER} "\n}\n")
-            file(APPEND ${OUTPUT_SOURCE} "\n}\n")
+            file(APPEND ${OUTPUT_HEADER} "\n}// namespace ${DIR_NAME}\n")
+            file(APPEND ${OUTPUT_SOURCE} "\n}// namespace ${DIR_NAME}\n")
         endif()
 
     endforeach (SUBDIR)
 
     # close namespace
-    file(APPEND ${OUTPUT_HEADER} "\n}\n")
-    file(APPEND ${OUTPUT_SOURCE} "\n}\n")
+    file(APPEND ${OUTPUT_HEADER} "\n}// namespace ${TOP_NAMESPACE}\n")
+    file(APPEND ${OUTPUT_SOURCE} "\n}// namespace ${TOP_NAMESPACE}\n")
 
     add_custom_target(
             shaders

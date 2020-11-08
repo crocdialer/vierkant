@@ -387,7 +387,8 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
         }
 
         ImGui::Spacing();
-        ImGui::Text("fps: %.1f", app->fps());
+        auto loop_time = app->current_loop_time();
+        ImGui::Text("fps: %.1f (%.1f ms)", 1.f / loop_time, loop_time * 1000.f);
     }
     ImGui::End();
 }
