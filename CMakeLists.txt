@@ -69,7 +69,7 @@ set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
 #shaders
 set(GLSLANG_VALIDATOR "glslangValidator")
-stringify_shaders("shaders" ${GLSLANG_VALIDATOR})
+stringify_shaders("shaders" "shaders" ${GLSLANG_VALIDATOR})
 
 ## assimp
 #find_package(ASSIMP REQUIRED)

@@ -9,16 +9,19 @@ macro(SUBDIRLIST result curdir)
     SET(${result} ${dirlist})
 endmacro()
 
-function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
+function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
 
     set(TOP_NAMESPACE "vierkant::shaders")
 
     # remove existing spirv files
-    file(GLOB SPIRV_FILES "${PROJECT_BINARY_DIR}/shaders/*.spv")
-    file(REMOVE "${SPIRV_FILES}")
+    file(GLOB SPIRV_FILES "${PROJECT_BINARY_DIR}/${TARGET_NAME}/*.spv")
 
-    set(OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/shaders.hpp")
-    set(OUTPUT_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/src/shaders.cpp")
+    if(SPIRV_FILES)
+        file(REMOVE "${SPIRV_FILES}")
+    endif()
+
+    set(OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/${TARGET_NAME}.hpp")
+    set(OUTPUT_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/src/${TARGET_NAME}.cpp")
 
     # create output implementation and header
     file(WRITE ${OUTPUT_HEADER}
@@ -28,11 +31,16 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             "namespace ${TOP_NAMESPACE}\n{\n\n")
     file(WRITE ${OUTPUT_SOURCE}
             "/* Generated file, do not edit! */\n\n"
-            "#include \"${PROJECT_NAME}/shaders.hpp\"\n\n"
+            "#include \"${PROJECT_NAME}/${TARGET_NAME}.hpp\"\n\n"
             "namespace ${TOP_NAMESPACE}\n{\n")
 
     # search subdirs
     subdirlist(SUBDIRS ${GLSL_FOLDER})
+
+#    # add root-dir
+#    FILE(GLOB BASE_DIR ${GLSL_FOLDER})
+#    set(SUBDIRS ${BASE_DIR} ${SUBDIRS})
+#    message("POOP: ${SUBDIRS}")
 
     foreach (SUBDIR ${SUBDIRS})
 
@@ -70,7 +78,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
             get_filename_component(FILE_NAME ${GLSL} NAME)
             string(REGEX REPLACE "[.]" "_" NAME ${FILE_NAME})
             set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${DIR_NAME}_${NAME}.spv")
-            #        message(${SPIRV})
+#                    message(${SPIRV})
             list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 
             execute_process(
@@ -113,7 +121,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER GLSL_VALIDATOR)
     file(APPEND ${OUTPUT_SOURCE} "\n}// namespace ${TOP_NAMESPACE}\n")
 
     add_custom_target(
-            shaders
+            ${TARGET_NAME}
             DEPENDS ${SPIRV_BINARY_FILES}
     )
 
