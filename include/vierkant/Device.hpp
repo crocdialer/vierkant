@@ -19,10 +19,20 @@ class Device
 {
 public:
 
-    static DevicePtr create(VkPhysicalDevice pd,
-                            bool use_validation = false,
-                            VkSurfaceKHR surface = VK_NULL_HANDLE,
-                            VkPhysicalDeviceFeatures device_features = {});
+    struct create_info_t
+    {
+        VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+
+        bool use_validation = false;
+
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
+
+        VkPhysicalDeviceFeatures device_features = {};
+
+        std::vector<std::string> extensions;
+    };
+
+    static DevicePtr create(const create_info_t &create_info);
 
     Device(const Device &) = delete;
 
@@ -101,14 +111,13 @@ public:
 
 private:
 
-    Device(VkPhysicalDevice pd, bool use_validation, VkSurfaceKHR surface,
-           VkPhysicalDeviceFeatures device_features);
+    Device(const create_info_t &create_info);
 
     // physical device
     VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
 
     // physical device properties
-    VkPhysicalDeviceProperties2 m_physical_device_properties;
+    VkPhysicalDeviceProperties2 m_physical_device_properties = {};
 
     // logical device
     VkDevice m_device = VK_NULL_HANDLE;

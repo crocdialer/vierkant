@@ -487,7 +487,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
 
     ImGui::Checkbox("skybox", &scene_renderer->settings.draw_skybox);
     ImGui::Checkbox("grid", &scene_renderer->settings.draw_grid);
-    ImGui::Checkbox("material", &scene_renderer->settings.disable_material);
+    ImGui::Checkbox("disable material", &scene_renderer->settings.disable_material);
     ImGui::Checkbox("fxaa", &scene_renderer->settings.use_fxaa);
     ImGui::Checkbox("bloom", &scene_renderer->settings.use_bloom);
 

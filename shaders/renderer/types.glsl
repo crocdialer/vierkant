@@ -58,8 +58,8 @@ struct render_context_t
 #define BINDING_TEXTURES 2
 #define BINDING_BONES 3
 
-//! specialization constant for maximum number of drawables per renderpass
-layout (constant_id = 0) const int MAX_NUM_DRAWABLES = 4096;
+//! constant for maximum number of drawables per renderpass
+const int MAX_NUM_DRAWABLES = 4096;
 
-//! specialization constant for maximum number of bones per mesh
-layout (constant_id = 1) const int MAX_NUM_BONES = 512;
+//! constant for maximum number of bones per mesh
+const int MAX_NUM_BONES = 512;

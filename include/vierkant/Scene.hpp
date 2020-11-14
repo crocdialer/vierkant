@@ -16,7 +16,7 @@ public:
 
     static ScenePtr create();
 
-    void update(float time_delta);
+    void update(double time_delta);
 
     Object3DPtr pick(const Ray &ray, bool high_precision = false,
                      const std::set<std::string> &tags = {}) const;

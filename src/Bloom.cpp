@@ -77,9 +77,6 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue)
     auto blur_img = m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue);
 
     return blur_img;
-
-//    // additive blend
-//    return vierkant::ImagePtr();
 }
 
 }// namespace vierkant

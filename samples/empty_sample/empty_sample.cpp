@@ -26,8 +26,14 @@ void HelloTriangleApplication::create_context_and_window()
 {
     m_instance = vk::Instance(g_enable_validation_layers, vk::Window::get_required_extensions());
     m_window = vk::Window::create(m_instance.handle(), WIDTH, HEIGHT, name(), m_fullscreen);
-    m_device = vk::Device::create(m_instance.physical_devices().front(), m_instance.use_validation_layers(),
-                                  m_window->surface());
+
+    // create device
+    vk::Device::create_info_t device_info = {};
+    device_info.physical_device = m_instance.physical_devices().front();
+    device_info.use_validation = m_instance.use_validation_layers();
+    device_info.surface = m_window->surface();
+    m_device = vk::Device::create(device_info);
+
     m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT, V_SYNC);
 
     // create a WindowDelegate

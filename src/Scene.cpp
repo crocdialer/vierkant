@@ -68,7 +68,7 @@ void Scene::clear()
 //    m_skybox.reset();
 }
 
-void Scene::update(float time_delta)
+void Scene::update(double time_delta)
 {
     UpdateVisitor uv(time_delta);
     m_root->accept(uv);

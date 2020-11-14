@@ -15,7 +15,8 @@
 
 #include <vierkant/Device.hpp>
 
-namespace vierkant {
+namespace vierkant
+{
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
@@ -71,7 +72,8 @@ std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysi
                 {
                     indices[Device::Queue::PRESENT].index = i;
                     indices[Device::Queue::PRESENT].num_queues = queueFamily.queueCount;
-                }else{ indices[Device::Queue::PRESENT].num_queues = 0; }
+                }
+                else{ indices[Device::Queue::PRESENT].num_queues = 0; }
                 indices[Device::Queue::GRAPHICS].num_queues = queueFamily.queueCount;
             }
             if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
@@ -92,41 +94,41 @@ std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysi
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DevicePtr Device::create(VkPhysicalDevice pd, bool use_validation, VkSurfaceKHR surface,
-                         VkPhysicalDeviceFeatures device_features)
+DevicePtr Device::create(const create_info_t &create_info)
 {
-    return DevicePtr(new Device(pd, use_validation, surface, device_features));
+    return DevicePtr(new Device(create_info));
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkSurfaceKHR surface,
-               VkPhysicalDeviceFeatures device_features) :
-        m_physical_device(physical_device)
+Device::Device(const create_info_t &create_info) :
+        m_physical_device(create_info.physical_device)
 {
-    if(physical_device)
+    if(create_info.physical_device)
     {
         // query physical device properties
         m_physical_device_properties = {};
         m_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-        vkGetPhysicalDeviceProperties2(physical_device, &m_physical_device_properties);
+        vkGetPhysicalDeviceProperties2(create_info.physical_device, &m_physical_device_properties);
 
         // add some obligatory features here
+        VkPhysicalDeviceFeatures device_features = create_info.device_features;
         device_features.geometryShader = true;
         device_features.samplerAnisotropy = true;
         device_features.sampleRateShading = true;
         device_features.independentBlend = true;
 
         std::vector<const char *> extensions;
-        if(surface){ extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
+        for(const auto &ext : create_info.extensions){ extensions.push_back(ext.c_str()); }
+        if(create_info.surface){ extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
 
-        m_queue_indices = find_queue_families(physical_device, surface);
+        m_queue_indices = find_queue_families(m_physical_device, create_info.surface);
 
         uint32_t num_queue_families;
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &num_queue_families, nullptr);
+        vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &num_queue_families, nullptr);
         std::vector<VkQueueFamilyProperties> family_props(num_queue_families);
-        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &num_queue_families, family_props.data());
+        vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &num_queue_families, family_props.data());
 
         std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
         std::set<int> unique_queue_families = {m_queue_indices[Device::Queue::GRAPHICS].index,
@@ -159,13 +161,14 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
         device_create_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
         device_create_info.ppEnabledExtensionNames = extensions.data();
 
-        if(use_validation_layers)
+        if(create_info.use_validation)
         {
             device_create_info.enabledLayerCount = static_cast<uint32_t>(g_validation_layers.size());
             device_create_info.ppEnabledLayerNames = g_validation_layers.data();
-        }else{ device_create_info.enabledLayerCount = 0; }
+        }
+        else{ device_create_info.enabledLayerCount = 0; }
 
-        vkCheck(vkCreateDevice(physical_device, &device_create_info, nullptr, &m_device),
+        vkCheck(vkCreateDevice(m_physical_device, &device_create_info, nullptr, &m_device),
                 "failed to create logical device!");
 
         auto get_all_queues = [this](Queue type)
@@ -211,11 +214,11 @@ Device::Device(VkPhysicalDevice physical_device, bool use_validation_layers, VkS
         // create VMA allocator instance
         VmaAllocatorCreateInfo allocator_info = {};
         allocator_info.vulkanApiVersion = Instance::api_version;
-        allocator_info.physicalDevice = physical_device;
+        allocator_info.physicalDevice = m_physical_device;
         allocator_info.device = m_device;
         vmaCreateAllocator(&allocator_info, &m_vk_mem_allocator);
 
-        m_max_usable_samples = max_usable_sample_count(physical_device);
+        m_max_usable_samples = max_usable_sample_count(m_physical_device);
     }
 }
 
