@@ -21,7 +21,7 @@ public:
         VkExtent3D size = {};
 
         //! brightness thresh
-        float brightness_thresh = 1.f;
+        glm::vec2 brightness_thresh = glm::vec2(.95f, 1.1f);
 
         //! blur iterations
         uint32_t num_blur_iterations;
@@ -45,6 +45,10 @@ private:
     vierkant::Renderer::drawable_t m_drawable;
 
     vierkant::Renderer m_thresh_renderer;
+    glm::vec2 m_brightness_thresh;
+
+    VkSpecializationInfo m_specialization_info = {};
+    std::array<VkSpecializationMapEntry, 2> m_specialization_entry;
 };
 
 }// namespace vierkant

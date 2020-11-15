@@ -13,7 +13,8 @@ BloomUPtr Bloom::create(const DevicePtr &device, const Bloom::create_info_t &cre
     return vierkant::BloomUPtr(new Bloom(device, create_info));
 }
 
-Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
+Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info):
+        m_brightness_thresh(create_info.brightness_thresh)
 {
     VkFormat color_format = VK_FORMAT_R16G16B16A16_SFLOAT;
 
@@ -40,7 +41,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     gaussian_info.num_iterations = create_info.num_blur_iterations;
     m_gaussian_blur = GaussianBlur::create(device, gaussian_info);
 
-
+    // threshold drawable
     m_drawable.pipeline_format.depth_test = false;
     m_drawable.pipeline_format.depth_write = false;
 
@@ -51,7 +52,18 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     m_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // set the specialization info
-//    fmt.specialization_info = &m_specialization_info;
+    m_specialization_entry[0].constantID = 0;
+    m_specialization_entry[0].offset = 0;
+    m_specialization_entry[0].size = sizeof(float);
+    m_specialization_entry[1].constantID = 1;
+    m_specialization_entry[1].offset = offsetof(glm::vec2, y);
+    m_specialization_entry[1].size = sizeof(float);
+
+    m_specialization_info.mapEntryCount = 2;
+    m_specialization_info.pMapEntries = m_specialization_entry.data();
+    m_specialization_info.pData = glm::value_ptr(m_brightness_thresh);
+    m_specialization_info.dataSize = sizeof(glm::vec2);
+    m_drawable.pipeline_format.specialization_info = &m_specialization_info;
 
     // descriptor
     vierkant::descriptor_t desc_texture = {};
