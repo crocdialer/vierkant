@@ -192,4 +192,12 @@ void Buffer::copy_to(const BufferPtr& dst, VkCommandBuffer cmdBufferHandle)
     copy_to_helper(m_device, this, dst.get(), cmdBufferHandle);
 }
 
+VkDeviceAddress Buffer::device_address() const
+{
+    VkBufferDeviceAddressInfo buf_info = {};
+    buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    buf_info.buffer = m_buffer;
+    return vkGetBufferDeviceAddress(m_device->handle(), &buf_info);
+}
+
 }//namespace vulkan

@@ -84,6 +84,11 @@ public:
     size_t num_bytes() const;
 
     /**
+     * @return  the VkDeviceAddress for this buffer.
+     */
+    VkDeviceAddress device_address() const;
+
+    /**
      * @brief   upload data into the buffer
      *
      * @param   the_data        pointer to data to be uploaded
