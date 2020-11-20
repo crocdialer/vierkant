@@ -30,9 +30,10 @@ BOOST_AUTO_TEST_CASE(TestDevice)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE, {});
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
 
         BOOST_CHECK(device->physical_device() == physical_device);
         BOOST_CHECK(device->handle() != nullptr);

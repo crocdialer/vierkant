@@ -46,6 +46,9 @@ void test_buffer(const vk::DevicePtr &device, const vk::VmaPoolPtr &pool_host = 
     // check host visibility
     BOOST_CHECK(!gpu_buffer->is_host_visible());
 
+    // buffer device address
+    BOOST_CHECK(gpu_buffer->device_address() != VkDeviceAddress(0));
+
     // test failed mapping to host-memory
     ptr = static_cast<uint8_t *>(gpu_buffer->map());
     BOOST_CHECK(ptr == nullptr);
@@ -84,9 +87,11 @@ BOOST_AUTO_TEST_CASE(TestBuffer)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE);
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
+
         // run buffer test case
         test_buffer(device);
     }
@@ -105,9 +110,10 @@ BOOST_AUTO_TEST_CASE(TestBufferPool)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE);
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
 
         auto pool = vk::Buffer::create_pool(device,
                                             VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,

@@ -44,9 +44,10 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColor)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE);
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
 
         vierkant::Framebuffer::create_info_t create_info = {};
         create_info.size = fb_size;
@@ -91,9 +92,10 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepth)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE);
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
 
 
         // 1 color attachment plus depth
@@ -122,9 +124,10 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE);
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
 
         // 1 color attachment plus depth/stencil
         vierkant::Framebuffer::create_info_t create_info = {};
@@ -153,9 +156,10 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_MultiColorDepthStencil)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE);
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
 
         // 4 color attachments plus depth/stencil
         vierkant::Framebuffer::create_info_t create_info = {};
@@ -185,9 +189,10 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil_MSAA)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE);
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
 
         // 1 color attachment (MSAA) | depth/stencil (MSAA) | resolve
         vierkant::Framebuffer::create_info_t create_info = {};
@@ -220,9 +225,10 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_Manual_Attachments)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         VK_NULL_HANDLE);
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        auto device = vk::Device::create(device_info);
 
         // manually creating attachments
         // 1 color attachment (MSAA) | depth/stencil (MSAA) | resolve

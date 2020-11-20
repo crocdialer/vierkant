@@ -36,9 +36,11 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         window->surface(), {});
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        device_info.surface = window->surface();
+        auto device = vk::Device::create(device_info);
 
         auto sample_count = VK_SAMPLE_COUNT_1_BIT;
         window->create_swapchain(device);
@@ -65,9 +67,12 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation_MSAA)
 
     for(auto physical_device : instance.physical_devices())
     {
-        auto device = vk::Device::create(physical_device,
-                                         instance.use_validation_layers(),
-                                         window->surface(), {});
+        vierkant::Device::create_info_t device_info = {};
+        device_info.physical_device = physical_device;
+        device_info.use_validation = instance.use_validation_layers();
+        device_info.surface = window->surface();
+        auto device = vk::Device::create(device_info);
+
         // request maximum MSAA
         auto sample_count = device->max_usable_samples();
         window->create_swapchain(device, sample_count);
