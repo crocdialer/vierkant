@@ -28,8 +28,7 @@ void HelloTriangleApplication::create_context_and_window()
 
     vierkant::Window::create_info_t window_info = {};
     window_info.instance = m_instance.handle();
-    window_info.width = WIDTH;
-    window_info.height = HEIGHT;
+    window_info.size = {WIDTH, HEIGHT};
     window_info.title = name();
     window_info.fullscreen = m_fullscreen;
     m_window = vk::Window::create(window_info);

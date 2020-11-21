@@ -80,7 +80,9 @@ WindowPtr Window::create(const create_info_t &create_info)
 
 Window::Window(const create_info_t &create_info) :
         m_instance(create_info.instance),
-        m_fullscreen(create_info.fullscreen)
+        m_fullscreen(create_info.fullscreen),
+        m_window_size(create_info.size),
+        m_window_pos(create_info.position)
 {
     if(!g_glfw_init){ g_glfw_init = std::make_shared<glfw_init_t>(); }
 
@@ -88,7 +90,7 @@ Window::Window(const create_info_t &create_info) :
     GLFWmonitor **monitors = glfwGetMonitors(&monitor_count);
     uint32_t monitor_index = std::max<int>(create_info.monitor_index, monitor_count - 1);
 
-    init_handles(create_info.width, create_info.height, create_info.title,
+    init_handles(m_window_size.x, m_window_size.y, create_info.title,
                  create_info.fullscreen ? monitors[monitor_index] : nullptr);
 }
 

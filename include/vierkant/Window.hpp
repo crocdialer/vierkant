@@ -40,8 +40,8 @@ public:
     struct create_info_t
     {
         VkInstance instance = VK_NULL_HANDLE;
-        uint32_t width;
-        uint32_t height;
+        glm::ivec2 size = {1920, 1080};
+        glm::ivec2 position = {};
         bool fullscreen = false;
         bool vsync = true;
         uint32_t monitor_index;
@@ -238,7 +238,7 @@ private:
     bool m_fullscreen = false;
 
     // keep track of window params when switching between window/fullscreen
-    glm::ivec2 m_window_size, m_window_pos;
+    glm::ivec2 m_window_size{}, m_window_pos{};
 
     static void glfw_resize_cb(GLFWwindow *window, int width, int height);
 
