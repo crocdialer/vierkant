@@ -25,7 +25,14 @@ void HelloTriangleApplication::poll_events()
 void HelloTriangleApplication::create_context_and_window()
 {
     m_instance = vk::Instance(g_enable_validation_layers, vk::Window::get_required_extensions());
-    m_window = vk::Window::create(m_instance.handle(), WIDTH, HEIGHT, name(), m_fullscreen);
+
+    vierkant::Window::create_info_t window_info = {};
+    window_info.instance = m_instance.handle();
+    window_info.width = WIDTH;
+    window_info.height = HEIGHT;
+    window_info.title = name();
+    window_info.fullscreen = m_fullscreen;
+    m_window = vk::Window::create(window_info);
 
     // create device
     vk::Device::create_info_t device_info = {};

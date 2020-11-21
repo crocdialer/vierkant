@@ -72,18 +72,18 @@ set(GLSLANG_VALIDATOR "glslangValidator")
 stringify_shaders("shaders" "shaders" ${GLSLANG_VALIDATOR})
 
 ## assimp
-#find_package(ASSIMP REQUIRED)
-#include_directories(${ASSIMP_INCLUDE_DIRS})
-#SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
+find_package(ASSIMP REQUIRED)
+include_directories(${ASSIMP_INCLUDE_DIRS})
+SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 
-##assimp
-option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
-option(ASSIMP_BUILD_SAMPLES OFF)
-option(ASSIMP_BUILD_TESTS OFF)
-option(ASSIMP_INSTALL OFF)
-add_subdirectory("assimp")
-include_directories(assimp/include)
-set(LIBS ${LIBS} assimp)
+###assimp
+#option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
+#option(ASSIMP_BUILD_SAMPLES OFF)
+#option(ASSIMP_BUILD_TESTS OFF)
+#option(ASSIMP_INSTALL OFF)
+#add_subdirectory("assimp")
+#include_directories(assimp/include)
+#set(LIBS ${LIBS} assimp)
 
 #vierkant
 add_subdirectory("src")
