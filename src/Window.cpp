@@ -71,30 +71,25 @@ void get_modifiers(GLFWwindow *window, uint32_t &buttonModifiers, uint32_t &keyM
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-WindowPtr Window::create(VkInstance instance, uint32_t width, uint32_t height, const std::string &the_name,
-                         bool fullscreen, uint32_t monitor_index)
+WindowPtr Window::create(const create_info_t &create_info)
 {
-    return WindowPtr(new Window(instance, width, height, the_name, fullscreen, monitor_index));
+    return WindowPtr(new Window(create_info));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Window::Window(VkInstance instance,
-               uint32_t width,
-               uint32_t height,
-               const std::string &title,
-               bool fullscreen,
-               uint32_t monitor_index) :
-        m_instance(instance),
-        m_fullscreen(fullscreen)
+Window::Window(const create_info_t &create_info) :
+        m_instance(create_info.instance),
+        m_fullscreen(create_info.fullscreen)
 {
     if(!g_glfw_init){ g_glfw_init = std::make_shared<glfw_init_t>(); }
 
     int monitor_count = 0;
     GLFWmonitor **monitors = glfwGetMonitors(&monitor_count);
-    monitor_index = std::max<int>(monitor_index, monitor_count - 1);
+    uint32_t monitor_index = std::max<int>(create_info.monitor_index, monitor_count - 1);
 
-    init_handles(width, height, title, fullscreen ? monitors[monitor_index] : nullptr);
+    init_handles(create_info.width, create_info.height, create_info.title,
+                 create_info.fullscreen ? monitors[monitor_index] : nullptr);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -83,7 +83,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
 
             execute_process(
                     COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
-                    COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+                    COMMAND ${GLSL_VALIDATOR} --target-env vulkan1.2 ${GLSL} -o ${SPIRV}
                     OUTPUT_VARIABLE glslangvalidator_std_out
                     ERROR_VARIABLE glslangvalidator_std_err
                     RESULT_VARIABLE ret

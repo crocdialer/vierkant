@@ -37,6 +37,18 @@ class Window : public std::enable_shared_from_this<Window>
 {
 public:
 
+    struct create_info_t
+    {
+        VkInstance instance = VK_NULL_HANDLE;
+        uint32_t width;
+        uint32_t height;
+        bool fullscreen = false;
+        bool vsync = true;
+        uint32_t monitor_index;
+        VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+        std::string title = "Vierkant";
+    };
+
     //! Delegate objects for mouse callbacks
     std::map<std::string, mouse_delegate_t> mouse_delegates;
 
@@ -66,8 +78,7 @@ public:
      * @return              the newly created WindowPtr
      */
     static WindowPtr
-    create(VkInstance instance, uint32_t width, uint32_t height, const std::string &the_name = "Vierkant",
-           bool fullscreen = false, uint32_t monitor_index = 0);
+    create(const create_info_t &create_info);
 
     ~Window();
 
@@ -208,8 +219,7 @@ public:
 
 private:
 
-    Window(VkInstance instance, uint32_t width, uint32_t height, const std::string &title,
-           bool fullscreen, uint32_t monitor_index);
+    explicit Window(const create_info_t &create_info);
 
     void init_handles(int width, int height, const std::string &title, GLFWmonitor *monitor);
 

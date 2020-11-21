@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.3)
+cmake_minimum_required(VERSION 3.8)
 
 ## define our project
 project(vierkant)
@@ -40,7 +40,7 @@ include(add_test_helper)
 include(vierkant_utils)
 
 ##### BOOST
-set(BOOST_COMPONENTS system filesystem)
+set(BOOST_COMPONENTS system)
 if (BUILD_TESTS)
     ENABLE_TESTING()
     set(BOOST_COMPONENTS ${BOOST_COMPONENTS} unit_test_framework)

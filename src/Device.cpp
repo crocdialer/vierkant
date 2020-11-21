@@ -153,8 +153,19 @@ Device::Device(const create_info_t &create_info) :
                 queue_priorities.push_back(std::move(tmp_priorities));
             }
         }
+
+        // optional feature 'VkDeviceAddress'
+        VkPhysicalDeviceBufferDeviceAddressFeatures device_address_features = {};
+        device_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+        device_address_features.pNext = create_info.create_device_pNext;
+        device_address_features.bufferDeviceAddress = static_cast<VkBool32>(true);
+
         VkDeviceCreateInfo device_create_info = {};
         device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+
+        // pNext feature chaining
+        device_create_info.pNext = create_info.enable_device_address ? &device_address_features
+                                                                     : create_info.create_device_pNext;
         device_create_info.pQueueCreateInfos = queue_create_infos.data();
         device_create_info.queueCreateInfoCount = queue_create_infos.size();
         device_create_info.pEnabledFeatures = &device_features;

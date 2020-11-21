@@ -27,7 +27,7 @@ void Arcball::mouse_press(const MouseEvent &e)
 
     if(e.is_left())
     {
-        m_last_rotation = m_current_rotation;
+        m_last_rotation = rotation;
     }
     else if(e.is_right()){ m_last_look_at = look_at; }
 }
@@ -42,7 +42,7 @@ void Arcball::mouse_drag(const MouseEvent &e)
     if(enabled && e.is_left())
     {
         glm::vec2 diff = m_last_pos - e.position();
-        m_current_rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(diff.y), glm::radians(diff.x), 0));
+        rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(diff.y), glm::radians(diff.x), 0));
 
 //        if(m_last_pos != m_current_pos)
 //        {
@@ -53,15 +53,15 @@ void Arcball::mouse_drag(const MouseEvent &e)
 //            m_current_rotation = glm::rotate(m_last_rotation, angle, axis_in_camera_coord);
 //        }
         m_last_pos = e.position();
-        m_last_rotation = m_current_rotation;
+        m_last_rotation = rotation;
     }
     else if(enabled && e.is_right())
     {
         glm::vec2 mouse_diff = e.position() - m_clicked_pos;
         mouse_diff *= distance / screen_size;
 
-        glm::mat3 rotation = glm::mat3_cast(m_current_rotation);
-        look_at = m_last_look_at - glm::normalize(rotation * glm::vec3(1, 0, 0)) * mouse_diff.x +
+        glm::mat3 rotation_mat = glm::mat3_cast(rotation);
+        look_at = m_last_look_at - glm::normalize(rotation_mat * glm::vec3(1, 0, 0)) * mouse_diff.x +
                 glm::normalize(rotation * glm::vec3(0, 1, 0)) * mouse_diff.y;
     }
 }
@@ -104,7 +104,7 @@ vierkant::mouse_delegate_t Arcball::mouse_delegate()
 
 glm::mat4 Arcball::transform() const
 {
-    glm::mat4 ret = glm::mat4_cast(m_current_rotation);
+    glm::mat4 ret = glm::mat4_cast(rotation);
     ret[3] = glm::vec4(look_at + (ret * glm::vec4(0, 0, distance, 1.f)).xyz(), 1.f);
     return ret;
 }

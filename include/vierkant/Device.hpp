@@ -21,15 +21,24 @@ public:
 
     struct create_info_t
     {
+        //! the physical device to use
         VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 
+        //! enable validation layers
         bool use_validation = false;
 
+        //! enable the VkDeviceAddress feature
+        bool enable_device_address = false;
+
+        //! optional VkSurface
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 
         VkPhysicalDeviceFeatures device_features = {};
 
         std::vector<std::string> extensions;
+
+        //! optional pointer that will be passed as 'pNext' during device-creation.
+        void* create_device_pNext = nullptr;
     };
 
     static DevicePtr create(const create_info_t &create_info);
@@ -111,7 +120,7 @@ public:
 
 private:
 
-    Device(const create_info_t &create_info);
+    explicit Device(const create_info_t &create_info);
 
     // physical device
     VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;

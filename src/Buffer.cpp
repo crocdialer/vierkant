@@ -163,6 +163,15 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
 
         // the actually allocated num_bytes might be bigger
         m_num_bytes = the_num_bytes;
+
+        // query the VkDeviceAddress for this buffer
+        if(m_usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+        {
+            VkBufferDeviceAddressInfo buf_info = {};
+            buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+            buf_info.buffer = m_buffer;
+            m_device_address = vkGetBufferDeviceAddress(m_device->handle(), &buf_info);
+        }
     }
 
     if(the_data)
@@ -190,14 +199,6 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
 void Buffer::copy_to(const BufferPtr& dst, VkCommandBuffer cmdBufferHandle)
 {
     copy_to_helper(m_device, this, dst.get(), cmdBufferHandle);
-}
-
-VkDeviceAddress Buffer::device_address() const
-{
-    VkBufferDeviceAddressInfo buf_info = {};
-    buf_info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-    buf_info.buffer = m_buffer;
-    return vkGetBufferDeviceAddress(m_device->handle(), &buf_info);
 }
 
 }//namespace vulkan

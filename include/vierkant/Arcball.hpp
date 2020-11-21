@@ -20,6 +20,8 @@ public:
 
     glm::vec2 screen_size{};
 
+    glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
+
     glm::vec3 look_at = glm::vec3(0.f);
 
     float distance = 1.f;
@@ -38,8 +40,6 @@ public:
 
     vierkant::mouse_delegate_t mouse_delegate();
 
-    const glm::quat &rotation() const{ return m_current_rotation; }
-
     glm::mat4 transform() const;
 
 private:
@@ -53,7 +53,7 @@ private:
     // mouse rotation control
     glm::vec2 m_inertia = {};
 
-    glm::quat m_last_rotation = {}, m_current_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
+    glm::quat m_last_rotation = {};
     crocore::CircularBuffer<glm::vec2> m_drag_buffer;
 
     bool m_mouse_down = false;

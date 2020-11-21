@@ -7,7 +7,8 @@
 #include "vierkant/Device.hpp"
 #include "vierkant/CommandBuffer.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 DEFINE_CLASS_PTR(Buffer);
 
@@ -27,7 +28,7 @@ public:
      * @param   vma_flags       the VmaPoolCreateFlags. can be used to change the memory-pool's allocation strategy
      * @return  the newly created VmaPoolPtr
      */
-    static VmaPoolPtr create_pool(const DevicePtr& device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
+    static VmaPoolPtr create_pool(const DevicePtr &device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
                                   VkDeviceSize block_size = 0, size_t min_block_count = 0, size_t max_block_count = 0,
                                   VmaPoolCreateFlags vma_flags = 0);
 
@@ -84,9 +85,10 @@ public:
     size_t num_bytes() const;
 
     /**
-     * @return  the VkDeviceAddress for this buffer.
+     * @brief   if the buffer was created with 'VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT' returns its address.
+     * @return  the VkDeviceAddress for this buffer or 0 if not available.
      */
-    VkDeviceAddress device_address() const;
+    VkDeviceAddress device_address() const{ return m_device_address; };
 
     /**
      * @brief   upload data into the buffer
@@ -103,7 +105,7 @@ public:
     inline void set_data(const T &the_array)
     {
         size_t num_bytes = the_array.size() * sizeof(typename T::value_type);
-        set_data((void *)the_array.data(), num_bytes);
+        set_data((void *) the_array.data(), num_bytes);
     };
 
     /**
@@ -112,7 +114,7 @@ public:
      * @param   dst     the destination buffer for the copy operation
      * @param   cmd_buf optional pointer to an existing CommandBuffer to be used for the copy operation
      */
-    void copy_to(const BufferPtr& dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE);
+    void copy_to(const BufferPtr &dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE);
 
     /**
      * @return  the vierkant::DevicePtr used to create the buffer.
@@ -124,6 +126,8 @@ private:
     DevicePtr m_device;
 
     VkBuffer m_buffer = VK_NULL_HANDLE;
+
+    VkDeviceAddress m_device_address = 0;
 
     VmaAllocation m_allocation = nullptr;
 
