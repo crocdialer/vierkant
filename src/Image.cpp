@@ -263,7 +263,7 @@ void Image::init(void *data, const VkImagePtr &shared_image)
         image_create_info.arrayLayers = m_format.num_layers;
         image_create_info.format = m_format.format;
         image_create_info.tiling = m_format.tiling;
-        image_create_info.initialLayout = m_format.initial_layout;
+        image_create_info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         image_create_info.usage = img_usage;
         image_create_info.samples = m_format.sample_count;
         image_create_info.sharingMode = m_format.sharing_mode;
@@ -297,7 +297,7 @@ void Image::init(void *data, const VkImagePtr &shared_image)
                                              num_bytes_per_pixel(m_format.format),
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                              VMA_MEMORY_USAGE_CPU_ONLY);
-        copy_from(staging_buffer);
+        copy_from(staging_buffer, m_format.initial_cmd_buffer);
     }
 
     ////////////////////////////////////////// create image view ///////////////////////////////////////////////////////
@@ -353,18 +353,21 @@ void Image::init(void *data, const VkImagePtr &shared_image)
 
     if(m_format.initial_layout_transition)
     {
-        if(m_format.initial_layout != VK_IMAGE_LAYOUT_UNDEFINED){ transition_layout(m_format.initial_layout); }
+        if(m_format.initial_layout != VK_IMAGE_LAYOUT_UNDEFINED)
+        {
+            transition_layout(m_format.initial_layout, m_format.initial_cmd_buffer);
+        }
         else if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
         {
-            transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+            transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, m_format.initial_cmd_buffer);
         }
         else if(img_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
         {
-            transition_layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            transition_layout(VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, m_format.initial_cmd_buffer);
         }
         else if(img_usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
         {
-            transition_layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+            transition_layout(VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, m_format.initial_cmd_buffer);
         }
     }
 }
@@ -616,6 +619,7 @@ bool Image::Format::operator==(const Image::Format &other) const
     if(num_layers != other.num_layers){ return false; }
     if(memory_usage != other.memory_usage){ return false; }
     if(memory_pool != other.memory_pool){ return false; }
+    if(initial_cmd_buffer != other.initial_cmd_buffer){ return false; }
     return true;
 }
 
@@ -656,5 +660,6 @@ size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format co
     hash_combine(h, fmt.num_layers);
     hash_combine(h, fmt.memory_usage);
     hash_combine(h, fmt.memory_pool);
+    hash_combine(h, fmt.initial_cmd_buffer);
     return h;
 }

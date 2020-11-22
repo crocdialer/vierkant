@@ -511,14 +511,14 @@ mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool &thr
     auto base_path = crocore::fs::get_directory_part(found_path);
 
     LOG_DEBUG << "loading model '" << path << "' ...";
-    const aiScene *theScene = importer.ReadFile(found_path, 0);
 
-    // super useful postprocessing steps
-    theScene = importer.ApplyPostProcessing(aiProcess_Triangulate
-                                            | aiProcess_FlipUVs
-                                            | aiProcess_JoinIdenticalVertices
-                                            | aiProcess_CalcTangentSpace
-                                            | aiProcess_LimitBoneWeights);
+    // read + useful postprocessing steps
+    const aiScene *theScene = importer.ReadFile(found_path, aiProcess_Triangulate
+                                                            | aiProcess_FlipUVs
+                                                            | aiProcess_JoinIdenticalVertices
+                                                            | aiProcess_CalcTangentSpace
+                                                            | aiProcess_LimitBoneWeights);
+
     if(theScene)
     {
         mesh_assets_t mesh_assets = {};

@@ -76,7 +76,7 @@ find_package(ASSIMP REQUIRED)
 include_directories(${ASSIMP_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 
-###assimp
+##assimp
 #option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
 #option(ASSIMP_BUILD_SAMPLES OFF)
 #option(ASSIMP_BUILD_TESTS OFF)
