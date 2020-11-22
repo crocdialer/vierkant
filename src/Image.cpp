@@ -297,7 +297,9 @@ void Image::init(void *data, const VkImagePtr &shared_image)
                                              num_bytes_per_pixel(m_format.format),
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                              VMA_MEMORY_USAGE_CPU_ONLY);
-        copy_from(staging_buffer, m_format.initial_cmd_buffer);
+
+        // copy and sync with local commandbuffer
+        copy_from(staging_buffer);
     }
 
     ////////////////////////////////////////// create image view ///////////////////////////////////////////////////////
