@@ -127,6 +127,8 @@ private:
 
     VkBuffer m_buffer = VK_NULL_HANDLE;
 
+    void *m_mapped_data = nullptr;
+
     VkDeviceAddress m_device_address = 0;
 
     VmaAllocation m_allocation = nullptr;

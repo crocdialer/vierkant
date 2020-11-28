@@ -85,6 +85,10 @@ Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VmaMemoryUsage me
 
 Buffer::~Buffer()
 {
+    // explicitly unmap, if necessary
+    unmap();
+
+    // destroy buffer
     if(m_buffer){ vmaDestroyBuffer(m_device->vk_mem_allocator(), m_buffer, m_allocation); }
 }
 
@@ -100,12 +104,10 @@ bool Buffer::is_host_visible() const
 
 void *Buffer::map()
 {
-    void *ret = nullptr;
-
-    if(m_allocation_info.pMappedData){ return m_allocation_info.pMappedData; }
-    else if(is_host_visible() && vmaMapMemory(m_device->vk_mem_allocator(), m_allocation, &ret) == VK_SUCCESS)
+    if(m_mapped_data){ return m_mapped_data; }
+    else if(is_host_visible() && vmaMapMemory(m_device->vk_mem_allocator(), m_allocation, &m_mapped_data) == VK_SUCCESS)
     {
-        return ret;
+        return m_mapped_data;
     }
     return nullptr;
 }
@@ -114,7 +116,11 @@ void *Buffer::map()
 
 void Buffer::unmap()
 {
-    vmaUnmapMemory(m_device->vk_mem_allocator(), m_allocation);
+    if(m_mapped_data)
+    {
+        vmaUnmapMemory(m_device->vk_mem_allocator(), m_allocation);
+        m_mapped_data = nullptr;
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

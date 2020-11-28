@@ -14,8 +14,14 @@ BOOST_AUTO_TEST_CASE(TestWindow)
     vierkant::Instance instance(true, vk::Window::get_required_extensions());
     bool trigger_size = false;
 
-    auto window = vk::Window::create(instance.handle(), 1280, 720, "TestWindow");
-    auto window_size = glm::ivec2(1280, 720);
+    const auto window_size = glm::ivec2(1280, 720);
+
+    vierkant::Window::create_info_t window_info = {};
+    window_info.instance = instance.handle();
+    window_info.size = window_size;
+    window_info.title = "TestWindow";
+    window_info.fullscreen = false;
+    auto window = vk::Window::create(window_info);
 
     // check if a VkSurfaceKHR is ready for us
     BOOST_CHECK(window->surface());
@@ -28,9 +34,9 @@ BOOST_AUTO_TEST_CASE(TestWindow)
     auto new_position = glm::ivec2(13, 21);
     window->set_position(new_position);
 
-    //TODO: find out why this fails
+//    //TODO: find out why this fails
 //    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    //BOOST_CHECK(new_position == window->position());
+//    BOOST_CHECK(new_position == window->position());
 
     // add resize callback
     vierkant::window_delegate_t window_delegate = {};

@@ -21,6 +21,9 @@ public:
 
     struct create_info_t
     {
+        //! handle for the vulkan-instance object
+        VkInstance instance = VK_NULL_HANDLE;
+
         //! the physical device to use
         VkPhysicalDevice physical_device = VK_NULL_HANDLE;
 

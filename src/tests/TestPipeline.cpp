@@ -61,6 +61,7 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
     for(auto physical_device : instance.physical_devices())
     {
         vierkant::Device::create_info_t device_info = {};
+        device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
         auto device = vk::Device::create(device_info);

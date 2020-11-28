@@ -38,7 +38,8 @@ void test_buffer(const vk::DevicePtr &device, const vk::VmaPoolPtr &pool_host = 
 
     // init a gpu only buffer with dummy data from a std::vector (will internally use a staging buffer for upload)
     auto gpu_buffer = vk::Buffer::create(device, dummy_data,
-                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                          VMA_MEMORY_USAGE_GPU_ONLY, pool_gpu);
     // check for correct size
     BOOST_CHECK(gpu_buffer->num_bytes() == dummy_data.size());
@@ -88,8 +89,12 @@ BOOST_AUTO_TEST_CASE(TestBuffer)
     for(auto physical_device : instance.physical_devices())
     {
         vierkant::Device::create_info_t device_info = {};
+        device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
+
+        // enable query for VkDeviceAddress (Vulkan 1.2 feature)
+        device_info.enable_device_address = true;
         auto device = vk::Device::create(device_info);
 
         // run buffer test case
@@ -111,8 +116,12 @@ BOOST_AUTO_TEST_CASE(TestBufferPool)
     for(auto physical_device : instance.physical_devices())
     {
         vierkant::Device::create_info_t device_info = {};
+        device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
+
+        // enable query for VkDeviceAddress (Vulkan 1.2 feature)
+        device_info.enable_device_address = true;
         auto device = vk::Device::create(device_info);
 
         auto pool = vk::Buffer::create_pool(device,

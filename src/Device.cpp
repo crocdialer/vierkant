@@ -223,10 +223,19 @@ Device::Device(const create_info_t &create_info) :
                 "failed to create command pool!");
 
         // create VMA allocator instance
+        if(!create_info.instance){ throw std::runtime_error("vierkant::Device::create_info_t::instance NOT set"); }
+
         VmaAllocatorCreateInfo allocator_info = {};
         allocator_info.vulkanApiVersion = Instance::api_version;
+        allocator_info.instance = create_info.instance;
         allocator_info.physicalDevice = m_physical_device;
         allocator_info.device = m_device;
+
+        // optionally enable DEVICE_ADDRESS_BIT
+        if(create_info.enable_device_address)
+        {
+            allocator_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+        }
         vmaCreateAllocator(&allocator_info, &m_vk_mem_allocator);
 
         m_max_usable_samples = max_usable_sample_count(m_physical_device);

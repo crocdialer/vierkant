@@ -4,6 +4,8 @@
 
 #include "vierkant/vierkant.hpp"
 
+const auto window_size = glm::ivec2(1280, 720);
+
 void test_helper(vk::WindowPtr window, VkSampleCountFlagBits sampleCount)
 {
     BOOST_CHECK(window->swapchain());
@@ -30,13 +32,19 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation)
     // init instance with required extensions for SwapChain (VK_KHR_swapchain, VkSurfaceKHR)
     vierkant::Instance instance(true, vk::Window::get_required_extensions());
 
-    auto window = vk::Window::create(instance.handle(), 1280, 720, "TestSwapchain");
+    vierkant::Window::create_info_t window_info = {};
+    window_info.instance = instance.handle();
+    window_info.size = window_size;
+    window_info.title = "TestSwapchain";
+    window_info.fullscreen = false;
+    auto window = vk::Window::create(window_info);
 
     std::vector<vierkant::DevicePtr> devices;
 
     for(auto physical_device : instance.physical_devices())
     {
         vierkant::Device::create_info_t device_info = {};
+        device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
         device_info.surface = window->surface();
@@ -61,13 +69,19 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation_MSAA)
     // init instance with required extensions for SwapChain (VK_KHR_swapchain, VkSurfaceKHR)
     vierkant::Instance instance(true, vk::Window::get_required_extensions());
 
-    auto window = vk::Window::create(instance.handle(), 1280, 720, "TestSwapchain MSAA");
+    vierkant::Window::create_info_t window_info = {};
+    window_info.instance = instance.handle();
+    window_info.size = window_size;
+    window_info.title = "TestSwapchain";
+    window_info.fullscreen = false;
+    auto window = vk::Window::create(window_info);
 
     std::vector<vierkant::DevicePtr> devices;
 
     for(auto physical_device : instance.physical_devices())
     {
         vierkant::Device::create_info_t device_info = {};
+        device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
         device_info.surface = window->surface();
