@@ -4,14 +4,8 @@
 
 #include <set>
 
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wreorder"
-#pragma GCC diagnostic ignored "-Wunused-variable"
 #define VMA_IMPLEMENTATION
-
 #include <vierkant/vk_mem_alloc.h>
-
-#pragma GCC diagnostic pop
 
 #include <vierkant/Device.hpp>
 

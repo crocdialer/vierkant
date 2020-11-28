@@ -6,7 +6,7 @@
 
 #include <map>
 #include <vierkant/vk_mem_alloc.h>
-#include "vierkant/Instance.hpp"
+#include <vierkant/Instance.hpp>
 
 namespace vierkant
 {
