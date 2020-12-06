@@ -17,7 +17,9 @@ struct img_copy_assets_t
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size, bool mipmap,
+vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size,
+                                         VkQueue queue,
+                                         bool mipmap,
                                          VkFormat format)
 {
     if(!panorama_img){ return nullptr; }
@@ -45,7 +47,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
     std::vector<VkFence> fences;
 
     auto cmd_buf = cube.renderer.render(cube.framebuffer);
-    fences.push_back(cube.framebuffer.submit({cmd_buf}, device->queue()));
+    fences.push_back(cube.framebuffer.submit({cmd_buf}, queue));
 
     img_copy_assets_t image_copy_asset;
 
@@ -65,7 +67,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
         ret_img = mipmap_cube;
 
         // copy image into mipmap-chain
-        image_copy_asset.command_buffer = vierkant::CommandBuffer(device, device->command_pool_transient());
+        image_copy_asset.command_buffer = vierkant::CommandBuffer(device, cube.command_pool.get());
         image_copy_asset.fence = vierkant::create_fence(device);
 
         image_copy_asset.command_buffer.begin();
@@ -98,7 +100,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
         mipmap_cube->generate_mipmaps(image_copy_asset.command_buffer.handle());
 
         // submit command, sync
-        image_copy_asset.command_buffer.submit(device->queue(), false, image_copy_asset.fence.get());
+        image_copy_asset.command_buffer.submit(queue, false, image_copy_asset.fence.get());
         fences.push_back(image_copy_asset.fence.get());
     }
 
@@ -110,7 +112,8 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size)
+vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size,
+                                              VkQueue queue)
 {
     // create a cube-pipeline
     auto cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, false,
@@ -129,7 +132,7 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
     cube.renderer.stage_drawable(cube.drawable);
 
     auto cmd_buf = cube.renderer.render(cube.framebuffer);
-    auto fence = cube.framebuffer.submit({cmd_buf}, device->queue());
+    auto fence = cube.framebuffer.submit({cmd_buf}, queue);
 
     // mandatory to sync here
     vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
@@ -139,7 +142,8 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size)
+vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size,
+                                          VkQueue queue)
 {
     size = crocore::next_pow_2(size);
 
@@ -157,6 +161,10 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
 
     // keep cube-pipelines alive
     std::vector<cube_pipeline_t> cube_pipelines(num_mips);
+
+    // command pool for background transfer
+    auto command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+                                                      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
     std::vector<img_copy_assets_t> image_copy_assets(num_mips);
 
@@ -196,11 +204,11 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
 
         // issue render-command and submit to queue
         auto cmd_buf = cube.renderer.render(cube.framebuffer);
-        fences.push_back(cube.framebuffer.submit({cmd_buf}, device->queue()));
+        fences.push_back(cube.framebuffer.submit({cmd_buf}, queue));
 
         // copy image into mipmap-chain
         img_copy_assets_t &image_copy_asset = image_copy_assets[lvl];
-        image_copy_asset.command_buffer = vierkant::CommandBuffer(device, device->command_pool_transient());
+        image_copy_asset.command_buffer = vierkant::CommandBuffer(device, cube.command_pool.get());
         image_copy_asset.fence = vierkant::create_fence(device);
 
         image_copy_asset.command_buffer.begin();
@@ -230,7 +238,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
         vkCmdCopyImage(image_copy_asset.command_buffer.handle(), cube.color_image->image(),
                        cube.color_image->image_layout(), ret->image(), ret->image_layout(), 1, &region);
 
-        image_copy_asset.command_buffer.submit(device->queue(), false, image_copy_asset.fence.get());
+        image_copy_asset.command_buffer.submit(queue, false, image_copy_asset.fence.get());
         fences.push_back(image_copy_asset.fence.get());
 
         size = std::max<uint32_t>(size / 2, 1);
@@ -309,7 +317,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
 
     struct geom_shader_ubo_t
     {
-        glm::mat4 view_matrix[6];
+        glm::mat4 view_matrix[6]{};
         glm::mat4 model_matrix = glm::mat4(1);
         glm::mat4 projection_matrix = glm::mat4(1);
     };
@@ -325,6 +333,8 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     drawable.descriptors[0] = desc_matrices;
 
     cube_pipeline_t ret = {};
+    ret.command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+                                                     VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
     ret.renderer = std::move(cube_render);
     ret.drawable = std::move(drawable);
     ret.color_image = cube_fb.color_attachment(0);

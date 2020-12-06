@@ -548,12 +548,14 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
 
 void PBRDeferred::set_environment(const ImagePtr &cubemap)
 {
-    constexpr uint32_t lambert_size = 32;
+    constexpr uint32_t lambert_size = 128;
 
     if(cubemap)
     {
-        m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, lambert_size);
-        m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width());
+        VkQueue queue = m_device->queues(vierkant::Device::Queue::GRAPHICS)[1];
+
+        m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, lambert_size, queue);
+        m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width(), queue);
 
         m_conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
         m_conv_ggx->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);

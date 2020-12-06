@@ -12,6 +12,7 @@ namespace vierkant
 
 struct cube_pipeline_t
 {
+    vierkant::CommandPoolPtr command_pool;
     vierkant::Framebuffer framebuffer;
     vierkant::Renderer renderer;
     vierkant::Renderer::drawable_t drawable;
@@ -38,6 +39,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
  * @return  a vierkant::ImagePtr holding a cubemap.
  */
 vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size,
+                                         VkQueue queue,
                                          bool mipmap = false,
                                          VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT);
 
@@ -50,7 +52,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
  * @return  a cubemap containing a diffuse convolution of the input cubemap.
  */
 vierkant::ImagePtr create_convolution_lambert(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
-                                              uint32_t size);
+                                              uint32_t size, VkQueue queue);
 
 /**
  * @brief   Create a roughness-cascade of specular (pbr-brdf) convolutions of a provided cubemap.
@@ -61,6 +63,6 @@ vierkant::ImagePtr create_convolution_lambert(const vierkant::DevicePtr &device,
  * @return  a cubemap containing in it's mipmap chain a roughness-cascade of specular convolutions of the input cubemap.
  */
 vierkant::ImagePtr create_convolution_ggx(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
-                                          uint32_t size);
+                                          uint32_t size, VkQueue queue);
 
 }// namespace vierkant

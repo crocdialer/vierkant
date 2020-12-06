@@ -170,9 +170,11 @@ void Scene::set_enironment(const vierkant::ImagePtr &img)
 {
     if(!img){ return; }
 
-    // derive sane resolution for cube from panorama-width
-    float res = crocore::next_pow_2(std::max(img->width(), img->height()) / 4);
-    m_skybox = vierkant::cubemap_from_panorama(img, {res, res}, true);
+//    // derive sane resolution for cube from panorama-width
+//    float res = crocore::next_pow_2(std::max(img->width(), img->height()) / 4);
+//    m_skybox = vierkant::cubemap_from_panorama(img, {res, res}, true);
+
+    m_skybox = img;
 }
 
 }//namespace
