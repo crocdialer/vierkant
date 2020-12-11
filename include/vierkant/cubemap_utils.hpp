@@ -30,6 +30,7 @@ struct cube_pipeline_t
  * @return  a struct grouping assets for a cube-pipeline.
  */
 cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t size, VkFormat color_format,
+                                     VkQueue queue,
                                      bool depth = false, VkImageUsageFlags usage_flags = 0);
 
 /**

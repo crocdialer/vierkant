@@ -30,6 +30,7 @@ public:
         bool clear_depth = true;
         Image::Format color_attachment_format;
         Image::Format depth_attachment_format;
+        vierkant::CommandPoolPtr command_pool = nullptr;
     };
 
     /**
@@ -195,6 +196,8 @@ private:
     VkFramebuffer m_framebuffer = VK_NULL_HANDLE;
 
     vierkant::FencePtr m_fence;
+
+    vierkant::CommandPoolPtr m_command_pool = nullptr;
 
     vierkant::CommandBuffer m_commandbuffer;
 

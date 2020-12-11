@@ -212,17 +212,21 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 }
 
 vierkant::MeshPtr
-Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry)
+Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
+                           VkCommandBuffer command_buffer,
+                           vierkant::BufferPtr staging_buffer)
 {
     entry_create_info_t create_info = {};
     create_info.geometry = geometry;
-    return create_with_entries(device, {create_info});
+    return create_with_entries(device, {create_info}, command_buffer, std::move(staging_buffer));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::MeshPtr
-Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &create_infos)
+Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &create_infos,
+                          VkCommandBuffer command_buffer,
+                          vierkant::BufferPtr staging_buffer)
 {
     if(create_infos.empty()){ return nullptr; }
 
@@ -319,14 +323,18 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
     auto mesh = vierkant::Mesh::create();
 
     // combine buffers into staging buffer
-    auto stage_buffer = vierkant::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                 VMA_MEMORY_USAGE_CPU_ONLY);
+    if(!staging_buffer)
+    {
+        staging_buffer = vierkant::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ staging_buffer->set_data(nullptr, num_bytes); }
 
     // create vertexbuffer
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes,
                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
-    auto staging_data = (uint8_t *) stage_buffer->map();
+    auto staging_data = (uint8_t *) staging_buffer->map();
 
 
     for(uint32_t i = 0; i < num_attribs; ++i)
@@ -358,7 +366,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
     }
 
     // copy combined vertex data to device-buffer
-    stage_buffer->copy_to(vertex_buffer);
+    staging_buffer->copy_to(vertex_buffer, command_buffer);
 
     // concat indices
     std::vector<vierkant::index_t> indices;

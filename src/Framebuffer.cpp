@@ -159,7 +159,8 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Framebuffer::Framebuffer(DevicePtr device, create_info_t format, RenderPassPtr renderpass) :
-        m_device(std::move(device)), m_extent(format.size), m_format(std::move(format))
+        m_device(std::move(device)), m_extent(format.size), m_command_pool(format.command_pool),
+        m_format(std::move(format))
 {
     m_format.color_attachment_format.extent = m_extent;
 
@@ -366,7 +367,14 @@ size_t Framebuffer::num_attachments(vierkant::Framebuffer::AttachmentType type) 
 
 void Framebuffer::init(AttachmentMap attachments, RenderPassPtr renderpass)
 {
-    m_commandbuffer = vierkant::CommandBuffer(m_device, m_device->command_pool_transient());
+    auto command_pool = m_command_pool ? m_command_pool :
+                        vierkant::create_command_pool(m_device,
+                                                      vierkant::Device::Queue::GRAPHICS,
+                                                      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                                      VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    m_commandbuffer = vierkant::CommandBuffer(m_device, command_pool.get());
+    m_command_pool = command_pool;
+
     m_fence = vierkant::create_fence(m_device, true);
 
     clear_color = {{0.f, 0.f, 0.f, 1.f}};
@@ -521,6 +529,7 @@ void swap(Framebuffer &lhs, Framebuffer &rhs)
     std::swap(lhs.m_attachments, rhs.m_attachments);
     std::swap(lhs.m_framebuffer, rhs.m_framebuffer);
     std::swap(lhs.m_fence, rhs.m_fence);
+    std::swap(lhs.m_command_pool, rhs.m_command_pool);
     std::swap(lhs.m_commandbuffer, rhs.m_commandbuffer);
     std::swap(lhs.m_active_commandbuffer, rhs.m_active_commandbuffer);
     std::swap(lhs.m_renderpass, rhs.m_renderpass);

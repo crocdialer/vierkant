@@ -196,7 +196,9 @@ public:
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr
-    create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry);
+    create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
+                         VkCommandBuffer command_buffer = VK_NULL_HANDLE,
+                         vierkant::BufferPtr staging_buffer = nullptr);
 
     /**
      * @brief   Create a vierkant::MeshPtr with provided information about entries.
@@ -207,7 +209,9 @@ public:
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr
-    create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &create_infos);
+    create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &create_infos,
+                        VkCommandBuffer command_buffer = VK_NULL_HANDLE,
+                        vierkant::BufferPtr staging_buffer = nullptr);
 
     Mesh(const Mesh &) = delete;
 
