@@ -31,6 +31,7 @@ public:
         Image::Format color_attachment_format;
         Image::Format depth_attachment_format;
         vierkant::CommandPoolPtr command_pool = nullptr;
+        VkQueue queue = VK_NULL_HANDLE;
     };
 
     /**

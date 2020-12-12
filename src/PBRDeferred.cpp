@@ -552,7 +552,7 @@ void PBRDeferred::set_environment(const ImagePtr &cubemap)
 
     if(cubemap)
     {
-        VkQueue queue = m_device->queues(vierkant::Device::Queue::GRAPHICS)[1];
+        VkQueue queue = m_device->queues(vierkant::Device::Queue::GRAPHICS)[0];
 
         m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, lambert_size, queue);
         m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width(), queue);
@@ -573,6 +573,12 @@ const vierkant::Framebuffer &PBRDeferred::lighting_buffer() const
     size_t last_index =
             (m_light_renderer.num_indices() + m_light_renderer.current_index() - 1) % m_light_renderer.num_indices();
     return m_frame_assets[last_index].lighting_buffer;
+}
+
+void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
+{
+    m_conv_ggx = ggx;
+    m_conv_lambert = lambert;
 }
 
 }// namespace vierkant

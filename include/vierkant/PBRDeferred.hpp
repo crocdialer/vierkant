@@ -74,6 +74,9 @@ public:
      */
     void set_environment(const vierkant::ImagePtr &cubemap) override;
 
+    void set_environment(const vierkant::ImagePtr &lambert,
+                         const vierkant::ImagePtr &ggx);
+
     vierkant::ImagePtr environment_lambert() const{ return m_conv_lambert; };
 
     vierkant::ImagePtr environment_ggx() const{ return m_conv_ggx; };

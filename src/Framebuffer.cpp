@@ -55,6 +55,8 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
         VkAttachmentLoadOp stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         VkAttachmentStoreOp stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
+//        bool is_depth_attachment = false;
+
         switch(pair.first)
         {
             case AttachmentType::Color:
@@ -68,6 +70,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
                 break;
 
             case AttachmentType::DepthStencil:
+//                is_depth_attachment = true;
                 loadOp = clear_depth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                 storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
@@ -81,6 +84,9 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
             default:
                 break;
         }
+
+//        auto final_layout = is_depth_attachment ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+//                                                : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         for(const auto &img : pair.second)
         {
@@ -437,6 +443,16 @@ void Framebuffer::init(AttachmentMap attachments, RenderPassPtr renderpass)
 Framebuffer::AttachmentMap Framebuffer::create_attachments(const vierkant::DevicePtr &device,
                                                            Framebuffer::create_info_t fmt)
 {
+    vierkant::CommandBuffer cmd_buf;
+
+    if(fmt.command_pool && fmt.queue)
+    {
+        cmd_buf = vierkant::CommandBuffer(device, fmt.command_pool.get());
+        cmd_buf.begin();
+
+        fmt.color_attachment_format.initial_cmd_buffer = cmd_buf.handle();
+        fmt.depth_attachment_format.initial_cmd_buffer = cmd_buf.handle();
+    }
     fmt.color_attachment_format.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
     // create vierkant::Image attachments and insert into AttachmentMap
@@ -465,6 +481,9 @@ Framebuffer::AttachmentMap Framebuffer::create_attachments(const vierkant::Devic
         auto depth_img = vierkant::Image::create(device, fmt.depth_attachment_format);
         depth_stencil_attachments.push_back(depth_img);
     }
+
+    // if we were provided a queue, submit + sync
+    if(cmd_buf){ cmd_buf.submit(fmt.queue, true); }
 
     AttachmentMap attachments;
     if(!color_attachments.empty())

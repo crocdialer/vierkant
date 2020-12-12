@@ -274,6 +274,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     fb_create_info.num_color_attachments = color_format == VK_FORMAT_UNDEFINED ? 0 : 1;
     fb_create_info.depth = depth;
     fb_create_info.command_pool = command_pool;
+    fb_create_info.queue = queue;
     auto cube_fb = vierkant::Framebuffer(device, fb_create_info);
 
     // create cube pipeline with vertex- + geometry-stages
