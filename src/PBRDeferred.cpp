@@ -577,8 +577,8 @@ const vierkant::Framebuffer &PBRDeferred::lighting_buffer() const
 
 void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
 {
-    m_conv_ggx = ggx;
     m_conv_lambert = lambert;
+    m_conv_ggx = ggx;
 }
 
 }// namespace vierkant

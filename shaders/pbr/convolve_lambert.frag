@@ -20,6 +20,7 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     vec3 N = normalize(vertex_in.eye_vec);
+    N.y = -N.y;
 
     // convolve the environment map with a cosine lobe along N
     out_color = vec4(ImportanceSampleDiffuse(N, u_sampler_cube), 1.0);

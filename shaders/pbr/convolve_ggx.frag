@@ -25,6 +25,7 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     vec3 R = normalize(vertex_in.eye_vec);
+    R.y = -R.y;
 
     // convolve the environment map with a GGX lobe along R
     out_color = vec4(ImportanceSampleSpecular(R, u_roughness, u_sampler_cube), 1.0);

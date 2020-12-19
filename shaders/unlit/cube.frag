@@ -24,6 +24,6 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     vec3 dir = vertex_in.eye_vec;
-    dir.y = -dir.y;
+//    dir.y = -dir.y;
     out_color = texture(u_sampler_cube[0], dir);
 }
