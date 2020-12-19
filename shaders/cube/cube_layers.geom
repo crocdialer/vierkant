@@ -30,7 +30,12 @@ void main()
         for(int i = 0; i < 3; ++i)
         {
             vec4 tmp = u_model_matrix * gl_in[i].gl_Position;
+
             vertex_out.eye_vec = tmp.xyz;
+
+            // compensate for vulkan clip-space
+            vertex_out.eye_vec.y = -vertex_out.eye_vec.y;
+
             gl_Position = u_projection_matrix * u_view_matrix[j] * tmp;
             EmitVertex();
         }

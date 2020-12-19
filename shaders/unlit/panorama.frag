@@ -19,7 +19,7 @@ layout(location = 0) out vec4 out_color;
 // map normalized direction to equirectangular texture coordinate
 vec2 panorama(vec3 ray)
 {
-    return vec2(0.5 + 0.5 * atan(ray.x, -ray.z) * ONE_OVER_PI, acos(-ray.y) * ONE_OVER_PI);
+    return vec2(0.5 + 0.5 * atan(ray.x, -ray.z) * ONE_OVER_PI, acos(ray.y) * ONE_OVER_PI);
 }
 
 void main()
