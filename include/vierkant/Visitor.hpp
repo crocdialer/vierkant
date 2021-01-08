@@ -68,11 +68,11 @@ public:
         return (object.enabled() || !select_only_enabled) && check_tags(tags, object.tags());
     }
 
-    std::vector<T *> objects;
+    std::vector<T *> objects = {};
 
-    std::set<std::string> tags;
+    std::set<std::string> tags = {};
 
-    bool select_only_enabled;
+    bool select_only_enabled = true;
 };
 
 }//namespace

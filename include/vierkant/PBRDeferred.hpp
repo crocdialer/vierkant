@@ -161,7 +161,7 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::Renderer m_g_renderer, m_light_renderer, m_post_fx_renderer;
+    vierkant::Renderer m_g_renderer, m_light_renderer;
 
     std::vector<VkPipelineColorBlendAttachmentState> m_g_attachment_blend_states;
 

@@ -393,19 +393,18 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         output_img = pingpong_render(m_drawable_bloom);
     }
 
-    // dof, bloom, anti-aliasing
+    // fxaa
     if(settings.use_fxaa)
     {
-        // fxaa
         auto drawable = m_drawable_fxaa;
         drawable.descriptors[0].image_samplers = {output_img};
 
         output_img = pingpong_render(drawable);
     }
 
+    // depth of field
     if(settings.dof.enabled)
     {
-        // dof
         auto drawable = m_drawable_dof;
         drawable.descriptors[0].image_samplers = {output_img, depth};
 
