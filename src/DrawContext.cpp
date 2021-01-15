@@ -48,7 +48,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         plane->tangents.clear();
         for(auto &v : plane->vertices){ v.xy() += glm::vec2(.5f, -.5f); }
 
-        auto mesh = Mesh::create_from_geometry(m_device, plane);
+        auto mesh = Mesh::create_from_geometry(m_device, plane, {});
         auto entry = mesh->entries.front();
 
         Pipeline::Format fmt = {};
@@ -146,7 +146,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     {
         // unit cube
         auto geom = vierkant::Geometry::BoxOutline();
-        auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom);
+        auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom, {});
         m_drawable_aabb = vierkant::Renderer::create_drawables(mesh).front();
         m_drawable_aabb.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(
                 vierkant::ShaderType::UNLIT_COLOR);
@@ -156,7 +156,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     {
         // unit grid
         auto geom = vierkant::Geometry::Grid();
-        auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom);
+        auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom, {});
         m_drawable_grid = vierkant::Renderer::create_drawables(mesh).front();
         m_drawable_grid.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(
                 vierkant::ShaderType::UNLIT_COLOR);
@@ -169,7 +169,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         box->tex_coords.clear();
         box->tangents.clear();
         box->normals.clear();
-        auto mesh = vierkant::Mesh::create_from_geometry(m_device, box);
+        auto mesh = vierkant::Mesh::create_from_geometry(m_device, box, {});
         auto &mat = mesh->materials.front();
         mat->depth_write = false;
         mat->depth_test = true;

@@ -13,7 +13,8 @@ DEFINE_CLASS_PTR(Image)
 
 using VkImagePtr = std::shared_ptr<VkImage_T>;
 
-VkDeviceSize num_bytes_per_pixel(VkFormat format);
+VkDeviceSize num_bytes(VkFormat format);
+VkDeviceSize num_bytes(VkIndexType format);
 
 class Image
 {

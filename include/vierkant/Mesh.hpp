@@ -161,14 +161,6 @@ public:
         VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
     };
 
-    struct entry_create_info_t
-    {
-        GeometryPtr geometry = nullptr;
-        glm::mat4 transform = glm::mat4(1);
-        uint32_t node_index = 0;
-        uint32_t material_index = 0;
-    };
-
     struct entry_t
     {
         glm::mat4 transform = glm::mat4(1);
@@ -185,6 +177,21 @@ public:
         bool enabled = true;
     };
 
+    struct create_info_t
+    {
+        VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+        vierkant::BufferPtr staging_buffer = nullptr;
+        VkBufferUsageFlags buffer_usage_flags = 0;
+    };
+
+    struct entry_create_info_t
+    {
+        GeometryPtr geometry = nullptr;
+        glm::mat4 transform = glm::mat4(1);
+        uint32_t node_index = 0;
+        uint32_t material_index = 0;
+    };
+
     static MeshPtr create();
 
     /**
@@ -197,21 +204,19 @@ public:
      */
     static vierkant::MeshPtr
     create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
-                         VkCommandBuffer command_buffer = VK_NULL_HANDLE,
-                         vierkant::BufferPtr staging_buffer = nullptr);
+                         create_info_t create_info);
 
     /**
      * @brief   Create a vierkant::MeshPtr with provided information about entries.
      *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
      *
      * @param   device          handle for the vierkant::Device to create subresources with
-     * @param   create_infos    an array of entry_create_info_t structs.
+     * @param   entry_create_infos    an array of entry_create_info_t structs.
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr
-    create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &create_infos,
-                        VkCommandBuffer command_buffer = VK_NULL_HANDLE,
-                        vierkant::BufferPtr staging_buffer = nullptr);
+    create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &entry_create_infos,
+                        const create_info_t& create_info);
 
     Mesh(const Mesh &) = delete;
 

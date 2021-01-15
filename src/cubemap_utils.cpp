@@ -305,9 +305,12 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     box->normals.clear();
     box->tangents.clear();
 
-    auto staging_buffer = vierkant::Buffer::create(device, nullptr, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+    vierkant::Mesh::create_info_t mesh_create_info = {};
+    mesh_create_info.command_buffer = cmd_buffer.handle();
+    mesh_create_info.staging_buffer = vierkant::Buffer::create(device, nullptr, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
-    drawable.mesh = vierkant::Mesh::create_from_geometry(device, box, cmd_buffer.handle(), staging_buffer);
+
+    drawable.mesh = vierkant::Mesh::create_from_geometry(device, box, mesh_create_info);
     cmd_buffer.submit(queue, true);
 
     const auto &mesh_entry = drawable.mesh->entries.front();

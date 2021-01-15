@@ -35,6 +35,7 @@ void HelloTriangleApplication::create_context_and_window()
 
     // create device
     vk::Device::create_info_t device_info = {};
+    device_info.instance = m_instance.handle();
     device_info.physical_device = m_instance.physical_devices().front();
     device_info.use_validation = m_instance.use_validation_layers();
     device_info.surface = m_window->surface();
@@ -105,7 +106,8 @@ void HelloTriangleApplication::load_model()
     geom->colors = {glm::vec4(1.f, 0.f, 0.f, 1.f),
                     glm::vec4(0.f, 1.f, 0.f, 1.f),
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};
-    m_mesh = vk::Mesh::create_from_geometry(m_device, geom);
+    vierkant::Mesh::create_info_t mesh_create_info = {};
+    m_mesh = vk::Mesh::create_from_geometry(m_device, geom, mesh_create_info);
 
     m_drawable = vk::Renderer::create_drawables(m_mesh).front();
     m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device,

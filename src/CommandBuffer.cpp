@@ -39,7 +39,7 @@ FencePtr create_fence(const vierkant::DevicePtr &device, bool signaled)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr& fence, bool reset)
+void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fence, bool reset)
 {
     // wait for prior fence
     VkFence handle = fence.get();
@@ -67,14 +67,19 @@ void submit(const vierkant::DevicePtr &device,
         submit_info.commandBufferCount = command_buffers.size();
         submit_info.pCommandBuffers = command_buffers.data();
 
+        vierkant::FencePtr local_fence;
         if(fence){ vkResetFences(device->handle(), 1, &fence); }
+        else if(wait_fence)
+        {
+            local_fence = vierkant::create_fence(device);
+            fence = local_fence.get();
+        }
 
         vkQueueSubmit(queue, 1, &submit_info, fence);
 
-        if(fence && wait_fence)
+        if(fence)
         {
-            vkWaitForFences(device->handle(), 1, &fence, VK_TRUE,
-                            std::numeric_limits<uint64_t>::max());
+            vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
         }
     }
 }

@@ -11,7 +11,7 @@ namespace vierkant
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkDeviceSize num_bytes_per_pixel(VkFormat format)
+VkDeviceSize num_bytes(VkFormat format)
 {
     switch(format)
     {
@@ -34,7 +34,20 @@ VkDeviceSize num_bytes_per_pixel(VkFormat format)
         case VK_FORMAT_R16G16B16_SFLOAT:
             return 6;
         default:
-            throw std::runtime_error("num_bytes_per_pixel: format not handled");
+            throw std::runtime_error("num_bytes: format not handled");
+    }
+}
+
+VkDeviceSize num_bytes(VkIndexType index_type)
+{
+    switch(index_type)
+    {
+        case VK_INDEX_TYPE_UINT16:
+            return 2;
+        case VK_INDEX_TYPE_UINT32:
+            return 4;
+        default:
+            return 0;
     }
 }
 
@@ -294,7 +307,7 @@ void Image::init(void *data, const VkImagePtr &shared_image)
     {
         auto staging_buffer = Buffer::create(m_device, data,
                                              width() * height() * depth() *
-                                             num_bytes_per_pixel(m_format.format),
+                                             num_bytes(m_format.format),
                                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                              VMA_MEMORY_USAGE_CPU_ONLY);
 
@@ -451,7 +464,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
         if(!extent.width || !extent.height || !extent.depth){ extent = m_format.extent; }
 
         // assure dst buffer has correct size, no-op if already the case
-        dst->set_data(nullptr, num_bytes_per_pixel(m_format.format) * extent.width * extent.height * extent.depth);
+        dst->set_data(nullptr, num_bytes(m_format.format) * extent.width * extent.height * extent.depth);
 
         vierkant::CommandBuffer local_command_buffer;
 

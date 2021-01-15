@@ -2,6 +2,7 @@
 // Created by crocdialer on 2/28/19.
 //
 
+#include <utility>
 #include <crocore/utils.hpp>
 #include <map>
 #include <set>
@@ -212,23 +213,21 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 }
 
 vierkant::MeshPtr
-Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
-                           VkCommandBuffer command_buffer,
-                           vierkant::BufferPtr staging_buffer)
+Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry, create_info_t create_info)
 {
-    entry_create_info_t create_info = {};
-    create_info.geometry = geometry;
-    return create_with_entries(device, {create_info}, command_buffer, std::move(staging_buffer));
+    entry_create_info_t entry_create_info = {};
+    entry_create_info.geometry = geometry;
+    return create_with_entries(device, {entry_create_info}, std::move(create_info));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::MeshPtr
-Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &create_infos,
-                          VkCommandBuffer command_buffer,
-                          vierkant::BufferPtr staging_buffer)
+Mesh::create_with_entries(const vierkant::DevicePtr &device,
+                          const std::vector<entry_create_info_t> &entry_create_infos,
+                          const create_info_t &create_info)
 {
-    if(create_infos.empty()){ return nullptr; }
+    if(entry_create_infos.empty()){ return nullptr; }
 
     struct vertex_data_t
     {
@@ -301,7 +300,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
     size_t current_base_vertex = 0;
 
     // insert all geometries
-    for(auto &ci : create_infos)
+    for(auto &ci : entry_create_infos)
     {
         auto geom_it = geom_base_vertices.find(ci.geometry);
 
@@ -322,6 +321,8 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
 
     auto mesh = vierkant::Mesh::create();
 
+    auto staging_buffer = create_info.staging_buffer;
+
     // combine buffers into staging buffer
     if(!staging_buffer)
     {
@@ -332,7 +333,8 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
 
     // create vertexbuffer
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes,
-                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                                  create_info.buffer_usage_flags,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
     auto staging_data = (uint8_t *) staging_buffer->map();
 
@@ -366,7 +368,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
     }
 
     // copy combined vertex data to device-buffer
-    staging_buffer->copy_to(vertex_buffer, command_buffer);
+    staging_buffer->copy_to(vertex_buffer, create_info.command_buffer);
 
     // concat indices
     std::vector<vierkant::index_t> indices;
@@ -375,9 +377,9 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
     // one default/fallback material-index
     std::set<uint32_t> material_index_set = {0};
 
-    for(const auto &create_info : create_infos)
+    for(const auto &entry_info : entry_create_infos)
     {
-        const auto &geom = create_info.geometry;
+        const auto &geom = entry_info.geometry;
         indices.insert(indices.end(), geom->indices.begin(), geom->indices.end());
 
         vierkant::Mesh::entry_t entry = {};
@@ -390,14 +392,14 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
         current_base_index += geom->indices.size();
 
         // use provided transforms for sub-meshes, if any
-        entry.transform = create_info.transform;
+        entry.transform = entry_info.transform;
 
         // use provided node_index for sub-meshes, if any
-        entry.node_index = create_info.node_index;
+        entry.node_index = entry_info.node_index;
 
         // use provided material_index for sub-meshes, if any
-        entry.material_index = create_info.material_index;
-        material_index_set.insert(create_info.material_index);
+        entry.material_index = entry_info.material_index;
+        material_index_set.insert(entry_info.material_index);
 
         // combine with aabb
         entry.boundingbox = vierkant::compute_aabb(geom->vertices);
@@ -409,7 +411,8 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device, const std::vector<e
     // use indices
     if(!indices.empty())
     {
-        mesh->index_buffer = vierkant::Buffer::create(device, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+        mesh->index_buffer = vierkant::Buffer::create(device, indices,
+                                                      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | create_info.buffer_usage_flags,
                                                       VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
