@@ -11,6 +11,7 @@
 #include "stb_truetype.h"
 
 #include <codecvt>
+#include <vierkant/MeshNode.hpp>
 
 std::wstring utf8_to_wstring(const std::string &str)
 {
@@ -248,7 +249,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
     if(mesh_iter != m_impl->string_mesh_map.end())
     {
         mesh_iter->second.counter++;
-        mesh_iter->second.mesh->set_transform(glm::mat4(1));
+//        mesh_iter->second.mesh->set_transform(glm::mat4(1));
         return mesh_iter->second.mesh;
     }
 
@@ -385,14 +386,16 @@ vierkant::Object3DPtr Font::create_text_object(std::list<std::string> the_lines,
         }
 //        auto line_mesh = create_mesh(l)->copy();
         auto line_mesh = create_mesh(l);
-        line_mesh->set_position(glm::vec3(line_offset.x, line_offset.y - line_aabb.height(), 0.f));
+        auto line = vierkant::MeshNode::create(line_mesh);
+        line->set_position(glm::vec3(line_offset.x, line_offset.y - line_aabb.height(), 0.f));
+
 //        line_mesh->material()->set_blending();
 
         // advance offset
         line_offset.y -= line_height();
 
         // add line
-        parent->add_child(line_mesh);
+        parent->add_child(line);
     }
     return root;
 }

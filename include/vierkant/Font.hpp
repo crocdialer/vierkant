@@ -6,8 +6,8 @@
 
 #include <crocore/Image.hpp>
 #include "vierkant/Image.hpp"
-#include "vierkant/intersection.hpp"
 #include "vierkant/Mesh.hpp"
+#include "vierkant/Object3D.hpp"
 
 namespace vierkant {
 

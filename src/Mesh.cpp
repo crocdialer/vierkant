@@ -2,13 +2,11 @@
 // Created by crocdialer on 2/28/19.
 //
 
-#include <utility>
-#include <crocore/utils.hpp>
 #include <map>
 #include <set>
+#include <crocore/utils.hpp>
 
-#include "vierkant/Visitor.hpp"
-#include "vierkant/Mesh.hpp"
+#include <vierkant/Mesh.hpp>
 
 namespace vierkant
 {
@@ -427,7 +425,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
 MeshPtr Mesh::create()
 {
     auto ret = MeshPtr(new Mesh());
-    ret->set_name("mesh_" + std::to_string(ret->id()));
+//    ret->set_name("mesh_" + std::to_string(ret->id()));
     return ret;
 }
 
@@ -529,21 +527,21 @@ std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
     return ret;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Mesh::accept(Visitor &visitor)
-{
-    visitor.visit(*this);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-vierkant::AABB Mesh::aabb() const
-{
-    vierkant::AABB aabb;
-    for(const auto &entry : entries){ aabb += entry.boundingbox.transform(entry.transform); }
-    return aabb;
-}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//void Mesh::accept(Visitor &visitor)
+//{
+//    visitor.visit(*this);
+//}
+//
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//
+//vierkant::AABB Mesh::aabb() const
+//{
+//    vierkant::AABB aabb;
+//    for(const auto &entry : entries){ aabb += entry.boundingbox.transform(entry.transform); }
+//    return aabb;
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

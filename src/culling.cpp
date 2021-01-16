@@ -38,18 +38,16 @@ public:
         }
     }
 
-    void visit(vierkant::Mesh &mesh) override
+    void visit(vierkant::MeshNode &node) override
     {
-        if(should_visit(mesh))
+        if(should_visit(node))
         {
             // create drawables
-            auto mesh_ptr = std::dynamic_pointer_cast<vierkant::Mesh>(mesh.shared_from_this());
-            auto mesh_drawables = vierkant::Renderer::create_drawables(mesh_ptr);
+            auto mesh_drawables = vierkant::Renderer::create_drawables(node.mesh,
+                                                                       m_transform_stack.top() * node.transform());
 
             for(auto &drawable : mesh_drawables)
             {
-                drawable.matrices.modelview = m_transform_stack.top() * drawable.matrices.modelview;
-                drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.matrices.projection = m_camera->projection_matrix();
             }
 
@@ -57,8 +55,8 @@ public:
             std::move(mesh_drawables.begin(), mesh_drawables.end(), std::back_inserter(m_cull_result.drawables));
 
             // continue scenegraph-traversal
-            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * mesh.transform());
-            visit(static_cast<vierkant::Object3D &>(mesh));
+            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * node.transform());
+            visit(static_cast<vierkant::Object3D &>(node));
         }
     }
 

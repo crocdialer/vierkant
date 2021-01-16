@@ -7,9 +7,9 @@
 #include "vierkant/Device.hpp"
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Image.hpp"
-#include "vierkant/Object3D.hpp"
 #include "vierkant/Geometry.hpp"
 #include "vierkant/Material.hpp"
+#include <vierkant/intersection.hpp>
 
 namespace vierkant
 {
@@ -132,7 +132,7 @@ DEFINE_CLASS_PTR(Mesh)
  * @brief   Mesh groups all sorts of resources,
  *          required to feed vertex-data into a (graphics-)pipeline.
  */
-class Mesh : public Object3D
+class Mesh
 {
 public:
 
@@ -223,10 +223,6 @@ public:
     Mesh(Mesh &&) = delete;
 
     Mesh &operator=(Mesh other) = delete;
-
-    void accept(Visitor &visitor) override;
-
-    vierkant::AABB aabb() const override;
 
     /**
      * @brief   bind vertex- and index-buffers for the provided vierkant::Mesh

@@ -25,16 +25,16 @@ public:
         Visitor::visit(static_cast<vierkant::Object3D &>(object));
     };
 
-    void visit(vierkant::Mesh &mesh) override
+    void visit(vierkant::MeshNode &node) override
     {
-        if(mesh.animation_index < mesh.node_animations.size())
+        if(node.mesh && node.mesh->animation_index < node.mesh->node_animations.size())
         {
             // update node animation
-            vierkant::update_animation(mesh.node_animations[mesh.animation_index],
+            vierkant::update_animation(node.mesh->node_animations[node.mesh->animation_index],
                                        m_time_step,
-                                       mesh.animation_speed);
+                                       node.mesh->animation_speed);
         }
-        visit(static_cast<vierkant::Object3D &>(mesh));
+        visit(static_cast<vierkant::Object3D &>(node));
     }
 
     bool should_visit(vierkant::Object3D &object) override

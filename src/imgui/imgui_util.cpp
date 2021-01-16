@@ -690,18 +690,21 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
     if(!mesh->entries.empty() && ImGui::TreeNode("entries", "entries (%d)", mesh->entries.size()))
     {
         size_t index = 0;
+        std::hash<vierkant::MeshPtr> hash;
 
         for(auto &e : mesh->entries)
         {
+            int mesh_id = hash(mesh);
+
             // push object id
-            ImGui::PushID(mesh->id() + index);
+            ImGui::PushID(mesh_id + index);
             ImGui::Checkbox("", &e.enabled);
             ImGui::SameLine();
 
             const ImVec4 gray(.6, .6, .6, 1.);
             if(!e.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
-            if(ImGui::TreeNodeEx((void *) (mesh->id() + index), 0, "entry %d", index))
+            if(ImGui::TreeNodeEx((void *) (mesh_id + index), 0, "entry %d", index))
             {
                 std::stringstream ss;
                 ss << "vertices: " << std::to_string(e.num_vertices) << "\n";

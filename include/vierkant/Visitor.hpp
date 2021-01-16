@@ -17,7 +17,7 @@
 #include <stack>
 
 #include "vierkant/Object3D.hpp"
-#include "vierkant/Mesh.hpp"
+#include "vierkant/MeshNode.hpp"
 #include "vierkant/Camera.hpp"
 
 namespace vierkant
@@ -37,7 +37,7 @@ public:
         }
     }
 
-    virtual void visit(vierkant::Mesh &mesh){ visit(static_cast<Object3D &>(mesh)); };
+    virtual void visit(vierkant::MeshNode &mesh){ visit(static_cast<Object3D &>(mesh)); };
 
     virtual void visit(vierkant::Camera &camera){ visit(static_cast<Object3D &>(camera)); };
 

@@ -132,8 +132,8 @@ public:
      * @param   mesh        a mesh object containing entries with vertex information.
      * @return  an array of drawables for the mesh-entries.
      */
-    static std::vector<drawable_t> create_drawables(const MeshPtr &mesh);
-    
+    static std::vector<drawable_t> create_drawables(const MeshPtr &mesh, const glm::mat4 &model_view = glm::mat4(1));
+
     //! Viewport parameters currently used.
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
 

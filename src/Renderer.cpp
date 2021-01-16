@@ -15,7 +15,7 @@ using duration_t = std::chrono::duration<float>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh)
+std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh, const glm::mat4 &model_view)
 {
     if(!mesh){ return {}; }
 
@@ -54,7 +54,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
         drawable.entry_index = i;
 
         // combine mesh- with entry-transform
-        drawable.matrices.modelview = mesh->transform() * entry.transform;
+        drawable.matrices.modelview = model_view * entry.transform;
         drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
 
         // material params
