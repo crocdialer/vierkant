@@ -16,15 +16,9 @@ class MeshNode : public vierkant::Object3D
 {
 public:
 
-    static MeshNodePtr create(vierkant::MeshPtr mesh);
-
     vierkant::MeshPtr mesh = nullptr;
 
-    MeshNode(const Mesh &) = delete;
-
-    MeshNode(Mesh &&) = delete;
-
-    MeshNode &operator=(Mesh other) = delete;
+    static MeshNodePtr create(vierkant::MeshPtr mesh);
 
     void accept(Visitor &visitor) override;
 
