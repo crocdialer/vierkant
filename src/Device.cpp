@@ -119,7 +119,7 @@ Device::Device(const create_info_t &create_info) :
     device_features.independentBlend = true;
 
     std::vector<const char *> extensions;
-    for(const auto &ext : create_info.extensions){ extensions.push_back(ext.c_str()); }
+    for(const auto &ext : create_info.extensions){ extensions.push_back(ext); }
     if(create_info.surface){ extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
 
     m_queue_indices = find_queue_families(m_physical_device, create_info.surface);

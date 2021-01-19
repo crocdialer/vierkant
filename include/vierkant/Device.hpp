@@ -38,7 +38,7 @@ public:
 
         VkPhysicalDeviceFeatures device_features = {};
 
-        std::vector<std::string> extensions;
+        std::vector<const char*> extensions;
 
         //! optional pointer that will be passed as 'pNext' during device-creation.
         void* create_device_pNext = nullptr;

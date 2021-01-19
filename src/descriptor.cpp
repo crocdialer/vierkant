@@ -2,16 +2,10 @@
 // Created by crocdialer on 1/17/21.
 //
 
-#include <vierkant/descriptor.h>
+#include <vierkant/descriptor.hpp>
 
 namespace vierkant
 {
-void add_descriptor_counts(const descriptor_map_t &descriptors, descriptor_count_t &counts)
-{
-    std::map<VkDescriptorType, uint32_t> mesh_counts;
-    for(const auto &pair : descriptors){ mesh_counts[pair.second.type]++; }
-    for(const auto &pair : mesh_counts){ counts.push_back(pair); }
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -20,7 +14,7 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
                                          uint32_t max_sets)
 {
     std::vector<VkDescriptorPoolSize> pool_sizes;
-    for(const auto &pair : counts){ pool_sizes.push_back({pair.first, pair.second}); }
+    for(const auto &[type, count] : counts){ pool_sizes.push_back({type, count}); }
 
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -45,11 +39,10 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 {
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
-    for(const auto &pair : descriptors)
+    for(const auto &[binding, desc] : descriptors)
     {
-        auto &desc = pair.second;
         VkDescriptorSetLayoutBinding ubo_layout_binding = {};
-        ubo_layout_binding.binding = pair.first;
+        ubo_layout_binding.binding = binding;
         ubo_layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
         ubo_layout_binding.descriptorType = desc.type;
         ubo_layout_binding.pImmutableSamplers = nullptr;
@@ -105,11 +98,21 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 
     std::vector<VkWriteDescriptorSet> descriptor_writes;
 
+    // keep buffer_infos for vkUpdateDescriptorSets
     std::vector<VkDescriptorBufferInfo> buffer_infos;
     buffer_infos.reserve(num_writes);
 
-    // keep all VkDescriptorImageInfo structs around until vkUpdateDescriptorSets has processed them
+    // keep all image_infos for vkUpdateDescriptorSets
     std::vector<std::vector<VkDescriptorImageInfo>> image_infos_collection;
+
+    // keep acceleration_structure_info + handle-ptr for vkUpdateDescriptorSets
+    struct acceleration_write_asset_t
+    {
+        VkWriteDescriptorSetAccelerationStructureKHR writeDescriptorSetAccelerationStructure = {};
+        VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
+    };
+    std::vector<acceleration_write_asset_t> acceleration_write_assets;
+    acceleration_write_assets.reserve(num_writes);
 
     for(const auto &pair : descriptors)
     {
@@ -123,29 +126,56 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
         desc_write.dstArrayElement = 0;
         desc_write.descriptorCount = 1;
 
-        if(desc.type == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+        switch(desc.type)
         {
-            VkDescriptorBufferInfo buffer_info = {};
-            buffer_info.buffer = desc.buffer->handle();
-            buffer_info.offset = desc.buffer_offset;
-            buffer_info.range = desc.buffer->num_bytes() - desc.buffer_offset;
-            buffer_infos.push_back(buffer_info);
-            desc_write.pBufferInfo = &buffer_infos.back();
-        }
-        else if(desc.type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-        {
-            std::vector<VkDescriptorImageInfo> image_infos(desc.image_samplers.size());
-
-            for(uint32_t j = 0; j < desc.image_samplers.size(); ++j)
+            case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+            case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
             {
-                const auto &img = desc.image_samplers[j];
-                image_infos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;//img->image_layout();
-                image_infos[j].imageView = img->image_view();
-                image_infos[j].sampler = img->sampler();
+                VkDescriptorBufferInfo buffer_info = {};
+                buffer_info.buffer = desc.buffer->handle();
+                buffer_info.offset = desc.buffer_offset;
+                buffer_info.range = desc.buffer->num_bytes() - desc.buffer_offset;
+                buffer_infos.push_back(buffer_info);
+                desc_write.pBufferInfo = &buffer_infos.back();
             }
-            desc_write.descriptorCount = static_cast<uint32_t>(image_infos.size());
-            desc_write.pImageInfo = image_infos.data();
-            image_infos_collection.push_back(std::move(image_infos));
+                break;
+
+            case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+            case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+            {
+                std::vector<VkDescriptorImageInfo> image_infos(desc.image_samplers.size());
+
+                for(uint32_t j = 0; j < desc.image_samplers.size(); ++j)
+                {
+                    const auto &img = desc.image_samplers[j];
+                    image_infos[j].imageLayout = img->image_layout();
+                    image_infos[j].imageView = img->image_view();
+                    image_infos[j].sampler = img->sampler();
+                }
+                desc_write.descriptorCount = static_cast<uint32_t>(image_infos.size());
+                desc_write.pImageInfo = image_infos.data();
+                image_infos_collection.push_back(std::move(image_infos));
+            }
+                break;
+
+            case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+            {
+                acceleration_write_asset_t acceleration_write_asset = {};
+                acceleration_write_asset.handle = desc.acceleration_structure.get();
+
+                auto &acceleration_write_info = acceleration_write_asset.writeDescriptorSetAccelerationStructure;
+                acceleration_write_info.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+                acceleration_write_info.accelerationStructureCount = 1;
+                acceleration_write_info.pAccelerationStructures = &acceleration_write_asset.handle;
+
+                acceleration_write_assets.push_back(acceleration_write_asset);
+                desc_write.pNext = &acceleration_write_assets.back().writeDescriptorSetAccelerationStructure;
+            }
+                break;
+
+            default:
+                throw std::runtime_error("update_descriptor_set: unsupported descriptor-type -> " +
+                                         std::to_string(desc.type));
         }
         descriptor_writes.push_back(desc_write);
     }
@@ -163,6 +193,7 @@ bool descriptor_t::operator==(const descriptor_t &other) const
     if(buffer != other.buffer){ return false; }
     if(buffer_offset != other.buffer_offset){ return false; }
     if(image_samplers != other.image_samplers){ return false; }
+    if(acceleration_structure != other.acceleration_structure){ return false; }
     return true;
 }
 
@@ -180,6 +211,7 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     hash_combine(h, descriptor.buffer);
     hash_combine(h, descriptor.buffer_offset);
     for(const auto &img : descriptor.image_samplers){ hash_combine(h, img); }
+    hash_combine(h, descriptor.acceleration_structure);
     return h;
 }
 

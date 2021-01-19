@@ -62,7 +62,7 @@ public:
      * @brief   Helper function to retrieve a list of Vulkan-Extensions required for Window
      * @return  a list of Vulkan-Extensions names
      */
-    static std::vector<const char *> get_required_extensions();
+    static std::vector<const char *> required_extensions();
 
     /**
      * @brief               Factory to create a new WindowPtr.

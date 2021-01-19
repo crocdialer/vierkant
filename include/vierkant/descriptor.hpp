@@ -17,7 +17,10 @@ using DescriptorSetLayoutPtr = std::shared_ptr<VkDescriptorSetLayout_T>;
 
 using DescriptorSetPtr = std::shared_ptr<VkDescriptorSet_T>;
 
-using descriptor_count_t = std::vector<std::pair<VkDescriptorType, uint32_t>>;
+//! define a shared handle for a VkAccelerationStructureKHR
+using AccelerationStructurePtr = std::shared_ptr<VkAccelerationStructureKHR_T>;
+
+using descriptor_count_t = std::map<VkDescriptorType, uint32_t>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -29,9 +32,16 @@ struct descriptor_t
 {
     VkDescriptorType type;
     VkShaderStageFlags stage_flags;
+
+    //! used for descriptors containing a buffer
     vierkant::BufferPtr buffer;
     VkDeviceSize buffer_offset = 0;
+
+    //! used for descriptor containing (an array) of images
     std::vector<vierkant::ImagePtr> image_samplers;
+
+    //! used for descriptor containing a raytracing acceleration-structure
+    AccelerationStructurePtr acceleration_structure;
 
     bool operator==(const descriptor_t &other) const;
 
@@ -39,14 +49,6 @@ struct descriptor_t
 };
 
 using descriptor_map_t = std::map<uint32_t, descriptor_t>;
-
-/**
- * @brief   Extract the types of descriptors and their counts for a given vierkant::Mesh.
- *
- * @param   descriptors an array of descriptors to extract the descriptor counts from
- * @param   counts      a reference to a descriptor_count_map_t to hold the results
- */
-void add_descriptor_counts(const descriptor_map_t &descriptors, descriptor_count_t &counts);
 
 /**
  * @brief   Create a shared VkDescriptorPool (DescriptorPoolPtr)

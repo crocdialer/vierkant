@@ -8,7 +8,7 @@
 #include "crocore/Area.hpp"
 
 #include "vierkant/Mesh.hpp"
-#include "vierkant/descriptor.h"
+#include "vierkant/descriptor.hpp"
 #include "vierkant/Framebuffer.hpp"
 #include "vierkant/PipelineCache.hpp"
 #include "vierkant/Pipeline.hpp"

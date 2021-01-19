@@ -22,7 +22,7 @@ static std::shared_ptr<glfw_init_t> g_glfw_init;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<const char *> Window::get_required_extensions()
+std::vector<const char *> Window::required_extensions()
 {
     if(!g_glfw_init){ g_glfw_init = std::make_shared<glfw_init_t>(); }
 
