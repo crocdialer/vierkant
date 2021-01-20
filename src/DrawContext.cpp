@@ -51,7 +51,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         auto mesh = Mesh::create_from_geometry(m_device, plane, {});
         auto entry = mesh->entries.front();
 
-        Pipeline::Format fmt = {};
+        graphics_pipeline_info_t fmt = {};
         fmt.blend_state.blendEnable = true;
         fmt.depth_test = false;
         fmt.depth_write = false;
@@ -83,7 +83,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
     // fullscreen
     {
-        Pipeline::Format fmt = {};
+        graphics_pipeline_info_t fmt = {};
         fmt.blend_state.blendEnable = true;
         fmt.depth_test = false;
         fmt.depth_write = false;
@@ -111,7 +111,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     // fonts
     {
         // pipeline format
-        vierkant::Pipeline::Format pipeline_fmt = {};
+        vierkant::graphics_pipeline_info_t pipeline_fmt = {};
         pipeline_fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
         pipeline_fmt.depth_write = false;
         pipeline_fmt.depth_test = false;

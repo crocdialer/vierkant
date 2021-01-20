@@ -43,10 +43,10 @@ public:
      * @param   format  a Pipeline::Format describing the requested pipeline
      * @return  a const ref to a shared vierkant::Pipeline
      */
-    const PipelinePtr &pipeline(const Pipeline::Format &format)
+    const PipelinePtr &pipeline(const graphics_pipeline_info_t &format)
     {
         // read-only locked for searching
-        std::unordered_map<Pipeline::Format, PipelinePtr>::const_iterator it;
+        std::unordered_map<graphics_pipeline_info_t, PipelinePtr>::const_iterator it;
         {
             std::shared_lock<std::shared_mutex> lock(m_pipeline_mutex);
             it = m_pipelines.find(format);
@@ -97,7 +97,7 @@ private:
 
     std::shared_mutex m_pipeline_mutex;
 
-    std::unordered_map<Pipeline::Format, PipelinePtr> m_pipelines;
+    std::unordered_map<graphics_pipeline_info_t, PipelinePtr> m_pipelines;
 
     std::shared_mutex m_shader_stage_mutex;
 

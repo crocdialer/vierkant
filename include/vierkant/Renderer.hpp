@@ -98,7 +98,7 @@ public:
 
         uint32_t entry_index = 0;
 
-        Pipeline::Format pipeline_format = {};
+        graphics_pipeline_info_t pipeline_format = {};
 
         matrix_struct_t matrices = {};
 

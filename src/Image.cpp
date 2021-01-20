@@ -78,7 +78,7 @@ void transition_image_layout(VkCommandBuffer command_buffer,
     barrier.subresourceRange.aspectMask = aspectMask;
 
     VkPipelineStageFlags source_stage = 0;
-    VkPipelineStageFlags destination_stage = 0;
+    VkPipelineStageFlags destination_stage;
 
     switch(old_layout)
     {

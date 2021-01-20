@@ -241,7 +241,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
         drawable_t *drawable = nullptr;
     };
-    std::unordered_map<Pipeline::Format, std::vector<indexed_drawable_t>> pipelines;
+    std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipelines;
     size_t max_num_uniform_bytes = m_device->properties().limits.maxUniformBufferRange;
 
     // preprocess drawables

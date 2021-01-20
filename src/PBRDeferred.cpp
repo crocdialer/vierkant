@@ -98,7 +98,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     }
 
     // blendstates for g-buffer pass
-    vierkant::Pipeline::Format default_pipeline_fmt = {};
+    vierkant::graphics_pipeline_info_t default_pipeline_fmt = {};
     m_g_attachment_blend_states.resize(G_BUFFER_SIZE, default_pipeline_fmt.blend_state);
     m_g_attachment_blend_states[G_BUFFER_ALBEDO].blendEnable = true;
 
@@ -118,7 +118,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     // create drawable for environment lighting-pass
     {
-        Pipeline::Format fmt = {};
+        graphics_pipeline_info_t fmt = {};
         fmt.depth_test = false;
         fmt.depth_write = false;
 

@@ -141,7 +141,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 
         vierkant::Renderer::drawable_t drawable = {};
 
-        Pipeline::Format fmt = {};
+        graphics_pipeline_info_t fmt = {};
         fmt.depth_test = false;
         fmt.depth_write = false;
 
