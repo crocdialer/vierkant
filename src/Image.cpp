@@ -90,7 +90,7 @@ void transition_image_layout(VkCommandBuffer command_buffer,
         // TODO: check if this makes sense
         case VK_IMAGE_LAYOUT_GENERAL:
             barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-            source_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            source_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
             break;
 
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
@@ -129,7 +129,7 @@ void transition_image_layout(VkCommandBuffer command_buffer,
     {
         // TODO: check if this makes sense
         case VK_IMAGE_LAYOUT_GENERAL:
-            barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.dstAccessMask = 0;
             destination_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             break;
 
