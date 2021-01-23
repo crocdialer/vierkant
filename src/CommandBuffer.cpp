@@ -109,18 +109,18 @@ CommandPoolPtr create_command_pool(const vierkant::DevicePtr &device, vierkant::
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandBuffer::CommandBuffer(DevicePtr the_device, VkCommandPool the_pool, VkCommandBufferLevel level) :
-        m_device(std::move(the_device)),
+CommandBuffer::CommandBuffer(DevicePtr device, VkCommandPool command_pool, VkCommandBufferLevel level) :
+        m_device(std::move(device)),
         m_handle(VK_NULL_HANDLE),
-        m_pool(the_pool),
+        m_pool(command_pool),
         m_recording(false)
 {
-    if(the_pool)
+    if(command_pool)
     {
         VkCommandBufferAllocateInfo alloc_info = {};
         alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         alloc_info.level = level;
-        alloc_info.commandPool = the_pool;
+        alloc_info.commandPool = command_pool;
         alloc_info.commandBufferCount = 1;
 
         vkAllocateCommandBuffers(m_device->handle(), &alloc_info, &m_handle);

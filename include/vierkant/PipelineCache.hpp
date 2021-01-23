@@ -46,10 +46,9 @@ public:
     const PipelinePtr &pipeline(const graphics_pipeline_info_t &format)
     {
         // read-only locked for searching
-        std::unordered_map<graphics_pipeline_info_t, PipelinePtr>::const_iterator it;
         {
             std::shared_lock<std::shared_mutex> lock(m_pipeline_mutex);
-            it = m_pipelines.find(format);
+            auto it = m_pipelines.find(format);
 
             // found
             if(it != m_pipelines.end()){ return it->second; }
@@ -66,10 +65,9 @@ public:
     const vierkant::shader_stage_map_t &shader_stages(ShaderType shader_type)
     {
         // read-only locked for searching
-        std::unordered_map<vierkant::ShaderType, vierkant::shader_stage_map_t>::const_iterator it;
         {
             std::shared_lock<std::shared_mutex> lock(m_shader_stage_mutex);
-            it = m_shader_stages.find(shader_type);
+            auto it = m_shader_stages.find(shader_type);
 
             // found
             if(it != m_shader_stages.end()){ return it->second; }

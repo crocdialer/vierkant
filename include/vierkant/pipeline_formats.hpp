@@ -14,6 +14,9 @@ using ShaderModulePtr = std::shared_ptr<VkShaderModule_T>;
 
 using shader_stage_map_t = std::map<VkShaderStageFlagBits, ShaderModulePtr>;
 
+//! raytracing pipelines can provide multiple shaders per stage
+using raytracing_shader_map_t = std::multimap<VkShaderStageFlagBits, ShaderModulePtr>;
+
 /**
  * @brief   Helper function to create a shared VkShaderModule
  *
@@ -31,6 +34,9 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
 {
     return create_shader_module(device, array.data(), sizeof(typename T::value_type) * array.size());
 }
+
+std::vector<VkRayTracingShaderGroupCreateInfoKHR>
+raytracing_shader_groups(const raytracing_shader_map_t &shader_stages);
 
 /**
  * @brief   ShaderType is used to refer to different sets of shader-stages
@@ -59,7 +65,7 @@ struct graphics_pipeline_info_t
 {
     uint32_t attachment_count = 1;
 
-    std::map<VkShaderStageFlagBits, ShaderModulePtr> shader_stages;
+    vierkant::shader_stage_map_t shader_stages;
 
     // vertex input assembly
     std::vector<VkVertexInputBindingDescription> binding_descriptions;
@@ -78,10 +84,10 @@ struct graphics_pipeline_info_t
     VkRect2D scissor = {{0, 0},
                         {0, 0}};
 
-    // disable rasterizer entirely
+    //! disable rasterizer
     bool rasterizer_discard = false;
 
-    // enable depth read/write
+    //! enable depth read/write
     bool depth_test = true;
     bool depth_write = true;
     bool depth_clamp = false;
@@ -93,7 +99,7 @@ struct graphics_pipeline_info_t
 
     float line_width = 1.f;
 
-    // mutlisampling
+    //! multisampling
     VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
     bool sample_shading = false;
     float min_sample_shading = 1.f;
@@ -141,6 +147,27 @@ struct graphics_pipeline_info_t
 
     bool operator!=(const graphics_pipeline_info_t &other) const{ return !(*this == other); };
 };
+
+/**
+ * @brief   raytracing_pipeline_info_t groups all sort of information for a raytracing pipeline.
+ *          raytracing_pipeline_info_t is default-constructable, copyable, compare- and hashable.
+ *          Can be used as key in std::unordered_map.
+ */
+struct raytracing_pipeline_info_t
+{
+    raytracing_shader_map_t shader_stages;
+
+    //! descriptor set layouts / push-constants
+    std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
+    std::vector<VkPushConstantRange> push_constant_ranges;
+
+    const VkSpecializationInfo* specialization_info = nullptr;
+
+    bool operator==(const raytracing_pipeline_info_t &other) const;
+
+    bool operator!=(const raytracing_pipeline_info_t &other) const{ return !(*this == other); };
+};
+
 }// namespace vierkant
 
 // comparison operators for some vulkan-structs used by vierkant::Pipeline
@@ -172,5 +199,11 @@ template<>
 struct hash<vierkant::graphics_pipeline_info_t>
 {
     size_t operator()(vierkant::graphics_pipeline_info_t const &fmt) const;
+};
+
+template<>
+struct hash<vierkant::raytracing_pipeline_info_t>
+{
+    size_t operator()(vierkant::raytracing_pipeline_info_t const &fmt) const;
 };
 }

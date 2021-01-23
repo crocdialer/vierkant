@@ -74,13 +74,13 @@ public:
     /**
      * @brief   construct a new CommandBuffer
      *
-     * @param   the_device  the VkDevice that should be used to create the CommandBuffer
-     * @param   the_pool    the VkCommandPool to allocate the CommandBuffer from
+     * @param   device  the VkDevice that should be used to create the CommandBuffer
+     * @param   command_pool    the VkCommandPool to allocate the CommandBuffer from
      * @param   level       the VkCommandBufferLevel
      * @param   the_queue   an optional VkQueue to automatically submit the CommandBuffer before destruction
      */
-    CommandBuffer(DevicePtr the_device,
-                  VkCommandPool the_pool,
+    CommandBuffer(DevicePtr device,
+                  VkCommandPool command_pool,
                   VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
     CommandBuffer() = default;

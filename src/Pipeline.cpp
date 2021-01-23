@@ -7,16 +7,28 @@
 namespace vierkant
 {
 
-PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
+// shader stages from map/multimap
+template<typename ShaderMap_T>
+std::vector<VkPipelineShaderStageCreateInfo>
+shader_stage_create_infos(const ShaderMap_T &shader_stages,
+                          const VkSpecializationInfo *specialization_info = nullptr)
 {
-    return PipelinePtr(new Pipeline(std::move(device), std::move(format)));
-}
+    std::vector<VkPipelineShaderStageCreateInfo> ret;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+    for(const auto &[stage, shader_module] : shader_stages)
+    {
+        VkPipelineShaderStageCreateInfo stage_info = {};
+        stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        stage_info.stage = stage;
+        stage_info.module = shader_module.get();
+        stage_info.pName = "main";
+        stage_info.pSpecializationInfo = specialization_info;
+        ret.push_back(stage_info);
+    }
+    return ret;
+};
 
-Pipeline::Pipeline(DevicePtr device, graphics_pipeline_info_t format) :
-        m_device(std::move(device)),
-        m_pipeline(VK_NULL_HANDLE)
+PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
 {
     // no vertex shader -> fail
     if(!format.shader_stages.count(VK_SHADER_STAGE_VERTEX_BIT))
@@ -25,18 +37,7 @@ Pipeline::Pipeline(DevicePtr device, graphics_pipeline_info_t format) :
     }
 
     // our shader stages
-    std::vector<VkPipelineShaderStageCreateInfo> shader_stage_create_infos;
-
-    for(const auto &pair : format.shader_stages)
-    {
-        VkPipelineShaderStageCreateInfo stage_info = {};
-        stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        stage_info.stage = pair.first;
-        stage_info.module = pair.second.get();
-        stage_info.pName = "main";
-        stage_info.pSpecializationInfo = format.specialization_info;
-        shader_stage_create_infos.push_back(stage_info);
-    }
+    auto stage_create_infos = shader_stage_create_infos(format.shader_stages, format.specialization_info);
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -105,7 +106,7 @@ Pipeline::Pipeline(DevicePtr device, graphics_pipeline_info_t format) :
     // blend settings (per framebuffer)
     std::vector<VkPipelineColorBlendAttachmentState> color_blend_attachments = {};
 
-    if (format.attachment_blend_states.size() == format.attachment_count)
+    if(format.attachment_blend_states.size() == format.attachment_count)
     {
         // apply attachment-specific blend-configuration
         color_blend_attachments = format.attachment_blend_states;
@@ -142,13 +143,14 @@ Pipeline::Pipeline(DevicePtr device, graphics_pipeline_info_t format) :
     pipeline_layout_info.pushConstantRangeCount = static_cast<uint32_t>(format.push_constant_ranges.size());
     pipeline_layout_info.pPushConstantRanges = format.push_constant_ranges.data();
 
-    vkCheck(vkCreatePipelineLayout(m_device->handle(), &pipeline_layout_info, nullptr, &m_pipeline_layout),
+    VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+    vkCheck(vkCreatePipelineLayout(device->handle(), &pipeline_layout_info, nullptr, &pipeline_layout),
             "failed to create pipeline layout!");
 
     VkGraphicsPipelineCreateInfo pipeline_info = {};
     pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipeline_info.stageCount = static_cast<uint32_t>(shader_stage_create_infos.size());
-    pipeline_info.pStages = shader_stage_create_infos.data();
+    pipeline_info.stageCount = static_cast<uint32_t>(stage_create_infos.size());
+    pipeline_info.pStages = stage_create_infos.data();
     pipeline_info.pVertexInputState = &vertex_input_info;
     pipeline_info.pInputAssemblyState = &inputAssembly;
     pipeline_info.pViewportState = &viewport_state;
@@ -158,18 +160,77 @@ Pipeline::Pipeline(DevicePtr device, graphics_pipeline_info_t format) :
     pipeline_info.pColorBlendState = &colorBlending;
     pipeline_info.pDynamicState = &dynamic_state_create_info;
 
-    pipeline_info.layout = m_pipeline_layout;
+    pipeline_info.layout = pipeline_layout;
     pipeline_info.renderPass = format.renderpass;
     pipeline_info.subpass = format.subpass;
     pipeline_info.basePipelineHandle = format.base_pipeline;
     pipeline_info.basePipelineIndex = format.base_pipeline_index;
 
-    vkCheck(vkCreateGraphicsPipelines(m_device->handle(), format.pipeline_cache, 1, &pipeline_info, nullptr,
-                                      &m_pipeline),
+    VkPipeline pipeline = VK_NULL_HANDLE;
+    vkCheck(vkCreateGraphicsPipelines(device->handle(), format.pipeline_cache, 1, &pipeline_info, nullptr,
+                                      &pipeline),
             "failed to create graphics pipeline!");
+
+    return PipelinePtr(new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline));
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_info_t raytracing_info)
+{
+    auto vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(vkGetDeviceProcAddr(
+            device->handle(), "vkCreateRayTracingPipelinesKHR"));
+
+    if(!vkCreateRayTracingPipelinesKHR){ return nullptr; }
+
+    // shader stages
+    auto stage_create_infos = shader_stage_create_infos(raytracing_info.shader_stages,
+                                                        raytracing_info.specialization_info);
+
+    // shader groups
+    auto group_create_infos = raytracing_shader_groups(raytracing_info.shader_stages);
+
+    // define pipeline layout (uniforms, push-constants, ...)
+    VkPipelineLayoutCreateInfo pipeline_layout_info = {};
+    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipeline_layout_info.setLayoutCount = static_cast<uint32_t>(raytracing_info.descriptor_set_layouts.size());
+    pipeline_layout_info.pSetLayouts = raytracing_info.descriptor_set_layouts.data();
+    pipeline_layout_info.pushConstantRangeCount = static_cast<uint32_t>(raytracing_info.push_constant_ranges.size());
+    pipeline_layout_info.pPushConstantRanges = raytracing_info.push_constant_ranges.data();
+
+    VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+    vkCheck(vkCreatePipelineLayout(device->handle(), &pipeline_layout_info, nullptr, &pipeline_layout),
+            "failed to create pipeline layout!");
+
+    VkRayTracingPipelineCreateInfoKHR pipeline_create_info = {};
+    pipeline_create_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
+    pipeline_create_info.stageCount = stage_create_infos.size();
+    pipeline_create_info.pStages = stage_create_infos.data();
+    pipeline_create_info.groupCount = group_create_infos.size();
+    pipeline_create_info.pGroups = group_create_infos.data();
+    pipeline_create_info.layout = pipeline_layout;
+
+    VkPipeline pipeline = VK_NULL_HANDLE;
+    vkCheck(vkCreateRayTracingPipelinesKHR(device->handle(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &pipeline_create_info,
+                                           VK_NULL_HANDLE, &pipeline), "could not create raytracing pipeline");
+
+    return PipelinePtr(
+            new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Pipeline::Pipeline(DevicePtr device, VkPipelineLayout pipeline_layout, VkPipelineBindPoint bind_point,
+                   VkPipeline pipeline) :
+        m_device(std::move(device)),
+        m_pipeline_layout(pipeline_layout),
+        m_bind_point(bind_point),
+        m_pipeline(pipeline)
+{
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Pipeline::~Pipeline()
 {
@@ -180,7 +241,7 @@ Pipeline::~Pipeline()
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Pipeline::bind(VkCommandBuffer command_buffer)
 {

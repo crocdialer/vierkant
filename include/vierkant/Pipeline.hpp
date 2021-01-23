@@ -17,12 +17,20 @@ class Pipeline
 public:
 
     /**
-     * @brief   Construct a new Pipeline object
+     * @brief   Create a shared graphics-pipeline
      *
      * @param   device  handle for the vk::Device to create the Pipeline
-     * @param   format  the desired Pipeline::Format
+     * @param   format  a provided graphics_pipeline_info_t
      */
-    static PipelinePtr create(DevicePtr device, graphics_pipeline_info_t format);
+    static PipelinePtr create(DevicePtr device, vierkant::graphics_pipeline_info_t format);
+
+    /**
+     * @brief   Create a shared raytracing-pipeline
+     *
+     * @param   device  handle for the vk::Device to create the Pipeline
+     * @param   format  a provided raytracing_pipeline_info_t
+     */
+    static PipelinePtr create(DevicePtr device, vierkant::raytracing_pipeline_info_t raytracing_info);
 
     Pipeline(Pipeline &&other) noexcept = delete;
 
@@ -50,13 +58,13 @@ public:
 
 private:
 
-    Pipeline(DevicePtr device, graphics_pipeline_info_t format);
+    Pipeline(DevicePtr device, VkPipelineLayout pipeline_layout, VkPipelineBindPoint bind_point, VkPipeline pipeline);
 
     DevicePtr m_device;
 
     VkPipelineLayout m_pipeline_layout = VK_NULL_HANDLE;
 
-    VkPipelineBindPoint m_bind_point = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    VkPipelineBindPoint m_bind_point = VK_PIPELINE_BIND_POINT_MAX_ENUM;
 
     VkPipeline m_pipeline = VK_NULL_HANDLE;
 };

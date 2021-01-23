@@ -29,6 +29,50 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+std::vector<VkRayTracingShaderGroupCreateInfoKHR>
+raytracing_shader_groups(const raytracing_shader_map_t &shader_stages)
+{
+    std::vector<VkRayTracingShaderGroupCreateInfoKHR> ret;
+
+    for(const auto &[stage, shader_module] : shader_stages)
+    {
+        uint32_t next_index = ret.size();
+
+        VkRayTracingShaderGroupCreateInfoKHR group_create_info = {};
+        group_create_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+        group_create_info.generalShader = VK_SHADER_UNUSED_KHR;
+        group_create_info.closestHitShader = VK_SHADER_UNUSED_KHR;
+        group_create_info.anyHitShader = VK_SHADER_UNUSED_KHR;
+        group_create_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+
+        switch(stage)
+        {
+            case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
+            case VK_SHADER_STAGE_MISS_BIT_KHR:
+                group_create_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+                group_create_info.generalShader = next_index;
+                break;
+
+            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
+                group_create_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+                group_create_info.closestHitShader = next_index;
+                break;
+
+            case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
+                group_create_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+                group_create_info.anyHitShader = next_index;
+                break;
+
+            default:
+                throw std::runtime_error("raytracing_shader_groups: provided a non-raytracing shader");
+        }
+        ret.push_back(group_create_info);
+    }
+    return ret;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 std::map<VkShaderStageFlagBits, ShaderModulePtr> create_shader_stages(const DevicePtr &device, ShaderType t)
 {
     std::map<VkShaderStageFlagBits, ShaderModulePtr> ret;
@@ -90,17 +134,7 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
         catch(std::out_of_range &e) { return false; }
     }
 
-    if(binding_descriptions.size() != other.binding_descriptions.size()){ return false; }
-
-    for(uint32_t i = 0; i < binding_descriptions.size(); ++i)
-    {
-        const auto &lhs = binding_descriptions[i];
-        const auto &rhs = other.binding_descriptions[i];
-        if(lhs.binding != rhs.binding){ return false; }
-        if(lhs.inputRate != rhs.inputRate){ return false; }
-        if(lhs.stride != rhs.stride){ return false; }
-    }
-
+    if(binding_descriptions != other.binding_descriptions){ return false; }
     if(attribute_descriptions != other.attribute_descriptions){ return false; }
 
     if(primitive_topology != other.primitive_topology){ return false; }
@@ -138,8 +172,19 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
     if(dynamic_states != other.dynamic_states){ return false; }
 
     if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
-
     if(push_constant_ranges != other.push_constant_ranges){ return false; }
+    return true;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool raytracing_pipeline_info_t::operator==(const raytracing_pipeline_info_t &other) const
+{
+    if(shader_stages != other.shader_stages){ return false; }
+
+    if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
+    if(push_constant_ranges != other.push_constant_ranges){ return false; }
+
     return true;
 }
 
@@ -363,6 +408,19 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     hash_combine(h, fmt.specialization_info);
     hash_combine(h, fmt.pipeline_cache);
     for(const auto &ds : fmt.dynamic_states){ hash_combine(h, ds); }
+    for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }
+    for(const auto &pcr : fmt.push_constant_ranges){ hash_combine(h, pcr); }
+    return h;
+}
+
+size_t std::hash<vierkant::raytracing_pipeline_info_t>::operator()(vierkant::raytracing_pipeline_info_t const &fmt) const
+{
+    size_t h = 0;
+    for(const auto &pair : fmt.shader_stages)
+    {
+        hash_combine(h, pair.first);
+        hash_combine(h, pair.second);
+    }
     for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }
     for(const auto &pcr : fmt.push_constant_ranges){ hash_combine(h, pcr); }
     return h;
