@@ -134,7 +134,7 @@ struct graphics_pipeline_info_t
     VkPipeline base_pipeline = VK_NULL_HANDLE;
     int32_t base_pipeline_index = -1;
 
-    const VkSpecializationInfo* specialization_info = nullptr;
+    const VkSpecializationInfo *specialization_info = nullptr;
 
     VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
     std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
@@ -157,11 +157,14 @@ struct raytracing_pipeline_info_t
 {
     raytracing_shader_map_t shader_stages;
 
+    //! maximum recursion depth (default: 1 -> no recursion)
+    uint32_t max_recursion = 1;
+
     //! descriptor set layouts / push-constants
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
 
-    const VkSpecializationInfo* specialization_info = nullptr;
+    const VkSpecializationInfo *specialization_info = nullptr;
 
     bool operator==(const raytracing_pipeline_info_t &other) const;
 

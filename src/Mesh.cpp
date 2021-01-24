@@ -226,8 +226,8 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     std::vector<vierkant::index_t> indices;
     size_t current_base_index = 0;
 
-    // one default/fallback material-index
-    std::set<uint32_t> material_index_set = {0};
+    // keep track of used material-indices
+    std::set<uint32_t> material_index_set;
 
     for(const auto &entry_info : entry_create_infos)
     {

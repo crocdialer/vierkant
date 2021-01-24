@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-#include <vierkant/Mesh.hpp>
+#include <vierkant/MeshNode.hpp>
 
 #include <vierkant/imgui/imgui_util.h>
 #include <vierkant/PBRDeferred.hpp>
@@ -668,9 +668,11 @@ void draw_material_ui(const MaterialPtr &material)
     ImGui::Checkbox("blending", &material->blending);
 }
 
-void draw_mesh_ui(const vierkant::MeshPtr &mesh)
+void draw_mesh_ui(const vierkant::MeshNodePtr &node)
 {
-    if(!mesh){ return; }
+    if(!node || !node->mesh){ return; }
+
+    auto mesh = node->mesh;
 
     size_t num_vertices = 0, num_faces = 0;
 
@@ -715,7 +717,7 @@ void draw_mesh_ui(const vierkant::MeshPtr &mesh)
                 ImGui::Separator();
 
                 // material ui
-                draw_material_ui(mesh->materials[e.material_index]);
+                draw_material_ui(node->mesh->materials[e.material_index]);
 
                 ImGui::TreePop();
             }
@@ -843,7 +845,7 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
     }
 
     // cast to mesh
-    auto mesh = std::dynamic_pointer_cast<vierkant::Mesh>(object);
+    auto mesh = std::dynamic_pointer_cast<vierkant::MeshNode>(object);
     if(mesh){ draw_mesh_ui(mesh); }
 
     if(is_child_window){ ImGui::EndChild(); }

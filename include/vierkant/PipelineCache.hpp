@@ -38,9 +38,9 @@ public:
     PipelineCache &operator=(PipelineCache other) = delete;
 
     /**
-     * @brief   Retrieve a pipeline from the cache. Will create and cache a new pipeline, if necessary.
+     * @brief   Retrieve a graphics-pipeline from the cache. Will create and cache a new pipeline, if necessary.
      *
-     * @param   format  a Pipeline::Format describing the requested pipeline
+     * @param   format  a graphics_pipeline_info_t describing the requested pipeline
      * @return  a const ref to a shared vierkant::Pipeline
      */
     const PipelinePtr &pipeline(const graphics_pipeline_info_t &format)
@@ -59,6 +59,31 @@ public:
 
         std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
         auto pipe_it = m_pipelines.insert(std::make_pair(format, std::move(new_pipeline))).first;
+        return pipe_it->second;
+    }
+
+    /**
+     * @brief   Retrieve a raytracing-pipeline from the cache. Will create and cache a new pipeline, if necessary.
+     *
+     * @param   format  a raytracing_pipeline_info_t describing the requested pipeline
+     * @return  a const ref to a shared vierkant::Pipeline
+     */
+    const PipelinePtr &pipeline(const raytracing_pipeline_info_t &format)
+    {
+        // read-only locked for searching
+        {
+            std::shared_lock<std::shared_mutex> lock(m_ray_pipeline_mutex);
+            auto it = m_ray_pipelines.find(format);
+
+            // found
+            if(it != m_ray_pipelines.end()){ return it->second; }
+        }
+
+        // not found -> create pipeline
+        auto new_pipeline = Pipeline::create(m_device, format);
+
+        std::unique_lock<std::shared_mutex> lock(m_ray_pipeline_mutex);
+        auto pipe_it = m_ray_pipelines.insert(std::make_pair(format, std::move(new_pipeline))).first;
         return pipe_it->second;
     }
 
@@ -83,8 +108,12 @@ public:
 
     void clear()
     {
-        std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
-        m_pipelines.clear();
+        {
+            std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
+            m_pipelines.clear();
+        }
+        std::unique_lock<std::shared_mutex> ray_lock(m_ray_pipeline_mutex);
+        m_ray_pipelines.clear();
     }
 
 private:
@@ -93,9 +122,10 @@ private:
 
     vierkant::DevicePtr m_device;
 
-    std::shared_mutex m_pipeline_mutex;
+    std::shared_mutex m_pipeline_mutex, m_ray_pipeline_mutex;
 
     std::unordered_map<graphics_pipeline_info_t, PipelinePtr> m_pipelines;
+    std::unordered_map<raytracing_pipeline_info_t, PipelinePtr> m_ray_pipelines;
 
     std::shared_mutex m_shader_stage_mutex;
 

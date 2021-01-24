@@ -64,8 +64,11 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
                                                      const char *msg,
                                                      void *user_data)
 {
-    Instance::debug_fn_t &debug_fn = *reinterpret_cast<Instance::debug_fn_t *>(user_data);
-    if(debug_fn){ debug_fn(msg); }
+    if(user_data)
+    {
+        Instance::debug_fn_t &debug_fn = *reinterpret_cast<Instance::debug_fn_t *>(user_data);
+        if(debug_fn){ debug_fn(msg); }
+    }
     else{ std::cerr << "validation layer: " << msg << std::endl; }
     return VK_FALSE;
 }
@@ -267,7 +270,7 @@ void Instance::setup_debug_callback()
     create_info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
     create_info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT |
                         VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT; // | VK_DEBUG_REPORT_DEBUG_BIT_EXT
-    create_info.pUserData = &m_debug_fn;
+    create_info.pUserData = m_debug_fn ? &m_debug_fn : nullptr;
     create_info.pfnCallback = debug_callback;
 
     vkCheck(CreateDebugReportCallbackEXT(m_handle, &create_info, nullptr, &m_debug_callback),

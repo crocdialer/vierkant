@@ -209,6 +209,7 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_inf
     pipeline_create_info.groupCount = group_create_infos.size();
     pipeline_create_info.pGroups = group_create_infos.data();
     pipeline_create_info.layout = pipeline_layout;
+    pipeline_create_info.maxPipelineRayRecursionDepth = raytracing_info.max_recursion;
 
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCheck(vkCreateRayTracingPipelinesKHR(device->handle(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &pipeline_create_info,
