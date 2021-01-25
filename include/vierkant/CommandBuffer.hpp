@@ -75,13 +75,13 @@ public:
 
     CommandBuffer() = default;
 
-    CommandBuffer(CommandBuffer &&the_other) noexcept;
+    CommandBuffer(CommandBuffer &&other) noexcept;
 
     CommandBuffer(const CommandBuffer &) = delete;
 
     ~CommandBuffer();
 
-    CommandBuffer &operator=(CommandBuffer the_other);
+    CommandBuffer &operator=(CommandBuffer other);
 
     /**
      * @brief   start recording commands into buffer

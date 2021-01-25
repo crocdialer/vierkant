@@ -9,8 +9,6 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(Semaphore)
-
 /**
  * @brief   Semaphore provides a timeline semaphore.
  */
@@ -18,28 +16,45 @@ class Semaphore
 {
 public:
 
-    static SemaphorePtr create(const vierkant::DevicePtr& device, uint64_t initial_value = 0);
+    Semaphore() = default;
+
+    Semaphore(const vierkant::DevicePtr &device, uint64_t initial_value);
 
     ~Semaphore();
 
+    Semaphore(Semaphore &&other) noexcept;
+
     Semaphore(const Semaphore &) = delete;
 
-    Semaphore(Semaphore &&) = delete;
+    Semaphore &operator=(Semaphore other);
 
-    Semaphore &operator=(Semaphore) = delete;
-
-    VkSemaphore handle() const{ return m_semaphore; }
+    VkSemaphore handle() const{ return m_handle; }
 
     void signal(uint64_t value);
 
     void wait(uint64_t value);
 
-private:
+    inline explicit operator bool() const { return static_cast<bool>(m_handle); };
 
-    Semaphore(const vierkant::DevicePtr& device, uint64_t initial_value);
+    friend void swap(Semaphore &lhs, Semaphore &rhs);
+
+private:
 
     vierkant::DevicePtr m_device;
 
-    VkSemaphore m_semaphore = VK_NULL_HANDLE;
+    VkSemaphore m_handle = VK_NULL_HANDLE;
 };
+
+struct semaphore_submit_info_t
+{
+    //! shared semaphore object
+    VkSemaphore semaphore = VK_NULL_HANDLE;
+
+    //! wait value
+    uint64_t wait_value = 0;
+
+    // signal value
+    uint64_t signal_value = 0;
+};
+
 }// namespace vierkant

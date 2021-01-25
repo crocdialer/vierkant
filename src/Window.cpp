@@ -270,7 +270,7 @@ void Window::set_cursor_visible(bool b)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::draw()
+void Window::draw(const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
     if(!m_swap_chain){ return; }
 
@@ -289,16 +289,39 @@ void Window::draw()
     framebuffer.wait_fence();
 
     // submit with synchronization-infos
-    VkSemaphore wait_semaphores[] = {sync_objects.image_available};
-    VkSemaphore signal_semaphores[] = {sync_objects.render_finished};
-    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    std::vector<VkSemaphore> wait_semaphores = {sync_objects.image_available};
+    std::vector<VkSemaphore> signal_semaphores = {sync_objects.render_finished};
+    std::vector<VkPipelineStageFlags> wait_stages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
+    // insert timeline semaphores, after existing binary semaphores
+    std::vector<uint64_t> wait_values{0};
+    std::vector<uint64_t> signal_values{0};
+
+    for(const auto &semaphore_info : semaphore_infos)
+    {
+        wait_semaphores.push_back(semaphore_info.semaphore);
+        wait_stages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+        wait_values.push_back(semaphore_info.wait_value);
+
+        signal_semaphores.push_back(semaphore_info.semaphore);
+        signal_values.push_back(semaphore_info.signal_value);
+    }
+
+    VkTimelineSemaphoreSubmitInfo timeline_info;
+    timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    timeline_info.pNext = nullptr;
+    timeline_info.waitSemaphoreValueCount = wait_values.size();
+    timeline_info.pWaitSemaphoreValues = wait_values.data();
+    timeline_info.signalSemaphoreValueCount = signal_values.size();
+    timeline_info.pSignalSemaphoreValues = signal_values.data();
 
     VkSubmitInfo submit_info;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = wait_semaphores;
-    submit_info.pWaitDstStageMask = wait_stages;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = signal_semaphores;
+    submit_info.pNext = &timeline_info;
+    submit_info.waitSemaphoreCount = wait_semaphores.size();
+    submit_info.pWaitSemaphores = wait_semaphores.data();
+    submit_info.pWaitDstStageMask = wait_stages.data();
+    submit_info.signalSemaphoreCount = signal_semaphores.size();
+    submit_info.pSignalSemaphores = signal_semaphores.data();
 
     std::vector<VkCommandBuffer> commandbuffers;
 

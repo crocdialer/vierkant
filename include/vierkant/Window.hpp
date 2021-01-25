@@ -8,6 +8,7 @@
 #include <GLFW/glfw3.h>
 
 #include "vierkant/Instance.hpp"
+#include "vierkant/Semaphore.hpp"
 #include "vierkant/SwapChain.hpp"
 #include "vierkant/intersection.hpp"
 #include "vierkant/Input.hpp"
@@ -88,7 +89,7 @@ public:
      *          then gather secondary commandbuffers from the attached draw-delegates and execute them.
      *          Finally the primary commandbuffer is submitted to a graphics-queue and presented to a surface.
      */
-    void draw();
+    void draw(const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos = {});
 
     /**
      * @return  the size of the contained framebuffer in pixels (might be different from the window size)

@@ -119,10 +119,10 @@ CommandBuffer::CommandBuffer(DevicePtr device, VkCommandPool command_pool, VkCom
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandBuffer::CommandBuffer(CommandBuffer &&the_other) noexcept:
+CommandBuffer::CommandBuffer(CommandBuffer &&other) noexcept:
         CommandBuffer()
 {
-    swap(*this, the_other);
+    swap(*this, other);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -139,9 +139,9 @@ CommandBuffer::~CommandBuffer()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandBuffer &CommandBuffer::operator=(CommandBuffer the_other)
+CommandBuffer &CommandBuffer::operator=(CommandBuffer other)
 {
-    swap(*this, the_other);
+    swap(*this, other);
     return *this;
 }
 
@@ -185,7 +185,6 @@ void CommandBuffer::submit(VkQueue queue,
     if(m_handle && queue)
     {
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-//        submit_info.pNext = nullptr;
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &m_handle;
 

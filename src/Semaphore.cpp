@@ -7,11 +7,6 @@
 namespace vierkant
 {
 
-SemaphorePtr Semaphore::create(const DevicePtr &device, uint64_t initial_value)
-{
-    return vierkant::SemaphorePtr(new Semaphore(device, initial_value));
-}
-
 Semaphore::Semaphore(const vierkant::DevicePtr &device, uint64_t initial_value) :
         m_device(device)
 {
@@ -24,12 +19,23 @@ Semaphore::Semaphore(const vierkant::DevicePtr &device, uint64_t initial_value) 
     semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     semaphore_create_info.pNext = &timeline_create_info;
 
-    vkCreateSemaphore(device->handle(), &semaphore_create_info, nullptr, &m_semaphore);
+    vkCreateSemaphore(device->handle(), &semaphore_create_info, nullptr, &m_handle);
+}
+
+Semaphore::Semaphore(Semaphore &&other) noexcept: Semaphore()
+{
+    swap(*this, other);
 }
 
 Semaphore::~Semaphore()
 {
-    if(m_semaphore){ vkDestroySemaphore(m_device->handle(), m_semaphore, nullptr); }
+    if(m_handle){ vkDestroySemaphore(m_device->handle(), m_handle, nullptr); }
+}
+
+Semaphore &Semaphore::operator=(Semaphore other)
+{
+    swap(*this, other);
+    return *this;
 }
 
 void Semaphore::signal(uint64_t value)
@@ -37,7 +43,7 @@ void Semaphore::signal(uint64_t value)
     VkSemaphoreSignalInfo signal_info;
     signal_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
     signal_info.pNext = nullptr;
-    signal_info.semaphore = m_semaphore;
+    signal_info.semaphore = m_handle;
     signal_info.value = value;
 
     vkSignalSemaphore(m_device->handle(), &signal_info);
@@ -50,9 +56,15 @@ void Semaphore::wait(uint64_t value)
     wait_info.pNext = nullptr;
     wait_info.flags = 0;
     wait_info.semaphoreCount = 1;
-    wait_info.pSemaphores = &m_semaphore;
+    wait_info.pSemaphores = &m_handle;
     wait_info.pValues = &value;
     vkWaitSemaphores(m_device->handle(), &wait_info, std::numeric_limits<uint64_t>::max());
+}
+
+void swap(Semaphore &lhs, Semaphore &rhs)
+{
+    std::swap(lhs.m_device, rhs.m_device);
+    std::swap(lhs.m_handle, rhs.m_handle);
 }
 
 }// namespace vierkant
