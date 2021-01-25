@@ -8,16 +8,6 @@
 
 namespace vierkant {
 
-using SemaphorePtr = std::shared_ptr<VkSemaphore_T>;
-
-/**
- * @brief   Create a ref counted semaphore object
- *
- * @param   device  the VkDevice used to create the Semaphore
- * @return  a newly created Semaphore
- */
-SemaphorePtr create_semaphore(const vierkant::DevicePtr& device);
-
 using FencePtr = std::shared_ptr<VkFence_T>;
 
 /**

@@ -23,5 +23,6 @@
 #include "vierkant/DrawContext.hpp"
 #include "vierkant/Scene.hpp"
 #include "vierkant/SceneRenderer.hpp"
+#include <vierkant/Semaphore.hpp>
 
 namespace vk = vierkant;

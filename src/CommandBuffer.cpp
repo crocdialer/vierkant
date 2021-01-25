@@ -7,21 +7,6 @@
 namespace vierkant
 {
 
-SemaphorePtr create_semaphore(const vierkant::DevicePtr &device)
-{
-    VkSemaphoreCreateInfo semaphore_create_info = {};
-    semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    semaphore_create_info.pNext = nullptr;
-    VkSemaphore semaphore = VK_NULL_HANDLE;
-    vkCreateSemaphore(device->handle(), &semaphore_create_info, nullptr, &semaphore);
-    return std::shared_ptr<VkSemaphore_T>(semaphore, [device](VkSemaphore s)
-    {
-        vkDestroySemaphore(device->handle(), s, nullptr);
-    });
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 FencePtr create_fence(const vierkant::DevicePtr &device, bool signaled)
 {
     VkFence fence = VK_NULL_HANDLE;
@@ -200,7 +185,7 @@ void CommandBuffer::submit(VkQueue queue,
     if(m_handle && queue)
     {
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.pNext = nullptr;
+//        submit_info.pNext = nullptr;
         submit_info.commandBufferCount = 1;
         submit_info.pCommandBuffers = &m_handle;
 
