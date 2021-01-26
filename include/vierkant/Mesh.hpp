@@ -165,6 +165,12 @@ public:
      */
     std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
 
+    /**
+     * @brief   update_entry_transforms applies the current animation to all entry-transforms.
+     *          no-op if no animations are defined.
+     */
+    void update_entry_transforms();
+
     // vertex attributes
     std::map<uint32_t, attrib_t> vertex_attribs;
 

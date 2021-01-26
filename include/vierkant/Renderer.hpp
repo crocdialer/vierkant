@@ -94,7 +94,7 @@ public:
      */
     struct drawable_t
     {
-        MeshPtr mesh;
+        MeshConstPtr mesh;
 
         uint32_t entry_index = 0;
 
@@ -133,7 +133,8 @@ public:
      * @param   mesh        a mesh object containing entries with vertex information.
      * @return  an array of drawables for the mesh-entries.
      */
-    static std::vector<drawable_t> create_drawables(const MeshPtr &mesh, const glm::mat4 &model_view = glm::mat4(1));
+    static std::vector<drawable_t>
+    create_drawables(const MeshConstPtr &mesh, const glm::mat4 &model_view = glm::mat4(1));
 
     //! Viewport parameters currently used.
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
@@ -205,7 +206,7 @@ private:
 
     struct asset_key_t
     {
-        vierkant::MeshPtr mesh;
+        vierkant::MeshConstPtr mesh;
         uint32_t matrix_buffer_index = 0;
         uint32_t material_buffer_index = 0;
         descriptor_map_t descriptors;

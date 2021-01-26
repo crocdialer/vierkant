@@ -9,6 +9,18 @@
 namespace vierkant
 {
 
+struct semaphore_submit_info_t
+{
+    //! shared semaphore object
+    VkSemaphore semaphore = VK_NULL_HANDLE;
+
+    //! wait value
+    uint64_t wait_value = 0;
+
+    // signal value
+    uint64_t signal_value = 0;
+};
+
 /**
  * @brief   Semaphore provides a timeline semaphore.
  */
@@ -43,18 +55,6 @@ private:
     vierkant::DevicePtr m_device;
 
     VkSemaphore m_handle = VK_NULL_HANDLE;
-};
-
-struct semaphore_submit_info_t
-{
-    //! shared semaphore object
-    VkSemaphore semaphore = VK_NULL_HANDLE;
-
-    //! wait value
-    uint64_t wait_value = 0;
-
-    // signal value
-    uint64_t signal_value = 0;
 };
 
 }// namespace vierkant

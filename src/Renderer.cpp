@@ -15,7 +15,7 @@ using duration_t = std::chrono::duration<float>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh, const glm::mat4 &model_view)
+std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr &mesh, const glm::mat4 &model_view)
 {
     if(!mesh){ return {}; }
 
@@ -26,17 +26,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshPtr &mesh
     // same for all entries
     auto binding_descriptions = mesh->binding_descriptions();
     auto attribute_descriptions = mesh->attribute_descriptions();
-
-    if(mesh->animation_index < mesh->node_animations.size())
-    {
-        // entry animation transforms
-        std::vector<glm::mat4> node_matrices;
-        vierkant::nodes::build_node_matrices(mesh->root_node,
-                                             mesh->node_animations[mesh->animation_index],
-                                             node_matrices);
-
-        for(auto &entry : mesh->entries){ entry.transform = node_matrices[entry.node_index]; }
-    }
 
     for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
@@ -297,7 +286,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         }
 
         // keep track of current mesh, fallback instead of iterating sorted-by-mesh to respect order of drawcalls
-        vierkant::MeshPtr current_mesh;
+        vierkant::MeshConstPtr current_mesh;
 
         for(auto &indexed_drawable : indexed_drawables)
         {

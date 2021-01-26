@@ -33,6 +33,9 @@ public:
             vierkant::update_animation(node.mesh->node_animations[node.mesh->animation_index],
                                        m_time_step,
                                        node.mesh->animation_speed);
+
+            // apply animation to entry-transforms
+            node.mesh->update_entry_transforms();
         }
         visit(static_cast<vierkant::Object3D &>(node));
     }

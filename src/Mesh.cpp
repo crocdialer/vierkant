@@ -65,7 +65,8 @@ VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::MeshPtr
-Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry, const create_info_t& create_info)
+Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
+                           const create_info_t &create_info)
 {
     entry_create_info_t entry_create_info = {};
     entry_create_info.geometry = geometry;
@@ -379,6 +380,22 @@ std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
         ret.push_back(desc);
     }
     return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Mesh::update_entry_transforms()
+{
+    if(animation_index < node_animations.size())
+    {
+        // entry animation transforms
+        std::vector<glm::mat4> node_matrices;
+        vierkant::nodes::build_node_matrices(root_node,
+                                             node_animations[animation_index],
+                                             node_matrices);
+
+        for(auto &entry : entries){ entry.transform = node_matrices[entry.node_index]; }
+    }
 }
 
 }//namespace vierkant
