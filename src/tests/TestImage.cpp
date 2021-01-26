@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(TestImage)
     VkExtent3D size = {1920, 1080, 1};
 
     // default bytes per pixel (VK_FORMAT_R8G8B8A8_UNORM -> 4)
-    size_t bytesPerPixel = vk::num_bytes_per_pixel(vk::Image::Format().format);
+    size_t bytesPerPixel = vk::num_bytes(vk::Image::Format().format);
     size_t numBytes = bytesPerPixel * size.width * size.height;
     auto testData = std::unique_ptr<uint8_t[]>(new uint8_t[numBytes]);
     std::fill(&testData[0], &testData[0] + numBytes, 23);

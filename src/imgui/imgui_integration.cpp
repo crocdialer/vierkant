@@ -139,7 +139,7 @@ ImVec4 im_vec_cast(const glm::vec3 &v)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Context::Context(const vierkant::DevicePtr &device, const std::string &font, float font_size) :
+Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_info) :
         m_imgui_context(ImGui::CreateContext())
 {
     ImGui::SetCurrentContext(m_imgui_context);
@@ -173,24 +173,24 @@ Context::Context(const vierkant::DevicePtr &device, const std::string &font, flo
     io.KeyMap[ImGuiKey_Y] = Key::_Y;
     io.KeyMap[ImGuiKey_Z] = Key::_Z;
 
-    if(!font.empty())
+    if(!create_info.font_path.empty())
     {
         std::vector<uint8_t> font_data;
 
-        font_data = crocore::filesystem::read_binary_file(font);
+        font_data = crocore::filesystem::read_binary_file(create_info.font_path);
 
         ImFontConfig font_cfg;
         font_cfg.FontData = font_data.data();
         font_cfg.FontDataSize = font_data.size();
         font_cfg.FontDataOwnedByAtlas = false;
-        font_cfg.SizePixels = font_size;
+        font_cfg.SizePixels = create_info.font_size;
         font_cfg.GlyphRanges = io.Fonts->GetGlyphRangesDefault();
         io.Fonts->AddFont(&font_cfg);
     }
 
     ImGuiStyle &im_style = ImGui::GetStyle();
     set_style();
-    im_style.ScaleAllSizes(1.5f);
+    im_style.ScaleAllSizes(create_info.ui_scale);
 
     auto &mouse_delegate = m_imgui_assets.mouse_delegate;
     mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e){ mouse_press(ctx, e); };

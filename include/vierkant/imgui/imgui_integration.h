@@ -1,3 +1,4 @@
+#include <filesystem>
 #include "vierkant/Window.hpp"
 #include "vierkant/Renderer.hpp"
 #include "imgui.h"
@@ -22,15 +23,19 @@ public:
 
     using draw_fn_t = std::function<void()>;
 
-    //! Delegate functions for gui drawing
-    std::map<std::string, draw_fn_t> delegates;
+    struct create_info_t
+    {
+        std::filesystem::path font_path;
+        float font_size = 0.f;
+        float ui_scale = 1.f;
+    };
 
     /**
      * @brief   Create a new gui::Context with provided device.
      *
      * @param   device  a shared vierkant::Device to create the gui-assets with.
      */
-    explicit Context(const vierkant::DevicePtr &device, const std::string &font = "", float font_size = 0.f);
+    Context(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     Context() = default;
 
@@ -57,6 +62,9 @@ public:
     CaptureFlags capture_flags() const;
 
     friend void swap(Context &lhs, Context &rhs) noexcept;
+
+    //! Delegate functions for gui drawing
+    std::map<std::string, draw_fn_t> delegates;
 
 private:
 

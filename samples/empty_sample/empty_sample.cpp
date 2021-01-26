@@ -66,7 +66,9 @@ void HelloTriangleApplication::create_context_and_window()
     m_window->key_delegates["main"] = key_delegate;
 
     // create a gui and add a draw-delegate
-    m_gui_context = vk::gui::Context(m_device);
+    vk::gui::Context::create_info_t gui_create_info = {};
+    gui_create_info.ui_scale = 2.f;
+    m_gui_context = vk::gui::Context(m_device, gui_create_info);
     m_gui_context.delegates["application"] = [this]
     {
         vk::gui::draw_application_ui(std::static_pointer_cast<Application>(shared_from_this()), m_window);

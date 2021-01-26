@@ -132,8 +132,8 @@ BOOST_AUTO_TEST_CASE(TestMesh)
         auto descriptor_set_layout = vk::create_descriptor_set_layout(device, descriptors);
 
         // construct a pool to hold enough descriptors for the mesh
-        vk::descriptor_count_t descriptor_counts;
-        vk::add_descriptor_counts(descriptors, descriptor_counts);
+        vk::descriptor_count_t descriptor_counts ={{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+                                                   {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
 
         auto pool = vk::create_descriptor_pool(device, descriptor_counts, 16);
 

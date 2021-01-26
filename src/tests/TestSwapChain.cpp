@@ -30,7 +30,7 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Constructor)
 BOOST_AUTO_TEST_CASE(TestSwapChain_Creation)
 {
     // init instance with required extensions for SwapChain (VK_KHR_swapchain, VkSurfaceKHR)
-    vierkant::Instance instance(true, vk::Window::get_required_extensions());
+    vierkant::Instance instance(true, vk::Window::required_extensions());
 
     vierkant::Window::create_info_t window_info = {};
     window_info.instance = instance.handle();
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation)
 BOOST_AUTO_TEST_CASE(TestSwapChain_Creation_MSAA)
 {
     // init instance with required extensions for SwapChain (VK_KHR_swapchain, VkSurfaceKHR)
-    vierkant::Instance instance(true, vk::Window::get_required_extensions());
+    vierkant::Instance instance(true, vk::Window::required_extensions());
 
     vierkant::Window::create_info_t window_info = {};
     window_info.instance = instance.handle();

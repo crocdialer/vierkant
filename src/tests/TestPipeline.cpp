@@ -8,11 +8,11 @@
 
 BOOST_AUTO_TEST_CASE(TestPipeline_Format)
 {
-    vierkant::Pipeline::Format foo, bar;
+    vierkant::graphics_pipeline_info_t foo, bar;
     BOOST_CHECK(foo == bar);
 
     // hashing
-    std::hash<vierkant::Pipeline::Format> fmt_hash;
+    std::hash<vierkant::graphics_pipeline_info_t> fmt_hash;
     BOOST_CHECK(fmt_hash(foo) == fmt_hash(bar));
 
     bar.blend_state.blendEnable = true;
@@ -44,7 +44,7 @@ BOOST_AUTO_TEST_CASE(TestPipeline_Format)
     foo.dynamic_states = bar.dynamic_states = {VK_DYNAMIC_STATE_SCISSOR};
     BOOST_CHECK(foo == bar);
 
-    std::unordered_map<vierkant::Pipeline::Format, int> pipeline_map;
+    std::unordered_map<vierkant::graphics_pipeline_info_t, int> pipeline_map;
     pipeline_map[foo] = 11;
     pipeline_map[bar] = 23;
 }
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
         create_info.size = fb_size;
         auto framebuffer = vierkant::Framebuffer(device, create_info);
 
-        vierkant::Pipeline::Format fmt;
+        vierkant::graphics_pipeline_info_t fmt;
         fmt.viewport.width = framebuffer.extent().width;
         fmt.viewport.height = framebuffer.extent().height;
         fmt.renderpass = framebuffer.renderpass().get();
