@@ -46,7 +46,7 @@ public:
 
     void wait(uint64_t value);
 
-    inline explicit operator bool() const { return static_cast<bool>(m_handle); };
+    inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
 
     friend void swap(Semaphore &lhs, Semaphore &rhs);
 

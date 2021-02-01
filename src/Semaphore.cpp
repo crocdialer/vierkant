@@ -40,25 +40,31 @@ Semaphore &Semaphore::operator=(Semaphore other)
 
 void Semaphore::signal(uint64_t value)
 {
-    VkSemaphoreSignalInfo signal_info;
-    signal_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
-    signal_info.pNext = nullptr;
-    signal_info.semaphore = m_handle;
-    signal_info.value = value;
+    if(m_handle)
+    {
+        VkSemaphoreSignalInfo signal_info;
+        signal_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SIGNAL_INFO;
+        signal_info.pNext = nullptr;
+        signal_info.semaphore = m_handle;
+        signal_info.value = value;
 
-    vkSignalSemaphore(m_device->handle(), &signal_info);
+        vkSignalSemaphore(m_device->handle(), &signal_info);
+    }
 }
 
 void Semaphore::wait(uint64_t value)
 {
-    VkSemaphoreWaitInfo wait_info;
-    wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
-    wait_info.pNext = nullptr;
-    wait_info.flags = 0;
-    wait_info.semaphoreCount = 1;
-    wait_info.pSemaphores = &m_handle;
-    wait_info.pValues = &value;
-    vkWaitSemaphores(m_device->handle(), &wait_info, std::numeric_limits<uint64_t>::max());
+    if(m_handle)
+    {
+        VkSemaphoreWaitInfo wait_info;
+        wait_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO;
+        wait_info.pNext = nullptr;
+        wait_info.flags = 0;
+        wait_info.semaphoreCount = 1;
+        wait_info.pSemaphores = &m_handle;
+        wait_info.pValues = &value;
+        vkWaitSemaphores(m_device->handle(), &wait_info, std::numeric_limits<uint64_t>::max());
+    }
 }
 
 void swap(Semaphore &lhs, Semaphore &rhs)

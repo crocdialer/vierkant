@@ -43,10 +43,9 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     // images
     {
         // create plane-geometry
-        auto plane = Geometry::Plane();
+        auto plane = Geometry::Plane(2.f, 2.f);
         plane->normals.clear();
         plane->tangents.clear();
-//        for(auto &v : plane->vertices){ v.xy() += glm::vec2(.5f, -.5f); }
 
         auto mesh = Mesh::create_from_geometry(m_device, plane, {});
         auto entry = mesh->entries.front();
@@ -231,10 +230,10 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
 
     // copy image-drawable
     auto drawable = m_drawable_image;
-    drawable.matrices.projection = glm::orthoRH(0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f);
+    drawable.matrices.projection = glm::orthoRH(-1.f, 1.0f, -1.f, 1.0f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
     drawable.matrices.modelview = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
-    drawable.matrices.modelview[3] = glm::vec4(0.5f + area.x / renderer.viewport.width, -0.5f + -area.y / renderer.viewport.height, 0,
+    drawable.matrices.modelview[3] = glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0,
                                                1);
 
     // set image
