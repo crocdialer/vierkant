@@ -69,7 +69,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
         Instance::debug_fn_t &debug_fn = *reinterpret_cast<Instance::debug_fn_t *>(user_data);
         if(debug_fn){ debug_fn(msg); }
     }
-    else{ std::cerr << "validation layer: " << msg << std::endl; }
+    else{ std::cerr << msg << std::endl; }
     return VK_FALSE;
 }
 

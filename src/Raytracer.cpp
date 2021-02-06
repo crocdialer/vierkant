@@ -29,10 +29,14 @@ std::vector<const char *> Raytracer::required_extensions()
             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 }
 
-Raytracer::Raytracer(const vierkant::DevicePtr &device) :
+Raytracer::Raytracer(const vierkant::DevicePtr &device, const create_info_t &create_info) :
         m_device(device),
-        m_pipeline_cache(vierkant::PipelineCache::create(device))
+        m_pipeline_cache(create_info.pipeline_cache)
 {
+    if(!m_pipeline_cache){ m_pipeline_cache = vierkant::PipelineCache::create(device); }
+
+    m_trace_assets.resize(create_info.num_frames_in_flight);
+
     // get the ray tracing and acceleration-structure related function pointers
     set_function_pointers();
 
@@ -64,16 +68,13 @@ void Raytracer::set_function_pointers()
                                                                                     "vkCmdTraceRaysKHR"));
 }
 
-void Raytracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
+void Raytracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbuffer)
 {
+    auto &trace_asset = m_trace_assets[m_current_index];
+    m_current_index = (m_current_index + 1) % m_trace_assets.size();
+
     // create or retrieve an existing raytracing pipeline
     auto pipeline = m_pipeline_cache->pipeline(tracable.pipeline_info);
-
-//    // TODO: cache
-//    auto descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, tracable.descriptors);
-//    VkDescriptorSetLayout set_layout_handle = descriptor_set_layout.get();
-//
-//    tracable.pipeline_info.descriptor_set_layouts = {set_layout_handle};
 
     // create the binding table
     shader_binding_table_t binding_table = {};
@@ -88,15 +89,15 @@ void Raytracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
 
     // fetch descriptor set
     DescriptorSetPtr descriptor_set;
-    try{ descriptor_set = m_descriptor_sets.get(tracable.descriptor_set_layout); }
+    try{ descriptor_set = trace_asset.descriptor_sets.get(tracable.descriptor_set_layout); }
     catch(std::out_of_range &e)
     {
-        descriptor_set = m_descriptor_sets.put(tracable.descriptor_set_layout,
-                                               vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                               tracable.descriptor_set_layout));
-        // update descriptor-set with actual descriptors
-        vierkant::update_descriptor_set(m_device, descriptor_set, tracable.descriptors);
+        descriptor_set = trace_asset.descriptor_sets.put(tracable.descriptor_set_layout,
+                                                         vierkant::create_descriptor_set(m_device, m_descriptor_pool,
+                                                                                         tracable.descriptor_set_layout));
     }
+    // update descriptor-set with actual descriptors
+    vierkant::update_descriptor_set(m_device, descriptor_set, tracable.descriptors);
 
     VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 

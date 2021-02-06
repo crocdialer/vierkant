@@ -37,12 +37,18 @@ public:
         DescriptorSetLayoutPtr descriptor_set_layout;
     };
 
+    struct create_info_t
+    {
+        uint32_t num_frames_in_flight = 1;
+        vierkant::PipelineCachePtr pipeline_cache = nullptr;
+    };
+
     //! return an array listing all required device-extensions for a raytracing-pipeline.
     static std::vector<const char *> required_extensions();
 
     Raytracer() = default;
 
-    explicit Raytracer(const vierkant::DevicePtr &device);
+    explicit Raytracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     const VkPhysicalDeviceRayTracingPipelinePropertiesKHR &properties() const{ return m_properties; };
 
@@ -51,9 +57,14 @@ public:
      *
      * @param   tracable
      */
-    void trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
+    void trace_rays(const tracable_t &tracable, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
 
 private:
+
+    struct trace_assets_t
+    {
+        crocore::Cache_<DescriptorSetLayoutPtr, DescriptorSetPtr> descriptor_sets;
+    };
 
     struct shader_binding_table_t
     {
@@ -99,7 +110,9 @@ private:
 
     crocore::Cache_<VkPipeline, shader_binding_table_t> m_binding_tables;
 
-    crocore::Cache_<DescriptorSetLayoutPtr, DescriptorSetPtr> m_descriptor_sets;
+    std::vector<trace_assets_t> m_trace_assets;
+
+    uint32_t m_current_index = 0;
 
     // process-addresses for raytracing related functions
     PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;

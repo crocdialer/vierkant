@@ -276,14 +276,16 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     // pass transform
     acceleration_asset.transform = transform;
 
-    acceleration_asset.structure = AccelerationStructurePtr(handle, [&](VkAccelerationStructureKHR s)
+    acceleration_asset.structure = AccelerationStructurePtr(handle, [device = m_device,
+            buffer = acceleration_asset.buffer,
+            pFn = vkDestroyAccelerationStructureKHR](VkAccelerationStructureKHR s)
     {
-        vkDestroyAccelerationStructureKHR(m_device->handle(), s, nullptr);
+        pFn(device->handle(), s, nullptr);
     });
     return acceleration_asset;
 }
 
-void RayBuilder::create_toplevel_structure()
+vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::AccelerationStructurePtr& last)
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
 
@@ -355,9 +357,9 @@ void RayBuilder::create_toplevel_structure()
     create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     create_info.size = acceleration_structure_build_sizes_info.accelerationStructureSize;
 
-    auto top_level_structure = create_acceleration_asset(create_info);
+    auto top_level = create_acceleration_asset(create_info);
 
-    LOG_DEBUG << top_level_structure.buffer->num_bytes() << " bytes in toplevel";
+    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 
     // Create a small scratch buffer used during build of the top level acceleration structure
     auto scratch_buffer = vierkant::Buffer::create(m_device, nullptr,
@@ -369,10 +371,10 @@ void RayBuilder::create_toplevel_structure()
     acceleration_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     acceleration_build_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     acceleration_build_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
-    acceleration_build_geometry_info.mode = m_top_level.structure ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
-                                                                  : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
-    acceleration_build_geometry_info.srcAccelerationStructure = m_top_level.structure.get();
-    acceleration_build_geometry_info.dstAccelerationStructure = top_level_structure.structure.get();
+    acceleration_build_geometry_info.mode = last ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
+                                                 : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    acceleration_build_geometry_info.srcAccelerationStructure = last.get();
+    acceleration_build_geometry_info.dstAccelerationStructure = top_level.structure.get();
     acceleration_build_geometry_info.geometryCount = 1;
     acceleration_build_geometry_info.pGeometries = &acceleration_structure_geometry;
     acceleration_build_geometry_info.scratchData.deviceAddress = scratch_buffer->device_address();
@@ -392,14 +394,7 @@ void RayBuilder::create_toplevel_structure()
 
     cmd_buffer.submit(m_device->queue(), true);
 
-    m_top_level = top_level_structure;
-}
-
-void RayBuilder::build_toplevel()
-{
-    // TODO: update individual meshes (only bones!?)
-
-    create_toplevel_structure();
+    return top_level.structure;
 }
 
 }//namespace vierkant

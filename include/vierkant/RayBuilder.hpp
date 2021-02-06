@@ -42,12 +42,10 @@ public:
     void add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform = glm::mat4(1));
 
     /**
-     * @brief   build_toplevel will create a toplevel acceleration structures,
+     * @brief   create_toplevel will create a toplevel acceleration structure,
      *          instancing all cached bottom-levels.
      */
-    void build_toplevel();
-
-    vierkant::AccelerationStructurePtr acceleration_structure() const{ return m_top_level.structure; }
+    vierkant::AccelerationStructurePtr create_toplevel(const vierkant::AccelerationStructurePtr& last = nullptr);
 
 private:
 
@@ -65,11 +63,7 @@ private:
     acceleration_asset_t create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info,
                                                    const glm::mat4 &transform = glm::mat4(1));
 
-    void create_toplevel_structure();
-
     vierkant::DevicePtr m_device;
-
-    acceleration_asset_t m_top_level = {};
 
     std::unordered_map<vierkant::MeshConstPtr, std::vector<acceleration_asset_t>> m_acceleration_assets;
 
