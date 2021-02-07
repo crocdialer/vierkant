@@ -285,10 +285,13 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     return acceleration_asset;
 }
 
-vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::AccelerationStructurePtr& last)
+vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::AccelerationStructurePtr &last)
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
 
+    // build flags
+    VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
+                                                       VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
     // instance flags
     VkGeometryInstanceFlagsKHR instance_flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
 
@@ -339,7 +342,7 @@ vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::A
     VkAccelerationStructureBuildGeometryInfoKHR acceleration_structure_build_geometry_info{};
     acceleration_structure_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     acceleration_structure_build_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-    acceleration_structure_build_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    acceleration_structure_build_geometry_info.flags = build_flags;
     acceleration_structure_build_geometry_info.geometryCount = 1;
     acceleration_structure_build_geometry_info.pGeometries = &acceleration_structure_geometry;
 
@@ -359,7 +362,7 @@ vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::A
 
     auto top_level = create_acceleration_asset(create_info);
 
-    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
+//    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 
     // Create a small scratch buffer used during build of the top level acceleration structure
     auto scratch_buffer = vierkant::Buffer::create(m_device, nullptr,
@@ -370,7 +373,7 @@ vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::A
     VkAccelerationStructureBuildGeometryInfoKHR acceleration_build_geometry_info{};
     acceleration_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     acceleration_build_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-    acceleration_build_geometry_info.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    acceleration_build_geometry_info.flags = build_flags;
     acceleration_build_geometry_info.mode = last ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
                                                  : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     acceleration_build_geometry_info.srcAccelerationStructure = last.get();

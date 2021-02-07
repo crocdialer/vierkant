@@ -44,6 +44,8 @@ public:
     /**
      * @brief   create_toplevel will create a toplevel acceleration structure,
      *          instancing all cached bottom-levels.
+     *
+     * @param   last    an optional, existing toplevel-structure to perform an update to
      */
     vierkant::AccelerationStructurePtr create_toplevel(const vierkant::AccelerationStructurePtr& last = nullptr);
 

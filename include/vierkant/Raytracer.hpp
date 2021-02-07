@@ -63,6 +63,9 @@ private:
 
     struct trace_assets_t
     {
+        //! a descriptormap
+        descriptor_map_t descriptors;
+
         crocore::Cache_<DescriptorSetLayoutPtr, DescriptorSetPtr> descriptor_sets;
     };
 
