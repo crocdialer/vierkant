@@ -24,7 +24,7 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
     vkCheck(vkCreateShaderModule(device->handle(), &create_info, nullptr, &shader_module),
             "failed to create shader module!");
     return ShaderModulePtr(shader_module,
-                           [device](VkShaderModule s) { vkDestroyShaderModule(device->handle(), s, nullptr); });
+                           [device](VkShaderModule s){ vkDestroyShaderModule(device->handle(), s, nullptr); });
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -130,8 +130,8 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
 
     for(const auto &pair : shader_stages)
     {
-        try { if(other.shader_stages.at(pair.first) != pair.second){ return false; }}
-        catch(std::out_of_range &e) { return false; }
+        try{ if(other.shader_stages.at(pair.first) != pair.second){ return false; }}
+        catch(std::out_of_range &e){ return false; }
     }
 
     if(binding_descriptions != other.binding_descriptions){ return false; }
@@ -226,14 +226,14 @@ bool operator!=(const VkVertexInputAttributeDescription &lhs, const VkVertexInpu
 bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
                 const VkPipelineColorBlendAttachmentState &rhs)
 {
-    if (lhs.blendEnable != rhs.blendEnable) { return false; }
-    if (lhs.srcColorBlendFactor != rhs.srcColorBlendFactor) { return false; }
-    if (lhs.dstColorBlendFactor != rhs.dstColorBlendFactor) { return false; }
-    if (lhs.colorBlendOp != rhs.colorBlendOp) { return false; }
-    if (lhs.srcAlphaBlendFactor != rhs.srcAlphaBlendFactor) { return false; }
-    if (lhs.dstAlphaBlendFactor != rhs.dstAlphaBlendFactor) { return false; }
-    if (lhs.alphaBlendOp != rhs.alphaBlendOp) { return false; }
-    if (lhs.colorWriteMask != rhs.colorWriteMask) { return false; }
+    if(lhs.blendEnable != rhs.blendEnable){ return false; }
+    if(lhs.srcColorBlendFactor != rhs.srcColorBlendFactor){ return false; }
+    if(lhs.dstColorBlendFactor != rhs.dstColorBlendFactor){ return false; }
+    if(lhs.colorBlendOp != rhs.colorBlendOp){ return false; }
+    if(lhs.srcAlphaBlendFactor != rhs.srcAlphaBlendFactor){ return false; }
+    if(lhs.dstAlphaBlendFactor != rhs.dstAlphaBlendFactor){ return false; }
+    if(lhs.alphaBlendOp != rhs.alphaBlendOp){ return false; }
+    if(lhs.colorWriteMask != rhs.colorWriteMask){ return false; }
     return true;
 }
 
@@ -245,34 +245,34 @@ bool operator!=(const VkPipelineColorBlendAttachmentState &lhs,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool operator==(const VkStencilOpState& lhs, const VkStencilOpState& rhs)
+bool operator==(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
 {
-    if (lhs.failOp != rhs.failOp) { return false; }
-    if (lhs.passOp != rhs.passOp) { return false; }
-    if (lhs.depthFailOp != rhs.depthFailOp) { return false; }
-    if (lhs.compareOp != rhs.compareOp) { return false; }
-    if (lhs.compareMask != rhs.compareMask) { return false; }
-    if (lhs.writeMask != rhs.writeMask) { return false; }
-    if (lhs.reference != rhs.reference) { return false; }
+    if(lhs.failOp != rhs.failOp){ return false; }
+    if(lhs.passOp != rhs.passOp){ return false; }
+    if(lhs.depthFailOp != rhs.depthFailOp){ return false; }
+    if(lhs.compareOp != rhs.compareOp){ return false; }
+    if(lhs.compareMask != rhs.compareMask){ return false; }
+    if(lhs.writeMask != rhs.writeMask){ return false; }
+    if(lhs.reference != rhs.reference){ return false; }
     return true;
 }
 
-bool operator!=(const VkStencilOpState& lhs, const VkStencilOpState& rhs)
+bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
 {
     return !(lhs == rhs);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool operator==(const VkPushConstantRange& lhs, const VkPushConstantRange& rhs)
+bool operator==(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
 {
-    if (lhs.size != rhs.size) { return false; }
-    if (lhs.offset != rhs.offset) { return false; }
-    if (lhs.stageFlags != rhs.stageFlags) { return false; }
+    if(lhs.size != rhs.size){ return false; }
+    if(lhs.offset != rhs.offset){ return false; }
+    if(lhs.stageFlags != rhs.stageFlags){ return false; }
     return true;
 }
 
-bool operator!=(const VkPushConstantRange& lhs, const VkPushConstantRange& rhs)
+bool operator!=(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
 {
     return !(lhs == rhs);
 }
@@ -287,7 +287,7 @@ namespace std
 template<>
 struct hash<VkPipelineColorBlendAttachmentState>
 {
-    size_t operator()(VkPipelineColorBlendAttachmentState const& blendAttachmentState) const
+    size_t operator()(VkPipelineColorBlendAttachmentState const &blendAttachmentState) const
     {
         size_t h = 0;
         hash_combine(h, blendAttachmentState.blendEnable);
@@ -343,10 +343,10 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
 
     hash_combine(h, fmt.attachment_count);
 
-    for(const auto &pair : fmt.shader_stages)
+    for(const auto &[stage, shader] : fmt.shader_stages)
     {
-        hash_combine(h, pair.first);
-        hash_combine(h, pair.second);
+        hash_combine(h, stage);
+        hash_combine(h, shader);
     }
 
     for(const auto &bd : fmt.binding_descriptions)
@@ -400,7 +400,7 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     hash_combine(h, fmt.sample_shading);
     hash_combine(h, fmt.min_sample_shading);
     hash_combine(h, fmt.blend_state);
-    for (const auto& bs : fmt.attachment_blend_states) { hash_combine(h, bs); }
+    for(const auto &bs : fmt.attachment_blend_states){ hash_combine(h, bs); }
     hash_combine(h, fmt.renderpass);
     hash_combine(h, fmt.subpass);
     hash_combine(h, fmt.base_pipeline);
@@ -413,13 +413,14 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     return h;
 }
 
-size_t std::hash<vierkant::raytracing_pipeline_info_t>::operator()(vierkant::raytracing_pipeline_info_t const &fmt) const
+size_t
+std::hash<vierkant::raytracing_pipeline_info_t>::operator()(vierkant::raytracing_pipeline_info_t const &fmt) const
 {
     size_t h = 0;
-    for(const auto &pair : fmt.shader_stages)
+    for(const auto &[stage, shader] : fmt.shader_stages)
     {
-        hash_combine(h, pair.first);
-        hash_combine(h, pair.second);
+        hash_combine(h, stage);
+        hash_combine(h, shader);
     }
     hash_combine(h, fmt.max_recursion);
     for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }

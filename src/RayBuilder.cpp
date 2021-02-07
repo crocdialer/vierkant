@@ -285,7 +285,8 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     return acceleration_asset;
 }
 
-vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::AccelerationStructurePtr &last)
+RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer commandbuffer,
+                                                             const vierkant::AccelerationStructurePtr &last)
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
 
@@ -307,7 +308,9 @@ vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::A
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
             instance.transform = vk_transform_matrix(asset.transform * entry.transform);
-            instance.instanceCustomIndex = 0;
+
+            // TODO: find out what to put here
+            instance.instanceCustomIndex = i;
             instance.mask = 0xFF;
             instance.instanceShaderBindingTableRecordOffset = 0;
             instance.flags = instance_flags;
@@ -388,16 +391,26 @@ vierkant::AccelerationStructurePtr RayBuilder::create_toplevel(const vierkant::A
     acceleration_structure_build_range_info.firstVertex = 0;
     acceleration_structure_build_range_info.transformOffset = 0;
 
-    auto cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    cmd_buffer.begin();
+    top_level.instance_buffer = instance_buffer;
+    top_level.scratch_buffer = scratch_buffer;
+
+    vierkant::CommandBuffer local_commandbuffer;
+
+    if(commandbuffer == VK_NULL_HANDLE)
+    {
+        local_commandbuffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        local_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+        commandbuffer = local_commandbuffer.handle();
+    }
 
     // build the AS
     const VkAccelerationStructureBuildRangeInfoKHR *offset_ptr = &acceleration_structure_build_range_info;
-    vkCmdBuildAccelerationStructuresKHR(cmd_buffer.handle(), 1, &acceleration_build_geometry_info, &offset_ptr);
+    vkCmdBuildAccelerationStructuresKHR(commandbuffer, 1, &acceleration_build_geometry_info, &offset_ptr);
 
-    cmd_buffer.submit(m_device->queue(), true);
+    // submit only if we created the command buffer
+    if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }
 
-    return top_level.structure;
+    return top_level;
 }
 
 }//namespace vierkant

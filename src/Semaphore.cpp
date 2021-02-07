@@ -67,6 +67,17 @@ void Semaphore::wait(uint64_t value)
     }
 }
 
+uint64_t Semaphore::value()
+{
+    if(m_handle)
+    {
+        uint64_t counter = 0;
+        vkGetSemaphoreCounterValue(m_device->handle(), m_handle, &counter);
+        return counter;
+    }
+    return 0;
+}
+
 void swap(Semaphore &lhs, Semaphore &rhs)
 {
     std::swap(lhs.m_device, rhs.m_device);

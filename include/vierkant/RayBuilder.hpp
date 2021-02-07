@@ -27,6 +27,19 @@ class RayBuilder
 {
 public:
 
+    //! used for both bottom and toplevel acceleration-structures
+    struct acceleration_asset_t
+    {
+        vierkant::AccelerationStructurePtr structure = nullptr;
+        VkDeviceAddress device_address = 0;
+        vierkant::BufferPtr buffer = nullptr;
+        glm::mat4 transform = glm::mat4(1);
+
+        //! used for toplevel builds
+        vierkant::BufferPtr instance_buffer = nullptr;
+        vierkant::BufferPtr scratch_buffer = nullptr;
+    };
+
     RayBuilder() = default;
 
     explicit RayBuilder(const vierkant::DevicePtr &device);
@@ -47,18 +60,10 @@ public:
      *
      * @param   last    an optional, existing toplevel-structure to perform an update to
      */
-    vierkant::AccelerationStructurePtr create_toplevel(const vierkant::AccelerationStructurePtr& last = nullptr);
+    acceleration_asset_t create_toplevel(VkCommandBuffer commandbuffer = VK_NULL_HANDLE,
+                                         const vierkant::AccelerationStructurePtr& last = nullptr);
 
 private:
-
-    //! used for both bottom and toplevel acceleration-structures
-    struct acceleration_asset_t
-    {
-        vierkant::AccelerationStructurePtr structure = nullptr;
-        VkDeviceAddress device_address = 0;
-        vierkant::BufferPtr buffer = nullptr;
-        glm::mat4 transform = glm::mat4(1);
-    };
 
     void set_function_pointers();
 
