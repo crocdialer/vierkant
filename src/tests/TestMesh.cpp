@@ -93,7 +93,7 @@ vierkant::descriptor_map_t create_descriptors(const vk::DevicePtr &device)
     vk::descriptor_t desc_ubo, desc_texture;
     desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ubo.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    desc_ubo.buffer = uniform_buffer;
+    desc_ubo.buffers = {uniform_buffer};
 
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
