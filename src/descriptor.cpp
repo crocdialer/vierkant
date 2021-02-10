@@ -94,13 +94,18 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
                            const descriptor_map_t &descriptors)
 {
     size_t num_writes = 0;
-    for(const auto &pair : descriptors){ num_writes += std::max<size_t>(1, pair.second.image_samplers.size()); }
+    for(const auto &[binding, descriptor] : descriptors)
+    {
+        size_t count = 1;
+        count = std::max<size_t>(count, descriptor.image_samplers.size());
+        count = std::max<size_t>(count, descriptor.buffers.size());
+        num_writes += count;
+    }
 
     std::vector<VkWriteDescriptorSet> descriptor_writes;
 
     // keep buffer_infos for vkUpdateDescriptorSets
-    std::vector<VkDescriptorBufferInfo> buffer_infos;
-    buffer_infos.reserve(num_writes);
+    std::vector<std::vector<VkDescriptorBufferInfo>> buffer_infos_collection;
 
     // keep all image_infos for vkUpdateDescriptorSets
     std::vector<std::vector<VkDescriptorImageInfo>> image_infos_collection;
@@ -114,15 +119,14 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
     std::vector<acceleration_write_asset_t> acceleration_write_assets;
     acceleration_write_assets.reserve(num_writes);
 
-    for(const auto &pair : descriptors)
+    for(const auto &[binding, desc] : descriptors)
     {
-        auto &desc = pair.second;
 
         VkWriteDescriptorSet desc_write = {};
         desc_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         desc_write.descriptorType = desc.type;
         desc_write.dstSet = descriptor_set.get();
-        desc_write.dstBinding = pair.first;
+        desc_write.dstBinding = binding;
         desc_write.dstArrayElement = 0;
         desc_write.descriptorCount = 1;
 
@@ -131,12 +135,21 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
             {
-                VkDescriptorBufferInfo buffer_info = {};
-                buffer_info.buffer = desc.buffer->handle();
-                buffer_info.offset = desc.buffer_offset;
-                buffer_info.range = desc.buffer->num_bytes() - desc.buffer_offset;
-                buffer_infos.push_back(buffer_info);
-                desc_write.pBufferInfo = &buffer_infos.back();
+                std::vector<VkDescriptorBufferInfo> buffer_infos(desc.buffers.size());
+
+                auto offsets = desc.buffer_offsets;
+                offsets.resize(desc.buffers.size(), 0);
+
+                for(uint32_t j = 0; j < desc.buffers.size(); ++j)
+                {
+                    const auto &buf = desc.buffers[j];
+                    buffer_infos[j].buffer = buf->handle();
+                    buffer_infos[j].offset = offsets[j];
+                    buffer_infos[j].range = buf->num_bytes() - offsets[j];
+                }
+                desc_write.descriptorCount = static_cast<uint32_t>(buffer_infos.size());
+                desc_write.pBufferInfo = buffer_infos.data();
+                buffer_infos_collection.push_back(std::move(buffer_infos));
             }
                 break;
 
@@ -190,8 +203,8 @@ bool descriptor_t::operator==(const descriptor_t &other) const
 {
     if(type != other.type){ return false; }
     if(stage_flags != other.stage_flags){ return false; }
-    if(buffer != other.buffer){ return false; }
-    if(buffer_offset != other.buffer_offset){ return false; }
+    if(buffers != other.buffers){ return false; }
+    if(buffer_offsets != other.buffer_offsets){ return false; }
     if(image_samplers != other.image_samplers){ return false; }
     if(acceleration_structure != other.acceleration_structure){ return false; }
     return true;
@@ -208,8 +221,8 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     size_t h = 0;
     hash_combine(h, descriptor.type);
     hash_combine(h, descriptor.stage_flags);
-    hash_combine(h, descriptor.buffer);
-    hash_combine(h, descriptor.buffer_offset);
+    for(const auto &buf : descriptor.buffers){ hash_combine(h, buf); }
+    for(const auto &offset : descriptor.buffer_offsets){ hash_combine(h, offset); }
     for(const auto &img : descriptor.image_samplers){ hash_combine(h, img); }
     hash_combine(h, descriptor.acceleration_structure);
     return h;

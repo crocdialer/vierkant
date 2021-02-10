@@ -33,9 +33,11 @@ struct descriptor_t
     VkDescriptorType type;
     VkShaderStageFlags stage_flags;
 
-    //! used for descriptors containing a buffer
-    vierkant::BufferPtr buffer;
-    VkDeviceSize buffer_offset = 0;
+    //! used for descriptors containing buffers
+    std::vector<vierkant::BufferPtr> buffers;
+
+    //! optional array of buffer-offsets. if no value for a buffer index is found, 0 is used.
+    std::vector<VkDeviceSize> buffer_offsets;
 
     //! used for descriptor containing (an array) of images
     std::vector<vierkant::ImagePtr> image_samplers;

@@ -44,9 +44,9 @@ public:
 
     void signal(uint64_t value);
 
-    void wait(uint64_t value);
+    void wait(uint64_t value) const;
 
-    uint64_t value();
+    uint64_t value() const;
 
     inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
 

@@ -189,8 +189,8 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
         vierkant::descriptor_t desc_ubo = {};
         desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_ubo.buffer = vierkant::Buffer::create(device, &roughness, sizeof(roughness),
-                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        desc_ubo.buffers = {vierkant::Buffer::create(device, &roughness, sizeof(roughness),
+                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
         cube.drawable.descriptors[1] = desc_ubo;
 
         vierkant::descriptor_t desc_image = {};
@@ -308,7 +308,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     vierkant::Mesh::create_info_t mesh_create_info = {};
     mesh_create_info.command_buffer = cmd_buffer.handle();
     mesh_create_info.staging_buffer = vierkant::Buffer::create(device, nullptr, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     drawable.mesh = vierkant::Mesh::create_from_geometry(device, box, mesh_create_info);
     cmd_buffer.submit(queue, true);
@@ -343,8 +343,8 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     vierkant::descriptor_t desc_matrices = {};
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_GEOMETRY_BIT;
-    desc_matrices.buffer = vierkant::Buffer::create(device, &ubo_data, sizeof(ubo_data),
-                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    desc_matrices.buffers = {vierkant::Buffer::create(device, &ubo_data, sizeof(ubo_data),
+                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
     drawable.descriptors[0] = desc_matrices;
 
     cube_pipeline_t ret = {};

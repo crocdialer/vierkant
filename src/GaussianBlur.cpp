@@ -172,10 +172,10 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
         drawable.descriptors[1] = std::move(desc_settings_ubo);
 
         m_ping_pongs[0].drawable = drawable;
-        m_ping_pongs[0].drawable.descriptors[1].buffer = m_ping_pongs[0].ubo;
+        m_ping_pongs[0].drawable.descriptors[1].buffers = {m_ping_pongs[0].ubo};
 
         m_ping_pongs[1].drawable = drawable;
-        m_ping_pongs[1].drawable.descriptors[1].buffer = m_ping_pongs[1].ubo;
+        m_ping_pongs[1].drawable.descriptors[1].buffers = {m_ping_pongs[1].ubo};
     }
 }
 

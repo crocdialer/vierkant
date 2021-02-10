@@ -52,7 +52,7 @@ void Semaphore::signal(uint64_t value)
     }
 }
 
-void Semaphore::wait(uint64_t value)
+void Semaphore::wait(uint64_t value) const
 {
     if(m_handle)
     {
@@ -67,7 +67,7 @@ void Semaphore::wait(uint64_t value)
     }
 }
 
-uint64_t Semaphore::value()
+uint64_t Semaphore::value() const
 {
     if(m_handle)
     {

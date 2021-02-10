@@ -188,9 +188,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         vierkant::descriptor_t desc_settings_ubo = {};
         desc_settings_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_settings_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_settings_ubo.buffer = vierkant::Buffer::create(m_device, &settings.dof, sizeof(postfx::dof_settings_t),
-                                                            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                            VMA_MEMORY_USAGE_CPU_TO_GPU);
+        desc_settings_ubo.buffers = {vierkant::Buffer::create(m_device, &settings.dof, sizeof(postfx::dof_settings_t),
+                                                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                              VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
         m_drawable_dof.descriptors[1] = std::move(desc_settings_ubo);
 
@@ -324,7 +324,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     // environment lighting-pass
     auto drawable = m_drawable_lighting_env;
-    drawable.descriptors[0].buffer = frame_assets.lighting_ubo;
+    drawable.descriptors[0].buffers = {frame_assets.lighting_ubo};
     drawable.descriptors[1].image_samplers = {frame_assets.g_buffer.color_attachment(G_BUFFER_ALBEDO),
                                               frame_assets.g_buffer.color_attachment(G_BUFFER_NORMAL),
                                               frame_assets.g_buffer.color_attachment(G_BUFFER_POSITION),
@@ -388,7 +388,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         frame_assets.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
         m_drawable_bloom.descriptors[0].image_samplers = {output_img, bloom_img};
-        m_drawable_bloom.descriptors[1].buffer = frame_assets.composition_ubo;
+        m_drawable_bloom.descriptors[1].buffers = {frame_assets.composition_ubo};
 
         output_img = pingpong_render(m_drawable_bloom);
     }
@@ -411,9 +411,9 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
         drawable.matrices.projection = cam->projection_matrix();
 
-        if(drawable.descriptors[1].buffer)
+        if(!drawable.descriptors[1].buffers.empty())
         {
-            drawable.descriptors[1].buffer->set_data(&settings.dof, sizeof(postfx::dof_settings_t));
+            drawable.descriptors[1].buffers.front()->set_data(&settings.dof, sizeof(postfx::dof_settings_t));
         }
         output_img = pingpong_render(drawable);
     }
@@ -432,7 +432,8 @@ void PBRDeferred::create_shader_stages(const DevicePtr &device)
 
     // fragment
     auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_frag);
-    auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_frag);
+    auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device,
+                                                                   vierkant::shaders::pbr::g_buffer_albedo_frag);
     auto pbr_g_buffer_albedo_normal_frag =
             vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_normal_frag);
     auto pbr_g_buffer_albedo_rough_frag =

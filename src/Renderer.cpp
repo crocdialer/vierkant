@@ -311,8 +311,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
             if(!drawable->use_own_buffers)
             {
-                descriptors[BINDING_MATRIX].buffer = next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index];
-                descriptors[BINDING_MATERIAL].buffer = next_assets.material_buffers[indexed_drawable.material_buffer_index];
+                descriptors[BINDING_MATRIX].buffers = {
+                        next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index]};
+                descriptors[BINDING_MATERIAL].buffers = {
+                        next_assets.material_buffers[indexed_drawable.material_buffer_index]};
             }
 
             // search/create descriptor set
@@ -359,7 +361,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                     if(!drawable->use_own_buffers && current_mesh && current_mesh->root_bone)
                     {
                         update_bone_uniform_buffer(current_mesh, new_render_asset.bone_buffer);
-                        descriptors[BINDING_BONES].buffer = new_render_asset.bone_buffer;
+                        descriptors[BINDING_BONES].buffers = {new_render_asset.bone_buffer};
                     }
 
                     // keep handle
@@ -382,7 +384,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                     if(!drawable->use_own_buffers && current_mesh->root_bone)
                     {
                         update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
-                        descriptors[BINDING_BONES].buffer = render_asset.bone_buffer;
+                        descriptors[BINDING_BONES].buffers = {render_asset.bone_buffer};
                     }
 
                     // keep handle
@@ -536,10 +538,10 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
                                                  frame_assets_t &next)
 {
     // clean descriptor-map to enable sharing
-    for(auto &pair : descriptors)
+    for(auto &[binding, descriptor] : descriptors)
     {
-        for(auto &img : pair.second.image_samplers){ img.reset(); };
-        pair.second.buffer.reset();
+        for(auto &img : descriptor.image_samplers){ img.reset(); };
+        for(auto &buf : descriptor.buffers){ buf.reset(); };
     }
 
     // retrieve set-layout

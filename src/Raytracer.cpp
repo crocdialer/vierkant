@@ -101,9 +101,6 @@ void Raytracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
 
     VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 
-    // keep-alive copy of descriptor-data
-    trace_asset.descriptors = tracable.descriptors;
-
     vierkant::CommandBuffer local_commandbuffer;
 
     if(commandbuffer == VK_NULL_HANDLE)
@@ -130,6 +127,9 @@ void Raytracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
 
     // submit only if we created the command buffer
     if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }
+
+    // keep-alive copy of descriptor-data
+//    trace_asset.descriptors = tracable.descriptors;
 }
 
 Raytracer::shader_binding_table_t
