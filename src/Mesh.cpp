@@ -180,7 +180,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     if(!staging_buffer)
     {
         staging_buffer = vierkant::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                  VMA_MEMORY_USAGE_CPU_ONLY);
     }
     else{ staging_buffer->set_data(nullptr, num_bytes); }
 
