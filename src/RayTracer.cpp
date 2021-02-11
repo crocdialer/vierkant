@@ -2,7 +2,7 @@
 // Created by crocdialer on 11/15/20.
 //
 
-#include <vierkant/Raytracer.hpp>
+#include <vierkant/RayTracer.hpp>
 
 namespace vierkant
 {
@@ -20,7 +20,7 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
     return ret;
 }
 
-std::vector<const char *> Raytracer::required_extensions()
+std::vector<const char *> RayTracer::required_extensions()
 {
     return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
@@ -29,7 +29,7 @@ std::vector<const char *> Raytracer::required_extensions()
             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 }
 
-Raytracer::Raytracer(const vierkant::DevicePtr &device, const create_info_t &create_info) :
+RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &create_info) :
         m_device(device),
         m_pipeline_cache(create_info.pipeline_cache)
 {
@@ -59,7 +59,7 @@ Raytracer::Raytracer(const vierkant::DevicePtr &device, const create_info_t &cre
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
 }
 
-void Raytracer::set_function_pointers()
+void RayTracer::set_function_pointers()
 {
     vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(vkGetDeviceProcAddr(
             m_device->handle(), "vkGetRayTracingShaderGroupHandlesKHR"));
@@ -68,7 +68,7 @@ void Raytracer::set_function_pointers()
                                                                                     "vkCmdTraceRaysKHR"));
 }
 
-void Raytracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbuffer)
+void RayTracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbuffer)
 {
     auto &trace_asset = m_trace_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_trace_assets.size();
@@ -132,8 +132,8 @@ void Raytracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
 //    trace_asset.descriptors = tracable.descriptors;
 }
 
-Raytracer::shader_binding_table_t
-Raytracer::create_shader_binding_table(VkPipeline pipeline,
+RayTracer::shader_binding_table_t
+RayTracer::create_shader_binding_table(VkPipeline pipeline,
                                        const vierkant::raytracing_shader_map_t &shader_stages)
 {
     // shader groups

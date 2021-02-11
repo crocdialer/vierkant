@@ -18,7 +18,7 @@ namespace vierkant
  * @brief   Raytracer can be used to run raytracing pipelines.
  *
  */
-class Raytracer
+class RayTracer
 {
 public:
 
@@ -46,9 +46,9 @@ public:
     //! return an array listing all required device-extensions for a raytracing-pipeline.
     static std::vector<const char *> required_extensions();
 
-    Raytracer() = default;
+    RayTracer() = default;
 
-    explicit Raytracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
+    explicit RayTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     const VkPhysicalDeviceRayTracingPipelinePropertiesKHR &properties() const{ return m_properties; };
 
