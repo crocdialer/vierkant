@@ -289,6 +289,14 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
                                                              const vierkant::AccelerationStructurePtr &last)
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
+    std::vector<entry_t> entries;
+
+    vierkant::descriptor_t desc_entries = {};
+    desc_entries.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    desc_entries.buffers = {vierkant::Buffer::create(m_device, entries,
+                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                     VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
@@ -296,28 +304,38 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     // instance flags
     VkGeometryInstanceFlagsKHR instance_flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
 
+    uint32_t mesh_index = 0;
+
     for(const auto &[mesh, acceleration_assets] : m_acceleration_assets)
     {
         assert(mesh->entries.size() == acceleration_assets.size());
 
         for(uint i = 0; i < acceleration_assets.size(); ++i)
         {
-            const auto &entry = mesh->entries[i];
+            const auto &mesh_entry = mesh->entries[i];
             const auto &asset = acceleration_assets[i];
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
-            instance.transform = vk_transform_matrix(asset.transform * entry.transform);
+            instance.transform = vk_transform_matrix(asset.transform * mesh_entry.transform);
 
-            // TODO: find out what to put here
-            instance.instanceCustomIndex = i;
+            // store next entry-index
+            instance.instanceCustomIndex = entries.size();
             instance.mask = 0xFF;
             instance.instanceShaderBindingTableRecordOffset = 0;
             instance.flags = instance_flags;
             instance.accelerationStructureReference = asset.device_address;
 
             instances.push_back(instance);
+
+            RayBuilder::entry_t top_level_entry = {};
+            top_level_entry.buffer_index = mesh_index;
+            top_level_entry.material_index = mesh_entry.material_index;
+            top_level_entry.base_vertex = mesh_entry.base_vertex;
+            top_level_entry.base_index = mesh_entry.base_index;
+            entries.push_back(top_level_entry);
         }
+        mesh_index++;
     }
 
     // put instances into host-visible gpu-buffer
@@ -363,7 +381,13 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     create_info.size = acceleration_structure_build_sizes_info.accelerationStructureSize;
 
+    // create/collect our stuff
     auto top_level = create_acceleration_asset(create_info);
+
+    // needed to access buffer/vertex/index/material in closest-hit shader
+    top_level.entry_buffer = vierkant::Buffer::create(m_device, entries,
+                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                      VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 //    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 

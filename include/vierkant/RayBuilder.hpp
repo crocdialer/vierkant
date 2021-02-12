@@ -27,6 +27,17 @@ class RayBuilder
 {
 public:
 
+    struct entry_t
+    {
+        // per mesh
+        uint32_t buffer_index = 0;
+        uint32_t material_index = 0;
+
+        // per entry
+        uint32_t base_vertex = 0;
+        uint32_t base_index = 0;
+    };
+
     //! used for both bottom and toplevel acceleration-structures
     struct acceleration_asset_t
     {
@@ -35,7 +46,10 @@ public:
         vierkant::BufferPtr buffer = nullptr;
         glm::mat4 transform = glm::mat4(1);
 
-        //! used for toplevel builds
+        //! buffer containing entry-information
+        vierkant::BufferPtr entry_buffer = nullptr;
+
+        //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;
         vierkant::BufferPtr scratch_buffer = nullptr;
     };
