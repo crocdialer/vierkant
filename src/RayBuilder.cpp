@@ -94,9 +94,9 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
         VkAccelerationStructureGeometryTrianglesDataKHR triangles = {};
         triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
         triangles.indexType = mesh->index_type;
-        triangles.indexData.deviceAddress = index_base_address;
+        triangles.indexData.deviceAddress = index_base_address + entry.base_index * sizeof(index_t) ;
         triangles.vertexFormat = vertex_attrib.format;
-        triangles.vertexData.deviceAddress = vertex_base_address;
+        triangles.vertexData.deviceAddress = vertex_base_address + entry.base_vertex * vertex_attrib.stride;
         triangles.vertexStride = vertex_attrib.stride;
         triangles.maxVertex = entry.num_vertices;
         triangles.transformData = {};
@@ -109,8 +109,8 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
 
         // offsets
         auto &offset = offsets[i];
-        offset.firstVertex = entry.base_vertex;
-        offset.primitiveOffset = entry.base_index / 3;
+        offset.firstVertex = 0;
+        offset.primitiveOffset = 0;
         offset.primitiveCount = entry.num_indices / 3;
 
         auto &build_info = build_infos[i];
