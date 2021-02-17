@@ -38,6 +38,19 @@ public:
         uint32_t base_index = 0;
     };
 
+    struct material_struct_t
+    {
+        glm::vec4 color = glm::vec4(1);
+
+        glm::vec4 emission = glm::vec4(0);
+
+        float metalness = 0.f;
+
+        float roughness = 1.f;
+
+        int padding[2];
+    };
+
     //! used for both bottom and toplevel acceleration-structures
     struct acceleration_asset_t
     {
@@ -48,6 +61,9 @@ public:
 
         //! buffer containing entry-information
         vierkant::BufferPtr entry_buffer = nullptr;
+
+        //! buffer containing material-information
+        vierkant::BufferPtr material_buffer = nullptr;
 
         //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;

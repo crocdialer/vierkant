@@ -94,7 +94,7 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
         VkAccelerationStructureGeometryTrianglesDataKHR triangles = {};
         triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
         triangles.indexType = mesh->index_type;
-        triangles.indexData.deviceAddress = index_base_address + entry.base_index * sizeof(index_t) ;
+        triangles.indexData.deviceAddress = index_base_address + entry.base_index * sizeof(index_t);
         triangles.vertexFormat = vertex_attrib.format;
         triangles.vertexData.deviceAddress = vertex_base_address + entry.base_vertex * vertex_attrib.stride;
         triangles.vertexStride = vertex_attrib.stride;
@@ -290,6 +290,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
     std::vector<entry_t> entries;
+    std::vector<material_struct_t> materials;
 
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
@@ -326,10 +327,17 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
 
             RayBuilder::entry_t top_level_entry = {};
             top_level_entry.buffer_index = mesh_index;
-            top_level_entry.material_index = mesh_entry.material_index;
+            top_level_entry.material_index = materials.size();
             top_level_entry.base_vertex = mesh_entry.base_vertex;
             top_level_entry.base_index = mesh_entry.base_index;
             entries.push_back(top_level_entry);
+
+            RayBuilder::material_struct_t material = {};
+            material.color = mesh->materials[mesh_entry.material_index]->color;
+            material.emission = mesh->materials[mesh_entry.material_index]->emission;
+            material.roughness = mesh->materials[mesh_entry.material_index]->roughness;
+            material.metalness = mesh->materials[mesh_entry.material_index]->metalness;
+            materials.push_back(material);
         }
         mesh_index++;
     }
@@ -384,6 +392,11 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     top_level.entry_buffer = vierkant::Buffer::create(m_device, entries,
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    // material information for all entries
+    top_level.material_buffer = vierkant::Buffer::create(m_device, materials,
+                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 //    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 
