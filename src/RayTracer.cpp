@@ -129,7 +129,7 @@ void RayTracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
     if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }
 
     // keep-alive copy of descriptor-data
-//    trace_asset.descriptors = tracable.descriptors;
+    trace_asset.descriptors = tracable.descriptors;
 }
 
 RayTracer::shader_binding_table_t

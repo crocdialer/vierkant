@@ -39,7 +39,7 @@ using entry_index_map_t = std::map<std::string, uint32_t>;
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theScene);
+vierkant::GeometryPtr create_geometry(const aiMesh *aMesh);
 
 void load_bones_and_weights(const aiMesh *aMesh, uint32_t base_vertex, bone_map_t &bonemap, weight_map_t &weightmap);
 
@@ -104,7 +104,7 @@ inline glm::vec4 aicolor_convert(const aiColor3D &the_color)
 
 /////////////////////////////////////////////////////////////////
 
-vierkant::GeometryPtr create_geometry(const aiMesh *aMesh, const aiScene *theScene)
+vierkant::GeometryPtr create_geometry(const aiMesh *aMesh)
 {
     auto geom = vierkant::Geometry::create();
 
@@ -512,10 +512,15 @@ mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool &thr
 
     LOG_DEBUG << "loading model '" << path << "' ...";
 
+    // experimental support for both face- and vertex-normals, derived from angle crease
+//    importer.SetPropertyFloat(AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, 80.f);
+
     // read + useful postprocessing steps
     const aiScene *theScene = importer.ReadFile(found_path, aiProcess_Triangulate
                                                             | aiProcess_FlipUVs
                                                             | aiProcess_JoinIdenticalVertices
+//                                                            | aiProcess_GenSmoothNormals
+//                                                            | aiProcess_FixInfacingNormals
                                                             | aiProcess_CalcTangentSpace
                                                             | aiProcess_LimitBoneWeights);
 
@@ -623,7 +628,7 @@ void process_node_hierarchy(const aiScene *scene,
             if(geom_it != geometry_map.end()){ geometry = geom_it->second; }
             else
             {
-                geometry = create_geometry(ai_mesh, scene);
+                geometry = create_geometry(ai_mesh);
                 geometry->colors.resize(geometry->vertices.size(), glm::vec4(1));
                 geometry_map[ai_mesh] = geometry;
             }

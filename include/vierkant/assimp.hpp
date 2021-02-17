@@ -1,5 +1,6 @@
 #pragma once
 
+#include <crocore/Image.hpp>
 #include <crocore/ThreadPool.hpp>
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Mesh.hpp>

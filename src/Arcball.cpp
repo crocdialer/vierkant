@@ -32,11 +32,6 @@ void Arcball::mouse_press(const MouseEvent &e)
     else if(e.is_right()){ m_last_look_at = look_at; }
 }
 
-void Arcball::mouse_release(const MouseEvent &e)
-{
-//    if(enabled && e.is_left()){ m_mouse_down = false; }
-}
-
 void Arcball::mouse_drag(const MouseEvent &e)
 {
     if(enabled && e.is_left())
@@ -97,7 +92,6 @@ vierkant::mouse_delegate_t Arcball::mouse_delegate()
 {
     vierkant::mouse_delegate_t ret = {};
     ret.mouse_press = [this](const MouseEvent &e){ mouse_press(e); };
-    ret.mouse_release = [this](const MouseEvent &e){ mouse_release(e); };
     ret.mouse_drag = [this](const MouseEvent &e){ mouse_drag(e); };
     return ret;
 }

@@ -291,13 +291,6 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     std::vector<VkAccelerationStructureInstanceKHR> instances;
     std::vector<entry_t> entries;
 
-    vierkant::descriptor_t desc_entries = {};
-    desc_entries.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_entries.buffers = {vierkant::Buffer::create(m_device, entries,
-                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                     VMA_MEMORY_USAGE_CPU_TO_GPU)};
-
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
                                                        VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
@@ -314,6 +307,9 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
         {
             const auto &mesh_entry = mesh->entries[i];
             const auto &asset = acceleration_assets[i];
+
+            // skip disabled entries
+            if(!mesh_entry.enabled){ continue; }
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
@@ -354,7 +350,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     acceleration_structure_geometry.geometry.instances.arrayOfPointers = VK_FALSE;
     acceleration_structure_geometry.geometry.instances.data = instance_data_device_address;
 
-    uint32_t num_primitives = 1;
+    uint32_t num_primitives = instances.size();
 
     // The pSrcAccelerationStructure, dstAccelerationStructure, and mode members of pBuildInfo are ignored.
     // Any VkDeviceOrHostAddressKHR members of pBuildInfo are ignored by this command,
