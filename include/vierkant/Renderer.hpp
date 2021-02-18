@@ -68,27 +68,6 @@ public:
         float quadratic_attenuation;
     };
 
-    struct push_constants_t
-    {
-        //! index into matrix uniform-buffer
-        int matrix_index = 0;
-
-        //! index into material uniform-buffer
-        int material_index = 0;
-
-        //! current viewport-size
-        glm::vec2 size;
-
-        //! near- and far-clipping planes
-        glm::vec2 clipping = glm::vec2(0.f, 1.f);
-
-        //! current time since start in seconds
-        float time;
-
-        //! optional flag to disable colors from materials
-        int disable_material = 0;
-    };
-
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
      */
@@ -197,6 +176,27 @@ public:
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 
 private:
+
+    struct push_constants_t
+    {
+        //! index into matrix uniform-buffer
+        int matrix_index = 0;
+
+        //! index into material uniform-buffer
+        int material_index = 0;
+
+        //! current viewport-size
+        glm::vec2 size;
+
+        //! near- and far-clipping planes
+        glm::vec2 clipping = glm::vec2(0.f, 1.f);
+
+        //! current time since start in seconds
+        float time;
+
+        //! optional flag to disable colors from materials
+        int disable_material = 0;
+    };
 
     struct render_asset_t
     {

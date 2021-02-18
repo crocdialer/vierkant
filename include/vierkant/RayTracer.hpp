@@ -50,6 +50,12 @@ public:
 
     explicit RayTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
+    RayTracer(RayTracer &&other) noexcept;
+
+    RayTracer(const RayTracer &) = delete;
+
+    RayTracer &operator=(RayTracer other);
+
     const VkPhysicalDeviceRayTracingPipelinePropertiesKHR &properties() const{ return m_properties; };
 
     /**
@@ -59,7 +65,15 @@ public:
      */
     void trace_rays(const tracable_t &tracable, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
 
+    friend void swap(RayTracer &lhs, RayTracer &rhs) noexcept;
+
 private:
+
+    struct push_constants_t
+    {
+        //! current time since start in seconds
+        float time;
+    };
 
     struct trace_assets_t
     {
@@ -116,6 +130,10 @@ private:
     std::vector<trace_assets_t> m_trace_assets;
 
     uint32_t m_current_index = 0;
+
+    VkPushConstantRange m_push_constant_range = {};
+
+    std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 
     // process-addresses for raytracing related functions
     PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;
