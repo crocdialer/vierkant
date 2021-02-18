@@ -29,6 +29,9 @@ public:
 
     struct entry_t
     {
+        glm::mat4 modelview = glm::mat4(1);
+        glm::mat4 normal_matrix = glm::mat4(1);
+
         // per mesh
         uint32_t buffer_index = 0;
         uint32_t material_index = 0;

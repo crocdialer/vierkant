@@ -312,9 +312,11 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
             // skip disabled entries
             if(!mesh_entry.enabled){ continue; }
 
+            auto modelview = asset.transform * mesh_entry.transform;
+
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
-            instance.transform = vk_transform_matrix(asset.transform * mesh_entry.transform);
+            instance.transform = vk_transform_matrix(modelview);
 
             // store next entry-index
             instance.instanceCustomIndex = entries.size();
@@ -326,6 +328,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
             instances.push_back(instance);
 
             RayBuilder::entry_t top_level_entry = {};
+            top_level_entry.modelview = modelview;
+            top_level_entry.normal_matrix = glm::inverseTranspose(modelview);
             top_level_entry.buffer_index = mesh_index;
             top_level_entry.material_index = materials.size();
             top_level_entry.base_vertex = mesh_entry.base_vertex;
