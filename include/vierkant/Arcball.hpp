@@ -14,17 +14,21 @@ class Arcball
 {
 public:
 
+    using transform_cb_t = std::function<void(const glm::mat4&)>;
+
     bool enabled = false;
 
     float multiplier = 1.f;
 
-    glm::vec2 screen_size{};
+    glm::vec2 screen_size = {};
 
     glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
 
     glm::vec3 look_at = glm::vec3(0.f);
 
     float distance = 1.f;
+
+    transform_cb_t transform_cb = {};
 
     Arcball() = default;
 

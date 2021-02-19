@@ -301,7 +301,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
         // transparent material
         if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c)){ col.a = c.a; }
-        material.diffuse = col;
+        material.diffuse = clamp(col, 0.f, 1.f);
 
         material.blending = col.a < 1.f;
     }

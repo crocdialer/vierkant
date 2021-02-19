@@ -57,8 +57,9 @@ void Arcball::mouse_drag(const MouseEvent &e)
 
         glm::mat3 rotation_mat = glm::mat3_cast(rotation);
         look_at = m_last_look_at - glm::normalize(rotation_mat * glm::vec3(1, 0, 0)) * mouse_diff.x +
-                glm::normalize(rotation * glm::vec3(0, 1, 0)) * mouse_diff.y;
+                  glm::normalize(rotation * glm::vec3(0, 1, 0)) * mouse_diff.y;
     }
+    if(enabled && transform_cb){ transform_cb(transform()); }
 }
 
 /**
@@ -93,6 +94,11 @@ vierkant::mouse_delegate_t Arcball::mouse_delegate()
     vierkant::mouse_delegate_t ret = {};
     ret.mouse_press = [this](const MouseEvent &e){ mouse_press(e); };
     ret.mouse_drag = [this](const MouseEvent &e){ mouse_drag(e); };
+    ret.mouse_wheel = [this](const vierkant::MouseEvent &e)
+    {
+        if(enabled){ distance = std::max(.1f, distance - e.wheel_increment().y); }
+        if(enabled && transform_cb){ transform_cb(transform()); }
+    };
     return ret;
 }
 

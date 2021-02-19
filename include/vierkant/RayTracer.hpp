@@ -35,6 +35,9 @@ public:
 
         //! optional descriptor-set-layout
         DescriptorSetLayoutPtr descriptor_set_layout;
+
+        //! sample-batch index
+        uint32_t batch_index = 0;
     };
 
     struct create_info_t
@@ -72,7 +75,10 @@ private:
     struct push_constants_t
     {
         //! current time since start in seconds
-        float time;
+        float time = 0.f;
+
+        //! sample-batch index
+        uint32_t batch_index = 0;
     };
 
     struct trace_assets_t

@@ -143,6 +143,7 @@ void RayTracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
     push_constants_t push_constants = {};
     using namespace std::chrono;
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
+    push_constants.batch_index = tracable.batch_index;
 
     // fetch descriptor set
     DescriptorSetPtr descriptor_set;
