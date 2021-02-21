@@ -38,6 +38,13 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device) :
     m_command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+    uint32_t v = 0xFFFFFFFF;
+    vierkant::Image::Format fmt;
+    fmt.extent = {1, 1, 1};
+    fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
+
+    m_placeholder_solid_white = vierkant::Image::create(m_device, &v, fmt);
 }
 
 void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform)
@@ -291,6 +298,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     std::vector<VkAccelerationStructureInstanceKHR> instances;
     std::vector<entry_t> entries;
     std::vector<material_struct_t> materials;
+    std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
 
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
@@ -336,11 +344,19 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
             top_level_entry.base_index = mesh_entry.base_index;
             entries.push_back(top_level_entry);
 
+            const auto &mesh_material = mesh->materials[mesh_entry.material_index];
+
             RayBuilder::material_struct_t material = {};
-            material.color = mesh->materials[mesh_entry.material_index]->color;
-            material.emission = mesh->materials[mesh_entry.material_index]->emission;
-            material.roughness = mesh->materials[mesh_entry.material_index]->roughness;
-            material.metalness = mesh->materials[mesh_entry.material_index]->metalness;
+            material.color = mesh_material->color;
+            material.emission = mesh_material->emission;
+            material.roughness = mesh_material->roughness;
+            material.metalness = mesh_material->metalness;
+
+            if(mesh_material->textures.count(vierkant::Material::TextureType::Color))
+            {
+                material.texture_index = textures.size();
+                textures.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Color));
+            }
             materials.push_back(material);
         }
         mesh_index++;
@@ -401,6 +417,10 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     top_level.material_buffer = vierkant::Buffer::create(m_device, materials,
                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    constexpr size_t max_num_textures = 256;
+    top_level.textures = std::move(textures);
+    top_level.textures.resize(max_num_textures, m_placeholder_solid_white);
 
 //    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 

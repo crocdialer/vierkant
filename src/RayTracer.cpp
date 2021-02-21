@@ -96,7 +96,8 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32},
                                                       {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              32},
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             128},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             256}};
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             256},
+                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     1024}};
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
 
     // push constant range

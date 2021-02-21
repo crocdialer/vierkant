@@ -51,7 +51,9 @@ public:
 
         float roughness = 1.f;
 
-        int padding[2];
+        uint32_t texture_index = 0;
+
+        int padding[1];
     };
 
     //! used for both bottom and toplevel acceleration-structures
@@ -67,6 +69,8 @@ public:
 
         //! buffer containing material-information
         vierkant::BufferPtr material_buffer = nullptr;
+
+        std::vector<vierkant::ImagePtr> textures;
 
         //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;
@@ -108,6 +112,8 @@ private:
     std::unordered_map<vierkant::MeshConstPtr, std::vector<acceleration_asset_t>> m_acceleration_assets;
 
     vierkant::CommandPoolPtr m_command_pool;
+
+    vierkant::ImagePtr m_placeholder_solid_white;
 
     // process-addresses for raytracing related functions
     PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;

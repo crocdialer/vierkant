@@ -424,6 +424,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
     {
         LOG_TRACE << "adding emission map: '" << path_buf.data << "'";
         material.img_emission = create_tex_image(path_buf.data);
+        material.emission = glm::vec4(0);
     }
 
     // ambient occlusion or lightmap
