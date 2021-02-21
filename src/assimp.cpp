@@ -512,14 +512,21 @@ mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool &thr
 
     LOG_DEBUG << "loading model '" << path << "' ...";
 
-    // experimental support for both face- and vertex-normals, derived from angle crease
-//    importer.SetPropertyFloat(AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, 80.f);
+    // max. 4 MB file-size for expensive operations
+    constexpr uint32_t smoothing_max_num_bytes = 1U << 22U;
+
+    // TODO: somehwat wonky condition here, but ok'ish for now
+    if(crocore::filesystem::get_file_size(path) < smoothing_max_num_bytes)
+    {
+        // experimental support for both face- and vertex-normals, derived from angle crease
+        importer.SetPropertyFloat(AI_CONFIG_PP_GSN_MAX_SMOOTHING_ANGLE, 80.f);
+    }
 
     // read + useful postprocessing steps
     const aiScene *theScene = importer.ReadFile(found_path, aiProcess_Triangulate
                                                             | aiProcess_FlipUVs
                                                             | aiProcess_JoinIdenticalVertices
-//                                                            | aiProcess_GenSmoothNormals
+                                                            | aiProcess_GenSmoothNormals
 //                                                            | aiProcess_FixInfacingNormals
                                                             | aiProcess_CalcTangentSpace
                                                             | aiProcess_LimitBoneWeights);
