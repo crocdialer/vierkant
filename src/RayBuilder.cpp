@@ -39,12 +39,20 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device) :
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
+    // solid white color
     uint32_t v = 0xFFFFFFFF;
     vierkant::Image::Format fmt;
     fmt.extent = {1, 1, 1};
     fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
-
     m_placeholder_solid_white = vierkant::Image::create(m_device, &v, fmt);
+
+    // normal: vec3(0, 0, 1)
+    v = 0xFFFF7F7F;
+    m_placeholder_normalmap = vierkant::Image::create(m_device, &v, fmt);
+
+    // emission: vec3(0)
+    v = 0xFF000000;
+    m_placeholder_emission = vierkant::Image::create(m_device, &v, fmt);
 }
 
 void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform)
@@ -298,7 +306,10 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     std::vector<VkAccelerationStructureInstanceKHR> instances;
     std::vector<entry_t> entries;
     std::vector<material_struct_t> materials;
+
     std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
+    std::vector<vierkant::ImagePtr> normalmaps = {m_placeholder_normalmap};
+    std::vector<vierkant::ImagePtr> emissions = {m_placeholder_emission};
 
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
@@ -356,6 +367,16 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
             {
                 material.texture_index = textures.size();
                 textures.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Color));
+            }
+            if(mesh_material->textures.count(vierkant::Material::TextureType::Normal))
+            {
+                material.normalmap_index = normalmaps.size();
+                normalmaps.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Normal));
+            }
+            if(mesh_material->textures.count(vierkant::Material::TextureType::Emission))
+            {
+                material.emission_index = emissions.size();
+                emissions.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Emission));
             }
             materials.push_back(material);
         }
@@ -420,9 +441,14 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
 
     constexpr size_t max_num_textures = 256;
     top_level.textures = std::move(textures);
-    top_level.textures.resize(max_num_textures, m_placeholder_solid_white);
+    top_level.normalmaps = std::move(normalmaps);
+    top_level.emissions = std::move(emissions);
 
-//    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
+    top_level.textures.resize(max_num_textures, m_placeholder_solid_white);
+    top_level.normalmaps.resize(max_num_textures, m_placeholder_normalmap);
+    top_level.emissions.resize(max_num_textures, m_placeholder_emission);
+
+    //    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 
     // Create a small scratch buffer used during build of the top level acceleration structure
     auto scratch_buffer = vierkant::Buffer::create(m_device, nullptr,

@@ -152,11 +152,13 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh)
         geom->tangents.insert(geom->tangents.end(), (glm::vec3 *) aMesh->mTangents,
                               (glm::vec3 *) aMesh->mTangents + aMesh->mNumVertices);
     }
-    else
+    else if(aMesh->HasTangentsAndBitangents())
     {
         // compute tangents
         geom->compute_tangents();
     }
+    else{ geom->tangents.resize(geom->vertices.size(), glm::vec3(0)); }
+
     return geom;
 }
 
@@ -528,7 +530,7 @@ mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool &thr
                                                             | aiProcess_FlipUVs
                                                             | aiProcess_JoinIdenticalVertices
                                                             | aiProcess_GenSmoothNormals
-//                                                            | aiProcess_FixInfacingNormals
+                                                            //                                                            | aiProcess_FixInfacingNormals
                                                             | aiProcess_CalcTangentSpace
                                                             | aiProcess_LimitBoneWeights);
 

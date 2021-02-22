@@ -53,7 +53,11 @@ public:
 
         uint32_t texture_index = 0;
 
-        int padding[1];
+        uint32_t normalmap_index = 0;
+
+        uint32_t emission_index = 0;
+
+        int padding[3];
     };
 
     //! used for both bottom and toplevel acceleration-structures
@@ -70,7 +74,7 @@ public:
         //! buffer containing material-information
         vierkant::BufferPtr material_buffer = nullptr;
 
-        std::vector<vierkant::ImagePtr> textures;
+        std::vector<vierkant::ImagePtr> textures, normalmaps, emissions;
 
         //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;
@@ -113,7 +117,7 @@ private:
 
     vierkant::CommandPoolPtr m_command_pool;
 
-    vierkant::ImagePtr m_placeholder_solid_white;
+    vierkant::ImagePtr m_placeholder_solid_white, m_placeholder_normalmap, m_placeholder_emission;
 
     // process-addresses for raytracing related functions
     PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;

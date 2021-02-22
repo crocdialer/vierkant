@@ -96,7 +96,8 @@ vierkant::mouse_delegate_t Arcball::mouse_delegate()
     ret.mouse_drag = [this](const MouseEvent &e){ mouse_drag(e); };
     ret.mouse_wheel = [this](const vierkant::MouseEvent &e)
     {
-        if(enabled){ distance = std::max(.1f, distance - e.wheel_increment().y); }
+        float scroll_gain = e.is_control_down() ? .1f : 1.f;
+        if(enabled){ distance = std::max(.1f, distance - scroll_gain * e.wheel_increment().y); }
         if(enabled && transform_cb){ transform_cb(transform()); }
     };
     return ret;
