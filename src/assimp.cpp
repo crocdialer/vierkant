@@ -436,12 +436,12 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
         ao_map_path = path_buf.data;
     }
 
-    // SHINYNESS
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_SPECULAR), 0, &path_buf))
-    {
-        LOG_TRACE << "adding spec/roughness map: '" << path_buf.data << "'";
-        material.img_specular = create_tex_image(path_buf.data);
-    }
+//    // SHINYNESS
+//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_SPECULAR), 0, &path_buf))
+//    {
+//        LOG_TRACE << "adding spec/roughness map: '" << path_buf.data << "'";
+//        material.img_specular = create_tex_image(path_buf.data);
+//    }
 
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_NORMALS), 0, &path_buf))
     {
@@ -482,7 +482,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
                 // there was texture data for AO in a separate map -> combine
                 auto ao_img = create_tex_image(ao_map_path)->resize(ao_rough_metal_img->width(),
                                                                     ao_rough_metal_img->height());
-                uint8_t *src = (uint8_t *) ao_img->data();
+                auto *src = static_cast<uint8_t *>(ao_img->data());
 
                 for(; dst < dst_end;)
                 {
@@ -492,7 +492,8 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
                 }
             }
         }
-        material.img_ao_roughness_metal = create_tex_image(path_buf.data);
+        material.roughness = material.metalness = 1.f;
+        material.img_ao_roughness_metal = ao_rough_metal_img;
     }
     return material;
 }

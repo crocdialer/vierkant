@@ -16,15 +16,16 @@ struct material_t
     glm::vec4 ambient;
     glm::vec4 emission;
     float roughness;
+    float metalness;
     bool blending = false;
     bool wireframe = false;
     bool twosided = false;
 
     crocore::ImagePtr img_diffuse;
     crocore::ImagePtr img_emission;
-    crocore::ImagePtr img_specular;
-    crocore::ImagePtr img_ambient_occlusion;
-    crocore::ImagePtr img_roughness;
+//    crocore::ImagePtr img_specular;
+//    crocore::ImagePtr img_ambient_occlusion;
+//    crocore::ImagePtr img_roughness;
     crocore::ImagePtr img_normals;
     crocore::ImagePtr img_ao_roughness_metal;
 };

@@ -57,7 +57,9 @@ public:
 
         uint32_t emission_index = 0;
 
-        int padding[3];
+        uint32_t ao_rough_metal_index = 0;
+
+        int padding[2];
     };
 
     //! used for both bottom and toplevel acceleration-structures
@@ -74,7 +76,7 @@ public:
         //! buffer containing material-information
         vierkant::BufferPtr material_buffer = nullptr;
 
-        std::vector<vierkant::ImagePtr> textures, normalmaps, emissions;
+        std::vector<vierkant::ImagePtr> textures, normalmaps, emissions, ao_rough_metal_maps;
 
         //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;
@@ -102,7 +104,7 @@ public:
      * @param   last    an optional, existing toplevel-structure to perform an update to
      */
     acceleration_asset_t create_toplevel(VkCommandBuffer commandbuffer = VK_NULL_HANDLE,
-                                         const vierkant::AccelerationStructurePtr& last = nullptr);
+                                         const vierkant::AccelerationStructurePtr &last = nullptr);
 
 private:
 
@@ -117,7 +119,8 @@ private:
 
     vierkant::CommandPoolPtr m_command_pool;
 
-    vierkant::ImagePtr m_placeholder_solid_white, m_placeholder_normalmap, m_placeholder_emission;
+    vierkant::ImagePtr m_placeholder_solid_white, m_placeholder_normalmap, m_placeholder_emission,
+            m_placeholder_ao_rough_metal;
 
     // process-addresses for raytracing related functions
     PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;

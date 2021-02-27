@@ -53,6 +53,10 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device) :
     // emission: vec3(0)
     v = 0xFF000000;
     m_placeholder_emission = vierkant::Image::create(m_device, &v, fmt);
+
+    // ao/rough/metal: vec3(1, 1, 1)
+    v = 0xFFFFFFFF;
+    m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
 }
 
 void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform)
@@ -310,6 +314,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
     std::vector<vierkant::ImagePtr> normalmaps = {m_placeholder_normalmap};
     std::vector<vierkant::ImagePtr> emissions = {m_placeholder_emission};
+    std::vector<vierkant::ImagePtr> ao_rough_metal_maps = {m_placeholder_ao_rough_metal};
 
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
@@ -378,6 +383,11 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
                 material.emission_index = emissions.size();
                 emissions.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Emission));
             }
+            if(mesh_material->textures.count(vierkant::Material::TextureType::Ao_rough_metal))
+            {
+                material.ao_rough_metal_index = ao_rough_metal_maps.size();
+                ao_rough_metal_maps.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Ao_rough_metal));
+            }
             materials.push_back(material);
         }
         mesh_index++;
@@ -443,10 +453,12 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     top_level.textures = std::move(textures);
     top_level.normalmaps = std::move(normalmaps);
     top_level.emissions = std::move(emissions);
+    top_level.ao_rough_metal_maps = std::move(ao_rough_metal_maps);
 
     top_level.textures.resize(max_num_textures, m_placeholder_solid_white);
     top_level.normalmaps.resize(max_num_textures, m_placeholder_normalmap);
     top_level.emissions.resize(max_num_textures, m_placeholder_emission);
+    top_level.ao_rough_metal_maps.resize(max_num_textures, m_placeholder_emission);
 
     //    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 
