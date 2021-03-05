@@ -492,8 +492,10 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
                 }
             }
         }
-        material.roughness = material.metalness = 1.f;
         material.img_ao_roughness_metal = ao_rough_metal_img;
+
+        //TODO: wonky
+        material.roughness = material.metalness = 1.f;
     }
     return material;
 }
