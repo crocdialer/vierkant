@@ -458,7 +458,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     top_level.textures.resize(max_num_textures, m_placeholder_solid_white);
     top_level.normalmaps.resize(max_num_textures, m_placeholder_normalmap);
     top_level.emissions.resize(max_num_textures, m_placeholder_emission);
-    top_level.ao_rough_metal_maps.resize(max_num_textures, m_placeholder_emission);
+    top_level.ao_rough_metal_maps.resize(max_num_textures, m_placeholder_ao_rough_metal);
 
     //    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 
