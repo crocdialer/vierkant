@@ -135,7 +135,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
             case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
             case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
             {
-                std::vector<VkDescriptorBufferInfo> buffer_infos(desc.buffers.size());
+                std::vector<VkDescriptorBufferInfo> buffer_infos;
+                buffer_infos.reserve(desc.buffers.size());
 
                 auto offsets = desc.buffer_offsets;
                 offsets.resize(desc.buffers.size(), 0);
@@ -143,9 +144,15 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
                 for(uint32_t j = 0; j < desc.buffers.size(); ++j)
                 {
                     const auto &buf = desc.buffers[j];
-                    buffer_infos[j].buffer = buf->handle();
-                    buffer_infos[j].offset = offsets[j];
-                    buffer_infos[j].range = buf->num_bytes() - offsets[j];
+
+                    if(buf)
+                    {
+                        VkDescriptorBufferInfo buffer_info = {};
+                        buffer_info.buffer = buf->handle();
+                        buffer_info.offset = offsets[j];
+                        buffer_info.range = buf->num_bytes() - offsets[j];
+                        buffer_infos.push_back(buffer_info);
+                    }
                 }
                 desc_write.descriptorCount = static_cast<uint32_t>(buffer_infos.size());
                 desc_write.pBufferInfo = buffer_infos.data();
@@ -156,14 +163,19 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
             {
-                std::vector<VkDescriptorImageInfo> image_infos(desc.image_samplers.size());
+                std::vector<VkDescriptorImageInfo> image_infos;
+                image_infos.reserve(desc.image_samplers.size());
 
-                for(uint32_t j = 0; j < desc.image_samplers.size(); ++j)
+                for(const auto & img : desc.image_samplers)
                 {
-                    const auto &img = desc.image_samplers[j];
-                    image_infos[j].imageLayout = img->image_layout();
-                    image_infos[j].imageView = img->image_view();
-                    image_infos[j].sampler = img->sampler();
+                    if(img)
+                    {
+                        VkDescriptorImageInfo img_info = {};
+                        img_info.imageLayout = img->image_layout();
+                        img_info.imageView = img->image_view();
+                        img_info.sampler = img->sampler();
+                        image_infos.push_back(img_info);
+                    }
                 }
                 desc_write.descriptorCount = static_cast<uint32_t>(image_infos.size());
                 desc_write.pImageInfo = image_infos.data();
@@ -190,7 +202,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
                 throw std::runtime_error("update_descriptor_set: unsupported descriptor-type -> " +
                                          std::to_string(desc.type));
         }
-        descriptor_writes.push_back(desc_write);
+        if(desc_write.descriptorCount){ descriptor_writes.push_back(desc_write); }
     }
 
     // write all descriptors
