@@ -91,7 +91,7 @@ public:
 cull_result_t cull(const SceneConstPtr &scene, const CameraPtr &cam, bool check_intersection,
                    const std::set<std::string> &tags)
 {
-    CullVisitor cull_visitor(cam, false);
+    CullVisitor cull_visitor(cam, check_intersection);
     scene->root()->accept(cull_visitor);
     cull_visitor.m_cull_result.scene = scene;
     cull_visitor.m_cull_result.camera = cam;

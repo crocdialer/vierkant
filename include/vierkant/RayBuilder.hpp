@@ -78,6 +78,13 @@ public:
 
         std::vector<vierkant::ImagePtr> textures, normalmaps, emissions, ao_rough_metal_maps;
 
+        //! vertex- and index-buffers for the entire scene
+        std::vector<vierkant::BufferPtr> vertex_buffers;
+        std::vector<vierkant::BufferPtr> index_buffers;
+        std::vector<VkDeviceSize> vertex_buffer_offsets;
+        std::vector<VkDeviceSize> index_buffer_offsets;
+
+
         //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;
         vierkant::BufferPtr scratch_buffer = nullptr;

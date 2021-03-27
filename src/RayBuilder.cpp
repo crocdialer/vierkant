@@ -316,6 +316,12 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     std::vector<vierkant::ImagePtr> emissions = {m_placeholder_emission};
     std::vector<vierkant::ImagePtr> ao_rough_metal_maps = {m_placeholder_ao_rough_metal};
 
+    //! vertex- and index-buffers for the entire scene
+    std::vector<vierkant::BufferPtr> vertex_buffers;
+    std::vector<vierkant::BufferPtr> index_buffers;
+    std::vector<VkDeviceSize> vertex_buffer_offsets;
+    std::vector<VkDeviceSize> index_buffer_offsets;
+
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
                                                        VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
@@ -327,6 +333,13 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     for(const auto &[mesh, acceleration_assets] : m_acceleration_assets)
     {
         assert(mesh->entries.size() == acceleration_assets.size());
+
+        const auto & vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+
+        vertex_buffers.push_back(vertex_attrib.buffer);
+        vertex_buffer_offsets.push_back(vertex_attrib.buffer_offset);
+        index_buffers.push_back(mesh->index_buffer);
+        index_buffer_offsets.push_back(mesh->index_buffer_offset);
 
         for(uint i = 0; i < acceleration_assets.size(); ++i)
         {
@@ -459,6 +472,11 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     top_level.normalmaps.resize(max_num_textures, m_placeholder_normalmap);
     top_level.emissions.resize(max_num_textures, m_placeholder_emission);
     top_level.ao_rough_metal_maps.resize(max_num_textures, m_placeholder_ao_rough_metal);
+
+    top_level.vertex_buffers = std::move(vertex_buffers);
+    top_level.vertex_buffer_offsets = std::move(vertex_buffer_offsets);
+    top_level.index_buffers = std::move(index_buffers);
+    top_level.index_buffer_offsets = std::move(index_buffer_offsets);
 
     //    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 
