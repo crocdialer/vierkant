@@ -11,7 +11,7 @@ namespace vierkant
 
 DEFINE_CLASS_PTR(Bloom)
 
-class Bloom
+class Bloom : public ScreenspaceOp
 {
 public:
 
@@ -32,7 +32,7 @@ public:
 
     static BloomUPtr create(const DevicePtr &device, const create_info_t &create_info);
 
-    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue = VK_NULL_HANDLE);
+    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue, VkSubmitInfo submit_info) override;
 
 private:
 

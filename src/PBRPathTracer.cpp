@@ -63,13 +63,39 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     ray_asset.acceleration_asset = m_ray_builder.create_toplevel(ray_asset.command_buffer.handle());
 
     update_trace_descriptors(cam);
-//
-//    // transition storage image
-//    m_storage_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, ray_asset.command_buffer.handle());
+
+    // transition storage image
+    ray_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, ray_asset.command_buffer.handle());
 
     // tada
     m_ray_tracer.trace_rays(ray_asset.tracable, ray_asset.command_buffer.handle());
     ray_asset.tracable.batch_index++;
+
+    // transition storage image
+    ray_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                               ray_asset.command_buffer.handle());
+
+    ray_asset.command_buffer.end();
+
+    constexpr uint64_t ray_signal_value = RAYTRACING_FINISHED;
+    VkTimelineSemaphoreSubmitInfo timeline_info;
+    timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    timeline_info.pNext = nullptr;
+    timeline_info.waitSemaphoreValueCount = 0;
+    timeline_info.pWaitSemaphoreValues = nullptr;
+    timeline_info.signalSemaphoreValueCount = 1;
+    timeline_info.pSignalSemaphoreValues = &ray_signal_value;
+
+    auto semaphore_handle = ray_asset.semaphore.handle();
+    VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submit_info.pNext = &timeline_info;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &semaphore_handle;
+    ray_asset.command_buffer.submit(m_device->queues(vierkant::Device::Queue::GRAPHICS)[1], false, VK_NULL_HANDLE,
+                                    submit_info);
+
+    // TODO: rather do postprocess stuff here first
+//    m_draw_context.draw_image_fullscreen(renderer, ray_asset.storage_image);
 
     uint32_t num_drawables = mesh_selector.objects.size();
     return num_drawables;

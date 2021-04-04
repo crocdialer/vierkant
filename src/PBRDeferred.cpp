@@ -380,7 +380,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     if(settings.use_bloom)
     {
         // generate bloom image
-        auto bloom_img = frame_assets.bloom->apply(output_img);
+        auto bloom_img = frame_assets.bloom->apply(output_img, VK_NULL_HANDLE, {});
 
         composition_ubo_t comp_ubo = {};
         comp_ubo.exposure = settings.exposure;

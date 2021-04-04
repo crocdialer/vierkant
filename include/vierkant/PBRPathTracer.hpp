@@ -10,6 +10,7 @@
 #include "vierkant/culling.hpp"
 #include "vierkant/PipelineCache.hpp"
 #include "vierkant/Bloom.hpp"
+#include "DrawContext.hpp"
 
 
 namespace vierkant
@@ -95,13 +96,15 @@ private:
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
 
-    //! own raytracing pipeline and shader-bindingtable
+    //! owns raytracing pipeline and shader-bindingtable
     vierkant::RayTracer m_ray_tracer;
 
     //! information about the raytracing-pipeline to run
     vierkant::RayTracer::tracable_t m_tracable = {};
 
     std::vector<ray_assets_t> m_ray_assets;
+
+    vierkant::DrawContext m_draw_context;
 
     vierkant::ImagePtr m_environment;
 };

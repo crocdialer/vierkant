@@ -180,7 +180,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 }
 
 template<uint32_t NUM_TAPS>
-vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue queue)
+vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue queue, VkSubmitInfo submit_info)
 {
     if(!queue){ queue = image->device()->queue(); }
 
@@ -198,12 +198,12 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
         // horizontal pass
         m_renderer.stage_drawable(ping.drawable);
         auto cmd_buffer = m_renderer.render(fb_ping);
-        fb_ping.submit({cmd_buffer}, queue);
+        fb_ping.submit({cmd_buffer}, queue, submit_info);
 
         // vertical pass
         m_renderer.stage_drawable(pong.drawable);
         cmd_buffer = m_renderer.render(fb_pong);
-        fb_pong.submit({cmd_buffer}, queue);
+        fb_pong.submit({cmd_buffer}, queue, submit_info);
 
         current_img = fb_pong.color_attachment();
     }

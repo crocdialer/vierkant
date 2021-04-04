@@ -75,7 +75,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info):
     m_drawable.use_own_buffers = true;
 }
 
-vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue)
+vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue, VkSubmitInfo submit_info)
 {
     if(!queue){ queue = image->device()->queue(); }
 
@@ -83,10 +83,10 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue)
     m_drawable.descriptors[0].image_samplers = {image};
     m_thresh_renderer.stage_drawable(m_drawable);
     auto cmd_buf = m_thresh_renderer.render(m_thresh_framebuffer);
-    m_thresh_framebuffer.submit({cmd_buf}, queue);
+    m_thresh_framebuffer.submit({cmd_buf}, queue, submit_info);
 
     // blur
-    auto blur_img = m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue);
+    auto blur_img = m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue, {});
 
     return blur_img;
 }

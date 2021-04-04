@@ -5,12 +5,13 @@
 #pragma once
 
 #include "vierkant/Renderer.hpp"
+#include "vierkant/ScreenspaceOp.hpp"
 
 namespace vierkant
 {
 
 template<uint32_t NUM_TAPS = 9>
-class GaussianBlur_
+class GaussianBlur_ : public ScreenspaceOp
 {
 public:
 
@@ -34,9 +35,11 @@ public:
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
     };
 
+    virtual ~GaussianBlur_() = default;
+
     static std::unique_ptr<GaussianBlur_> create(const DevicePtr &device, const create_info_t &create_info);
 
-    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue = VK_NULL_HANDLE);
+    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue, VkSubmitInfo submit_info) override;
 
 private:
 
