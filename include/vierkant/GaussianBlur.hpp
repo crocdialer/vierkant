@@ -5,13 +5,13 @@
 #pragma once
 
 #include "vierkant/Renderer.hpp"
-#include "vierkant/ScreenspaceOp.hpp"
+#include "vierkant/ImageEffect.hpp"
 
 namespace vierkant
 {
 
 template<uint32_t NUM_TAPS = 9>
-class GaussianBlur_ : public ScreenspaceOp
+class GaussianBlur_ : public ImageEffect
 {
 public:
 

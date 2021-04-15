@@ -11,7 +11,7 @@ namespace vierkant
 
 DEFINE_CLASS_PTR(Bloom)
 
-class Bloom : public ScreenspaceOp
+class Bloom : public ImageEffect
 {
 public:
 

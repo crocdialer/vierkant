@@ -122,6 +122,8 @@ private:
 
     vierkant::DevicePtr m_device;
 
+    vierkant::VmaPoolPtr m_memory_pool = nullptr;
+
     std::unordered_map<vierkant::MeshConstPtr, std::vector<acceleration_asset_t>> m_acceleration_assets;
 
     vierkant::CommandPoolPtr m_command_pool;

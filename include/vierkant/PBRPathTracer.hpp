@@ -29,6 +29,8 @@ public:
 
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
 
+        VkQueue queue = VK_NULL_HANDLE;
+
         // base settings for a SceneRenderer
         SceneRenderer::settings_t settings = {};
     };
@@ -92,6 +94,8 @@ private:
 
     //! device
     vierkant::DevicePtr m_device;
+
+    VkQueue m_queue = VK_NULL_HANDLE;
 
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;

@@ -9,17 +9,17 @@
 namespace vierkant
 {
 
-class ScreenspaceOp
+class ImageEffect
 {
 public:
 
-    ScreenspaceOp() = default;
+    ImageEffect() = default;
 
-    virtual ~ScreenspaceOp() = default;
+    virtual ~ImageEffect() = default;
 
-    ScreenspaceOp(const ScreenspaceOp &) = delete;
+    ImageEffect(const ImageEffect &) = delete;
 
-    ScreenspaceOp &operator=(const ScreenspaceOp &) = delete;
+    ImageEffect &operator=(const ImageEffect &) = delete;
 
     /**
      * @brief   Applies the screenspace-operation using a provided image as input.

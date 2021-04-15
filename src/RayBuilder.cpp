@@ -57,6 +57,17 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device) :
     // ao/rough/metal: vec3(1, 1, 1)
     v = 0xFFFFFFFF;
     m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
+
+    // memorypool
+    constexpr size_t block_size = 1U << 29U;
+    constexpr size_t min_num_blocks = 1, max_num_blocks = 0;
+    m_memory_pool = vierkant::Buffer::create_pool(m_device,
+                                                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+                                                  VMA_MEMORY_USAGE_GPU_ONLY,
+                                                  block_size, min_num_blocks, max_num_blocks,
+                                                  VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
 }
 
 void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform)
@@ -158,7 +169,9 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
         // acceleration structure builder
         scratch_buffers[i] = vierkant::Buffer::create(m_device, nullptr, size_info.buildScratchSize,
                                                       VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                      VMA_MEMORY_USAGE_GPU_ONLY,
+                                                      m_memory_pool);
 
         // assign acceleration structure and scratch_buffer
         build_info.dstAccelerationStructure = acceleration_asset.structure.get();
@@ -197,6 +210,7 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
     std::vector<VkCommandBuffer> cmd_handles(command_buffers.size());
     for(uint32_t i = 0; i < command_buffers.size(); ++i){ cmd_handles[i] = command_buffers[i].handle(); }
 
+    // TODO: custom queue, timelinesemaphore to track builds
     VkQueue queue = m_device->queue();
     vierkant::submit(m_device, queue, cmd_handles, VK_NULL_HANDLE, true);
 
@@ -276,7 +290,8 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     acceleration_asset.buffer = vierkant::Buffer::create(m_device, nullptr, create_info.size,
                                                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
                                                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                                         VMA_MEMORY_USAGE_GPU_ONLY);
+                                                         VMA_MEMORY_USAGE_GPU_ONLY,
+                                                         m_memory_pool);
 
     create_info.buffer = acceleration_asset.buffer->handle();
 
@@ -334,7 +349,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     {
         assert(mesh->entries.size() == acceleration_assets.size());
 
-        const auto & vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+        const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
 
         vertex_buffers.push_back(vertex_attrib.buffer);
         vertex_buffer_offsets.push_back(vertex_attrib.buffer_offset);
@@ -399,7 +414,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
             if(mesh_material->textures.count(vierkant::Material::TextureType::Ao_rough_metal))
             {
                 material.ao_rough_metal_index = ao_rough_metal_maps.size();
-                ao_rough_metal_maps.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Ao_rough_metal));
+                ao_rough_metal_maps.push_back(
+                        mesh_material->textures.at(vierkant::Material::TextureType::Ao_rough_metal));
             }
             materials.push_back(material);
         }
@@ -484,7 +500,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     auto scratch_buffer = vierkant::Buffer::create(m_device, nullptr,
                                                    acceleration_structure_build_sizes_info.buildScratchSize,
                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
+                                                   m_memory_pool);
 
     VkAccelerationStructureBuildGeometryInfoKHR acceleration_build_geometry_info{};
     acceleration_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;

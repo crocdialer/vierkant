@@ -36,6 +36,9 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         img_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
         ray_asset.storage_image = vierkant::Image::create(m_device, img_format);
     }
+
+    // set queue, fallback to first graphics-queue
+    m_queue = create_info.queue ? create_info.queue : device->queue();
 }
 
 uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &scene, const CameraPtr &cam,
@@ -91,8 +94,7 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     submit_info.pNext = &timeline_info;
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &semaphore_handle;
-    ray_asset.command_buffer.submit(m_device->queues(vierkant::Device::Queue::GRAPHICS)[1], false, VK_NULL_HANDLE,
-                                    submit_info);
+    ray_asset.command_buffer.submit(m_queue, false, VK_NULL_HANDLE, submit_info);
 
     // TODO: rather do postprocess stuff here first
 //    m_draw_context.draw_image_fullscreen(renderer, ray_asset.storage_image);
