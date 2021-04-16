@@ -13,6 +13,13 @@ namespace vierkant
 
 DEFINE_CLASS_PTR(Device);
 
+//! define a shared handle for a VkQueryPool
+using QueryPoolPtr = std::shared_ptr<VkQueryPool_T>;
+
+QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device,
+                               uint32_t query_count,
+                               VkQueryType query_type);
+
 using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
 
 class Device
@@ -29,9 +36,6 @@ public:
 
         //! enable validation layers
         bool use_validation = false;
-
-        //! enable the VkDeviceAddress feature
-        bool enable_device_address = false;
 
         //! optional VkSurface
         VkSurfaceKHR surface = VK_NULL_HANDLE;

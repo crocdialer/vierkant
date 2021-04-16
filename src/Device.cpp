@@ -13,6 +13,22 @@
 namespace vierkant
 {
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query_count, VkQueryType query_type)
+{
+    VkQueryPoolCreateInfo pool_create_info = {};
+    pool_create_info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+
+    pool_create_info.queryCount = query_count;
+    pool_create_info.queryType = query_type;
+
+    VkQueryPool handle = VK_NULL_HANDLE;
+    vkCheck(vkCreateQueryPool(device->handle(), &pool_create_info, nullptr, &handle),
+            "could not create VkQueryPool");
+    return QueryPoolPtr(handle, [device](VkQueryPool p){ vkDestroyQueryPool(device->handle(), p, nullptr); });
+}
+
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
 const std::vector<const char *> g_validation_layers = {"VK_LAYER_LUNARG_standard_validation"};
@@ -40,7 +56,7 @@ VkSampleCountFlagBits max_usable_sample_count(VkPhysicalDevice physical_device)
     return VK_SAMPLE_COUNT_1_BIT;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysicalDevice device, VkSurfaceKHR surface)
 {
@@ -153,18 +169,58 @@ Device::Device(const create_info_t &create_info) :
         }
     }
 
-    // optional feature 'VkDeviceAddress'
+    //-------------------------------------- raytracing features -------------------------------------------------------
+
+    // query optional features required for raytracing-pipelines
     VkPhysicalDeviceBufferDeviceAddressFeatures device_address_features = {};
     device_address_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-    device_address_features.pNext = create_info.create_device_pNext;
-    device_address_features.bufferDeviceAddress = static_cast<VkBool32>(true);
+
+    VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {};
+    acceleration_structure_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+
+    VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_pipeline_features = {};
+    ray_tracing_pipeline_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+
+    VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {};
+    ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+
+    VkPhysicalDeviceScalarBlockLayoutFeatures scalar_block_features = {};
+    scalar_block_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES;
+
+    VkPhysicalDeviceDescriptorIndexingFeatures descriptor_indexing_features = {};
+    descriptor_indexing_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+
+    // create a pNext-chain connecting the extension-structures
+    device_address_features.pNext = &acceleration_structure_features;
+    acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
+    ray_tracing_pipeline_features.pNext = &ray_query_features;
+    ray_query_features.pNext = &scalar_block_features;
+    scalar_block_features.pNext = &descriptor_indexing_features;
+
+    // chain the passed pNext
+    descriptor_indexing_features.pNext = create_info.create_device_pNext;
+
+    //------------------------------------------------------------------------------------------------------------------
+
+    // query support for the required device-features
+    VkPhysicalDeviceFeatures2 query_features = {};
+    query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    query_features.pNext = &device_address_features;
+    vkGetPhysicalDeviceFeatures2(m_physical_device, &query_features);
+
+    // check availability
+    bool ray_features_available = device_address_features.bufferDeviceAddress &&
+                                  acceleration_structure_features.accelerationStructure &&
+                                  ray_tracing_pipeline_features.rayTracingPipeline &&
+                                  ray_query_features.rayQuery &&
+                                  scalar_block_features.scalarBlockLayout &&
+                                  descriptor_indexing_features.descriptorBindingVariableDescriptorCount;
 
     VkDeviceCreateInfo device_create_info = {};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
     // pNext feature chaining
-    device_create_info.pNext = create_info.enable_device_address ? &device_address_features
-                                                                 : create_info.create_device_pNext;
+    device_create_info.pNext = ray_features_available ? &device_address_features : create_info.create_device_pNext;
     device_create_info.pQueueCreateInfos = queue_create_infos.data();
     device_create_info.queueCreateInfoCount = queue_create_infos.size();
     device_create_info.pEnabledFeatures = &device_features;
@@ -229,7 +285,7 @@ Device::Device(const create_info_t &create_info) :
     allocator_info.device = m_device;
 
     // optionally enable DEVICE_ADDRESS_BIT
-    if(create_info.enable_device_address){ allocator_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; }
+    if(device_address_features.bufferDeviceAddress){ allocator_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; }
 
     vmaCreateAllocator(&allocator_info, &m_vk_mem_allocator);
 

@@ -16,25 +16,14 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
     return ret;
 }
 
-QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query_count, VkQueryType query_type)
-{
-    VkQueryPoolCreateInfo pool_create_info = {};
-    pool_create_info.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-
-    pool_create_info.queryCount = query_count;
-    pool_create_info.queryType = query_type;
-
-    VkQueryPool handle = VK_NULL_HANDLE;
-    vkCheck(vkCreateQueryPool(device->handle(), &pool_create_info, nullptr, &handle),
-            "could not create VkQueryPool");
-    return QueryPoolPtr(handle, [device](VkQueryPool p){ vkDestroyQueryPool(device->handle(), p, nullptr); });
-}
-
 RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool) :
         m_device(device),
         m_queue(queue),
         m_memory_pool(std::move(pool))
 {
+    // fallback to first device queue
+    m_queue = queue ? queue : m_device->queue();
+
     // get the ray tracing and acceleration-structure related function pointers
     set_function_pointers();
 
@@ -206,9 +195,8 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
     std::vector<VkCommandBuffer> cmd_handles(command_buffers.size());
     for(uint32_t i = 0; i < command_buffers.size(); ++i){ cmd_handles[i] = command_buffers[i].handle(); }
 
-    // TODO: custom queue, timelinesemaphore to track builds
-    VkQueue queue = m_device->queue();
-    vierkant::submit(m_device, queue, cmd_handles, VK_NULL_HANDLE, true);
+    // TODO: timelinesemaphore to track builds
+    vierkant::submit(m_device, m_queue, cmd_handles, VK_NULL_HANDLE, true);
 
     // free scratchbuffer here
     scratch_buffers.clear();
@@ -250,7 +238,7 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
             copy_info.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
             vkCmdCopyAccelerationStructureKHR(cmd_buffer.handle(), &copy_info);
         }
-        cmd_buffer.submit(m_device->queue(), true);
+        cmd_buffer.submit(m_queue, true);
 
         // keep compacted versions
         entry_assets = std::move(entry_assets_compact);
@@ -534,7 +522,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     vkCmdBuildAccelerationStructuresKHR(commandbuffer, 1, &acceleration_build_geometry_info, &offset_ptr);
 
     // submit only if we created the command buffer
-    if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }
+    if(local_commandbuffer){ local_commandbuffer.submit(m_queue, true); }
 
     return top_level;
 }

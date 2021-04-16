@@ -11,13 +11,6 @@
 namespace vierkant
 {
 
-//! define a shared handle for a VkQueryPool
-using QueryPoolPtr = std::shared_ptr<VkQueryPool_T>;
-
-QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device,
-                               uint32_t query_count,
-                               VkQueryType query_type);
-
 /**
  * @brief   RaytBuilder can be used to create bottom and toplevel acceleration-structures
  *          used by raytracing pipelines.

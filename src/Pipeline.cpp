@@ -243,7 +243,7 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::compute_pipeline_info_t
                                            VK_NULL_HANDLE, &pipeline), "could not create compute pipeline");
 
     return PipelinePtr(
-            new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline));
+            new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

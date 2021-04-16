@@ -87,10 +87,23 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector(tags);
     scene->root()->accept(mesh_selector);
 
+    // TODO: better strategy for mesh-building, non-blocking
     for(auto node: mesh_selector.objects){ m_ray_builder.add_mesh(node->mesh, node->global_transform()); }
 
     auto &ray_asset = m_ray_assets[renderer.current_index()];
 
+    // pathtracing pass
+    path_trace_pass(ray_asset, cam);
+
+    // TODO: rather do postprocess stuff here first
+//    m_draw_context.draw_image_fullscreen(renderer, ray_asset.storage_image);
+
+    uint32_t num_drawables = mesh_selector.objects.size();
+    return num_drawables;
+}
+
+void PBRPathTracer::path_trace_pass(ray_assets_t &ray_asset, const CameraPtr &cam)
+{
     // similar to a fence wait
     ray_asset.semaphore.wait(RENDER_FINISHED);
 
@@ -134,12 +147,6 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &semaphore_handle;
     ray_asset.command_buffer.submit(m_queue, false, VK_NULL_HANDLE, submit_info);
-
-    // TODO: rather do postprocess stuff here first
-//    m_draw_context.draw_image_fullscreen(renderer, ray_asset.storage_image);
-
-    uint32_t num_drawables = mesh_selector.objects.size();
-    return num_drawables;
 }
 
 void PBRPathTracer::update_trace_descriptors(ray_assets_t &ray_asset, const CameraPtr &cam)

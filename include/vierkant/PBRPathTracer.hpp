@@ -102,6 +102,12 @@ private:
 
     void update_trace_descriptors(ray_assets_t & ray_asset, const CameraPtr &cam);
 
+    void path_trace_pass(ray_assets_t &ray_asset, const CameraPtr &cam);
+
+    void post_fx_pass(vierkant::Renderer &renderer,
+                      const CameraPtr &cam,
+                      const vierkant::ImagePtr &color);
+
     //! device
     vierkant::DevicePtr m_device;
 
