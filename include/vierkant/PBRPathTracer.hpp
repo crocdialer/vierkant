@@ -80,6 +80,16 @@ private:
         vierkant::RayTracer::tracable_t tracable = {};
 
         vierkant::ImagePtr storage_image;
+
+        //! ping-pong post-fx framebuffers
+        struct ping_pong_t
+        {
+            vierkant::Framebuffer framebuffer;
+            vierkant::Renderer renderer;
+        };
+        std::array<ping_pong_t, 2> post_fx_ping_pongs;
+
+        BloomUPtr bloom;
     };
 
     enum SemaphoreValue
@@ -90,7 +100,7 @@ private:
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void update_trace_descriptors(const CameraPtr &cam);
+    void update_trace_descriptors(ray_assets_t & ray_asset, const CameraPtr &cam);
 
     //! device
     vierkant::DevicePtr m_device;

@@ -3,6 +3,7 @@
 //
 
 #include <vierkant/RayBuilder.hpp>
+#include <utility>
 
 namespace vierkant
 {
@@ -29,8 +30,10 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query
     return QueryPoolPtr(handle, [device](VkQueryPool p){ vkDestroyQueryPool(device->handle(), p, nullptr); });
 }
 
-RayBuilder::RayBuilder(const vierkant::DevicePtr &device) :
-        m_device(device)
+RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool) :
+        m_device(device),
+        m_queue(queue),
+        m_memory_pool(std::move(pool))
 {
     // get the ray tracing and acceleration-structure related function pointers
     set_function_pointers();
@@ -57,17 +60,6 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device) :
     // ao/rough/metal: vec3(1, 1, 1)
     v = 0xFFFFFFFF;
     m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
-
-    // memorypool
-    constexpr size_t block_size = 1U << 29U;
-    constexpr size_t min_num_blocks = 1, max_num_blocks = 0;
-    m_memory_pool = vierkant::Buffer::create_pool(m_device,
-                                                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                  VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
-                                                  VMA_MEMORY_USAGE_GPU_ONLY,
-                                                  block_size, min_num_blocks, max_num_blocks,
-                                                  VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
 }
 
 void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform)
@@ -80,13 +72,18 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
         return;
     }
 
-    const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
-    VkDeviceAddress vertex_base_address = vertex_attrib.buffer->device_address() + vertex_attrib.offset;
-    VkDeviceAddress index_base_address = mesh->index_buffer->device_address();
-
     // raytracing flags
     VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
                                                  VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+
+    // vertex skinned meshes need to update their AABBs
+    if(mesh->root_bone){ flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR; }
+
+    // TODO: generate skinned vertex-buffer via compute-op
+
+    const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+    VkDeviceAddress vertex_base_address = vertex_attrib.buffer->device_address() + vertex_attrib.offset;
+    VkDeviceAddress index_base_address = mesh->index_buffer->device_address();
 
     // compaction requested?
     bool enable_compaction = (flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR)
@@ -189,8 +186,7 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
         // Write compacted size to query number idx.
         if(enable_compaction)
         {
-            // Since the scratch buffer is reused across builds, we need a barrier to ensure one build
-            // is finished before starting the next one
+            // barrier before reading back size
             VkMemoryBarrier barrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
             barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
             barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
@@ -220,15 +216,15 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
     // memory-compaction for bottom-lvl-structures
     if(enable_compaction)
     {
-        auto cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        cmd_buffer.begin();
-
         // Get the size result back
         std::vector<VkDeviceSize> compact_sizes(mesh->entries.size());
-        vkGetQueryPoolResults(m_device->handle(), query_pool.get(), 0,
-                              (uint32_t) compact_sizes.size(), compact_sizes.size() * sizeof(VkDeviceSize),
-                              compact_sizes.data(), sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT);
+        vkCheck(vkGetQueryPoolResults(m_device->handle(), query_pool.get(), 0,
+                                      (uint32_t) compact_sizes.size(), compact_sizes.size() * sizeof(VkDeviceSize),
+                                      compact_sizes.data(), sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT),
+                "RayBuilder::add_mesh: could not query compacted acceleration-structure sizes");
 
+        auto cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        cmd_buffer.begin();
 
         // compacting
         std::vector<acceleration_asset_t> entry_assets_compact(entry_assets.size());
@@ -338,8 +334,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
     std::vector<VkDeviceSize> index_buffer_offsets;
 
     // build flags
-    VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
-                                                       VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+
     // instance flags
     VkGeometryInstanceFlagsKHR instance_flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
 

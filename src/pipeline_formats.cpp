@@ -176,7 +176,7 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
     return true;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool raytracing_pipeline_info_t::operator==(const raytracing_pipeline_info_t &other) const
 {
@@ -184,13 +184,22 @@ bool raytracing_pipeline_info_t::operator==(const raytracing_pipeline_info_t &ot
     if(max_recursion != other.max_recursion){ return false; }
     if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
     if(push_constant_ranges != other.push_constant_ranges){ return false; }
+    return true;
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool compute_pipeline_info_t::operator==(const compute_pipeline_info_t &other) const
+{
+    if(shader_stage != other.shader_stage){ return false; }
+    if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
+    if(push_constant_ranges != other.push_constant_ranges){ return false; }
     return true;
 }
 
 }// namespace vierkant
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool operator==(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
 {
@@ -205,7 +214,7 @@ bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputB
     return !(lhs == rhs);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool operator==(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs)
 {
@@ -221,7 +230,7 @@ bool operator!=(const VkVertexInputAttributeDescription &lhs, const VkVertexInpu
     return !(lhs == rhs);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
                 const VkPipelineColorBlendAttachmentState &rhs)
@@ -423,6 +432,16 @@ std::hash<vierkant::raytracing_pipeline_info_t>::operator()(vierkant::raytracing
         hash_combine(h, shader);
     }
     hash_combine(h, fmt.max_recursion);
+    for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }
+    for(const auto &pcr : fmt.push_constant_ranges){ hash_combine(h, pcr); }
+    return h;
+}
+
+size_t
+std::hash<vierkant::compute_pipeline_info_t>::operator()(vierkant::compute_pipeline_info_t const &fmt) const
+{
+    size_t h = 0;
+    hash_combine(h, fmt.shader_stage);
     for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }
     for(const auto &pcr : fmt.push_constant_ranges){ hash_combine(h, pcr); }
     return h;

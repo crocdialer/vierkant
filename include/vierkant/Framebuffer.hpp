@@ -116,8 +116,8 @@ public:
     VkCommandBuffer record_commandbuffer(const std::vector<VkCommandBuffer> &commandbuffers);
 
     /**
-     * @brief   Execute a provided array of secondary VkCommandBuffers within a Renderpass for this Framebuffer.
-     *          Submit to a VkQUeue with optional submit_info.
+     * @brief   Execute a provided array of secondary VkCommandBuffers within a renderpass for this framebuffer,
+     *          submit to a VkQueue with optional submit_info.
      *
      * @param   command_buffers an array of secondary VkCommandBuffers to render into this Framebuffer.
      * @param   queue           a VkQueue to submit the primary VkCommandBuffer to.

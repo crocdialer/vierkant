@@ -171,6 +171,26 @@ struct raytracing_pipeline_info_t
     bool operator!=(const raytracing_pipeline_info_t &other) const{ return !(*this == other); };
 };
 
+/**
+ * @brief   compute_pipeline_info_t groups all sort of information for a compute-pipeline.
+ *          compute_pipeline_info_t is default-constructable, copyable, compare- and hashable.
+ *          Can be used as key in std::unordered_map.
+ */
+struct compute_pipeline_info_t
+{
+    vierkant::ShaderModulePtr shader_stage;
+
+    //! descriptor set layouts / push-constants
+    std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
+    std::vector<VkPushConstantRange> push_constant_ranges;
+
+    const VkSpecializationInfo *specialization_info = nullptr;
+
+    bool operator==(const compute_pipeline_info_t &other) const;
+
+    bool operator!=(const compute_pipeline_info_t &other) const{ return !(*this == other); };
+};
+
 }// namespace vierkant
 
 // comparison operators for some vulkan-structs used by vierkant::Pipeline
@@ -208,5 +228,11 @@ template<>
 struct hash<vierkant::raytracing_pipeline_info_t>
 {
     size_t operator()(vierkant::raytracing_pipeline_info_t const &fmt) const;
+};
+
+template<>
+struct hash<vierkant::compute_pipeline_info_t>
+{
+    size_t operator()(vierkant::compute_pipeline_info_t const &fmt) const;
 };
 }

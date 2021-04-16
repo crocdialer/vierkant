@@ -331,9 +331,7 @@ VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuf
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkFence
-Framebuffer::submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue,
-                    VkSubmitInfo submit_info)
+VkFence Framebuffer::submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue, VkSubmitInfo submit_info)
 {
     // wait for prior fence
     VkFence fence = m_fence.get();

@@ -25,6 +25,14 @@ public:
     static PipelinePtr create(DevicePtr device, vierkant::graphics_pipeline_info_t format);
 
     /**
+     * @brief   Create a shared compute-pipeline
+     *
+     * @param   device  handle for the vk::Device to create the Pipeline
+     * @param   format  a provided compute_pipeline_info_t
+     */
+    static PipelinePtr create(DevicePtr device, vierkant::compute_pipeline_info_t compute_info);
+
+    /**
      * @brief   Create a shared raytracing-pipeline
      *
      * @param   device  handle for the vk::Device to create the Pipeline

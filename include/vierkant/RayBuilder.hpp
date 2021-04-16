@@ -92,12 +92,12 @@ public:
 
     RayBuilder() = default;
 
-    explicit RayBuilder(const vierkant::DevicePtr &device);
+    explicit RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool = nullptr);
 
     /**
-     * @brief   add_mesh will create create and cache a bottom-level acceleration structure
-     *          for each mesh-entry.
-     *          [if the mesh can be found in the cache, only the transformation will be updated.] idk
+     * @brief   add_mesh will create and cache a bottom-level acceleration structure for each mesh-entry.
+     *          if the mesh can be found in the cache, only the transformation will be updated.
+     *          TODO: update buffers for vertex-skinned meshes
      *
      * @param   mesh        a provided vierkant::MeshConstPtr
      * @param   transform   a provided transformation-matrix
@@ -121,6 +121,8 @@ private:
                                                    const glm::mat4 &transform = glm::mat4(1));
 
     vierkant::DevicePtr m_device;
+
+    VkQueue m_queue = VK_NULL_HANDLE;
 
     vierkant::VmaPoolPtr m_memory_pool = nullptr;
 

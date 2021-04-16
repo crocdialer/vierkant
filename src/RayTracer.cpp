@@ -172,7 +172,7 @@ void RayTracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
     // bind raytracing pipeline
     pipeline->bind(commandbuffer);
 
-    // bind descriptor set (accelearation-structure, uniforms, storage-buffers, samplers, storage-image)
+    // bind descriptor set (acceleration-structure, uniforms, storage-buffers, samplers, storage-image)
     vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->layout(),
                             0, 1, &descriptor_set_handle, 0, nullptr);
 

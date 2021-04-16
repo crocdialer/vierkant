@@ -4,6 +4,7 @@
 
 #include <vierkant/PBRPathTracer.hpp>
 #include <vierkant/Visitor.hpp>
+#include <vierkant/shaders.hpp>
 
 namespace vierkant
 {
@@ -16,11 +17,25 @@ PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTra
 PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info) :
         m_device(device)
 {
+    // set queue, fallback to first graphics-queue
+    m_queue = create_info.queue ? create_info.queue : device->queue();
+
+    // memorypool with 256MB blocks
+    constexpr size_t block_size = 1U << 28U;
+    constexpr size_t min_num_blocks = 1, max_num_blocks = 0;
+    auto pool = vierkant::Buffer::create_pool(m_device,
+                                              VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+                                              VMA_MEMORY_USAGE_GPU_ONLY,
+                                              block_size, min_num_blocks, max_num_blocks,
+                                              VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+
     // create our raytracing-thingies
     vierkant::RayTracer::create_info_t ray_tracer_create_info = {};
     ray_tracer_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
     m_ray_tracer = vierkant::RayTracer(device, ray_tracer_create_info);
-    m_ray_builder = vierkant::RayBuilder(device);
+    m_ray_builder = vierkant::RayBuilder(device, m_queue, pool);
 
     m_ray_assets.resize(create_info.num_frames_in_flight);
 
@@ -37,8 +52,32 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         ray_asset.storage_image = vierkant::Image::create(m_device, img_format);
     }
 
-    // set queue, fallback to first graphics-queue
-    m_queue = create_info.queue ? create_info.queue : device->queue();
+    auto raygen = vierkant::create_shader_module(m_device, vierkant::shaders::ray::raygen_rgen);
+    auto ray_closest_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::closesthit_rchit);
+
+    vierkant::ShaderModulePtr ray_miss;
+
+//    if(m_scene->environment())
+//    {
+//        ray_miss = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_environment_rmiss);
+//    }
+//    else
+//    {
+//        ray_miss = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_rmiss);
+//    }
+
+
+    m_tracable.pipeline_info.shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR,      raygen},
+                                              {VK_SHADER_STAGE_MISS_BIT_KHR,        ray_miss},
+                                              {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
+
+    for(auto &ray_asset : m_ray_assets)
+    {
+        ray_asset.tracable.descriptor_set_layout = nullptr;
+        ray_asset.tracable.batch_index = 0;
+    }
+
+//    m_tracable.batch_index = 0;
 }
 
 uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &scene, const CameraPtr &cam,
@@ -50,7 +89,7 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
 
     for(auto node: mesh_selector.objects){ m_ray_builder.add_mesh(node->mesh, node->global_transform()); }
 
-    auto &ray_asset = m_ray_assets[0];
+    auto &ray_asset = m_ray_assets[renderer.current_index()];
 
     // similar to a fence wait
     ray_asset.semaphore.wait(RENDER_FINISHED);
@@ -65,7 +104,7 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     // update top-level structure
     ray_asset.acceleration_asset = m_ray_builder.create_toplevel(ray_asset.command_buffer.handle());
 
-    update_trace_descriptors(cam);
+    update_trace_descriptors(ray_asset, cam);
 
     // transition storage image
     ray_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, ray_asset.command_buffer.handle());
@@ -103,10 +142,8 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     return num_drawables;
 }
 
-void PBRPathTracer::update_trace_descriptors(const CameraPtr &cam)
+void PBRPathTracer::update_trace_descriptors(ray_assets_t &ray_asset, const CameraPtr &cam)
 {
-    auto &ray_asset = m_ray_assets[0];
-
     ray_asset.tracable.pipeline_info = m_tracable.pipeline_info;
 
     constexpr size_t max_num_maps = 256;

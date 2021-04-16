@@ -221,6 +221,33 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_inf
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+PipelinePtr Pipeline::create(DevicePtr device, vierkant::compute_pipeline_info_t compute_info)
+{
+    // define pipeline layout (uniforms, push-constants, ...)
+    VkPipelineLayoutCreateInfo pipeline_layout_info = {};
+    pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipeline_layout_info.setLayoutCount = static_cast<uint32_t>(compute_info.descriptor_set_layouts.size());
+    pipeline_layout_info.pSetLayouts = compute_info.descriptor_set_layouts.data();
+    pipeline_layout_info.pushConstantRangeCount = static_cast<uint32_t>(compute_info.push_constant_ranges.size());
+    pipeline_layout_info.pPushConstantRanges = compute_info.push_constant_ranges.data();
+
+    VkPipelineLayout pipeline_layout = VK_NULL_HANDLE;
+    vkCheck(vkCreatePipelineLayout(device->handle(), &pipeline_layout_info, nullptr, &pipeline_layout),
+            "failed to create pipeline layout!");
+
+    VkComputePipelineCreateInfo pipeline_create_info = {};
+    pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+
+    VkPipeline pipeline = VK_NULL_HANDLE;
+    vkCheck(vkCreateComputePipelines(device->handle(), VK_NULL_HANDLE, 1, &pipeline_create_info,
+                                           VK_NULL_HANDLE, &pipeline), "could not create compute pipeline");
+
+    return PipelinePtr(
+            new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 Pipeline::Pipeline(DevicePtr device, VkPipelineLayout pipeline_layout, VkPipelineBindPoint bind_point,
                    VkPipeline pipeline) :
         m_device(std::move(device)),

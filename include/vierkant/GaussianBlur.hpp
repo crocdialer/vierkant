@@ -35,7 +35,7 @@ public:
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
     };
 
-    virtual ~GaussianBlur_() = default;
+    ~GaussianBlur_() override = default;
 
     static std::unique_ptr<GaussianBlur_> create(const DevicePtr &device, const create_info_t &create_info);
 
