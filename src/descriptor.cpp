@@ -41,13 +41,15 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 
     for(const auto &[binding, desc] : descriptors)
     {
-        VkDescriptorSetLayoutBinding ubo_layout_binding = {};
-        ubo_layout_binding.binding = binding;
-        ubo_layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
-        ubo_layout_binding.descriptorType = desc.type;
-        ubo_layout_binding.pImmutableSamplers = nullptr;
-        ubo_layout_binding.stageFlags = desc.stage_flags;
-        bindings.push_back(ubo_layout_binding);
+        VkDescriptorSetLayoutBinding layout_binding = {};
+        layout_binding.binding = binding;
+        layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
+        layout_binding.descriptorCount = std::max<uint32_t>(layout_binding.descriptorCount,
+                                                            static_cast<uint32_t>(desc.buffers.size()));
+        layout_binding.descriptorType = desc.type;
+        layout_binding.pImmutableSamplers = nullptr;
+        layout_binding.stageFlags = desc.stage_flags;
+        bindings.push_back(layout_binding);
     }
     VkDescriptorSetLayoutCreateInfo layout_info = {};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -166,7 +168,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
                 std::vector<VkDescriptorImageInfo> image_infos;
                 image_infos.reserve(desc.image_samplers.size());
 
-                for(const auto & img : desc.image_samplers)
+                for(const auto &img : desc.image_samplers)
                 {
                     if(img)
                     {

@@ -97,7 +97,7 @@ private:
     enum SemaphoreValue
     {
         RAYTRACING_FINISHED = 1,
-        RENDER_FINISHED = 2
+        POST_FX_FINISHED = 2
     };
 
     struct composition_ubo_t

@@ -9,11 +9,20 @@ struct Ray
     vec3 direction;
 };
 
+struct Cone
+{
+    float radius;
+    float angle;
+};
+
 //! simple struct to groupt rayhit-parameters
 struct payload_t
 {
     // the ray that generated this payload
     Ray ray;
+
+    // keep tracks of a ray cone
+    Cone cone;
 
     // terminate path
     bool stop;
@@ -55,7 +64,7 @@ struct push_constants_t
 //! helper to generate a seed
 uint rng_seed(in const push_constants_t push_constants)
 {
-    return uint((1 + push_constants.batch_index + mod(push_constants.time, 60.0)) *
+    return uint((1 + (push_constants.batch_index % 277) + mod(push_constants.time, 60.0)) *
                 (gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x));
 }
 

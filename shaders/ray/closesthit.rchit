@@ -153,6 +153,9 @@ void main()
     float roughness = material.roughness * rough_metal.x;
     float metalness = material.metalness * rough_metal.y;
 
+    // widen cone with roughness
+//    payload.cone.radius = 0 * gl_HitTEXT;
+
     // generate a bounce ray
 
     // offset position along the normal

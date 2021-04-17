@@ -179,7 +179,7 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
 void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam)
 {
     // similar to a fence wait
-    frame_asset.semaphore.wait(RENDER_FINISHED);
+    frame_asset.semaphore.wait(POST_FX_FINISHED);
 
     frame_asset.semaphore = vierkant::Semaphore(m_device, 0);
 
@@ -227,7 +227,7 @@ vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
 
     auto semaphore_handle = frame_asset.semaphore.handle();
     constexpr uint64_t wait_value = RAYTRACING_FINISHED;
-    constexpr uint64_t signal_value = RENDER_FINISHED;
+    constexpr uint64_t signal_value = POST_FX_FINISHED;
     constexpr VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
     VkTimelineSemaphoreSubmitInfo timeline_wait_info = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};

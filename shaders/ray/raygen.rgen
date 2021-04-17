@@ -56,6 +56,8 @@ vec3 trace(vec2 coord, vec2 size)
         // next ray
         Ray ray = Ray(camera_position, direction);
 
+        Cone cone = Cone(0, 0);
+
         float tmin = 0.0001;
         float tmax = 10000.0;
 
@@ -71,6 +73,7 @@ vec3 trace(vec2 coord, vec2 size)
             payload.radiance = path_radiance;
             payload.beta = beta;
             payload.ray = ray;
+            payload.cone = cone;
 
             const uint ray_flags = gl_RayFlagsOpaqueEXT | gl_RayFlagsCullBackFacingTrianglesEXT;
 
@@ -88,6 +91,7 @@ vec3 trace(vec2 coord, vec2 size)
                         0);             // payload (location = 0)
 
             ray = payload.ray;
+            cone = payload.cone;
             beta = payload.beta;
             path_radiance = payload.radiance;
 
