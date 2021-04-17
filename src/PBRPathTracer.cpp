@@ -158,7 +158,9 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
 
     auto &ray_asset = m_frame_assets[renderer.current_index()];
 //    ray_asset.tracable.pipeline_info.shader_stages = m_shader_stages;
-    ray_asset.tracable.pipeline_info.shader_stages = scene->environment() ? m_shader_stages_env : m_shader_stages;
+
+    m_environment = scene->environment();
+    ray_asset.tracable.pipeline_info.shader_stages = m_environment ? m_shader_stages_env : m_shader_stages;
 
     // pathtracing pass
     path_trace_pass(ray_asset, cam);
@@ -183,9 +185,6 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
     frame_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.command_buffer.begin();
-
-    // keep-alive workaround
-    auto tmp = frame_asset.acceleration_asset;
 
     // update top-level structure
     frame_asset.acceleration_asset = m_ray_builder.create_toplevel(frame_asset.command_buffer.handle());
@@ -296,6 +295,8 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     frame_asset.acceleration_asset.emissions.resize(max_num_maps);
     frame_asset.acceleration_asset.ao_rough_metal_maps.resize(max_num_maps);
 
+    frame_asset.tracable.descriptors.clear();
+
     // descriptors
     vierkant::descriptor_t desc_acceleration_structure = {};
     desc_acceleration_structure.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
@@ -379,14 +380,6 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
         desc_environment.image_samplers = {m_environment};
         frame_asset.tracable.descriptors[11] = desc_environment;
     }
-//    else{ frame_asset.tracable.descriptors.erase(11); }
-
-//    if(!frame_asset.tracable.descriptor_set_layout)
-//    {
-//        frame_asset.tracable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
-//                                                                                            frame_asset.tracable.descriptors);
-//    }
-//    frame_asset.tracable.pipeline_info.descriptor_set_layouts = {frame_asset.tracable.descriptor_set_layout.get()};
 }
 
 void PBRPathTracer::set_environment(const ImagePtr &cubemap)
