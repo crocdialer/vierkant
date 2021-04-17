@@ -48,7 +48,6 @@ void submit(const vierkant::DevicePtr &device,
     if(queue)
     {
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.pNext = nullptr;
         submit_info.commandBufferCount = command_buffers.size();
         submit_info.pCommandBuffers = command_buffers.data();
 

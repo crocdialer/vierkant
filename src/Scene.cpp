@@ -169,7 +169,7 @@ std::vector<vierkant::Object3DPtr> Scene::objects_by_tag(const std::string &tag)
     return objects_by_tags({tag});
 }
 
-void Scene::set_enironment(const vierkant::ImagePtr &img)
+void Scene::set_environment(const vierkant::ImagePtr &img)
 {
     if(!img){ return; }
 

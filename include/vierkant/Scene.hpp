@@ -39,7 +39,7 @@ public:
 
     const vierkant::ImagePtr &environment() const{ return m_skybox; }
 
-    void set_enironment(const vierkant::ImagePtr &img);
+    void set_environment(const vierkant::ImagePtr &img);
 
 private:
 

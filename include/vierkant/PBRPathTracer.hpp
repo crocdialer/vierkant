@@ -66,7 +66,7 @@ public:
 
 private:
 
-    struct ray_assets_t
+    struct frame_assets_t
     {
         //! timeline semaphore to sync raytracing and draw-operations
         vierkant::Semaphore semaphore;
@@ -80,6 +80,8 @@ private:
         vierkant::RayTracer::tracable_t tracable = {};
 
         vierkant::ImagePtr storage_image;
+
+        vierkant::BufferPtr composition_ubo;
 
         //! ping-pong post-fx framebuffers
         struct ping_pong_t
@@ -98,20 +100,27 @@ private:
         RENDER_FINISHED = 2
     };
 
+    struct composition_ubo_t
+    {
+        float gamma = 2.2f;
+        float exposure = 1.f;
+        int padding[2]{};
+    };
+
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void update_trace_descriptors(ray_assets_t & ray_asset, const CameraPtr &cam);
+    void update_trace_descriptors(frame_assets_t & frame_asset, const CameraPtr &cam);
 
-    void path_trace_pass(ray_assets_t &ray_asset, const CameraPtr &cam);
+    void path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam);
 
-    void post_fx_pass(vierkant::Renderer &renderer,
-                      const CameraPtr &cam,
-                      const vierkant::ImagePtr &color);
+    vierkant::ImagePtr post_fx_pass(frame_assets_t &frame_asset);
 
     //! device
     vierkant::DevicePtr m_device;
 
     VkQueue m_queue = VK_NULL_HANDLE;
+
+    vierkant::CommandPoolPtr m_command_pool;
 
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
@@ -119,14 +128,16 @@ private:
     //! owns raytracing pipeline and shader-bindingtable
     vierkant::RayTracer m_ray_tracer;
 
-    //! information about the raytracing-pipeline to run
-    vierkant::RayTracer::tracable_t m_tracable = {};
+    //! information for a raytracing pipeline
+    raytracing_shader_map_t m_shader_stages = {}, m_shader_stages_env = {};
 
-    std::vector<ray_assets_t> m_ray_assets;
+    std::vector<frame_assets_t> m_frame_assets;
 
     vierkant::DrawContext m_draw_context;
 
     vierkant::ImagePtr m_environment;
+
+    vierkant::Renderer::drawable_t m_composition_drawable;
 };
 
 }// namespace vierkant

@@ -110,4 +110,42 @@ glm::mat4 Arcball::transform() const
     return ret;
 }
 
+void FlyCamera::update(double time_delta)
+{
+    if(!enabled){ return; }
+}
+
+vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
+{
+    vierkant::mouse_delegate_t ret = {};
+    ret.mouse_press = [this](const MouseEvent &e)
+    {
+        if(!enabled){ return; }
+
+        if(e.is_left())
+        {
+            m_last_pos = m_clicked_pos = e.position();
+            m_last_rotation = rotation;
+        }
+    };
+    ret.mouse_drag = [this](const MouseEvent &e)
+    {
+        if(enabled && e.is_left())
+        {
+            glm::vec2 diff = m_last_pos - e.position();
+            rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(diff.y), glm::radians(diff.x), 0));
+
+            m_last_pos = e.position();
+            m_last_rotation = rotation;
+        }
+    };
+    return ret;
+}
+
+vierkant::key_delegate_t FlyCamera::key_delegate()
+{
+    vierkant::key_delegate_t ret = {};
+    return ret;
+}
+
 }

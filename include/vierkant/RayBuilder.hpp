@@ -77,7 +77,6 @@ public:
         std::vector<VkDeviceSize> vertex_buffer_offsets;
         std::vector<VkDeviceSize> index_buffer_offsets;
 
-
         //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;
         vierkant::BufferPtr scratch_buffer = nullptr;

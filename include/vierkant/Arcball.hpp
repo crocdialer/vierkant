@@ -65,6 +65,10 @@ class FlyCamera
 {
 public:
 
+    bool enabled = false;
+
+    glm::vec2 screen_size = {};
+
     glm::vec3 position = {0.0f, 0.0f, 0.0f};
 
     glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
@@ -85,6 +89,11 @@ public:
         ret[3] = glm::vec4(position, 1.f);
         return ret;
     }
+
+private:
+
+    glm::ivec2 m_clicked_pos{}, m_last_pos{};
+    glm::quat m_last_rotation = {};
 };
 
 }// namespace vierkant

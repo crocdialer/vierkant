@@ -82,9 +82,6 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> offsets(mesh->entries.size());
     std::vector<VkAccelerationStructureBuildGeometryInfoKHR> build_infos(mesh->entries.size());
 
-    // all-in, one scratch buffer per entry is memory-intense but fast
-    std::vector<vierkant::BufferPtr> scratch_buffers(mesh->entries.size());
-
     // one per bottom-lvl-build
     std::vector<vierkant::CommandBuffer> command_buffers(mesh->entries.size());
 
@@ -153,7 +150,7 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
 
         // Allocate the scratch buffers holding the temporary data of the
         // acceleration structure builder
-        scratch_buffers[i] = vierkant::Buffer::create(m_device, nullptr, size_info.buildScratchSize,
+        acceleration_asset.scratch_buffer = vierkant::Buffer::create(m_device, nullptr, size_info.buildScratchSize,
                                                       VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_GPU_ONLY,
@@ -161,7 +158,7 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
 
         // assign acceleration structure and scratch_buffer
         build_info.dstAccelerationStructure = acceleration_asset.structure.get();
-        build_info.scratchData.deviceAddress = scratch_buffers[i]->device_address();
+        build_info.scratchData.deviceAddress = acceleration_asset.scratch_buffer->device_address();
 
         // create commandbuffer for building the bottomlevel-structure
         auto &cmd_buffer = command_buffers[i];
@@ -197,9 +194,6 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
 
     // TODO: timelinesemaphore to track builds
     vierkant::submit(m_device, m_queue, cmd_handles, VK_NULL_HANDLE, true);
-
-    // free scratchbuffer here
-    scratch_buffers.clear();
 
     // memory-compaction for bottom-lvl-structures
     if(enable_compaction)
