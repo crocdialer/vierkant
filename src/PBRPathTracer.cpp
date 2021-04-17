@@ -106,11 +106,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                            {VK_SHADER_STAGE_MISS_BIT_KHR,        ray_miss_env},
                            {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
 
-    for(auto &ray_asset : m_frame_assets)
-    {
-        ray_asset.tracable.descriptor_set_layout = nullptr;
-        ray_asset.tracable.batch_index = 0;
-    }
+//    for(auto &ray_asset : m_frame_assets){ ray_asset.tracable.batch_index = 0; }
 
     // create drawables for post-fx-pass
     {
@@ -161,8 +157,8 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     for(auto node: mesh_selector.objects){ m_ray_builder.add_mesh(node->mesh, node->global_transform()); }
 
     auto &ray_asset = m_frame_assets[renderer.current_index()];
-    ray_asset.tracable.pipeline_info.shader_stages = m_shader_stages;
-//    ray_asset.tracable.pipeline_info.shader_stages = scene->environment() ? m_shader_stages_env : m_shader_stages;
+//    ray_asset.tracable.pipeline_info.shader_stages = m_shader_stages;
+    ray_asset.tracable.pipeline_info.shader_stages = scene->environment() ? m_shader_stages_env : m_shader_stages;
 
     // pathtracing pass
     path_trace_pass(ray_asset, cam);
@@ -201,7 +197,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
     // tada
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.command_buffer.handle());
-    frame_asset.tracable.batch_index++;
+//    frame_asset.tracable.batch_index++;
 
     // transition storage image
     frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -375,18 +371,22 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     desc_ao_rough_metal_maps.image_samplers = frame_asset.acceleration_asset.ao_rough_metal_maps;
     frame_asset.tracable.descriptors[10] = desc_ao_rough_metal_maps;
 
-    vierkant::descriptor_t desc_environment = {};
-    desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
-    desc_environment.image_samplers = {m_environment};
-    frame_asset.tracable.descriptors[11] = desc_environment;
-
-    if(!frame_asset.tracable.descriptor_set_layout)
+    if(m_environment)
     {
-        frame_asset.tracable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
-                                                                                            frame_asset.tracable.descriptors);
+        vierkant::descriptor_t desc_environment = {};
+        desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
+        desc_environment.image_samplers = {m_environment};
+        frame_asset.tracable.descriptors[11] = desc_environment;
     }
-    frame_asset.tracable.pipeline_info.descriptor_set_layouts = {frame_asset.tracable.descriptor_set_layout.get()};
+//    else{ frame_asset.tracable.descriptors.erase(11); }
+
+//    if(!frame_asset.tracable.descriptor_set_layout)
+//    {
+//        frame_asset.tracable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
+//                                                                                            frame_asset.tracable.descriptors);
+//    }
+//    frame_asset.tracable.pipeline_info.descriptor_set_layouts = {frame_asset.tracable.descriptor_set_layout.get()};
 }
 
 void PBRPathTracer::set_environment(const ImagePtr &cubemap)

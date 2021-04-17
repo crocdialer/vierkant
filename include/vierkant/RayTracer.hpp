@@ -34,7 +34,7 @@ public:
         descriptor_map_t descriptors;
 
         //! optional descriptor-set-layout
-        DescriptorSetLayoutPtr descriptor_set_layout;
+//        DescriptorSetLayoutPtr descriptor_set_layout;
 
         //! sample-batch index
         uint32_t batch_index = 0;
@@ -66,7 +66,7 @@ public:
      *
      * @param   tracable
      */
-    void trace_rays(const tracable_t &tracable, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
+    void trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
 
     friend void swap(RayTracer &lhs, RayTracer &rhs) noexcept;
 
@@ -83,8 +83,8 @@ private:
 
     struct trace_assets_t
     {
-        //! a descriptormap
-        descriptor_map_t descriptors;
+        //! keep passed tracable
+        tracable_t tracable;
 
         crocore::Cache_<DescriptorSetLayoutPtr, DescriptorSetPtr> descriptor_sets;
     };
@@ -119,6 +119,8 @@ private:
     shader_binding_table_t create_shader_binding_table(VkPipeline pipeline,
                                                        const vierkant::raytracing_shader_map_t &shader_stages);
 
+    DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors);
+
     void set_function_pointers();
 
     vierkant::DevicePtr m_device;
@@ -134,6 +136,8 @@ private:
     crocore::Cache_<VkPipeline, shader_binding_table_t> m_binding_tables;
 
     std::vector<trace_assets_t> m_trace_assets;
+
+    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> m_descriptor_set_layouts;
 
     uint32_t m_current_index = 0;
 

@@ -17,7 +17,10 @@ struct semaphore_submit_info_t
     //! wait value
     uint64_t wait_value = 0;
 
-    // signal value
+    //! the stage to wait at
+    VkPipelineStageFlags wait_stage = 0;
+
+    //! signal value
     uint64_t signal_value = 0;
 };
 

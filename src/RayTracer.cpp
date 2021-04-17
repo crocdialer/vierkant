@@ -119,15 +119,17 @@ void RayTracer::set_function_pointers()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void RayTracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbuffer)
+void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
 {
     auto &trace_asset = m_trace_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_trace_assets.size();
 
+    auto descriptor_set_layout = find_set_layout(tracable.descriptors);
+    tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
+
     // create or retrieve an existing raytracing pipeline
-    auto pipeline_info = tracable.pipeline_info;
-    pipeline_info.push_constant_ranges = {m_push_constant_range};
-    auto pipeline = m_pipeline_cache->pipeline(pipeline_info);
+    tracable.pipeline_info.push_constant_ranges = {m_push_constant_range};
+    auto pipeline = m_pipeline_cache->pipeline(tracable.pipeline_info);
 
     // create the binding table
     shader_binding_table_t binding_table = {};
@@ -137,7 +139,7 @@ void RayTracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
     {
         binding_table = m_binding_tables.put(pipeline->handle(),
                                              create_shader_binding_table(pipeline->handle(),
-                                                                         pipeline_info.shader_stages));
+                                                                         tracable.pipeline_info.shader_stages));
     }
 
     // push constants
@@ -148,15 +150,18 @@ void RayTracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
 
     // fetch descriptor set
     DescriptorSetPtr descriptor_set;
-    try{ descriptor_set = trace_asset.descriptor_sets.get(tracable.descriptor_set_layout); }
+    try{ descriptor_set = trace_asset.descriptor_sets.get(descriptor_set_layout); }
     catch(std::out_of_range &e)
     {
-        descriptor_set = trace_asset.descriptor_sets.put(tracable.descriptor_set_layout,
+        descriptor_set = trace_asset.descriptor_sets.put(descriptor_set_layout,
                                                          vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                                         tracable.descriptor_set_layout));
+                                                                                         descriptor_set_layout));
     }
     // update descriptor-set with actual descriptors
     vierkant::update_descriptor_set(m_device, descriptor_set, tracable.descriptors);
+
+    // keep-alive copy of tracable
+    trace_asset.tracable = std::move(tracable);
 
     VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 
@@ -190,9 +195,6 @@ void RayTracer::trace_rays(const tracable_t &tracable, VkCommandBuffer commandbu
 
     // submit only if we created the command buffer
     if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }
-
-    // keep-alive copy of descriptor-data
-    trace_asset.descriptors = tracable.descriptors;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -273,5 +275,27 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+DescriptorSetLayoutPtr RayTracer::find_set_layout(descriptor_map_t descriptors)
+{
+    // clean descriptor-map to enable sharing
+    for(auto &[binding, descriptor] : descriptors)
+    {
+        for(auto &img : descriptor.image_samplers){ img.reset(); };
+        for(auto &buf : descriptor.buffers){ buf.reset(); };
+        descriptor.acceleration_structure.reset();
+    }
+
+    // retrieve set-layout
+    auto set_it = m_descriptor_set_layouts.find(descriptors);
+
+    // not found -> create and insert descriptor-set layout
+    if(set_it == m_descriptor_set_layouts.end())
+    {
+        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
+        set_it = m_descriptor_set_layouts.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
+    }
+    return set_it->second;
+}
 
 }//namespace vierkant
