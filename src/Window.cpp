@@ -270,7 +270,7 @@ void Window::set_cursor_visible(bool b)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::draw(const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
+void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos)
 {
     if(!m_swap_chain){ return; }
 
@@ -287,6 +287,24 @@ void Window::draw(const std::vector<vierkant::semaphore_submit_info_t> &semaphor
 
     // wait for prior frame to finish
     framebuffer.wait_fence();
+
+//    std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
+    std::vector<VkCommandBuffer> commandbuffers;
+
+    // create secondary commandbuffers
+    for(auto &[delegate_id, delegate] : window_delegates)
+    {
+        if(delegate.draw_fn)
+        {
+            auto draw_result = delegate.draw_fn(shared_from_this());
+            commandbuffers.insert(commandbuffers.end(),
+                                  draw_result.command_buffers.begin(),
+                                  draw_result.command_buffers.end());
+            semaphore_infos.insert(semaphore_infos.end(),
+                                   draw_result.semaphore_infos.begin(),
+                                   draw_result.semaphore_infos.end());
+        }
+    }
 
     // submit with synchronization-infos
     std::vector<VkSemaphore> wait_semaphores = {sync_objects.image_available};
@@ -323,17 +341,6 @@ void Window::draw(const std::vector<vierkant::semaphore_submit_info_t> &semaphor
     submit_info.signalSemaphoreCount = signal_semaphores.size();
     submit_info.pSignalSemaphores = signal_semaphores.data();
 
-    std::vector<VkCommandBuffer> commandbuffers;
-
-    // create secondary commandbuffers
-    for(auto &pair : window_delegates)
-    {
-        if(pair.second.draw_fn)
-        {
-            auto delegate_cmds = pair.second.draw_fn(shared_from_this());
-            commandbuffers.insert(commandbuffers.end(), delegate_cmds.begin(), delegate_cmds.end());
-        }
-    }
     // execute all commands, submit primary commandbuffer
     framebuffer.submit(commandbuffers, m_swap_chain.device()->queue(), submit_info);
 

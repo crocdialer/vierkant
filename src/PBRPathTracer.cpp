@@ -106,8 +106,6 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                            {VK_SHADER_STAGE_MISS_BIT_KHR,        ray_miss_env},
                            {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
 
-//    for(auto &ray_asset : m_frame_assets){ ray_asset.tracable.batch_index = 0; }
-
     // create drawables for post-fx-pass
     {
         vierkant::Renderer::drawable_t fullscreen_drawable = {};
@@ -146,8 +144,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     m_draw_context = vierkant::DrawContext(m_device);
 }
 
-uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &scene, const CameraPtr &cam,
-                                     const std::set<std::string> &tags)
+SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
+                                                           const SceneConstPtr &scene,
+                                                           const CameraPtr &cam,
+                                                           const std::set<std::string> &tags)
 {
     // TODO: culling, no culling, which volume to use!?
     vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector(tags);
@@ -157,8 +157,8 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     for(auto node: mesh_selector.objects){ m_ray_builder.add_mesh(node->mesh, node->global_transform()); }
 
     auto &ray_asset = m_frame_assets[renderer.current_index()];
-//    ray_asset.tracable.pipeline_info.shader_stages = m_shader_stages;
 
+    // set environment
     m_environment = scene->environment();
     ray_asset.tracable.pipeline_info.shader_stages = m_environment ? m_shader_stages_env : m_shader_stages;
 
@@ -170,18 +170,27 @@ uint32_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &sc
     // bloom + tonemap
     auto out_img = post_fx_pass(ray_asset);
 
-    m_draw_context.draw_image_fullscreen(renderer, out_img);
+    m_draw_context.draw_image_fullscreen(renderer, ray_asset.storage_image);
 
-    uint32_t num_drawables = mesh_selector.objects.size();
-    return num_drawables;
+    render_result_t ret;
+    ret.num_objects = mesh_selector.objects.size();
+
+    // pass semaphore wait/signal information
+    vierkant::semaphore_submit_info_t semaphore_submit_info = {};
+    semaphore_submit_info.semaphore = ray_asset.semaphore.handle();
+    semaphore_submit_info.wait_value = SemaphoreValue::POST_FX_DONE;
+    semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    semaphore_submit_info.signal_value = SemaphoreValue::RENDER_DONE;
+    ret.semaphore_infos = {semaphore_submit_info};
+    return ret;
 }
 
 void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam)
 {
     // similar to a fence wait
-    frame_asset.semaphore.wait(POST_FX_FINISHED);
+    frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
 
-    frame_asset.semaphore = vierkant::Semaphore(m_device, 0);
+    frame_asset.semaphore = vierkant::Semaphore(m_device, SemaphoreValue::INIT);
 
     frame_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.command_buffer.begin();
@@ -204,7 +213,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
     frame_asset.command_buffer.end();
 
-    constexpr uint64_t ray_signal_value = RAYTRACING_FINISHED;
+    constexpr uint64_t ray_signal_value = SemaphoreValue::RAYTRACING_DONE;
     VkTimelineSemaphoreSubmitInfo timeline_info;
     timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
     timeline_info.pNext = nullptr;
@@ -226,11 +235,12 @@ vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
     auto output_img = frame_asset.storage_image;
 
     auto semaphore_handle = frame_asset.semaphore.handle();
-    constexpr uint64_t wait_value = RAYTRACING_FINISHED;
-    constexpr uint64_t signal_value = POST_FX_FINISHED;
-    constexpr VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    constexpr uint64_t wait_value = SemaphoreValue::RAYTRACING_DONE;
+    constexpr uint64_t signal_value = SemaphoreValue::POST_FX_DONE;
+    constexpr VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 
     VkTimelineSemaphoreSubmitInfo timeline_wait_info = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
+    timeline_wait_info.pNext = nullptr;
     timeline_wait_info.waitSemaphoreValueCount = 1;
     timeline_wait_info.pWaitSemaphoreValues = &wait_value;
     timeline_wait_info.signalSemaphoreValueCount = 0;
@@ -243,13 +253,17 @@ vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
     submit_wait_info.signalSemaphoreCount = 0;
 
     VkTimelineSemaphoreSubmitInfo timeline_signal_info = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
-    timeline_signal_info.waitSemaphoreValueCount = 0;
+    timeline_signal_info.pNext = nullptr;
+    timeline_signal_info.waitSemaphoreValueCount = 1;
     timeline_signal_info.signalSemaphoreValueCount = 1;
     timeline_signal_info.pSignalSemaphoreValues = &signal_value;
+    timeline_signal_info.pWaitSemaphoreValues = &wait_value;
 
     VkSubmitInfo submit_signal_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
     submit_signal_info.pNext = &timeline_signal_info;
-    submit_signal_info.waitSemaphoreCount = 0;
+    submit_signal_info.waitSemaphoreCount = 1;
+    submit_signal_info.pWaitSemaphores = &semaphore_handle;
+    submit_signal_info.pWaitDstStageMask = &wait_stage;
     submit_signal_info.signalSemaphoreCount = 1;
     submit_signal_info.pSignalSemaphores = &semaphore_handle;
 

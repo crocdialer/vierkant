@@ -41,7 +41,7 @@ private:
 
     void poll_events() override;
 
-    std::vector<VkCommandBuffer> draw(const vierkant::WindowPtr &w);
+    vierkant::window_delegate_t::draw_result_t draw(const vierkant::WindowPtr &w);
 
     void create_context_and_window();
 

@@ -8,13 +8,12 @@
 namespace vierkant
 {
 
-uint32_t UnlitForward::render_scene(vierkant::Renderer &renderer,
-                                    const vierkant::SceneConstPtr &scene,
-                                    const vierkant::CameraPtr &cam,
-                                    const std::set<std::string> &tags)
+SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Renderer &renderer,
+                                                          const vierkant::SceneConstPtr &scene,
+                                                          const vierkant::CameraPtr &cam,
+                                                          const std::set<std::string> &tags)
 {
     auto cull_result = vierkant::cull(scene, cam, true, tags);
-    uint32_t num_drawables = cull_result.drawables.size();
 
     for(auto &drawable : cull_result.drawables)
     {
@@ -42,7 +41,9 @@ uint32_t UnlitForward::render_scene(vierkant::Renderer &renderer,
         // stage drawable
         renderer.stage_drawable(std::move(drawable));
     }
-    return num_drawables;
+    render_result_t ret = {};
+    ret.num_objects = cull_result.drawables.size();
+    return ret;
 }
 
 UnlitForward::UnlitForward(const vierkant::DevicePtr &device) :

@@ -227,11 +227,12 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
     return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info));
 }
 
-uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scene, const CameraPtr &cam,
-                                   const std::set<std::string> &tags)
+SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
+                                                         const SceneConstPtr &scene,
+                                                         const CameraPtr &cam,
+                                                         const std::set<std::string> &tags)
 {
     auto cull_result = vierkant::cull(scene, cam, true, tags);
-    uint32_t num_drawables = cull_result.drawables.size();
 
     // create g-buffer
     auto &g_buffer = geometry_pass(cull_result);
@@ -259,7 +260,9 @@ uint32_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scen
         m_draw_context.draw_grid(renderer, 10.f, 100, cam->view_matrix(), cam->projection_matrix());
     }
 
-    return num_drawables;
+    SceneRenderer::render_result_t ret = {};
+    ret.num_objects = cull_result.drawables.size();
+    return ret;
 }
 
 vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)

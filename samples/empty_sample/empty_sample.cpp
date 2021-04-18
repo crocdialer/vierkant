@@ -125,7 +125,7 @@ void HelloTriangleApplication::update(double time_delta)
     m_window->draw();
 }
 
-std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
+vierkant::window_delegate_t::draw_result_t HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 {
     auto image_index = w->swapchain().image_index();
     const auto &framebuffer = m_window->swapchain().framebuffers()[image_index];
@@ -144,6 +144,8 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
 
     bool concurrant_draw = true;
 
+    vierkant::window_delegate_t::draw_result_t ret;
+
     if(concurrant_draw)
     {
         // submit and wait for all command-creation tasks to complete
@@ -153,9 +155,8 @@ std::vector<VkCommandBuffer> HelloTriangleApplication::draw(const vierkant::Wind
         crocore::wait_all(cmd_futures);
 
         // get values from completed futures
-        std::vector<VkCommandBuffer> command_buffers;
-        for(auto &f : cmd_futures){ command_buffers.push_back(f.get()); }
-        return command_buffers;
+        for(auto &f : cmd_futures){ ret.command_buffers.push_back(f.get()); }
     }
-    return {render_mesh(), render_gui()};
+    else{ ret.command_buffers = {render_mesh(), render_gui()}; }
+    return ret;
 }

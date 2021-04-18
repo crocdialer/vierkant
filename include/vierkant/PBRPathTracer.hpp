@@ -50,12 +50,12 @@ public:
      * @param   scene       the scene to render.
      * @param   cam         the camera to use.
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
-     * @return  the number of objects drawn
+     * @return  a render_result_t object.
      */
-    uint32_t render_scene(vierkant::Renderer &renderer,
-                          const vierkant::SceneConstPtr &scene,
-                          const CameraPtr &cam,
-                          const std::set<std::string> &tags) override;
+    render_result_t render_scene(vierkant::Renderer &renderer,
+                                 const vierkant::SceneConstPtr &scene,
+                                 const CameraPtr &cam,
+                                 const std::set<std::string> &tags) override;
 
     /**
      * @brief   Set an environment-cubemap.
@@ -96,8 +96,10 @@ private:
 
     enum SemaphoreValue
     {
-        RAYTRACING_FINISHED = 1,
-        POST_FX_FINISHED = 2
+        INIT = 0,
+        RAYTRACING_DONE,
+        POST_FX_DONE,
+        RENDER_DONE
     };
 
     struct composition_ubo_t
@@ -109,7 +111,7 @@ private:
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void update_trace_descriptors(frame_assets_t & frame_asset, const CameraPtr &cam);
+    void update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam);
 
     void path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam);
 

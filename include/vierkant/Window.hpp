@@ -20,7 +20,12 @@ DEFINE_CLASS_PTR(Window)
 
 struct window_delegate_t
 {
-    using draw_fn_t = std::function<std::vector<VkCommandBuffer>(const WindowPtr &)>;
+    struct draw_result_t
+    {
+        std::vector<VkCommandBuffer> command_buffers;
+        std::vector<semaphore_submit_info_t> semaphore_infos;
+    };
+    using draw_fn_t = std::function<draw_result_t(const WindowPtr &)>;
     using close_fn_t = std::function<void()>;
     using resize_fn_t = std::function<void(uint32_t w, uint32_t h)>;
 
@@ -89,7 +94,7 @@ public:
      *          then gather secondary commandbuffers from the attached draw-delegates and execute them.
      *          Finally the primary commandbuffer is submitted to a graphics-queue and presented to a surface.
      */
-    void draw(const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos = {});
+    void draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos = {});
 
     /**
      * @return  the size of the contained framebuffer in pixels (might be different from the window size)

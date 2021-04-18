@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "vierkant/Semaphore.hpp"
 #include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
 #include "vierkant/Renderer.hpp"
@@ -45,6 +46,12 @@ public:
         postfx::dof_settings_t dof = {};
     };
 
+    struct render_result_t
+    {
+        uint32_t num_objects = 0;
+        std::vector<semaphore_submit_info_t> semaphore_infos;
+    };
+
     //! settings struct
     settings_t settings;
 
@@ -55,12 +62,12 @@ public:
      * @param   scene       the scene to render.
      * @param   cam         the camera to use.
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
-     * @return  the number of objects drawn
+     * @return  a render_result_t object.
      */
-    virtual uint32_t render_scene(vierkant::Renderer &renderer,
-                                  const vierkant::SceneConstPtr &scene,
-                                  const CameraPtr &cam,
-                                  const std::set<std::string> &tags) = 0;
+    virtual render_result_t render_scene(vierkant::Renderer &renderer,
+                                         const vierkant::SceneConstPtr &scene,
+                                         const CameraPtr &cam,
+                                         const std::set<std::string> &tags) = 0;
 
     /**
      * @brief   Set an environment-cubemap.
