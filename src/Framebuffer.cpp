@@ -343,49 +343,8 @@ VkFence Framebuffer::submit(const std::vector<VkCommandBuffer> &commandbuffers, 
     // record a renderpass into a primary commandbuffer
     record_commandbuffer(commandbuffers);
 
-    // submit with synchronization-infos
-    std::vector<VkSemaphore> wait_semaphores;
-    std::vector<VkSemaphore> signal_semaphores;
-    std::vector<VkPipelineStageFlags> wait_stages;
-    std::vector<uint64_t> wait_values;
-    std::vector<uint64_t> signal_values;
-
-    for(const auto &semaphore_info : semaphore_infos)
-    {
-        if(semaphore_info.semaphore)
-        {
-            if(semaphore_info.wait_stage)
-            {
-                wait_semaphores.push_back(semaphore_info.semaphore);
-                wait_stages.push_back(semaphore_info.wait_stage);
-                wait_values.push_back(semaphore_info.wait_value);
-            }
-            if(semaphore_info.signal_value)
-            {
-                signal_semaphores.push_back(semaphore_info.semaphore);
-                signal_values.push_back(semaphore_info.signal_value);
-            }
-        }
-    }
-
-    VkTimelineSemaphoreSubmitInfo timeline_info;
-    timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-    timeline_info.pNext = nullptr;
-    timeline_info.waitSemaphoreValueCount = wait_values.size();
-    timeline_info.pWaitSemaphoreValues = wait_values.data();
-    timeline_info.signalSemaphoreValueCount = signal_values.size();
-    timeline_info.pSignalSemaphoreValues = signal_values.data();
-
-    VkSubmitInfo submit_info;
-    submit_info.pNext = &timeline_info;
-    submit_info.waitSemaphoreCount = wait_semaphores.size();
-    submit_info.pWaitSemaphores = wait_semaphores.data();
-    submit_info.pWaitDstStageMask = wait_stages.data();
-    submit_info.signalSemaphoreCount = signal_semaphores.size();
-    submit_info.pSignalSemaphores = signal_semaphores.data();
-
     // submit primary commandbuffer
-    m_commandbuffer.submit(queue, false, fence, submit_info);
+    m_commandbuffer.submit(queue, false, fence, semaphore_infos);
 
     return fence;
 }

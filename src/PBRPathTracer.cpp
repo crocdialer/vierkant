@@ -55,7 +55,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     post_render_info.viewport.width = create_info.size.width;
     post_render_info.viewport.height = create_info.size.height;
     post_render_info.viewport.maxDepth = 1;
-//    post_render_info.pipeline_cache = m_pipeline_cache;
+    post_render_info.pipeline_cache = create_info.pipeline_cache;
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
@@ -86,6 +86,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         bloom_info.size.width /= 2;
         bloom_info.size.height /= 2;
         bloom_info.num_blur_iterations = 3;
+        bloom_info.pipeline_cache = create_info.pipeline_cache;
         ray_asset.bloom = Bloom::create(device, bloom_info);
 
         ray_asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
@@ -188,8 +189,8 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
     semaphore_submit_info.semaphore = ray_asset.semaphore.handle();
-    semaphore_submit_info.wait_value = SemaphoreValue::POST_FX;
-    semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    semaphore_submit_info.wait_value = SemaphoreValue::COMPOSITION;
+    semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     semaphore_submit_info.signal_value = SemaphoreValue::RENDER_DONE;
     ret.semaphore_infos = {semaphore_submit_info};
     return ret;
@@ -198,7 +199,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
 void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam)
 {
     // similar to a fence wait
-    frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
+    frame_asset.semaphore.wait(SemaphoreValue::RAYTRACING);
 
     frame_asset.semaphore = vierkant::Semaphore(m_device, SemaphoreValue::INIT);
 
@@ -217,28 +218,26 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
 //    frame_asset.tracable.batch_index++;
 
+//    // barrier before reading back size
+//    VkMemoryBarrier barrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+//    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
+//    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+//    vkCmdPipelineBarrier(frame_asset.cmd_trace.handle(),
+//                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+//                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+//                         0, 1, &barrier, 0, nullptr, 0, nullptr);
+
+
     // transition storage image
     frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                  frame_asset.cmd_trace.handle());
 
-
     frame_asset.cmd_trace.end();
 
-    constexpr uint64_t ray_signal_value = SemaphoreValue::RAYTRACING;
-    VkTimelineSemaphoreSubmitInfo timeline_info;
-    timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-    timeline_info.pNext = nullptr;
-    timeline_info.waitSemaphoreValueCount = 0;
-    timeline_info.pWaitSemaphoreValues = nullptr;
-    timeline_info.signalSemaphoreValueCount = 1;
-    timeline_info.pSignalSemaphoreValues = &ray_signal_value;
-
-    auto semaphore_handle = frame_asset.semaphore.handle();
-    VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submit_info.pNext = &timeline_info;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &semaphore_handle;
-    frame_asset.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE, submit_info);
+    vierkant::semaphore_submit_info_t semaphore_info = {};
+    semaphore_info.semaphore = frame_asset.semaphore.handle();
+    semaphore_info.signal_value = SemaphoreValue::RAYTRACING;
+    frame_asset.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 }
 
 void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
@@ -278,27 +277,12 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
 
     frame_asset.cmd_denoise.end();
 
-    constexpr uint64_t wait_value = SemaphoreValue::RAYTRACING;
-    constexpr uint64_t signal_value = SemaphoreValue::DENOISER;
-    constexpr VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-
-    VkTimelineSemaphoreSubmitInfo timeline_info;
-    timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-    timeline_info.pNext = nullptr;
-    timeline_info.waitSemaphoreValueCount = 1;
-    timeline_info.pWaitSemaphoreValues = &wait_value;
-    timeline_info.signalSemaphoreValueCount = 1;
-    timeline_info.pSignalSemaphoreValues = &signal_value;
-
-    auto semaphore_handle = frame_asset.semaphore.handle();
-    VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submit_info.pNext = &timeline_info;
-    submit_info.signalSemaphoreCount = 1;
-    submit_info.pSignalSemaphores = &semaphore_handle;
-    submit_info.waitSemaphoreCount = 1;
-    submit_info.pWaitSemaphores = &semaphore_handle;
-    submit_info.pWaitDstStageMask = &wait_stage;
-    frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, submit_info);
+    vierkant::semaphore_submit_info_t semaphore_info = {};
+    semaphore_info.semaphore = frame_asset.semaphore.handle();
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    semaphore_info.wait_value = SemaphoreValue::RAYTRACING;
+    semaphore_info.signal_value = SemaphoreValue::DENOISER;
+    frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 }
 
 vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
@@ -307,7 +291,7 @@ vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
 
     semaphore_submit_info_t bloom_submit = {};
     bloom_submit.semaphore = frame_asset.semaphore.handle();
-    bloom_submit.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    bloom_submit.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     bloom_submit.wait_value = SemaphoreValue::RAYTRACING;
     bloom_submit.signal_value = SemaphoreValue::BLOOM;
 

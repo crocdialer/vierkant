@@ -4,9 +4,11 @@
 
 #pragma once
 
+#include "vierkant/Semaphore.hpp"
 #include "vierkant/Device.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 using FencePtr = std::shared_ptr<VkFence_T>;
 
@@ -17,7 +19,7 @@ using FencePtr = std::shared_ptr<VkFence_T>;
  * @param   signaled    flag indicating if the fence should be created in signaled state
  * @return  a newly created Fence
  */
-FencePtr create_fence(const vierkant::DevicePtr& device, bool signaled = false);
+FencePtr create_fence(const vierkant::DevicePtr &device, bool signaled = false);
 
 /**
  * @brief   Wait for a fence to be signaled, optionally reset it.
@@ -25,7 +27,7 @@ FencePtr create_fence(const vierkant::DevicePtr& device, bool signaled = false);
  * @param   fence   the fence to wait for.
  * @param   reset   flag indicating if the fence shall be reset to unsignaled after waiting for it.
  */
-void wait_fence(const vierkant::DevicePtr& device, const vierkant::FencePtr& fence, bool reset = true);
+void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fence, bool reset = true);
 
 /**
  * @brief   Submit an array of VkCommandBuffer to a VkQueue.
@@ -35,14 +37,14 @@ void wait_fence(const vierkant::DevicePtr& device, const vierkant::FencePtr& fen
  * @param   command_buffers an array of recorded VkCommandBuffers
  * @param   fence           an optional fence to signal
  * @param   wait_fence      optional flag indicating that the fence should be waited on
- * @param   submit_info     an optional VkSubmitInfo that can be used to pass in signal/wait semaphores
+ * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
  */
 void submit(const vierkant::DevicePtr &device,
             VkQueue queue,
             const std::vector<VkCommandBuffer> &command_buffers,
-            VkFence fence = VK_NULL_HANDLE,
             bool wait_fence = false,
-            VkSubmitInfo submit_info = {});
+            VkFence fence = VK_NULL_HANDLE,
+            const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos = {});
 
 using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
 
@@ -54,7 +56,7 @@ using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
  * @param   flags       flags to pass to VkCreateCommandPool
  * @return  the newly created shared VkCommandPool
  */
-CommandPoolPtr create_command_pool(const vierkant::DevicePtr& device, vierkant::Device::Queue queue_type,
+CommandPoolPtr create_command_pool(const vierkant::DevicePtr &device, vierkant::Device::Queue queue_type,
                                    VkCommandPoolCreateFlags flags);
 
 class CommandBuffer
@@ -103,13 +105,12 @@ public:
      * @param   queue           VkQueue to submit this CommandBuffer to
      * @param   create_fence    flag indicating if synchronization (blocking wait) via internal fence should be done.
      * @param   fence           optional external VkFence object to wait on
-     * @param   submit_info     optional VkSubmitInfo struct. can be used to provide synchronization -semaphores
-     *                          and stage-info
+     * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
      */
     void submit(VkQueue queue,
                 bool create_fence = false,
                 VkFence fence = VK_NULL_HANDLE,
-                VkSubmitInfo submit_info = {});
+                const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos = {});
 
     /**
      * @brief   Reset the CommandBuffer back to an initial state,
@@ -119,13 +120,13 @@ public:
      */
     void reset(bool release_resources = false);
 
-    VkCommandBuffer handle() const { return m_handle; }
+    VkCommandBuffer handle() const{ return m_handle; }
 
-    VkCommandPool pool() const { return m_pool; }
+    VkCommandPool pool() const{ return m_pool; }
 
-    bool is_recording() const { return m_recording; }
+    bool is_recording() const{ return m_recording; }
 
-    inline explicit operator bool() const { return static_cast<bool>(m_handle); };
+    inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
 
     friend void swap(CommandBuffer &lhs, CommandBuffer &rhs);
 

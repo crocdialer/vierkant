@@ -34,12 +34,12 @@ struct string_mesh_container
     bool operator<(const string_mesh_container &other) const{ return counter < other.counter; }
 };
 
-FontPtr Font::create(vierkant::DevicePtr device, const std::string &the_path, size_t size, bool use_sdf)
+FontPtr Font::create(const vierkant::DevicePtr& device, const std::string &the_path, size_t size, bool use_sdf)
 {
     try
     {
         auto p = crocore::fs::search_file(the_path);
-        return FontPtr(new Font(std::move(device), the_path, size, use_sdf));
+        return FontPtr(new Font(device, the_path, size, use_sdf));
     } catch(const std::exception &e)
     {
         LOG_ERROR << e.what();
@@ -71,7 +71,7 @@ struct FontImpl
         use_sdf = false;
     }
 
-    std::pair<crocore::Image_<uint8_t>::Ptr, std::unique_ptr<stbtt_packedchar[]>>
+    static std::pair<crocore::Image_<uint8_t>::Ptr, std::unique_ptr<stbtt_packedchar[]>>
     create_bitmap(const std::vector<uint8_t> &the_font, float the_font_size,
                   uint32_t the_bitmap_width, uint32_t the_padding)
     {
@@ -89,21 +89,25 @@ struct FontImpl
         return std::make_pair(img, std::move(c_data));
     }
 
-    std::list<stbtt_aligned_quad> create_quads(const std::string &the_text,
+    std::vector<stbtt_aligned_quad> create_quads(const std::string &the_text,
                                                uint32_t *the_max_x, uint32_t *the_max_y)
     {
         // workaround for weirdness in stb_truetype (blank 1st characters on line)
         constexpr float start_x = 0.5f;
         float x = start_x;
         float y = 0.f;
-        stbtt_aligned_quad q;
-        std::list<stbtt_aligned_quad> quads;
 
         // converts the codepoints to 16bit
         auto wstr = utf8_to_wstring(the_text);
 
-        for(wchar_t &codepoint : wstr)
+        // preallocate quads
+        std::vector<stbtt_aligned_quad> quads(wstr.size());
+
+        for(uint32_t i = 0; i < quads.size(); ++i)
         {
+            stbtt_aligned_quad &quad = quads[i];
+            wchar_t &codepoint = wstr[i];
+
             //new line
             if(codepoint == '\n')
             {
@@ -112,11 +116,10 @@ struct FontImpl
                 continue;
             }
             stbtt_GetPackedQuad(char_data.get(), bitmap->width(), bitmap->height(),
-                                codepoint - 32, &x, &y, &q, 0);
+                                codepoint - 32, &x, &y, &quad, 0);
 
-            if(the_max_y && *the_max_y < q.y1 + font_height){ *the_max_y = q.y1 + font_height; }
-            if(the_max_x && *the_max_x < q.x1){ *the_max_x = q.x1; }
-            quads.push_back(q);
+            if(the_max_y && *the_max_y < quad.y1 + font_height){ *the_max_y = quad.y1 + font_height; }
+            if(the_max_x && *the_max_x < quad.x1){ *the_max_x = quad.x1; }
         }
         return quads;
     }
@@ -148,7 +151,7 @@ Font::Font(const vierkant::DevicePtr &device, const std::string &path, size_t si
     m_impl->texture = vierkant::Image::create(device, m_impl->bitmap->data(), fmt);
 }
 
-const std::string Font::path() const
+std::string Font::path() const
 {
     return m_impl->path;
 }
@@ -203,12 +206,15 @@ crocore::ImagePtr Font::create_image(const std::string &theText, const glm::vec4
     std::list<area_pair_t> area_pairs;
     auto quads = m_impl->create_quads(theText, &max_x, &max_y);
 
+    auto w = static_cast<float>(m_impl->bitmap->width() - 1);
+    auto h = static_cast<float>(m_impl->bitmap->height() - 1);
+
     for(auto &q : quads)
     {
-        crocore::Area_<uint32_t> src = {static_cast<uint32_t>(q.s0 * m_impl->bitmap->width()),
-                                        static_cast<uint32_t>(q.t0 * m_impl->bitmap->height()),
-                                        static_cast<uint32_t>((q.s1 - q.s0) * m_impl->bitmap->width()),
-                                        static_cast<uint32_t>((q.t1 - q.t0) * m_impl->bitmap->height())};
+        crocore::Area_<uint32_t> src = {static_cast<uint32_t>(q.s0 * w),
+                                        static_cast<uint32_t>(q.t0 * h),
+                                        static_cast<uint32_t>((q.s1 - q.s0) * w),
+                                        static_cast<uint32_t>((q.t1 - q.t0) * h)};
         crocore::Area_<uint32_t> dst = {static_cast<uint32_t>(q.x0),
                                         static_cast<uint32_t>(m_impl->font_height + q.y0),
                                         static_cast<uint32_t>(q.x1 - q.x0),

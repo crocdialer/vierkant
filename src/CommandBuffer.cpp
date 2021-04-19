@@ -41,15 +41,55 @@ void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fen
 void submit(const vierkant::DevicePtr &device,
             VkQueue queue,
             const std::vector<VkCommandBuffer> &command_buffers,
-            VkFence fence,
             bool wait_fence,
-            VkSubmitInfo submit_info)
+            VkFence fence,
+            const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
-    if(queue)
+    if(device && queue)
     {
+        // submit with synchronization-infos
+        std::vector<VkSemaphore> wait_semaphores;
+        std::vector<VkSemaphore> signal_semaphores;
+        std::vector<VkPipelineStageFlags> wait_stages;
+        std::vector<uint64_t> wait_values;
+        std::vector<uint64_t> signal_values;
+
+        for(const auto &semaphore_info : semaphore_infos)
+        {
+            if(semaphore_info.semaphore)
+            {
+                if(semaphore_info.wait_stage)
+                {
+                    wait_semaphores.push_back(semaphore_info.semaphore);
+                    wait_stages.push_back(semaphore_info.wait_stage);
+                    wait_values.push_back(semaphore_info.wait_value);
+                }
+                if(semaphore_info.signal_value)
+                {
+                    signal_semaphores.push_back(semaphore_info.semaphore);
+                    signal_values.push_back(semaphore_info.signal_value);
+                }
+            }
+        }
+
+        VkTimelineSemaphoreSubmitInfo timeline_info;
+        timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+        timeline_info.pNext = nullptr;
+        timeline_info.waitSemaphoreValueCount = wait_values.size();
+        timeline_info.pWaitSemaphoreValues = wait_values.data();
+        timeline_info.signalSemaphoreValueCount = signal_values.size();
+        timeline_info.pSignalSemaphoreValues = signal_values.data();
+
+        VkSubmitInfo submit_info;
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.pNext = &timeline_info;
         submit_info.commandBufferCount = command_buffers.size();
         submit_info.pCommandBuffers = command_buffers.data();
+        submit_info.waitSemaphoreCount = wait_semaphores.size();
+        submit_info.pWaitSemaphores = wait_semaphores.data();
+        submit_info.pWaitDstStageMask = wait_stages.data();
+        submit_info.signalSemaphoreCount = signal_semaphores.size();
+        submit_info.pSignalSemaphores = signal_semaphores.data();
 
         vierkant::FencePtr local_fence;
         if(fence){ vkResetFences(device->handle(), 1, &fence); }
@@ -177,28 +217,13 @@ void CommandBuffer::end()
 void CommandBuffer::submit(VkQueue queue,
                            bool create_fence,
                            VkFence fence,
-                           VkSubmitInfo submit_info)
+                           const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
     if(m_recording){ end(); }
 
     if(m_handle && queue)
     {
-        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &m_handle;
-
-        if(create_fence)
-        {
-            vkResetFences(m_device->handle(), 1, &m_fence);
-            fence = m_fence;
-        }
-
-        vkQueueSubmit(queue, 1, &submit_info, fence);
-
-        if(create_fence)
-        {
-            vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-        }
+        vierkant::submit(m_device, queue, {m_handle}, create_fence, fence, semaphore_infos);
     }
 }
 

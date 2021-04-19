@@ -22,7 +22,7 @@ public:
         LEFT, CENTER, RIGHT
     };
 
-    static FontPtr create(vierkant::DevicePtr device, const std::string &the_path, size_t size, bool use_sdf = false);
+    static FontPtr create(const vierkant::DevicePtr& device, const std::string &the_path, size_t size, bool use_sdf = false);
 
     Font(const Font &) = delete;
 
@@ -30,7 +30,7 @@ public:
 
     Font &operator=(Font other) = delete;
 
-    const std::string path() const;
+    std::string path() const;
 
     vierkant::ImagePtr glyph_texture() const;
 

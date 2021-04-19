@@ -93,6 +93,8 @@ public:
      *          Will create a primary commandbuffer and start a renderpass with current framebuffer,
      *          then gather secondary commandbuffers from the attached draw-delegates and execute them.
      *          Finally the primary commandbuffer is submitted to a graphics-queue and presented to a surface.
+     *
+     * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
      */
     void draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos = {});
 

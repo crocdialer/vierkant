@@ -122,10 +122,11 @@ public:
      *
      * @param   command_buffers an array of secondary VkCommandBuffers to render into this Framebuffer.
      * @param   queue           a VkQueue to submit the primary VkCommandBuffer to.
-     * @param   submit_info     an optional VkSubmitInfo struct.
+     * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
      * @return  a fence that will be signaled when rendering is done.
      */
-    VkFence submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue,
+    VkFence submit(const std::vector<VkCommandBuffer> &commandbuffers,
+                   VkQueue queue,
                    const std::vector<vierkant::semaphore_submit_info_t>& semaphore_infos = {});
 
     /**

@@ -193,7 +193,7 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
     for(uint32_t i = 0; i < command_buffers.size(); ++i){ cmd_handles[i] = command_buffers[i].handle(); }
 
     // TODO: timelinesemaphore to track builds
-    vierkant::submit(m_device, m_queue, cmd_handles, VK_NULL_HANDLE, true);
+    vierkant::submit(m_device, m_queue, cmd_handles, true);
 
     // memory-compaction for bottom-lvl-structures
     if(enable_compaction)
