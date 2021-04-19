@@ -64,12 +64,21 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         ray_asset.tracable.extent = create_info.size;
 
         // create a storage image
-        vierkant::Image::Format img_format = {};
-        img_format.extent = create_info.size;
-        img_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        img_format.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-        img_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
-        ray_asset.storage_image = vierkant::Image::create(m_device, img_format);
+        vierkant::Image::Format storage_format = {};
+        storage_format.extent = create_info.size;
+        storage_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        storage_format.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+        ray_asset.storage_image = vierkant::Image::create(m_device, storage_format);
+
+//        // create a denoise image
+//        vierkant::Image::Format denoise_format = {};
+//        denoise_format.extent = create_info.size;
+//        denoise_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+//        denoise_format.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+//        denoise_format.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+//        denoise_format.initial_layout_transition = true;
+//        ray_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
 
         // create bloom
         Bloom::create_info_t bloom_info = {};
@@ -165,12 +174,13 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     // pathtracing pass
     path_trace_pass(ray_asset, cam);
 
-    // TODO: denoiser
+//    // TODO: denoiser
+//    denoise_pass(ray_asset);
 
     // bloom + tonemap
     auto out_img = post_fx_pass(ray_asset);
 
-    m_draw_context.draw_image_fullscreen(renderer, ray_asset.storage_image);
+    m_draw_context.draw_image_fullscreen(renderer, out_img);
 
     render_result_t ret;
     ret.num_objects = mesh_selector.objects.size();
@@ -178,8 +188,8 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
     semaphore_submit_info.semaphore = ray_asset.semaphore.handle();
-    semaphore_submit_info.wait_value = SemaphoreValue::POST_FX_DONE;
-    semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    semaphore_submit_info.wait_value = SemaphoreValue::POST_FX;
+    semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     semaphore_submit_info.signal_value = SemaphoreValue::RENDER_DONE;
     ret.semaphore_infos = {semaphore_submit_info};
     return ret;
@@ -192,28 +202,29 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
     frame_asset.semaphore = vierkant::Semaphore(m_device, SemaphoreValue::INIT);
 
-    frame_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    frame_asset.command_buffer.begin();
+    frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    frame_asset.cmd_trace.begin();
 
     // update top-level structure
-    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(frame_asset.command_buffer.handle());
+    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(frame_asset.cmd_trace.handle());
 
     update_trace_descriptors(frame_asset, cam);
 
     // transition storage image
-    frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.command_buffer.handle());
+    frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_trace.handle());
 
     // tada
-    m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.command_buffer.handle());
+    m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
 //    frame_asset.tracable.batch_index++;
 
     // transition storage image
     frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                                 frame_asset.command_buffer.handle());
+                                                 frame_asset.cmd_trace.handle());
 
-    frame_asset.command_buffer.end();
 
-    constexpr uint64_t ray_signal_value = SemaphoreValue::RAYTRACING_DONE;
+    frame_asset.cmd_trace.end();
+
+    constexpr uint64_t ray_signal_value = SemaphoreValue::RAYTRACING;
     VkTimelineSemaphoreSubmitInfo timeline_info;
     timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
     timeline_info.pNext = nullptr;
@@ -227,57 +238,96 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     submit_info.pNext = &timeline_info;
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = &semaphore_handle;
-    frame_asset.command_buffer.submit(m_queue, false, VK_NULL_HANDLE, submit_info);
+    frame_asset.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE, submit_info);
+}
+
+void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
+{
+    // TODO: only a placeholder copy here
+    frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    frame_asset.cmd_denoise.begin();
+
+    // copy goes here
+    VkImageCopy region = {};
+    region.extent = frame_asset.storage_image->extent();
+    region.dstOffset = region.srcOffset = {0, 0, 0};
+    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.srcSubresource.baseArrayLayer = 0;
+    region.srcSubresource.layerCount = 1;
+    region.srcSubresource.mipLevel = 0;
+
+    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.dstSubresource.baseArrayLayer = 0;
+    region.dstSubresource.layerCount = 1;
+    region.dstSubresource.mipLevel = 0;
+
+    // transition layouts for copying
+    frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                                 frame_asset.cmd_denoise.handle());
+
+    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                                 frame_asset.cmd_denoise.handle());
+
+    // actual copy command
+    vkCmdCopyImage(frame_asset.cmd_denoise.handle(), frame_asset.storage_image->image(),
+                   frame_asset.storage_image->image_layout(), frame_asset.denoise_image->image(),
+                   frame_asset.denoise_image->image_layout(), 1, &region);
+
+    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                 frame_asset.cmd_denoise.handle());
+
+    frame_asset.cmd_denoise.end();
+
+    constexpr uint64_t wait_value = SemaphoreValue::RAYTRACING;
+    constexpr uint64_t signal_value = SemaphoreValue::DENOISER;
+    constexpr VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+
+    VkTimelineSemaphoreSubmitInfo timeline_info;
+    timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
+    timeline_info.pNext = nullptr;
+    timeline_info.waitSemaphoreValueCount = 1;
+    timeline_info.pWaitSemaphoreValues = &wait_value;
+    timeline_info.signalSemaphoreValueCount = 1;
+    timeline_info.pSignalSemaphoreValues = &signal_value;
+
+    auto semaphore_handle = frame_asset.semaphore.handle();
+    VkSubmitInfo submit_info{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    submit_info.pNext = &timeline_info;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &semaphore_handle;
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &semaphore_handle;
+    submit_info.pWaitDstStageMask = &wait_stage;
+    frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, submit_info);
 }
 
 vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
 {
-    auto output_img = frame_asset.storage_image;
+    auto output_img = frame_asset.storage_image;//frame_asset.denoise_image;
 
-    auto semaphore_handle = frame_asset.semaphore.handle();
-    constexpr uint64_t wait_value = SemaphoreValue::RAYTRACING_DONE;
-    constexpr uint64_t signal_value = SemaphoreValue::POST_FX_DONE;
-    constexpr VkPipelineStageFlags wait_stage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+    semaphore_submit_info_t bloom_submit = {};
+    bloom_submit.semaphore = frame_asset.semaphore.handle();
+    bloom_submit.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    bloom_submit.wait_value = SemaphoreValue::RAYTRACING;
+    bloom_submit.signal_value = SemaphoreValue::BLOOM;
 
-    VkTimelineSemaphoreSubmitInfo timeline_wait_info = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
-    timeline_wait_info.pNext = nullptr;
-    timeline_wait_info.waitSemaphoreValueCount = 1;
-    timeline_wait_info.pWaitSemaphoreValues = &wait_value;
-    timeline_wait_info.signalSemaphoreValueCount = 0;
-
-    VkSubmitInfo submit_wait_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submit_wait_info.pNext = &timeline_wait_info;
-    submit_wait_info.waitSemaphoreCount = 1;
-    submit_wait_info.pWaitSemaphores = &semaphore_handle;
-    submit_wait_info.pWaitDstStageMask = &wait_stage;
-    submit_wait_info.signalSemaphoreCount = 0;
-
-    VkTimelineSemaphoreSubmitInfo timeline_signal_info = {VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO};
-    timeline_signal_info.pNext = nullptr;
-    timeline_signal_info.waitSemaphoreValueCount = 1;
-    timeline_signal_info.signalSemaphoreValueCount = 1;
-    timeline_signal_info.pSignalSemaphoreValues = &signal_value;
-    timeline_signal_info.pWaitSemaphoreValues = &wait_value;
-
-    VkSubmitInfo submit_signal_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
-    submit_signal_info.pNext = &timeline_signal_info;
-    submit_signal_info.waitSemaphoreCount = 1;
-    submit_signal_info.pWaitSemaphores = &semaphore_handle;
-    submit_signal_info.pWaitDstStageMask = &wait_stage;
-    submit_signal_info.signalSemaphoreCount = 1;
-    submit_signal_info.pSignalSemaphores = &semaphore_handle;
+    semaphore_submit_info_t composition_submit = {};
+    composition_submit.semaphore = frame_asset.semaphore.handle();
+    composition_submit.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    composition_submit.wait_value = SemaphoreValue::BLOOM;
+    composition_submit.signal_value = SemaphoreValue::COMPOSITION;
 
     size_t buffer_index = 0;
 
     // get next set of pingpong assets, increment index
-    auto pingpong_render = [queue = m_queue, &submit_signal_info, &frame_asset, &buffer_index](
+    auto pingpong_render = [queue = m_queue, &frame_asset, &buffer_index, &composition_submit](
             Renderer::drawable_t &drawable) -> vierkant::ImagePtr
     {
         auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index];
         buffer_index = (buffer_index + 1) % frame_asset.post_fx_ping_pongs.size();
         pingpong.renderer.stage_drawable(drawable);
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-        pingpong.framebuffer.submit({cmd_buf}, queue, submit_signal_info);
+        pingpong.framebuffer.submit({cmd_buf}, queue, {composition_submit});
         return pingpong.framebuffer.color_attachment(0);
     };
 
@@ -285,7 +335,7 @@ vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
     if(settings.use_bloom)
     {
         // generate bloom image
-        auto bloom_img = frame_asset.bloom->apply(output_img, m_queue, submit_wait_info);
+        auto bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_submit});
 
         composition_ubo_t comp_ubo = {};
         comp_ubo.exposure = settings.exposure;

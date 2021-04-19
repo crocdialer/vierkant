@@ -6,6 +6,7 @@
 
 #include <map>
 
+#include "vierkant/Semaphore.hpp"
 #include "vierkant/Image.hpp"
 
 namespace vierkant
@@ -124,7 +125,8 @@ public:
      * @param   submit_info     an optional VkSubmitInfo struct.
      * @return  a fence that will be signaled when rendering is done.
      */
-    VkFence submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue, VkSubmitInfo submit_info = {});
+    VkFence submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue,
+                   const std::vector<vierkant::semaphore_submit_info_t>& semaphore_infos = {});
 
     /**
      * @brief   wait for a prior frame to finish.

@@ -180,15 +180,29 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 }
 
 template<uint32_t NUM_TAPS>
-vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue queue, VkSubmitInfo submit_info)
+vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue queue,
+                                                  const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
     if(!queue){ queue = image->device()->queue(); }
+
+    std::vector<vierkant::semaphore_submit_info_t> wait_infos;
+    for(const auto &info : semaphore_infos)
+    {
+        if(info.semaphore && info.wait_stage)
+        {
+            auto wait_info = info;
+            wait_info.signal_value = 0;
+            wait_infos.push_back(wait_info);
+        }
+    }
 
     auto current_img = image;
     auto &ping = m_ping_pongs[0], &pong = m_ping_pongs[1];
 
     for(uint32_t i = 0; i < m_framebuffers.size(); i += 2)
     {
+        bool signal = i >= m_framebuffers.size() - 2;
+
         auto &fb_ping = m_framebuffers[i];
         auto &fb_pong = m_framebuffers[i + 1];
 
@@ -198,12 +212,12 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
         // horizontal pass
         m_renderer.stage_drawable(ping.drawable);
         auto cmd_buffer = m_renderer.render(fb_ping);
-        fb_ping.submit({cmd_buffer}, queue, submit_info);
+        fb_ping.submit({cmd_buffer}, queue, wait_infos);
 
         // vertical pass
         m_renderer.stage_drawable(pong.drawable);
         cmd_buffer = m_renderer.render(fb_pong);
-        fb_pong.submit({cmd_buffer}, queue, submit_info);
+        fb_pong.submit({cmd_buffer}, queue, signal ? semaphore_infos : wait_infos);
 
         current_img = fb_pong.color_attachment();
     }

@@ -39,7 +39,8 @@ public:
 
     static std::unique_ptr<GaussianBlur_> create(const DevicePtr &device, const create_info_t &create_info);
 
-    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue, VkSubmitInfo submit_info) override;
+    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue,
+                             const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos) override;
 
 private:
 

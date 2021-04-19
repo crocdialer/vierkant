@@ -32,9 +32,17 @@ public:
 
     static BloomUPtr create(const DevicePtr &device, const create_info_t &create_info);
 
-    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue, VkSubmitInfo submit_info) override;
+    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue,
+                             const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos) override;
 
 private:
+
+    enum SemaphoreValue
+    {
+        INIT = 0,
+        THRESH_DONE,
+        BLUR_DONE
+    };
 
     Bloom(const DevicePtr &device, const create_info_t &create_info);
 
@@ -49,6 +57,8 @@ private:
 
     VkSpecializationInfo m_specialization_info = {};
     std::array<VkSpecializationMapEntry, 2> m_specialization_entry;
+
+    vierkant::Semaphore m_semaphore;
 };
 
 }// namespace vierkant

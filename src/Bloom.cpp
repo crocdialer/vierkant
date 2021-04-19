@@ -13,7 +13,7 @@ BloomUPtr Bloom::create(const DevicePtr &device, const Bloom::create_info_t &cre
     return vierkant::BloomUPtr(new Bloom(device, create_info));
 }
 
-Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info):
+Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
         m_brightness_thresh(create_info.brightness_thresh)
 {
     VkFormat color_format = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -75,18 +75,54 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info):
     m_drawable.use_own_buffers = true;
 }
 
-vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue, VkSubmitInfo submit_info)
+vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
+                                const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
     if(!queue){ queue = image->device()->queue(); }
 
+    m_semaphore.wait(SemaphoreValue::BLUR_DONE);
+    m_semaphore = vierkant::Semaphore(image->device(), SemaphoreValue::INIT);
+
+    std::vector<vierkant::semaphore_submit_info_t> wait_infos, signal_infos;
+
+    for(const auto &info : semaphore_infos)
+    {
+        if(info.semaphore)
+        {
+            if(info.signal_value){ signal_infos.push_back(info); }
+            if(info.wait_stage)
+            {
+                auto wait_info = info;
+                wait_info.signal_value = 0;
+                wait_infos.push_back(wait_info);
+            }
+        }
+    }
+
+    vierkant::semaphore_submit_info_t thresh_done = {};
+    thresh_done.semaphore = m_semaphore.handle();
+    thresh_done.signal_value = SemaphoreValue::THRESH_DONE;
+
     // threshold
+    auto thresh_submit_infos = wait_infos;
+    thresh_submit_infos.push_back(thresh_done);
+
     m_drawable.descriptors[0].image_samplers = {image};
     m_thresh_renderer.stage_drawable(m_drawable);
     auto cmd_buf = m_thresh_renderer.render(m_thresh_framebuffer);
-    m_thresh_framebuffer.submit({cmd_buf}, queue, submit_info);
+    m_thresh_framebuffer.submit({cmd_buf}, queue, thresh_submit_infos);
 
     // blur
-    auto blur_img = m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue, submit_info);
+    vierkant::semaphore_submit_info_t blur_info = {};
+    blur_info.semaphore = m_semaphore.handle();
+    blur_info.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    blur_info.wait_value = SemaphoreValue::THRESH_DONE;
+    blur_info.signal_value = SemaphoreValue::BLUR_DONE;
+
+    auto blur_submit_infos = signal_infos;
+    blur_submit_infos.push_back(blur_info);
+
+    auto blur_img = m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue, blur_submit_infos);
 
     return blur_img;
 }

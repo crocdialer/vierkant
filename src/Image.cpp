@@ -89,7 +89,7 @@ void transition_image_layout(VkCommandBuffer command_buffer,
 
         // TODO: check if this makes sense
         case VK_IMAGE_LAYOUT_GENERAL:
-            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_SHADER_READ_BIT;
             source_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
             break;
 
@@ -129,8 +129,8 @@ void transition_image_layout(VkCommandBuffer command_buffer,
     {
         // TODO: check if this makes sense
         case VK_IMAGE_LAYOUT_GENERAL:
-            barrier.dstAccessMask = 0;
-            destination_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            destination_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
             break;
 
         case VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL:

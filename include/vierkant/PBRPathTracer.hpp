@@ -72,14 +72,14 @@ private:
         vierkant::Semaphore semaphore;
 
         //! records raytracing commands
-        vierkant::CommandBuffer command_buffer;
+        vierkant::CommandBuffer cmd_trace, cmd_denoise;
 
         //! an accelaration structure and it's resources
         vierkant::RayBuilder::acceleration_asset_t acceleration_asset;
 
         vierkant::RayTracer::tracable_t tracable = {};
 
-        vierkant::ImagePtr storage_image;
+        vierkant::ImagePtr storage_image, denoise_image;
 
         vierkant::BufferPtr composition_ubo;
 
@@ -94,11 +94,14 @@ private:
         BloomUPtr bloom;
     };
 
-    enum SemaphoreValue
+    enum SemaphoreValue : uint64_t
     {
         INIT = 0,
-        RAYTRACING_DONE,
-        POST_FX_DONE,
+        RAYTRACING,
+        DENOISER,
+        BLOOM,
+        COMPOSITION,
+        POST_FX = COMPOSITION,
         RENDER_DONE
     };
 
@@ -114,6 +117,8 @@ private:
     void update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam);
 
     void path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam);
+
+    void denoise_pass(frame_assets_t &frame_asset);
 
     vierkant::ImagePtr post_fx_pass(frame_assets_t &frame_asset);
 

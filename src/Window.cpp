@@ -288,7 +288,6 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     // wait for prior frame to finish
     framebuffer.wait_fence();
 
-//    std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
     std::vector<VkCommandBuffer> commandbuffers;
 
     // create secondary commandbuffers
@@ -306,43 +305,18 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
         }
     }
 
-    // submit with synchronization-infos
-    std::vector<VkSemaphore> wait_semaphores = {sync_objects.image_available};
-    std::vector<VkSemaphore> signal_semaphores = {sync_objects.render_finished};
-    std::vector<VkPipelineStageFlags> wait_stages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    semaphore_submit_info_t image_available = {};
+    image_available.semaphore = sync_objects.image_available;
+    image_available.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    semaphore_infos.push_back(image_available);
 
-    // insert timeline semaphores, after existing binary semaphores
-    std::vector<uint64_t> wait_values{0};
-    std::vector<uint64_t> signal_values{0};
-
-    for(const auto &semaphore_info : semaphore_infos)
-    {
-        wait_semaphores.push_back(semaphore_info.semaphore);
-        wait_stages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-        wait_values.push_back(semaphore_info.wait_value);
-
-        signal_semaphores.push_back(semaphore_info.semaphore);
-        signal_values.push_back(semaphore_info.signal_value);
-    }
-
-    VkTimelineSemaphoreSubmitInfo timeline_info;
-    timeline_info.sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO;
-    timeline_info.pNext = nullptr;
-    timeline_info.waitSemaphoreValueCount = wait_values.size();
-    timeline_info.pWaitSemaphoreValues = wait_values.data();
-    timeline_info.signalSemaphoreValueCount = signal_values.size();
-    timeline_info.pSignalSemaphoreValues = signal_values.data();
-
-    VkSubmitInfo submit_info;
-    submit_info.pNext = &timeline_info;
-    submit_info.waitSemaphoreCount = wait_semaphores.size();
-    submit_info.pWaitSemaphores = wait_semaphores.data();
-    submit_info.pWaitDstStageMask = wait_stages.data();
-    submit_info.signalSemaphoreCount = signal_semaphores.size();
-    submit_info.pSignalSemaphores = signal_semaphores.data();
+    semaphore_submit_info_t render_finished = {};
+    render_finished.semaphore = sync_objects.render_finished;
+    render_finished.signal_value = 1;
+    semaphore_infos.push_back(render_finished);
 
     // execute all commands, submit primary commandbuffer
-    framebuffer.submit(commandbuffers, m_swap_chain.device()->queue(), submit_info);
+    framebuffer.submit(commandbuffers, m_swap_chain.device()->queue(), semaphore_infos);
 
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();
