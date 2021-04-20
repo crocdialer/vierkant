@@ -51,16 +51,9 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
     m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
 }
 
-void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform)
+std::vector<RayBuilder::acceleration_asset_t>
+RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform) const
 {
-    auto search_it = m_acceleration_assets.find(mesh);
-
-    if(search_it != m_acceleration_assets.end())
-    {
-        for(auto &asset : search_it->second){ asset.transform = transform; }
-        return;
-    }
-
     // raytracing flags
     VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
                                                  VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
@@ -151,10 +144,10 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
         // Allocate the scratch buffers holding the temporary data of the
         // acceleration structure builder
         acceleration_asset.scratch_buffer = vierkant::Buffer::create(m_device, nullptr, size_info.buildScratchSize,
-                                                      VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                      VMA_MEMORY_USAGE_GPU_ONLY,
-                                                      m_memory_pool);
+                                                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                                     VMA_MEMORY_USAGE_GPU_ONLY,
+                                                                     m_memory_pool);
 
         // assign acceleration structure and scratch_buffer
         build_info.dstAccelerationStructure = acceleration_asset.structure.get();
@@ -238,8 +231,7 @@ void RayBuilder::add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &t
         entry_assets = std::move(entry_assets_compact);
     }
 
-    // store bottom-level entries
-    if(!entry_assets.empty()){ m_acceleration_assets[mesh] = std::move(entry_assets); }
+    return entry_assets;
 }
 
 void RayBuilder::set_function_pointers()
@@ -262,7 +254,7 @@ void RayBuilder::set_function_pointers()
 
 RayBuilder::acceleration_asset_t
 RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info,
-                                      const glm::mat4 &transform)
+                                      const glm::mat4 &transform) const
 {
     RayBuilder::acceleration_asset_t acceleration_asset = {};
     acceleration_asset.buffer = vierkant::Buffer::create(m_device, nullptr, create_info.size,
@@ -297,8 +289,9 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     return acceleration_asset;
 }
 
-RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer commandbuffer,
-                                                             const vierkant::AccelerationStructurePtr &last)
+RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_asset_map_t &asset_map,
+                                                             VkCommandBuffer commandbuffer,
+                                                             const vierkant::AccelerationStructurePtr &last) const
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
     std::vector<entry_t> entries;
@@ -323,7 +316,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(VkCommandBuffer com
 
     uint32_t mesh_index = 0;
 
-    for(const auto &[mesh, acceleration_assets] : m_acceleration_assets)
+    for(const auto &[mesh, acceleration_assets] : asset_map)
     {
         assert(mesh->entries.size() == acceleration_assets.size());
 

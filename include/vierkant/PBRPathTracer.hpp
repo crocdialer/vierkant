@@ -74,7 +74,10 @@ private:
         //! records raytracing commands
         vierkant::CommandBuffer cmd_trace, cmd_denoise;
 
-        //! an accelaration structure and it's resources
+        //! maps Mesh -> bottom-lvl structures
+        vierkant::RayBuilder::acceleration_asset_map_t bottom_lvl_assets;
+
+        //! top-lvl structure
         vierkant::RayBuilder::acceleration_asset_t acceleration_asset;
 
         vierkant::RayTracer::tracable_t tracable = {};
@@ -114,6 +117,10 @@ private:
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
+    void update_acceleration_structures(frame_assets_t &frame_asset,
+                                        const SceneConstPtr &scene,
+                                        const std::set<std::string> &tags);
+
     void update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam);
 
     void path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam);
@@ -131,6 +138,8 @@ private:
 
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
+
+    vierkant::RayBuilder::acceleration_asset_map_t m_acceleration_assets;
 
     //! owns raytracing pipeline and shader-bindingtable
     vierkant::RayTracer m_ray_tracer;

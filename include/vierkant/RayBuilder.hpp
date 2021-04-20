@@ -82,6 +82,9 @@ public:
         vierkant::BufferPtr scratch_buffer = nullptr;
     };
 
+    //! can be used to used to cache an array of (bottom-lvl) acceleration-structures per mesh
+    using acceleration_asset_map_t = std::unordered_map<vierkant::MeshConstPtr, std::vector<acceleration_asset_t>>;
+
     RayBuilder() = default;
 
     explicit RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool = nullptr);
@@ -94,7 +97,8 @@ public:
      * @param   mesh        a provided vierkant::MeshConstPtr
      * @param   transform   a provided transformation-matrix
      */
-    void add_mesh(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform = glm::mat4(1));
+    std::vector<acceleration_asset_t> create_mesh_structures(const vierkant::MeshConstPtr &mesh,
+                                                             const glm::mat4 &transform = glm::mat4(1)) const;
 
     /**
      * @brief   create_toplevel will create a toplevel acceleration structure,
@@ -102,23 +106,22 @@ public:
      *
      * @param   last    an optional, existing toplevel-structure to perform an update to
      */
-    acceleration_asset_t create_toplevel(VkCommandBuffer commandbuffer = VK_NULL_HANDLE,
-                                         const vierkant::AccelerationStructurePtr &last = nullptr);
+    acceleration_asset_t create_toplevel(const acceleration_asset_map_t &asset_map,
+                                         VkCommandBuffer commandbuffer = VK_NULL_HANDLE,
+                                         const vierkant::AccelerationStructurePtr &last = nullptr) const;
 
 private:
 
     void set_function_pointers();
 
     acceleration_asset_t create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info,
-                                                   const glm::mat4 &transform = glm::mat4(1));
+                                                   const glm::mat4 &transform = glm::mat4(1)) const;
 
     vierkant::DevicePtr m_device;
 
     VkQueue m_queue = VK_NULL_HANDLE;
 
     vierkant::VmaPoolPtr m_memory_pool = nullptr;
-
-    std::unordered_map<vierkant::MeshConstPtr, std::vector<acceleration_asset_t>> m_acceleration_assets;
 
     vierkant::CommandPoolPtr m_command_pool;
 

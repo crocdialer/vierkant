@@ -67,18 +67,19 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         vierkant::Image::Format storage_format = {};
         storage_format.extent = create_info.size;
         storage_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        storage_format.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        storage_format.usage =
+                VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
         ray_asset.storage_image = vierkant::Image::create(m_device, storage_format);
 
-//        // create a denoise image
-//        vierkant::Image::Format denoise_format = {};
-//        denoise_format.extent = create_info.size;
-//        denoise_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-//        denoise_format.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-//        denoise_format.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-//        denoise_format.initial_layout_transition = true;
-//        ray_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
+        // create a denoise image
+        vierkant::Image::Format denoise_format = {};
+        denoise_format.extent = create_info.size;
+        denoise_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        denoise_format.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        denoise_format.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        denoise_format.initial_layout_transition = true;
+        ray_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
 
         // create bloom
         Bloom::create_info_t bloom_info = {};
@@ -159,18 +160,9 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
                                                            const CameraPtr &cam,
                                                            const std::set<std::string> &tags)
 {
-    // TODO: culling, no culling, which volume to use!?
-    vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector(tags);
-    scene->root()->accept(mesh_selector);
-
-    // TODO: better strategy for mesh-building, non-blocking
-    for(auto node: mesh_selector.objects){ m_ray_builder.add_mesh(node->mesh, node->global_transform()); }
-
     auto &ray_asset = m_frame_assets[renderer.current_index()];
 
-    // set environment
-    m_environment = scene->environment();
-    ray_asset.tracable.pipeline_info.shader_stages = m_environment ? m_shader_stages_env : m_shader_stages;
+    update_acceleration_structures(ray_asset, scene, tags);
 
     // pathtracing pass
     path_trace_pass(ray_asset, cam);
@@ -181,15 +173,16 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     // bloom + tonemap
     auto out_img = post_fx_pass(ray_asset);
 
-    m_draw_context.draw_image_fullscreen(renderer, out_img);
+    renderer.stage_drawable(m_composition_drawable);
+//    m_draw_context.draw_image_fullscreen(renderer, ray_asset.storage_image);
 
     render_result_t ret;
-    ret.num_objects = mesh_selector.objects.size();
+    ret.num_objects = ray_asset.bottom_lvl_assets.size();
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
     semaphore_submit_info.semaphore = ray_asset.semaphore.handle();
-    semaphore_submit_info.wait_value = SemaphoreValue::COMPOSITION;
+    semaphore_submit_info.wait_value = SemaphoreValue::BLOOM;
     semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     semaphore_submit_info.signal_value = SemaphoreValue::RENDER_DONE;
     ret.semaphore_infos = {semaphore_submit_info};
@@ -199,7 +192,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
 void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam)
 {
     // similar to a fence wait
-    frame_asset.semaphore.wait(SemaphoreValue::RAYTRACING);
+    frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
 
     frame_asset.semaphore = vierkant::Semaphore(m_device, SemaphoreValue::INIT);
 
@@ -207,7 +200,8 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     frame_asset.cmd_trace.begin();
 
     // update top-level structure
-    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(frame_asset.cmd_trace.handle());
+    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(frame_asset.bottom_lvl_assets,
+                                                                   frame_asset.cmd_trace.handle());
 
     update_trace_descriptors(frame_asset, cam);
 
@@ -295,26 +289,6 @@ vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
     bloom_submit.wait_value = SemaphoreValue::RAYTRACING;
     bloom_submit.signal_value = SemaphoreValue::BLOOM;
 
-    semaphore_submit_info_t composition_submit = {};
-    composition_submit.semaphore = frame_asset.semaphore.handle();
-    composition_submit.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    composition_submit.wait_value = SemaphoreValue::BLOOM;
-    composition_submit.signal_value = SemaphoreValue::COMPOSITION;
-
-    size_t buffer_index = 0;
-
-    // get next set of pingpong assets, increment index
-    auto pingpong_render = [queue = m_queue, &frame_asset, &buffer_index, &composition_submit](
-            Renderer::drawable_t &drawable) -> vierkant::ImagePtr
-    {
-        auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index];
-        buffer_index = (buffer_index + 1) % frame_asset.post_fx_ping_pongs.size();
-        pingpong.renderer.stage_drawable(drawable);
-        auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-        pingpong.framebuffer.submit({cmd_buf}, queue, {composition_submit});
-        return pingpong.framebuffer.color_attachment(0);
-    };
-
     // bloom
     if(settings.use_bloom)
     {
@@ -329,7 +303,7 @@ vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
         m_composition_drawable.descriptors[0].image_samplers = {output_img, bloom_img};
         m_composition_drawable.descriptors[1].buffers = {frame_asset.composition_ubo};
 
-        output_img = pingpong_render(m_composition_drawable);
+//        output_img = pingpong_render(m_composition_drawable);
     }
 
     return output_img;
@@ -433,6 +407,38 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
 void PBRPathTracer::set_environment(const ImagePtr &cubemap)
 {
     m_environment = cubemap;
+}
+
+void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t &frame_asset,
+                                                   const SceneConstPtr &scene,
+                                                   const std::set<std::string> &tags)
+{
+    // set environment
+    m_environment = scene->environment();
+    frame_asset.tracable.pipeline_info.shader_stages = m_environment ? m_shader_stages_env : m_shader_stages;
+
+    // TODO: culling, no culling, which volume to use!?
+    vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector(tags);
+    scene->root()->accept(mesh_selector);
+
+    frame_asset.bottom_lvl_assets.clear();
+
+    // TODO: better strategy for mesh-building, non-blocking
+    for(auto node: mesh_selector.objects)
+    {
+        auto search_it = m_acceleration_assets.find(node->mesh);
+
+        if(search_it != m_acceleration_assets.end())
+        {
+            for(auto &asset : search_it->second){ asset.transform = node->global_transform(); }
+        }
+        else
+        {
+            // create bottom-lvl
+            m_acceleration_assets[node->mesh] = m_ray_builder.create_mesh_structures(node->mesh, node->global_transform());
+        }
+        frame_asset.bottom_lvl_assets[node->mesh] = m_acceleration_assets[node->mesh];
+    }
 }
 
 }// namespace vierkant
