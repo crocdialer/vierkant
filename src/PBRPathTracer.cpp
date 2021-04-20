@@ -41,6 +41,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     ray_tracer_create_info.pipeline_cache = create_info.pipeline_cache;
     m_ray_tracer = vierkant::RayTracer(device, ray_tracer_create_info);
     m_ray_builder = vierkant::RayBuilder(device, m_queue, pool);
+    m_compaction = create_info.compaction;
 
     vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
     post_fx_buffer_info.size = create_info.size;
@@ -423,7 +424,9 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
     frame_asset.bottom_lvl_assets.clear();
 
-    // TODO: better strategy for mesh-building, non-blocking
+    std::unordered_map<MeshConstPtr, RayBuilder::build_result_t> build_results;
+
+    // schedule non-blocking build+compaction of acceleration structures
     for(auto node: mesh_selector.objects)
     {
         auto search_it = m_acceleration_assets.find(node->mesh);
@@ -434,11 +437,31 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         }
         else
         {
+            auto &mesh_assets = m_acceleration_assets[node->mesh];
+
             // create bottom-lvl
-            m_acceleration_assets[node->mesh] = m_ray_builder.create_mesh_structures(node->mesh, node->global_transform());
+            auto result = m_ray_builder.create_mesh_structures(node->mesh, node->global_transform());
+            mesh_assets = result.acceleration_assets;
+
+            build_results[node->mesh] = std::move(result);
         }
-        frame_asset.bottom_lvl_assets[node->mesh] = m_acceleration_assets[node->mesh];
+//        frame_asset.bottom_lvl_assets[node->mesh] = m_acceleration_assets[node->mesh];
     }
+
+    auto wait_value = m_compaction ? RayBuilder::SemaphoreValue::COMPACTED : RayBuilder::SemaphoreValue::BUILD;
+
+    for(auto &[mesh, result] : build_results)
+    {
+        if(m_compaction)
+        {
+            m_ray_builder.compact(result);
+            m_acceleration_assets[mesh] = result.compacted_assets;
+        }
+
+        result.semaphore.wait(wait_value);
+    }
+
+    for(auto node: mesh_selector.objects){ frame_asset.bottom_lvl_assets[node->mesh] = m_acceleration_assets[node->mesh]; }
 }
 
 }// namespace vierkant

@@ -31,6 +31,9 @@ public:
 
         VkQueue queue = VK_NULL_HANDLE;
 
+        //! flag indicating if compaction shall be done for created acceleration-structures
+        bool compaction = true;
+
         // base settings for a SceneRenderer
         SceneRenderer::settings_t settings = {};
     };
@@ -138,6 +141,8 @@ private:
 
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
+
+    bool m_compaction;
 
     vierkant::RayBuilder::acceleration_asset_map_t m_acceleration_assets;
 

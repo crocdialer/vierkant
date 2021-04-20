@@ -51,7 +51,7 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
     m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
 }
 
-std::vector<RayBuilder::acceleration_asset_ptr>
+RayBuilder::build_result_t
 RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform) const
 {
     // raytracing flags
@@ -75,12 +75,16 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> offsets(mesh->entries.size());
     std::vector<VkAccelerationStructureBuildGeometryInfoKHR> build_infos(mesh->entries.size());
 
+    // timelinesemaphore to track builds
+    build_result_t ret = {};
+    ret.semaphore = vierkant::Semaphore(m_device);
+
     // one per bottom-lvl-build
-    std::vector<vierkant::CommandBuffer> command_buffers(mesh->entries.size());
+    ret.build_commands.resize(mesh->entries.size());
 
     // used to query compaction sizes after building
-    auto query_pool = create_query_pool(m_device, mesh->entries.size(),
-                                        VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR);
+    ret.query_pool = create_query_pool(m_device, mesh->entries.size(),
+                                       VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR);
 
     // those will be stored
     std::vector<acceleration_asset_ptr> entry_assets(mesh->entries.size());
@@ -155,7 +159,7 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
         build_info.scratchData.deviceAddress = acceleration_asset.scratch_buffer->device_address();
 
         // create commandbuffer for building the bottomlevel-structure
-        auto &cmd_buffer = command_buffers[i];
+        auto &cmd_buffer = ret.build_commands[i];
         cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
         cmd_buffer.begin();
 
@@ -178,63 +182,71 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
             VkAccelerationStructureKHR accel_structure = acceleration_asset.structure.get();
             vkCmdWriteAccelerationStructuresPropertiesKHR(cmd_buffer.handle(), 1, &accel_structure,
                                                           VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR,
-                                                          query_pool.get(), i);
+                                                          ret.query_pool.get(), i);
         }
         cmd_buffer.end();
     }
 
-    std::vector<VkCommandBuffer> cmd_handles(command_buffers.size());
-    for(uint32_t i = 0; i < command_buffers.size(); ++i){ cmd_handles[i] = command_buffers[i].handle(); }
+    std::vector<VkCommandBuffer> cmd_handles(ret.build_commands.size());
+    for(uint32_t i = 0; i < ret.build_commands.size(); ++i){ cmd_handles[i] = ret.build_commands[i].handle(); }
 
-    // TODO: timelinesemaphore to track builds
-    vierkant::submit(m_device, m_queue, cmd_handles, true);
+    vierkant::semaphore_submit_info_t semaphore_build_info = {};
+    semaphore_build_info.semaphore = ret.semaphore.handle();
+    semaphore_build_info.signal_value = SemaphoreValue::BUILD;
+    vierkant::submit(m_device, m_queue, cmd_handles, false, VK_NULL_HANDLE, {semaphore_build_info});
 
+    ret.acceleration_assets = std::move(entry_assets);
+    return ret;
+}
+
+void RayBuilder::compact(build_result_t &build_result) const
+{
     // memory-compaction for bottom-lvl-structures
-    if(enable_compaction)
+    std::vector<acceleration_asset_ptr> entry_assets_compact(build_result.acceleration_assets.size());
+
+    build_result.semaphore.wait(SemaphoreValue::BUILD);
+
+    // Get the size result back
+    std::vector<VkDeviceSize> compact_sizes(build_result.acceleration_assets.size());
+    vkCheck(vkGetQueryPoolResults(m_device->handle(), build_result.query_pool.get(), 0,
+                                  (uint32_t) compact_sizes.size(), compact_sizes.size() * sizeof(VkDeviceSize),
+                                  compact_sizes.data(), sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT),
+            "RayBuilder::add_mesh: could not query compacted acceleration-structure sizes");
+
+    build_result.compact_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    build_result.compact_command.begin();
+
+    // compacting
+    for(uint32_t i = 0; i < entry_assets_compact.size(); i++)
     {
-        // Get the size result back
-        std::vector<VkDeviceSize> compact_sizes(mesh->entries.size());
-        vkCheck(vkGetQueryPoolResults(m_device->handle(), query_pool.get(), 0,
-                                      (uint32_t) compact_sizes.size(), compact_sizes.size() * sizeof(VkDeviceSize),
-                                      compact_sizes.data(), sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT),
-                "RayBuilder::add_mesh: could not query compacted acceleration-structure sizes");
+        LOG_DEBUG << crocore::format("reducing bottom-lvl-size (%d), from %dkB to %dkB\n", i,
+                                     (uint32_t) build_result.acceleration_assets[i]->buffer->num_bytes() / 1024,
+                                     compact_sizes[i] / 1024);
 
-        auto cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        cmd_buffer.begin();
+        // Creating a compact version of the AS
+        VkAccelerationStructureCreateInfoKHR create_info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+        create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        create_info.size = compact_sizes[i];
 
-        // compacting
-        std::vector<acceleration_asset_ptr> entry_assets_compact(entry_assets.size());
+        entry_assets_compact[i] = std::make_shared<acceleration_asset_t>();
+        auto &acceleration_asset = *entry_assets_compact[i];
+        acceleration_asset = create_acceleration_asset(create_info);
+        acceleration_asset.transform = build_result.acceleration_assets[i]->transform;
 
-        for(uint32_t i = 0; i < entry_assets.size(); i++)
-        {
-            LOG_DEBUG << crocore::format("reducing bottom-lvl-size (%d), from %d to %d \n", i,
-                                         (uint32_t) entry_assets[i]->buffer->num_bytes(),
-                                         compact_sizes[i]);
-
-            // Creating a compact version of the AS
-            VkAccelerationStructureCreateInfoKHR create_info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
-            create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-            create_info.size = compact_sizes[i];
-
-            entry_assets_compact[i] = std::make_shared<acceleration_asset_t>();
-            auto &acceleration_asset = *entry_assets_compact[i];
-            acceleration_asset = create_acceleration_asset(create_info);
-            acceleration_asset.transform = entry_assets[i]->transform;
-
-            // copy the original BLAS to a compact version
-            VkCopyAccelerationStructureInfoKHR copy_info{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
-            copy_info.src = entry_assets[i]->structure.get();
-            copy_info.dst = acceleration_asset.structure.get();
-            copy_info.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
-            vkCmdCopyAccelerationStructureKHR(cmd_buffer.handle(), &copy_info);
-        }
-        cmd_buffer.submit(m_queue, true);
-
-        // keep compacted versions
-        entry_assets = std::move(entry_assets_compact);
+        // copy the original BLAS to a compact version
+        VkCopyAccelerationStructureInfoKHR copy_info{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
+        copy_info.src = build_result.acceleration_assets[i]->structure.get();
+        copy_info.dst = acceleration_asset.structure.get();
+        copy_info.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
+        vkCmdCopyAccelerationStructureKHR(build_result.compact_command.handle(), &copy_info);
     }
 
-    return entry_assets;
+    vierkant::semaphore_submit_info_t semaphore_compact_info = {};
+    semaphore_compact_info.semaphore = build_result.semaphore.handle();
+    semaphore_compact_info.signal_value = SemaphoreValue::COMPACTED;
+    build_result.compact_command.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_compact_info});
+
+    build_result.compacted_assets = std::move(entry_assets_compact);
 }
 
 void RayBuilder::set_function_pointers()

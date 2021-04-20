@@ -33,7 +33,7 @@ public:
 
     Semaphore() = default;
 
-    Semaphore(const vierkant::DevicePtr &device, uint64_t initial_value);
+    Semaphore(const vierkant::DevicePtr &device, uint64_t initial_value = 0);
 
     ~Semaphore();
 
