@@ -5,7 +5,7 @@
 #include "ray_common.glsl"
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-layout(binding = 1, set = 0, rgba32f) uniform image2D image;
+layout(binding = 1, set = 0, rgba32f) writeonly uniform image2D image;
 layout(binding = 2, set = 0) uniform CameraProperties
 {
     mat4 viewInverse;
@@ -108,11 +108,11 @@ void main()
 {
     vec3 color = trace(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
 
-    if (push_constants.batch_index != 0)
-    {
-        uint size = push_constants.batch_index;
-        color = (size * imageLoad(image, ivec2(gl_LaunchIDEXT.xy)).rgb + color) / (size + 1);
-    }
+//    if (push_constants.batch_index != 0)
+//    {
+//        uint size = push_constants.batch_index;
+//        color = (size * imageLoad(image, ivec2(gl_LaunchIDEXT.xy)).rgb + color) / (size + 1);
+//    }
 
     imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(color, 1.0));
 }

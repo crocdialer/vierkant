@@ -51,7 +51,7 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
     m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
 }
 
-std::vector<RayBuilder::acceleration_asset_t>
+std::vector<RayBuilder::acceleration_asset_ptr>
 RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform) const
 {
     // raytracing flags
@@ -83,7 +83,7 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
                                         VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR);
 
     // those will be stored
-    std::vector<acceleration_asset_t> entry_assets(mesh->entries.size());
+    std::vector<acceleration_asset_ptr> entry_assets(mesh->entries.size());
 
     for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
@@ -135,7 +135,8 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
         vkGetAccelerationStructureBuildSizesKHR(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
                                                 &build_infos[i], &offsets[i].primitiveCount, &size_info);
 
-        auto &acceleration_asset = entry_assets[i];
+        entry_assets[i] = std::make_shared<acceleration_asset_t>();
+        auto &acceleration_asset = *entry_assets[i];
         VkAccelerationStructureCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
         create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         create_info.size = size_info.accelerationStructureSize;
@@ -202,25 +203,27 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
         cmd_buffer.begin();
 
         // compacting
-        std::vector<acceleration_asset_t> entry_assets_compact(entry_assets.size());
+        std::vector<acceleration_asset_ptr> entry_assets_compact(entry_assets.size());
 
         for(uint32_t i = 0; i < entry_assets.size(); i++)
         {
             LOG_DEBUG << crocore::format("reducing bottom-lvl-size (%d), from %d to %d \n", i,
-                                         (uint32_t) entry_assets[i].buffer->num_bytes(),
+                                         (uint32_t) entry_assets[i]->buffer->num_bytes(),
                                          compact_sizes[i]);
 
             // Creating a compact version of the AS
             VkAccelerationStructureCreateInfoKHR create_info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
             create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
             create_info.size = compact_sizes[i];
-            auto &acceleration_asset = entry_assets_compact[i];
+
+            entry_assets_compact[i] = std::make_shared<acceleration_asset_t>();
+            auto &acceleration_asset = *entry_assets_compact[i];
             acceleration_asset = create_acceleration_asset(create_info);
-            acceleration_asset.transform = entry_assets[i].transform;
+            acceleration_asset.transform = entry_assets[i]->transform;
 
             // copy the original BLAS to a compact version
             VkCopyAccelerationStructureInfoKHR copy_info{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
-            copy_info.src = entry_assets[i].structure.get();
+            copy_info.src = entry_assets[i]->structure.get();
             copy_info.dst = acceleration_asset.structure.get();
             copy_info.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
             vkCmdCopyAccelerationStructureKHR(cmd_buffer.handle(), &copy_info);
@@ -335,7 +338,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             // skip disabled entries
             if(!mesh_entry.enabled){ continue; }
 
-            auto modelview = asset.transform * mesh_entry.transform;
+            auto modelview = asset->transform * mesh_entry.transform;
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
@@ -346,7 +349,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             instance.mask = 0xFF;
             instance.instanceShaderBindingTableRecordOffset = 0;
             instance.flags = instance_flags;
-            instance.accelerationStructureReference = asset.device_address;
+            instance.accelerationStructureReference = asset->device_address;
 
             instances.push_back(instance);
 

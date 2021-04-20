@@ -430,7 +430,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
         if(search_it != m_acceleration_assets.end())
         {
-            for(auto &asset : search_it->second){ asset.transform = node->global_transform(); }
+            for(auto &asset : search_it->second){ asset->transform = node->global_transform(); }
         }
         else
         {

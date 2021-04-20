@@ -81,9 +81,10 @@ public:
         vierkant::BufferPtr instance_buffer = nullptr;
         vierkant::BufferPtr scratch_buffer = nullptr;
     };
+    using acceleration_asset_ptr = std::shared_ptr<acceleration_asset_t>;
 
-    //! can be used to used to cache an array of (bottom-lvl) acceleration-structures per mesh
-    using acceleration_asset_map_t = std::unordered_map<vierkant::MeshConstPtr, std::vector<acceleration_asset_t>>;
+    //! can be used to used to cache an array of shared (bottom-lvl) acceleration-structures per mesh
+    using acceleration_asset_map_t = std::unordered_map<vierkant::MeshConstPtr, std::vector<acceleration_asset_ptr>>;
 
     RayBuilder() = default;
 
@@ -97,7 +98,7 @@ public:
      * @param   mesh        a provided vierkant::MeshConstPtr
      * @param   transform   a provided transformation-matrix
      */
-    std::vector<acceleration_asset_t> create_mesh_structures(const vierkant::MeshConstPtr &mesh,
+    std::vector<acceleration_asset_ptr> create_mesh_structures(const vierkant::MeshConstPtr &mesh,
                                                              const glm::mat4 &transform = glm::mat4(1)) const;
 
     /**
