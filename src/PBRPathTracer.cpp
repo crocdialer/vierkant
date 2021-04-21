@@ -73,14 +73,14 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
         ray_asset.storage_image = vierkant::Image::create(m_device, storage_format);
 
-        // create a denoise image
-        vierkant::Image::Format denoise_format = {};
-        denoise_format.extent = create_info.size;
-        denoise_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        denoise_format.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        denoise_format.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-        denoise_format.initial_layout_transition = true;
-        ray_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
+//        // create a denoise image
+//        vierkant::Image::Format denoise_format = {};
+//        denoise_format.extent = create_info.size;
+//        denoise_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+//        denoise_format.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+//        denoise_format.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+//        denoise_format.initial_layout_transition = true;
+//        ray_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
 
         // create bloom
         Bloom::create_info_t bloom_info = {};
@@ -95,14 +95,14 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                                                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                              VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        // create post_fx ping pong buffers and renderers
-        for(auto &post_fx_ping_pong : ray_asset.post_fx_ping_pongs)
-        {
-            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
-            post_fx_renderpass = post_fx_ping_pong.framebuffer.renderpass();
-            post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
-            post_fx_ping_pong.renderer = vierkant::Renderer(device, post_render_info);
-        }
+//        // create post_fx ping pong buffers and renderers
+//        for(auto &post_fx_ping_pong : ray_asset.post_fx_ping_pongs)
+//        {
+//            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
+//            post_fx_renderpass = post_fx_ping_pong.framebuffer.renderpass();
+//            post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+//            post_fx_ping_pong.renderer = vierkant::Renderer(device, post_render_info);
+//        }
     }
 
     auto raygen = vierkant::create_shader_module(m_device, vierkant::shaders::ray::raygen_rgen);
@@ -120,21 +120,23 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     // create drawables for post-fx-pass
     {
-        vierkant::Renderer::drawable_t fullscreen_drawable = {};
+        m_drawable_raw = {};
 
-        fullscreen_drawable.num_vertices = 3;
-        fullscreen_drawable.use_own_buffers = true;
-        fullscreen_drawable.pipeline_format.depth_test = true;
-        fullscreen_drawable.pipeline_format.depth_write = true;
+        m_drawable_raw.num_vertices = 3;
+        m_drawable_raw.use_own_buffers = true;
+        m_drawable_raw.pipeline_format.depth_test = false;
+        m_drawable_raw.pipeline_format.depth_write = false;
 
         // same for all fullscreen passes
-        fullscreen_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
+        m_drawable_raw.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
-        fullscreen_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        m_drawable_raw.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_frag);
+        m_drawable_raw.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptor
-        fullscreen_drawable.descriptors[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        fullscreen_drawable.descriptors[0].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        m_drawable_raw.descriptors[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        m_drawable_raw.descriptors[0].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
         // descriptor
         vierkant::descriptor_t desc_settings_ubo = {};
@@ -142,15 +144,15 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         desc_settings_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
         // bloom
-        m_composition_drawable = fullscreen_drawable;
-        m_composition_drawable.pipeline_format.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
+        m_drawable_bloom = m_drawable_raw;
+//        m_composition_drawable.pipeline_format.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 
-        m_composition_drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+        m_drawable_bloom.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::bloom_composition_frag);
 
         // composition ubo
-        m_composition_drawable.descriptors[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        m_composition_drawable.descriptors[1].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        m_drawable_bloom.descriptors[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        m_drawable_bloom.descriptors[1].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     }
 
     m_draw_context = vierkant::DrawContext(m_device);
@@ -161,21 +163,22 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
                                                            const CameraPtr &cam,
                                                            const std::set<std::string> &tags)
 {
-    auto &ray_asset = m_frame_assets[renderer.current_index()];
+    auto foo = renderer.current_index();
+    auto &ray_asset = m_frame_assets[foo];
 
     update_acceleration_structures(ray_asset, scene, tags);
 
     // pathtracing pass
     path_trace_pass(ray_asset, cam);
 
-//    // TODO: denoiser
-//    denoise_pass(ray_asset);
+    // TODO: denoiser
+    denoise_pass(ray_asset);
 
     // bloom + tonemap
-    auto out_img = post_fx_pass(ray_asset);
+    post_fx_pass(ray_asset);
 
-    renderer.stage_drawable(m_composition_drawable);
-//    m_draw_context.draw_image_fullscreen(renderer, ray_asset.storage_image);
+    // TODO: using the composition drawable yields strange block-artifacts
+    renderer.stage_drawable(ray_asset.out_drawable);
 
     render_result_t ret;
     ret.num_objects = ray_asset.bottom_lvl_assets.size();
@@ -193,9 +196,9 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
 void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam)
 {
     // similar to a fence wait
-    frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
+    frame_asset.semaphore.wait(SemaphoreValue::RAYTRACING);
 
-    frame_asset.semaphore = vierkant::Semaphore(m_device, SemaphoreValue::INIT);
+    frame_asset.semaphore = vierkant::Semaphore(m_device);
 
     frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_trace.begin();
@@ -209,23 +212,8 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     // transition storage image
     frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_trace.handle());
 
-    // tada
+    // run path-tracer
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
-//    frame_asset.tracable.batch_index++;
-
-//    // barrier before reading back size
-//    VkMemoryBarrier barrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
-//    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT | VK_ACCESS_MEMORY_READ_BIT;
-//    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-//    vkCmdPipelineBarrier(frame_asset.cmd_trace.handle(),
-//                         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-//                         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-//                         0, 1, &barrier, 0, nullptr, 0, nullptr);
-
-
-    // transition storage image
-    frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                                 frame_asset.cmd_trace.handle());
 
     frame_asset.cmd_trace.end();
 
@@ -237,40 +225,15 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
 void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
 {
-    // TODO: only a placeholder copy here
     frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_denoise.begin();
 
-    // copy goes here
-    VkImageCopy region = {};
-    region.extent = frame_asset.storage_image->extent();
-    region.dstOffset = region.srcOffset = {0, 0, 0};
-    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.srcSubresource.baseArrayLayer = 0;
-    region.srcSubresource.layerCount = 1;
-    region.srcSubresource.mipLevel = 0;
-
-    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.dstSubresource.baseArrayLayer = 0;
-    region.dstSubresource.layerCount = 1;
-    region.dstSubresource.mipLevel = 0;
-
-    // transition layouts for copying
-    frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    // transition storage image
+    frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                  frame_asset.cmd_denoise.handle());
 
-    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                                 frame_asset.cmd_denoise.handle());
-
-    // actual copy command
-    vkCmdCopyImage(frame_asset.cmd_denoise.handle(), frame_asset.storage_image->image(),
-                   frame_asset.storage_image->image_layout(), frame_asset.denoise_image->image(),
-                   frame_asset.denoise_image->image_layout(), 1, &region);
-
-    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                                 frame_asset.cmd_denoise.handle());
-
-    frame_asset.cmd_denoise.end();
+    // TODO: hook denoising
+    frame_asset.denoise_image = frame_asset.storage_image;
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
@@ -280,14 +243,14 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 }
 
-vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
+void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
 {
-    auto output_img = frame_asset.storage_image;//frame_asset.denoise_image;
+    auto output_img = frame_asset.denoise_image;
 
     semaphore_submit_info_t bloom_submit = {};
     bloom_submit.semaphore = frame_asset.semaphore.handle();
     bloom_submit.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-    bloom_submit.wait_value = SemaphoreValue::RAYTRACING;
+    bloom_submit.wait_value = SemaphoreValue::DENOISER;
     bloom_submit.signal_value = SemaphoreValue::BLOOM;
 
     // bloom
@@ -301,13 +264,16 @@ vierkant::ImagePtr PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
         comp_ubo.gamma = settings.gamma;
         frame_asset.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
-        m_composition_drawable.descriptors[0].image_samplers = {output_img, bloom_img};
-        m_composition_drawable.descriptors[1].buffers = {frame_asset.composition_ubo};
-
-//        output_img = pingpong_render(m_composition_drawable);
+        frame_asset.out_drawable = m_drawable_bloom;
+        frame_asset.out_drawable.descriptors[0].image_samplers = {output_img, bloom_img};
+        frame_asset.out_drawable.descriptors[1].buffers = {frame_asset.composition_ubo};
     }
-
-    return output_img;
+    else
+    {
+        frame_asset.out_drawable = m_drawable_raw;
+        frame_asset.out_drawable.descriptors[0].image_samplers = {output_img};
+        vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, {bloom_submit});
+    }
 }
 
 void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam)
@@ -437,15 +403,12 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         }
         else
         {
-            auto &mesh_assets = m_acceleration_assets[node->mesh];
-
             // create bottom-lvl
             auto result = m_ray_builder.create_mesh_structures(node->mesh, node->global_transform());
-            mesh_assets = result.acceleration_assets;
+            m_acceleration_assets[node->mesh] = result.acceleration_assets;
 
             build_results[node->mesh] = std::move(result);
         }
-//        frame_asset.bottom_lvl_assets[node->mesh] = m_acceleration_assets[node->mesh];
     }
 
     auto wait_value = m_compaction ? RayBuilder::SemaphoreValue::COMPACTED : RayBuilder::SemaphoreValue::BUILD;
@@ -458,6 +421,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             m_acceleration_assets[mesh] = result.compacted_assets;
         }
 
+        // sync build/compactions
         result.semaphore.wait(wait_value);
     }
 

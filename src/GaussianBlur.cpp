@@ -183,25 +183,52 @@ template<uint32_t NUM_TAPS>
 vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue queue,
                                                   const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
-    if(!queue){ queue = image->device()->queue(); }
+    auto device = image->device();
 
-    std::vector<vierkant::semaphore_submit_info_t> wait_infos;
+    if(!queue){ queue = device->queue(); }
+
+    std::vector<vierkant::semaphore_submit_info_t> wait_infos, signal_infos;
+
     for(const auto &info : semaphore_infos)
     {
-        if(info.semaphore && info.wait_stage)
+        if(info.semaphore)
         {
-            auto wait_info = info;
-            wait_info.signal_value = 0;
-            wait_infos.push_back(wait_info);
+            if(info.signal_value)
+            {
+                auto signal_info = info;
+                signal_info.wait_stage = 0;
+                signal_info.wait_value = 0;
+                signal_infos.push_back(signal_info);
+            }
+            if(info.wait_stage)
+            {
+                auto wait_info = info;
+                wait_info.signal_value = 0;
+                wait_infos.push_back(wait_info);
+            }
         }
     }
+
+    // init semaphore
+    m_semaphore = vierkant::Semaphore(device);
+    vierkant::semaphore_submit_info_t semaphore_info_ping = {}, semaphore_info_pong = {};
+    semaphore_info_ping.semaphore = semaphore_info_pong.semaphore = m_semaphore.handle();
 
     auto current_img = image;
     auto &ping = m_ping_pongs[0], &pong = m_ping_pongs[1];
 
+    // wait for external semaphores
+    vierkant::submit(device, queue, {}, false, VK_NULL_HANDLE, wait_infos);
+
     for(uint32_t i = 0; i < m_framebuffers.size(); i += 2)
     {
-        bool signal = i >= m_framebuffers.size() - 2;
+        semaphore_info_ping.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        semaphore_info_ping.wait_value = i;
+        semaphore_info_ping.signal_value = i + 1;
+
+        semaphore_info_pong.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        semaphore_info_pong.wait_value = i + 1;
+        semaphore_info_pong.signal_value = i + 2;
 
         auto &fb_ping = m_framebuffers[i];
         auto &fb_pong = m_framebuffers[i + 1];
@@ -212,15 +239,24 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
         // horizontal pass
         m_renderer.stage_drawable(ping.drawable);
         auto cmd_buffer = m_renderer.render(fb_ping);
-        fb_ping.submit({cmd_buffer}, queue, wait_infos);
+        fb_ping.submit({cmd_buffer}, queue, {semaphore_info_ping});
 
         // vertical pass
         m_renderer.stage_drawable(pong.drawable);
         cmd_buffer = m_renderer.render(fb_pong);
-        fb_pong.submit({cmd_buffer}, queue, signal ? semaphore_infos : wait_infos);
+        fb_pong.submit({cmd_buffer}, queue, {semaphore_info_pong});
 
         current_img = fb_pong.color_attachment();
     }
+
+    // wait on pingpongs, signal external semaphores
+    vierkant::semaphore_submit_info_t semaphore_info_final = {m_semaphore.handle()};
+    semaphore_info_final.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    semaphore_info_final.wait_value = m_framebuffers.size();
+    signal_infos.push_back(semaphore_info_final);
+
+    vierkant::submit(device, queue, {}, false, VK_NULL_HANDLE, signal_infos);
+
     return current_img;
 }
 

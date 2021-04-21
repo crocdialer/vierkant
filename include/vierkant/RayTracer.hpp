@@ -32,12 +32,6 @@ public:
 
         //! a descriptormap
         descriptor_map_t descriptors;
-
-        //! optional descriptor-set-layout
-//        DescriptorSetLayoutPtr descriptor_set_layout;
-
-        //! sample-batch index
-        uint32_t batch_index = 0;
     };
 
     struct create_info_t

@@ -89,21 +89,14 @@ private:
 
         vierkant::BufferPtr composition_ubo;
 
-        //! ping-pong post-fx framebuffers
-        struct ping_pong_t
-        {
-            vierkant::Framebuffer framebuffer;
-            vierkant::Renderer renderer;
-        };
-        std::array<ping_pong_t, 2> post_fx_ping_pongs;
+        vierkant::Renderer::drawable_t out_drawable;
 
         BloomUPtr bloom;
     };
 
     enum SemaphoreValue : uint64_t
     {
-        INIT = 0,
-        RAYTRACING,
+        RAYTRACING = 1,
         DENOISER,
         BLOOM,
         COMPOSITION,
@@ -130,7 +123,7 @@ private:
 
     void denoise_pass(frame_assets_t &frame_asset);
 
-    vierkant::ImagePtr post_fx_pass(frame_assets_t &frame_asset);
+    void post_fx_pass(frame_assets_t &frame_asset);
 
     //! device
     vierkant::DevicePtr m_device;
@@ -158,7 +151,7 @@ private:
 
     vierkant::ImagePtr m_environment;
 
-    vierkant::Renderer::drawable_t m_composition_drawable;
+    vierkant::Renderer::drawable_t m_drawable_bloom, m_drawable_raw;
 };
 
 }// namespace vierkant

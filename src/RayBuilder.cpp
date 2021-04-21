@@ -219,7 +219,7 @@ void RayBuilder::compact(build_result_t &build_result) const
     // compacting
     for(uint32_t i = 0; i < entry_assets_compact.size(); i++)
     {
-        LOG_DEBUG << crocore::format("reducing bottom-lvl-size (%d), from %dkB to %dkB\n", i,
+        LOG_DEBUG << crocore::format("reducing bottom-lvl-size (%d), from %dkB to %dkB", i,
                                      (uint32_t) build_result.acceleration_assets[i]->buffer->num_bytes() / 1024,
                                      compact_sizes[i] / 1024);
 

@@ -37,10 +37,9 @@ public:
 
 private:
 
-    enum SemaphoreValue
+    enum SemaphoreValue : uint64_t
     {
-        INIT = 0,
-        THRESH_DONE,
+        THRESH_DONE = 1,
         BLUR_DONE
     };
 

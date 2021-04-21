@@ -76,6 +76,8 @@ private:
 
     vierkant::Renderer m_renderer;
 
+    vierkant::Semaphore m_semaphore;
+
     VkSpecializationInfo m_specialization_info = {};
     VkSpecializationMapEntry m_specialization_entry = {};
 };

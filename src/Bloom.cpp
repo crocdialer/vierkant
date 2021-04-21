@@ -81,7 +81,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
     if(!queue){ queue = image->device()->queue(); }
 
     m_semaphore.wait(SemaphoreValue::BLUR_DONE);
-    m_semaphore = vierkant::Semaphore(image->device(), SemaphoreValue::INIT);
+    m_semaphore = vierkant::Semaphore(image->device());
 
     std::vector<vierkant::semaphore_submit_info_t> wait_infos, signal_infos;
 
@@ -89,7 +89,13 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
     {
         if(info.semaphore)
         {
-            if(info.signal_value){ signal_infos.push_back(info); }
+            if(info.signal_value)
+            {
+                auto signal_info = info;
+                signal_info.wait_stage = 0;
+                signal_info.wait_value = 0;
+                signal_infos.push_back(signal_info);
+            }
             if(info.wait_stage)
             {
                 auto wait_info = info;

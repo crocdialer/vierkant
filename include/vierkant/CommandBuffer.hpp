@@ -30,7 +30,7 @@ FencePtr create_fence(const vierkant::DevicePtr &device, bool signaled = false);
 void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fence, bool reset = true);
 
 /**
- * @brief   Submit an array of VkCommandBuffer to a VkQueue.
+ * @brief   Submit an array of command-buffers and/or semaphores to a VkQueue.
  *
  * @param   device          shared handle to a VkDevice
  * @param   queue           a VkQueue to submit the commands to
