@@ -77,6 +77,9 @@ private:
         //! records raytracing commands
         vierkant::CommandBuffer cmd_trace, cmd_denoise;
 
+        //! pending builds for this frame
+        std::unordered_map<MeshConstPtr, RayBuilder::build_result_t> build_results;
+
         //! maps Mesh -> bottom-lvl structures
         vierkant::RayBuilder::acceleration_asset_map_t bottom_lvl_assets;
 
@@ -96,12 +99,23 @@ private:
 
     enum SemaphoreValue : uint64_t
     {
-        RAYTRACING = 1,
+        ACCELERATION_UPDATE = 1,
+        RAYTRACING,
         DENOISER,
-        BLOOM,
         COMPOSITION,
-        POST_FX = COMPOSITION,
         RENDER_DONE
+    };
+
+    struct push_constants_t
+    {
+        //! current time since start in seconds
+        float time = 0.f;
+
+        //! sample-batch index
+        uint32_t batch_index = 0;
+
+        //! override albedo colors
+        uint32_t disable_material = 0;
     };
 
     struct composition_ubo_t
@@ -152,6 +166,8 @@ private:
     vierkant::ImagePtr m_environment;
 
     vierkant::Renderer::drawable_t m_drawable_bloom, m_drawable_raw;
+
+    std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };
 
 }// namespace vierkant

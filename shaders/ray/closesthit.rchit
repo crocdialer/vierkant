@@ -139,14 +139,15 @@ void main()
     // add radiance from emission
     payload.radiance += payload.beta * emission;
 
-    if(any(greaterThan(emission, vec3(0.01))))
-    {
-        payload.stop = true;
-        return;
-    }
+//    if(any(greaterThan(emission, vec3(0.01))))
+//    {
+//        payload.stop = true;
+//        return;
+//    }
 
     // modulate beta with albedo
-    vec3 color = material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
+    vec3 color = push_constants.disable_material ?
+        vec3(1) : material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
 
     // roughness / metalness
     vec2 rough_metal = texture(u_ao_rough_metal_maps[material.ao_rough_metal_index], v.tex_coord).gb;

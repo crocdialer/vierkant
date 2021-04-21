@@ -9,6 +9,8 @@
 namespace vierkant
 {
 
+using duration_t = std::chrono::duration<float>;
+
 PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
 {
     return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info));
@@ -163,30 +165,34 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
                                                            const CameraPtr &cam,
                                                            const std::set<std::string> &tags)
 {
-    auto foo = renderer.current_index();
-    auto &ray_asset = m_frame_assets[foo];
+    auto &frame_asset = m_frame_assets[renderer.current_index()];
 
-    update_acceleration_structures(ray_asset, scene, tags);
+    // sync and reset semaphore
+    frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
+    frame_asset.semaphore = vierkant::Semaphore(m_device);
+
+    // create/update/compact bottom-lvl acceleration-structures
+    update_acceleration_structures(frame_asset, scene, tags);
 
     // pathtracing pass
-    path_trace_pass(ray_asset, cam);
+    path_trace_pass(frame_asset, cam);
 
     // TODO: denoiser
-    denoise_pass(ray_asset);
+    denoise_pass(frame_asset);
 
     // bloom + tonemap
-    post_fx_pass(ray_asset);
+    post_fx_pass(frame_asset);
 
     // TODO: using the composition drawable yields strange block-artifacts
-    renderer.stage_drawable(ray_asset.out_drawable);
+    renderer.stage_drawable(frame_asset.out_drawable);
 
     render_result_t ret;
-    ret.num_objects = ray_asset.bottom_lvl_assets.size();
+    ret.num_objects = frame_asset.bottom_lvl_assets.size();
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
-    semaphore_submit_info.semaphore = ray_asset.semaphore.handle();
-    semaphore_submit_info.wait_value = SemaphoreValue::BLOOM;
+    semaphore_submit_info.semaphore = frame_asset.semaphore.handle();
+    semaphore_submit_info.wait_value = SemaphoreValue::COMPOSITION;
     semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     semaphore_submit_info.signal_value = SemaphoreValue::RENDER_DONE;
     ret.semaphore_infos = {semaphore_submit_info};
@@ -195,11 +201,6 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
 
 void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam)
 {
-    // similar to a fence wait
-    frame_asset.semaphore.wait(SemaphoreValue::RAYTRACING);
-
-    frame_asset.semaphore = vierkant::Semaphore(m_device);
-
     frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_trace.begin();
 
@@ -212,6 +213,14 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     // transition storage image
     frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_trace.handle());
 
+    // push constants
+    frame_asset.tracable.push_constants.resize(sizeof(push_constants_t));
+    auto &push_constants = *reinterpret_cast<push_constants_t*>(frame_asset.tracable.push_constants.data());
+    using namespace std::chrono;
+    push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
+    push_constants.batch_index = 0;
+    push_constants.disable_material = settings.disable_material;
+
     // run path-tracer
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
 
@@ -219,6 +228,8 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    semaphore_info.wait_value = SemaphoreValue::ACCELERATION_UPDATE;
     semaphore_info.signal_value = SemaphoreValue::RAYTRACING;
     frame_asset.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 }
@@ -251,7 +262,7 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
     bloom_submit.semaphore = frame_asset.semaphore.handle();
     bloom_submit.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
     bloom_submit.wait_value = SemaphoreValue::DENOISER;
-    bloom_submit.signal_value = SemaphoreValue::BLOOM;
+    bloom_submit.signal_value = SemaphoreValue::COMPOSITION;
 
     // bloom
     if(settings.use_bloom)
@@ -389,11 +400,10 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     scene->root()->accept(mesh_selector);
 
     frame_asset.bottom_lvl_assets.clear();
-
-    std::unordered_map<MeshConstPtr, RayBuilder::build_result_t> build_results;
+    frame_asset.build_results.clear();
 
     // schedule non-blocking build+compaction of acceleration structures
-    for(auto node: mesh_selector.objects)
+    for(const auto &node: mesh_selector.objects)
     {
         auto search_it = m_acceleration_assets.find(node->mesh);
 
@@ -407,13 +417,15 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             auto result = m_ray_builder.create_mesh_structures(node->mesh, node->global_transform());
             m_acceleration_assets[node->mesh] = result.acceleration_assets;
 
-            build_results[node->mesh] = std::move(result);
+            frame_asset.build_results[node->mesh] = std::move(result);
         }
     }
 
     auto wait_value = m_compaction ? RayBuilder::SemaphoreValue::COMPACTED : RayBuilder::SemaphoreValue::BUILD;
 
-    for(auto &[mesh, result] : build_results)
+    std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
+
+    for(auto &[mesh, result] : frame_asset.build_results)
     {
         if(m_compaction)
         {
@@ -421,11 +433,21 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             m_acceleration_assets[mesh] = result.compacted_assets;
         }
 
-        // sync build/compactions
-        result.semaphore.wait(wait_value);
+        vierkant::semaphore_submit_info_t wait_info = {};
+        wait_info.semaphore = result.semaphore.handle();
+        wait_info.wait_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+        wait_info.wait_value = wait_value;
+        semaphore_infos.push_back(wait_info);
     }
 
     for(auto node: mesh_selector.objects){ frame_asset.bottom_lvl_assets[node->mesh] = m_acceleration_assets[node->mesh]; }
+
+    vierkant::semaphore_submit_info_t signal_info = {};
+    signal_info.semaphore = frame_asset.semaphore.handle();
+    signal_info.signal_value = SemaphoreValue::ACCELERATION_UPDATE;
+    semaphore_infos.push_back(signal_info);
+
+    vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, semaphore_infos);
 }
 
 }// namespace vierkant

@@ -59,6 +59,9 @@ struct push_constants_t
 
     //! sample-batch index
     uint batch_index;
+
+    //! override albedo colors
+    bool disable_material;
 };
 
 //! helper to generate a seed

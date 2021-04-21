@@ -32,6 +32,9 @@ public:
 
         //! a descriptormap
         descriptor_map_t descriptors;
+
+        //! binary blob for push-constants
+        std::vector<uint8_t> push_constants;
     };
 
     struct create_info_t
@@ -65,15 +68,6 @@ public:
     friend void swap(RayTracer &lhs, RayTracer &rhs) noexcept;
 
 private:
-
-    struct push_constants_t
-    {
-        //! current time since start in seconds
-        float time = 0.f;
-
-        //! sample-batch index
-        uint32_t batch_index = 0;
-    };
 
     struct trace_assets_t
     {
@@ -134,10 +128,6 @@ private:
     std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> m_descriptor_set_layouts;
 
     uint32_t m_current_index = 0;
-
-    VkPushConstantRange m_push_constant_range = {};
-
-    std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 
     // process-addresses for raytracing related functions
     PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;

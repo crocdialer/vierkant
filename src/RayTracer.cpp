@@ -7,8 +7,6 @@
 namespace vierkant
 {
 
-using duration_t = std::chrono::duration<float>;
-
 inline uint32_t aligned_size(uint32_t size, uint32_t alignment)
 {
     return (size + alignment - 1) & ~(alignment - 1);
@@ -61,8 +59,6 @@ void swap(RayTracer &lhs, RayTracer &rhs) noexcept
     std::swap(lhs.m_binding_tables, rhs.m_binding_tables);
     std::swap(lhs.m_trace_assets, rhs.m_trace_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
-    std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
-    std::swap(lhs.m_start_time, rhs.m_start_time);
     std::swap(lhs.vkGetAccelerationStructureBuildSizesKHR, rhs.vkGetAccelerationStructureBuildSizesKHR);
     std::swap(lhs.vkCmdTraceRaysKHR, rhs.vkCmdTraceRaysKHR);
     std::swap(lhs.vkGetRayTracingShaderGroupHandlesKHR, rhs.vkGetRayTracingShaderGroupHandlesKHR);
@@ -99,11 +95,6 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
                                                       {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             256},
                                                       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     1024}};
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
-
-    // push constant range
-    m_push_constant_range.offset = 0;
-    m_push_constant_range.size = sizeof(push_constants_t);
-    m_push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,8 +118,14 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     auto descriptor_set_layout = find_set_layout(tracable.descriptors);
     tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
+    // push constant range
+    VkPushConstantRange push_constant_range = {};
+    push_constant_range.offset = 0;
+    push_constant_range.size = tracable.push_constants.size();
+    push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
+    tracable.pipeline_info.push_constant_ranges = {push_constant_range};
+
     // create or retrieve an existing raytracing pipeline
-    tracable.pipeline_info.push_constant_ranges = {m_push_constant_range};
     auto pipeline = m_pipeline_cache->pipeline(tracable.pipeline_info);
 
     // create the binding table
@@ -142,12 +139,6 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
                                                                          tracable.pipeline_info.shader_stages));
     }
 
-    // push constants
-    push_constants_t push_constants = {};
-    using namespace std::chrono;
-    push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
-    push_constants.batch_index = 0;
-
     // fetch descriptor set
     DescriptorSetPtr descriptor_set;
     try{ descriptor_set = trace_asset.descriptor_sets.get(descriptor_set_layout); }
@@ -159,9 +150,6 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     }
     // update descriptor-set with actual descriptors
     vierkant::update_descriptor_set(m_device, descriptor_set, tracable.descriptors);
-
-    // keep-alive copy of tracable
-    trace_asset.tracable = std::move(tracable);
 
     VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 
@@ -181,9 +169,12 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->layout(),
                             0, 1, &descriptor_set_handle, 0, nullptr);
 
-    // update push_constants
-    vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
-                       sizeof(push_constants_t), &push_constants);
+    if(!tracable.push_constants.empty())
+    {
+        // update push_constants
+        vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
+                           tracable.push_constants.size(), tracable.push_constants.data());
+    }
 
     // finally record the tracing command
     vkCmdTraceRaysKHR(commandbuffer,
@@ -192,6 +183,9 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
                       &binding_table.hit,
                       &binding_table.callable,
                       tracable.extent.width, tracable.extent.height, tracable.extent.depth);
+
+    // keep-alive copy of tracable
+    trace_asset.tracable = std::move(tracable);
 
     // submit only if we created the command buffer
     if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }

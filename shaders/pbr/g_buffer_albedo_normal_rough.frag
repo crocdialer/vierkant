@@ -40,7 +40,7 @@ void main()
     out_color = vec4(1);
     out_emission = vec4(0);
 
-    if(context.disable_material == 0)
+    if(!context.disable_material)
     {
         vec4 tex_color = vertex_in.color * texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord);
         if(smoothstep(0.0, 1.0, tex_color.a) < 0.01){ discard; }

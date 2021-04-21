@@ -40,7 +40,7 @@ struct render_context_t
     vec2 size;
     vec2 clipping;
     float time;
-    int disable_material;
+    bool disable_material;
 };
 
 //! attribute locations in vierkant::Mesh
