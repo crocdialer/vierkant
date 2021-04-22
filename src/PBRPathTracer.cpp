@@ -215,7 +215,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
     // push constants
     frame_asset.tracable.push_constants.resize(sizeof(push_constants_t));
-    auto &push_constants = *reinterpret_cast<push_constants_t*>(frame_asset.tracable.push_constants.data());
+    auto &push_constants = *reinterpret_cast<push_constants_t *>(frame_asset.tracable.push_constants.data());
     using namespace std::chrono;
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.batch_index = 0;
@@ -289,12 +289,6 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
 
 void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam)
 {
-    constexpr size_t max_num_maps = 256;
-    frame_asset.acceleration_asset.textures.resize(max_num_maps);
-    frame_asset.acceleration_asset.normalmaps.resize(max_num_maps);
-    frame_asset.acceleration_asset.emissions.resize(max_num_maps);
-    frame_asset.acceleration_asset.ao_rough_metal_maps.resize(max_num_maps);
-
     frame_asset.tracable.descriptors.clear();
 
     // descriptors
@@ -399,8 +393,31 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector(tags);
     scene->root()->accept(mesh_selector);
 
+    std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
+
+    auto previous_builds = std::move(frame_asset.build_results);
+
+    // run compaction on structures from previous frame
+    for(auto &[mesh, result] : previous_builds)
+    {
+        if(m_compaction && result.compacted_assets.empty())
+        {
+            // run compaction
+            m_ray_builder.compact(result);
+            m_acceleration_assets[mesh] = result.compacted_assets;
+
+            vierkant::semaphore_submit_info_t wait_info = {};
+            wait_info.semaphore = result.semaphore.handle();
+            wait_info.wait_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+            wait_info.wait_value = RayBuilder::SemaphoreValue::COMPACTED;
+            semaphore_infos.push_back(wait_info);
+
+            frame_asset.build_results[mesh] = std::move(result);
+        }
+    }
+
+    // clear left-overs
     frame_asset.bottom_lvl_assets.clear();
-    frame_asset.build_results.clear();
 
     // schedule non-blocking build+compaction of acceleration structures
     for(const auto &node: mesh_selector.objects)
@@ -421,22 +438,12 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         }
     }
 
-    auto wait_value = m_compaction ? RayBuilder::SemaphoreValue::COMPACTED : RayBuilder::SemaphoreValue::BUILD;
-
-    std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
-
     for(auto &[mesh, result] : frame_asset.build_results)
     {
-        if(m_compaction)
-        {
-            m_ray_builder.compact(result);
-            m_acceleration_assets[mesh] = result.compacted_assets;
-        }
-
         vierkant::semaphore_submit_info_t wait_info = {};
         wait_info.semaphore = result.semaphore.handle();
         wait_info.wait_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
-        wait_info.wait_value = wait_value;
+        wait_info.wait_value = RayBuilder::SemaphoreValue::BUILD;
         semaphore_infos.push_back(wait_info);
     }
 

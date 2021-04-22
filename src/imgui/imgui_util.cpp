@@ -8,6 +8,7 @@
 
 #include <vierkant/imgui/imgui_util.h>
 #include <vierkant/PBRDeferred.hpp>
+#include <vierkant/PBRPathTracer.hpp>
 
 #include "imgui_internal.h"
 
@@ -420,6 +421,9 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
 {
+    auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer);
+    auto is_path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer);
+
     constexpr char window_name[] = "renderer";
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
 
@@ -485,13 +489,15 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
         ImGui::Spacing();
     }
 
+    auto render_str = crocore::format("renderer: %s ", is_path_tracer ? "path-tracer" : "pbr-deferred");
+
+    ImGui::Text(render_str.c_str());
+    ImGui::Spacing();
     ImGui::Checkbox("skybox", &scene_renderer->settings.draw_skybox);
     ImGui::Checkbox("grid", &scene_renderer->settings.draw_grid);
     ImGui::Checkbox("disable material", &scene_renderer->settings.disable_material);
     ImGui::Checkbox("fxaa", &scene_renderer->settings.use_fxaa);
     ImGui::Checkbox("bloom", &scene_renderer->settings.use_bloom);
-
-    auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer);
 
     if(pbr_renderer)
     {

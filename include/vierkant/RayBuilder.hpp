@@ -153,6 +153,8 @@ private:
     vierkant::ImagePtr m_placeholder_solid_white, m_placeholder_normalmap, m_placeholder_emission,
             m_placeholder_ao_rough_metal;
 
+    vierkant::BufferPtr m_placeholder_buffer;
+
     // process-addresses for raytracing related functions
     PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;
     PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR = nullptr;

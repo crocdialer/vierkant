@@ -89,6 +89,9 @@ public:
         //! optional descriptor-set-layout
         DescriptorSetLayoutPtr descriptor_set_layout;
 
+        //! binary blob for push-constants
+        std::vector<uint8_t> push_constants;
+
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
 

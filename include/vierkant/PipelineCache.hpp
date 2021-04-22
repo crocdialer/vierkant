@@ -45,21 +45,7 @@ public:
      */
     const PipelinePtr &pipeline(const graphics_pipeline_info_t &format)
     {
-        // read-only locked for searching
-        {
-            std::shared_lock<std::shared_mutex> lock(m_pipeline_mutex);
-            auto it = m_pipelines.find(format);
-
-            // found
-            if(it != m_pipelines.end()){ return it->second; }
-        }
-
-        // not found -> create pipeline
-        auto new_pipeline = Pipeline::create(m_device, format);
-
-        std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
-        auto pipe_it = m_pipelines.insert(std::make_pair(format, std::move(new_pipeline))).first;
-        return pipe_it->second;
+        return retrieve_pipeline(format, m_graphics_pipelines, m_graphics_pipeline_mutex);
     }
 
     /**
@@ -70,28 +56,25 @@ public:
      */
     const PipelinePtr &pipeline(const raytracing_pipeline_info_t &format)
     {
-        // read-only locked for searching
-        {
-            std::shared_lock<std::shared_mutex> lock(m_ray_pipeline_mutex);
-            auto it = m_ray_pipelines.find(format);
+        return retrieve_pipeline(format, m_ray_pipelines, m_ray_pipeline_mutex);
+    }
 
-            // found
-            if(it != m_ray_pipelines.end()){ return it->second; }
-        }
-
-        // not found -> create pipeline
-        auto new_pipeline = Pipeline::create(m_device, format);
-
-        std::unique_lock<std::shared_mutex> lock(m_ray_pipeline_mutex);
-        auto pipe_it = m_ray_pipelines.insert(std::make_pair(format, std::move(new_pipeline))).first;
-        return pipe_it->second;
+    /**
+     * @brief   Retrieve a compute-pipeline from the cache. Will create and cache a new pipeline, if necessary.
+     *
+     * @param   format  a compute_pipeline_info_t describing the requested pipeline
+     * @return  a const ref to a shared vierkant::Pipeline
+     */
+    const PipelinePtr &pipeline(const compute_pipeline_info_t &format)
+    {
+        return retrieve_pipeline(format, m_compute_pipelines, m_compute_pipeline_mutex);
     }
 
     const vierkant::shader_stage_map_t &shader_stages(ShaderType shader_type)
     {
         // read-only locked for searching
         {
-            std::shared_lock<std::shared_mutex> lock(m_shader_stage_mutex);
+            std::shared_lock lock(m_shader_stage_mutex);
             auto it = m_shader_stages.find(shader_type);
 
             // found
@@ -101,7 +84,7 @@ public:
         // not found -> create pipeline
         auto new_shader_stages = vierkant::create_shader_stages(m_device, shader_type);
 
-        std::unique_lock<std::shared_mutex> lock(m_shader_stage_mutex);
+        std::unique_lock lock(m_shader_stage_mutex);
         auto shader_stage_it = m_shader_stages.insert(std::make_pair(shader_type, std::move(new_shader_stages))).first;
         return shader_stage_it->second;
     }
@@ -109,8 +92,8 @@ public:
     void clear()
     {
         {
-            std::unique_lock<std::shared_mutex> lock(m_pipeline_mutex);
-            m_pipelines.clear();
+            std::unique_lock<std::shared_mutex> lock(m_graphics_pipeline_mutex);
+            m_graphics_pipelines.clear();
         }
         std::unique_lock<std::shared_mutex> ray_lock(m_ray_pipeline_mutex);
         m_ray_pipelines.clear();
@@ -120,12 +103,36 @@ private:
 
     explicit PipelineCache(vierkant::DevicePtr device) : m_device(std::move(device)){}
 
+    template<typename FMT_T>
+    inline const PipelinePtr &retrieve_pipeline(const FMT_T &format,
+                                                std::unordered_map<FMT_T, PipelinePtr> &map,
+                                                std::shared_mutex &mutex)
+    {
+        // read-only locked for searching
+        {
+            std::shared_lock lock(mutex);
+            auto it = map.find(format);
+
+            // found
+            if(it != map.end()){ return it->second; }
+        }
+
+        // not found -> create pipeline
+        auto new_pipeline = Pipeline::create(m_device, format);
+
+        // write-locked for insertion
+        std::unique_lock write_lock(mutex);
+        auto pipe_it = map.insert(std::make_pair(format, std::move(new_pipeline))).first;
+        return pipe_it->second;
+    }
+
     vierkant::DevicePtr m_device;
 
-    std::shared_mutex m_pipeline_mutex, m_ray_pipeline_mutex;
+    std::shared_mutex m_graphics_pipeline_mutex, m_ray_pipeline_mutex, m_compute_pipeline_mutex;
 
-    std::unordered_map<graphics_pipeline_info_t, PipelinePtr> m_pipelines;
+    std::unordered_map<graphics_pipeline_info_t, PipelinePtr> m_graphics_pipelines;
     std::unordered_map<raytracing_pipeline_info_t, PipelinePtr> m_ray_pipelines;
+    std::unordered_map<compute_pipeline_info_t, PipelinePtr> m_compute_pipelines;
 
     std::shared_mutex m_shader_stage_mutex;
 

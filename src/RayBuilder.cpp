@@ -49,6 +49,10 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
     // ao/rough/metal: vec3(1, 1, 1)
     v = 0xFFFFFFFF;
     m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
+
+    m_placeholder_buffer = vierkant::Buffer::create(m_device, nullptr, 1,
+                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
 RayBuilder::build_result_t
@@ -309,19 +313,19 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
                                                              const vierkant::AccelerationStructurePtr &last) const
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
-    std::vector<entry_t> entries;
-    std::vector<material_struct_t> materials;
 
+    std::vector<entry_t> entries{1};
+    std::vector<material_struct_t> materials{1};
     std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
     std::vector<vierkant::ImagePtr> normalmaps = {m_placeholder_normalmap};
     std::vector<vierkant::ImagePtr> emissions = {m_placeholder_emission};
     std::vector<vierkant::ImagePtr> ao_rough_metal_maps = {m_placeholder_ao_rough_metal};
 
     //! vertex- and index-buffers for the entire scene
-    std::vector<vierkant::BufferPtr> vertex_buffers;
-    std::vector<vierkant::BufferPtr> index_buffers;
-    std::vector<VkDeviceSize> vertex_buffer_offsets;
-    std::vector<VkDeviceSize> index_buffer_offsets;
+    std::vector<vierkant::BufferPtr> vertex_buffers{m_placeholder_buffer};
+    std::vector<vierkant::BufferPtr> index_buffers{m_placeholder_buffer};
+    std::vector<VkDeviceSize> vertex_buffer_offsets{0};
+    std::vector<VkDeviceSize> index_buffer_offsets{0};
 
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
@@ -329,7 +333,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
     // instance flags
     VkGeometryInstanceFlagsKHR instance_flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
 
-    uint32_t mesh_index = 0;
+    uint32_t mesh_index = entries.size();
 
     for(const auto &[mesh, acceleration_assets] : asset_map)
     {
@@ -464,23 +468,17 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    constexpr size_t max_num_textures = 256;
+    // move texture-assets
     top_level.textures = std::move(textures);
     top_level.normalmaps = std::move(normalmaps);
     top_level.emissions = std::move(emissions);
     top_level.ao_rough_metal_maps = std::move(ao_rough_metal_maps);
 
-    top_level.textures.resize(max_num_textures, m_placeholder_solid_white);
-    top_level.normalmaps.resize(max_num_textures, m_placeholder_normalmap);
-    top_level.emissions.resize(max_num_textures, m_placeholder_emission);
-    top_level.ao_rough_metal_maps.resize(max_num_textures, m_placeholder_ao_rough_metal);
-
+    // move buffers
     top_level.vertex_buffers = std::move(vertex_buffers);
     top_level.vertex_buffer_offsets = std::move(vertex_buffer_offsets);
     top_level.index_buffers = std::move(index_buffers);
     top_level.index_buffer_offsets = std::move(index_buffer_offsets);
-
-    //    LOG_DEBUG << top_level.buffer->num_bytes() << " bytes in toplevel";
 
     // Create a small scratch buffer used during build of the top level acceleration structure
     auto scratch_buffer = vierkant::Buffer::create(m_device, nullptr,
