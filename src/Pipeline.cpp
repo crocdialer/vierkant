@@ -235,8 +235,16 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::compute_pipeline_info_t
     vkCheck(vkCreatePipelineLayout(device->handle(), &pipeline_layout_info, nullptr, &pipeline_layout),
             "failed to create pipeline layout!");
 
+    // our shader stages
+    vierkant::shader_stage_map_t shader_map;
+    shader_map[VK_SHADER_STAGE_COMPUTE_BIT] = compute_info.shader_stage;
+
+    auto stage_create_infos = shader_stage_create_infos(shader_map, compute_info.specialization_info);
+
     VkComputePipelineCreateInfo pipeline_create_info = {};
     pipeline_create_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipeline_create_info.layout = pipeline_layout;
+    pipeline_create_info.stage = stage_create_infos.back();
 
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCheck(vkCreateComputePipelines(device->handle(), VK_NULL_HANDLE, 1, &pipeline_create_info,

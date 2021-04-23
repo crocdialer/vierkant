@@ -45,6 +45,17 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     m_ray_builder = vierkant::RayBuilder(device, m_queue, pool);
     m_compaction = create_info.compaction;
 
+    // denoise compute
+    vierkant::Compute::create_info_t compute_info = {};
+    compute_info.num_frames_in_flight = create_info.num_frames_in_flight;
+    compute_info.pipeline_cache = create_info.pipeline_cache;
+    m_compute = vierkant::Compute(device, compute_info);
+
+    vierkant::Compute::computable_t denoise_computable = {};
+    denoise_computable.extent = create_info.size;
+    denoise_computable.pipeline_info.shader_stage = vierkant::create_shader_module(m_device,
+                                                                                   vierkant::shaders::ray::denoise_comp);
+
     vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
     post_fx_buffer_info.size = create_info.size;
     post_fx_buffer_info.color_attachment_format.usage =
@@ -62,43 +73,58 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
-    for(auto &ray_asset : m_frame_assets)
+    for(auto &frame_asset : m_frame_assets)
     {
-        ray_asset.tracable.extent = create_info.size;
+        frame_asset.tracable.extent = create_info.size;
 
         // create a storage image
         vierkant::Image::Format storage_format = {};
         storage_format.extent = create_info.size;
-        storage_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        storage_format.usage =
-                VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
-        ray_asset.storage_image = vierkant::Image::create(m_device, storage_format);
+        frame_asset.storage.color = vierkant::Image::create(m_device, storage_format);
+        frame_asset.storage.normals = vierkant::Image::create(m_device, storage_format);
+        frame_asset.storage.positions = vierkant::Image::create(m_device, storage_format);
 
-//        // create a denoise image
-//        vierkant::Image::Format denoise_format = {};
-//        denoise_format.extent = create_info.size;
-//        denoise_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-//        denoise_format.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-//        denoise_format.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-//        denoise_format.initial_layout_transition = true;
-//        ray_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
+        // create a denoise image
+        vierkant::Image::Format denoise_format = {};
+        denoise_format.extent = create_info.size;
+        denoise_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        denoise_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        denoise_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+        frame_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
+        frame_asset.denoise_computable = denoise_computable;
+
+        // denoise-compute
+        vierkant::descriptor_t desc_denoise_input = {};
+        desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_denoise_input.image_samplers = {frame_asset.storage.color, frame_asset.storage.normals,
+                                             frame_asset.storage.positions};
+        frame_asset.denoise_computable.descriptors[0] = desc_denoise_input;
+
+        vierkant::descriptor_t desc_denoise_output = {};
+        desc_denoise_output.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        desc_denoise_output.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_denoise_output.image_samplers = {frame_asset.denoise_image};
+        frame_asset.denoise_computable.descriptors[1] = desc_denoise_output;
 
         // create bloom
         Bloom::create_info_t bloom_info = {};
         bloom_info.size = create_info.size;
-        bloom_info.size.width /= 2;
-        bloom_info.size.height /= 2;
+//        bloom_info.size.width /= 2;
+//        bloom_info.size.height /= 2;
         bloom_info.num_blur_iterations = 3;
         bloom_info.pipeline_cache = create_info.pipeline_cache;
-        ray_asset.bloom = Bloom::create(device, bloom_info);
+        frame_asset.bloom = Bloom::create(device, bloom_info);
 
-        ray_asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
-                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
+                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 //        // create post_fx ping pong buffers and renderers
-//        for(auto &post_fx_ping_pong : ray_asset.post_fx_ping_pongs)
+//        for(auto &post_fx_ping_pong : frame_asset.post_fx_ping_pongs)
 //        {
 //            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
 //            post_fx_renderpass = post_fx_ping_pong.framebuffer.renderpass();
@@ -147,8 +173,6 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
         // bloom
         m_drawable_bloom = m_drawable_raw;
-//        m_composition_drawable.pipeline_format.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
-
         m_drawable_bloom.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::bloom_composition_frag);
 
@@ -201,6 +225,14 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
 
 void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam)
 {
+    // push constants
+    frame_asset.tracable.push_constants.resize(sizeof(push_constants_t));
+    auto &push_constants = *reinterpret_cast<push_constants_t *>(frame_asset.tracable.push_constants.data());
+    using namespace std::chrono;
+    push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
+    push_constants.batch_index = 0;
+    push_constants.disable_material = settings.disable_material;
+
     frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_trace.begin();
 
@@ -211,15 +243,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     update_trace_descriptors(frame_asset, cam);
 
     // transition storage image
-    frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_trace.handle());
-
-    // push constants
-    frame_asset.tracable.push_constants.resize(sizeof(push_constants_t));
-    auto &push_constants = *reinterpret_cast<push_constants_t *>(frame_asset.tracable.push_constants.data());
-    using namespace std::chrono;
-    push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
-    push_constants.batch_index = 0;
-    push_constants.disable_material = settings.disable_material;
+    frame_asset.storage.color->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_trace.handle());
 
     // run path-tracer
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
@@ -240,15 +264,19 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     frame_asset.cmd_denoise.begin();
 
     // transition storage image
-    frame_asset.storage_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
                                                  frame_asset.cmd_denoise.handle());
 
-    // TODO: hook denoising
-    frame_asset.denoise_image = frame_asset.storage_image;
+//    // dispatch denoising-kernel
+//    m_compute.dispatch(frame_asset.denoise_computable, frame_asset.cmd_denoise.handle());
+
+    frame_asset.denoise_image = frame_asset.storage.color;
+    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                                 frame_asset.cmd_denoise.handle());
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
-    semaphore_info.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
     semaphore_info.wait_value = SemaphoreValue::RAYTRACING;
     semaphore_info.signal_value = SemaphoreValue::DENOISER;
     frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
@@ -298,11 +326,12 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     desc_acceleration_structure.acceleration_structure = frame_asset.acceleration_asset.structure;
     frame_asset.tracable.descriptors[0] = desc_acceleration_structure;
 
-    vierkant::descriptor_t desc_storage_image = {};
-    desc_storage_image.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    desc_storage_image.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_storage_image.image_samplers = {frame_asset.storage_image};
-    frame_asset.tracable.descriptors[1] = desc_storage_image;
+    vierkant::descriptor_t desc_storage_images = {};
+    desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    desc_storage_images.image_samplers = {frame_asset.storage.color, frame_asset.storage.normals,
+                                          frame_asset.storage.positions};
+    frame_asset.tracable.descriptors[1] = desc_storage_images;
 
     // provide inverse modelview and projection matrices
     std::vector<glm::mat4> matrices = {glm::inverse(cam->view_matrix()),

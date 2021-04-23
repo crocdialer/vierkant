@@ -95,6 +95,10 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
                            const descriptor_map_t &descriptors);
 
+DescriptorSetLayoutPtr find_set_layout(const vierkant::DevicePtr &device,
+                                       descriptor_map_t descriptors,
+                                       std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr>& layout_map);
+
 }//namespace vierkant
 
 namespace std

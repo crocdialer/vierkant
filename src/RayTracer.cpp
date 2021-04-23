@@ -58,6 +58,7 @@ void swap(RayTracer &lhs, RayTracer &rhs) noexcept
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_binding_tables, rhs.m_binding_tables);
     std::swap(lhs.m_trace_assets, rhs.m_trace_assets);
+    std::swap(lhs.m_descriptor_set_layouts, rhs.m_descriptor_set_layouts);
     std::swap(lhs.m_current_index, rhs.m_current_index);
     std::swap(lhs.vkGetAccelerationStructureBuildSizesKHR, rhs.vkGetAccelerationStructureBuildSizesKHR);
     std::swap(lhs.vkCmdTraceRaysKHR, rhs.vkCmdTraceRaysKHR);
@@ -115,7 +116,7 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     auto &trace_asset = m_trace_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_trace_assets.size();
 
-    auto descriptor_set_layout = find_set_layout(tracable.descriptors);
+    auto descriptor_set_layout = vierkant::find_set_layout(m_device, tracable.descriptors, m_descriptor_set_layouts);
     tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
     // push constant range
@@ -269,27 +270,5 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline,
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-DescriptorSetLayoutPtr RayTracer::find_set_layout(descriptor_map_t descriptors)
-{
-    // clean descriptor-map to enable sharing
-    for(auto &[binding, descriptor] : descriptors)
-    {
-        for(auto &img : descriptor.image_samplers){ img.reset(); };
-        for(auto &buf : descriptor.buffers){ buf.reset(); };
-        descriptor.acceleration_structure.reset();
-    }
-
-    // retrieve set-layout
-    auto set_it = m_descriptor_set_layouts.find(descriptors);
-
-    // not found -> create and insert descriptor-set layout
-    if(set_it == m_descriptor_set_layouts.end())
-    {
-        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
-        set_it = m_descriptor_set_layouts.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
-    }
-    return set_it->second;
-}
 
 }//namespace vierkant

@@ -213,6 +213,31 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+DescriptorSetLayoutPtr find_set_layout(const vierkant::DevicePtr &device,
+                                       descriptor_map_t descriptors,
+                                       std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &layout_map)
+{
+    // clean descriptor-map to enable sharing
+    for(auto &[binding, descriptor] : descriptors)
+    {
+        for(auto &img : descriptor.image_samplers){ img.reset(); }
+        for(auto &buf : descriptor.buffers){ buf.reset(); }
+        descriptor.acceleration_structure.reset();
+    }
+
+    // retrieve set-layout
+    auto set_it = layout_map.find(descriptors);
+
+    // not found -> create and insert descriptor-set layout
+    if(set_it == layout_map.end())
+    {
+        auto new_set = vierkant::create_descriptor_set_layout(device, descriptors);
+        set_it = layout_map.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
+    }
+    return set_it->second;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 bool descriptor_t::operator==(const descriptor_t &other) const
 {
     if(type != other.type){ return false; }

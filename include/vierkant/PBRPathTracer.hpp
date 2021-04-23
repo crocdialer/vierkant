@@ -6,6 +6,7 @@
 #include "vierkant/SceneRenderer.hpp"
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/RayTracer.hpp>
+#include <vierkant/Compute.hpp>
 #include <vierkant/Semaphore.hpp>
 #include "vierkant/culling.hpp"
 #include "vierkant/PipelineCache.hpp"
@@ -88,7 +89,17 @@ private:
 
         vierkant::RayTracer::tracable_t tracable = {};
 
-        vierkant::ImagePtr storage_image, denoise_image;
+        vierkant::Compute::computable_t denoise_computable = {};
+
+        //! path-tracing storage images
+        struct
+        {
+            vierkant::ImagePtr color;
+            vierkant::ImagePtr normals;
+            vierkant::ImagePtr positions;
+        } storage;
+
+        vierkant::ImagePtr denoise_image;
 
         vierkant::BufferPtr composition_ubo;
 
@@ -155,6 +166,9 @@ private:
 
     //! owns raytracing pipeline and shader-bindingtable
     vierkant::RayTracer m_ray_tracer;
+
+    //! owns raytracing pipeline and shader-bindingtable
+    vierkant::Compute m_compute;
 
     //! information for a raytracing pipeline
     raytracing_shader_map_t m_shader_stages = {}, m_shader_stages_env = {};

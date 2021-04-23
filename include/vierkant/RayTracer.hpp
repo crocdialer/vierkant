@@ -107,8 +107,6 @@ private:
     shader_binding_table_t create_shader_binding_table(VkPipeline pipeline,
                                                        const vierkant::raytracing_shader_map_t &shader_stages);
 
-    DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors);
-
     void set_function_pointers();
 
     vierkant::DevicePtr m_device;

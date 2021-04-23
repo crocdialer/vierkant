@@ -5,7 +5,7 @@
 #include "ray_common.glsl"
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-layout(binding = 1, set = 0, rgba32f) writeonly uniform image2D image;
+layout(binding = 1, set = 0, rgba32f) writeonly uniform image2D out_images[3];
 layout(binding = 2, set = 0) uniform CameraProperties
 {
     mat4 viewInverse;
@@ -19,15 +19,24 @@ layout(push_constant) uniform PushConstants
 
 layout(location = 0) rayPayloadEXT payload_t payload;
 
-vec3 trace(vec2 coord, vec2 size)
+struct trace_result_t
 {
+    vec3 radiance;
+    vec3 normal;
+    vec3 position;
+};
+
+trace_result_t trace(vec2 coord, vec2 size)
+{
+    trace_result_t trace_result;
+
     // State of the random number generator.
     uint rngState = rng_seed(push_constants);
 
     vec3 camera_position = (cam.viewInverse * vec4(0, 0, 0, 1)).xyz;
 
     // The sum of the colors of all of the samples.
-    vec3 radiance = vec3(0);
+    trace_result.radiance = vec3(0);
 
     // Limit the kernel to trace at most 64 samples.
     const int NUM_SAMPLES = 8;
@@ -95,18 +104,26 @@ vec3 trace(vec2 coord, vec2 size)
             beta = payload.beta;
             path_radiance = payload.radiance;
 
+            if(i == 0)
+            {
+                trace_result.normal = payload.normal;
+                trace_result.position = payload.position;
+            }
+
             // nothing hit, end recursion
             if (payload.stop){ break; }
         }
 
-        radiance += path_radiance;
+        trace_result.radiance += path_radiance;
     }
-    return radiance / NUM_SAMPLES;
+
+    trace_result.radiance /= NUM_SAMPLES;
+    return trace_result;
 }
 
 void main()
 {
-    vec3 color = trace(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
+    trace_result_t trace_result = trace(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
 
 //    if (push_constants.batch_index != 0)
 //    {
@@ -114,5 +131,7 @@ void main()
 //        color = (size * imageLoad(image, ivec2(gl_LaunchIDEXT.xy)).rgb + color) / (size + 1);
 //    }
 
-    imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(color, 1.0));
+    imageStore(out_images[0], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.radiance, 1.0));
+    imageStore(out_images[1], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 1.0));
+    imageStore(out_images[2], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.position, 1.0));
 }
