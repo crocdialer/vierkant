@@ -160,10 +160,10 @@ void main()
     // generate a bounce ray
 
     // offset position along the normal
-    payload.ray.origin = payload.position;// + 0.0001 * payload.normal;
+    payload.ray.origin = payload.position + 0.0001 * payload.normal;
 
     // scatter ray direction
-    uint rngState = rng_seed(push_constants);
+    uint rngState = rng_seed(push_constants.random_seed);
     vec2 Xi = vec2(rng_float(rngState), rng_float(rngState));
 
     // no diffuse rays for metal
@@ -186,6 +186,7 @@ void main()
     float cosTheta = abs(dot(payload.normal, payload.ray.direction));
     vec3 F = UE4Eval(payload.ray.direction, payload.normal, -gl_WorldRayDirectionEXT, color, roughness, metalness);
     payload.beta *= F * cosTheta / (pdf + eps);
+    payload.pdf *= pdf;
 
     // new rays won't contribute much
     if (all(lessThan(payload.beta, vec3(0.01)))){ payload.stop = true; }

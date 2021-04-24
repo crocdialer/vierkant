@@ -132,6 +132,9 @@ private:
 
         //! override albedo colors
         uint32_t disable_material = 0;
+
+        //! a provided random seed
+        uint32_t random_seed = 0;
     };
 
     struct composition_ubo_t
@@ -187,6 +190,8 @@ private:
     vierkant::Renderer::drawable_t m_drawable_bloom, m_drawable_raw;
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
+
+    std::random_device m_random_device;
 };
 
 }// namespace vierkant

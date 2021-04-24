@@ -38,7 +38,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     trace_result_t trace_result;
 
     // State of the random number generator.
-    uint rngState = rng_seed(push_constants);
+    uint rngState = rng_seed(push_constants.random_seed);
 
     vec3 camera_position = (cam.viewInverse * vec4(0, 0, 0, 1)).xyz;
 
@@ -72,14 +72,13 @@ trace_result_t trace(vec2 coord, vec2 size)
         // next ray
         Ray ray = Ray(camera_position, direction);
 
-        Cone cone = Cone(0, 0);
-
         float tmin = 0.0001;
         float tmax = 10000.0;
 
         const uint max_depth = 3;
 
         vec3 beta = vec3(1);
+        float pdf = FLOAT_MAX;
         vec3 path_radiance = vec3(0);
 
         // trace a path
@@ -88,8 +87,8 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.stop = false;
             payload.radiance = path_radiance;
             payload.beta = beta;
+            payload.pdf = pdf;
             payload.ray = ray;
-            payload.cone = cone;
 
             const uint ray_flags = gl_RayFlagsOpaqueEXT | gl_RayFlagsCullBackFacingTrianglesEXT;
 
@@ -107,8 +106,8 @@ trace_result_t trace(vec2 coord, vec2 size)
                         0);             // payload (location = 0)
 
             ray = payload.ray;
-            cone = payload.cone;
             beta = payload.beta;
+            pdf = payload.pdf;
             path_radiance = payload.radiance;
 
             if(i == 0)

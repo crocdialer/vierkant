@@ -8,11 +8,18 @@ layout(binding = 11) uniform samplerCube u_sampler_cube;
 
 layout(location = 0) rayPayloadInEXT payload_t payload;
 
+const float eps =  0.001;
+
 void main()
 {
+    float cube_width = float(textureSize(u_sampler_cube, 0).x);
+    float solid_angle_texel = 4.0 * PI / (6.0 * cube_width * cube_width);
+    float solid_angle_sample = 1.0 / (payload.pdf + eps);
+    float lod = 0.5 * log2(solid_angle_sample / solid_angle_texel);
+
     // stop path tracing loop from rgen shader
     payload.stop = true;
-    payload.normal = vec3(0.);
-    payload.position = vec3(0.);
-    payload.radiance += payload.beta * textureLod(u_sampler_cube, gl_WorldRayDirectionEXT, 0.f).rgb;
+    payload.normal = vec3(0);
+    payload.position = vec3(0);
+    payload.radiance += payload.beta * textureLod(u_sampler_cube, gl_WorldRayDirectionEXT, lod).rgb;
 }

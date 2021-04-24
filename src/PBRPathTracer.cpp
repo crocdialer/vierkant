@@ -74,22 +74,28 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     post_render_info.viewport.maxDepth = 1;
     post_render_info.pipeline_cache = create_info.pipeline_cache;
 
+    // create storage images
+    vierkant::Image::Format storage_format = {};
+    storage_format.extent = create_info.size;
+    storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+
+    auto radiance_img = vierkant::Image::create(m_device, storage_format);
+    auto normals_img = vierkant::Image::create(m_device, storage_format);
+    auto positions_img = vierkant::Image::create(m_device, storage_format);
+    auto accumulated_radiance_img = vierkant::Image::create(m_device, storage_format);
+
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
     for(auto &frame_asset : m_frame_assets)
     {
         frame_asset.tracable.extent = create_info.size;
 
-        // create a storage image
-        vierkant::Image::Format storage_format = {};
-        storage_format.extent = create_info.size;
-        storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
-        frame_asset.storage.radiance = vierkant::Image::create(m_device, storage_format);
-        frame_asset.storage.normals = vierkant::Image::create(m_device, storage_format);
-        frame_asset.storage.positions = vierkant::Image::create(m_device, storage_format);
-        frame_asset.storage.accumulated_radiance = vierkant::Image::create(m_device, storage_format);
+        frame_asset.storage.radiance = radiance_img;
+        frame_asset.storage.normals = normals_img;
+        frame_asset.storage.positions = positions_img;
+        frame_asset.storage.accumulated_radiance = accumulated_radiance_img;
 
         // create a denoise image
         vierkant::Image::Format denoise_format = {};
@@ -196,7 +202,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     // pathtracing pass
     path_trace_pass(frame_asset, cam);
 
-    // TODO: denoiser
+    // edge-aware atrous-wavelet denoiser
     denoise_pass(frame_asset);
 
     // bloom + tonemap
@@ -227,6 +233,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.batch_index = frame_asset.batch_index++;
     push_constants.disable_material = settings.disable_material;
+    push_constants.random_seed = m_random_device();
 
     frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_trace.begin();
@@ -237,9 +244,6 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
     update_trace_descriptors(frame_asset, cam);
 
-    // transition storage image
-    frame_asset.storage.accumulated_radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_trace.handle());
-
     // run path-tracer
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
 
@@ -247,7 +251,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
-    semaphore_info.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
     semaphore_info.wait_value = SemaphoreValue::ACCELERATION_UPDATE;
     semaphore_info.signal_value = SemaphoreValue::RAYTRACING;
     frame_asset.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});

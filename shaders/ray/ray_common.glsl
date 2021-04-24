@@ -1,3 +1,6 @@
+#define FLOAT_MAX 3.402823466e+38
+#define FLOAT_MIN 1.175494351e-38
+
 #define PI 3.1415926535897932384626433832795
 #define ONE_OVER_PI 0.31830988618379067153776752674503
 
@@ -21,9 +24,6 @@ struct payload_t
     // the ray that generated this payload
     Ray ray;
 
-    // keep tracks of a ray cone
-    Cone cone;
-
     // terminate path
     bool stop;
 
@@ -38,6 +38,9 @@ struct payload_t
 
     // material absorbtion
     vec3 beta;
+
+    // probality density
+    float pdf;
 };
 
 struct material_t
@@ -62,13 +65,29 @@ struct push_constants_t
 
     //! override albedo colors
     bool disable_material;
+
+    //! a provided random seed
+    uint random_seed;
 };
 
-//! helper to generate a seed
-uint rng_seed(in const push_constants_t push_constants)
+uint hash(uint x)
 {
-    return uint((1 + (push_constants.batch_index % 277) + mod(push_constants.time, 60.0)) *
-                (gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x));
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return x;
+}
+
+void hash_combine(inout uint seed, uint v)
+{
+    seed ^= hash(v) + 0x9e3779b9 + (seed << 6U) + (seed >> 2U);
+}
+
+//! helper to generate a seed
+uint rng_seed(uint seed)
+{
+    hash_combine(seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
+    return seed;
 }
 
 //! random number generation using pcg32i_random_t, using inc = 1. Our random state is a uint.

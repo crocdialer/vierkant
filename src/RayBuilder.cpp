@@ -314,18 +314,18 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
 
-    std::vector<entry_t> entries{1};
-    std::vector<material_struct_t> materials{1};
+    std::vector<entry_t> entries;
+    std::vector<material_struct_t> materials;
     std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
     std::vector<vierkant::ImagePtr> normalmaps = {m_placeholder_normalmap};
     std::vector<vierkant::ImagePtr> emissions = {m_placeholder_emission};
     std::vector<vierkant::ImagePtr> ao_rough_metal_maps = {m_placeholder_ao_rough_metal};
 
     //! vertex- and index-buffers for the entire scene
-    std::vector<vierkant::BufferPtr> vertex_buffers{m_placeholder_buffer};
-    std::vector<vierkant::BufferPtr> index_buffers{m_placeholder_buffer};
-    std::vector<VkDeviceSize> vertex_buffer_offsets{0};
-    std::vector<VkDeviceSize> index_buffer_offsets{0};
+    std::vector<vierkant::BufferPtr> vertex_buffers;
+    std::vector<vierkant::BufferPtr> index_buffers;
+    std::vector<VkDeviceSize> vertex_buffer_offsets;
+    std::vector<VkDeviceSize> index_buffer_offsets;
 
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
@@ -333,7 +333,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
     // instance flags
     VkGeometryInstanceFlagsKHR instance_flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
 
-    uint32_t mesh_index = entries.size();
+    uint32_t mesh_index = 0;
 
     for(const auto &[mesh, acceleration_assets] : asset_map)
     {
@@ -410,6 +410,15 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             materials.push_back(material);
         }
         mesh_index++;
+    }
+
+    // avoid passing zero-length buffer-arrays
+    if(entries.empty())
+    {
+        entries.resize(1);
+        materials.resize(1);
+        vertex_buffers.push_back(m_placeholder_buffer);
+        index_buffers.push_back(m_placeholder_buffer);
     }
 
     // put instances into host-visible gpu-buffer

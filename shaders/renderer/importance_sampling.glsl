@@ -56,6 +56,7 @@ vec3 ImportanceSampleDiffuse(vec3 N, samplerCube cubemap)
     vec4 result = vec4(0.0);
 
     float cubeWidth = float(textureSize(cubemap, 0).x);
+    float solidAngleTexel = 4.0 * PI / (6.0 * cubeWidth * cubeWidth);
 
     const uint numSamples = 1024;
     for (uint i = 0; i < numSamples; ++i)
@@ -71,7 +72,6 @@ vec3 ImportanceSampleDiffuse(vec3 N, samplerCube cubemap)
             // From Chapter 20.4 Mipmap filtered samples in GPU Gems 3.
             // http://http.developer.nvidia.com/GPUGems3/gpugems3_ch20.html
             float pdf = NoL * ONE_OVER_PI;
-            float solidAngleTexel = 4.0 * PI / (6.0 * cubeWidth * cubeWidth);
             float solidAngleSample = 1.0 / (numSamples * pdf);
             float lod = 0.5 * log2(solidAngleSample / solidAngleTexel);
 
@@ -94,6 +94,7 @@ vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
     vec4 result = vec4(0.0);
 
     float cubeWidth = float(textureSize(cubemap, 0).x);
+    float solidAngleTexel = 4.0 * PI / (6.0 * cubeWidth * cubeWidth);
 
     const uint numSamples = 1024;
 
@@ -111,7 +112,6 @@ vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
         {
             float D = D_GGX(roughness, NoH);
             float pdf = D * NoH / (4.0 * VoH);
-            float solidAngleTexel = 4 * PI / (6.0 * cubeWidth * cubeWidth);
             float solidAngleSample = 1.0 / (numSamples * pdf);
             float lod = roughness == 0.0 ? 0.0 : 0.5 * log2(solidAngleSample / solidAngleTexel);
 
