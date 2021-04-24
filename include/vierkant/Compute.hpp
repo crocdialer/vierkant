@@ -13,6 +13,8 @@
 namespace vierkant
 {
 
+static inline uint32_t div_up(uint32_t a, uint32_t b){ return (a + b - 1) / b; }
+
 /**
  * @brief   Raytracer can be used to run raytracing pipelines.
  *

@@ -53,6 +53,9 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     vierkant::Compute::computable_t denoise_computable = {};
     denoise_computable.extent = create_info.size;
+    denoise_computable.extent.width = vierkant::div_up(create_info.size.width, 16);
+    denoise_computable.extent.height = vierkant::div_up(create_info.size.height, 16);
+
     denoise_computable.pipeline_info.shader_stage = vierkant::create_shader_module(m_device,
                                                                                    vierkant::shaders::ray::denoise_comp);
 
@@ -83,9 +86,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
         storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
-        frame_asset.storage.color = vierkant::Image::create(m_device, storage_format);
+        frame_asset.storage.radiance = vierkant::Image::create(m_device, storage_format);
         frame_asset.storage.normals = vierkant::Image::create(m_device, storage_format);
         frame_asset.storage.positions = vierkant::Image::create(m_device, storage_format);
+        frame_asset.storage.accumulated_radiance = vierkant::Image::create(m_device, storage_format);
 
         // create a denoise image
         vierkant::Image::Format denoise_format = {};
@@ -100,7 +104,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         vierkant::descriptor_t desc_denoise_input = {};
         desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_input.image_samplers = {frame_asset.storage.color, frame_asset.storage.normals,
+        desc_denoise_input.image_samplers = {frame_asset.storage.accumulated_radiance, frame_asset.storage.normals,
                                              frame_asset.storage.positions};
         frame_asset.denoise_computable.descriptors[0] = desc_denoise_input;
 
@@ -113,8 +117,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         // create bloom
         Bloom::create_info_t bloom_info = {};
         bloom_info.size = create_info.size;
-//        bloom_info.size.width /= 2;
-//        bloom_info.size.height /= 2;
+        bloom_info.size.width /= 2;
+        bloom_info.size.height /= 2;
         bloom_info.num_blur_iterations = 3;
         bloom_info.pipeline_cache = create_info.pipeline_cache;
         frame_asset.bloom = Bloom::create(device, bloom_info);
@@ -122,15 +126,6 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
                                                                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-//        // create post_fx ping pong buffers and renderers
-//        for(auto &post_fx_ping_pong : frame_asset.post_fx_ping_pongs)
-//        {
-//            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
-//            post_fx_renderpass = post_fx_ping_pong.framebuffer.renderpass();
-//            post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
-//            post_fx_ping_pong.renderer = vierkant::Renderer(device, post_render_info);
-//        }
     }
 
     auto raygen = vierkant::create_shader_module(m_device, vierkant::shaders::ray::raygen_rgen);
@@ -230,7 +225,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     auto &push_constants = *reinterpret_cast<push_constants_t *>(frame_asset.tracable.push_constants.data());
     using namespace std::chrono;
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
-    push_constants.batch_index = 0;
+    push_constants.batch_index = frame_asset.batch_index++;
     push_constants.disable_material = settings.disable_material;
 
     frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -243,7 +238,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     update_trace_descriptors(frame_asset, cam);
 
     // transition storage image
-    frame_asset.storage.color->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_trace.handle());
+    frame_asset.storage.accumulated_radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_trace.handle());
 
     // run path-tracer
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
@@ -267,16 +262,16 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
                                                  frame_asset.cmd_denoise.handle());
 
-//    // dispatch denoising-kernel
-//    m_compute.dispatch(frame_asset.denoise_computable, frame_asset.cmd_denoise.handle());
+    // dispatch denoising-kernel
+    m_compute.dispatch(frame_asset.denoise_computable, frame_asset.cmd_denoise.handle());
 
-    frame_asset.denoise_image = frame_asset.storage.color;
+//    frame_asset.denoise_image = frame_asset.storage.accumulated_radiance;
     frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                  frame_asset.cmd_denoise.handle());
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
-    semaphore_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     semaphore_info.wait_value = SemaphoreValue::RAYTRACING;
     semaphore_info.signal_value = SemaphoreValue::DENOISER;
     frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
@@ -288,7 +283,7 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
 
     semaphore_submit_info_t bloom_submit = {};
     bloom_submit.semaphore = frame_asset.semaphore.handle();
-    bloom_submit.wait_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+    bloom_submit.wait_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     bloom_submit.wait_value = SemaphoreValue::DENOISER;
     bloom_submit.signal_value = SemaphoreValue::COMPOSITION;
 
@@ -329,8 +324,8 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     vierkant::descriptor_t desc_storage_images = {};
     desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_storage_images.image_samplers = {frame_asset.storage.color, frame_asset.storage.normals,
-                                          frame_asset.storage.positions};
+    desc_storage_images.image_samplers = {frame_asset.storage.radiance, frame_asset.storage.normals,
+                                          frame_asset.storage.positions, frame_asset.storage.accumulated_radiance };
     frame_asset.tracable.descriptors[1] = desc_storage_images;
 
     // provide inverse modelview and projection matrices
@@ -484,6 +479,14 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     semaphore_infos.push_back(signal_info);
 
     vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, semaphore_infos);
+}
+
+void PBRPathTracer::reset_batch()
+{
+    for(auto &frame_asset : m_frame_assets)
+    {
+        frame_asset.batch_index = 0;
+    }
 }
 
 }// namespace vierkant

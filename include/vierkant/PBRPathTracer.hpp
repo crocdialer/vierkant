@@ -68,6 +68,8 @@ public:
      */
     void set_environment(const vierkant::ImagePtr &cubemap) override;
 
+    void reset_batch();
+
 private:
 
     struct frame_assets_t
@@ -89,14 +91,17 @@ private:
 
         vierkant::RayTracer::tracable_t tracable = {};
 
+        size_t batch_index = 0;
+
         vierkant::Compute::computable_t denoise_computable = {};
 
         //! path-tracing storage images
         struct
         {
-            vierkant::ImagePtr color;
+            vierkant::ImagePtr radiance;
             vierkant::ImagePtr normals;
             vierkant::ImagePtr positions;
+            vierkant::ImagePtr accumulated_radiance;
         } storage;
 
         vierkant::ImagePtr denoise_image;

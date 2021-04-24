@@ -10,7 +10,7 @@ layout(binding = 0, rgba32f) readonly uniform image2D u_input[3];
 
 layout(binding = 1, rgba32f) writeonly uniform image2D u_out_image;
 
-//layout(local_size_x = 16, local_size_y = 16) in;
+layout(local_size_x = 16, local_size_y = 16) in;
 
 //! edge-avoiding À-TrousWavelet for denoising
 vec4 denoise(ivec2 coords)
@@ -31,9 +31,9 @@ vec4 denoise(ivec2 coords)
 
     vec2 fragCoord = coords;
     vec3 sum = vec3(0.0);
-    float colorPhi = .9f; //ubo.colorPhi;
-    float normalPhi = .3f; // ubo.normalPhi;
-    float positionPhi = .6f; //ubo.positionPhi;
+    float colorPhi = 1.0 / .9f; //ubo.colorPhi;
+    float normalPhi = 1.0 / .3f; // ubo.normalPhi;
+    float positionPhi = 1.0 / .6f; //ubo.positionPhi;
 
     vec3 cval = imageLoad(u_input[COLOR], coords).rgb;     // color
     vec3 nval = imageLoad(u_input[NORMALS], coords).rgb;   // normal
@@ -49,17 +49,17 @@ vec4 denoise(ivec2 coords)
         vec3 ctmp = imageLoad(u_input[COLOR], uv).rgb;
         vec3 t = cval - ctmp;							// Ip - Iq		(color difference)
         float dist2 = dot(t, t);						// ||Ip - Iq||	(distance squared)
-        float c_w = min(exp(-(dist2) / colorPhi), 1.0); // w(p,q)		(weight function)
+        float c_w = min(exp(-(dist2) * colorPhi), 1.0); // w(p,q)		(weight function)
 
         vec3 ntmp = imageLoad(u_input[NORMALS], uv).rgb;
         t = nval - ntmp;
         dist2 = dot(t, t);
-        float n_w = min(exp(-(dist2) / normalPhi), 1.0);
+        float n_w = min(exp(-(dist2) * normalPhi), 1.0);
 
         vec3 ptmp = imageLoad(u_input[POSITIONS], uv).rgb;
         t = pval - ptmp;
         dist2 = dot(t, t);
-        float p_w = min(exp(-(dist2) / positionPhi), 1.0);
+        float p_w = min(exp(-(dist2) * positionPhi), 1.0);
 
         float weight = c_w * n_w * p_w * kernel[i];
         sum += ctmp * weight;
