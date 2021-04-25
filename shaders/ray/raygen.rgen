@@ -46,7 +46,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     trace_result.radiance = vec3(0);
 
     // Limit the kernel to trace at most 64 samples.
-    const int NUM_SAMPLES = 8;
+    const int NUM_SAMPLES = 1;
 
     float sample_offset = rng_float(rngState);
 
@@ -138,6 +138,7 @@ void main()
         accumulated_radiance += size * imageLoad(out_images[ACCUMULATED_RADIANCE], ivec2(gl_LaunchIDEXT.xy));
         accumulated_radiance /= size + 1;
     }
+    if(any(isinf(accumulated_radiance)) || any(isnan(accumulated_radiance))){ accumulated_radiance = vec4(0, 0, 0, 1); }
 
     imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.radiance, 1.0));
     imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));

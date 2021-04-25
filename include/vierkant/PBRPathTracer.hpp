@@ -116,10 +116,10 @@ private:
     enum SemaphoreValue : uint64_t
     {
         ACCELERATION_UPDATE = 1,
-        RAYTRACING,
-        DENOISER,
-        COMPOSITION,
-        RENDER_DONE
+        RAYTRACING = 2,
+        DENOISER = 3,
+        COMPOSITION = 4,
+        RENDER_DONE = 5
     };
 
     struct push_constants_t

@@ -24,7 +24,7 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     vec3 hdr_color = texture(u_sampler_2D[COLOR], vertex_in.tex_coord).rgb;
-    vec3 bloom = vec3(0.0);//texture(u_sampler_2D[BLOOM], vertex_in.tex_coord).rgb;
+    vec3 bloom = texture(u_sampler_2D[BLOOM], vertex_in.tex_coord).rgb;
 
     // additive blending + tone mapping
     vec3 result = tonemap_exposure(hdr_color + bloom, u_exposure);

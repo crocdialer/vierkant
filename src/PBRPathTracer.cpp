@@ -208,7 +208,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     // bloom + tonemap
     post_fx_pass(frame_asset);
 
-    // TODO: using the composition drawable yields strange block-artifacts
+    // stage final output
     renderer.stage_drawable(frame_asset.out_drawable);
 
     render_result_t ret;
@@ -269,7 +269,6 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     // dispatch denoising-kernel
     m_compute.dispatch(frame_asset.denoise_computable, frame_asset.cmd_denoise.handle());
 
-//    frame_asset.denoise_image = frame_asset.storage.accumulated_radiance;
     frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                  frame_asset.cmd_denoise.handle());
 
@@ -329,7 +328,7 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_storage_images.image_samplers = {frame_asset.storage.radiance, frame_asset.storage.normals,
-                                          frame_asset.storage.positions, frame_asset.storage.accumulated_radiance };
+                                          frame_asset.storage.positions, frame_asset.storage.accumulated_radiance};
     frame_asset.tracable.descriptors[1] = desc_storage_images;
 
     // provide inverse modelview and projection matrices
