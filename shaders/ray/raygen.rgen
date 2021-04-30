@@ -46,7 +46,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     trace_result.radiance = vec3(0);
 
     // Limit the kernel to trace at most 64 samples.
-    const int NUM_SAMPLES = 1;
+    const int NUM_SAMPLES = 4;
 
     float sample_offset = rng_float(rngState);
 
@@ -75,7 +75,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         float tmin = 0.0001;
         float tmax = 10000.0;
 
-        const uint max_depth = 3;
+        const uint max_depth = 4;
 
         vec3 beta = vec3(1);
         float pdf = FLOAT_MAX;

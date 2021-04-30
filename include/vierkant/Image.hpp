@@ -181,26 +181,42 @@ public:
     /**
      * @brief   copy contents from a buffer to this image
      *
-     * @param   src         the source buffer to copy data from
-     * @param   the_offset  the offset used for the copy operation
-     * @param   the_extent  the extent of the memory region to copy
-     * @param   the_layer   the target layer in the image to copy the data into
+     * @param   src     the source buffer to copy data from
+     * @param   offset  the offset used for the copy operation
+     * @param   extent  the extent of the memory region to copy
+     * @param   layer   the target layer in the image to copy the data into
      */
-    void copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE,
-                   VkOffset3D the_offset = {0, 0, 0}, VkExtent3D the_extent = {0, 0, 0},
-                   uint32_t the_layer = 0);
+    void copy_from(const BufferPtr &src,
+                   VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE,
+                   VkOffset3D offset = {0, 0, 0},
+                   VkExtent3D extent = {0, 0, 0},
+                   uint32_t layer = 0);
 
     /**
      * @brief   copy contents from this image to a buffer
      *
-     * @param   dst         the destination buffer to copy data to
-     * @param   the_offset  the offset used for the copy operation
-     * @param   the_extent  the extent of the memory region to copy
-     * @param   the_layer   the target layer in the image to copy the data from
+     * @param   dst     the destination buffer to copy data to
+     * @param   offset  the offset used for the copy operation
+     * @param   extent  the extent of the memory region to copy
+     * @param   layer   the target layer in the image to copy the data from
      */
-    void copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer = VK_NULL_HANDLE,
-                 VkOffset3D the_offset = {0, 0, 0}, VkExtent3D the_extent = {0, 0, 0},
-                 uint32_t the_layer = 0);
+    void copy_to(const BufferPtr &dst,
+                 VkCommandBuffer command_buffer = VK_NULL_HANDLE,
+                 VkOffset3D offset = {0, 0, 0},
+                 VkExtent3D extent = {0, 0, 0},
+                 uint32_t layer = 0);
+
+    /**
+     * @brief   copy contents from this image to another image
+     *
+     * @param   dst     the destination image to copy data to
+     * @param   offset  the offset used for the copy operation
+     * @param   extent  the extent of the memory region to copy
+     */
+    void copy_to(const ImagePtr &dst,
+                 VkCommandBuffer command_buffer = VK_NULL_HANDLE,
+                 VkOffset3D offset = {0, 0, 0},
+                 VkExtent3D extent = {0, 0, 0});
 
     /**
      * @return  the vierkant::DevicePtr used to create the image.

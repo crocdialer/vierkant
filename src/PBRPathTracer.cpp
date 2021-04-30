@@ -46,6 +46,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     m_compaction = create_info.compaction;
 
     // denoise compute
+    m_denoising = create_info.denoising;
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.num_frames_in_flight = create_info.num_frames_in_flight;
     compute_info.pipeline_cache = create_info.pipeline_cache;
@@ -78,7 +79,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     vierkant::Image::Format storage_format = {};
     storage_format.extent = create_info.size;
     storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
 
     auto radiance_img = vierkant::Image::create(m_device, storage_format);
@@ -101,7 +102,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         vierkant::Image::Format denoise_format = {};
         denoise_format.extent = create_info.size;
         denoise_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        denoise_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        denoise_format.usage =
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         denoise_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
         frame_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
         frame_asset.denoise_computable = denoise_computable;
@@ -262,12 +264,23 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_denoise.begin();
 
-    // transition storage image
-    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
-                                                 frame_asset.cmd_denoise.handle());
+    if(m_denoising)
+    {
+        // transition storage image
+        frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
+                                                     frame_asset.cmd_denoise.handle());
 
-    // dispatch denoising-kernel
-    m_compute.dispatch(frame_asset.denoise_computable, frame_asset.cmd_denoise.handle());
+        // dispatch denoising-kernel
+        m_compute.dispatch(frame_asset.denoise_computable, frame_asset.cmd_denoise.handle());
+    }
+    else
+    {
+        // actual copy command
+        frame_asset.storage.accumulated_radiance->copy_to(frame_asset.denoise_image, frame_asset.cmd_denoise.handle());
+
+        frame_asset.storage.accumulated_radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
+                                                                    frame_asset.cmd_denoise.handle());
+    }
 
     frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                  frame_asset.cmd_denoise.handle());

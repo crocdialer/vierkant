@@ -35,6 +35,9 @@ public:
         //! flag indicating if compaction shall be done for created acceleration-structures
         bool compaction = true;
 
+        //! flag indicating if a denoising pass shall be performed
+        bool denoising = true;
+
         // base settings for a SceneRenderer
         SceneRenderer::settings_t settings = {};
     };
@@ -170,12 +173,14 @@ private:
 
     bool m_compaction;
 
+    bool m_denoising;
+
     vierkant::RayBuilder::acceleration_asset_map_t m_acceleration_assets;
 
-    //! owns raytracing pipeline and shader-bindingtable
+    //! owns raytracing pipelines and shader-bindingtables
     vierkant::RayTracer m_ray_tracer;
 
-    //! owns raytracing pipeline and shader-bindingtable
+    //! owns compute pipelines
     vierkant::Compute m_compute;
 
     //! information for a raytracing pipeline

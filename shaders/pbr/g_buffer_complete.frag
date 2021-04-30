@@ -47,6 +47,7 @@ void main()
         if(smoothstep(0.0, 1.0, tex_color.a) < 0.01){ discard; }
         out_color = material.color * tex_color;
         out_emission = texture(u_sampler_2D[EMMISSION], vertex_in.tex_coord);
+        out_emission.rgb *= 10.0;
     }
 
     vec3 normal = normalize(2.0 * (texture(u_sampler_2D[NORMAL], vertex_in.tex_coord.xy).xyz - vec3(0.5)));

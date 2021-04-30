@@ -87,7 +87,7 @@ void transition_image_layout(VkCommandBuffer command_buffer,
             source_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             break;
 
-        // TODO: check if this makes sense
+            // TODO: check if this makes sense
         case VK_IMAGE_LAYOUT_GENERAL:
             barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
             source_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
@@ -399,7 +399,7 @@ void Image::init(void *data, const VkImagePtr &shared_image)
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer)
 {
@@ -425,7 +425,7 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
                       VkOffset3D offset, VkExtent3D extent, uint32_t layer)
@@ -466,7 +466,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffset3D offset, VkExtent3D extent,
                     uint32_t layer)
@@ -508,7 +508,56 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffset3D offset, VkExtent3D extent)
+{
+    if(dst)
+    {
+        if(!extent.width || !extent.height || !extent.depth){ extent = m_format.extent; }
+
+        vierkant::CommandBuffer local_command_buffer;
+
+        if(!command_buffer)
+        {
+            local_command_buffer = CommandBuffer(m_device, m_device->command_pool_transient());
+            local_command_buffer.begin();
+            command_buffer = local_command_buffer.handle();
+        }
+
+        transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
+
+        // copy src-image -> dst0image
+        VkImageCopy region = {};
+        region.extent = extent;
+        region.dstOffset = region.srcOffset = {0, 0, 0};
+        region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.srcSubresource.baseArrayLayer = 0;
+        region.srcSubresource.layerCount = 1;
+        region.srcSubresource.mipLevel = 0;
+
+        region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.dstSubresource.baseArrayLayer = 0;
+        region.dstSubresource.layerCount = 1;
+        region.dstSubresource.mipLevel = 0;
+
+        // transition src-layout
+        transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
+
+        // transition dst-layout
+        dst->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_buffer);
+
+        // actual copy command
+        vkCmdCopyImage(command_buffer, m_image.get(), m_image_layout, dst->image(), dst->image_layout(), 1, &region);
+
+        if(local_command_buffer)
+        {
+            local_command_buffer.submit(m_device->queue(), true);
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 {
