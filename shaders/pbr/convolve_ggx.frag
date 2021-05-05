@@ -1,6 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+
+#include "../renderer/types.glsl"
 #include "../renderer/importance_sampling.glsl"
 
 layout(push_constant) uniform PushConstants

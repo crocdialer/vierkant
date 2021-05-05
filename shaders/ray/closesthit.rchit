@@ -66,7 +66,6 @@ layout(location = 0) rayPayloadInEXT payload_t payload;
 // builtin barycentric coords
 hitAttributeEXT vec2 attribs;
 
-// TODO: simplify code with mix
 Vertex interpolate_vertex()
 {
     const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);

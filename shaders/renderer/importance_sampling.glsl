@@ -1,54 +1,16 @@
 #include "brdf.glsl"
 
-vec2 Hammersley(uint i, uint N)
-{
-    float vdc = float(bitfieldReverse(i)) * 2.3283064365386963e-10; // Van der Corput
-    return vec2(float(i) / float(N), vdc);
-}
-
 float G1(float k, float NoV)
 {
     return NoV / (NoV * (1.0 - k) + k);
 }
+
 
 float G_Smith(float roughness, float NoV, float NoL)
 {
     float alpha = roughness * roughness;
     float k = alpha * 0.5; // use k = (roughness + 1)^2 / 8 for analytic lights
     return G1(k, NoL) * G1(k, NoV);
-}
-
-vec3 ImportanceSampleCosine(vec2 Xi, vec3 N)
-{
-    float cosTheta = sqrt(max(1.0 - Xi.y, 0.0));
-    float sinTheta = sqrt(max(1.0 - cosTheta * cosTheta, 0.0));
-    float phi = 2.0 * PI * Xi.x;
-
-    vec3 L = vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
-
-    vec3 up = abs(N.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
-    vec3 tangent = normalize(cross(N, up));
-    vec3 bitangent = cross(N, tangent);
-
-    return tangent * L.x + bitangent * L.y + N * L.z;
-}
-
-// Sample a half-vector in world space
-vec3 ImportanceSampleGGX(vec2 Xi, float roughness, vec3 N)
-{
-    float a = roughness * roughness;
-
-    float phi = 2.0 * PI * Xi.x;
-    float cosTheta = sqrt(clamp((1.0 - Xi.y) / (1.0 + (a * a - 1.0) * Xi.y), 0.0, 1.0));
-    float sinTheta = sqrt(clamp(1.0 - cosTheta * cosTheta, 0.0, 1.0));
-
-    vec3 H = vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
-
-    vec3 up = abs(N.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
-    vec3 tangent = normalize(cross(up, N));
-    vec3 bitangent = cross(N, tangent);
-
-    return tangent * H.x + bitangent * H.y + N * H.z;
 }
 
 vec3 ImportanceSampleDiffuse(vec3 N, samplerCube cubemap)
@@ -58,11 +20,14 @@ vec3 ImportanceSampleDiffuse(vec3 N, samplerCube cubemap)
     float cubeWidth = float(textureSize(cubemap, 0).x);
     float solidAngleTexel = 4.0 * PI / (6.0 * cubeWidth * cubeWidth);
 
+    // local basis for provided surface-normal
+    mat3 local_frame = local_frame(N);
+
     const uint numSamples = 1024;
     for (uint i = 0; i < numSamples; ++i)
     {
         vec2 Xi = Hammersley(i, numSamples);
-        vec3 L = ImportanceSampleCosine(Xi, N);
+        vec3 L = local_frame * sample_cosine(Xi);
 
         float NoL = max(dot(N, L), 0.0);
 
@@ -96,12 +61,15 @@ vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
     float cubeWidth = float(textureSize(cubemap, 0).x);
     float solidAngleTexel = 4.0 * PI / (6.0 * cubeWidth * cubeWidth);
 
+    // local basis for provided surface-normal
+    mat3 local_frame = local_frame(N);
+
     const uint numSamples = 1024;
 
     for (uint i = 0; i < numSamples; ++i)
     {
         vec2 Xi = Hammersley(i, numSamples);
-        vec3 H = ImportanceSampleGGX(Xi, roughness, N);
+        vec3 H = local_frame * sample_GGX(Xi, roughness);
         vec3 L = 2.0 * dot(V, H) * H - V;
 
         float NoL = max(dot(N, L), 0.0);
@@ -110,7 +78,7 @@ vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
 
         if(NoL > 0.0)
         {
-            float D = D_GGX(roughness, NoH);
+            float D = GTR2(NoH, roughness);
             float pdf = D * NoH / (4.0 * VoH);
             float solidAngleSample = 1.0 / (numSamples * pdf);
             float lod = roughness == 0.0 ? 0.0 : 0.5 * log2(solidAngleSample / solidAngleTexel);
@@ -131,12 +99,15 @@ vec2 IntegrateBRDF(float roughness, float NoV)
     float A = 0.0;
     float B = 0.0;
 
+    // local basis for provided surface-normal
+    mat3 local_frame = local_frame(N);
+
     const uint numSamples = 1024;
 
     for (uint i = 0; i < numSamples; ++i)
     {
         vec2 Xi = Hammersley(i, numSamples);
-        vec3 H = ImportanceSampleGGX(Xi, roughness, N);
+        vec3 H = local_frame * sample_GGX(Xi, roughness);
         vec3 L = 2.0 * dot(V, H) * H - V;
 
         float NoL = clamp(L.z, 0.0, 1.0);

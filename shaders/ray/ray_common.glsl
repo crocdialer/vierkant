@@ -1,8 +1,10 @@
+#include "../renderer/brdf.glsl"
+
 #define FLOAT_MAX 3.402823466e+38
 #define FLOAT_MIN 1.175494351e-38
 
-#define PI 3.1415926535897932384626433832795
-#define ONE_OVER_PI 0.31830988618379067153776752674503
+//#define PI 3.1415926535897932384626433832795
+//#define ONE_OVER_PI 0.31830988618379067153776752674503
 
 #define EPS 0.001
 
@@ -104,100 +106,6 @@ float rng_float(inout uint rng_state)
     uint word = ((rng_state >> ((rng_state >> 28) + 4)) ^ rng_state) * 277803737;
     word      = (word >> 22) ^ word;
     return float(word) / 4294967295.0f;
-}
-
-//! random point on a unit-disc
-vec2 sample_unit_disc(vec2 Xi)
-{
-    // [0, 2pi]
-    const float theta = 2.0 * PI * Xi.y;
-
-    return vec2(Xi.x * cos(theta), Xi.x * sin(theta));
-}
-
-//! random point on a unit-sphere
-vec3 sample_unit_sphere(vec2 Xi)
-{
-    // [0, 2pi]
-    const float theta = 2.0 * PI * Xi.y;
-
-    // [-1, 1]
-    float u = 2.0 * Xi.x - 1.0;
-
-    const float r = sqrt(1.0 - u * u);
-    return vec3(r * cos(theta), r * sin(theta), u);
-}
-
-//! return a Hammersley point in range [0, 1]
-vec2 Hammersley(uint i, uint N)
-{
-    float vdc = float(bitfieldReverse(i)) * 2.3283064365386963e-10; // Van der Corput
-    return vec2(float(i) / float(N), vdc);
-}
-
-/*
- * Calculates local coordinate frame for a given normal
- */
-mat3 local_frame(in vec3 normal)
-{
-    vec3 up = abs(normal.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
-    vec3 tangentX = normalize(cross(normal, up));
-    vec3 tangentY = cross(normal, tangentX);
-    return mat3(tangentX, tangentY, normal);
-}
-
-vec3 sample_cosine(vec2 Xi)
-{
-    float cosTheta = sqrt(max(1.0 - Xi.y, 0.0));
-    float sinTheta = sqrt(max(1.0 - cosTheta * cosTheta, 0.0));
-    float phi = 2.0 * PI * Xi.x;
-
-    // L
-    return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
-}
-
-// Sample a half-vector in world space
-vec3 sample_GGX(vec2 Xi, float roughness)
-{
-    float a = roughness * roughness;
-
-    float phi = 2.0 * PI * Xi.x;
-    float cosTheta = sqrt(clamp((1.0 - Xi.y) / (1.0 + (a * a - 1.0) * Xi.y), 0.0, 1.0));
-    float sinTheta = sqrt(clamp(1.0 - cosTheta * cosTheta, 0.0, 1.0));
-
-    // H
-    return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
-}
-
-/*
- * Schlick's approximation of the specular reflection coefficient R
- * (1 - cosTheta)^5
- */
-float SchlickFresnel(float u)
-{
-    float m = clamp(1.0 - u, 0.0, 1.0);
-    return m * m * m * m * m; // power of 5
-}
-
-/*
- * Generalized-Trowbridge-Reitz (D)
- * Describes differential area of microfacets for the surface normal
- */
-float GTR2(float NDotH, float a)
-{
-    float a2 = a * a;
-    float t = 1.0 + (a2 - 1.0)*NDotH*NDotH;
-    return a2 / (PI * t*t);
-}
-
-/*
- * The masking shadowing function Smith for GGX noraml distribution (G)
- */
-float SmithGGX(float NDotv, float alphaG)
-{
-    float a = alphaG * alphaG;
-    float b = NDotv * NDotv;
-    return 1.0 / (NDotv + sqrt(a + b - a * b));
 }
 
 /*
