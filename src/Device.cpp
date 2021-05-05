@@ -26,6 +26,7 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query
     VkQueryPool handle = VK_NULL_HANDLE;
     vkCheck(vkCreateQueryPool(device->handle(), &pool_create_info, nullptr, &handle),
             "could not create VkQueryPool");
+    vkResetQueryPool(device->handle(), handle, 0, query_count);
     return QueryPoolPtr(handle, [device](VkQueryPool p){ vkDestroyQueryPool(device->handle(), p, nullptr); });
 }
 

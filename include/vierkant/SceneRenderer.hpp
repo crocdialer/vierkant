@@ -19,6 +19,7 @@ class SceneRenderer
 {
 public:
 
+    //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
     struct settings_t
     {
         //! disable colors from textures, material, vertices

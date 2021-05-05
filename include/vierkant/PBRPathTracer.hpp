@@ -38,6 +38,9 @@ public:
         //! flag indicating if a denoising pass shall be performed
         bool denoising = true;
 
+        //! optional seed for deterministic pseudo-random-numbers
+        uint32_t seed = 0;
+
         // base settings for a SceneRenderer
         SceneRenderer::settings_t settings = {};
     };
@@ -196,7 +199,7 @@ private:
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 
-    std::random_device m_random_device;
+    std::default_random_engine m_random_engine;
 };
 
 }// namespace vierkant

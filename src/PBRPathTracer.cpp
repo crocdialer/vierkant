@@ -17,7 +17,8 @@ PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTra
 }
 
 PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info) :
-        m_device(device)
+        m_device(device),
+        m_random_engine(create_info.seed)
 {
     // set queue, fallback to first graphics-queue
     m_queue = create_info.queue ? create_info.queue : device->queue();
@@ -82,6 +83,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
 
+    // shared path-tracer-storage for all frame-assets
     auto radiance_img = vierkant::Image::create(m_device, storage_format);
     auto normals_img = vierkant::Image::create(m_device, storage_format);
     auto positions_img = vierkant::Image::create(m_device, storage_format);
@@ -235,7 +237,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.batch_index = frame_asset.batch_index++;
     push_constants.disable_material = settings.disable_material;
-    push_constants.random_seed = m_random_device();
+    push_constants.random_seed = m_random_engine();
 
     frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_trace.begin();
