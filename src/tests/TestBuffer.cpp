@@ -92,9 +92,6 @@ BOOST_AUTO_TEST_CASE(TestBuffer)
         device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
-
-        // enable query for VkDeviceAddress (Vulkan 1.2 feature)
-        device_info.enable_device_address = true;
         auto device = vk::Device::create(device_info);
 
         // run buffer test case
@@ -119,9 +116,6 @@ BOOST_AUTO_TEST_CASE(TestBufferPool)
         device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
-
-        // enable query for VkDeviceAddress (Vulkan 1.2 feature)
-        device_info.enable_device_address = true;
         auto device = vk::Device::create(device_info);
 
         auto pool = vk::Buffer::create_pool(device,
