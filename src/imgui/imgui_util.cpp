@@ -419,85 +419,17 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     if(!is_child_window){ ImGui::End(); }
 }
 
-void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
+void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const CameraPtr &cam)
 {
-    auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer);
-    auto is_path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer);
-
-    constexpr char window_name[] = "renderer";
-    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
-
-    if(is_child_window){ ImGui::BeginChild(window_name); }
-    else{ ImGui::Begin(window_name); }
-
-    if(cam)
-    {
-        if(ImGui::TreeNode("camera"))
-        {
-            auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
-
-            if(perspective_cam)
-            {
-                // fov
-                float fov = perspective_cam->fov();
-                if(ImGui::SliderFloat("fov", &fov, 0.f, 180.f)){ perspective_cam->set_fov(fov); }
-
-                // clipping planes
-                float clipping[2] = {perspective_cam->near(), perspective_cam->far()};
-                if(ImGui::InputFloat2("clipping near/far", clipping))
-                {
-                    perspective_cam->set_clipping(clipping[0], clipping[1]);
-                }
-
-                // exposure
-                ImGui::SliderFloat("exposure", &scene_renderer->settings.exposure, 0.f, 10.f);
-
-                // gamma
-                ImGui::SliderFloat("gamma", &scene_renderer->settings.gamma, 0.f, 10.f);
-
-                // dof
-                auto &dof = scene_renderer->settings.dof;
-
-                ImGui::PushID(std::addressof(dof));
-                ImGui::Checkbox("", reinterpret_cast<bool*>(std::addressof(dof.enabled)));
-                ImGui::PopID();
-
-                ImGui::SameLine();
-                if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
-
-                if(ImGui::TreeNode("dof"))
-                {
-
-                    ImGui::Checkbox("autofocus", reinterpret_cast<bool*>(std::addressof(dof.auto_focus)));
-                    ImGui::SliderFloat("focal distance (m)", &dof.focal_depth, 0.f, cam->far());
-                    ImGui::SliderFloat("focal length (mm)", &dof.focal_length, 0.f, 280.f);
-                    ImGui::SliderFloat("f-stop", &dof.fstop, 0.f, 180.f);
-                    ImGui::InputFloat("circle of confusion (mm)", &dof.circle_of_confusion_sz, 0.001f, .01f);
-                    ImGui::SliderFloat("gain", &dof.gain, 0.f, 10.f);
-                    ImGui::SliderFloat("color fringe", &dof.fringe, 0.f, 10.f);
-                    ImGui::SliderFloat("max blur", &dof.max_blur, 0.f, 10.f);
-                    ImGui::Checkbox("debug focus", reinterpret_cast<bool*>(std::addressof(dof.debug_focus)));
-                    ImGui::TreePop();
-                }
-                if(!dof.enabled){ ImGui::PopStyleColor(); }
-            }
-
-            ImGui::TreePop();
-        }
-
-        ImGui::Separator();
-        ImGui::Spacing();
-    }
-
-    auto render_str = crocore::format("renderer: %s ", is_path_tracer ? "path-tracer" : "pbr-deferred");
+    auto render_str = crocore::format("renderer: %s ", "pbr-deferred");
 
     ImGui::Text(render_str.c_str());
     ImGui::Spacing();
-    ImGui::Checkbox("skybox", &scene_renderer->settings.draw_skybox);
-    ImGui::Checkbox("grid", &scene_renderer->settings.draw_grid);
-    ImGui::Checkbox("disable material", &scene_renderer->settings.disable_material);
-    ImGui::Checkbox("fxaa", &scene_renderer->settings.use_fxaa);
-    ImGui::Checkbox("bloom", &scene_renderer->settings.use_bloom);
+    ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
+    ImGui::Checkbox("grid", &pbr_renderer->settings.draw_grid);
+    ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
+    ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
+    ImGui::Checkbox("bloom", &pbr_renderer->settings.use_bloom);
 
     if(pbr_renderer)
     {
@@ -521,6 +453,108 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
 
             ImGui::TreePop();
         }
+    }
+}
+
+void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr &cam)
+{
+    auto render_str = crocore::format("renderer: %s ", "path-tracer");
+
+    ImGui::Text(render_str.c_str());
+    ImGui::Spacing();
+    ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
+    ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
+    ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
+    ImGui::Checkbox("bloom", &path_tracer->settings.use_bloom);
+}
+
+void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
+{
+    constexpr char window_name[] = "renderer";
+    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
+
+    if(is_child_window){ ImGui::BeginChild(window_name); }
+    else{ ImGui::Begin(window_name); }
+
+    float *cam_exposure = nullptr, *cam_gamma = nullptr;
+    vierkant::postfx::dof_settings_t *settings_dof = nullptr;
+
+    if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
+    {
+        cam_exposure = &pbr_renderer->settings.exposure;
+        cam_gamma = &pbr_renderer->settings.gamma;
+        settings_dof = &pbr_renderer->settings.dof;
+
+        draw_scene_renderer_ui_intern(pbr_renderer, cam);
+    }
+    else if(auto path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer))
+    {
+        cam_exposure = &path_tracer->settings.exposure;
+        cam_gamma = &path_tracer->settings.gamma;
+        settings_dof = &path_tracer->settings.dof;
+        draw_scene_renderer_ui_intern(path_tracer, cam);
+    }
+
+    if(cam)
+    {
+        if(ImGui::TreeNode("camera"))
+        {
+            auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
+
+            if(perspective_cam)
+            {
+                // fov
+                float fov = perspective_cam->fov();
+                if(ImGui::SliderFloat("fov", &fov, 0.f, 180.f)){ perspective_cam->set_fov(fov); }
+
+                // clipping planes
+                float clipping[2] = {perspective_cam->near(), perspective_cam->far()};
+                if(ImGui::InputFloat2("clipping near/far", clipping))
+                {
+                    perspective_cam->set_clipping(clipping[0], clipping[1]);
+                }
+
+                // exposure
+                ImGui::SliderFloat("exposure", cam_exposure, 0.f, 10.f);
+
+                // gamma
+                ImGui::SliderFloat("gamma",cam_gamma, 0.f, 10.f);
+
+                // dof
+                if(settings_dof)
+                {
+                    auto &dof = *settings_dof;
+
+                    ImGui::PushID(std::addressof(dof));
+                    ImGui::Checkbox("", reinterpret_cast<bool*>(std::addressof(dof.enabled)));
+                    ImGui::PopID();
+
+                    ImGui::SameLine();
+                    if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
+
+                    if(ImGui::TreeNode("dof"))
+                    {
+
+                        ImGui::Checkbox("autofocus", reinterpret_cast<bool*>(std::addressof(dof.auto_focus)));
+                        ImGui::SliderFloat("focal distance (m)", &dof.focal_depth, 0.f, cam->far());
+                        ImGui::SliderFloat("focal length (mm)", &dof.focal_length, 0.f, 280.f);
+                        ImGui::SliderFloat("f-stop", &dof.fstop, 0.f, 180.f);
+                        ImGui::InputFloat("circle of confusion (mm)", &dof.circle_of_confusion_sz, 0.001f, .01f);
+                        ImGui::SliderFloat("gain", &dof.gain, 0.f, 10.f);
+                        ImGui::SliderFloat("color fringe", &dof.fringe, 0.f, 10.f);
+                        ImGui::SliderFloat("max blur", &dof.max_blur, 0.f, 10.f);
+                        ImGui::Checkbox("debug focus", reinterpret_cast<bool*>(std::addressof(dof.debug_focus)));
+                        ImGui::TreePop();
+                    }
+                    if(!dof.enabled){ ImGui::PopStyleColor(); }
+                }
+            }
+
+            ImGui::TreePop();
+        }
+
+        ImGui::Separator();
+        ImGui::Spacing();
     }
 
     // end window

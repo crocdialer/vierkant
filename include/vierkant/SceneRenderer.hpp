@@ -19,42 +19,12 @@ class SceneRenderer
 {
 public:
 
-    //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
-    struct settings_t
-    {
-        //! disable colors from textures, material, vertices
-        bool disable_material = false;
-
-        //! draw the skybox, if any
-        bool draw_skybox = true;
-
-        //! draw a grid for orientation
-        bool draw_grid = true;
-
-        //! apply anti-aliasing using fxaa
-        bool use_fxaa = true;
-
-        //! bloom settings
-        bool use_bloom = true;
-
-        //! gamma correction of output
-        float gamma = 1.0;
-
-        //! exposure setting for tone-mapping
-        float exposure = 2.0;
-
-        //! desired depth-of-field settings, disabled by default
-        postfx::dof_settings_t dof = {};
-    };
-
+    //! groups results of rendering operations.
     struct render_result_t
     {
         uint32_t num_objects = 0;
         std::vector<semaphore_submit_info_t> semaphore_infos;
     };
-
-    //! settings struct
-    settings_t settings;
 
     /**
      * @brief   Render a scene with a provided camera.

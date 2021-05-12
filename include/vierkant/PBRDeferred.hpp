@@ -18,6 +18,34 @@ class PBRDeferred : public vierkant::SceneRenderer
 {
 public:
 
+    //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
+    struct settings_t
+    {
+        //! disable colors from textures, material, vertices
+        bool disable_material = false;
+
+        //! draw the skybox, if any
+        bool draw_skybox = true;
+
+        //! draw a grid for orientation
+        bool draw_grid = true;
+
+        //! apply anti-aliasing using fxaa
+        bool use_fxaa = true;
+
+        //! bloom settings
+        bool use_bloom = true;
+
+        //! gamma correction of output
+        float gamma = 1.0;
+
+        //! exposure setting for tone-mapping
+        float exposure = 2.0;
+
+        //! desired depth-of-field settings, disabled by default
+        postfx::dof_settings_t dof = {};
+    };
+
     enum G_BUFFER
     {
         G_BUFFER_ALBEDO = 0,
@@ -36,7 +64,7 @@ public:
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
 
         // base settings for a SceneRenderer
-        SceneRenderer::settings_t settings = {};
+        settings_t settings = {};
 
         // convolved diffuse irradiance cube
         vierkant::ImagePtr conv_lambert;
@@ -90,6 +118,9 @@ public:
      * @return a const ref to the lighting-buffer used for last rendering.
      */
     const vierkant::Framebuffer &lighting_buffer() const;
+
+    //! settings struct
+    settings_t settings;
 
 private:
 

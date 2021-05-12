@@ -23,6 +23,34 @@ class PBRPathTracer : public vierkant::SceneRenderer
 {
 public:
 
+    //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
+    struct settings_t
+    {
+        //! disable colors from textures, material, vertices
+        bool disable_material = false;
+
+        //! draw the skybox, if any
+        bool draw_skybox = true;
+
+        //! flag indicating if compaction shall be used for created acceleration-structures
+        bool compaction = true;
+
+        //! flag indicating if a denoising pass shall be performed
+        bool denoising = true;
+
+        //! bloom settings
+        bool use_bloom = true;
+
+        //! gamma correction of output
+        float gamma = 1.0;
+
+        //! exposure setting for tone-mapping
+        float exposure = 2.0;
+
+        //! desired depth-of-field settings, disabled by default
+        postfx::dof_settings_t dof = {};
+    };
+
     struct create_info_t
     {
         VkExtent3D size = {};
@@ -32,17 +60,11 @@ public:
 
         VkQueue queue = VK_NULL_HANDLE;
 
-        //! flag indicating if compaction shall be done for created acceleration-structures
-        bool compaction = true;
-
-        //! flag indicating if a denoising pass shall be performed
-        bool denoising = true;
-
         //! optional seed for deterministic pseudo-random-numbers
         uint32_t seed = 0;
 
-        // base settings for a SceneRenderer
-        SceneRenderer::settings_t settings = {};
+        // settings
+        settings_t settings = {};
     };
 
     static PBRPathTracerPtr create(const vierkant::DevicePtr &device, const create_info_t &create_info);
@@ -75,6 +97,8 @@ public:
     void set_environment(const vierkant::ImagePtr &cubemap) override;
 
     void reset_batch();
+
+    settings_t settings;
 
 private:
 

@@ -20,6 +20,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         m_device(device),
         m_random_engine(create_info.seed)
 {
+    settings = create_info.settings;
+
     // set queue, fallback to first graphics-queue
     m_queue = create_info.queue ? create_info.queue : device->queue();
 
@@ -44,10 +46,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     ray_tracer_create_info.pipeline_cache = create_info.pipeline_cache;
     m_ray_tracer = vierkant::RayTracer(device, ray_tracer_create_info);
     m_ray_builder = vierkant::RayBuilder(device, m_queue, pool);
-    m_compaction = create_info.compaction;
+    m_compaction = create_info.settings.compaction;
 
     // denoise compute
-    m_denoising = create_info.denoising;
+    m_denoising = settings.denoising;
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.num_frames_in_flight = create_info.num_frames_in_flight;
     compute_info.pipeline_cache = create_info.pipeline_cache;
@@ -194,6 +196,8 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
                                                            const CameraPtr &cam,
                                                            const std::set<std::string> &tags)
 {
+    m_denoising = settings.denoising;
+
     auto &frame_asset = m_frame_assets[renderer.current_index()];
 
     // sync and reset semaphore
