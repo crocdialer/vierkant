@@ -57,12 +57,12 @@ public:
     /**
      * @return  handle for the managed VkPipeline
      */
-    VkPipeline handle() const{ return m_pipeline; }
+    [[nodiscard]] VkPipeline handle() const{ return m_pipeline; }
 
     /**
      * @return  handle for the managed pipeline-layout
      */
-    VkPipelineLayout layout() const{ return m_pipeline_layout; }
+    [[nodiscard]] VkPipelineLayout layout() const{ return m_pipeline_layout; }
 
 private:
 

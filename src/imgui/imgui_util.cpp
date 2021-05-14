@@ -431,6 +431,12 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
     ImGui::Checkbox("bloom", &pbr_renderer->settings.use_bloom);
 
+    // exposure
+    ImGui::SliderFloat("exposure", &pbr_renderer->settings.exposure, 0.f, 10.f);
+
+    // gamma
+    ImGui::SliderFloat("gamma",&pbr_renderer->settings.gamma, 0.f, 10.f);
+
     if(pbr_renderer)
     {
         auto extent = pbr_renderer->lighting_buffer().extent();
@@ -466,6 +472,12 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
     ImGui::Checkbox("bloom", &path_tracer->settings.use_bloom);
+
+    // exposure
+    ImGui::SliderFloat("exposure", &path_tracer->settings.exposure, 0.f, 10.f);
+
+    // gamma
+    ImGui::SliderFloat("gamma",&path_tracer->settings.gamma, 0.f, 10.f);
 }
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
@@ -476,24 +488,21 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
     if(is_child_window){ ImGui::BeginChild(window_name); }
     else{ ImGui::Begin(window_name); }
 
-    float *cam_exposure = nullptr, *cam_gamma = nullptr;
     vierkant::postfx::dof_settings_t *settings_dof = nullptr;
 
     if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
     {
-        cam_exposure = &pbr_renderer->settings.exposure;
-        cam_gamma = &pbr_renderer->settings.gamma;
         settings_dof = &pbr_renderer->settings.dof;
 
         draw_scene_renderer_ui_intern(pbr_renderer, cam);
     }
     else if(auto path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer))
     {
-        cam_exposure = &path_tracer->settings.exposure;
-        cam_gamma = &path_tracer->settings.gamma;
         settings_dof = &path_tracer->settings.dof;
         draw_scene_renderer_ui_intern(path_tracer, cam);
     }
+
+    ImGui::Separator();
 
     if(cam)
     {
@@ -513,12 +522,6 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
                 {
                     perspective_cam->set_clipping(clipping[0], clipping[1]);
                 }
-
-                // exposure
-                ImGui::SliderFloat("exposure", cam_exposure, 0.f, 10.f);
-
-                // gamma
-                ImGui::SliderFloat("gamma",cam_gamma, 0.f, 10.f);
 
                 // dof
                 if(settings_dof)

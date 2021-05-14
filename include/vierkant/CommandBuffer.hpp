@@ -120,11 +120,11 @@ public:
      */
     void reset(bool release_resources = false);
 
-    VkCommandBuffer handle() const{ return m_handle; }
+    [[nodiscard]] VkCommandBuffer handle() const{ return m_handle; }
 
-    VkCommandPool pool() const{ return m_pool; }
+    [[nodiscard]] VkCommandPool pool() const{ return m_pool; }
 
-    bool is_recording() const{ return m_recording; }
+    [[nodiscard]] bool is_recording() const{ return m_recording; }
 
     inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
 

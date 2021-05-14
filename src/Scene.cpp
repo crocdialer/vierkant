@@ -143,7 +143,7 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
     return ret;
 }
 
-vierkant::Object3DPtr Scene::object_by_name(const std::string &name) const
+[[maybe_unused]] vierkant::Object3DPtr Scene::object_by_name(const std::string &name) const
 {
     vierkant::SelectVisitor<vierkant::Object3D> sv({}, false);
     root()->accept(sv);

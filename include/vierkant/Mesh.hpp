@@ -156,14 +156,14 @@ public:
      *
      * @return  the newly created array of VkVertexInputAttributeDescriptions
      */
-    std::vector<VkVertexInputAttributeDescription> attribute_descriptions() const;
+    [[nodiscard]] std::vector<VkVertexInputAttributeDescription> attribute_descriptions() const;
 
     /**
      * @brief   Create an array of VkVertexInputBindingDescription for a given vierkant::Mesh
      *
      * @return  the newly created array of VkVertexInputBindingDescriptions
      */
-    std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
+    [[nodiscard]] std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
 
     /**
      * @brief   update_entry_transforms applies the current animation to all entry-transforms.

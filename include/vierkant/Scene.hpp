@@ -18,7 +18,7 @@ public:
 
     void update(double time_delta);
 
-    Object3DPtr pick(const Ray &ray, bool high_precision = false,
+    [[nodiscard]] Object3DPtr pick(const Ray &ray, bool high_precision = false,
                      const std::set<std::string> &tags = {}) const;
 
     void add_object(const Object3DPtr &object);
@@ -27,17 +27,15 @@ public:
 
     void clear();
 
-    vierkant::Object3DPtr object_by_name(const std::string &name) const;
+    [[nodiscard]] vierkant::Object3DPtr object_by_name(const std::string &name) const;
 
-    std::vector<vierkant::Object3DPtr> objects_by_tags(const std::set<std::string> &tags) const;
+    [[nodiscard]] std::vector<vierkant::Object3DPtr> objects_by_tags(const std::set<std::string> &tags) const;
 
-    std::vector<vierkant::Object3DPtr> objects_by_tag(const std::string &tag) const;
+    [[nodiscard]] std::vector<vierkant::Object3DPtr> objects_by_tag(const std::string &tag) const;
 
-    inline const Object3DPtr &root() const{ return m_root; };
+    [[nodiscard]] inline const Object3DPtr &root() const{ return m_root; };
 
-    inline Object3DPtr &root(){ return m_root; };
-
-    const vierkant::ImagePtr &environment() const{ return m_skybox; }
+    [[nodiscard]] const vierkant::ImagePtr &environment() const{ return m_skybox; }
 
     void set_environment(const vierkant::ImagePtr &img);
 

@@ -119,10 +119,10 @@ public:
      * @param   mesh        a provided vierkant::MeshConstPtr
      * @param   transform   a provided transformation-matrix
      */
-    build_result_t create_mesh_structures(const vierkant::MeshConstPtr &mesh,
-                                          const glm::mat4 &transform = glm::mat4(1)) const;
+    [[nodiscard]] build_result_t create_mesh_structures(const vierkant::MeshConstPtr &mesh,
+                                                        const glm::mat4 &transform = glm::mat4(1)) const;
 
-    void compact(build_result_t& build_result) const;
+    void compact(build_result_t &build_result) const;
 
 
     /**
@@ -139,8 +139,8 @@ private:
 
     void set_function_pointers();
 
-    acceleration_asset_t create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info,
-                                                   const glm::mat4 &transform = glm::mat4(1)) const;
+    [[nodiscard]] acceleration_asset_t create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info,
+                                                                 const glm::mat4 &transform = glm::mat4(1)) const;
 
     vierkant::DevicePtr m_device;
 

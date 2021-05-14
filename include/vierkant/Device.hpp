@@ -72,58 +72,58 @@ public:
     /**
      * @return  the managed VkDevice
      */
-    VkDevice handle() const{ return m_device; }
+    [[nodiscard]] VkDevice handle() const{ return m_device; }
 
     /**
      * @return  the associated VkPhysicalDevice
      */
-    VkPhysicalDevice physical_device() const{ return m_physical_device; }
+    [[nodiscard]] VkPhysicalDevice physical_device() const{ return m_physical_device; }
 
     /**
      * @return the physical device properties
      */
-    const VkPhysicalDeviceProperties &properties() const{ return m_physical_device_properties.properties; };
+    [[nodiscard]] const VkPhysicalDeviceProperties &properties() const{ return m_physical_device_properties.properties; };
 
     /**
      * @return  handle for the highest-priority-queue of a certain type
      *          or VK_NULL_HANDLE if not present.
      */
-    VkQueue queue(Queue type = Queue::GRAPHICS) const;
+    [[nodiscard]] VkQueue queue(Queue type = Queue::GRAPHICS) const;
 
     /**
      * @return  handle for queues
      */
-    const std::vector<VkQueue> &queues(Queue type) const;
+    [[nodiscard]] const std::vector<VkQueue> &queues(Queue type) const;
 
     /**
      * @return  const ref to the used QueueFamilyIndices
      */
-    const std::map<Queue, queue_family_info_t> &queue_family_indices() const{ return m_queue_indices; }
+    [[nodiscard]] const std::map<Queue, queue_family_info_t> &queue_family_indices() const{ return m_queue_indices; }
 
     /**
      * @return  handle for command pool
      */
-    VkCommandPool command_pool() const{ return m_command_pool; }
+    [[nodiscard]] VkCommandPool command_pool() const{ return m_command_pool; }
 
     /**
      * @return  handle for transient command pool
      */
-    VkCommandPool command_pool_transient() const{ return m_command_pool_transient; }
+    [[nodiscard]] VkCommandPool command_pool_transient() const{ return m_command_pool_transient; }
 
     /**
      * @return  handle for transient command pool
      */
-    VkCommandPool command_pool_transfer() const{ return m_command_pool_transfer; }
+    [[nodiscard]] VkCommandPool command_pool_transfer() const{ return m_command_pool_transfer; }
 
     /**
      * @return  enum stating the maximum available number of samples for MSAA
      */
-    VkSampleCountFlagBits max_usable_samples() const{ return m_max_usable_samples; }
+    [[nodiscard]] VkSampleCountFlagBits max_usable_samples() const{ return m_max_usable_samples; }
 
     /**
      * @return  handle for memory allocator
      */
-    VmaAllocator vk_mem_allocator() const{ return m_vk_mem_allocator; };
+    [[nodiscard]] VmaAllocator vk_mem_allocator() const{ return m_vk_mem_allocator; };
 
 private:
 

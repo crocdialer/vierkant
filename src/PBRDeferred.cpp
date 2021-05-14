@@ -321,7 +321,6 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     environment_lighting_ubo_t ubo = {};
     ubo.camera_transform = cull_result.camera->global_transform();
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) - 1);
-    ubo.env_light_strength = 1.f;
 
     frame_assets.lighting_ubo->set_data(&ubo, sizeof(ubo));
 

@@ -33,7 +33,7 @@ public:
 
     Semaphore() = default;
 
-    Semaphore(const vierkant::DevicePtr &device, uint64_t initial_value = 0);
+    explicit Semaphore(const vierkant::DevicePtr &device, uint64_t initial_value = 0);
 
     ~Semaphore();
 
@@ -43,13 +43,29 @@ public:
 
     Semaphore &operator=(Semaphore other);
 
-    VkSemaphore handle() const{ return m_handle; }
+    /**
+     * @return  the managed VkSemaphore handle.
+     */
+    [[nodiscard]] VkSemaphore handle() const{ return m_handle; }
 
+    /**
+     * @brief   signal provided value to the semaphore.
+     *
+     * @param   value   signal-value
+     */
     void signal(uint64_t value);
 
+    /**
+     * @brief   wait performs a blocking wait until the semaphore's value is equal or greater than provided value.
+     *
+     * @param   value   wait-value
+     */
     void wait(uint64_t value) const;
 
-    uint64_t value() const;
+    /**
+     * @return  the semaphore's current value.
+     */
+    [[nodiscard]] uint64_t value() const;
 
     inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
 

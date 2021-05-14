@@ -55,7 +55,7 @@ public:
     /**
      * @return true, if the underlying memory-type is host visible and can be mapped
      */
-    bool is_host_visible() const;
+    [[nodiscard]] bool is_host_visible() const;
 
     /**
      * @brief   map buffer to local memory
@@ -72,23 +72,23 @@ public:
     /**
      * @return  the underlying VkBuffer handle
      */
-    VkBuffer handle() const;
+    [[nodiscard]] VkBuffer handle() const;
 
     /**
      * @return  the VkBufferUsageFlags this buffer was created with
      */
-    VkBufferUsageFlags usage_flags() const;
+    [[nodiscard]] VkBufferUsageFlags usage_flags() const;
 
     /**
      * @return  the number of bytes contained in the buffer
      */
-    size_t num_bytes() const;
+    [[nodiscard]] size_t num_bytes() const;
 
     /**
      * @brief   if the buffer was created with 'VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT' returns its address.
      * @return  the VkDeviceAddress for this buffer or 0 if not available.
      */
-    VkDeviceAddress device_address() const{ return m_device_address; };
+    [[nodiscard]] VkDeviceAddress device_address() const{ return m_device_address; };
 
     /**
      * @brief   upload data into the buffer
@@ -119,7 +119,7 @@ public:
     /**
      * @return  the vierkant::DevicePtr used to create the buffer.
      */
-    vierkant::DevicePtr device() const{ return m_device; }
+    [[nodiscard]] vierkant::DevicePtr device() const{ return m_device; }
 
 private:
 

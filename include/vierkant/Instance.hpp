@@ -57,7 +57,7 @@ public:
     /**
      * @return  true if validation layers are in use, false otherwise
      */
-    bool use_validation_layers() const{ return m_debug_callback; }
+    [[nodiscard]] bool use_validation_layers() const{ return m_debug_callback; }
 
     /**
      * @brief   set a debug-callback, containing output from validation-layers.
@@ -69,14 +69,14 @@ public:
     /**
      * @return  a handle to the managed VKInstance
      */
-    VkInstance handle() const{ return m_handle; }
+    [[nodiscard]] VkInstance handle() const{ return m_handle; }
 
     /**
      * @return  an array of all available physical GPU-devices
      */
-    const std::vector<VkPhysicalDevice> &physical_devices() const{ return m_physical_devices; }
+    [[nodiscard]] const std::vector<VkPhysicalDevice> &physical_devices() const{ return m_physical_devices; }
 
-    const std::vector<const char *> &extensions() const{ return m_extensions; }
+    [[nodiscard]] const std::vector<const char *> &extensions() const{ return m_extensions; }
 
     inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
 

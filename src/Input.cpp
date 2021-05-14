@@ -19,7 +19,7 @@ std::vector<JoystickState> get_joystick_states()
         std::vector<uint8_t> buttons(glfw_buttons, glfw_buttons + count);
 
         std::string name(glfwGetJoystickName(i));
-        ret.emplace_back(name, buttons, axis);
+        ret.emplace_back(std::move(name), std::move(buttons), std::move(axis));
     }
     return ret;
 }

@@ -76,7 +76,7 @@ struct Ray
         return *this;
     };
 
-    inline Ray transform(const glm::mat4 &t) const
+    [[nodiscard]] inline Ray transform(const glm::mat4 &t) const
     {
         Ray ret = *this;
         return ret.transform(t);
@@ -131,9 +131,9 @@ struct Plane
 
     Plane(const glm::vec3 &f, const glm::vec3 &n);
 
-    inline const glm::vec3 &normal() const{ return *((glm::vec3 *) (&coefficients[0])); };
+    [[nodiscard]] inline const glm::vec3 &normal() const{ return *((glm::vec3 *) (&coefficients[0])); };
 
-    inline float distance(const glm::vec3 &p) const
+    [[nodiscard]] inline float distance(const glm::vec3 &p) const
     {
         return dot(p, coefficients.xyz()) + coefficients.w;
     };
@@ -144,13 +144,13 @@ struct Plane
         return *this;
     };
 
-    inline Plane transform(const glm::mat4 &t) const
+    [[nodiscard]] inline Plane transform(const glm::mat4 &t) const
     {
         Plane ret = *this;
         return ret.transform(t);
     };
 
-    inline ray_intersection intersect(const Ray &ray)
+    [[nodiscard]] inline ray_intersection intersect(const Ray &ray) const
     {
         return vierkant::intersect(*this, ray);
     }
@@ -173,18 +173,18 @@ struct Triangle
         return *this;
     }
 
-    inline Triangle transform(const glm::mat4 &t) const
+    [[nodiscard]] inline Triangle transform(const glm::mat4 &t) const
     {
         Triangle ret = *this;
         return ret.transform(t);
     }
 
-    inline ray_triangle_intersection intersect(const Ray &theRay) const
+    [[nodiscard]] inline ray_triangle_intersection intersect(const Ray &theRay) const
     {
         return vierkant::intersect(*this, theRay);
     }
 
-    inline glm::vec3 normal() const
+    [[nodiscard]] inline glm::vec3 normal() const
     {
         return normalize(cross(v1 - v0, v2 - v0));
     }
@@ -211,13 +211,13 @@ struct Sphere
         return *this;
     }
 
-    inline Sphere transform(const glm::mat4 &t) const
+    [[nodiscard]] inline Sphere transform(const glm::mat4 &t) const
     {
         Sphere ret = *this;
         return ret.transform(t);
     }
 
-    inline uint32_t intersect(const glm::vec3 &thePoint) const
+    [[nodiscard]] inline uint32_t intersect(const glm::vec3 &thePoint) const
     {
         if(glm::length2(center - thePoint) > radius * radius)
         {
@@ -227,7 +227,7 @@ struct Sphere
         return INSIDE;
     }
 
-    inline ray_intersection intersect(const Ray &theRay) const
+    [[nodiscard]] inline ray_intersection intersect(const Ray &theRay) const
     {
         return vierkant::intersect(*this, theRay);
     }
@@ -247,17 +247,17 @@ struct AABB
             min(theMin),
             max(theMax){}
 
-    inline float width() const{ return max.x - min.x; }
+    [[nodiscard]] inline float width() const{ return max.x - min.x; }
 
-    inline float height() const{ return max.y - min.y; }
+    [[nodiscard]] inline float height() const{ return max.y - min.y; }
 
-    inline float depth() const{ return max.z - min.z; }
+    [[nodiscard]] inline float depth() const{ return max.z - min.z; }
 
-    inline glm::vec3 half_extents() const{ return (max - min) / 2.f; }
+    [[nodiscard]] inline glm::vec3 half_extents() const{ return (max - min) / 2.f; }
 
-    inline glm::vec3 size() const{ return (max - min); }
+    [[nodiscard]] inline glm::vec3 size() const{ return (max - min); }
 
-    inline glm::vec3 center() const{ return max - half_extents(); }
+    [[nodiscard]] inline glm::vec3 center() const{ return max - half_extents(); }
 
     AABB operator+(const AABB &aabb) const
     {
@@ -279,7 +279,7 @@ struct AABB
     }
 
     /* used for fast AABB <-> Plane intersection test */
-    inline glm::vec3 pos_vertex(const glm::vec3 &dir) const
+    [[nodiscard]] inline glm::vec3 pos_vertex(const glm::vec3 &dir) const
     {
         glm::vec3 ret = min;
         if(dir.x >= 0){ ret.x = max.x; }
@@ -289,7 +289,7 @@ struct AABB
     }
 
     /* used for fast AABB <-> Plane intersection test */
-    inline glm::vec3 neg_vertex(const glm::vec3 &dir) const
+    [[nodiscard]] inline glm::vec3 neg_vertex(const glm::vec3 &dir) const
     {
         glm::vec3 ret = max;
         if(dir.x >= 0){ ret.x = min.x; }
@@ -300,13 +300,13 @@ struct AABB
 
     AABB &transform(const glm::mat4 &t);
 
-    inline AABB transform(const glm::mat4 &t) const
+    [[nodiscard]] inline AABB transform(const glm::mat4 &t) const
     {
         AABB ret = *this;
         return ret.transform(t);
     }
 
-    inline uint32_t intersect(const glm::vec3 &point)
+    [[nodiscard]] inline uint32_t intersect(const glm::vec3 &point) const
     {
         if(point.x < min.x || point.x > max.x){ return REJECT; }
         if(point.y < min.y || point.y > max.y){ return REJECT; }
@@ -314,9 +314,9 @@ struct AABB
         return INSIDE;
     }
 
-    ray_intersection intersect(const Ray &ray) const;
+    [[nodiscard]] ray_intersection intersect(const Ray &ray) const;
 
-    uint32_t intersect(const Triangle &t) const;
+    [[nodiscard]] uint32_t intersect(const Triangle &t) const;
 };
 
 struct OBB
@@ -329,18 +329,18 @@ struct OBB
 
     OBB &transform(const glm::mat4 &t);
 
-    inline OBB transform(const glm::mat4 &t) const
+    [[nodiscard]] inline OBB transform(const glm::mat4 &t) const
     {
         OBB ret = *this;
         return ret.transform(t);
     }
 
-    inline ray_intersection intersect(const Ray &theRay) const
+    [[nodiscard]] inline ray_intersection intersect(const Ray &theRay) const
     {
         return vierkant::intersect(*this, theRay);
     }
 
-    inline bool contains(const glm::vec3 &p) const
+    [[nodiscard]] inline bool contains(const glm::vec3 &p) const
     {
         // point in axis space
         const glm::mat3 &mat = *reinterpret_cast<const glm::mat3 *>(&axis[0][0]);
@@ -379,7 +379,7 @@ struct Frustum
         return *this;
     }
 
-    inline Frustum transform(const glm::mat4 &t) const
+    [[nodiscard]] inline Frustum transform(const glm::mat4 &t) const
     {
         Frustum ret = *this;
         return ret.transform(t);
