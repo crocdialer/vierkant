@@ -70,7 +70,7 @@ vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
     {
         vec2 Xi = Hammersley(i, numSamples);
         vec3 H = local_frame * sample_GGX(Xi, roughness);
-        vec3 L = 2.0 * dot(V, H) * H - V;
+        vec3 L = reflect(-V, H);//2.0 * dot(V, H) * H - V;
 
         float NoL = max(dot(N, L), 0.0);
         float NoH = max(dot(N, H), 0.0);
@@ -93,6 +93,8 @@ vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
 
 vec2 IntegrateBRDF(float roughness, float NoV)
 {
+    roughness = max(0.001, roughness);
+
     vec3 N = vec3(0.0, 0.0, 1.0);
     vec3 V = vec3(sqrt(clamp(1.0 - NoV * NoV, 0.0, 1.0)), 0.0, NoV); // assuming isotropic BRDF
 
@@ -108,7 +110,7 @@ vec2 IntegrateBRDF(float roughness, float NoV)
     {
         vec2 Xi = Hammersley(i, numSamples);
         vec3 H = local_frame * sample_GGX(Xi, roughness);
-        vec3 L = 2.0 * dot(V, H) * H - V;
+        vec3 L = reflect(-V, H);//2.0 * dot(V, H) * H - V;
 
         float NoL = clamp(L.z, 0.0, 1.0);
         float NoH = clamp(H.z, 0.0, 1.0);
@@ -117,9 +119,8 @@ vec2 IntegrateBRDF(float roughness, float NoV)
         if (NoL > 0.0)
         {
             float G = G_Smith(roughness, NoV, NoL);
-
             float G_Vis = G * VoH / (NoH * NoV);
-            float Fc = pow(1.0 - VoH, 5.0);
+            float Fc = SchlickFresnel(VoH);
 
             A += (1.0 - Fc) * G_Vis;
             B += Fc * G_Vis;
