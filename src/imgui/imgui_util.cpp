@@ -421,10 +421,6 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
 
 void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const CameraPtr &cam)
 {
-    auto render_str = crocore::format("renderer: %s ", "pbr-deferred");
-
-    ImGui::Text(render_str.c_str());
-    ImGui::Spacing();
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
     ImGui::Checkbox("grid", &pbr_renderer->settings.draw_grid);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
@@ -464,10 +460,6 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 
 void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr &cam)
 {
-    auto render_str = crocore::format("renderer: %s ", "path-tracer");
-
-    ImGui::Text(render_str.c_str());
-    ImGui::Spacing();
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
@@ -482,7 +474,7 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
 {
-    constexpr char window_name[] = "renderer";
+    constexpr char window_name[] = "scene_renderer";
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
 
     if(is_child_window){ ImGui::BeginChild(window_name); }

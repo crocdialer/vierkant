@@ -3,21 +3,12 @@
 #define FLOAT_MAX 3.402823466e+38
 #define FLOAT_MIN 1.175494351e-38
 
-//#define PI 3.1415926535897932384626433832795
-//#define ONE_OVER_PI 0.31830988618379067153776752674503
-
 #define EPS 0.001
 
 struct Ray
 {
     vec3 origin;
     vec3 direction;
-};
-
-struct Cone
-{
-    float radius;
-    float angle;
 };
 
 //! simple struct to groupt rayhit-parameters
