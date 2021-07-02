@@ -260,11 +260,8 @@ void Framebuffer::begin_renderpass(VkCommandBuffer commandbuffer,
         // clear values
         std::vector<VkClearValue> clear_values;
 
-        for(const auto &pair : m_attachments)
+        for(const auto &[type, images] : m_attachments)
         {
-            auto type = pair.first;
-            auto &images = pair.second;
-
             for(uint32_t i = 0; i < images.size(); ++i)
             {
                 VkClearValue v = {};

@@ -10,16 +10,15 @@ const uint MAX_NUM_ENTRIES = 1024;
 
 struct entry_t
 {
+    // per entry
     mat4 modelview;
     mat4 normal_matrix;
+    uint material_index;
+    uint base_vertex;
+    uint base_index;
 
     // per mesh
     uint buffer_index;
-    uint material_index;
-
-    // per entry
-    uint base_vertex;
-    uint base_index;
 };
 
 struct Vertex
@@ -172,6 +171,12 @@ void main()
         // possible half-vector from GGX distribution
         vec3 H = local_frame * sample_GGX(Xi, roughness);
         payload.ray.direction = reflect(gl_WorldRayDirectionEXT, H);
+    }
+
+//    payload.ray.direction = faceforward(payload.ray.direction, gl_WorldRayDirectionEXT, payload.normal);
+    if(dot(payload.ray.direction, v.normal) < 0)
+    {
+        payload.ray.direction = reflect(payload.ray.direction, v.normal);
     }
 
     // TODO: decide on recursion here
