@@ -299,10 +299,10 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
     std::vector<VkBuffer> buf_handles;
     std::vector<VkDeviceSize> offsets;
 
-    for(const auto &tuple : buf_tuples)
+    for(const auto &[buffer, buffer_offset, stride, input_rate] : buf_tuples)
     {
-        buf_handles.push_back(std::get<0>(tuple)->handle());
-        offsets.push_back(std::get<1>(tuple));
+        buf_handles.push_back(buffer->handle());
+        offsets.push_back(buffer_offset);
     }
 
     // bind vertex buffer
@@ -371,12 +371,12 @@ std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
     std::vector<VkVertexInputBindingDescription> ret;
     uint32_t i = 0;
 
-    for(const auto &tuple : buf_tuples)
+    for(const auto &[buffer, buffer_offset, stride, input_rate] : buf_tuples)
     {
         VkVertexInputBindingDescription desc;
         desc.binding = i++;
-        desc.stride = std::get<2>(tuple);
-        desc.inputRate = std::get<3>(tuple);
+        desc.stride = stride;
+        desc.inputRate = input_rate;
         ret.push_back(desc);
     }
     return ret;

@@ -173,12 +173,6 @@ void main()
         payload.ray.direction = reflect(gl_WorldRayDirectionEXT, H);
     }
 
-//    payload.ray.direction = faceforward(payload.ray.direction, gl_WorldRayDirectionEXT, payload.normal);
-    if(dot(payload.ray.direction, v.normal) < 0)
-    {
-        payload.ray.direction = reflect(payload.ray.direction, v.normal);
-    }
-
     // TODO: decide on recursion here
 //    payload.radiance += directLight(material) * payload.beta;
 

@@ -125,7 +125,7 @@ struct Plane
 
     explicit Plane(const glm::vec4 &theCoefficients);
 
-    Plane(float theA, float theB, float theC, float theD);
+    Plane(float a, float b, float c, float d);
 
     Plane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2);
 
@@ -321,9 +321,9 @@ struct AABB
 
 struct OBB
 {
-    glm::vec3 center;
-    glm::vec3 axis[3];
-    glm::vec3 half_lengths;
+    glm::vec3 center{};
+    glm::mat3 axis{};
+    glm::vec3 half_lengths{};
 
     OBB(const AABB &aabb, const glm::mat4 &t);
 
@@ -343,8 +343,7 @@ struct OBB
     [[nodiscard]] inline bool contains(const glm::vec3 &p) const
     {
         // point in axis space
-        const glm::mat3 &mat = *reinterpret_cast<const glm::mat3 *>(&axis[0][0]);
-        glm::vec3 p_in_axis_space = mat * (p - center);
+        glm::vec3 p_in_axis_space = axis * (p - center);
         return std::abs(p_in_axis_space.x) < half_lengths.x &&
                std::abs(p_in_axis_space.y) < half_lengths.y &&
                std::abs(p_in_axis_space.z) < half_lengths.z;
