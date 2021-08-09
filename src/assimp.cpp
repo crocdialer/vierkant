@@ -12,6 +12,7 @@
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
+#include <assimp/pbrmaterial.h>
 
 #include <crocore/filesystem.hpp>
 #include <crocore/Image.hpp>
@@ -296,6 +297,12 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
     LOG_TRACE_IF(the_scene->mNumTextures) << "num embedded textures: " << the_scene->mNumTextures;
 
+    for(uint32_t i = 0; i < mtl->mNumProperties; ++i)
+    {
+        auto &prop = mtl->mProperties[i];
+        LOG_DEBUG << i << ": " << prop->mKey.data;
+    }
+
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &c))
     {
         auto col = aicolor_convert(c);
@@ -306,6 +313,11 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
         material.diffuse = clamp(col, 0.f, 1.f);
 
         material.blending = col.a < 1.f;
+    }
+
+    if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c))
+    {
+        LOG_DEBUG << "transparency: " << glm::to_string(*reinterpret_cast<glm::vec4*>(&c));
     }
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &c))
@@ -328,6 +340,16 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 //            theMaterial->set_blending(false);
         }
     }
+
+//    AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_FACTOR
+//    AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR
+//    AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR
+
+    float alpha_cutoff = 1.f;
+    aiGetMaterialFloat(mtl, AI_MATKEY_GLTF_ALPHACUTOFF, &alpha_cutoff);
+
+//    float alpha_mode = 0.f;
+//    aiGetMaterialFloat(mtl, AI_MATKEY_GLTF_ALPHAMODE, &alpha_cutoff);
 
     float opacity = 1.f;
     aiGetMaterialFloat(mtl, AI_MATKEY_OPACITY, &opacity);
@@ -414,7 +436,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
     std::string ao_map_path;
 
-    // DIFFUSE
+    // DIFFUSE (a.k.a AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_BASE_COLOR_TEXTURE)
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DIFFUSE), 0, &path_buf))
     {
         LOG_TRACE << "adding color map: '" << path_buf.data << "'";
@@ -461,6 +483,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
         material.img_normals = create_tex_image(path_buf.data);
     }
 
+    // (aiTextureType_UNKNOWN == AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLICROUGHNESS_TEXTURE)
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_UNKNOWN), 0, &path_buf))
     {
         LOG_TRACE << "unknown texture usage (assuming AO/ROUGHNESS/METAL ): '" << path_buf.data << "'";

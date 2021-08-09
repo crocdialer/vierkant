@@ -103,7 +103,7 @@ public:
      * @brief   Submit the commandbuffer to specified queue.
      *
      * @param   queue           VkQueue to submit this CommandBuffer to
-     * @param   wait_fence    flag indicating if synchronization (blocking wait) via internal fence should be done.
+     * @param   wait_fence      flag indicating if synchronization (blocking wait) via internal fence should be done.
      * @param   fence           optional external VkFence object to wait on
      * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
      */

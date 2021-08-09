@@ -47,6 +47,9 @@ void submit(const vierkant::DevicePtr &device,
 {
     if(device && queue)
     {
+        vierkant::FencePtr local_fence;
+        if (fence) { vkResetFences(device->handle(), 1, &fence); }
+
         VkSubmitInfo submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO};
         submit_info.commandBufferCount = command_buffers.size();
         submit_info.pCommandBuffers = command_buffers.data();
@@ -94,7 +97,6 @@ void submit(const vierkant::DevicePtr &device,
             submit_info.signalSemaphoreCount = signal_semaphores.size();
             submit_info.pSignalSemaphores = signal_semaphores.data();
 
-            vierkant::FencePtr local_fence;
             if(wait_fence && !fence)
             {
                 local_fence = vierkant::create_fence(device);
