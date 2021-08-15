@@ -17,6 +17,13 @@ class Material
 {
 public:
 
+    enum class BlendMode : uint8_t
+    {
+        Opaque = 0,
+        Blend = 1,
+        Mask = 2
+    };
+
     enum TextureType
     {
         Color, Normal, Specular, Ao_rough_metal, Emission, Displacement, Environment
@@ -36,7 +43,9 @@ public:
 
     bool two_sided = false;
 
-    bool blending = false;
+    BlendMode blend_mode = BlendMode::Opaque;
+
+    float alpha_cutoff = 0.5f;
 
     bool depth_test = true;
 

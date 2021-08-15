@@ -13,19 +13,19 @@ struct material_t
 {
     glm::vec4 diffuse;
     glm::vec4 specular;
-    glm::vec4 ambient;
     glm::vec4 emission;
     float roughness;
     float metalness;
-    bool blending = false;
+
+    vierkant::Material::BlendMode blend_mode = vierkant::Material::BlendMode::Opaque;
+    float alpha_cutoff = 1.f;
+
     bool wireframe = false;
     bool twosided = false;
 
     crocore::ImagePtr img_diffuse;
     crocore::ImagePtr img_emission;
-//    crocore::ImagePtr img_specular;
-//    crocore::ImagePtr img_ambient_occlusion;
-//    crocore::ImagePtr img_roughness;
+
     crocore::ImagePtr img_normals;
     crocore::ImagePtr img_ao_roughness_metal;
 };

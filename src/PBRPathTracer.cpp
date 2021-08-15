@@ -30,7 +30,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     // memorypool with 256MB blocks
-    constexpr size_t block_size = 1U << 28U;
+    constexpr size_t block_size = 1U << 29U;
     constexpr size_t min_num_blocks = 1, max_num_blocks = 0;
     auto pool = vierkant::Buffer::create_pool(m_device,
                                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |

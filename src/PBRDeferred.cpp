@@ -294,7 +294,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
 
         // set attachment blendstates
-        drawable.pipeline_format.attachment_blend_states = m_g_attachment_blend_states;
+        if(drawable.material.blend_mode == static_cast<uint32_t>(Material::BlendMode::Blend))
+        {
+            drawable.pipeline_format.attachment_blend_states = m_g_attachment_blend_states;
+        }
 
         // stage drawable
         m_g_renderer.stage_drawable(std::move(drawable));

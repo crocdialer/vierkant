@@ -44,7 +44,8 @@ void main()
     if(!context.disable_material)
     {
         vec4 tex_color = vertex_in.color * texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord);
-        if(smoothstep(0.0, 1.0, tex_color.a) < 0.01){ discard; }
+        float cut_off = (material.blend_mode == BLEND_MODE_MASK) ? material.alpha_cutoff : 0.f;
+        if(tex_color.a < cut_off){ discard; }
         out_color = material.color * tex_color;
         out_emission = material.emission * tex_color;
     }

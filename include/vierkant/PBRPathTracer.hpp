@@ -26,6 +26,9 @@ public:
     //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
     struct settings_t
     {
+        //! optional maximum number of batches to trace, default: 0 -> no limit
+        uint32_t max_num_batches = 0;
+
         //! disable colors from textures, material, vertices
         bool disable_material = false;
 

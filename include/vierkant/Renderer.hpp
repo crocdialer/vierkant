@@ -51,7 +51,11 @@ public:
 
         float ambient = 1.f;
 
-        int padding[1];
+        uint32_t blend_mode = static_cast<uint32_t>(Material::BlendMode::Opaque);
+
+        float alpha_cutoff = 0.5f;
+
+        int padding[3];
     };
 
     struct lightsource_t

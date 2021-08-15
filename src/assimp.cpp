@@ -311,8 +311,6 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
         // transparent material
         if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c)){ col.a = c.a; }
         material.diffuse = clamp(col, 0.f, 1.f);
-
-        material.blending = col.a < 1.f;
     }
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c))
@@ -345,15 +343,20 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 //    AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_METALLIC_FACTOR
 //    AI_MATKEY_GLTF_PBRMETALLICROUGHNESS_ROUGHNESS_FACTOR
 
-    float alpha_cutoff = 1.f;
-    aiGetMaterialFloat(mtl, AI_MATKEY_GLTF_ALPHACUTOFF, &alpha_cutoff);
+    aiGetMaterialFloat(mtl, AI_MATKEY_GLTF_ALPHACUTOFF, &material.alpha_cutoff);
 
-//    float alpha_mode = 0.f;
-//    aiGetMaterialFloat(mtl, AI_MATKEY_GLTF_ALPHAMODE, &alpha_cutoff);
+    aiString tmp_ai_str;
+    aiGetMaterialString(mtl, AI_MATKEY_GLTF_ALPHAMODE, &tmp_ai_str);
+    std::string alpha_mode = tmp_ai_str.C_Str();
+
+    if(alpha_mode == "BLEND"){ material.blend_mode = vierkant::Material::BlendMode::Blend; }
+    else if(alpha_mode == "MASK"){ material.blend_mode = vierkant::Material::BlendMode::Mask; }
+
+    LOG_DEBUG << "alpha-mode: " << alpha_mode;
 
     float opacity = 1.f;
     aiGetMaterialFloat(mtl, AI_MATKEY_OPACITY, &opacity);
-    material.blending = material.blending || opacity != 1.f;
+
     material.twosided = material.twosided || opacity != 1.f;
 
     ret1 = aiGetMaterialFloat(mtl, AI_MATKEY_SHININESS, &shininess);
@@ -458,26 +461,10 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
         ao_map_path = path_buf.data;
     }
 
-//    // SHINYNESS
-//    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_SPECULAR), 0, &path_buf))
-//    {
-//        LOG_TRACE << "adding spec/roughness map: '" << path_buf.data << "'";
-//        material.img_specular = create_tex_image(path_buf.data);
-//    }
-
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_NORMALS), 0, &path_buf))
-    {
-        LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
-        material.img_normals = create_tex_image(path_buf.data);
-    }
-
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DISPLACEMENT), 0, &path_buf))
-    {
-        LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
-        material.img_normals = create_tex_image(path_buf.data);
-    }
-
-    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_HEIGHT), 0, &path_buf))
+    // normalmap
+    if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_NORMALS), 0, &path_buf) ||
+       AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_DISPLACEMENT), 0, &path_buf) ||
+       AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_HEIGHT), 0, &path_buf))
     {
         LOG_TRACE << "adding normalmap: '" << path_buf.data << "'";
         material.img_normals = create_tex_image(path_buf.data);

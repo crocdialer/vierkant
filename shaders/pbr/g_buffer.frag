@@ -39,7 +39,8 @@ void main()
     if(!context.disable_material)
     {
         vec4 color = material.color * vertex_in.color;
-        if(smoothstep(0.0, 1.0, color.a) < 0.01){ discard; }
+        float cut_off = (material.blend_mode == BLEND_MODE_MASK) ? material.alpha_cutoff : 0.f;
+        if(color.a < cut_off){ discard; }
         out_color = color;
         out_emission = material.emission * vertex_in.color;
     }

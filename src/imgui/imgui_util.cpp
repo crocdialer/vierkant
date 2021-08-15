@@ -696,11 +696,31 @@ void draw_material_ui(const MaterialPtr &material)
         ImGui::SliderFloat("ambient occlusion", &material->ambient, 0.f, 1.f);
     }
 
+    // blend-mode
+    const char *blend_items[] = {"Opaque", "Blend", "Mask"};
+    constexpr Material::BlendMode blend_modes[] = {Material::BlendMode::Opaque, Material::BlendMode::Blend,
+                                                   Material::BlendMode::Mask};
+    int blend_mode_index = 0;
+
+    for(auto blend_mode : blend_modes)
+    {
+        if(material->blend_mode == blend_mode){ break; }
+        blend_mode_index++;
+    }
+
+    if(ImGui::Combo("blend-mode", &blend_mode_index, blend_items, IM_ARRAYSIZE(blend_items)))
+    {
+        material->blend_mode = blend_modes[blend_mode_index];
+    }
+
+    if(material->blend_mode == Material::BlendMode::Mask)
+    {
+        // alpha-cutoff
+        ImGui::SliderFloat("alpha-cutoff", &material->alpha_cutoff, 0.f, 1.f);
+    }
+
     // two-sided
     ImGui::Checkbox("two-sided", &material->two_sided);
-
-    // blending
-    ImGui::Checkbox("blending", &material->blending);
 }
 
 void draw_mesh_ui(const vierkant::MeshNodePtr &node)

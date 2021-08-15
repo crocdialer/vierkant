@@ -7,6 +7,11 @@ struct matrix_struct_t
     mat4 texture;
 };
 
+//! blendmode definitions
+#define BLEND_MODE_OPAQUE 0
+#define BLEND_MODE_BLEND 1
+#define BLEND_MODE_MASK 2
+
 //! material parameters
 struct material_struct_t
 {
@@ -15,6 +20,8 @@ struct material_struct_t
     float metalness;
     float roughness;
     float ambient;
+    uint blend_mode;
+    float alpha_cutoff;
 };
 
 //! definition of a directional- or point-light

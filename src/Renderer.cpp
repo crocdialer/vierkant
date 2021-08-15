@@ -52,6 +52,8 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.material.ambient = material->ambient;
         drawable.material.roughness = material->roughness;
         drawable.material.metalness = material->metalness;
+        drawable.material.blend_mode = static_cast<uint32_t>(material->blend_mode);
+        drawable.material.alpha_cutoff = material->alpha_cutoff;
 
         drawable.base_index = entry.base_index;
         drawable.num_indices = entry.num_indices;
@@ -61,7 +63,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.pipeline_format.binding_descriptions = binding_descriptions;
         drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
-        drawable.pipeline_format.blend_state.blendEnable = material->blending;
+        drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
         drawable.pipeline_format.depth_test = material->depth_test;
         drawable.pipeline_format.depth_write = material->depth_write;
         drawable.pipeline_format.cull_mode = material->cull_mode;

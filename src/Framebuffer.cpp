@@ -8,8 +8,8 @@ namespace vierkant
 
 inline bool is_depth(VkFormat fmt)
 {
-    VkFormat depth_formats[] = {VK_FORMAT_D16_UNORM, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT,
-                                VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT};
+    constexpr VkFormat depth_formats[] = {VK_FORMAT_D16_UNORM, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT,
+                                          VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT};
     return crocore::contains(depth_formats, fmt);
 }
 
@@ -17,8 +17,8 @@ inline bool is_depth(VkFormat fmt)
 
 inline bool is_stencil(VkFormat fmt)
 {
-    VkFormat stencil_formats[] = {VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT,
-                                  VK_FORMAT_D32_SFLOAT_S8_UINT};
+    constexpr VkFormat stencil_formats[] = {VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT,
+                                            VK_FORMAT_D32_SFLOAT_S8_UINT};
     return crocore::contains(stencil_formats, fmt);
 }
 

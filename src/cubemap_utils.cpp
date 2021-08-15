@@ -61,6 +61,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
         ret_fmt.num_layers = 6;
         ret_fmt.use_mipmap = true;
         ret_fmt.autogenerate_mipmaps = false;
+        ret_fmt.initial_layout_transition = false;
 
         // create mipmapped output image
         auto mipmap_cube = vierkant::Image::create(device, ret_fmt);
