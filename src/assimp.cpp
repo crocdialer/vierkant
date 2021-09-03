@@ -22,8 +22,7 @@
 #include "vierkant/Material.hpp"
 #include "vierkant/assimp.hpp"
 
-
-namespace vierkant::assimp
+namespace vierkant::model
 {
 
 struct weight_t
@@ -283,7 +282,10 @@ void insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map
 
 /////////////////////////////////////////////////////////////////
 
-material_t create_material(const std::string &base_path, const aiScene *the_scene, const aiMaterial *mtl,
+material_t create_material(const std::string &base_path,
+                           const aiScene *the_scene,
+                           const aiNode *node,
+                           const aiMaterial *mtl,
                            std::map<std::string, crocore::ImagePtr> *the_img_map = nullptr)
 {
     material_t material = {};
@@ -297,11 +299,22 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
     LOG_TRACE_IF(the_scene->mNumTextures) << "num embedded textures: " << the_scene->mNumTextures;
 
-    for(uint32_t i = 0; i < mtl->mNumProperties; ++i)
+    // node-metadata (gltf extension stuff)
+    if(node && node->mMetaData)
     {
-        auto &prop = mtl->mProperties[i];
-        LOG_DEBUG << i << ": " << prop->mKey.data;
+        for(uint32_t i = 0; i < node->mMetaData->mNumProperties; ++i)
+        {
+            std::string key = node->mMetaData->mKeys[i].C_Str();
+            LOG_DEBUG << i << ": " << key;
+        }
     }
+
+//    // material props
+//    for(uint32_t i = 0; i < mtl->mNumProperties; ++i)
+//    {
+//        auto &prop = mtl->mProperties[i];
+//        LOG_DEBUG << i << ": " << prop->mKey.data;
+//    }
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_DIFFUSE, &c))
     {
@@ -315,7 +328,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_TRANSPARENT, &c))
     {
-        LOG_DEBUG << "transparency: " << glm::to_string(*reinterpret_cast<glm::vec4*>(&c));
+        LOG_DEBUG << "transparency: " << glm::to_string(*reinterpret_cast<glm::vec4 *>(&c));
     }
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_SPECULAR, &c))
@@ -335,7 +348,6 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
         if(col.r > 0.f || col.g > 0.f || col.b > 0.f)
         {
             material.emission = col;
-//            theMaterial->set_blending(false);
         }
     }
 
@@ -349,6 +361,7 @@ material_t create_material(const std::string &base_path, const aiScene *the_scen
     aiGetMaterialString(mtl, AI_MATKEY_GLTF_ALPHAMODE, &tmp_ai_str);
     std::string alpha_mode = tmp_ai_str.C_Str();
 
+    // blend-mode string
     if(alpha_mode == "BLEND"){ material.blend_mode = vierkant::Material::BlendMode::Blend; }
     else if(alpha_mode == "MASK"){ material.blend_mode = vierkant::Material::BlendMode::Mask; }
 
@@ -674,7 +687,9 @@ void process_node_hierarchy(const aiScene *scene,
             out_assets.entry_create_infos.push_back(std::move(create_info));
 
             // create material
-            out_assets.materials[ai_mesh->mMaterialIndex] = create_material(base_path, scene,
+            out_assets.materials[ai_mesh->mMaterialIndex] = create_material(base_path,
+                                                                            scene,
+                                                                            ai_node,
                                                                             scene->mMaterials[ai_mesh->mMaterialIndex],
                                                                             &image_cache);
 
@@ -801,7 +816,7 @@ void create_node_animation(const aiAnimation *theAnimation,
     }
 }
 
-/////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_assets)
 {
@@ -833,4 +848,4 @@ size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_asset
     return theScene ? theScene->mNumAnimations : 0;
 }
 
-} //namespace vierkant::assimp
+} //namespace vierkant::model

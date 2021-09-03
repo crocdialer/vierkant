@@ -460,6 +460,12 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 
 void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr &cam)
 {
+    ImGui::Text((std::to_string(path_tracer->current_batch()) + " / ").c_str());
+    ImGui::SameLine();
+    int max_num_batches = static_cast<int>(path_tracer->settings.max_num_batches);
+    if(ImGui::InputInt("num batches", &max_num_batches) &&
+       max_num_batches >= 0){ path_tracer->settings.max_num_batches = max_num_batches; }
+
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);

@@ -29,7 +29,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    // memorypool with 256MB blocks
+    // memorypool with 512MB blocks
     constexpr size_t block_size = 1U << 29U;
     constexpr size_t min_num_blocks = 1, max_num_blocks = 0;
     auto pool = vierkant::Buffer::create_pool(m_device,
@@ -204,11 +204,19 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
     frame_asset.semaphore = vierkant::Semaphore(m_device);
 
-    // create/update/compact bottom-lvl acceleration-structures
-    update_acceleration_structures(frame_asset, scene, tags);
+    // max num batches reached, bail out
+    if(!settings.max_num_batches || m_batch_index < settings.max_num_batches)
+    {
+        // create/update/compact bottom-lvl acceleration-structures
+        update_acceleration_structures(frame_asset, scene, tags);
 
-    // pathtracing pass
-    path_trace_pass(frame_asset, cam);
+        // pathtracing pass
+        path_trace_pass(frame_asset, cam);
+
+        // increase batch index
+        m_batch_index++;
+    }
+    else{ frame_asset.semaphore.signal(SemaphoreValue::RAYTRACING); }
 
     // edge-aware atrous-wavelet denoiser
     denoise_pass(frame_asset);
@@ -239,7 +247,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     auto &push_constants = *reinterpret_cast<push_constants_t *>(frame_asset.tracable.push_constants.data());
     using namespace std::chrono;
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
-    push_constants.batch_index = frame_asset.batch_index++;
+    push_constants.batch_index = m_batch_index;
     push_constants.disable_material = settings.disable_material;
     push_constants.random_seed = m_random_engine();
 
@@ -503,12 +511,14 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, semaphore_infos);
 }
 
-void PBRPathTracer::reset_batch()
+void PBRPathTracer::reset_accumulator()
 {
-    for(auto &frame_asset : m_frame_assets)
-    {
-        frame_asset.batch_index = 0;
-    }
+    m_batch_index = 0;
+}
+
+size_t PBRPathTracer::current_batch() const
+{
+    return m_batch_index;
 }
 
 }// namespace vierkant

@@ -18,7 +18,7 @@ vec3 sky_color(vec3 direction)
     const vec3 color_up = vec3(0.25f, 0.5f, 1.0f);
 
     return mix(mix(vec3(1.0f), color_up, direction.y),
-               mix(vec3(1.0f), vec3(0.03f), 4 * -direction.y), direction.y > 0.0 ? 0.0 : 1.0);
+               mix(vec3(1.0f), vec3(0.2f), 4 * -direction.y), direction.y > 0.0 ? 0.0 : 1.0);
 }
 
 void main()

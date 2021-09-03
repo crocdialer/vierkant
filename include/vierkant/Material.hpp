@@ -47,6 +47,8 @@ public:
 
     float alpha_cutoff = 0.5f;
 
+    float refraction = 1.5f;
+
     bool depth_test = true;
 
     bool depth_write = true;

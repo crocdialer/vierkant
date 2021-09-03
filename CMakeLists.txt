@@ -85,6 +85,16 @@ SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
 #include_directories(assimp/include)
 #set(LIBS ${LIBS} assimp)
 
+#tinygltf
+set(TINYGLTF_HEADER_ONLY ON CACHE INTERNAL "" FORCE)
+set(TINYGLTF_INSTALL OFF CACHE INTERNAL "" FORCE)
+
+set(TINYGLTF_NO_INCLUDE_STB_IMAGE "" FORCE)
+set(TINYGLTF_NO_INCLUDE_STB_IMAGE_WRITE "" FORCE)
+
+add_subdirectory("tinygltf")
+include_directories("tinygltf")
+
 #vierkant
 add_subdirectory("src")
 include_directories(${vierkant_INCLUDE_DIRS})

@@ -99,8 +99,17 @@ public:
      */
     void set_environment(const vierkant::ImagePtr &cubemap) override;
 
-    void reset_batch();
+    /**
+     * @return the accumulator's current batch-index
+     */
+    size_t current_batch() const;
 
+    /**
+     * @brief   reset the accumulator
+     */
+    void reset_accumulator();
+
+    //! access to global settings
     settings_t settings;
 
 private:
@@ -123,8 +132,6 @@ private:
         vierkant::RayBuilder::acceleration_asset_t acceleration_asset;
 
         vierkant::RayTracer::tracable_t tracable = {};
-
-        size_t batch_index = 0;
 
         vierkant::Compute::computable_t denoise_computable = {};
 
@@ -206,6 +213,8 @@ private:
     bool m_denoising;
 
     vierkant::RayBuilder::acceleration_asset_map_t m_acceleration_assets;
+
+    size_t m_batch_index = 0;
 
     //! owns raytracing pipelines and shader-bindingtables
     vierkant::RayTracer m_ray_tracer;
