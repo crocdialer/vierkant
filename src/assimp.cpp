@@ -205,7 +205,7 @@ void insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map
         auto &bone_index = geom->bone_indices[index + start_index];
         auto &bone_weight = geom->bone_weights[index + start_index];
 
-        constexpr uint32_t max_num_weights = glm::ivec4::length();
+        constexpr uint32_t max_num_weights = 4;//glm::ivec4::length();
 
         // sort by weight decreasing
         auto weights_sorted = weights;
