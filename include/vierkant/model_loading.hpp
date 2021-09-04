@@ -15,11 +15,24 @@ namespace vierkant::model
 
 struct material_t
 {
+    std::string name;
+
     glm::vec4 diffuse;
-    glm::vec4 specular;
-    glm::vec4 emission;
-    float roughness;
-    float metalness;
+    glm::vec3 emission;
+
+    float roughness = 1.f;
+    float metalness = 0.f;
+
+    //! @deprecated
+    glm::vec3 specular;
+
+    // volumes
+    float thickness = 1.f;
+    glm::vec3 attenuation_color = glm::vec3(1.f);
+    float attenuation_distance = 1.f;
+
+    float transmission = 0.f;
+    float ior = 1.5f;
 
     vierkant::Material::BlendMode blend_mode = vierkant::Material::BlendMode::Opaque;
     float alpha_cutoff = 1.f;
@@ -32,6 +45,8 @@ struct material_t
 
     crocore::ImagePtr img_normals;
     crocore::ImagePtr img_ao_roughness_metal;
+
+    crocore::ImagePtr img_thickness;
 };
 
 struct mesh_assets_t

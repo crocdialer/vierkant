@@ -54,7 +54,7 @@ set(LIBS ${LIBS} ${Boost_LIBRARIES})
 #####
 
 ## GLFW
-find_package(glfw3 3.3 REQUIRED)
+find_package(glfw3 3.2 REQUIRED)
 set(LIBS ${LIBS} glfw)
 
 ## Vulkan

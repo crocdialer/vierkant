@@ -382,7 +382,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
 
             RayBuilder::material_struct_t material = {};
             material.color = mesh_material->color;
-            material.emission = mesh_material->emission;
+            material.emission = glm::vec4(mesh_material->emission, 0.f);
             material.roughness = mesh_material->roughness;
             material.metalness = mesh_material->metalness;
 

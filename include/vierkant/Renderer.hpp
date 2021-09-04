@@ -166,19 +166,19 @@ public:
     /**
      * @return  the current swapchain index.
      */
-    uint32_t current_index() const{ return m_current_index; }
+    [[nodiscard]] uint32_t current_index() const{ return m_current_index; }
 
     /**
      * @return  the number of swapchain indices.
      */
-    uint32_t num_indices() const{ return m_render_assets.size(); }
+    [[nodiscard]] uint32_t num_indices() const{ return m_render_assets.size(); }
 
     /**
      * @brief   Release all cached rendering assets.
      */
     void reset();
 
-    const vierkant::DevicePtr &device() const{ return m_device; }
+    [[nodiscard]] const vierkant::DevicePtr &device() const{ return m_device; }
 
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 

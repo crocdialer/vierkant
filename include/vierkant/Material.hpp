@@ -31,9 +31,11 @@ public:
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };
 
+    std::string name;
+
     glm::vec4 color = glm::vec4(1);
 
-    glm::vec4 emission = glm::vec4(0);
+    glm::vec3 emission = glm::vec3(0);
 
     float metalness = 0.f;
 
