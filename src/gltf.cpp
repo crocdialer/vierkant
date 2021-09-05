@@ -18,6 +18,8 @@ constexpr char attrib_normal[] = "NORMAL";
 constexpr char attrib_tangent[] = "TANGENT";
 constexpr char attrib_color[] = "COLOR_0";
 constexpr char attrib_texcoord[] = "TEXCOORD_0";
+constexpr char attrib_joints[] = "JOINTS_0";
+constexpr char attrib_weights[] = "WEIGHTS_0";
 
 // extensions
 constexpr char KHR_materials_specular[] = "KHR_materials_specular";
@@ -32,12 +34,16 @@ constexpr char ext_volume_thickness_texture[] = "thicknessTexture";
 constexpr char ext_volume_attenuation_distance[] = "attenuationDistance";
 constexpr char ext_volume_attenuation_color[] = "attenuationColor";
 
+// animation targets
+constexpr char animation_target_translation[] = "translation";
+constexpr char animation_target_rotation[] = "rotation";
+constexpr char animation_target_scale[] = "scale";
+constexpr char animation_target_weights[] = "weights";
+
 glm::mat4 node_transform(const tinygltf::Node &tiny_node)
 {
-    // idk, seems unused normally
-    if(!tiny_node.matrix.empty())
+    if(tiny_node.matrix.size() == 16)
     {
-        assert(tiny_node.matrix.size() == 16);
         return *reinterpret_cast<const glm::dmat4 *>(tiny_node.matrix.data());
     }
 
@@ -57,7 +63,8 @@ glm::mat4 node_transform(const tinygltf::Node &tiny_node)
 
     if(tiny_node.rotation.size() == 4)
     {
-        rotation = glm::dquat(tiny_node.rotation[3], tiny_node.rotation[0], tiny_node.rotation[1], tiny_node.rotation[2]);
+        rotation = glm::dquat(tiny_node.rotation[3], tiny_node.rotation[0], tiny_node.rotation[1],
+                              tiny_node.rotation[2]);
     }
     return glm::translate(glm::dmat4(1), translation) * glm::mat4_cast(rotation) * glm::scale(glm::dmat4(1), scale);
 }
@@ -78,13 +85,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
 
     ret.metalness = static_cast<float>(tiny_mat.pbrMetallicRoughness.metallicFactor);
     ret.roughness = static_cast<float>(tiny_mat.pbrMetallicRoughness.roughnessFactor);
-
     ret.twosided = tiny_mat.doubleSided;
 
-//    tiny_mat.pbrMetallicRoughness.baseColorTexture
-//    tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture
-//    tiny_mat.normalTexture
-//    tiny_mat.emissiveTexture
 
     // albedo
     if(tiny_mat.pbrMetallicRoughness.baseColorTexture.index >= 0)
@@ -157,6 +159,113 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     return ret;
 }
 
+vierkant::nodes::NodePtr create_bone_hierarchy_helper(const tinygltf::Node &skeleton_node,
+                                                      const tinygltf::Model &model,
+                                                      const std::vector<glm::mat4> &inverse_binding_matrices,
+                                                      uint32_t &bone_index,
+                                                      glm::mat4 world_transform,
+                                                      const vierkant::nodes::NodePtr &parent)
+{
+    assert(bone_index < inverse_binding_matrices.size());
+
+    auto bone_node = std::make_shared<vierkant::nodes::node_t>();
+    bone_node->parent = parent;
+    bone_node->name = skeleton_node.name;
+    bone_node->index = bone_index;
+    bone_node->offset = inverse_binding_matrices[bone_index];
+    bone_node->transform = node_transform(skeleton_node);
+    world_transform = world_transform * bone_node->transform;
+
+    for(auto child_index : skeleton_node.children)
+    {
+        if(child_index >= 0 && static_cast<uint32_t>(child_index) < model.nodes.size())
+        {
+            bone_index++;
+            auto child_node = create_bone_hierarchy_helper(model.nodes[child_index],
+                                                           model,
+                                                           inverse_binding_matrices,
+                                                           bone_index,
+                                                           world_transform,
+                                                           bone_node);
+            bone_node->children.push_back(child_node);
+        }
+    }
+    return bone_node;
+}
+
+vierkant::nodes::NodePtr create_bone_hierarchy(const tinygltf::Node &skeleton_node,
+                                               const tinygltf::Model &model,
+                                               const std::vector<glm::mat4> &inverse_binding_matrices)
+{
+    uint32_t bone_index = 0;
+    return create_bone_hierarchy_helper(skeleton_node, model, inverse_binding_matrices, bone_index, glm::mat4(1),
+                                        nullptr);
+}
+
+vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animation &tiny_animation,
+                                                        const tinygltf::Model &model)
+{
+    LOG_DEBUG << "animation: " << tiny_animation.name;
+
+    vierkant::nodes::node_animation_t animation;
+    animation.name = tiny_animation.name;
+
+    std::unordered_map<int, vierkant::nodes::NodePtr> node_map;
+
+    for(const auto &channel : tiny_animation.channels)
+    {
+        animation_keys_t &animation_keys = animation.keys[node_map[channel.target_node]];
+
+        const auto &sampler = tiny_animation.samplers[channel.sampler];
+
+        std::vector<float> input_times;
+        {
+            const auto &accessor = model.accessors[sampler.input];
+            const auto &buffer_view = model.bufferViews[accessor.bufferView];
+            const auto &buffer = model.buffers[buffer_view.buffer];
+            assert(accessor.type == TINYGLTF_TYPE_SCALAR);
+            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
+            auto ptr = reinterpret_cast<const float *>(data);
+            input_times = {ptr, ptr + accessor.count};
+        }
+
+        const auto &accessor = model.accessors[sampler.output];
+        const auto &buffer_view = model.bufferViews[accessor.bufferView];
+        const auto &buffer = model.buffers[buffer_view.buffer];
+        auto data = reinterpret_cast<const glm::mat4 *>(buffer.data.data() + accessor.byteOffset +
+                                                        buffer_view.byteOffset);
+
+        if(channel.target_path == animation_target_translation)
+        {
+            assert(accessor.type == TINYGLTF_TYPE_VEC3);
+            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            auto ptr = reinterpret_cast<const glm::vec3 *>(data);
+            for(float t : input_times){ animation_keys.positions.insert({t, *ptr++}); }
+
+        }
+        else if(channel.target_path == animation_target_rotation)
+        {
+            assert(accessor.type == TINYGLTF_TYPE_VEC4);
+            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            auto ptr = reinterpret_cast<const glm::quat *>(data);
+            for(float t : input_times){ animation_keys.rotations.insert({t, *ptr++}); }
+        }
+        else if(channel.target_path == animation_target_scale)
+        {
+            assert(accessor.type == TINYGLTF_TYPE_VEC3);
+            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            auto ptr = reinterpret_cast<const glm::vec3 *>(data);
+            for(float t : input_times){ animation_keys.scales.insert({t, *ptr++}); }
+        }
+        else if(channel.target_path == animation_target_weights)
+        {
+
+        }
+    }
+    return animation;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 mesh_assets_t gltf(const std::filesystem::path &path)
@@ -180,13 +289,6 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     const tinygltf::Scene &scene = model.scenes[model.defaultScene];
 
-    struct node_t
-    {
-        size_t index;
-        glm::mat4 global_transform;
-        vierkant::nodes::NodePtr node;
-    };
-
     // create vierkant::node root
     vierkant::model::mesh_assets_t out_assets = {};
     out_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
@@ -195,7 +297,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     // create images
     std::map<uint32_t, crocore::ImagePtr> image_cache;
 
-    for(auto &t : model.textures)
+    for(const auto &t : model.textures)
     {
         LOG_DEBUG << "loading image: " << t.name;
 //        auto &sampler = model.samplers[t.sampler];
@@ -220,6 +322,17 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache));
     }
 
+    for(const auto &tiny_animation : model.animations)
+    {
+        auto animation = create_node_animation(tiny_animation, model);
+    }
+
+    struct node_t
+    {
+        size_t index;
+        glm::mat4 global_transform;
+        vierkant::nodes::NodePtr node;
+    };
     std::deque<node_t> node_queue;
 
     for(int node_index : scene.nodes)
@@ -242,6 +355,42 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
             LOG_DEBUG << "mesh: " << mesh.name;
 
+            if(tiny_node.skin >= 0 && static_cast<uint32_t>(tiny_node.skin) < model.skins.size())
+            {
+                const tinygltf::Skin &skin = model.skins[tiny_node.skin];
+                LOG_DEBUG << mesh.name << " has a skin";
+
+                // optional vertex skinning
+                std::vector<glm::mat4> inverse_binding_matrices;
+
+                if(skin.inverseBindMatrices >= 0 &&
+                   static_cast<uint32_t>(skin.inverseBindMatrices) < model.accessors.size())
+                {
+                    tinygltf::Accessor bind_matrix_accessor = model.accessors[skin.inverseBindMatrices];
+
+                    assert(bind_matrix_accessor.type == TINYGLTF_TYPE_MAT4);
+                    assert(bind_matrix_accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+
+                    const auto &buffer_view = model.bufferViews[bind_matrix_accessor.bufferView];
+                    const auto &buffer = model.buffers[buffer_view.buffer];
+                    int stride = bind_matrix_accessor.ByteStride(buffer_view);
+                    assert(stride == sizeof(glm::mat4));
+
+                    auto data = reinterpret_cast<const glm::mat4 *>(buffer.data.data() +
+                                                                    bind_matrix_accessor.byteOffset +
+                                                                    buffer_view.byteOffset);
+                    inverse_binding_matrices = {data, data + bind_matrix_accessor.count};
+                }
+
+                if(skin.skeleton >= 0 && static_cast<uint32_t>(skin.skeleton) < model.nodes.size() &&
+                   !inverse_binding_matrices.empty())
+                {
+                    out_assets.root_bone = create_bone_hierarchy(model.nodes[skin.skeleton], model,
+                                                                 inverse_binding_matrices);
+                }
+            }
+
+
             for(const auto &primitive : mesh.primitives)
             {
                 auto geometry = vierkant::Geometry::create();
@@ -249,31 +398,28 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 // extract indices
                 if(primitive.indices >= 0 && static_cast<size_t>(primitive.indices) < model.accessors.size())
                 {
-                    tinygltf::Accessor indexAccessor = model.accessors[primitive.indices];
-                    const auto &buffer_view = model.bufferViews[indexAccessor.bufferView];
+                    tinygltf::Accessor index_accessor = model.accessors[primitive.indices];
+                    const auto &buffer_view = model.bufferViews[index_accessor.bufferView];
                     const auto &buffer = model.buffers[buffer_view.buffer];
-//                    uint32_t stride = indexAccessor.ByteStride(model.bufferViews[indexAccessor.bufferView]);
 
                     if(buffer_view.target == 0){ LOG_WARNING << "bufferView.target is zero"; }
 
-                    assert(indexAccessor.type == TINYGLTF_TYPE_SCALAR);
+                    assert(index_accessor.type == TINYGLTF_TYPE_SCALAR);
 
-                    auto data = static_cast<const uint8_t *>(buffer.data.data() + indexAccessor.byteOffset +
+                    auto data = static_cast<const uint8_t *>(buffer.data.data() + index_accessor.byteOffset +
                                                              buffer_view.byteOffset);
 
-                    if(indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+                    if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
                     {
                         const auto *ptr = reinterpret_cast<const uint16_t *>(data);
-                        auto end = ptr + indexAccessor.count;
-                        geometry->indices = {ptr, end};
+                        geometry->indices = {ptr, ptr + index_accessor.count};
                     }
-                    else if(indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
+                    else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
                     {
                         const auto *ptr = reinterpret_cast<const uint32_t *>(data);
-                        auto end = ptr + indexAccessor.count;
-                        geometry->indices = {ptr, end};
+                        geometry->indices = {ptr, ptr + index_accessor.count};
                     }
-                    else{ LOG_ERROR << "unsupported index-type: " << indexAccessor.componentType; }
+                    else{ LOG_ERROR << "unsupported index-type: " << index_accessor.componentType; }
                 }
 
                 for(const auto &[attrib, accessor_idx] : primitive.attributes)
@@ -284,9 +430,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     const auto &buffer_view = model.bufferViews[accessor.bufferView];
                     const auto &buffer = model.buffers[buffer_view.buffer];
 
-                    uint32_t stride = accessor.ByteStride(model.bufferViews[accessor.bufferView]);
-
-                    auto insert = [&accessor, &buffer_view, stride](const tinygltf::Buffer &input, auto &array)
+                    auto insert = [&accessor, &buffer_view](const tinygltf::Buffer &input, auto &array)
                     {
                         using elem_t = typename std::decay<decltype(array)>::type::value_type;
                         constexpr size_t elem_size = sizeof(elem_t);
@@ -294,6 +438,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
                         // data with offset
                         const uint8_t *data = input.data.data() + buffer_view.byteOffset + accessor.byteOffset;
+                        uint32_t stride = accessor.ByteStride(buffer_view);
 
                         if(stride == elem_size)
                         {
@@ -320,7 +465,33 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     else if(attrib == attrib_tangent){ insert(buffer, geometry->tangents); }
                     else if(attrib == attrib_color){ insert(buffer, geometry->colors); }
                     else if(attrib == attrib_texcoord){ insert(buffer, geometry->tex_coords); }
+                    else if(attrib == attrib_joints)
+                    {
+                        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
+                        assert(accessor.type == TINYGLTF_TYPE_VEC4);
+                        assert(buffer_view.byteStride == sizeof(glm::lowp_u16vec4));
+
+                        auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
+                        const auto *ptr = reinterpret_cast<const glm::lowp_u16vec4 *>(data);
+                        geometry->bone_indices = {ptr, ptr + accessor.count};
+
+                    }
+                    else if(attrib == attrib_weights)
+                    {
+                        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+                        assert(accessor.type == TINYGLTF_TYPE_VEC4);
+                        auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
+                        const auto *ptr = reinterpret_cast<const glm::vec4 *>(data);
+                        geometry->bone_weights = {ptr, ptr + accessor.count};
+
+                    }
                 }// for all attributes
+
+                if(geometry->indices.empty())
+                {
+                    geometry->indices.resize(geometry->vertices.size());
+                    std::iota(geometry->indices.begin(), geometry->indices.end(), 0);
+                }
 
                 // sanity resize
                 geometry->colors.resize(geometry->vertices.size(), glm::vec4(1.f));

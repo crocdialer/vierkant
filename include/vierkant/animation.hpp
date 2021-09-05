@@ -29,6 +29,7 @@ struct animation_keys_t
 template<typename T>
 struct animation_t
 {
+    std::string name;
     bool playing = true;
     float current_time = 0.f;
     float duration = 0.f;
