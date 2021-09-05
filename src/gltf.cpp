@@ -41,18 +41,25 @@ glm::mat4 node_transform(const tinygltf::Node &tiny_node)
         return *reinterpret_cast<const glm::dmat4 *>(tiny_node.matrix.data());
     }
 
-    if(tiny_node.translation.empty() || tiny_node.scale.empty() || tiny_node.rotation.empty()){ return glm::mat4(1); }
+    glm::dquat rotation(1, 0, 0, 0);
+    glm::dvec3 scale(1.);
+    glm::dvec3 translation(0.);
 
-    // too much to ask for :)
-    assert(tiny_node.translation.size() == 3);
-    assert(tiny_node.scale.size() == 3);
-    assert(tiny_node.rotation.size() == 4);
+    if(tiny_node.translation.size() == 3)
+    {
+        translation = glm::dvec3(tiny_node.translation[0], tiny_node.translation[1], tiny_node.translation[2]);
+    }
 
-    auto quat = glm::dquat(tiny_node.rotation[0], tiny_node.rotation[1], tiny_node.rotation[2], tiny_node.rotation[3]);
-    auto scale = glm::dvec3(tiny_node.scale[0], tiny_node.scale[1], tiny_node.scale[2]);
-    auto translation = glm::dvec3(tiny_node.translation[0], tiny_node.scale[1], tiny_node.scale[2]);
+    if(tiny_node.scale.size() == 3)
+    {
+        scale = glm::dvec3(tiny_node.scale[0], tiny_node.scale[1], tiny_node.scale[2]);
+    }
 
-    return glm::translate(glm::dmat4(1), translation) * glm::mat4_cast(quat) * glm::scale(glm::dmat4(1), scale);
+    if(tiny_node.rotation.size() == 4)
+    {
+        rotation = glm::dquat(tiny_node.rotation[3], tiny_node.rotation[0], tiny_node.rotation[1], tiny_node.rotation[2]);
+    }
+    return glm::translate(glm::dmat4(1), translation) * glm::mat4_cast(rotation) * glm::scale(glm::dmat4(1), scale);
 }
 
 model::material_t convert_material(const tinygltf::Material &tiny_mat,
@@ -67,6 +74,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     // blend_mode defaults to opaque
     if(tiny_mat.alphaMode == "BLEND"){ ret.blend_mode = vierkant::Material::BlendMode::Blend; }
     else if(tiny_mat.alphaMode == "MASK"){ ret.blend_mode = vierkant::Material::BlendMode::Mask; }
+    ret.alpha_cutoff = static_cast<float>(tiny_mat.alphaCutoff);
 
     ret.metalness = static_cast<float>(tiny_mat.pbrMetallicRoughness.metallicFactor);
     ret.roughness = static_cast<float>(tiny_mat.pbrMetallicRoughness.roughnessFactor);
@@ -226,6 +234,8 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
         const tinygltf::Node &tiny_node = model.nodes[current_index];
 
+        current_transform = current_transform * node_transform(tiny_node);
+
         if(tiny_node.mesh >= 0 && static_cast<uint32_t>(tiny_node.mesh) < model.meshes.size())
         {
             tinygltf::Mesh &mesh = model.meshes[tiny_node.mesh];
@@ -316,8 +326,8 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 geometry->colors.resize(geometry->vertices.size(), glm::vec4(1.f));
                 geometry->tex_coords.resize(geometry->vertices.size(), glm::vec2(0.f));
 
-                if(!geometry->tex_coords.empty() && geometry->tangents.empty()){ geometry->compute_tangents(); }
-                else if(geometry->tangents.empty())
+//                if(!geometry->tex_coords.empty() && geometry->tangents.empty()){ geometry->compute_tangents(); }
+//                else if(geometry->tangents.empty())
                 {
                     geometry->tangents.resize(geometry->vertices.size(), glm::vec3(0.f));
                 }
