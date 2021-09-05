@@ -134,8 +134,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             if(value.Has(ext_volume_attenuation_distance))
             {
                 const auto &thickness_texture_value = value.Get(ext_volume_thickness_texture);
-//                int tex_index = thickness_texture_value.Get("index").GetNumberAsInt();
-                //TODO: "thicknessTexture"
+                int tex_index = thickness_texture_value.Get("index").GetNumberAsInt();
+                ret.img_thickness = image_cache.at(model.textures[tex_index].source);
             }
         }
         else if(ext == KHR_materials_ior)
@@ -170,7 +170,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         LOG_DEBUG << "model using extension: " << ext;
     }
 
-//    const tinygltf::Scene &scene = model.scenes[model.defaultScene];
+    const tinygltf::Scene &scene = model.scenes[model.defaultScene];
 
     struct node_t
     {
@@ -180,10 +180,9 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     };
 
     // create vierkant::node root
-    uint32_t current_node_index = 0;
     vierkant::model::mesh_assets_t out_assets = {};
     out_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
-    out_assets.root_node->name = model.nodes[current_node_index].name;
+    out_assets.root_node->name = model.nodes[scene.nodes[0]].name;
 
     // create images
     std::map<uint32_t, crocore::ImagePtr> image_cache;
@@ -214,7 +213,11 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     }
 
     std::deque<node_t> node_queue;
-    node_queue.push_back({current_node_index, glm::mat4(1), out_assets.root_node});
+
+    for(int node_index : scene.nodes)
+    {
+        node_queue.push_back({static_cast<size_t>(node_index), glm::mat4(1), out_assets.root_node});
+    }
 
     while(!node_queue.empty())
     {
@@ -239,22 +242,26 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     tinygltf::Accessor indexAccessor = model.accessors[primitive.indices];
                     const auto &buffer_view = model.bufferViews[indexAccessor.bufferView];
                     const auto &buffer = model.buffers[buffer_view.buffer];
+//                    uint32_t stride = indexAccessor.ByteStride(model.bufferViews[indexAccessor.bufferView]);
+
+                    if(buffer_view.target == 0){ LOG_WARNING << "bufferView.target is zero"; }
 
                     assert(indexAccessor.type == TINYGLTF_TYPE_SCALAR);
 
+                    auto data = static_cast<const uint8_t *>(buffer.data.data() + indexAccessor.byteOffset +
+                                                             buffer_view.byteOffset);
+
                     if(indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
                     {
-                        const auto *ptr = reinterpret_cast<const uint16_t *>(buffer.data.data() +
-                                                                             indexAccessor.byteOffset);
+                        const auto *ptr = reinterpret_cast<const uint16_t *>(data);
                         auto end = ptr + indexAccessor.count;
-                        geometry->indices.insert(geometry->indices.end(), ptr, end);
+                        geometry->indices = {ptr, end};
                     }
                     else if(indexAccessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
                     {
-                        const auto *ptr = reinterpret_cast<const uint32_t *>(buffer.data.data() +
-                                                                             indexAccessor.byteOffset);
+                        const auto *ptr = reinterpret_cast<const uint32_t *>(data);
                         auto end = ptr + indexAccessor.count;
-                        geometry->indices.insert(geometry->indices.end(), ptr, end);
+                        geometry->indices = {ptr, end};
                     }
                     else{ LOG_ERROR << "unsupported index-type: " << indexAccessor.componentType; }
                 }
@@ -269,21 +276,20 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
                     uint32_t stride = accessor.ByteStride(model.bufferViews[accessor.bufferView]);
 
-                    auto insert = [&accessor, stride](const tinygltf::Buffer &input, auto &array)
+                    auto insert = [&accessor, &buffer_view, stride](const tinygltf::Buffer &input, auto &array)
                     {
                         using elem_t = typename std::decay<decltype(array)>::type::value_type;
                         constexpr size_t elem_size = sizeof(elem_t);
-
-//                        assert(stride == sizeof(elem_t));
                         assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
-                        const uint8_t *data = input.data.data() + accessor.byteOffset;
+                        // data with offset
+                        const uint8_t *data = input.data.data() + buffer_view.byteOffset + accessor.byteOffset;
 
                         if(stride == elem_size)
                         {
                             const auto *ptr = reinterpret_cast<const elem_t *>(data);
                             auto end = ptr + accessor.count;
-                            array.insert(array.end(), ptr, end);
+                            array = {ptr, end};
                         }
                         else
                         {
@@ -306,6 +312,16 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     else if(attrib == attrib_texcoord){ insert(buffer, geometry->tex_coords); }
                 }// for all attributes
 
+                // sanity resize
+                geometry->colors.resize(geometry->vertices.size(), glm::vec4(1.f));
+                geometry->tex_coords.resize(geometry->vertices.size(), glm::vec2(0.f));
+
+                if(!geometry->tex_coords.empty() && geometry->tangents.empty()){ geometry->compute_tangents(); }
+                else if(geometry->tangents.empty())
+                {
+                    geometry->tangents.resize(geometry->vertices.size(), glm::vec3(0.f));
+                }
+
                 vierkant::Mesh::entry_create_info_t create_info = {};
                 create_info.geometry = geometry;
                 create_info.transform = current_transform;
@@ -327,7 +343,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
             // create vierkant::node
             auto child_node = std::make_shared<vierkant::nodes::node_t>();
             child_node->name = model.nodes[child_index].name;
-            child_node->index = ++current_node_index;
+            child_node->index = child_index;
             child_node->parent = current_node;
             child_node->transform = child_transform;
 
