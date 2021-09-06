@@ -33,7 +33,7 @@ struct animation_t
     bool playing = true;
     float current_time = 0.f;
     float duration = 0.f;
-    float ticks_per_sec = 0.f;
+    float ticks_per_sec = 1.f;
     std::map<T, animation_keys_t> keys;
 };
 

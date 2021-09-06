@@ -40,6 +40,8 @@ constexpr char animation_target_rotation[] = "rotation";
 constexpr char animation_target_scale[] = "scale";
 constexpr char animation_target_weights[] = "weights";
 
+using node_map_t = std::unordered_map<const tinygltf::Node *, vierkant::nodes::NodePtr>;
+
 glm::mat4 node_transform(const tinygltf::Node &tiny_node)
 {
     if(tiny_node.matrix.size() == 16)
@@ -162,19 +164,24 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
 vierkant::nodes::NodePtr create_bone_hierarchy_helper(const tinygltf::Node &skeleton_node,
                                                       const tinygltf::Model &model,
                                                       const std::vector<glm::mat4> &inverse_binding_matrices,
+                                                      node_map_t &node_map,
                                                       uint32_t &bone_index,
                                                       glm::mat4 world_transform,
                                                       const vierkant::nodes::NodePtr &parent)
 {
     assert(bone_index < inverse_binding_matrices.size());
 
+    auto local_joint_transform = node_transform(skeleton_node);
+    world_transform = world_transform * local_joint_transform;
+
     auto bone_node = std::make_shared<vierkant::nodes::node_t>();
     bone_node->parent = parent;
     bone_node->name = skeleton_node.name;
     bone_node->index = bone_index;
     bone_node->offset = inverse_binding_matrices[bone_index];
-    bone_node->transform = node_transform(skeleton_node);
-    world_transform = world_transform * bone_node->transform;
+    bone_node->transform = local_joint_transform;
+    node_map[&skeleton_node] = bone_node;
+
 
     for(auto child_index : skeleton_node.children)
     {
@@ -184,6 +191,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_helper(const tinygltf::Node &skel
             auto child_node = create_bone_hierarchy_helper(model.nodes[child_index],
                                                            model,
                                                            inverse_binding_matrices,
+                                                           node_map,
                                                            bone_index,
                                                            world_transform,
                                                            bone_node);
@@ -195,26 +203,29 @@ vierkant::nodes::NodePtr create_bone_hierarchy_helper(const tinygltf::Node &skel
 
 vierkant::nodes::NodePtr create_bone_hierarchy(const tinygltf::Node &skeleton_node,
                                                const tinygltf::Model &model,
-                                               const std::vector<glm::mat4> &inverse_binding_matrices)
+                                               const std::vector<glm::mat4> &inverse_binding_matrices,
+                                               node_map_t &node_map)
 {
     uint32_t bone_index = 0;
-    return create_bone_hierarchy_helper(skeleton_node, model, inverse_binding_matrices, bone_index, glm::mat4(1),
+    return create_bone_hierarchy_helper(skeleton_node, model, inverse_binding_matrices, node_map, bone_index,
+                                        glm::mat4(1),
                                         nullptr);
 }
 
 vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animation &tiny_animation,
-                                                        const tinygltf::Model &model)
+                                                        const tinygltf::Model &model,
+                                                        const node_map_t &node_map)
 {
     LOG_DEBUG << "animation: " << tiny_animation.name;
 
     vierkant::nodes::node_animation_t animation;
     animation.name = tiny_animation.name;
 
-    std::unordered_map<int, vierkant::nodes::NodePtr> node_map;
-
     for(const auto &channel : tiny_animation.channels)
     {
-        animation_keys_t &animation_keys = animation.keys[node_map[channel.target_node]];
+        const auto &target_node = model.nodes[channel.target_node];
+        const auto &node_ptr = node_map.at(&target_node);
+        animation_keys_t &animation_keys = animation.keys[node_ptr];
 
         const auto &sampler = tiny_animation.samplers[channel.sampler];
 
@@ -228,6 +239,8 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
             auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
             auto ptr = reinterpret_cast<const float *>(data);
             input_times = {ptr, ptr + accessor.count};
+            animation.duration = std::max(animation.duration,
+                                          *std::max_element(input_times.begin(), input_times.end()));
         }
 
         const auto &accessor = model.accessors[sampler.output];
@@ -299,7 +312,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     for(const auto &t : model.textures)
     {
-        LOG_DEBUG << "loading image: " << t.name;
+        LOG_TRACE << "loading image: " << t.name;
 //        auto &sampler = model.samplers[t.sampler];
 //        sampler.magFilter
 //        sampler.minFilter
@@ -322,15 +335,10 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache));
     }
 
-    for(const auto &tiny_animation : model.animations)
-    {
-        auto animation = create_node_animation(tiny_animation, model);
-    }
-
     struct node_t
     {
         size_t index;
-        glm::mat4 global_transform;
+        glm::mat4 world_transform;
         vierkant::nodes::NodePtr node;
     };
     std::deque<node_t> node_queue;
@@ -340,25 +348,37 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         node_queue.push_back({static_cast<size_t>(node_index), glm::mat4(1), out_assets.root_node});
     }
 
+    node_map_t node_map;
+
     while(!node_queue.empty())
     {
-        auto[current_index, current_transform, current_node] = node_queue.front();
+        auto[current_index, world_transform, parent_node] = node_queue.front();
         node_queue.pop_front();
 
         const tinygltf::Node &tiny_node = model.nodes[current_index];
 
-        current_transform = current_transform * node_transform(tiny_node);
+        // create vierkant::node
+        auto current_node = std::make_shared<vierkant::nodes::node_t>();
+        current_node->name = tiny_node.name;
+        current_node->index = out_assets.entry_create_infos.size();
+        current_node->parent = parent_node;
+        current_node->transform = node_transform(tiny_node);
+
+        assert(parent_node);
+        parent_node->children.push_back(current_node);
+
+        // cache node
+        node_map[&tiny_node] = current_node;
+
+        world_transform = world_transform * current_node->transform;
 
         if(tiny_node.mesh >= 0 && static_cast<uint32_t>(tiny_node.mesh) < model.meshes.size())
         {
             tinygltf::Mesh &mesh = model.meshes[tiny_node.mesh];
 
-            LOG_DEBUG << "mesh: " << mesh.name;
-
             if(tiny_node.skin >= 0 && static_cast<uint32_t>(tiny_node.skin) < model.skins.size())
             {
                 const tinygltf::Skin &skin = model.skins[tiny_node.skin];
-                LOG_DEBUG << mesh.name << " has a skin";
 
                 // optional vertex skinning
                 std::vector<glm::mat4> inverse_binding_matrices;
@@ -386,7 +406,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                    !inverse_binding_matrices.empty())
                 {
                     out_assets.root_bone = create_bone_hierarchy(model.nodes[skin.skeleton], model,
-                                                                 inverse_binding_matrices);
+                                                                 inverse_binding_matrices, node_map);
                 }
             }
 
@@ -424,8 +444,6 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
                 for(const auto &[attrib, accessor_idx] : primitive.attributes)
                 {
-                    LOG_DEBUG << "attrib: " << attrib;
-
                     tinygltf::Accessor accessor = model.accessors[accessor_idx];
                     const auto &buffer_view = model.bufferViews[accessor.bufferView];
                     const auto &buffer = model.buffers[buffer_view.buffer];
@@ -505,8 +523,8 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
                 vierkant::Mesh::entry_create_info_t create_info = {};
                 create_info.geometry = geometry;
-                create_info.transform = current_transform;
-                create_info.node_index = current_index;
+                create_info.transform = world_transform;
+                create_info.node_index = out_assets.entry_create_infos.size();
                 create_info.material_index = primitive.material;
 
                 // pushback new entry
@@ -517,25 +535,20 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
         for(auto child_index : tiny_node.children)
         {
-            assert(child_index >= 0 && static_cast<size_t>(child_index) < model.nodes.size());
-
-            glm::mat4 child_transform = node_transform(model.nodes[child_index]);
-
-            // create vierkant::node
-            auto child_node = std::make_shared<vierkant::nodes::node_t>();
-            child_node->name = model.nodes[child_index].name;
-            child_node->index = child_index;
-            child_node->parent = current_node;
-            child_node->transform = child_transform;
-
-            // add child to current node
-            current_node->children.push_back(child_node);
-
-            // enqueue child node and transform
-            node_queue.push_back(
-                    {static_cast<size_t>(child_index), current_transform * child_transform, child_node});
+            if(child_index >= 0 && static_cast<size_t>(child_index) < model.nodes.size())
+            {
+                // enqueue child
+                node_queue.push_back({static_cast<size_t>(child_index), world_transform, current_node});
+            }
         }
     }
+
+    // animations
+    for(const auto &tiny_animation : model.animations)
+    {
+        out_assets.node_animations.push_back(create_node_animation(tiny_animation, model, node_map));
+    }
+
     return out_assets;
 }
 

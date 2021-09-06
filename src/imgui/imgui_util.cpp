@@ -649,6 +649,8 @@ void draw_material_ui(const MaterialPtr &material)
 {
     const float w = ImGui::GetContentRegionAvailWidth();
 
+    ImGui::BulletText("name: %s", material->name.c_str());
+
     // base color
     if(material->textures.count(vierkant::Material::TextureType::Color))
     {
@@ -798,7 +800,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
         {
             auto &mat = mesh->materials[i];
 
-            if(mat && ImGui::TreeNode((void *) (mat.get()), "material %d", i))
+            if(mat && ImGui::TreeNode((void *) (mat.get()), "%s", mat->name.c_str()))
             {
                 draw_material_ui(mat);
                 ImGui::Separator();
