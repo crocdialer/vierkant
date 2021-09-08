@@ -729,6 +729,15 @@ void draw_material_ui(const MaterialPtr &material)
 
     // two-sided
     ImGui::Checkbox("two-sided", &material->two_sided);
+
+    // transmission
+    ImGui::SliderFloat("transmission", &material->transmission, 0.f, 1.f);
+
+    // attenuation distance
+    ImGui::InputFloat("attenuation distance", &material->attenuation_distance);
+
+    // attenuation color
+    ImGui::ColorEdit3("attenuation color", glm::value_ptr(material->attenuation_color));
 }
 
 void draw_mesh_ui(const vierkant::MeshNodePtr &node)

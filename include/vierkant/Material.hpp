@@ -49,7 +49,13 @@ public:
 
     float alpha_cutoff = 0.5f;
 
-    float refraction = 1.5f;
+    float transmission = 1.5f;
+
+    glm::vec3 attenuation_color = glm::vec3(1.f);
+
+    float attenuation_distance = 1.f;
+
+    float ior = 1.5f;
 
     bool depth_test = true;
 

@@ -23,16 +23,17 @@ struct material_t
     float roughness = 1.f;
     float metalness = 0.f;
 
-    //! @deprecated
+    // deprecated !?
     glm::vec3 specular;
 
     // volumes
-    float thickness = 1.f;
+    float transmission = 0.f;
     glm::vec3 attenuation_color = glm::vec3(1.f);
     float attenuation_distance = 1.f;
-
-    float transmission = 0.f;
     float ior = 1.5f;
+
+    // idk rasterizer only thingy
+    float thickness = 1.f;
 
     vierkant::Material::BlendMode blend_mode = vierkant::Material::BlendMode::Opaque;
     float alpha_cutoff = 1.f;

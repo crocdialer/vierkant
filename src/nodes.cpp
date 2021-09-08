@@ -11,7 +11,7 @@ namespace vierkant::nodes
 void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,
                                 std::vector<glm::mat4> &matrices,
-                                glm::mat4 world_transform);
+                                glm::mat4 global_joint_transform);
 
 uint32_t num_nodes_in_hierarchy(const NodeConstPtr &root)
 {
@@ -43,7 +43,7 @@ void build_node_matrices(const NodeConstPtr &root, const node_animation_t &anima
 void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,
                                 std::vector<glm::mat4> &matrices,
-                                glm::mat4 world_transform)
+                                glm::mat4 global_joint_transform)
 {
     float time = animation.current_time;
     glm::mat4 nodeTransform = node->transform;
@@ -55,13 +55,13 @@ void build_node_matrices_helper(const NodeConstPtr &node,
         const auto &animation_keys = it->second;
         create_animation_transform(animation_keys, time, nodeTransform);
     }
-    world_transform = world_transform * nodeTransform;
+    global_joint_transform = global_joint_transform * nodeTransform;
 
     // add final transform
-    matrices[node->index] = world_transform * node->offset;
+    matrices[node->index] = global_joint_transform * node->offset;
 
     // recursion through all children
-    for(auto &b : node->children){ build_node_matrices_helper(b, animation, matrices, world_transform); }
+    for(auto &b : node->children){ build_node_matrices_helper(b, animation, matrices, global_joint_transform); }
 }
 
 }

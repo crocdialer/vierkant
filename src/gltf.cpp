@@ -40,7 +40,14 @@ constexpr char animation_target_rotation[] = "rotation";
 constexpr char animation_target_scale[] = "scale";
 constexpr char animation_target_weights[] = "weights";
 
-using node_map_t = std::unordered_map<const tinygltf::Node *, vierkant::nodes::NodePtr>;
+struct node_t
+{
+    size_t index;
+    glm::mat4 world_transform;
+    vierkant::nodes::NodePtr node;
+};
+
+using node_map_t = std::unordered_map<int, vierkant::nodes::NodePtr>;
 
 glm::mat4 node_transform(const tinygltf::Node &tiny_node)
 {
@@ -120,7 +127,10 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
         LOG_DEBUG << "material-extension: " << ext;
         if(ext == KHR_materials_transmission)
         {
-            ret.transmission = static_cast<float>(value.Get("transmissionFactor").GetNumberAsDouble());
+            if(value.Has(ext_transmission_factor))
+            {
+                ret.transmission = static_cast<float>(value.Get(ext_transmission_factor).GetNumberAsDouble());
+            }
         }
         else if(ext == KHR_materials_volume)
         {
@@ -161,18 +171,21 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     return ret;
 }
 
-vierkant::nodes::NodePtr create_bone_hierarchy_helper(const tinygltf::Node &skeleton_node,
+//TODO: something's still off, maybe DFS vs. BFS ... compare with skeleton.nodes[] for correctness
+vierkant::nodes::NodePtr create_bone_hierarchy_helper(int skeleton_node_index,
                                                       const tinygltf::Model &model,
                                                       const std::vector<glm::mat4> &inverse_binding_matrices,
                                                       node_map_t &node_map,
                                                       uint32_t &bone_index,
-                                                      glm::mat4 world_transform,
+//                                                      glm::mat4 world_transform,
                                                       const vierkant::nodes::NodePtr &parent)
 {
     assert(bone_index < inverse_binding_matrices.size());
 
+    const tinygltf::Node &skeleton_node = model.nodes[skeleton_node_index];
+
     auto local_joint_transform = node_transform(skeleton_node);
-    world_transform = world_transform * local_joint_transform;
+//    world_transform = world_transform * local_joint_transform;
 
     auto bone_node = std::make_shared<vierkant::nodes::node_t>();
     bone_node->parent = parent;
@@ -180,7 +193,8 @@ vierkant::nodes::NodePtr create_bone_hierarchy_helper(const tinygltf::Node &skel
     bone_node->index = bone_index;
     bone_node->offset = inverse_binding_matrices[bone_index];
     bone_node->transform = local_joint_transform;
-    node_map[&skeleton_node] = bone_node;
+
+    node_map[skeleton_node_index] = bone_node;
 
 
     for(auto child_index : skeleton_node.children)
@@ -188,12 +202,12 @@ vierkant::nodes::NodePtr create_bone_hierarchy_helper(const tinygltf::Node &skel
         if(child_index >= 0 && static_cast<uint32_t>(child_index) < model.nodes.size())
         {
             bone_index++;
-            auto child_node = create_bone_hierarchy_helper(model.nodes[child_index],
+            auto child_node = create_bone_hierarchy_helper(child_index,
                                                            model,
                                                            inverse_binding_matrices,
                                                            node_map,
                                                            bone_index,
-                                                           world_transform,
+//                                                           world_transform,
                                                            bone_node);
             bone_node->children.push_back(child_node);
         }
@@ -201,14 +215,14 @@ vierkant::nodes::NodePtr create_bone_hierarchy_helper(const tinygltf::Node &skel
     return bone_node;
 }
 
-vierkant::nodes::NodePtr create_bone_hierarchy(const tinygltf::Node &skeleton_node,
+vierkant::nodes::NodePtr create_bone_hierarchy(int skeleton_node_index,
                                                const tinygltf::Model &model,
                                                const std::vector<glm::mat4> &inverse_binding_matrices,
                                                node_map_t &node_map)
 {
     uint32_t bone_index = 0;
-    return create_bone_hierarchy_helper(skeleton_node, model, inverse_binding_matrices, node_map, bone_index,
-                                        glm::mat4(1),
+    return create_bone_hierarchy_helper(skeleton_node_index, model, inverse_binding_matrices, node_map, bone_index,
+//                                        glm::mat4(1),
                                         nullptr);
 }
 
@@ -223,57 +237,62 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
     for(const auto &channel : tiny_animation.channels)
     {
-        const auto &target_node = model.nodes[channel.target_node];
-        const auto &node_ptr = node_map.at(&target_node);
-        animation_keys_t &animation_keys = animation.keys[node_ptr];
+//        const auto &target_node = model.nodes[channel.target_node];
 
-        const auto &sampler = tiny_animation.samplers[channel.sampler];
+        auto it = node_map.find(channel.target_node);
 
-        std::vector<float> input_times;
+        if(it != node_map.end())
         {
-            const auto &accessor = model.accessors[sampler.input];
+            const auto &node_ptr = it->second;
+            animation_keys_t &animation_keys = animation.keys[node_ptr];
+
+            const auto &sampler = tiny_animation.samplers[channel.sampler];
+
+            std::vector<float> input_times;
+            {
+                const auto &accessor = model.accessors[sampler.input];
+                const auto &buffer_view = model.bufferViews[accessor.bufferView];
+                const auto &buffer = model.buffers[buffer_view.buffer];
+                assert(accessor.type == TINYGLTF_TYPE_SCALAR);
+                assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+                auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
+                auto ptr = reinterpret_cast<const float *>(data);
+                input_times = {ptr, ptr + accessor.count};
+                animation.duration = std::max(animation.duration,
+                                              *std::max_element(input_times.begin(), input_times.end()));
+            }
+
+            const auto &accessor = model.accessors[sampler.output];
             const auto &buffer_view = model.bufferViews[accessor.bufferView];
             const auto &buffer = model.buffers[buffer_view.buffer];
-            assert(accessor.type == TINYGLTF_TYPE_SCALAR);
-            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
             auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
-            auto ptr = reinterpret_cast<const float *>(data);
-            input_times = {ptr, ptr + accessor.count};
-            animation.duration = std::max(animation.duration,
-                                          *std::max_element(input_times.begin(), input_times.end()));
-        }
 
-        const auto &accessor = model.accessors[sampler.output];
-        const auto &buffer_view = model.bufferViews[accessor.bufferView];
-        const auto &buffer = model.buffers[buffer_view.buffer];
-        auto data = reinterpret_cast<const glm::mat4 *>(buffer.data.data() + accessor.byteOffset +
-                                                        buffer_view.byteOffset);
+            if(channel.target_path == animation_target_translation)
+            {
+                assert(accessor.type == TINYGLTF_TYPE_VEC3);
+                assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+                auto ptr = reinterpret_cast<const glm::vec3 *>(data);
+                for(float t : input_times){ animation_keys.positions.insert({t, *ptr++}); }
 
-        if(channel.target_path == animation_target_translation)
-        {
-            assert(accessor.type == TINYGLTF_TYPE_VEC3);
-            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-            auto ptr = reinterpret_cast<const glm::vec3 *>(data);
-            for(float t : input_times){ animation_keys.positions.insert({t, *ptr++}); }
+            }
+            else if(channel.target_path == animation_target_rotation)
+            {
+                assert(accessor.type == TINYGLTF_TYPE_VEC4);
+                assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+                auto ptr = reinterpret_cast<const glm::quat *>(data);
+                for(float t : input_times){ animation_keys.rotations.insert({t, *ptr++}); }
+            }
+            else if(channel.target_path == animation_target_scale)
+            {
+                assert(accessor.type == TINYGLTF_TYPE_VEC3);
+                assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+                auto ptr = reinterpret_cast<const glm::vec3 *>(data);
+                for(float t : input_times){ animation_keys.scales.insert({t, *ptr++}); }
+            }
+            else if(channel.target_path == animation_target_weights)
+            {
 
-        }
-        else if(channel.target_path == animation_target_rotation)
-        {
-            assert(accessor.type == TINYGLTF_TYPE_VEC4);
-            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-            auto ptr = reinterpret_cast<const glm::quat *>(data);
-            for(float t : input_times){ animation_keys.rotations.insert({t, *ptr++}); }
-        }
-        else if(channel.target_path == animation_target_scale)
-        {
-            assert(accessor.type == TINYGLTF_TYPE_VEC3);
-            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-            auto ptr = reinterpret_cast<const glm::vec3 *>(data);
-            for(float t : input_times){ animation_keys.scales.insert({t, *ptr++}); }
-        }
-        else if(channel.target_path == animation_target_weights)
-        {
-
+            }
         }
     }
     return animation;
@@ -335,12 +354,6 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache));
     }
 
-    struct node_t
-    {
-        size_t index;
-        glm::mat4 world_transform;
-        vierkant::nodes::NodePtr node;
-    };
     std::deque<node_t> node_queue;
 
     for(int node_index : scene.nodes)
@@ -368,7 +381,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         parent_node->children.push_back(current_node);
 
         // cache node
-        node_map[&tiny_node] = current_node;
+//        node_map[&tiny_node] = current_node;
 
         world_transform = world_transform * current_node->transform;
 
@@ -405,8 +418,13 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 if(skin.skeleton >= 0 && static_cast<uint32_t>(skin.skeleton) < model.nodes.size() &&
                    !inverse_binding_matrices.empty())
                 {
-                    out_assets.root_bone = create_bone_hierarchy(model.nodes[skin.skeleton], model,
+                    for(auto joint_index : skin.joints){ LOG_DEBUG << "joint_index: " << joint_index; }
+
+                    out_assets.root_bone = create_bone_hierarchy(skin.skeleton, model,
                                                                  inverse_binding_matrices, node_map);
+
+                    assert(vierkant::nodes::num_nodes_in_hierarchy(out_assets.root_bone) ==
+                           inverse_binding_matrices.size());
                 }
             }
 
@@ -487,10 +505,10 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     {
                         assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
                         assert(accessor.type == TINYGLTF_TYPE_VEC4);
-                        assert(buffer_view.byteStride == sizeof(glm::lowp_u16vec4));
+                        assert(buffer_view.byteStride == sizeof(glm::vec<4, uint16_t>));
 
                         auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
-                        const auto *ptr = reinterpret_cast<const glm::lowp_u16vec4 *>(data);
+                        const auto *ptr = reinterpret_cast<const glm::vec<4, uint16_t> *>(data);
                         geometry->bone_indices = {ptr, ptr + accessor.count};
 
                     }
@@ -546,7 +564,9 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     // animations
     for(const auto &tiny_animation : model.animations)
     {
-        out_assets.node_animations.push_back(create_node_animation(tiny_animation, model, node_map));
+        auto node_animation = create_node_animation(tiny_animation, model, node_map);
+
+        out_assets.node_animations.push_back(std::move(node_animation));
     }
 
     return out_assets;
