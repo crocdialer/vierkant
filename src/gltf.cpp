@@ -173,70 +173,17 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     return ret;
 }
 
-//TODO: something's still off, maybe DFS vs. BFS ... compare with skeleton.nodes[] for correctness
-vierkant::nodes::NodePtr create_bone_hierarchy_helper(int skeleton_node_index,
-                                                      const tinygltf::Model &model,
-                                                      const std::vector<glm::mat4> &inverse_binding_matrices,
-                                                      node_map_t &node_map,
-                                                      uint32_t &bone_index,
-//                                                      glm::mat4 world_transform,
-                                                      const vierkant::nodes::NodePtr &parent)
-{
-    assert(bone_index < inverse_binding_matrices.size());
-
-    const tinygltf::Node &skeleton_node = model.nodes[skeleton_node_index];
-
-    auto local_joint_transform = node_transform(skeleton_node);
-//    world_transform = world_transform * local_joint_transform;
-
-    auto bone_node = std::make_shared<vierkant::nodes::node_t>();
-    bone_node->parent = parent;
-    bone_node->name = skeleton_node.name;
-    bone_node->index = bone_index;
-    bone_node->offset = inverse_binding_matrices[bone_index];
-    bone_node->transform = local_joint_transform;
-
-    node_map[skeleton_node_index] = bone_node;
-
-
-    for(auto child_index : skeleton_node.children)
-    {
-        if(child_index >= 0 && static_cast<uint32_t>(child_index) < model.nodes.size())
-        {
-            bone_index++;
-            auto child_node = create_bone_hierarchy_helper(child_index,
-                                                           model,
-                                                           inverse_binding_matrices,
-                                                           node_map,
-                                                           bone_index,
-//                                                           world_transform,
-                                                           bone_node);
-            bone_node->children.push_back(child_node);
-        }
-    }
-    return bone_node;
-}
-
-vierkant::nodes::NodePtr create_bone_hierarchy(int skeleton_node_index,
-                                               const tinygltf::Model &model,
-                                               const std::vector<glm::mat4> &inverse_binding_matrices,
-                                               node_map_t &node_map)
-{
-    uint32_t bone_index = 0;
-    return create_bone_hierarchy_helper(skeleton_node_index, model, inverse_binding_matrices, node_map, bone_index,
-//                                        glm::mat4(1),
-                                        nullptr);
-}
-
 vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
                                                    const tinygltf::Model &model,
-                                                   node_map_t &node_map,
-                                                   joint_map_t &joint_map)
+                                                   node_map_t &node_map)
 {
     vierkant::nodes::NodePtr root_bone;
 
     // optional vertex skinning
     std::vector<glm::mat4> inverse_binding_matrices;
+
+    joint_map_t joint_map;
+    for(uint32_t i = 0; i < skin.joints.size(); ++i){ joint_map[skin.joints[i]] = i; }
 
     if(skin.inverseBindMatrices >= 0 &&
        static_cast<uint32_t>(skin.inverseBindMatrices) < model.accessors.size())
@@ -260,19 +207,16 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
     if(skin.skeleton >= 0 && static_cast<uint32_t>(skin.skeleton) < model.nodes.size() &&
        !inverse_binding_matrices.empty())
     {
-        for(auto joint_index : skin.joints){ LOG_DEBUG << "joint_index: " << joint_index; }
-
         std::deque<node_t> node_queue;
         node_queue.push_back({static_cast<size_t>(skin.skeleton), glm::mat4(1), nullptr});
 
         while(!node_queue.empty())
         {
-            auto[current_index, world_transform, parent_node] = node_queue.front();
+            auto[current_index, world_transform, parent_node] = std::move(node_queue.front());
             node_queue.pop_front();
 
             const tinygltf::Node &skeleton_node = model.nodes[current_index];
             auto local_joint_transform = node_transform(skeleton_node);
-
             world_transform = world_transform * local_joint_transform;
 
             auto bone_node = std::make_shared<vierkant::nodes::node_t>();
@@ -293,7 +237,6 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
             }
         }
     }
-
     return root_bone;
 }
 
@@ -308,8 +251,6 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
     for(const auto &channel : tiny_animation.channels)
     {
-//        const auto &target_node = model.nodes[channel.target_node];
-
         auto it = node_map.find(channel.target_node);
 
         if(it != node_map.end())
@@ -319,6 +260,7 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
             const auto &sampler = tiny_animation.samplers[channel.sampler];
 
+            // TODO: cache input times
             std::vector<float> input_times;
             {
                 const auto &accessor = model.accessors[sampler.input];
@@ -451,9 +393,6 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         assert(parent_node);
         parent_node->children.push_back(current_node);
 
-        // cache node
-//        node_map[&tiny_node] = current_node;
-
         world_transform = world_transform * current_node->transform;
 
         if(tiny_node.mesh >= 0 && static_cast<uint32_t>(tiny_node.mesh) < model.meshes.size())
@@ -465,9 +404,12 @@ mesh_assets_t gltf(const std::filesystem::path &path)
             if(tiny_node.skin >= 0 && static_cast<uint32_t>(tiny_node.skin) < model.skins.size())
             {
                 const tinygltf::Skin &skin = model.skins[tiny_node.skin];
-
-                for(uint32_t i = 0; i < skin.joints.size(); ++i){ joint_map[skin.joints[i]] = i; }
-                out_assets.root_bone = create_bone_hierarchy_bfs(skin, model, node_map, joint_map);
+                out_assets.root_bone = create_bone_hierarchy_bfs(skin, model, node_map);
+            }
+            else
+            {
+                // cache node
+                node_map[current_index] = current_node;
             }
 
             for(const auto &primitive : mesh.primitives)
@@ -550,15 +492,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
                         auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
                         const auto *ptr = reinterpret_cast<const glm::vec<4, uint16_t> *>(data);
-
-                        // TODO: iterate+correct indices
                         geometry->bone_indices = {ptr, ptr + accessor.count};
-
-//                        for(auto &v : geometry->bone_indices)
-//                        {
-//                            v = {joint_map[v.x], joint_map[v.y], joint_map[v.z], joint_map[v.w]};
-//                        }
-
                     }
                     else if(attrib == attrib_weights)
                     {

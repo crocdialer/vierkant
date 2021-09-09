@@ -386,13 +386,13 @@ std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
 
 void Mesh::update_entry_transforms()
 {
-    if(animation_index < node_animations.size())
+    if(!root_bone && animation_index < node_animations.size())
     {
         // entry animation transforms
         std::vector<glm::mat4> node_matrices;
-        vierkant::nodes::build_node_matrices(root_node,
-                                             node_animations[animation_index],
-                                             node_matrices);
+        vierkant::nodes::build_node_matrices_bfs(root_node,
+                                                 node_animations[animation_index],
+                                                 node_matrices);
 
         for(auto &entry : entries){ entry.transform = node_matrices[entry.node_index]; }
     }

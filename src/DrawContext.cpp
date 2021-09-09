@@ -196,6 +196,17 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer,
+                                      const vierkant::nodes::NodeConstPtr &node,
+                                      const glm::mat4 &model_view,
+                                      const glm::mat4 &projection,
+                                      vierkant::ShaderType shader_type)
+{
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &text, const FontPtr &font,
                             const glm::vec2 &pos, const glm::vec4 &color)
 {

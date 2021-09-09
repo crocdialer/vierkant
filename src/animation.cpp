@@ -13,6 +13,7 @@ void create_animation_transform(const animation_keys_t &keys, float time, glm::m
 
     // translation
     glm::mat4 translation(1);
+    translation[3] = out_transform[3];
 
     if(!keys.positions.empty())
     {
@@ -28,12 +29,12 @@ void create_animation_transform(const animation_keys_t &keys, float time, glm::m
         if(it_rhs == keys.positions.begin())
         {
             // time is before first key
-            translation = glm::translate(translation, it_rhs->second);
+            translation = glm::translate(glm::mat4(1), it_rhs->second);
         }
         else if(it_rhs == keys.positions.end())
         {
             // time is past last key
-            translation = glm::translate(translation, it_lhs->second);
+            translation = glm::translate(glm::mat4(1), it_lhs->second);
         }
         else
         {
@@ -42,12 +43,13 @@ void create_animation_transform(const animation_keys_t &keys, float time, glm::m
             float endTime = it_rhs->first;
             float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
             glm::vec3 pos = glm::mix(it_lhs->second, it_rhs->second, frac);
-            translation = glm::translate(translation, pos);
+            translation = glm::translate(glm::mat4(1), pos);
         }
     }
 
     // rotation
-    glm::mat4 rotation(1);
+    glm::mat4 rotation = glm::mat4_cast(glm::quat(out_transform));
+
     if(!keys.rotations.empty())
     {
         has_keys = true;

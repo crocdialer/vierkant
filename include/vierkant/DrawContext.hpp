@@ -108,6 +108,10 @@ public:
     void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
                    const glm::mat4 &projection, vierkant::ShaderType shader_type);
 
+    void draw_node_hierarchy(vierkant::Renderer &renderer, const vierkant::nodes::NodeConstPtr &node,
+                             const glm::mat4 &model_view,
+                             const glm::mat4 &projection, vierkant::ShaderType shader_type);
+
     /**
      * @brief   Render a skybox.
      *

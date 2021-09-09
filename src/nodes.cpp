@@ -85,16 +85,16 @@ void build_node_matrices_helper(const NodeConstPtr &node,
                                 glm::mat4 global_joint_transform)
 {
     float time = animation.current_time;
-    glm::mat4 nodeTransform = node->transform;
+    glm::mat4 node_transform = node->transform;
 
     auto it = animation.keys.find(node);
 
     if(it != animation.keys.end())
     {
         const auto &animation_keys = it->second;
-        create_animation_transform(animation_keys, time, nodeTransform);
+        create_animation_transform(animation_keys, time, node_transform);
     }
-    global_joint_transform = global_joint_transform * nodeTransform;
+    global_joint_transform = global_joint_transform * node_transform;
 
     // add final transform
     matrices[node->index] = global_joint_transform * node->offset;

@@ -519,8 +519,8 @@ void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vi
     if(mesh && mesh->root_bone && mesh->animation_index < mesh->node_animations.size())
     {
         std::vector<glm::mat4> bones_matrices;
-        vierkant::nodes::build_node_matrices(mesh->root_bone, mesh->node_animations[mesh->animation_index],
-                                             bones_matrices);
+        vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, mesh->node_animations[mesh->animation_index],
+                                                 bones_matrices);
 
         if(!out_buffer)
         {
