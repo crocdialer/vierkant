@@ -58,6 +58,10 @@ NodeConstPtr node_by_name(NodeConstPtr root, const std::string &name);
  *
  * @param   matrices    ref to an array of transformation-matrices. will be recursively populated by this function.
  */
-void build_node_matrices(const NodeConstPtr& root, const node_animation_t &animation, std::vector<glm::mat4> &matrices);
+void build_node_matrices(const NodeConstPtr &root, const node_animation_t &animation, std::vector<glm::mat4> &matrices);
+
+void build_node_matrices_bfs(const NodeConstPtr &root,
+                             const node_animation_t &animation,
+                             std::vector<glm::mat4> &matrices);
 
 }// namespace vierkant::bones
