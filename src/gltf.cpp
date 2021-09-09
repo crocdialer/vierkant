@@ -406,11 +406,6 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 const tinygltf::Skin &skin = model.skins[tiny_node.skin];
                 out_assets.root_bone = create_bone_hierarchy_bfs(skin, model, node_map);
             }
-            else
-            {
-                // cache node
-                node_map[current_index] = current_node;
-            }
 
             for(const auto &primitive : mesh.primitives)
             {
@@ -532,6 +527,12 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
             }// for all primitives
         }// mesh
+
+        if(!node_map.count(current_index))
+        {
+            // cache node
+            node_map[current_index] = current_node;
+        }
 
         for(auto child_index : tiny_node.children)
         {
