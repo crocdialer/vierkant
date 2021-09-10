@@ -85,7 +85,8 @@ void create_animation_transform(const animation_keys_t &keys, float time, glm::m
     }
 
     // scale
-    glm::mat4 scale_matrix(1);
+    glm::mat4 scale_matrix = glm::scale(glm::mat4(1),
+                                        {length(out_transform[0]), length(out_transform[1]), length(out_transform[2])});
 
     if(!keys.scales.empty())
     {

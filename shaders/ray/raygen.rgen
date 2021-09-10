@@ -9,6 +9,12 @@
 #define POSITIONS 2
 #define ACCUMULATED_RADIANCE 3
 
+// limit the number of samples/traces
+const uint NUM_SAMPLES = 2;
+
+// limit the length of traced paths
+const uint MAX_PATH_LENGTH = 4;
+
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(binding = 1, set = 0, rgba32f) uniform image2D out_images[4];
@@ -45,9 +51,6 @@ trace_result_t trace(vec2 coord, vec2 size)
     // The sum of the colors of all of the samples.
     trace_result.radiance = vec3(0);
 
-    // Limit the kernel to trace at most 64 samples.
-    const int NUM_SAMPLES = 4;
-
     float sample_offset = rng_float(rngState);
 
     // sample random dirctions around the pixel's center
@@ -75,14 +78,12 @@ trace_result_t trace(vec2 coord, vec2 size)
         float tmin = 0.0001;
         float tmax = 10000.0;
 
-        const uint max_depth = 4;
-
         vec3 beta = vec3(1);
         float pdf = FLOAT_MAX;
         vec3 path_radiance = vec3(0);
 
         // trace a path
-        for (int i = 0; i < max_depth; i++)
+        for (int i = 0; i < MAX_PATH_LENGTH; i++)
         {
             payload.stop = false;
             payload.radiance = path_radiance;

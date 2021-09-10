@@ -25,7 +25,7 @@ out gl_PerVertex
 layout(location = ATTRIB_POSITION) in vec3 a_position;
 layout(location = ATTRIB_COLOR) in vec4 a_color;
 layout(location = ATTRIB_NORMAL) in vec3 a_normal;
-layout(location = ATTRIB_BONE_INDICES) in ivec4 a_bone_ids;
+layout(location = ATTRIB_BONE_INDICES) in uvec4 a_bone_ids;
 layout(location = ATTRIB_BONE_WEIGHTS) in vec4 a_bone_weights;
 
 layout(location = 0) out VertexData

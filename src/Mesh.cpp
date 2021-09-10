@@ -16,6 +16,9 @@ using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 template<>
+VkIndexType index_type<uint8_t>(){ return VK_INDEX_TYPE_UINT8_EXT; }
+
+template<>
 VkIndexType index_type<uint16_t>(){ return VK_INDEX_TYPE_UINT16; }
 
 template<>
@@ -61,6 +64,15 @@ VkFormat format<glm::uvec3>(){ return VK_FORMAT_R32G32B32_UINT; }
 
 template<>
 VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
+
+template<>
+VkFormat format<glm::vec<2, uint16_t>>(){ return VK_FORMAT_R16G16_UINT; }
+
+template<>
+VkFormat format<glm::vec<3, uint16_t>>(){ return VK_FORMAT_R16G16B16_UINT; }
+
+template<>
+VkFormat format<glm::vec<4, uint16_t>>(){ return VK_FORMAT_R16G16B16A16_UINT; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -236,6 +248,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         indices.insert(indices.end(), geom->indices.begin(), geom->indices.end());
 
         vierkant::Mesh::entry_t entry = {};
+        entry.name = entry_info.name;
         entry.primitive_type = geom->topology;
         entry.base_vertex = geom_base_vertices[geom];
         entry.num_vertices = geom->vertices.size();

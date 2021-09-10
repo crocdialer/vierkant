@@ -42,6 +42,10 @@ struct material_t
     vec4 emission;
     float metalness;
     float roughness;
+    float transmission;
+    float attenuation_distance;
+    vec4 attenuation_color;
+    float ior;
     uint texture_index;
     uint normalmap_index;
     uint emission_index;

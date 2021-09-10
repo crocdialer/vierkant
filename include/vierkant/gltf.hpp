@@ -10,9 +10,12 @@ namespace vierkant::model
 {
 
 /**
+ *  @brief  gltf can be used to load 3d-models in the GL Transmission Format 2.0 (glTF2).
+ *          json-, json-embedded and binary flavours are supported.
  *
- * @param path
- * @return
+ *  @param  path    path to a model-file with either .gltf or .glb extension.
+ *
+ *  @return a struct grouping the loaded assets.
  */
 mesh_assets_t gltf(const std::filesystem::path &path);
 

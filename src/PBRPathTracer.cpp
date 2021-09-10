@@ -97,6 +97,9 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     {
         frame_asset.tracable.extent = create_info.size;
 
+        // not really needed, idk. maybe prepare for shadow-rays
+        frame_asset.tracable.pipeline_info.max_recursion = 3;
+
         frame_asset.storage.radiance = radiance_img;
         frame_asset.storage.normals = normals_img;
         frame_asset.storage.positions = positions_img;

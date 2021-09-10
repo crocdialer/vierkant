@@ -43,6 +43,14 @@ public:
 
         float roughness = 1.f;
 
+        float transmission = 0.f;
+
+        float attenuation_distance = std::numeric_limits<float>::infinity();
+
+        glm::vec4 attenuation_color = glm::vec4(1.f);
+
+        float ior = 1.5f;
+
         uint32_t texture_index = 0;
 
         uint32_t normalmap_index = 0;
@@ -51,7 +59,7 @@ public:
 
         uint32_t ao_rough_metal_index = 0;
 
-        int padding[2];
+        int padding[3];
     };
 
     //! used for both bottom and toplevel acceleration-structures

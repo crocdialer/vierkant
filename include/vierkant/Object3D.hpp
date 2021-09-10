@@ -85,7 +85,7 @@ public:
 
     inline glm::vec3 scale()
     {
-        return glm::vec3(length(m_transform[0]), length(m_transform[1]), length(m_transform[2]));
+        return {length(m_transform[0]), length(m_transform[1]), length(m_transform[2])};
     };
 
     void set_scale(const glm::vec3 &s);

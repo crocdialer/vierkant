@@ -86,7 +86,7 @@ float GTR2(float NDotH, float a)
 }
 
 /*
- * The masking shadowing function Smith for GGX noraml distribution (G)
+ * Smith's geometric masking/shadowing function for GGX noraml distribution (G)
  */
 float SmithGGX(float NDotv, float alphaG)
 {

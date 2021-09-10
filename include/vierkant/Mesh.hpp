@@ -83,6 +83,7 @@ public:
 
     struct entry_t
     {
+        std::string name;
         glm::mat4 transform = glm::mat4(1);
         vierkant::AABB boundingbox;
         uint32_t node_index = 0;
@@ -106,6 +107,7 @@ public:
 
     struct entry_create_info_t
     {
+        std::string name;
         GeometryPtr geometry = nullptr;
         glm::mat4 transform = glm::mat4(1);
         uint32_t node_index = 0;

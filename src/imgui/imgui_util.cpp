@@ -431,7 +431,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::SliderFloat("exposure", &pbr_renderer->settings.exposure, 0.f, 10.f);
 
     // gamma
-    ImGui::SliderFloat("gamma",&pbr_renderer->settings.gamma, 0.f, 10.f);
+    ImGui::SliderFloat("gamma", &pbr_renderer->settings.gamma, 0.f, 10.f);
 
     if(pbr_renderer)
     {
@@ -475,7 +475,7 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     ImGui::SliderFloat("exposure", &path_tracer->settings.exposure, 0.f, 10.f);
 
     // gamma
-    ImGui::SliderFloat("gamma",&path_tracer->settings.gamma, 0.f, 10.f);
+    ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 }
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
@@ -527,7 +527,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
                     auto &dof = *settings_dof;
 
                     ImGui::PushID(std::addressof(dof));
-                    ImGui::Checkbox("", reinterpret_cast<bool*>(std::addressof(dof.enabled)));
+                    ImGui::Checkbox("", reinterpret_cast<bool *>(std::addressof(dof.enabled)));
                     ImGui::PopID();
 
                     ImGui::SameLine();
@@ -536,7 +536,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
                     if(ImGui::TreeNode("dof"))
                     {
 
-                        ImGui::Checkbox("autofocus", reinterpret_cast<bool*>(std::addressof(dof.auto_focus)));
+                        ImGui::Checkbox("autofocus", reinterpret_cast<bool *>(std::addressof(dof.auto_focus)));
                         ImGui::SliderFloat("focal distance (m)", &dof.focal_depth, 0.f, cam->far());
                         ImGui::SliderFloat("focal length (mm)", &dof.focal_length, 0.f, 280.f);
                         ImGui::SliderFloat("f-stop", &dof.fstop, 0.f, 180.f);
@@ -544,7 +544,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
                         ImGui::SliderFloat("gain", &dof.gain, 0.f, 10.f);
                         ImGui::SliderFloat("color fringe", &dof.fringe, 0.f, 10.f);
                         ImGui::SliderFloat("max blur", &dof.max_blur, 0.f, 10.f);
-                        ImGui::Checkbox("debug focus", reinterpret_cast<bool*>(std::addressof(dof.debug_focus)));
+                        ImGui::Checkbox("debug focus", reinterpret_cast<bool *>(std::addressof(dof.debug_focus)));
                         ImGui::TreePop();
                     }
                     if(!dof.enabled){ ImGui::PopStyleColor(); }
@@ -650,6 +650,7 @@ void draw_material_ui(const MaterialPtr &material)
     const float w = ImGui::GetContentRegionAvailWidth();
 
     ImGui::BulletText("name: %s", material->name.c_str());
+    ImGui::Separator();
 
     // base color
     if(material->textures.count(vierkant::Material::TextureType::Color))
@@ -683,6 +684,8 @@ void draw_material_ui(const MaterialPtr &material)
         ImGui::Separator();
     }
 
+    ImGui::Separator();
+
     // ambient-occlusion / roughness / metalness
     if(material->textures.count(vierkant::Material::TextureType::Ao_rough_metal))
     {
@@ -703,6 +706,10 @@ void draw_material_ui(const MaterialPtr &material)
         // ambient occlusion
         ImGui::SliderFloat("ambient occlusion", &material->ambient, 0.f, 1.f);
     }
+
+    ImGui::Separator();
+
+    ImGui::Text("blending/transmission");
 
     // blend-mode
     const char *blend_items[] = {"Opaque", "Blend", "Mask"};
@@ -778,7 +785,9 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
             const ImVec4 gray(.6, .6, .6, 1.);
             if(!e.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
-            if(ImGui::TreeNodeEx((void *) (mesh_id + index), 0, "entry %d", index))
+            auto entry_name = e.name.empty() ? ("entry " + std::to_string(index)) : e.name;
+
+            if(ImGui::TreeNodeEx((void *) (mesh_id + index), 0, "%s", entry_name.c_str() ))
             {
                 std::stringstream ss;
                 ss << "vertices: " << std::to_string(e.num_vertices) << "\n";
@@ -807,9 +816,10 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
     {
         for(uint32_t i = 0; i < mesh->materials.size(); ++i)
         {
-            auto &mat = mesh->materials[i];
+            const auto &mat = mesh->materials[i];
+            auto mat_name = mat->name.empty() ? std::to_string(i) : mat->name;
 
-            if(mat && ImGui::TreeNode((void *) (mat.get()), "%s", mat->name.c_str()))
+            if(mat && ImGui::TreeNode((void *) (mat.get()), "%s", mat_name.c_str()))
             {
                 draw_material_ui(mat);
                 ImGui::Separator();
@@ -823,15 +833,18 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
     // animation
     if(!mesh->node_animations.empty() && ImGui::TreeNode("animation"))
     {
-        auto &animation = mesh->node_animations[mesh->animation_index];
-
         // animation index
         int animation_index = mesh->animation_index;
 
-        if(ImGui::SliderInt("index", &animation_index, 0, static_cast<int>(mesh->node_animations.size() - 1)))
+        std::vector<const char *> animation_items;
+        for(auto &anim : mesh->node_animations){ animation_items.push_back(anim.name.c_str()); }
+
+        if(ImGui::Combo("name", &animation_index, animation_items.data(), animation_items.size()))
         {
             mesh->animation_index = animation_index;
         }
+
+        auto &animation = mesh->node_animations[mesh->animation_index];
 
         // animation speed
         if(ImGui::SliderFloat("speed", &mesh->animation_speed, -3.f, 3.f)){}

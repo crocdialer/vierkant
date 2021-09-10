@@ -21,7 +21,7 @@ struct material_t
     glm::vec3 emission;
 
     float roughness = 1.f;
-    float metalness = 0.f;
+    float metalness = 1.f;
 
     // deprecated !?
     glm::vec3 specular;

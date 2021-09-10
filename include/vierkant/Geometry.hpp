@@ -50,7 +50,7 @@ public:
     std::vector<glm::vec3> tangents;
 
     //! each vertex can reference up to 4 bones
-    std::vector<glm::ivec4> bone_indices;
+    std::vector<glm::vec<4, uint16_t>> bone_indices;
     std::vector<glm::vec4> bone_weights;
 
     std::vector<index_t> indices;

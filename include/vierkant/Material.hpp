@@ -37,7 +37,7 @@ public:
 
     glm::vec3 emission = glm::vec3(0);
 
-    float metalness = 0.f;
+    float metalness = 1.f;
 
     float roughness = 1.f;
 
@@ -49,11 +49,11 @@ public:
 
     float alpha_cutoff = 0.5f;
 
-    float transmission = 1.5f;
+    float transmission = 0.f;
 
     glm::vec3 attenuation_color = glm::vec3(1.f);
 
-    float attenuation_distance = 1.f;
+    float attenuation_distance = std::numeric_limits<float>::infinity();
 
     float ior = 1.5f;
 

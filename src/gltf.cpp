@@ -155,7 +155,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
                 const auto &attenuation_distance_value = value.Get(ext_volume_attenuation_distance);
                 ret.attenuation_distance = static_cast<float>(attenuation_distance_value.GetNumberAsDouble());
             }
-            if(value.Has(ext_volume_attenuation_distance))
+            if(value.Has(ext_volume_thickness_texture))
             {
                 const auto &thickness_texture_value = value.Get(ext_volume_thickness_texture);
                 int tex_index = thickness_texture_value.Get("index").GetNumberAsInt();
@@ -195,8 +195,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
 
         const auto &buffer_view = model.bufferViews[bind_matrix_accessor.bufferView];
         const auto &buffer = model.buffers[buffer_view.buffer];
-        int stride = bind_matrix_accessor.ByteStride(buffer_view);
-        assert(stride == sizeof(glm::mat4));
+        assert(bind_matrix_accessor.ByteStride(buffer_view) == sizeof(glm::mat4));
 
         auto data = reinterpret_cast<const glm::mat4 *>(buffer.data.data() +
                                                         bind_matrix_accessor.byteOffset +
@@ -253,6 +252,8 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
     {
         auto it = node_map.find(channel.target_node);
 
+        std::unordered_map<uint32_t, std::vector<float>> input_samplers;
+
         if(it != node_map.end())
         {
             const auto &node_ptr = it->second;
@@ -260,8 +261,10 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
             const auto &sampler = tiny_animation.samplers[channel.sampler];
 
-            // TODO: cache input times
-            std::vector<float> input_times;
+            // create or retrieve input times
+            auto &input_times = input_samplers[sampler.input];
+
+            if(input_times.empty())
             {
                 const auto &accessor = model.accessors[sampler.input];
                 const auto &buffer_view = model.bufferViews[accessor.bufferView];
@@ -332,7 +335,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         LOG_DEBUG << "model using extension: " << ext;
     }
 
-    const tinygltf::Scene &scene = model.scenes[model.defaultScene];
+    const tinygltf::Scene &scene = model.scenes[model.defaultScene >= 0 ? model.defaultScene : 0];
 
     // create vierkant::node root
     vierkant::model::mesh_assets_t out_assets = {};
@@ -425,7 +428,12 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     auto data = static_cast<const uint8_t *>(buffer.data.data() + index_accessor.byteOffset +
                                                              buffer_view.byteOffset);
 
-                    if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+                    if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+                    {
+                        const auto *ptr = reinterpret_cast<const uint8_t *>(data);
+                        geometry->indices = {ptr, ptr + index_accessor.count};
+                    }
+                    else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
                     {
                         const auto *ptr = reinterpret_cast<const uint16_t *>(data);
                         geometry->indices = {ptr, ptr + index_accessor.count};
@@ -444,11 +452,15 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     const auto &buffer_view = model.bufferViews[accessor.bufferView];
                     const auto &buffer = model.buffers[buffer_view.buffer];
 
+                    if(accessor.sparse.isSparse)
+                    {
+                        assert(false);
+                    }
                     auto insert = [&accessor, &buffer_view](const tinygltf::Buffer &input, auto &array)
                     {
                         using elem_t = typename std::decay<decltype(array)>::type::value_type;
                         constexpr size_t elem_size = sizeof(elem_t);
-                        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+//                        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
                         // data with offset
                         const uint8_t *data = input.data.data() + buffer_view.byteOffset + accessor.byteOffset;
@@ -483,19 +495,21 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     {
                         assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
                         assert(accessor.type == TINYGLTF_TYPE_VEC4);
-                        assert(buffer_view.byteStride == sizeof(glm::vec<4, uint16_t>));
+                        insert(buffer, geometry->bone_indices);
+//                        assert(accessor.ByteStride(buffer_view) == sizeof(glm::vec<4, uint16_t>));
 
-                        auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
-                        const auto *ptr = reinterpret_cast<const glm::vec<4, uint16_t> *>(data);
-                        geometry->bone_indices = {ptr, ptr + accessor.count};
+//                        auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
+//                        const auto *ptr = reinterpret_cast<const glm::vec<4, uint16_t> *>(data);
+//                        geometry->bone_indices = {ptr, ptr + accessor.count};
                     }
                     else if(attrib == attrib_weights)
                     {
                         assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
                         assert(accessor.type == TINYGLTF_TYPE_VEC4);
-                        auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
-                        const auto *ptr = reinterpret_cast<const glm::vec4 *>(data);
-                        geometry->bone_weights = {ptr, ptr + accessor.count};
+                        insert(buffer, geometry->bone_weights);
+//                        auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
+//                        const auto *ptr = reinterpret_cast<const glm::vec4 *>(data);
+//                        geometry->bone_weights = {ptr, ptr + accessor.count};
 
                     }
                 }// for all attributes
@@ -517,6 +531,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 }
 
                 vierkant::Mesh::entry_create_info_t create_info = {};
+                create_info.name = current_node->name;
                 create_info.geometry = geometry;
                 create_info.transform = world_transform;
                 create_info.node_index = out_assets.entry_create_infos.size();
