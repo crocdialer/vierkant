@@ -124,9 +124,42 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
         ret.img_emission = image_cache.at(model.textures[tiny_mat.emissiveTexture.index].source);
     }
 
+    // occlusion only supported alongside rough/metal
+    if(ret.img_ao_roughness_metal && tiny_mat.occlusionTexture.index >= 0)
+    {
+        if(tiny_mat.occlusionTexture.index != tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index)
+        {
+            // occlusion is provided as separate image -> combine with rough/metal
+            auto occlusion_image = image_cache.at(model.textures[tiny_mat.occlusionTexture.index].source);
+
+            // there was texture data for AO in a separate map -> combine
+            occlusion_image = occlusion_image->resize(ret.img_ao_roughness_metal->width(),
+                                                      ret.img_ao_roughness_metal->height());
+
+            auto *src = static_cast<uint8_t *>(occlusion_image->data());
+
+            constexpr size_t ao_offset = 0;
+            auto dst = (uint8_t *) ret.img_ao_roughness_metal->data();
+            auto end = dst + ret.img_ao_roughness_metal->num_bytes();
+
+            for(; dst < end;)
+            {
+                dst[ao_offset] = src[ao_offset];
+                dst += ret.img_ao_roughness_metal->num_components();
+                src += occlusion_image->num_components();
+            }
+        }
+    }
+    else if(ret.img_ao_roughness_metal)
+    {
+        // rough/metal was provided but no occlusion -> pad with 1.0
+        constexpr size_t ao_offset = 0;
+        auto dst = (uint8_t *) ret.img_ao_roughness_metal->data(), end = dst + ret.img_ao_roughness_metal->num_bytes();
+        for(; dst < end; dst += ret.img_ao_roughness_metal->num_components()){ dst[ao_offset] = 255; }
+    }
+
     for(const auto&[ext, value] : tiny_mat.extensions)
     {
-        LOG_DEBUG << "material-extension: " << ext;
         if(ext == KHR_materials_transmission)
         {
             if(value.Has(ext_transmission_factor))
@@ -428,14 +461,15 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     auto data = static_cast<const uint8_t *>(buffer.data.data() + index_accessor.byteOffset +
                                                              buffer_view.byteOffset);
 
-                    if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-                    {
-                        const auto *ptr = reinterpret_cast<const uint8_t *>(data);
-                        geometry->indices = {ptr, ptr + index_accessor.count};
-                    }
-                    else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+
+                    if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
                     {
                         const auto *ptr = reinterpret_cast<const uint16_t *>(data);
+                        geometry->indices = {ptr, ptr + index_accessor.count};
+                    }
+                    else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+                    {
+                        const auto *ptr = reinterpret_cast<const uint8_t *>(data);
                         geometry->indices = {ptr, ptr + index_accessor.count};
                     }
                     else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
@@ -452,15 +486,12 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     const auto &buffer_view = model.bufferViews[accessor.bufferView];
                     const auto &buffer = model.buffers[buffer_view.buffer];
 
-                    if(accessor.sparse.isSparse)
-                    {
-                        assert(false);
-                    }
+                    if(accessor.sparse.isSparse){ assert(false); }
+
                     auto insert = [&accessor, &buffer_view](const tinygltf::Buffer &input, auto &array)
                     {
                         using elem_t = typename std::decay<decltype(array)>::type::value_type;
                         constexpr size_t elem_size = sizeof(elem_t);
-//                        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
 
                         // data with offset
                         const uint8_t *data = input.data.data() + buffer_view.byteOffset + accessor.byteOffset;
@@ -496,21 +527,12 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                         assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
                         assert(accessor.type == TINYGLTF_TYPE_VEC4);
                         insert(buffer, geometry->bone_indices);
-//                        assert(accessor.ByteStride(buffer_view) == sizeof(glm::vec<4, uint16_t>));
-
-//                        auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
-//                        const auto *ptr = reinterpret_cast<const glm::vec<4, uint16_t> *>(data);
-//                        geometry->bone_indices = {ptr, ptr + accessor.count};
                     }
                     else if(attrib == attrib_weights)
                     {
                         assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
                         assert(accessor.type == TINYGLTF_TYPE_VEC4);
                         insert(buffer, geometry->bone_weights);
-//                        auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
-//                        const auto *ptr = reinterpret_cast<const glm::vec4 *>(data);
-//                        geometry->bone_weights = {ptr, ptr + accessor.count};
-
                     }
                 }// for all attributes
 
