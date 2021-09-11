@@ -8,28 +8,6 @@
 
 const uint MAX_NUM_ENTRIES = 1024;
 
-struct entry_t
-{
-    // per entry
-    mat4 modelview;
-    mat4 normal_matrix;
-    uint material_index;
-    uint base_vertex;
-    uint base_index;
-
-    // per mesh
-    uint buffer_index;
-};
-
-struct Vertex
-{
-    vec3 position;
-    vec4 color;
-    vec2 tex_coord;
-    vec3 normal;
-    vec3 tangent;
-};
-
 layout(push_constant) uniform PushConstants
 {
     push_constants_t push_constants;
@@ -165,11 +143,37 @@ void main()
     float diffuse_ratio = 0.5 * (1.0 - metalness);
     float reflect_prob = rng_float(rngState);
 
-    if(reflect_prob < diffuse_ratio){ payload.ray.direction = local_frame * sample_cosine(Xi); }
+    // possible half-vector from GGX distribution
+    vec3 H = local_frame * sample_GGX(Xi, roughness);
+
+    if(reflect_prob < diffuse_ratio)
+    {
+        float transmission_prob = payload.ior < material.ior ? rng_float(rngState) : 1.0;
+
+        if(transmission_prob < material.transmission)
+        {
+            // entering or leaving a medium
+            float ior = payload.ior < material.ior ? material.ior : 1.0;
+
+            // transmission
+            float eta = payload.ior / ior;
+            payload.ior = ior;
+
+            // offset position along the normal
+            payload.normal *= -1.0;
+            payload.ray.origin = payload.position + 0.0001 * payload.normal;
+
+            payload.ray.direction = refract(gl_WorldRayDirectionEXT, H, eta);
+        }
+        else
+        {
+            // diffuse reflection
+            payload.ray.direction = local_frame * sample_cosine(Xi);
+        }
+    }
     else
     {
-        // possible half-vector from GGX distribution
-        vec3 H = local_frame * sample_GGX(Xi, roughness);
+        // surface/glossy reflection
         payload.ray.direction = reflect(gl_WorldRayDirectionEXT, H);
     }
 

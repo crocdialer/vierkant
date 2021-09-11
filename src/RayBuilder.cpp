@@ -223,7 +223,7 @@ void RayBuilder::compact(build_result_t &build_result) const
     // compacting
     for(uint32_t i = 0; i < entry_assets_compact.size(); i++)
     {
-        LOG_DEBUG << crocore::format("reducing bottom-lvl-size (%d), from %dkB to %dkB", i,
+        LOG_TRACE << crocore::format("reducing bottom-lvl-size (%d), from %dkB to %dkB", i,
                                      (uint32_t) build_result.acceleration_assets[i]->buffer->num_bytes() / 1024,
                                      compact_sizes[i] / 1024);
 
@@ -330,9 +330,6 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
 
-    // instance flags
-    VkGeometryInstanceFlagsKHR instance_flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-
     uint32_t mesh_index = 0;
 
     for(const auto &[mesh, acceleration_assets] : asset_map)
@@ -349,6 +346,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
         for(uint i = 0; i < acceleration_assets.size(); ++i)
         {
             const auto &mesh_entry = mesh->entries[i];
+            const auto &mesh_material = mesh->materials[mesh_entry.material_index];
+
             const auto &asset = acceleration_assets[i];
 
             // skip disabled entries
@@ -359,6 +358,10 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
             instance.transform = vk_transform_matrix(modelview);
+
+            // instance flags
+            VkGeometryInstanceFlagsKHR instance_flags = mesh_material->two_sided
+                                                        ? VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR : 0;
 
             // store next entry-index
             instance.instanceCustomIndex = entries.size();
@@ -378,13 +381,15 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             top_level_entry.base_index = mesh_entry.base_index;
             entries.push_back(top_level_entry);
 
-            const auto &mesh_material = mesh->materials[mesh_entry.material_index];
-
             RayBuilder::material_struct_t material = {};
             material.color = mesh_material->color;
             material.emission = glm::vec4(mesh_material->emission, 0.f);
             material.roughness = mesh_material->roughness;
             material.metalness = mesh_material->metalness;
+            material.transmission = mesh_material->transmission;
+            material.ior = mesh_material->ior;
+            material.attenuation_color = {mesh_material->attenuation_color, 1.f};
+            material.attenuation_distance = mesh_material->attenuation_distance;
 
             if(mesh_material->textures.count(vierkant::Material::TextureType::Color))
             {

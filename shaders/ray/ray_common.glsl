@@ -5,6 +5,28 @@
 
 #define EPS 0.001
 
+struct entry_t
+{
+    // per entry
+    mat4 modelview;
+    mat4 normal_matrix;
+    uint material_index;
+    uint base_vertex;
+    uint base_index;
+
+    // per mesh
+    uint buffer_index;
+};
+
+struct Vertex
+{
+    vec3 position;
+    vec4 color;
+    vec2 tex_coord;
+    vec3 normal;
+    vec3 tangent;
+};
+
 struct Ray
 {
     vec3 origin;
@@ -32,8 +54,11 @@ struct payload_t
     // material absorbtion
     vec3 beta;
 
-    // probality density
+    // probability density
     float pdf;
+
+    // media refraction index
+    float ior;
 };
 
 struct material_t

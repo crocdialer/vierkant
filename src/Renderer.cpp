@@ -66,7 +66,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
         drawable.pipeline_format.depth_test = material->depth_test;
         drawable.pipeline_format.depth_write = material->depth_write;
-        drawable.pipeline_format.cull_mode = material->cull_mode;
+        drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};

@@ -110,6 +110,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     {
         ret.img_ao_roughness_metal = image_cache.at(
                 model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source);
+
+        ret.roughness = ret.metalness = 1.f;
     }
 
     // normals
@@ -133,8 +135,13 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             auto occlusion_image = image_cache.at(model.textures[tiny_mat.occlusionTexture.index].source);
 
             // there was texture data for AO in a separate map -> combine
-            occlusion_image = occlusion_image->resize(ret.img_ao_roughness_metal->width(),
-                                                      ret.img_ao_roughness_metal->height());
+
+            if(occlusion_image->width() != ret.img_ao_roughness_metal->width() ||
+               occlusion_image->height() != ret.img_ao_roughness_metal->height())
+            {
+                occlusion_image = occlusion_image->resize(ret.img_ao_roughness_metal->width(),
+                                                          ret.img_ao_roughness_metal->height());
+            }
 
             auto *src = static_cast<uint8_t *>(occlusion_image->data());
 
@@ -351,9 +358,12 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
 mesh_assets_t gltf(const std::filesystem::path &path)
 {
+
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
     std::string err, warn;
+
+//    loader.SetPreserveImageChannels(true);
 
     bool ret = false;
     auto ext_str = path.extension();
@@ -546,8 +556,11 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 geometry->colors.resize(geometry->vertices.size(), glm::vec4(1.f));
                 geometry->tex_coords.resize(geometry->vertices.size(), glm::vec2(0.f));
 
-//                if(!geometry->tex_coords.empty() && geometry->tangents.empty()){ geometry->compute_tangents(); }
-//                else if(geometry->tangents.empty())
+                if(geometry->tangents.empty() && !geometry->normals.empty() && geometry->tex_coords.empty())
+                {
+                    geometry->compute_tangents();
+                }
+                else if(geometry->tangents.empty())
                 {
                     geometry->tangents.resize(geometry->vertices.size(), glm::vec3(0.f));
                 }

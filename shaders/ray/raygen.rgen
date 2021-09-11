@@ -10,10 +10,10 @@
 #define ACCUMULATED_RADIANCE 3
 
 // limit the number of samples/traces
-const uint NUM_SAMPLES = 2;
+const uint NUM_SAMPLES = 4;
 
 // limit the length of traced paths
-const uint MAX_PATH_LENGTH = 4;
+const uint MAX_PATH_LENGTH = 8;
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
@@ -78,6 +78,9 @@ trace_result_t trace(vec2 coord, vec2 size)
         float tmin = 0.0001;
         float tmax = 10000.0;
 
+        // assumes we start in air
+        float ior = 1.0;
+
         vec3 beta = vec3(1);
         float pdf = FLOAT_MAX;
         vec3 path_radiance = vec3(0);
@@ -88,6 +91,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.stop = false;
             payload.radiance = path_radiance;
             payload.beta = beta;
+            payload.ior = ior;
             payload.pdf = pdf;
             payload.ray = ray;
 
@@ -108,6 +112,7 @@ trace_result_t trace(vec2 coord, vec2 size)
 
             ray = payload.ray;
             beta = payload.beta;
+            ior = payload.ior;
             pdf = payload.pdf;
             path_radiance = payload.radiance;
 

@@ -745,6 +745,9 @@ void draw_material_ui(const MaterialPtr &material)
 
     // attenuation color
     ImGui::ColorEdit3("attenuation color", glm::value_ptr(material->attenuation_color));
+
+    // index of refraction - ior
+    ImGui::InputFloat("ior", &material->ior);
 }
 
 void draw_mesh_ui(const vierkant::MeshNodePtr &node)
