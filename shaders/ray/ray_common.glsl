@@ -144,6 +144,11 @@ float powerHeuristic(float a, float b)
     return t / (b * b + t);
 }
 
+vec3 transmittance(vec3 attenuation_color, float attenuation_distance, float distance)
+{
+    return exp(log(attenuation_color) / attenuation_distance * distance);
+}
+
 vec3 UE4Eval(in vec3 L, in vec3 N, in vec3 V, in vec3 albedo,
              float roughness, float metalness)
 {

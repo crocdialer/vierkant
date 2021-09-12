@@ -89,7 +89,7 @@ void main()
     bool tangent_valid = any(greaterThan(abs(v.tangent), vec3(0.0)));
 
     // local frame aka tbn-matrix
-    mat3 local_frame = local_frame(v.normal);
+    mat3 local_basis = local_frame(v.normal);
 
     if (tangent_valid)
     {
@@ -101,8 +101,8 @@ void main()
 
         // normal, tangent, bi-tangent
         vec3 b = normalize(cross(v.normal, v.tangent));
-        local_frame = mat3(v.tangent, b, v.normal);
-        payload.normal = local_frame * normal;
+        local_basis = mat3(v.tangent, b, v.normal);
+        payload.normal = local_basis * normal;
     }
 
     // flip the normal so it points against the ray direction:
@@ -114,12 +114,6 @@ void main()
 
     // add radiance from emission
     payload.radiance += payload.beta * emission;
-
-//    if(any(greaterThan(emission, vec3(0.01))))
-//    {
-//        payload.stop = true;
-//        return;
-//    }
 
     // modulate beta with albedo
     vec3 color = push_constants.disable_material ?
@@ -144,7 +138,7 @@ void main()
     float reflect_prob = rng_float(rngState);
 
     // possible half-vector from GGX distribution
-    vec3 H = local_frame * sample_GGX(Xi, roughness);
+    vec3 H = local_basis * sample_GGX(Xi, roughness);
     vec3 V = -gl_WorldRayDirectionEXT;
 
     const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
@@ -158,7 +152,7 @@ void main()
             float ior = hit_front ? material.ior : 1.0;
 
             // volume attenuation
-            payload.beta *= mix(vec3(1), payload.attenuation, clamp(gl_HitTEXT / payload.attenuation_distance, 0, 1));
+            payload.beta *= transmittance(payload.attenuation, payload.attenuation_distance, gl_HitTEXT);//mix(vec3(1), payload.attenuation, clamp(gl_HitTEXT / payload.attenuation_distance, 0, 1));
 
             payload.attenuation = hit_front ? material.attenuation_color.rgb : vec3(1);
             payload.attenuation_distance = material.attenuation_distance;
@@ -167,19 +161,16 @@ void main()
             // transmission/refraction
             float eta = payload.ior / ior;
             payload.ior = ior;
+
             payload.ray.direction = refract(gl_WorldRayDirectionEXT, H, eta);
 
-            // offset position along the normal
             payload.normal *= -1.0;
-            V *= -1.0;
-
-            // offset inside
-//            payload.ray.origin = payload.position + 0.0001 * payload.normal;
+            V = faceforward(V, gl_WorldRayDirectionEXT, payload.normal);
         }
         else
         {
             // diffuse reflection
-            payload.ray.direction = local_frame * sample_cosine(Xi);
+            payload.ray.direction = local_basis * sample_cosine(Xi);
         }
     }
     else
@@ -191,6 +182,7 @@ void main()
     // TODO: decide on recursion here
 //    payload.radiance += directLight(material) * payload.beta;
 
+    // TODO: figure this out for exit/refraction
     if(hit_front)
     {
         const float eps =  0.001;
