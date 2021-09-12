@@ -145,25 +145,36 @@ void main()
 
     // possible half-vector from GGX distribution
     vec3 H = local_frame * sample_GGX(Xi, roughness);
+    vec3 V = -gl_WorldRayDirectionEXT;
 
-    if(reflect_prob < diffuse_ratio)
+    const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
+
+    if(payload.inside_media || reflect_prob < diffuse_ratio)
     {
-        float transmission_prob = payload.ior < material.ior ? rng_float(rngState) : 1.0;
+        float transmission_prob = hit_front ? rng_float(rngState) : 0.0;
 
         if(transmission_prob < material.transmission)
         {
-            // entering or leaving a medium
-            float ior = payload.ior < material.ior ? material.ior : 1.0;
+            float ior = hit_front ? material.ior : 1.0;
 
-            // transmission
+            // volume attenuation
+            payload.beta *= mix(vec3(1), payload.attenuation, clamp(gl_HitTEXT / payload.attenuation_distance, 0, 1));
+
+            payload.attenuation = hit_front ? material.attenuation_color.rgb : vec3(1);
+            payload.attenuation_distance = material.attenuation_distance;
+            payload.inside_media = hit_front;
+
+            // transmission/refraction
             float eta = payload.ior / ior;
             payload.ior = ior;
+            payload.ray.direction = refract(gl_WorldRayDirectionEXT, H, eta);
 
             // offset position along the normal
             payload.normal *= -1.0;
-            payload.ray.origin = payload.position + 0.0001 * payload.normal;
+            V *= -1.0;
 
-            payload.ray.direction = refract(gl_WorldRayDirectionEXT, H, eta);
+            // offset inside
+//            payload.ray.origin = payload.position + 0.0001 * payload.normal;
         }
         else
         {
@@ -180,12 +191,15 @@ void main()
     // TODO: decide on recursion here
 //    payload.radiance += directLight(material) * payload.beta;
 
-    const float eps =  0.001;
-    float pdf = UE4Pdf(payload.ray.direction, payload.normal, -gl_WorldRayDirectionEXT, roughness, metalness);
-    float cosTheta = abs(dot(payload.normal, payload.ray.direction));
-    vec3 F = UE4Eval(payload.ray.direction, payload.normal, -gl_WorldRayDirectionEXT, color, roughness, metalness);
-    payload.beta *= F * cosTheta / (pdf + eps);
-    payload.pdf *= pdf;
+    if(hit_front)
+    {
+        const float eps =  0.001;
+        float pdf = UE4Pdf(payload.ray.direction, payload.normal, V, roughness, metalness);
+        float cosTheta = abs(dot(payload.normal, payload.ray.direction));
+        vec3 F = UE4Eval(payload.ray.direction, payload.normal, V, color, roughness, metalness);
+        payload.beta *= F * cosTheta / (pdf + eps);
+        payload.pdf *= pdf;
+    }
 
     // new rays won't contribute much
     if (all(lessThan(payload.beta, vec3(0.01)))){ payload.stop = true; }

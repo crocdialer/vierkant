@@ -123,6 +123,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     // emission
     if(tiny_mat.emissiveTexture.index >= 0)
     {
+        ret.emission = glm::vec3(0.f);
         ret.img_emission = image_cache.at(model.textures[tiny_mat.emissiveTexture.index].source);
     }
 
@@ -556,7 +557,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 geometry->colors.resize(geometry->vertices.size(), glm::vec4(1.f));
                 geometry->tex_coords.resize(geometry->vertices.size(), glm::vec2(0.f));
 
-                if(geometry->tangents.empty() && !geometry->normals.empty() && geometry->tex_coords.empty())
+                if(geometry->tangents.empty() && !geometry->normals.empty() && !geometry->tex_coords.empty())
                 {
                     geometry->compute_tangents();
                 }

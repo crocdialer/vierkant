@@ -59,6 +59,12 @@ struct payload_t
 
     // media refraction index
     float ior;
+
+    vec3 attenuation;
+
+    float attenuation_distance;
+
+    bool inside_media;
 };
 
 struct material_t
