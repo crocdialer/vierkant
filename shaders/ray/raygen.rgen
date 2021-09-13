@@ -81,7 +81,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         // assumes we start in air
         float ior = 1.0;
         vec3 attenuation = vec3(1.0);
-        float attenuation_distance = 1.0;
+        float attenuation_distance = FLOAT_MAX;
         bool inside_media = false;
 
         vec3 beta = vec3(1);

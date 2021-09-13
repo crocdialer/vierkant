@@ -80,7 +80,7 @@ vierkant::descriptor_map_t create_descriptors(const vk::DevicePtr &device)
                                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                              VMA_MEMORY_USAGE_CPU_ONLY);
     // fill Uniformbuffer
-    auto ubo = static_cast<UniformBuffer*>(uniform_buffer->map());
+    auto ubo = static_cast<UniformBuffer *>(uniform_buffer->map());
     ubo->model = glm::mat4(1);
     ubo->view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo->projection = glm::perspective(glm::radians(45.0f), 16 / 9.f, 0.1f, 10.0f);
@@ -99,7 +99,8 @@ vierkant::descriptor_map_t create_descriptors(const vk::DevicePtr &device)
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.image_samplers = {texture};
 
-    return {{0, desc_ubo}, {1, desc_texture}};
+    return {{0, desc_ubo},
+            {1, desc_texture}};
 }
 
 BOOST_AUTO_TEST_CASE(TestMesh_Constructor)
@@ -132,8 +133,8 @@ BOOST_AUTO_TEST_CASE(TestMesh)
         auto descriptor_set_layout = vk::create_descriptor_set_layout(device, descriptors);
 
         // construct a pool to hold enough descriptors for the mesh
-        vk::descriptor_count_t descriptor_counts ={{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
-                                                   {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
+        vk::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1},
+                                                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
 
         auto pool = vk::create_descriptor_pool(device, descriptor_counts, 16);
 
@@ -159,6 +160,15 @@ BOOST_AUTO_TEST_CASE(TestFormat)
     BOOST_CHECK_EQUAL(vk::format<glm::uvec2>(), VK_FORMAT_R32G32_UINT);
     BOOST_CHECK_EQUAL(vk::format<glm::uvec3>(), VK_FORMAT_R32G32B32_UINT);
     BOOST_CHECK_EQUAL(vk::format<glm::uvec4>(), VK_FORMAT_R32G32B32A32_UINT);
+
+    // only needed to satisfy freakin BOOST_CHECK_EQUAL
+    using u16vec2 = glm::vec<2, uint16_t>;
+    using u16vec3 = glm::vec<3, uint16_t>;
+    using u16vec4 = glm::vec<4, uint16_t>;
+
+    BOOST_CHECK_EQUAL(vk::format<u16vec2>(), VK_FORMAT_R16G16_UINT);
+    BOOST_CHECK_EQUAL(vk::format<u16vec3>(), VK_FORMAT_R16G16B16_UINT);
+    BOOST_CHECK_EQUAL(vk::format<u16vec4>(), VK_FORMAT_R16G16B16A16_UINT);
 }
 
 BOOST_AUTO_TEST_CASE(TestIndexType)

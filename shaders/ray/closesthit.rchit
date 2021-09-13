@@ -101,12 +101,12 @@ void main()
 
         // normal, tangent, bi-tangent
         vec3 b = normalize(cross(v.normal, v.tangent));
-        local_basis = mat3(v.tangent, b, v.normal);
-        payload.normal = local_basis * normal;
+        payload.normal = mat3(v.tangent, b, v.normal) * normal;
     }
 
     // flip the normal so it points against the ray direction:
     payload.normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
+    local_basis = local_frame(payload.normal);
 
     // max emission from material/map
     const float emission_tex_gain = 10.0;
@@ -152,7 +152,7 @@ void main()
             float ior = hit_front ? material.ior : 1.0;
 
             // volume attenuation
-            payload.beta *= transmittance(payload.attenuation, payload.attenuation_distance, gl_HitTEXT);//mix(vec3(1), payload.attenuation, clamp(gl_HitTEXT / payload.attenuation_distance, 0, 1));
+            payload.beta *= transmittance(payload.attenuation, payload.attenuation_distance, gl_HitTEXT);
 
             payload.attenuation = hit_front ? material.attenuation_color.rgb : vec3(1);
             payload.attenuation_distance = material.attenuation_distance;
@@ -162,6 +162,7 @@ void main()
             float eta = payload.ior / ior;
             payload.ior = ior;
 
+            // refraction into medium
             payload.ray.direction = refract(gl_WorldRayDirectionEXT, H, eta);
 
             payload.normal *= -1.0;
