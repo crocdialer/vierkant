@@ -63,4 +63,19 @@ struct mesh_assets_t
     std::vector <vierkant::nodes::node_animation_t> node_animations;
 };
 
+/**
+ * @brief   load_mesh can be used to load assets into gpu-buffers
+ *          and construct a vierkant::Mesh usable for gpu-operations.
+ *
+ * @param   device          handle to a vierkant::Device
+ * @param   mesh_assets     a struct grouping the assets to be extracted.
+ * @param   load_queue      the VkQueue that shall be used for required image-transfers.
+ * @param   buffer_flags    optionally pass additional buffer-flags for all created vierkant::Buffers.
+ * @return  a vierkant::MeshPtr, nullptr in case of failure.
+ */
+vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
+                            const vierkant::model::mesh_assets_t &mesh_assets,
+                            VkQueue load_queue,
+                            VkBufferUsageFlags buffer_flags);
+
 }// namespace vierkant::model
