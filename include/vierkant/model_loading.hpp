@@ -48,6 +48,7 @@ struct material_t
     crocore::ImagePtr img_ao_roughness_metal;
 
     crocore::ImagePtr img_thickness;
+    crocore::ImagePtr img_transmission;
 };
 
 struct mesh_assets_t

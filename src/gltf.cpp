@@ -29,6 +29,7 @@ constexpr char KHR_materials_ior[] = "KHR_materials_ior";
 
 // extension properties
 constexpr char ext_transmission_factor[] = "transmissionFactor";
+constexpr char ext_transmission_texture[] = "transmissionTexture";
 constexpr char ext_volume_thickness_factor[] = "thicknessFactor";
 constexpr char ext_volume_thickness_texture[] = "thicknessTexture";
 constexpr char ext_volume_attenuation_distance[] = "attenuationDistance";
@@ -173,6 +174,13 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             if(value.Has(ext_transmission_factor))
             {
                 ret.transmission = static_cast<float>(value.Get(ext_transmission_factor).GetNumberAsDouble());
+            }
+
+            if(value.Has(ext_transmission_texture))
+            {
+                const auto &transmission_texture_value = value.Get(ext_transmission_texture);
+                int tex_index = transmission_texture_value.Get("index").GetNumberAsInt();
+                ret.img_transmission = image_cache.at(model.textures[tex_index].source);
             }
         }
         else if(ext == KHR_materials_volume)

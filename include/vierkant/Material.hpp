@@ -26,7 +26,7 @@ public:
 
     enum TextureType
     {
-        Color, Normal, Specular, Ao_rough_metal, Emission, Displacement, Environment
+        Color, Normal, Specular, Ao_rough_metal, Emission, Displacement, Thickness, Transmission, Environment
     };
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };
@@ -41,7 +41,7 @@ public:
 
     float roughness = 1.f;
 
-    float ambient = 1.f;
+    float occlusion = 1.f;
 
     bool two_sided = false;
 

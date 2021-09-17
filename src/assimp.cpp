@@ -339,7 +339,7 @@ material_t create_material(const std::string &base_path,
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_AMBIENT, &c))
     {
-        // got rid of constant ambient
+        // got rid of constant occlusion
     }
 
     if(AI_SUCCESS == aiGetMaterialColor(mtl, AI_MATKEY_COLOR_EMISSIVE, &c))
@@ -468,10 +468,10 @@ material_t create_material(const std::string &base_path,
         material.emission = glm::vec4(0);
     }
 
-    // ambient occlusion or lightmap
+    // occlusion occlusion or lightmap
     if(AI_SUCCESS == mtl->GetTexture(aiTextureType(aiTextureType_LIGHTMAP), 0, &path_buf))
     {
-        LOG_TRACE << "adding ambient occlusion map: '" << path_buf.data << "'";
+        LOG_TRACE << "adding occlusion occlusion map: '" << path_buf.data << "'";
         ao_map_path = path_buf.data;
     }
 

@@ -88,9 +88,6 @@ void main()
 
     bool tangent_valid = any(greaterThan(abs(v.tangent), vec3(0.0)));
 
-    // local frame aka tbn-matrix
-    mat3 local_basis = local_frame(v.normal);
-
     if (tangent_valid)
     {
         // normalize after checking for validity
@@ -106,7 +103,9 @@ void main()
 
     // flip the normal so it points against the ray direction:
     payload.normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
-    local_basis = local_frame(payload.normal);
+
+    // local frame aka tbn-matrix
+    mat3 local_basis = local_frame(payload.normal);
 
     // max emission from material/map
     const float emission_tex_gain = 10.0;
@@ -143,6 +142,7 @@ void main()
 
     const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
 
+    // diffuse or transmission case. no internal reflections
     if(payload.inside_media || reflect_prob < diffuse_ratio)
     {
         float transmission_prob = hit_front ? rng_float(rngState) : 0.0;

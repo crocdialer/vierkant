@@ -649,63 +649,47 @@ void draw_material_ui(const MaterialPtr &material)
 {
     const float w = ImGui::GetContentRegionAvailWidth();
 
+    auto draw_texture = [&material, w](vierkant::Material::TextureType type, const std::string& text)
+    {
+        auto it = material->textures.find(type);
+
+        if(it != material->textures.end())
+        {
+            const auto &img = it->second;
+            ImVec2 sz(w, w / (img->width() / (float) img->height()));
+            ImGui::BulletText("%s (%d x %d)", text.c_str(), img->width(), img->height());
+            ImGui::Image((ImTextureID) (img.get()), sz);
+            ImGui::Separator();
+        }
+    };
+
     ImGui::BulletText("name: %s", material->name.c_str());
     ImGui::Separator();
 
     // base color
-    if(material->textures.count(vierkant::Material::TextureType::Color))
-    {
-        auto img = material->textures[vierkant::Material::TextureType::Color];
-        ImVec2 sz(w, w / (img->width() / (float) img->height()));
-        ImGui::BulletText("base color (%d x %d)", img->width(), img->height());
-        ImGui::Image((ImTextureID) (img.get()), sz);
-        ImGui::Separator();
-    }
-    else{ ImGui::ColorEdit4("base color", glm::value_ptr(material->color)); }
+    ImGui::ColorEdit4("base color", glm::value_ptr(material->color));
+    draw_texture(vierkant::Material::TextureType::Color, "base color");
 
     // emissive color
-    if(material->textures.count(vierkant::Material::TextureType::Emission))
-    {
-        auto img = material->textures[vierkant::Material::TextureType::Emission];
-        ImVec2 sz(w, w / (img->width() / (float) img->height()));
-        ImGui::BulletText("emission color (%d x %d)", img->width(), img->height());
-        ImGui::Image((ImTextureID) (img.get()), sz);
-        ImGui::Separator();
-    }
-    else{ ImGui::ColorEdit4("emission color", glm::value_ptr(material->emission)); }
+    ImGui::ColorEdit4("emission color", glm::value_ptr(material->emission));
+    draw_texture(vierkant::Material::TextureType::Emission, "emission");
 
     // normalmap
-    if(material->textures.count(vierkant::Material::TextureType::Normal))
-    {
-        auto img = material->textures[vierkant::Material::TextureType::Normal];
-        ImVec2 sz(w, w / (img->width() / (float) img->height()));
-        ImGui::BulletText("normals (%d x %d)", img->width(), img->height());
-        ImGui::Image((ImTextureID) (img.get()), sz);
-        ImGui::Separator();
-    }
+    draw_texture(vierkant::Material::TextureType::Normal, "normals");
 
     ImGui::Separator();
 
-    // ambient-occlusion / roughness / metalness
-    if(material->textures.count(vierkant::Material::TextureType::Ao_rough_metal))
-    {
-        auto img = material->textures[vierkant::Material::TextureType::Ao_rough_metal];
-        ImVec2 sz(w, w / (img->width() / (float) img->height()));
-        ImGui::BulletText("ambient-occlusion / roughness / metalness (%d x %d)", img->width(), img->height());
-        ImGui::Image((ImTextureID) (img.get()), sz);
-        ImGui::Separator();
-    }
-    else
-    {
-        // roughness
-        ImGui::SliderFloat("roughness", &material->roughness, 0.f, 1.f);
+    // roughness
+    ImGui::SliderFloat("roughness", &material->roughness, 0.f, 1.f);
 
-        // metalness
-        ImGui::SliderFloat("metalness", &material->metalness, 0.f, 1.f);
+    // metalness
+    ImGui::SliderFloat("metalness", &material->metalness, 0.f, 1.f);
 
-        // ambient occlusion
-        ImGui::SliderFloat("ambient occlusion", &material->ambient, 0.f, 1.f);
-    }
+    // occlusion
+    ImGui::SliderFloat("occlusion", &material->occlusion, 0.f, 1.f);
+
+    // occlusion-occlusion / roughness / metalness
+    draw_texture(vierkant::Material::TextureType::Ao_rough_metal, "occlusion / roughness / metalness");
 
     ImGui::Separator();
 
@@ -739,6 +723,7 @@ void draw_material_ui(const MaterialPtr &material)
 
     // transmission
     ImGui::SliderFloat("transmission", &material->transmission, 0.f, 1.f);
+    draw_texture(vierkant::Material::TextureType::Transmission, "transmission");
 
     // attenuation distance
     ImGui::InputFloat("attenuation distance", &material->attenuation_distance);
@@ -790,7 +775,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
 
             auto entry_name = e.name.empty() ? ("entry " + std::to_string(index)) : e.name;
 
-            if(ImGui::TreeNodeEx((void *) (mesh_id + index), 0, "%s", entry_name.c_str() ))
+            if(ImGui::TreeNodeEx((void *) (mesh_id + index), 0, "%s", entry_name.c_str()))
             {
                 std::stringstream ss;
                 ss << "vertices: " << std::to_string(e.num_vertices) << "\n";
