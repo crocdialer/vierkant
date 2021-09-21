@@ -26,19 +26,20 @@ struct material_t
     // deprecated !?
     glm::vec3 specular;
 
+    // transmission
+    float ior = 1.5f;
+    glm::vec3 attenuation_color = glm::vec3(1.f);
+
     // volumes
     float transmission = 0.f;
-    glm::vec3 attenuation_color = glm::vec3(1.f);
-    float attenuation_distance = 1.f;
-    float ior = 1.5f;
+    float attenuation_distance = std::numeric_limits<float>::infinity();
 
     // idk rasterizer only thingy
     float thickness = 1.f;
 
     vierkant::Material::BlendMode blend_mode = vierkant::Material::BlendMode::Opaque;
-    float alpha_cutoff = 1.f;
+    float alpha_cutoff = 0.5f;
 
-    bool wireframe = false;
     bool twosided = false;
 
     crocore::ImagePtr img_diffuse;
@@ -51,15 +52,24 @@ struct material_t
     crocore::ImagePtr img_transmission;
 };
 
+/**
+ * @brief   mesh_assets_t groups assets imported from a model-file.
+ */
 struct mesh_assets_t
 {
-    // per submesh
+    //! submesh entries
     std::vector <vierkant::Mesh::entry_create_info_t> entry_create_infos;
 
-    // global for mesh
+    //! common materials for all submeshes
     std::vector <material_t> materials;
 
-    vierkant::nodes::NodePtr root_bone, root_node;
+    //! node-hierarchy for submeshes
+    vierkant::nodes::NodePtr root_node;
+
+    //! optional bone node-hierarchy
+    vierkant::nodes::NodePtr root_bone;
+
+    //! optional array of animations defined for nodes
     std::vector <vierkant::nodes::node_animation_t> node_animations;
 };
 
