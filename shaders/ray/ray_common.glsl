@@ -1,3 +1,5 @@
+#extension GL_EXT_control_flow_attributes : require
+
 #include "../renderer/brdf.glsl"
 
 #define FLOAT_MAX 3.402823466e+38
@@ -98,6 +100,25 @@ struct push_constants_t
     uint random_seed;
 };
 
+// Generate a random unsigned int from two unsigned int values, using 16 pairs
+// of rounds of the Tiny Encryption Algorithm. See Zafar, Olano, and Curtis,
+// "GPU Random Numbers via the Tiny Encryption Algorithm"
+uint tea(uint val0, uint val1)
+{
+    uint v0 = val0;
+    uint v1 = val1;
+    uint s0 = 0;
+
+    [[unroll]]
+    for (uint n = 0; n < 16; n++)
+    {
+        s0 += 0x9e3779b9;
+        v0 += ((v1 << 4) + 0xa341316c) ^ (v1 + s0) ^ ((v1 >> 5) + 0xc8013ea4);
+        v1 += ((v0 << 4) + 0xad90777d) ^ (v0 + s0) ^ ((v0 >> 5) + 0x7e95761e);
+    }
+    return v0;
+}
+
 uint hash(uint x)
 {
     x = ((x >> 16) ^ x) * 0x45d9f3b;
@@ -114,8 +135,9 @@ void hash_combine(inout uint seed, uint v)
 //! helper to generate a seed
 uint rng_seed(uint seed)
 {
-    hash_combine(seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
-    return seed;
+//    hash_combine(seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
+//    return seed;
+    return tea(seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 }
 
 //! random number generation using pcg32i_random_t, using inc = 1. Our random state is a uint.

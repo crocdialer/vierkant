@@ -35,8 +35,11 @@ vec2 Hammersley(uint i, uint N)
  */
 mat3 local_frame(in vec3 normal)
 {
-    vec3 up = abs(normal.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
-    vec3 tangentX = normalize(cross(normal, up));
+//    vec3 up = abs(normal.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
+//    vec3 tangentX = normalize(cross(normal, up));
+//    vec3 tangentY = cross(normal, tangentX);
+    float len2 = dot(normal.xy, normal.xy);
+    vec3 tangentX = len2 > 0 ? vec3(-normal.y, normal.x, 0) / sqrt(len2) : vec3(1, 0, 0);
     vec3 tangentY = cross(normal, tangentX);
     return mat3(tangentX, tangentY, normal);
 }
@@ -62,6 +65,34 @@ vec3 sample_GGX(vec2 Xi, float roughness)
 
     // H
     return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
+}
+
+// Sample a half-vector in world space
+vec3 sample_GGX_VDNF(vec2 Xi, vec3 V, vec2 roughness)
+{
+    roughness = roughness * roughness;
+
+    // transform view-direction to hemisphere configuration
+    vec3 Vh = normalize(vec3(roughness * V.xy, V.z));
+
+    // orthonormal basis
+    mat3 basis = local_frame(Vh);
+
+    // parametrization of projected area
+    float phi = 2.0 * PI * Xi.x;
+    float r = sqrt(Xi.y);
+
+    float t1 = r * cos(phi);
+    float t2 = r * sin(phi);
+    float s = 0.5 * (1.0 + Vh.z);
+    t2 = (1.0 - s) * sqrt(1.0 - t1 * t1) + s * t2;
+
+    // reprojection onto hemisphere
+    vec3 Nh = t1 * basis[0] + t2 * basis[1] + sqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
+
+    // transforming normal back to ellipsoid configuration
+    vec3 Ne = normalize(vec3(roughness * Nh.xy, max(0.0, Nh.z)));
+    return Ne;
 }
 
 /*

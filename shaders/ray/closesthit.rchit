@@ -71,7 +71,7 @@ Vertex interpolate_vertex()
     // bring surfel into worldspace
     out_vert.position = (entry.modelview * vec4(out_vert.position, 1.0)).xyz;
     out_vert.normal = normalize((entry.normal_matrix * vec4(out_vert.normal, 1.0)).xyz);
-    out_vert.tangent = (entry.normal_matrix * vec4(out_vert.tangent, 1.0)).xyz;
+    out_vert.tangent = normalize((entry.normal_matrix * vec4(out_vert.tangent, 1.0)).xyz);
 
     return out_vert;
 }
@@ -129,16 +129,18 @@ void main()
     payload.ray.origin = payload.position;// + 0.0001 * payload.normal;
 
     // scatter ray direction
-    uint rngState = rng_seed(push_constants.random_seed);
+    uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
     vec2 Xi = vec2(rng_float(rngState), rng_float(rngState));
 
     // no diffuse rays for metal
     float diffuse_ratio = 0.5 * (1.0 - metalness);
     float reflect_prob = rng_float(rngState);
 
-    // possible half-vector from GGX distribution
-    vec3 H = local_basis * sample_GGX(Xi, roughness);
     vec3 V = -gl_WorldRayDirectionEXT;
+
+    // possible half-vector from GGX distribution
+//    vec3 H = local_basis * sample_GGX(Xi, roughness);
+    vec3 H = local_basis * sample_GGX_VDNF(Xi, V * local_basis, vec2(roughness));
 
     const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
 
