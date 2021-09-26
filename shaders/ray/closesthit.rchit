@@ -130,11 +130,11 @@ void main()
 
     // scatter ray direction
     uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
-    vec2 Xi = vec2(rng_float(rngState), rng_float(rngState));
+    vec2 Xi = vec2(rnd(rngState), rnd(rngState));
 
     // no diffuse rays for metal
     float diffuse_ratio = 0.5 * (1.0 - metalness);
-    float reflect_prob = rng_float(rngState);
+    float reflect_prob = rnd(rngState);
 
     vec3 V = -gl_WorldRayDirectionEXT;
 
@@ -147,7 +147,7 @@ void main()
     // diffuse or transmission case. no internal reflections
     if(payload.inside_media || reflect_prob < diffuse_ratio)
     {
-        float transmission_prob = hit_front ? rng_float(rngState) : 0.0;
+        float transmission_prob = hit_front ? rnd(rngState) : 0.0;
 
         if(transmission_prob < material.transmission)
         {
@@ -168,6 +168,9 @@ void main()
             payload.ray.direction = refract(gl_WorldRayDirectionEXT, H, eta);
 
             payload.normal *= -1.0;
+
+            // TODO: doesn't make any sense here
+//            V = reflect(payload.ray.direction, payload.normal);
             V = faceforward(V, gl_WorldRayDirectionEXT, payload.normal);
         }
         else
@@ -186,7 +189,7 @@ void main()
 //    payload.radiance += directLight(material) * payload.beta;
 
     // TODO: figure this out for exit/refraction
-    if(hit_front)
+//    if(hit_front)
     {
         const float eps =  0.001;
         float pdf = UE4Pdf(payload.ray.direction, payload.normal, V, roughness, metalness);

@@ -21,5 +21,6 @@ void main()
     payload.stop = true;
     payload.normal = vec3(0);
     payload.position = vec3(0);
-    payload.radiance += payload.beta * textureLod(u_sampler_cube, gl_WorldRayDirectionEXT, lod).rgb;
+//    payload.radiance += payload.beta * textureLod(u_sampler_cube, gl_WorldRayDirectionEXT, lod).rgb;
+    payload.radiance += payload.beta * texture(u_sampler_cube, gl_WorldRayDirectionEXT).rgb;
 }

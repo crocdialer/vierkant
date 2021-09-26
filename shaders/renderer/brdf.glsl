@@ -44,6 +44,7 @@ mat3 local_frame(in vec3 normal)
     return mat3(tangentX, tangentY, normal);
 }
 
+//! sample a Lambert-distribution
 vec3 sample_cosine(vec2 Xi)
 {
     float cosTheta = sqrt(max(1.0 - Xi.y, 0.0));
@@ -54,7 +55,7 @@ vec3 sample_cosine(vec2 Xi)
     return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
 }
 
-// Sample a half-vector in world space
+// sample a GGX-distribution
 vec3 sample_GGX(vec2 Xi, float roughness)
 {
     float a = roughness * roughness;
@@ -67,7 +68,7 @@ vec3 sample_GGX(vec2 Xi, float roughness)
     return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
 }
 
-// Sample a half-vector in world space
+// sample a 'GGX-distribution of visible normals' (from Eric Heitz, 2018)
 vec3 sample_GGX_VDNF(vec2 Xi, vec3 V, vec2 roughness)
 {
     roughness = roughness * roughness;

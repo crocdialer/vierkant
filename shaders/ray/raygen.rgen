@@ -43,15 +43,15 @@ trace_result_t trace(vec2 coord, vec2 size)
 {
     trace_result_t trace_result;
 
-    // State of the random number generator.
-    uint rngState = rng_seed(push_constants.random_seed);
+    // init random number generator.
+    uint rng_state = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 
     vec3 camera_position = (cam.viewInverse * vec4(0, 0, 0, 1)).xyz;
 
     // The sum of the colors of all of the samples.
     trace_result.radiance = vec3(0);
 
-    float sample_offset = rng_float(rngState);
+    float sample_offset = rnd(rng_state);
 
     // sample random dirctions around the pixel's center
     //           1
