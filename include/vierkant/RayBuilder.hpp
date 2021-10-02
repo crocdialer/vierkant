@@ -51,6 +51,14 @@ public:
 
         float ior = 1.5f;
 
+        float clearcoat_factor = 0.f;
+
+        float clearcoat_roughness_factor = 0.f;
+
+        float sheen_roughness = 0.f;
+
+        glm::vec4 sheen_color = glm::vec4(0.f);
+
         uint32_t texture_index = 0;
 
         uint32_t normalmap_index = 0;
@@ -59,7 +67,7 @@ public:
 
         uint32_t ao_rough_metal_index = 0;
 
-        int padding[3];
+//        int padding[0];
     };
 
     //! used for both bottom and toplevel acceleration-structures

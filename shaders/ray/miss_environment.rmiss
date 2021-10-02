@@ -4,6 +4,8 @@
 
 #include "ray_common.glsl"
 
+#define PI 3.1415926535897932384626433832795
+
 layout(binding = 11) uniform samplerCube u_sampler_cube;
 
 layout(location = 0) rayPayloadInEXT payload_t payload;

@@ -5,6 +5,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "ray_common.glsl"
+#include "bsdf_UE4.glsl"
 
 const uint MAX_NUM_ENTRIES = 1024;
 
@@ -116,7 +117,7 @@ void main()
 
     // modulate beta with albedo
     vec3 color = push_constants.disable_material ?
-        vec3(1) : material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
+    vec3(1) : material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
 
     // roughness / metalness
     vec2 rough_metal = texture(u_ao_rough_metal_maps[material.ao_rough_metal_index], v.tex_coord).gb;
@@ -139,17 +140,17 @@ void main()
     vec3 V = -gl_WorldRayDirectionEXT;
 
     // possible half-vector from GGX distribution
-//    vec3 H = local_basis * sample_GGX(Xi, roughness);
-    vec3 H = local_basis * sample_GGX_VDNF(Xi, V * local_basis, vec2(roughness));
+    //    vec3 H = local_basis * sample_GGX(Xi, roughness);
+    vec3 H = local_basis * sample_GGX_VNDF(Xi, V * local_basis, vec2(roughness));
 
     const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
 
     // diffuse or transmission case. no internal reflections
-    if(payload.inside_media || reflect_prob < diffuse_ratio)
+    if (payload.inside_media || reflect_prob < diffuse_ratio)
     {
         float transmission_prob = hit_front ? rnd(rngState) : 0.0;
 
-        if(transmission_prob < material.transmission)
+        if (transmission_prob < material.transmission)
         {
             float ior = hit_front ? material.ior : 1.0;
 
@@ -170,7 +171,7 @@ void main()
             payload.normal *= -1.0;
 
             // TODO: doesn't make any sense here
-//            V = reflect(payload.ray.direction, payload.normal);
+            //            V = reflect(payload.ray.direction, payload.normal);
             V = faceforward(V, gl_WorldRayDirectionEXT, payload.normal);
         }
         else
@@ -185,20 +186,19 @@ void main()
         payload.ray.direction = reflect(gl_WorldRayDirectionEXT, H);
     }
 
-    // TODO: decide on recursion here
-//    payload.radiance += directLight(material) * payload.beta;
 
-    // TODO: figure this out for exit/refraction
-//    if(hit_front)
+    bsdf_sample_t bsdf_sample = sample_UE4(payload.ray.direction, payload.normal, V, color, roughness, metalness);
+
+    if (bsdf_sample.pdf <= 0.0)
     {
-        const float eps =  0.001;
-        float pdf = UE4Pdf(payload.ray.direction, payload.normal, V, roughness, metalness);
-        float cosTheta = abs(dot(payload.normal, payload.ray.direction));
-        vec3 F = UE4Eval(payload.ray.direction, payload.normal, V, color, roughness, metalness);
-        payload.beta *= F * cosTheta / (pdf + eps);
-        payload.pdf *= pdf;
+        payload.stop = true;
+        return;
     }
+    float cos_theta = abs(dot(payload.normal, payload.ray.direction));
 
-    // new rays won't contribute much
-    if (all(lessThan(payload.beta, vec3(0.01)))){ payload.stop = true; }
+    payload.beta *= bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS);
+    payload.pdf = bsdf_sample.pdf;
+
+    //    // new rays won't contribute much
+    //    if (all(lessThan(payload.beta, vec3(0.01)))){ payload.stop = true; }
 }

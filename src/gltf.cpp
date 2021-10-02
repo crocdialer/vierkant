@@ -26,14 +26,28 @@ constexpr char KHR_materials_specular[] = "KHR_materials_specular";
 constexpr char KHR_materials_transmission[] = "KHR_materials_transmission";
 constexpr char KHR_materials_volume[] = "KHR_materials_volume";
 constexpr char KHR_materials_ior[] = "KHR_materials_ior";
+constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
+constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
 
-// extension properties
+// KHR_materials_transmission
 constexpr char ext_transmission_factor[] = "transmissionFactor";
 constexpr char ext_transmission_texture[] = "transmissionTexture";
 constexpr char ext_volume_thickness_factor[] = "thicknessFactor";
 constexpr char ext_volume_thickness_texture[] = "thicknessTexture";
+
+// KHR_materials_volume
 constexpr char ext_volume_attenuation_distance[] = "attenuationDistance";
 constexpr char ext_volume_attenuation_color[] = "attenuationColor";
+
+// KHR_materials_clearcoat
+constexpr char ext_clearcoat_factor[] = "clearcoatFactor";
+constexpr char ext_clearcoat_roughness_factor[] = "clearcoatRoughnessFactor";
+
+// KHR_materials_sheen
+constexpr char ext_sheen_color_factor[] = "sheenColorFactor";
+constexpr char ext_sheen_color_texture[] = "sheenColorTexture";
+constexpr char ext_sheen_roughness_factor[] = "sheenRoughnessFactor";
+constexpr char ext_sheen_roughness_texture[] = "sheenRoughnessTexture";
 
 // animation targets
 constexpr char animation_target_translation[] = "translation";
@@ -216,6 +230,44 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             if(value.Has("ior"))
             {
                 ret.ior = static_cast<float>(value.Get("ior").GetNumberAsDouble());
+            }
+        }
+        else if(ext == KHR_materials_clearcoat)
+        {
+            if(value.Has(ext_clearcoat_factor))
+            {
+                ret.clearcoat_factor = static_cast<float>(value.Get(ext_clearcoat_factor).GetNumberAsDouble());
+            }
+            if(value.Has(ext_clearcoat_roughness_factor))
+            {
+                ret.clearcoat_roughness_factor = static_cast<float>(value.Get(
+                        ext_clearcoat_roughness_factor).GetNumberAsDouble());
+            }
+        }
+        else if(ext == KHR_materials_sheen)
+        {
+            if(value.Has(ext_sheen_color_factor))
+            {
+                const auto &sheen_value = value.Get(ext_sheen_color_factor);
+                ret.sheen_color = glm::dvec3(sheen_value.Get(0).GetNumberAsDouble(),
+                                             sheen_value.Get(1).GetNumberAsDouble(),
+                                             sheen_value.Get(2).GetNumberAsDouble());
+            }
+            if(value.Has(ext_sheen_roughness_factor))
+            {
+                ret.sheen_roughness = static_cast<float>(value.Get(ext_sheen_roughness_factor).GetNumberAsDouble());
+            }
+            if(value.Has(ext_sheen_color_texture))
+            {
+                const auto &sheen_color_texture_value = value.Get(ext_sheen_color_texture);
+                int tex_index = sheen_color_texture_value.Get("index").GetNumberAsInt();
+                ret.img_sheen_color = image_cache.at(model.textures[tex_index].source);
+            }
+            if(value.Has(ext_sheen_roughness_texture))
+            {
+                const auto &sheen_roughness_texture_value = value.Get(ext_sheen_roughness_texture);
+                int tex_index = sheen_roughness_texture_value.Get("index").GetNumberAsInt();
+                ret.img_sheen_roughness = image_cache.at(model.textures[tex_index].source);
             }
         }
     }

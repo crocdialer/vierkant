@@ -1,6 +1,19 @@
 #define PI 3.1415926535897932384626433832795
 #define ONE_OVER_PI 0.31830988618379067153776752674503
 
+//! simple struct to group results from a bsdf-sample
+struct bsdf_sample_t
+{
+    // reflect/refract direction
+    vec3 direction;
+
+    //
+    vec3 F;
+
+    // probability density
+    float pdf;
+};
+
 //! random point on a unit-disc
 vec2 sample_unit_disc(vec2 Xi)
 {
@@ -21,13 +34,6 @@ vec3 sample_unit_sphere(vec2 Xi)
 
     const float r = sqrt(1.0 - u * u);
     return vec3(r * cos(theta), r * sin(theta), u);
-}
-
-//! return a Hammersley point in range [0, 1]
-vec2 Hammersley(uint i, uint N)
-{
-    float vdc = float(bitfieldReverse(i)) * 2.3283064365386963e-10; // Van der Corput
-    return vec2(float(i) / float(N), vdc);
 }
 
 /*
@@ -58,6 +64,7 @@ vec3 sample_cosine(vec2 Xi)
 // sample a GGX-distribution
 vec3 sample_GGX(vec2 Xi, float roughness)
 {
+//    float a = max(0.001, roughness);
     float a = roughness * roughness;
 
     float phi = 2.0 * PI * Xi.x;
@@ -69,9 +76,9 @@ vec3 sample_GGX(vec2 Xi, float roughness)
 }
 
 // sample a 'GGX-distribution of visible normals' (from Eric Heitz, 2018)
-vec3 sample_GGX_VDNF(vec2 Xi, vec3 V, vec2 roughness)
+vec3 sample_GGX_VNDF(vec2 Xi, vec3 V, vec2 roughness)
 {
-    roughness = roughness * roughness;
+//    roughness = roughness * roughness;
 
     // transform view-direction to hemisphere configuration
     vec3 Vh = normalize(vec3(roughness * V.xy, V.z));
@@ -106,6 +113,22 @@ float SchlickFresnel(float u)
     return m * m * m * m * m; // power of 5
 }
 
+float DielectricFresnel(float cos_theta_i, float eta)
+{
+    float sinThetaTSq = eta * eta * (1.0f - cos_theta_i * cos_theta_i);
+
+    // Total internal reflection
+    if (sinThetaTSq > 1.0)
+    return 1.0;
+
+    float cos_theta_t = sqrt(max(1.0 - sinThetaTSq, 0.0));
+
+    float rs = (eta * cos_theta_t - cos_theta_i) / (eta * cos_theta_t + cos_theta_i);
+    float rp = (eta * cos_theta_i - cos_theta_t) / (eta * cos_theta_i + cos_theta_t);
+
+    return 0.5f * (rs * rs + rp * rp);
+}
+
 /*
  * Generalized-Trowbridge-Reitz (D)
  * Describes differential area of microfacets for the surface normal
@@ -127,41 +150,7 @@ float SmithGGX(float NDotv, float alphaG)
     return 1.0 / (NDotv + sqrt(a + b - a * b));
 }
 
-//
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//
-//vec3 BRDF_Lambertian(vec3 color, float metalness)
-//{
-//	return mix(color, vec3(0.0), metalness) * ONE_OVER_PI;
-//}
-//
-//// Schlick's fresnel approximation
-//vec3 F_schlick(vec3 f0, float u)
-//{
-//    return f0 + (vec3(1.0) - f0) * pow(1.0 - u, 5.0);
-//}
-//
-//float Vis_schlick(float ndotl, float ndotv, float roughness)
-//{
-//	// = G_Schlick / (4 * ndotv * ndotl)
-//	float a = roughness + 1.0;
-//	float k = a * a * 0.125;
-//
-//	float Vis_SchlickV = ndotv * (1 - k) + k;
-//	float Vis_SchlickL = ndotl * (1 - k) + k;
-//
-//	return 0.25 / (Vis_SchlickV * Vis_SchlickL);
-//}
-//
-//float D_GGX(float NoH, float roughness)
-//{
-//	float a = roughness * roughness;
-//	float a2 = a * a;
-//	float denom = NoH * NoH * (a2 - 1.0) + 1.0;
-//	denom = 1.0 / (denom * denom);
-//	return a2 * denom * ONE_OVER_PI;
-//}
-//
 //vec4 shade(in lightsource_t light, in vec3 normal, in vec3 eyeVec, in vec4 base_color,
 //           float roughness, float metalness, float shade_factor)
 //{

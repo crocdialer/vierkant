@@ -42,6 +42,14 @@ struct material_t
 
     bool twosided = false;
 
+    // clearcoat
+    float clearcoat_factor = 0.f;
+    float clearcoat_roughness_factor = 0.f;
+
+    // sheen
+    glm::vec3 sheen_color = glm::vec3(0.f);
+    float sheen_roughness = 0.f;
+
     crocore::ImagePtr img_diffuse;
     crocore::ImagePtr img_emission;
 
@@ -50,6 +58,11 @@ struct material_t
 
     crocore::ImagePtr img_thickness;
     crocore::ImagePtr img_transmission;
+
+    crocore::ImagePtr img_clearcoat;
+
+    crocore::ImagePtr img_sheen_color;
+    crocore::ImagePtr img_sheen_roughness;
 };
 
 /**
