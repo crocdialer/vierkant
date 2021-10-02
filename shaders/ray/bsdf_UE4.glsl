@@ -74,8 +74,8 @@ bsdf_sample_t sample_UE4(in vec3 N,
 
     // possible half-vector from (visible) GGX distribution
     // take V into local_basis (mutliplied by transpose)
-//    vec3 H = local_basis * sample_GGX_VNDF(Xi, V * local_basis, vec2(roughness));
-    vec3 H = local_basis * sample_GGX(Xi, roughness);
+    vec3 H = local_basis * sample_GGX_VNDF(Xi, V * local_basis, vec2(roughness));
+//    vec3 H = local_basis * sample_GGX(Xi, roughness);
 
     // no diffuse rays for metal
     float diffuse_ratio = 0.5 * (1.0 - metalness);

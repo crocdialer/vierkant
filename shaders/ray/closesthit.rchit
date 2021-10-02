@@ -6,8 +6,8 @@
 
 #include "ray_common.glsl"
 
-#include "bsdf_UE4.glsl"
-//#include "bsdf_disney.glsl"
+//#include "bsdf_UE4.glsl"
+#include "bsdf_disney.glsl"
 
 const uint MAX_NUM_ENTRIES = 1024;
 
@@ -137,18 +137,24 @@ void main()
 
     const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
 
-    float ior = hit_front ? material.ior : 1.0;
-    float eta = payload.ior / ior;
-    payload.ior = ior;
+//    float ior = hit_front ? material.ior : 1.0;
+    float eta = hit_front ? 1.0 / material.ior : material.ior;
+//    payload.ior = ior;
 
-    bsdf_sample_t bsdf_sample = sample_UE4(payload.normal, V, material.color.rgb, material.roughness,
-                                           material.metalness, rngState);
+//    bsdf_sample_t bsdf_sample = sample_UE4(payload.normal, V, material.color.rgb, material.roughness,
+//                                           material.metalness, rngState);
 
-//    bsdf_sample_t bsdf_sample = sample_disney(material, payload.normal, V, eta, rngState);
+    bsdf_sample_t bsdf_sample = sample_disney(material, payload.normal, V, eta, rngState);
 
     payload.ray.direction = bsdf_sample.direction;
 
     float cos_theta = abs(dot(payload.normal, payload.ray.direction));
+
+    if (bsdf_sample.pdf <= 0.0)
+    {
+        payload.stop = true;
+        return;
+    }
 
     payload.beta *= bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS);
     payload.pdf = bsdf_sample.pdf;
@@ -156,10 +162,6 @@ void main()
     if (dot(payload.normal, payload.ray.direction) < 0.0)
         payload.absorption = -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS);
 
-    if (bsdf_sample.pdf <= 0.0)
-    {
-        payload.stop = true;
-    }
     //    // new rays won't contribute much
     //    if (all(lessThan(payload.beta, vec3(0.01)))){ payload.stop = true; }
 }

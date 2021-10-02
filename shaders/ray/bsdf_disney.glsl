@@ -135,14 +135,17 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
     ret.pdf = 0.0;
     ret.F = vec3(0.0);
 
-    // TODO: missing params
-    vec3 specularTint = vec3(1.0);
+//    // TODO: missing params
+//    vec3 specularTint = vec3(1.0);
 
     float diffuseRatio = 0.5 * (1.0 - material.metalness);
-    float transWeight = 0.0;//(1.0 - material.metalness) * material.transmission;
+    float transWeight = (1.0 - material.metalness) * material.transmission;
 
-    vec3 Cdlin = material.color.rgb;
-    float Cdlum = 0.3 * Cdlin.x + 0.6 * Cdlin.y + 0.1 * Cdlin.z; // luminance approx.
+    material.roughness = max(0.001, material.roughness);
+    material.sheen_roughness = max(0.001, material.sheen_roughness);
+
+//    vec3 Cdlin = material.color.rgb;
+//    float Cdlum = 0.3 * Cdlin.x + 0.6 * Cdlin.y + 0.1 * Cdlin.z; // luminance approx.
 
 //    vec3 Ctint = Cdlum > 0.0 ? Cdlin / Cdlum : vec3(1.0f); // normalize lum. to isolate hue+sat
 //    vec3 Cspec0 = mix(/*material.color.w * */ 0.08 * mix(vec3(1.0), Ctint, specularTint), Cdlin, material.metalness);
@@ -165,7 +168,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         float F = DielectricFresnel(abs(dot(R, H)), eta);
 
         // Reflection/Total internal reflection
-        if (Xi.y < F)
+        if (rnd(rng_state) < F)
         {
             ret.direction = normalize(R);
             ret.F = EvalDielectricReflection(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);
@@ -208,8 +211,8 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
 //                vec3 H = ImportanceSampleGTR1(mix(0.1, 0.001, material.clearcoat_factor), r1, r2);
 //                H = frame * H;
 
-                H = frame * sample_GGX(Xi, material.clearcoat_roughness);
-//                H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.clearcoat_roughness));
+//                H = frame * sample_GGX(Xi, material.clearcoat_roughness);
+                H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.clearcoat_roughness));
                 if (dot(V, H) < 0.0){ H = -H; }
 
                 ret.direction = normalize(reflect(-V, H));
