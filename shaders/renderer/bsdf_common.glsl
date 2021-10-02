@@ -12,6 +12,9 @@ struct bsdf_sample_t
 
     // probability density
     float pdf;
+
+    // sample passed through a surface
+    bool transmission;
 };
 
 //! random point on a unit-disc

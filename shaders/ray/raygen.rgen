@@ -85,7 +85,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         bool inside_media = false;
 
         vec3 beta = vec3(1);
-        float pdf = FLOAT_MAX;
+        float pdf = 1.0;
         vec3 path_radiance = vec3(0);
 
         // trace a path
@@ -100,7 +100,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.pdf = pdf;
             payload.ray = ray;
 
-            const uint ray_flags = gl_RayFlagsOpaqueEXT ;//| (inside_media ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
+            const uint ray_flags = gl_RayFlagsOpaqueEXT | (inside_media ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
 
             // trace one ray
             traceRayEXT(topLevelAS,     // acceleration structure

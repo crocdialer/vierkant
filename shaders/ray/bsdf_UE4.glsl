@@ -67,6 +67,8 @@ bsdf_sample_t sample_UE4(in vec3 N,
 {
     bsdf_sample_t ret;
 
+    ret.transmission = false;
+
     // local coordinate-frame
     mat3 local_basis = local_frame(N);
 

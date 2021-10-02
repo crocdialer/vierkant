@@ -134,9 +134,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
     bsdf_sample_t ret;
     ret.pdf = 0.0;
     ret.F = vec3(0.0);
-
-//    // TODO: missing params
-//    vec3 specularTint = vec3(1.0);
+    ret.transmission = false;
 
     float diffuseRatio = 0.5 * (1.0 - material.metalness);
     float transWeight = (1.0 - material.metalness) * material.transmission;
@@ -157,9 +155,8 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
     vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
 
     // possible half-vector from GGX distribution
-//    vec3 H = frame * sample_GGX(Xi, material.roughness);
-    vec3 H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
-
+    vec3 H = frame * sample_GGX(Xi, material.roughness);
+//    vec3 H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
     if (dot(V, H) < 0.0){ H = -H; }
 
     if (rnd(rng_state) < transWeight)
@@ -177,6 +174,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         {
             ret.direction = normalize(refract(-V, H, eta));
             ret.F = EvalDielectricRefraction(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);
+            ret.transmission = true;
         }
 
         ret.F *= transWeight;
@@ -201,6 +199,9 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
             // Sample primary specular lobe
             if (rnd(rng_state) < primarySpecRatio)
             {
+                vec3 H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
+                if (dot(V, H) < 0.0){ H = -H; }
+
                 ret.direction = normalize(reflect(-V, H));
 
                 ret.F = EvalSpecular(material.roughness, spec_color, V, N, ret.direction, H, ret.pdf);
