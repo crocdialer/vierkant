@@ -2,6 +2,7 @@
 #extension GL_EXT_ray_tracing : enable
 #extension GL_GOOGLE_include_directive : enable
 
+#include "../utils/random.glsl"
 #include "ray_common.glsl"
 
 #define RADIANCE 0
@@ -80,8 +81,7 @@ trace_result_t trace(vec2 coord, vec2 size)
 
         // assumes we start in air
         float ior = 1.0;
-        vec3 attenuation = vec3(1.0);
-        float attenuation_distance = FLOAT_MAX;
+        vec3 absorption = vec3(0);
         bool inside_media = false;
 
         vec3 beta = vec3(1);
@@ -95,13 +95,12 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.radiance = path_radiance;
             payload.beta = beta;
             payload.ior = ior;
-            payload.attenuation = attenuation;
-            payload.attenuation_distance = attenuation_distance;
+            payload.absorption = absorption;
             payload.inside_media = inside_media;
             payload.pdf = pdf;
             payload.ray = ray;
 
-            const uint ray_flags = gl_RayFlagsOpaqueEXT | (inside_media ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
+            const uint ray_flags = gl_RayFlagsOpaqueEXT ;//| (inside_media ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
 
             // trace one ray
             traceRayEXT(topLevelAS,     // acceleration structure
@@ -119,8 +118,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             ray = payload.ray;
             beta = payload.beta;
             ior = payload.ior;
-            attenuation = payload.attenuation;
-            attenuation_distance = payload.attenuation_distance;
+            absorption = payload.absorption;
             inside_media = payload.inside_media;
             pdf = payload.pdf;
             path_radiance = payload.radiance;

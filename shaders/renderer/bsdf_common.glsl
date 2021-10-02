@@ -131,6 +131,20 @@ float DielectricFresnel(float cos_theta_i, float eta)
 
 /*
  * Generalized-Trowbridge-Reitz (D)
+ */
+float GTR1(float NDotH, float a)
+{
+    if (a >= 1.0)
+    return (1.0 / PI);
+
+    float a2 = a * a;
+    float t = 1.0 + (a2 - 1.0) * NDotH * NDotH;
+
+    return (a2 - 1.0) / (PI * log(a2) * t);
+}
+
+/*
+ * Generalized-Trowbridge-Reitz (D)
  * Describes differential area of microfacets for the surface normal
  */
 float GTR2(float NDotH, float a)
@@ -148,6 +162,21 @@ float SmithGGX(float NDotv, float alphaG)
     float a = alphaG * alphaG;
     float b = NDotv * NDotv;
     return 1.0 / (NDotv + sqrt(a + b - a * b));
+}
+
+/*
+ * Power heuristic often reduces variance even further for multiple importance sampling
+ * Chapter 13.10.1 of pbrbook
+ */
+float powerHeuristic(float a, float b)
+{
+    float t = a * a;
+    return t / (b * b + t);
+}
+
+vec3 transmittance(vec3 attenuation_color, float attenuation_distance, float distance)
+{
+    return exp(log(attenuation_color) / attenuation_distance * distance);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

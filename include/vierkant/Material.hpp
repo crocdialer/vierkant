@@ -26,7 +26,18 @@ public:
 
     enum TextureType
     {
-        Color, Normal, Specular, Ao_rough_metal, Emission, Displacement, Thickness, Transmission, Environment
+        Color,
+        Normal,
+        Specular,
+        Ao_rough_metal,
+        Emission,
+        Displacement,
+        Thickness,
+        Transmission,
+        Clearcoat,
+        SheenColor,
+        SheenRoughness,
+        Environment
     };
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };
@@ -56,6 +67,14 @@ public:
     float attenuation_distance = std::numeric_limits<float>::infinity();
 
     float ior = 1.5f;
+
+    float clearcoat_factor = 0.f;
+
+    float clearcoat_roughness_factor = 0.f;
+
+    glm::vec3 sheen_color = glm::vec3(0.f);
+
+    float sheen_roughness = 0.f;
 
     bool depth_test = true;
 

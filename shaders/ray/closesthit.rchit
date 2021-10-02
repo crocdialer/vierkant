@@ -5,7 +5,9 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "ray_common.glsl"
+
 #include "bsdf_UE4.glsl"
+//#include "bsdf_disney.glsl"
 
 const uint MAX_NUM_ENTRIES = 1024;
 
@@ -105,100 +107,59 @@ void main()
     // flip the normal so it points against the ray direction:
     payload.normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
 
-    // local frame aka tbn-matrix
-    mat3 local_basis = local_frame(payload.normal);
-
     // max emission from material/map
     const float emission_tex_gain = 10.0;
-    vec3 emission = max(material.emission.rgb, emission_tex_gain * texture(u_emissionmaps[material.emission_index], v.tex_coord).rgb);
+    material.emission.rgb = max(material.emission.rgb,
+                                emission_tex_gain * texture(u_emissionmaps[material.emission_index], v.tex_coord).rgb);
+
+    // absorption in media
+    payload.beta *= exp(-payload.absorption * gl_HitTEXT);
+    payload.absorption = vec3(0);
 
     // add radiance from emission
-    payload.radiance += payload.beta * emission;
+    payload.radiance += payload.beta * material.emission.rgb;
 
     // modulate beta with albedo
-    vec3 color = push_constants.disable_material ?
-    vec3(1) : material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
+    material.color.rgb = push_constants.disable_material ?
+        vec3(1) : material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
 
     // roughness / metalness
-    vec2 rough_metal = texture(u_ao_rough_metal_maps[material.ao_rough_metal_index], v.tex_coord).gb;
-    float roughness = material.roughness * rough_metal.x;
-    float metalness = material.metalness * rough_metal.y;
+    vec2 rough_metal_tex = texture(u_ao_rough_metal_maps[material.ao_rough_metal_index], v.tex_coord).gb;
+    material.roughness *= rough_metal_tex.x;
+    material.metalness *= rough_metal_tex.y;
 
-    // generate a bounce ray
+    // next ray from current position
+    payload.ray.origin = payload.position;
 
-    // offset position along the normal
-    payload.ray.origin = payload.position;// + 0.0001 * payload.normal;
-
-    // scatter ray direction
     uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
-    vec2 Xi = vec2(rnd(rngState), rnd(rngState));
-
-    // no diffuse rays for metal
-    float diffuse_ratio = 0.5 * (1.0 - metalness);
-    float reflect_prob = rnd(rngState);
 
     vec3 V = -gl_WorldRayDirectionEXT;
 
-    // possible half-vector from GGX distribution
-    //    vec3 H = local_basis * sample_GGX(Xi, roughness);
-    vec3 H = local_basis * sample_GGX_VNDF(Xi, V * local_basis, vec2(roughness));
-
     const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
 
-    // diffuse or transmission case. no internal reflections
-    if (payload.inside_media || reflect_prob < diffuse_ratio)
-    {
-        float transmission_prob = hit_front ? rnd(rngState) : 0.0;
+    float ior = hit_front ? material.ior : 1.0;
+    float eta = payload.ior / ior;
+    payload.ior = ior;
 
-        if (transmission_prob < material.transmission)
-        {
-            float ior = hit_front ? material.ior : 1.0;
+    bsdf_sample_t bsdf_sample = sample_UE4(payload.normal, V, material.color.rgb, material.roughness,
+                                           material.metalness, rngState);
 
-            // volume attenuation
-            payload.beta *= transmittance(payload.attenuation, payload.attenuation_distance, gl_HitTEXT);
+//    bsdf_sample_t bsdf_sample = sample_disney(material, payload.normal, V, eta, rngState);
 
-            payload.attenuation = hit_front ? material.attenuation_color.rgb : vec3(1);
-            payload.attenuation_distance = material.attenuation_distance;
-            payload.inside_media = hit_front;
+    payload.ray.direction = bsdf_sample.direction;
 
-            // transmission/refraction
-            float eta = payload.ior / ior;
-            payload.ior = ior;
-
-            // refraction into medium
-            payload.ray.direction = refract(gl_WorldRayDirectionEXT, H, eta);
-
-            payload.normal *= -1.0;
-
-            // TODO: doesn't make any sense here
-            //            V = reflect(payload.ray.direction, payload.normal);
-            V = faceforward(V, gl_WorldRayDirectionEXT, payload.normal);
-        }
-        else
-        {
-            // diffuse reflection
-            payload.ray.direction = local_basis * sample_cosine(Xi);
-        }
-    }
-    else
-    {
-        // surface/glossy reflection
-        payload.ray.direction = reflect(gl_WorldRayDirectionEXT, H);
-    }
-
-
-    bsdf_sample_t bsdf_sample = sample_UE4(payload.ray.direction, payload.normal, V, color, roughness, metalness);
-
-    if (bsdf_sample.pdf <= 0.0)
-    {
-        payload.stop = true;
-        return;
-    }
     float cos_theta = abs(dot(payload.normal, payload.ray.direction));
 
     payload.beta *= bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS);
     payload.pdf = bsdf_sample.pdf;
 
+    if (dot(payload.normal, payload.ray.direction) < 0.0)
+        payload.absorption = -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS);
+
+    if (bsdf_sample.pdf <= 0.0)
+    {
+        payload.stop = true;
+    }
     //    // new rays won't contribute much
     //    if (all(lessThan(payload.beta, vec3(0.01)))){ payload.stop = true; }
 }

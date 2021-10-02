@@ -388,8 +388,12 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             material.metalness = mesh_material->metalness;
             material.transmission = mesh_material->transmission;
             material.ior = mesh_material->ior;
-            material.attenuation_color = {mesh_material->attenuation_color, 1.f};
             material.attenuation_distance = mesh_material->attenuation_distance;
+            material.attenuation_color = {mesh_material->attenuation_color, 0.f};
+            material.clearcoat_factor = mesh_material->clearcoat_factor;
+            material.clearcoat_roughness_factor = mesh_material->clearcoat_roughness_factor;
+            material.sheen_color = {mesh_material->sheen_color, 0.f};
+            material.sheen_roughness = mesh_material->sheen_roughness;
 
             if(mesh_material->textures.count(vierkant::Material::TextureType::Color))
             {
