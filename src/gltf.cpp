@@ -29,6 +29,11 @@ constexpr char KHR_materials_ior[] = "KHR_materials_ior";
 constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
 constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
 
+// KHR_materials_specular
+constexpr char ext_specular_color_factor[] = "specularColorFactor";
+constexpr char ext_specular_color_textures[] = "specularColorTexture";
+constexpr char ext_specular_factor[] = "specularFactor";
+
 // KHR_materials_transmission
 constexpr char ext_transmission_factor[] = "transmissionFactor";
 constexpr char ext_transmission_texture[] = "transmissionTexture";
@@ -183,7 +188,11 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
 
     for(const auto&[ext, value] : tiny_mat.extensions)
     {
-        if(ext == KHR_materials_transmission)
+        if(ext == KHR_materials_specular)
+        {
+
+        }
+        else if(ext == KHR_materials_transmission)
         {
             if(value.Has(ext_transmission_factor))
             {

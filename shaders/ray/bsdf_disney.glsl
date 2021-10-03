@@ -165,7 +165,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         float F = DielectricFresnel(abs(dot(R, H)), eta);
 
         // Reflection/Total internal reflection
-        if (rnd(rng_state) < F)
+        if (Xi.y < F)
         {
             ret.direction = normalize(R);
             ret.F = EvalDielectricReflection(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);

@@ -138,8 +138,10 @@ void main()
 //    const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
 
 //    float ior = hit_front ? material.ior : 1.0;
-    float eta = payload.inside_media ? payload.ior / material.ior : material.ior;
-//    payload.ior = ior;
+    float eta = payload.inside_media ? 1.0 / material.ior : material.ior;
+    eta += EPS;
+
+//    payload.ior = material.ior;
 
 //    bsdf_sample_t bsdf_sample = sample_UE4(payload.normal, V, material.color.rgb, material.roughness,
 //                                           material.metalness, rngState);
@@ -160,8 +162,9 @@ void main()
     payload.pdf *= bsdf_sample.pdf;
     payload.inside_media = bsdf_sample.transmission ? !payload.inside_media : payload.inside_media;
 
-    if (dot(payload.normal, payload.ray.direction) < 0.0)
-        payload.absorption = -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS);
+//    if (dot(payload.normal, payload.ray.direction) < 0.0)
+    payload.absorption = payload.inside_media ?
+                         -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS) : vec3(0);
 
     //    // new rays won't contribute much
     //    if (all(lessThan(payload.beta, vec3(0.01)))){ payload.stop = true; }
