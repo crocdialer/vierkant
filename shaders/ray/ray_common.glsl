@@ -1,7 +1,7 @@
 #define FLOAT_MAX 3.402823466e+38
 #define FLOAT_MIN 1.175494351e-38
 
-#define EPS 0.001
+#define EPS 0.0001
 
 struct Ray
 {

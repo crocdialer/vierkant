@@ -30,9 +30,10 @@ constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
 constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
 
 // KHR_materials_specular
-constexpr char ext_specular_color_factor[] = "specularColorFactor";
-constexpr char ext_specular_color_textures[] = "specularColorTexture";
 constexpr char ext_specular_factor[] = "specularFactor";
+constexpr char ext_specular_color_factor[] = "specularColorFactor";
+constexpr char ext_specular_texture[] = "specularTexture";
+constexpr char ext_specular_color_texture[] = "specularColorTexture";
 
 // KHR_materials_transmission
 constexpr char ext_transmission_factor[] = "transmissionFactor";
@@ -190,7 +191,33 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     {
         if(ext == KHR_materials_specular)
         {
+            if(value.Has(ext_specular_factor))
+            {
+                const auto &specular_factor_value = value.Get(ext_specular_factor);
+                ret.specular_factor = static_cast<float>(specular_factor_value.GetNumberAsDouble());
+            }
 
+            if(value.Has(ext_specular_color_factor))
+            {
+                const auto &specular_color_value = value.Get(ext_specular_color_factor);
+                ret.specular_color_factor = glm::dvec3(specular_color_value.Get(0).GetNumberAsDouble(),
+                                                       specular_color_value.Get(1).GetNumberAsDouble(),
+                                                       specular_color_value.Get(2).GetNumberAsDouble());
+            }
+
+            if(value.Has(ext_specular_texture))
+            {
+                const auto &specular_texture_value = value.Get(ext_specular_texture);
+                int tex_index = specular_texture_value.Get("index").GetNumberAsInt();
+                ret.img_specular = image_cache.at(model.textures[tex_index].source);
+            }
+
+            if(value.Has(ext_specular_color_texture))
+            {
+                const auto &specular_color_texture_value = value.Get(ext_specular_color_texture);
+                int tex_index = specular_color_texture_value.Get("index").GetNumberAsInt();
+                ret.img_specular_color = image_cache.at(model.textures[tex_index].source);
+            }
         }
         else if(ext == KHR_materials_transmission)
         {

@@ -84,7 +84,7 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom)
 
 void Geometry::compute_face_normals()
 {
-    if(indices.empty()) return;
+    if(indices.empty()){ return; }
 
     normals.resize(vertices.size());
 
@@ -102,7 +102,7 @@ void Geometry::compute_face_normals()
 
 void Geometry::compute_vertex_normals()
 {
-    if(indices.size() < 3) return;
+    if(indices.size() < 3){ return; }
 
     // assert correct size
     if(normals.size() != vertices.size())
@@ -134,57 +134,61 @@ void Geometry::compute_vertex_normals()
 
 void Geometry::compute_tangents()
 {
-    if(indices.size() < 3) return;
-    if(tex_coords.size() != vertices.size()) return;
+    if(indices.size() % 3){ return; }
+    if(tex_coords.size() != vertices.size()){ return; }
 
-    std::vector<glm::vec3> tangents_tmp;
-
+    std::vector<glm::vec3> tangents_tmp, bitangents_tmp;
+//
     if(tangents.size() != vertices.size())
     {
         tangents.clear();
         tangents.resize(vertices.size(), glm::vec3(0));
         tangents_tmp.resize(vertices.size(), glm::vec3(0));
+        bitangents_tmp.resize(vertices.size(), glm::vec3(0));
     }
 
     for(size_t i = 0; i < indices.size(); i += 3)
     {
         index_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
 
-        const glm::vec3 &v1 = vertices[a], &v2 = vertices[b], &v3 = vertices[c];
-        const glm::vec2 &w1 = tex_coords[a], &w2 = tex_coords[b], &w3 = tex_coords[c];
+        const glm::vec3 &v0 = vertices[a], &v1 = vertices[b], &v2 = vertices[c];
+        const glm::vec2 &uv0 = tex_coords[a], &uv1 = tex_coords[b], &uv2 = tex_coords[c];
 
-        float x1 = v2.x - v1.x;
-        float x2 = v3.x - v1.x;
-        float y1 = v2.y - v1.y;
-        float y2 = v3.y - v1.y;
-        float z1 = v2.z - v1.z;
-        float z2 = v3.z - v1.z;
-        float s1 = w2.x - w1.x;
-        float s2 = w3.x - w1.x;
-        float t1 = w2.y - w1.y;
-        float t2 = w3.y - w1.y;
+        float x1 = v1.x - v0.x;
+        float x2 = v2.x - v0.x;
+        float y1 = v1.y - v0.y;
+        float y2 = v2.y - v0.y;
+        float z1 = v1.z - v0.z;
+        float z2 = v2.z - v0.z;
+        float s1 = uv1.x - uv0.x;
+        float s2 = uv2.x - uv0.x;
+        float t1 = uv1.y - uv0.y;
+        float t2 = uv2.y - uv0.y;
 
         float r = 1.f / (s1 * t2 - s2 * t1);
-        glm::vec3 sdir((t2 * x1 - t1 * x2) * r, (t2 * y1 - t1 * y2) * r,
-                       (t2 * z1 - t1 * z2) * r);
-        glm::vec3 tdir((s1 * x2 - s2 * x1) * r, (s1 * y2 - s2 * y1) * r,
-                       (s1 * z2 - s2 * z1) * r);
+        auto sdir = glm::vec3(t2 * x1 - t1 * x2, t2 * y1 - t1 * y2, t2 * z1 - t1 * z2) * r;
+        auto tdir = glm::vec3(s1 * x2 - s2 * x1, s1 * y2 - s2 * y1, s1 * z2 - s2 * z1) * r;
 
         tangents_tmp[a] += sdir;
         tangents_tmp[b] += sdir;
         tangents_tmp[c] += sdir;
+
+        bitangents_tmp[a] += tdir;
+        bitangents_tmp[b] += tdir;
+        bitangents_tmp[c] += tdir;
     }
 
     for(uint32_t a = 0; a < vertices.size(); ++a)
     {
         const glm::vec3 &n = normals[a];
         const glm::vec3 &t = tangents_tmp[a];
+        const glm::vec3 &b = bitangents_tmp[a];
 
         // Gram-Schmidt orthogonalize
         tangents[a] = glm::normalize(t - n * glm::dot(n, t));
 
-        // Calculate handedness
-        //tangent[a].w = (Dot(Cross(n, t), tan2[a]) < 0.0F) ? -1.0F : 1.0F;
+        // correct handedness
+        tangents[a] *= (glm::dot(glm::cross(n, t), b) < 0.f) ? 1.f : -1.f;
     }
 }
 

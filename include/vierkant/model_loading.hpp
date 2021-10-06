@@ -42,6 +42,10 @@ struct material_t
 
     bool twosided = false;
 
+    // specular
+    float specular_factor = 1.f;
+    glm::vec3 specular_color_factor = glm::vec3(1.f);
+
     // clearcoat
     float clearcoat_factor = 0.f;
     float clearcoat_roughness_factor = 0.f;
@@ -63,6 +67,9 @@ struct material_t
 
     crocore::ImagePtr img_sheen_color;
     crocore::ImagePtr img_sheen_roughness;
+
+    crocore::ImagePtr img_specular;
+    crocore::ImagePtr img_specular_color;
 };
 
 /**

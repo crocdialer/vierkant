@@ -138,10 +138,10 @@ void main()
 //    const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
 
 //    float ior = hit_front ? material.ior : 1.0;
-    float eta = payload.inside_media ? 1.0 / material.ior : material.ior;
+    float eta = payload.inside_media ? material.ior / payload.ior : payload.ior / material.ior;
     eta += EPS;
 
-//    payload.ior = material.ior;
+    payload.ior = payload.inside_media ? material.ior : 1.0;
 
 //    bsdf_sample_t bsdf_sample = sample_UE4(payload.normal, V, material.color.rgb, material.roughness,
 //                                           material.metalness, rngState);
