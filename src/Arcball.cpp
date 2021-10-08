@@ -7,13 +7,6 @@
 namespace vierkant
 {
 
-Arcball::Arcball(const glm::vec2 &screen_size) :
-        enabled(true),
-        screen_size(screen_size)
-{
-
-}
-
 void Arcball::update(double time_delta)
 {
     if(!enabled){ return; }
@@ -112,31 +105,68 @@ glm::mat4 Arcball::transform() const
 
 void FlyCamera::update(double time_delta)
 {
-    if(!enabled){ return; }
+    if(enabled)
+    {
+        glm::vec3 move_mask(0.f);
+
+        for(const auto &[key, state] : m_keys)
+        {
+            if(state)
+            {
+                switch(key)
+                {
+                    case vierkant::Key::_PAGE_UP:
+                        move_mask.y += 1.f;
+                        break;
+                    case vierkant::Key::_PAGE_DOWN:
+                        move_mask.y -= 1.f;
+                        break;
+                    case vierkant::Key::_RIGHT:
+                        move_mask.x += 1.f;
+                        break;
+                    case vierkant::Key::_LEFT:
+                        move_mask.x -= 1.f;
+                        break;
+                    case vierkant::Key::_UP:
+                        move_mask.z -= 1.f;
+                        break;
+                    case vierkant::Key::_DOWN:
+                        move_mask.z += 1.f;
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        position += static_cast<float>(time_delta) * move_speed * (glm::mat3_cast(rotation) * move_mask);
+
+        if(enabled && transform_cb){ transform_cb(transform()); }
+    }
 }
 
 vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
 {
     vierkant::mouse_delegate_t ret = {};
-    ret.mouse_press = [this](const MouseEvent &e)
+//    ret.mouse_press = [this](const MouseEvent &e)
+//    {
+//        if(!enabled){ return; }
+//
+//        m_last_pos = e.position();
+//        m_last_rotation = rotation;
+//    };
+    ret.mouse_move = [this](const MouseEvent &e)
     {
-        if(!enabled){ return; }
-
-        if(e.is_left())
-        {
-            m_last_pos = m_clicked_pos = e.position();
-            m_last_rotation = rotation;
-        }
-    };
-    ret.mouse_drag = [this](const MouseEvent &e)
-    {
-        if(enabled && e.is_left())
+        if(enabled)
         {
             glm::vec2 diff = m_last_pos - e.position();
+
             rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(diff.y), glm::radians(diff.x), 0));
 
             m_last_pos = e.position();
             m_last_rotation = rotation;
+
+            if(enabled && transform_cb){ transform_cb(transform()); }
         }
     };
     return ret;
@@ -145,6 +175,38 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
 vierkant::key_delegate_t FlyCamera::key_delegate()
 {
     vierkant::key_delegate_t ret = {};
+    ret.key_press = [this](const vierkant::KeyEvent &e)
+    {
+        switch(e.code())
+        {
+            case vierkant::Key::_PAGE_UP:
+            case vierkant::Key::_PAGE_DOWN:
+            case vierkant::Key::_RIGHT:
+            case vierkant::Key::_LEFT:
+            case vierkant::Key::_UP:
+            case vierkant::Key::_DOWN:
+                m_keys[e.code()] = true;
+                if(enabled && transform_cb){ transform_cb(transform()); }
+            default:
+                break;
+        }
+    };
+    ret.key_release = [this](const vierkant::KeyEvent &e)
+    {
+        switch(e.code())
+        {
+            case vierkant::Key::_PAGE_UP:
+            case vierkant::Key::_PAGE_DOWN:
+            case vierkant::Key::_RIGHT:
+            case vierkant::Key::_LEFT:
+            case vierkant::Key::_UP:
+            case vierkant::Key::_DOWN:
+                m_keys[e.code()] = false;
+                if(enabled && transform_cb){ transform_cb(transform()); }
+            default:
+                break;
+        }
+    };
     return ret;
 }
 

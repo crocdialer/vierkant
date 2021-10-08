@@ -13,7 +13,7 @@ inline uint64_t pack(uint64_t a, uint64_t b){ return (a << 32U) | b; }
 inline uint64_t swizzle(uint64_t a){ return ((a & 0xFFFFFFFFU) << 32U) | (a >> 32U); }
 }
 
-std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom)
+std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
 {
     if(geom->topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST || geom->indices.size() < 3)
     {
@@ -55,11 +55,8 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom)
     // populate the twin pointers by iterating over the edge_table
     int boundaryCount = 0;
 
-    for(auto &pair : edge_table)
+    for(const auto &[key, current_edge] : edge_table)
     {
-        auto &key = pair.first;
-        auto &current_edge = pair.second;
-
         // try to find twin edge in map
         auto it = edge_table.find(swizzle(key));
 
@@ -138,7 +135,7 @@ void Geometry::compute_tangents()
     if(tex_coords.size() != vertices.size()){ return; }
 
     std::vector<glm::vec3> tangents_tmp, bitangents_tmp;
-//
+
     if(tangents.size() != vertices.size())
     {
         tangents.clear();

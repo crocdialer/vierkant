@@ -136,7 +136,6 @@ void main()
     vec3 V = -gl_WorldRayDirectionEXT;
 
 //    const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
-
 //    float ior = hit_front ? material.ior : 1.0;
     float eta = payload.inside_media ? material.ior / payload.ior : payload.ior / material.ior;
     eta += EPS;

@@ -8,7 +8,8 @@
 #include <vierkant/Device.hpp>
 #include <vierkant/nodes.hpp>
 
-namespace vierkant {
+namespace vierkant
+{
 
 using index_t = uint32_t;
 
@@ -32,7 +33,7 @@ struct HalfEdge
  * @param   geom    the geometry to compute the half-edges for
  * @return  an array containing the half-edges
  */
-std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryPtr &geom);
+std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom);
 
 /**
 * @brief   Geometry groups vertex-information and provides factories for common geometries.

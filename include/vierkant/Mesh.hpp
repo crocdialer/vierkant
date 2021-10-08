@@ -125,19 +125,21 @@ public:
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr
-    create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
+    create_from_geometry(const vierkant::DevicePtr &device,
+                         const GeometryPtr &geometry,
                          const create_info_t& create_info);
 
     /**
      * @brief   Create a vierkant::MeshPtr with provided information about entries.
      *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
      *
-     * @param   device          handle for the vierkant::Device to create subresources with
-     * @param   entry_create_infos    an array of entry_create_info_t structs.
+     * @param   device              handle for the vierkant::Device to create subresources with
+     * @param   entry_create_infos  an array of entry_create_info_t structs.
      * @return  the newly created vierkant::MeshPtr
      */
     static vierkant::MeshPtr
-    create_with_entries(const vierkant::DevicePtr &device, const std::vector<entry_create_info_t> &entry_create_infos,
+    create_with_entries(const vierkant::DevicePtr &device,
+                        const std::vector<entry_create_info_t> &entry_create_infos,
                         const create_info_t& create_info);
 
     Mesh(const Mesh &) = delete;
