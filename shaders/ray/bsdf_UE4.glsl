@@ -7,66 +7,117 @@
 // for material_t
 #include "types.glsl"
 
-vec3 UE4Eval(in vec3 L, in vec3 N, in vec3 V, in vec3 albedo, float roughness, float metalness)
+//vec3 UE4Eval(in vec3 L, in vec3 N, in vec3 V, in vec3 albedo, float roughness, float metalness)
+//{
+//    float NoL = dot(N, L);
+//    float NoV = dot(N, V);
+//
+//    if (NoL <= 0.0 || NoV <= 0.0){ return vec3(0.0); }
+//
+//    vec3 H = normalize(L + V);
+//    float NoH = dot(N, H);
+//    float LoH = dot(L, H);
+//
+//    // Specular
+//    vec3 specularCol = mix(vec3(0.04), albedo, metalness);
+//    float a = max(0.001, roughness);
+//    float D = GTR2(NoH, a);
+//    float FH = SchlickFresnel(LoH);
+//    vec3 F = mix(specularCol, vec3(1.0), FH);
+//    float roughg = (roughness * 0.5 + 0.5);
+//    roughg = roughg * roughg;
+//
+//    float G = SmithGGX(NoL, roughg) * SmithGGX(NoV, roughg);
+//
+//    // Diffuse + Specular components
+//    return (ONE_OVER_PI * albedo) * (1.0 - metalness) + F * D * G;
+//}
+//
+///*
+// *	Based on    https://github.com/knightcrawler25/GLSL-PathTracer
+// *  UE4 SIGGAPH https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
+// */
+//
+//float UE4Pdf(in vec3 L, in vec3 N, in vec3 V, float roughness, float metalness)
+//{
+//    float specularAlpha = max(0.001, roughness);
+//
+//    float diffuseRatio = 0.5 * (1.0 - metalness);
+//    float specularRatio = 1.0 - diffuseRatio;
+//
+//    vec3 halfVec = normalize(L + V);
+//
+//    float cosTheta = abs(dot(halfVec, N));
+//    float pdfGTR2 = GTR2(cosTheta, specularAlpha) * cosTheta;
+//
+//    // calculate diffuse and specular pdfs and mix ratio
+//    float pdfSpec = pdfGTR2 / (4.0 * abs(dot(L, halfVec)));
+//    float pdfDiff = abs(dot(L, N)) * ONE_OVER_PI;
+//
+//    // weight pdfs according to ratios
+//    return diffuseRatio * pdfDiff + specularRatio * pdfSpec;
+//}
+
+vec3 eval_diffuse(vec3 albedo, float roughness, float metalness,vec3 V, vec3 N, vec3 L, inout float pdf)
+{
+    pdf = 0.0;
+    if (dot(N, L) <= 0.0){ return vec3(0.0); }
+
+    pdf = abs(dot(N, L)) * ONE_OVER_PI;
+    return (ONE_OVER_PI * albedo) * (1.0 - metalness);
+}
+
+vec3 eval_spec(vec3 albedo, float roughness, float metalness, vec3 V, vec3 N, vec3 L, vec3 H, inout float pdf)
 {
     float NoL = dot(N, L);
     float NoV = dot(N, V);
 
+    pdf = 0.0;
     if (NoL <= 0.0 || NoV <= 0.0){ return vec3(0.0); }
 
-    vec3 H = normalize(L + V);
+    roughness = max(0.001, roughness);
     float NoH = dot(N, H);
     float LoH = dot(L, H);
 
-    // Specular
-    vec3 specularCol = mix(vec3(0.04), albedo, metalness);
-    float a = max(0.001, roughness);
-    float D = GTR2(NoH, a);
+    float D = GTR2(NoH, roughness);
+    pdf = D * NoH / (4.0 * dot(V, H));
+
     float FH = SchlickFresnel(LoH);
-    vec3 F = mix(specularCol, vec3(1.0), FH);
-    float roughg = (roughness * 0.5 + 0.5);
-    roughg = roughg * roughg;
+    vec3 specularF0 = mix(vec3(0.04), albedo, metalness);
+    vec3 F = mix(specularF0, vec3(1.0), FH);
 
-    float G = SmithGGX(NoL, roughg) * SmithGGX(NoV, roughg);
+//    float roughg = (roughness * 0.5 + 0.5);
+//    roughg = roughg * roughg;
 
-    // Diffuse + Specular components
-    return (ONE_OVER_PI * albedo) * (1.0 - metalness) + F * D * G;
+    float G = SmithGGX(NoL, roughness) * SmithGGX(NoV, roughness);
+
+    // Specular F
+    return F * D * G;
 }
 
-/*
- *	Based on    https://github.com/knightcrawler25/GLSL-PathTracer
- *  UE4 SIGGAPH https://cdn2.unrealengine.com/Resources/files/2013SiggraphPresentationsNotes-26915738.pdf
- */
-
-float UE4Pdf(in vec3 L, in vec3 N, in vec3 V, float roughness, float metalness)
+vec3 eval_refract(vec3 albedo, float roughness, float eta, vec3 V, vec3 N, vec3 L, vec3 H, inout float pdf)
 {
-    float specularAlpha = max(0.001, roughness);
+    pdf = 0.0;
+    if (dot(N, L) >= 0.0){ return vec3(0.0); }
 
-    float diffuseRatio = 0.5 * (1.0 - metalness);
-    float specularRatio = 1.0 - diffuseRatio;
+    float F = DielectricFresnel(abs(dot(V, H)), eta);
+    float D = GTR2(dot(N, H), roughness);
 
-    vec3 halfVec = normalize(L + V);
+    float denomSqrt = dot(L, H) + dot(V, H) * eta;
+    pdf = D * dot(N, H) * (1.0 - F) * abs(dot(L, H)) / (denomSqrt * denomSqrt);
 
-    float cosTheta = abs(dot(halfVec, N));
-    float pdfGTR2 = GTR2(cosTheta, specularAlpha) * cosTheta;
+    float G = SmithGGX(abs(dot(N, L)), roughness) * SmithGGX(abs(dot(N, V)), roughness);
 
-    // calculate diffuse and specular pdfs and mix ratio
-    float pdfSpec = pdfGTR2 / (4.0 * abs(dot(L, halfVec)));
-    float pdfDiff = abs(dot(L, N)) * ONE_OVER_PI;
-
-    // weight pdfs according to ratios
-    return diffuseRatio * pdfDiff + specularRatio * pdfSpec;
+    return albedo * (1.0 - F) * D * G * abs(dot(V, H)) * abs(dot(L, H)) * 4.0 * eta * eta / (denomSqrt * denomSqrt);
 }
 
-bsdf_sample_t sample_UE4(in vec3 N,
+bsdf_sample_t sample_UE4(in material_t material,
+                         in vec3 N,
                          in vec3 V,
-                         in vec3 albedo,
-                         in float roughness,
-                         in float metalness,
+                         float eta,
                          inout uint rngState)
 {
     bsdf_sample_t ret;
-
     ret.transmission = false;
 
     // local coordinate-frame
@@ -76,58 +127,46 @@ bsdf_sample_t sample_UE4(in vec3 N,
 
     // possible half-vector from (visible) GGX distribution
     // take V into local_basis (mutliplied by transpose)
-    vec3 H = local_basis * sample_GGX_VNDF(Xi, V * local_basis, vec2(roughness));
-//    vec3 H = local_basis * sample_GGX(Xi, roughness);
+//    vec3 H = local_basis * sample_GGX_VNDF(Xi, V * local_basis, vec2(material.roughness));
+    vec3 H = local_basis * sample_GGX(Xi, material.roughness);
+
+    // flip half vector
+    if (dot(V, H) < 0.0){ H = -H; }
 
     // no diffuse rays for metal
-    float diffuse_ratio = 0.5 * (1.0 - metalness);
-    float reflect_prob = rnd(rngState);
-
-//    const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
+    float diffuse_ratio = 0.5 * (1.0 - material.metalness);
 
     // diffuse or transmission case. no internal reflections
-//    if (payload.inside_media || reflect_prob < diffuse_ratio)
-    if (reflect_prob < diffuse_ratio)
+    if (rnd(rngState) < diffuse_ratio)
     {
-//        float transmission_prob = hit_front ? rnd(rngState) : 0.0;
-//
-//        if (transmission_prob < material.transmission)
-//        {
-//            float ior = hit_front ? material.ior : 1.0;
-//
-//            // volume attenuation
-//            payload.beta *= transmittance(payload.attenuation, payload.attenuation_distance, gl_HitTEXT);
-//
-//            payload.attenuation = hit_front ? material.attenuation_color.rgb : vec3(1);
-//            payload.attenuation_distance = material.attenuation_distance;
-//            payload.inside_media = hit_front;
-//
-//            // transmission/refraction
-//            float eta = payload.ior / ior;
-//            payload.ior = ior;
-//
-//            // refraction into medium
-//            payload.ray.direction = refract(gl_WorldRayDirectionEXT, H, eta);
-//
-//            payload.normal *= -1.0;
-//
-//            // TODO: doesn't make any sense here
-//            //            V = reflect(payload.ray.direction, payload.normal);
-//            V = faceforward(V, gl_WorldRayDirectionEXT, payload.normal);
-//        }
-//        else
+        if (rnd(rngState) < material.transmission)
+        {
+            ret.transmission = true;
+
+            // refraction into medium
+            ret.direction = normalize(refract(-V, H, eta));
+            ret.F = eval_refract(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);
+            ret.pdf *= diffuse_ratio * material.transmission;
+        }
+        else
         {
             // diffuse reflection
             ret.direction = local_basis * sample_cosine(Xi);
+
+            ret.F = eval_diffuse(material.color.rgb, material.roughness, material.metalness, V, N, ret.direction, ret.pdf);
+            ret.pdf *= diffuse_ratio;
         }
     }
     else
     {
         // surface/glossy reflection
         ret.direction = reflect(-V, H);
+
+        ret.F = eval_spec(material.color.rgb, material.roughness, material.metalness, V, N, ret.direction, H, ret.pdf);
+        ret.pdf *= 1.0 - diffuse_ratio;
     }
 
-    ret.F = UE4Eval(ret.direction, N, V, albedo, roughness, metalness);
-    ret.pdf = UE4Pdf(ret.direction, N, V, roughness, metalness);
+//    ret.F = UE4Eval(ret.direction, N, V, material.color.rgb, material.roughness, material.metalness);
+//    ret.pdf = UE4Pdf(ret.direction, N, V, material.roughness, material.metalness);
     return ret;
 }

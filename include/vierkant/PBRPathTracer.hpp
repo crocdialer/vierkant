@@ -41,8 +41,11 @@ public:
         //! flag indicating if a denoising pass shall be performed
         bool denoising = true;
 
-        //! bloom settings
-        bool use_bloom = true;
+        //! tonemapping
+        bool tonemap = true;
+
+        //! bloom
+        bool bloom = true;
 
         //! gamma correction of output
         float gamma = 1.0;
@@ -229,7 +232,7 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::ImagePtr m_environment;
+    vierkant::ImagePtr m_environment, m_empty_img;
 
     vierkant::Renderer::drawable_t m_drawable_bloom, m_drawable_raw;
 

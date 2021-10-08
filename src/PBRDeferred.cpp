@@ -220,6 +220,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_conv_ggx = create_info.conv_ggx;
 
     m_draw_context = vierkant::DrawContext(device);
+
+    // solid black color
+    uint32_t v = 0x00000000;
+    vierkant::Image::Format fmt;
+    fmt.extent = {1, 1, 1};
+    fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
+    m_empty_img = vierkant::Image::create(m_device, &v, fmt);
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -379,11 +386,13 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         return pingpong.framebuffer.color_attachment(0);
     };
 
-    // bloom
-    if(settings.use_bloom)
+    // tonemap / bloom
+    if(settings.tonemap)
     {
+        auto bloom_img = m_empty_img;
+
         // generate bloom image
-        auto bloom_img = frame_assets.bloom->apply(output_img, VK_NULL_HANDLE, {});
+        if(settings.bloom){ bloom_img = frame_assets.bloom->apply(output_img, VK_NULL_HANDLE, {}); }
 
         composition_ubo_t comp_ubo = {};
         comp_ubo.exposure = settings.exposure;

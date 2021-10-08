@@ -148,13 +148,13 @@ void FlyCamera::update(double time_delta)
 vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
 {
     vierkant::mouse_delegate_t ret = {};
-//    ret.mouse_press = [this](const MouseEvent &e)
-//    {
-//        if(!enabled){ return; }
-//
-//        m_last_pos = e.position();
-//        m_last_rotation = rotation;
-//    };
+    ret.mouse_press = [this](const MouseEvent &e)
+    {
+        if(!enabled){ return; }
+
+        m_last_pos = e.position();
+        m_last_rotation = rotation;
+    };
     ret.mouse_move = [this](const MouseEvent &e)
     {
         if(enabled)
@@ -163,8 +163,8 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
 
             rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(diff.y), glm::radians(diff.x), 0));
 
-            m_last_pos = e.position();
-            m_last_rotation = rotation;
+//            m_last_pos = e.position();
+//            m_last_rotation = rotation;
 
             if(enabled && transform_cb){ transform_cb(transform()); }
         }

@@ -37,8 +37,6 @@ class Arcball : public CameraControl
 {
 public:
 
-    float multiplier = 1.f;
-
     glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
 
     glm::vec3 look_at = glm::vec3(0.f);
@@ -59,7 +57,7 @@ private:
 
     void mouse_drag(const MouseEvent &e);
 
-    glm::vec3 get_arcball_vector(const glm::vec2 &screen_pos) const;
+    [[nodiscard]] glm::vec3 get_arcball_vector(const glm::vec2 &screen_pos) const;
 
     glm::ivec2 m_clicked_pos{}, m_last_pos{};
 

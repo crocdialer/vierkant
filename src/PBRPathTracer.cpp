@@ -192,6 +192,13 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     }
 
     m_draw_context = vierkant::DrawContext(m_device);
+
+    // solid black color
+    uint32_t v = 0x00000000;
+    vierkant::Image::Format fmt;
+    fmt.extent = {1, 1, 1};
+    fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
+    m_empty_img = vierkant::Image::create(m_device, &v, fmt);
 }
 
 SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
@@ -321,10 +328,13 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
     bloom_submit.signal_value = SemaphoreValue::COMPOSITION;
 
     // bloom
-    if(settings.use_bloom)
+    if(settings.tonemap)
     {
         // generate bloom image
-        auto bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_submit});
+        auto bloom_img = m_empty_img;
+
+        if(settings.bloom){ bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_submit}); }
+        else{ vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, {bloom_submit}); }
 
         composition_ubo_t comp_ubo = {};
         comp_ubo.exposure = settings.exposure;

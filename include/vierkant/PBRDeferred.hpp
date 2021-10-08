@@ -33,8 +33,11 @@ public:
         //! apply anti-aliasing using fxaa
         bool use_fxaa = true;
 
-        //! bloom settings
-        bool use_bloom = true;
+        //! use tonemapping
+        bool tonemap = true;
+
+        //! use bloom
+        bool bloom = true;
 
         //! gamma correction of output
         float gamma = 1.0;
@@ -204,6 +207,9 @@ private:
 
     // convolved specular irradiance cube mipmaps
     vierkant::ImagePtr m_conv_ggx;
+
+    // helper, empty image
+    vierkant::ImagePtr m_empty_img;
 
     vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom;
 };

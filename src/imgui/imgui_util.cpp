@@ -425,7 +425,8 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("grid", &pbr_renderer->settings.draw_grid);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
-    ImGui::Checkbox("bloom", &pbr_renderer->settings.use_bloom);
+    ImGui::Checkbox("tonemap", &pbr_renderer->settings.tonemap);
+    ImGui::Checkbox("bloom", &pbr_renderer->settings.bloom);
 
     // exposure
     ImGui::SliderFloat("exposure", &pbr_renderer->settings.exposure, 0.f, 10.f);
@@ -469,7 +470,8 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
-    ImGui::Checkbox("bloom", &path_tracer->settings.use_bloom);
+    ImGui::Checkbox("tonemap", &path_tracer->settings.tonemap);
+    ImGui::Checkbox("bloom", &path_tracer->settings.bloom);
 
     // exposure
     ImGui::SliderFloat("exposure", &path_tracer->settings.exposure, 0.f, 10.f);
