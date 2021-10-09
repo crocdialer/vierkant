@@ -1,6 +1,6 @@
 #define BOOST_TEST_MAIN
 
-#include <boost/test/unit_test.hpp>
+#include "test_context.hpp"
 
 #include <unordered_map>
 
@@ -35,7 +35,8 @@ BOOST_AUTO_TEST_CASE(TestPipeline_Format)
     BOOST_CHECK(foo == bar);
 
     // different scissor and not dynamic
-    bar = {}; foo = {};
+    bar = {};
+    foo = {};
     bar.scissor.extent.width = 200;
     bar.dynamic_states = {};
     BOOST_CHECK(foo != bar);
@@ -55,29 +56,25 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
 {
     VkExtent3D fb_size = {1920, 1080, 1};
 
-    bool use_validation = true;
-    vierkant::Instance instance(use_validation, {});
+    vulkan_test_context_t test_context;
 
-    for(auto physical_device : instance.physical_devices())
-    {
-        vierkant::Device::create_info_t device_info = {};
-        device_info.instance = instance.handle();
-        device_info.physical_device = physical_device;
-        device_info.use_validation = instance.use_validation_layers();
-        auto device = vk::Device::create(device_info);
+    vierkant::Framebuffer::create_info_t create_info = {};
+    create_info.size = fb_size;
+    auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
 
-        vierkant::Framebuffer::create_info_t create_info = {};
-        create_info.size = fb_size;
-        auto framebuffer = vierkant::Framebuffer(device, create_info);
+    vierkant::graphics_pipeline_info_t fmt;
+    fmt.viewport.width = framebuffer.extent().width;
+    fmt.viewport.height = framebuffer.extent().height;
+    fmt.renderpass = framebuffer.renderpass().get();
+    fmt.shader_stages = vierkant::create_shader_stages(test_context.device, vierkant::ShaderType::UNLIT_TEXTURE);
+    auto pipeline = vierkant::Pipeline::create(test_context.device, fmt);
+    BOOST_CHECK(pipeline);
 
-        vierkant::graphics_pipeline_info_t fmt;
-        fmt.viewport.width = framebuffer.extent().width;
-        fmt.viewport.height = framebuffer.extent().height;
-        fmt.renderpass = framebuffer.renderpass().get();
-        fmt.shader_stages = vierkant::create_shader_stages(device, vierkant::ShaderType::UNLIT_TEXTURE);
-        auto pipeline = vierkant::Pipeline::create(device, fmt);
-        BOOST_CHECK(pipeline);
-    }
+    // expected error here
+    BOOST_CHECK(test_context.validation_data.error);
+    test_context.validation_data.reset();
+
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

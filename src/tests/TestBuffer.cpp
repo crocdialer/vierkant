@@ -1,6 +1,6 @@
 #define BOOST_TEST_MAIN
 
-#include <boost/test/unit_test.hpp>
+#include "test_context.hpp"
 
 #include "vierkant/vierkant.hpp"
 
@@ -79,64 +79,36 @@ void test_buffer(const vk::DevicePtr &device, const vk::VmaPoolPtr &pool_host = 
 
 BOOST_AUTO_TEST_CASE(TestBuffer)
 {
-    bool use_validation = true;
-    vk::Instance instance(use_validation, {});
+    vulkan_test_context_t test_context;
 
-    BOOST_CHECK(instance);
-    BOOST_CHECK(instance.use_validation_layers() == use_validation);
-    BOOST_CHECK(!instance.physical_devices().empty());
-
-    for(auto physical_device : instance.physical_devices())
-    {
-        vierkant::Device::create_info_t device_info = {};
-        device_info.instance = instance.handle();
-        device_info.physical_device = physical_device;
-        device_info.use_validation = instance.use_validation_layers();
-        auto device = vk::Device::create(device_info);
-
-        // run buffer test case
-        test_buffer(device);
-    }
+    // run buffer test case
+    test_buffer(test_context.device);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 BOOST_AUTO_TEST_CASE(TestBufferPool)
 {
-    bool use_validation = true;
-    vk::Instance instance(use_validation, {});
+    vulkan_test_context_t test_context;
 
-    BOOST_CHECK(instance);
-    BOOST_CHECK(instance.use_validation_layers() == use_validation);
-    BOOST_CHECK(!instance.physical_devices().empty());
+    auto pool = vk::Buffer::create_pool(test_context.device,
+                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                        VMA_MEMORY_USAGE_GPU_ONLY);
+    BOOST_CHECK(pool);
 
-    for(auto physical_device : instance.physical_devices())
-    {
-        vierkant::Device::create_info_t device_info = {};
-        device_info.instance = instance.handle();
-        device_info.physical_device = physical_device;
-        device_info.use_validation = instance.use_validation_layers();
-        auto device = vk::Device::create(device_info);
+    auto pool_buddy_host = vk::Buffer::create_pool(test_context.device,
+                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                   VMA_MEMORY_USAGE_CPU_ONLY, 1U << 23U, 32, 0,
+                                                   VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+    BOOST_CHECK(pool_buddy_host);
 
-        auto pool = vk::Buffer::create_pool(device,
-                                            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                            VMA_MEMORY_USAGE_GPU_ONLY);
-        BOOST_CHECK(pool);
+    auto pool_buddy = vk::Buffer::create_pool(test_context.device,
+                                              VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                              VMA_MEMORY_USAGE_GPU_ONLY, 1U << 23U, 32, 0,
+                                              VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+    BOOST_CHECK(pool_buddy);
 
-        auto pool_buddy_host = vk::Buffer::create_pool(device,
-                                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                                       VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                       VMA_MEMORY_USAGE_CPU_ONLY, 1U << 23U, 32, 0,
-                                                       VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
-        BOOST_CHECK(pool_buddy_host);
-
-        auto pool_buddy = vk::Buffer::create_pool(device,
-                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                  VMA_MEMORY_USAGE_GPU_ONLY, 1U << 23U, 32, 0,
-                                                  VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
-        BOOST_CHECK(pool_buddy);
-
-        // run buffer test case
-        test_buffer(device, pool_buddy_host, pool_buddy);
-    }
+    // run buffer test case
+    test_buffer(test_context.device, pool_buddy_host, pool_buddy);
 }

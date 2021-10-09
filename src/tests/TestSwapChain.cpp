@@ -39,27 +39,22 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation)
     window_info.fullscreen = false;
     auto window = vk::Window::create(window_info);
 
-    std::vector<vierkant::DevicePtr> devices;
+    vierkant::Device::create_info_t device_info = {};
+    device_info.instance = instance.handle();
+    device_info.physical_device = instance.physical_devices().front();
+    device_info.use_validation = instance.use_validation_layers();
+    device_info.surface = window->surface();
+    auto device = vk::Device::create(device_info);
 
-    for(auto physical_device : instance.physical_devices())
-    {
-        vierkant::Device::create_info_t device_info = {};
-        device_info.instance = instance.handle();
-        device_info.physical_device = physical_device;
-        device_info.use_validation = instance.use_validation_layers();
-        device_info.surface = window->surface();
-        auto device = vk::Device::create(device_info);
+    auto sample_count = VK_SAMPLE_COUNT_1_BIT;
+    window->create_swapchain(device);
 
-        auto sample_count = VK_SAMPLE_COUNT_1_BIT;
-        window->create_swapchain(device);
+    BOOST_CHECK(window->swapchain());
+    BOOST_CHECK_EQUAL(window->framebuffer_size().x, window->swapchain().extent().width);
+    BOOST_CHECK_EQUAL(window->framebuffer_size().y, window->swapchain().extent().height);
+    BOOST_CHECK_EQUAL(window->swapchain().sample_count(), sample_count);
 
-        BOOST_CHECK(window->swapchain());
-        BOOST_CHECK_EQUAL(window->framebuffer_size().x, window->swapchain().extent().width);
-        BOOST_CHECK_EQUAL(window->framebuffer_size().y, window->swapchain().extent().height);
-        BOOST_CHECK_EQUAL(window->swapchain().sample_count(), sample_count);
-
-        test_helper(window, sample_count);
-    }
+    test_helper(window, sample_count);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -76,28 +71,23 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation_MSAA)
     window_info.fullscreen = false;
     auto window = vk::Window::create(window_info);
 
-    std::vector<vierkant::DevicePtr> devices;
+    vierkant::Device::create_info_t device_info = {};
+    device_info.instance = instance.handle();
+    device_info.physical_device = instance.physical_devices().front();
+    device_info.use_validation = instance.use_validation_layers();
+    device_info.surface = window->surface();
+    auto device = vk::Device::create(device_info);
 
-    for(auto physical_device : instance.physical_devices())
-    {
-        vierkant::Device::create_info_t device_info = {};
-        device_info.instance = instance.handle();
-        device_info.physical_device = physical_device;
-        device_info.use_validation = instance.use_validation_layers();
-        device_info.surface = window->surface();
-        auto device = vk::Device::create(device_info);
+    // request maximum MSAA
+    auto sample_count = device->max_usable_samples();
+    window->create_swapchain(device, sample_count);
 
-        // request maximum MSAA
-        auto sample_count = device->max_usable_samples();
-        window->create_swapchain(device, sample_count);
+    BOOST_CHECK(window->swapchain());
+    BOOST_CHECK_EQUAL(window->framebuffer_size().x, window->swapchain().extent().width);
+    BOOST_CHECK_EQUAL(window->framebuffer_size().y, window->swapchain().extent().height);
+    BOOST_CHECK_EQUAL(window->swapchain().sample_count(), sample_count);
 
-        BOOST_CHECK(window->swapchain());
-        BOOST_CHECK_EQUAL(window->framebuffer_size().x, window->swapchain().extent().width);
-        BOOST_CHECK_EQUAL(window->framebuffer_size().y, window->swapchain().extent().height);
-        BOOST_CHECK_EQUAL(window->swapchain().sample_count(), sample_count);
-
-        test_helper(window, sample_count);
-    }
+    test_helper(window, sample_count);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

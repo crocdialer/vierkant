@@ -1,6 +1,6 @@
 #define BOOST_TEST_MAIN
 
-#include <boost/test/unit_test.hpp>
+#include "test_context.hpp"
 
 #include "vierkant/vierkant.hpp"
 
@@ -111,39 +111,26 @@ BOOST_AUTO_TEST_CASE(TestMesh_Constructor)
 
 BOOST_AUTO_TEST_CASE(TestMesh)
 {
-    bool use_validation = true;
-    vk::Instance instance(use_validation, {});
+    vulkan_test_context_t test_context;
 
-    BOOST_CHECK(instance);
-    BOOST_CHECK(instance.use_validation_layers() == use_validation);
-    BOOST_CHECK(!instance.physical_devices().empty());
+    auto mesh = create_mesh(test_context.device, vertices, indices);
 
-    for(auto physical_device : instance.physical_devices())
-    {
-        vierkant::Device::create_info_t device_info = {};
-        device_info.instance = instance.handle();
-        device_info.physical_device = physical_device;
-        device_info.use_validation = instance.use_validation_layers();
-        auto device = vk::Device::create(device_info);
+    auto descriptors = create_descriptors(test_context.device);
 
-        auto mesh = create_mesh(device, vertices, indices);
+    auto descriptor_set_layout = vk::create_descriptor_set_layout(test_context.device, descriptors);
 
-        auto descriptors = create_descriptors(device);
+    // construct a pool to hold enough descriptors for the mesh
+    vk::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1},
+                                                {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
 
-        auto descriptor_set_layout = vk::create_descriptor_set_layout(device, descriptors);
+    auto pool = vk::create_descriptor_pool(test_context.device, descriptor_counts, 16);
 
-        // construct a pool to hold enough descriptors for the mesh
-        vk::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1},
-                                                    {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
+    // use the pool to allocate the actual descriptor-set
+    auto descriptor_set = vk::create_descriptor_set(test_context.device, pool, descriptor_set_layout);
 
-        auto pool = vk::create_descriptor_pool(device, descriptor_counts, 16);
+    // update the descriptor set
+    vierkant::update_descriptor_set(test_context.device, descriptor_set, descriptors);
 
-        // use the pool to allocate the actual descriptor-set
-        auto descriptor_set = vk::create_descriptor_set(device, pool, descriptor_set_layout);
-
-        // update the descriptor set
-        vierkant::update_descriptor_set(device, descriptor_set, descriptors);
-    }
 }
 
 BOOST_AUTO_TEST_CASE(TestFormat)
