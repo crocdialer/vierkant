@@ -267,10 +267,11 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     // update top-level structure
     frame_asset.acceleration_asset = m_ray_builder.create_toplevel(frame_asset.bottom_lvl_assets,
                                                                    frame_asset.cmd_build_toplvl.handle());
+    frame_asset.cmd_build_toplvl.end();
 
     vierkant::semaphore_submit_info_t semaphore_top_info = {};
     semaphore_top_info.semaphore = frame_asset.semaphore.handle();
-    semaphore_top_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    semaphore_top_info.wait_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     semaphore_top_info.wait_value = SemaphoreValue::UPDATE_BOTTOM;
     semaphore_top_info.signal_value = SemaphoreValue::UPDATE_TOP;
     frame_asset.cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_top_info});
@@ -321,7 +322,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
-    semaphore_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     semaphore_info.wait_value = SemaphoreValue::RAYTRACING;
     semaphore_info.signal_value = SemaphoreValue::DENOISER;
     frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
@@ -538,11 +539,6 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 void PBRPathTracer::reset_accumulator()
 {
     m_batch_index = 0;
-
-    for(auto &fm : m_frame_assets)
-    {
-        fm.acceleration_asset = {};
-    }
 }
 
 size_t PBRPathTracer::current_batch() const
