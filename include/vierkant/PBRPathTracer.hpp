@@ -123,7 +123,7 @@ private:
         vierkant::Semaphore semaphore;
 
         //! records raytracing commands
-        vierkant::CommandBuffer cmd_trace, cmd_denoise;
+        vierkant::CommandBuffer cmd_build_toplvl, cmd_trace, cmd_denoise;
 
         //! pending builds for this frame
         std::unordered_map<MeshConstPtr, RayBuilder::build_result_t> build_results;
@@ -158,11 +158,12 @@ private:
 
     enum SemaphoreValue : uint64_t
     {
-        ACCELERATION_UPDATE = 1,
-        RAYTRACING = 2,
-        DENOISER = 3,
-        COMPOSITION = 4,
-        RENDER_DONE = 5
+        UPDATE_BOTTOM = 1,
+        UPDATE_TOP,
+        RAYTRACING,
+        DENOISER,
+        COMPOSITION,
+        RENDER_DONE
     };
 
     struct push_constants_t

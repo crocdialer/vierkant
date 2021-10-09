@@ -6,8 +6,8 @@
 
 #include "ray_common.glsl"
 
-#include "bsdf_UE4.glsl"
-//#include "bsdf_disney.glsl"
+//#include "bsdf_UE4.glsl"
+#include "bsdf_disney.glsl"
 
 const uint MAX_NUM_ENTRIES = 1024;
 
@@ -134,17 +134,14 @@ void main()
     uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 
     vec3 V = -gl_WorldRayDirectionEXT;
-
-//    const bool hit_front = gl_HitKindEXT == gl_HitKindFrontFacingTriangleEXT;
-//    float ior = hit_front ? material.ior : 1.0;
     float eta = payload.inside_media ? material.ior / payload.ior : payload.ior / material.ior;
     eta += EPS;
 
     payload.ior = payload.inside_media ? material.ior : 1.0;
 
-    bsdf_sample_t bsdf_sample = sample_UE4(material, payload.normal, V, eta, rngState);
-
-//    bsdf_sample_t bsdf_sample = sample_disney(material, payload.normal, V, eta, rngState);
+    // TODO: compile-time toggle BSDF
+//    bsdf_sample_t bsdf_sample = sample_UE4(material, payload.normal, V, eta, rngState);
+    bsdf_sample_t bsdf_sample = sample_disney(material, payload.normal, V, eta, rngState);
 
     payload.ray.direction = bsdf_sample.direction;
 

@@ -261,14 +261,24 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     push_constants.disable_material = settings.disable_material;
     push_constants.random_seed = m_random_engine();
 
-    frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    frame_asset.cmd_trace.begin();
+    frame_asset.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    frame_asset.cmd_build_toplvl.begin();
 
     // update top-level structure
     frame_asset.acceleration_asset = m_ray_builder.create_toplevel(frame_asset.bottom_lvl_assets,
-                                                                   frame_asset.cmd_trace.handle());
+                                                                   frame_asset.cmd_build_toplvl.handle());
+
+    vierkant::semaphore_submit_info_t semaphore_top_info = {};
+    semaphore_top_info.semaphore = frame_asset.semaphore.handle();
+    semaphore_top_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
+    semaphore_top_info.wait_value = SemaphoreValue::UPDATE_BOTTOM;
+    semaphore_top_info.signal_value = SemaphoreValue::UPDATE_TOP;
+    frame_asset.cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_top_info});
 
     update_trace_descriptors(frame_asset, cam);
+
+    frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    frame_asset.cmd_trace.begin();
 
     // run path-tracer
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
@@ -278,7 +288,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
     semaphore_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
-    semaphore_info.wait_value = SemaphoreValue::ACCELERATION_UPDATE;
+    semaphore_info.wait_value = SemaphoreValue::UPDATE_TOP;
     semaphore_info.signal_value = SemaphoreValue::RAYTRACING;
     frame_asset.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 }
@@ -311,7 +321,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
-    semaphore_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
     semaphore_info.wait_value = SemaphoreValue::RAYTRACING;
     semaphore_info.signal_value = SemaphoreValue::DENOISER;
     frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
@@ -454,7 +464,8 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 {
     // set environment
     m_environment = scene->environment();
-    frame_asset.tracable.pipeline_info.shader_stages = m_environment ? m_shader_stages_env : m_shader_stages;
+    bool use_environment = m_environment && settings.draw_skybox;
+    frame_asset.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
 
     // TODO: culling, no culling, which volume to use!?
     vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector(tags);
@@ -518,7 +529,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
     vierkant::semaphore_submit_info_t signal_info = {};
     signal_info.semaphore = frame_asset.semaphore.handle();
-    signal_info.signal_value = SemaphoreValue::ACCELERATION_UPDATE;
+    signal_info.signal_value = SemaphoreValue::UPDATE_BOTTOM;
     semaphore_infos.push_back(signal_info);
 
     vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, semaphore_infos);
@@ -527,6 +538,11 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 void PBRPathTracer::reset_accumulator()
 {
     m_batch_index = 0;
+
+    for(auto &fm : m_frame_assets)
+    {
+        fm.acceleration_asset = {};
+    }
 }
 
 size_t PBRPathTracer::current_batch() const

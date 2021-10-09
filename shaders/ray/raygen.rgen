@@ -11,10 +11,10 @@
 #define ACCUMULATED_RADIANCE 3
 
 // limit the number of samples/traces
-const uint NUM_SAMPLES = 4;
+const uint NUM_SAMPLES = 1;
 
 // limit the length of traced paths
-const uint MAX_PATH_LENGTH = 6;
+const uint MAX_PATH_LENGTH = 5;
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
