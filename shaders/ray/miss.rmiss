@@ -57,7 +57,7 @@ float march(Ray ray)
 // low-life skycolor routine
 vec3 sky_color(vec3 direction)
 {
-    const vec3 color_up = vec3(0.25f, 0.5f, 1.0f) * 2;
+    const vec3 color_up = vec3(0.25f, 0.5f, 1.0f) * 5;
 
     return mix(mix(vec3(2.0f), color_up, direction.y),
                mix(vec3(2.0f), vec3(0.2f), 4 * -direction.y), direction.y > 0.0 ? 0.0 : 1.0);

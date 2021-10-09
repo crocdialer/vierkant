@@ -14,7 +14,7 @@
 const uint NUM_SAMPLES = 1;
 
 // limit the length of traced paths
-const uint MAX_PATH_LENGTH = 5;
+const uint MAX_PATH_LENGTH = 8;
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
@@ -137,6 +137,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     }
 
     trace_result.radiance /= NUM_SAMPLES;
+    if(any(isinf(trace_result.radiance)) || any(isnan(trace_result.radiance))){ trace_result.radiance = vec3(0); }
     return trace_result;
 }
 
@@ -151,7 +152,6 @@ void main()
         accumulated_radiance += size * imageLoad(out_images[ACCUMULATED_RADIANCE], ivec2(gl_LaunchIDEXT.xy));
         accumulated_radiance /= size + 1;
     }
-    if(any(isinf(accumulated_radiance)) || any(isnan(accumulated_radiance))){ accumulated_radiance = vec4(0, 0, 0, 1); }
 
     imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.radiance, 1.0));
     imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
