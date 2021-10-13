@@ -5,9 +5,10 @@
 
 rendering backends
 -
-- unlit-forward
+- unlit
 - pbr / deferred
-- pbr-pathtracer (~UE4-bsdf) using VK_KHR_ray* extensions
+- pbr-pathtracer (Disney-bsdf) using VK_KHR_ray* extensions
+- shading: ~UE4- and Disney BSDFs
 
 HDR
 -
@@ -23,8 +24,15 @@ UI
 -
 - pragmatic+easy interface, thanks https://github.com/ocornut/imgui
 
-dependencies:
+dependencies / submodules:
 -
 - https://github.com/crocdialer/crocore
-- glfw
+  - boost
+  - libcurl
+  - https://github.com/nothings/stb (stb_image.h, stb_image_write, stb_image_resize.h)
+  
+- https://github.com/glfw/glfw
+- https://github.com/syoyo/tinygltf
+- https://github.com/nothings/stb (stb_truetype.h)
+- https://github.com/ocornut/imgui
 - vulkan 1.2 + support for VK_KHR_ray*
