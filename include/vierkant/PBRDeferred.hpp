@@ -8,6 +8,7 @@
 #include "vierkant/DrawContext.hpp"
 #include "vierkant/SceneRenderer.hpp"
 #include "vierkant/Bloom.hpp"
+#include "vierkant/DepthOfField.hpp"
 
 namespace vierkant
 {

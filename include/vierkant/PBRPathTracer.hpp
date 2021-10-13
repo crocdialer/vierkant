@@ -3,15 +3,16 @@
 //
 #pragma once
 
-#include "vierkant/SceneRenderer.hpp"
+#include <vierkant/SceneRenderer.hpp>
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/RayTracer.hpp>
 #include <vierkant/Compute.hpp>
 #include <vierkant/Semaphore.hpp>
-#include "vierkant/culling.hpp"
-#include "vierkant/PipelineCache.hpp"
-#include "vierkant/Bloom.hpp"
-#include "DrawContext.hpp"
+#include <vierkant/culling.hpp>
+#include <vierkant/PipelineCache.hpp>
+#include <vierkant/Bloom.hpp>
+#include <vierkant/DepthOfField.hpp>
+#include <vierkant/DrawContext.hpp>
 
 
 namespace vierkant

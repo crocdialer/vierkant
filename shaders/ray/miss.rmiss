@@ -3,64 +3,78 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "ray_common.glsl"
+#include "../utils/sdf.glsl"
 
 layout(location = 0) rayPayloadInEXT payload_t payload;
 
-// http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
-float sd_sphere(in vec3 p, in float r)
+float sdCross3(in vec3 p, vec3 sz)
 {
-    return length(p) - r;
+    return min(min(sdBox(p, sz), sdBox(p, sz.zyx)), sdBox(p, sz.xzy));
 }
 
 float map(in vec3 p, float time)
 {
-    p = mod(p, 1.5) - 0.5;
+    p = mod(p, 1.5) - 0.75;
 
     // some sphere
     float d = sd_sphere(p, 0.12);
+
+    // substract a box
+    d = max(d, - sdCross3(p, vec3(0.05, 0.05, 0.5)));
     return d;
 }
 
 // http://iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
 vec3 calc_normal(in vec3 pos, in float time)
 {
-    vec2 e = vec2(1.0, -1.0) * 0.2;//0.5773;
-    const float eps = 0.0001;//0.00025;
+    const vec2 e = vec2(1.0, -1.0) * 0.5773;
+    const float h = 0.00025;
 
-    return normalize(e.xyy*map(pos + e.xyy * eps, time) +
-                     e.yyx*map(pos + e.yyx * eps, time) +
-                     e.yxy*map(pos + e.yxy * eps, time) +
-                     e.xxx*map(pos + e.xxx * eps, time));
+    return normalize(e.xyy*map(pos + e.xyy * h, time) +
+                     e.yyx*map(pos + e.yyx * h, time) +
+                     e.yxy*map(pos + e.yxy * h, time) +
+                     e.xxx*map(pos + e.xxx * h, time));
 }
 
 #define MAX_STEPS 128
-#define MARCH_EPS .001
+#define MARCH_EPS .01
 #define MAX_DISTANCE 100.0
 
-float march(Ray ray)
+// return: march_distance, min_distance
+vec2 march(Ray ray)
 {
-    float march_distance = 0.;//Distane Origin
+    float march_distance = 0.;
+
+    // keep track of minimum distance
+    float min_distance = MAX_DISTANCE;
 
     for (int i = 0; i < MAX_STEPS; i++)
     {
         vec3 p = ray.origin + ray.direction * march_distance;
         float distance = map(p, 0.0);
 
+        min_distance = min(min_distance, distance);
+
         // march max step
         march_distance += distance;
 
-        if (march_distance > MAX_DISTANCE || distance < MARCH_EPS) break;
+        if (march_distance >= MAX_DISTANCE || distance < MARCH_EPS) break;
     }
-    return march_distance;
+    return vec2(march_distance, min_distance);
 }
 
 // low-life skycolor routine
 vec3 sky_color(vec3 direction)
 {
-    const vec3 color_up = vec3(0.25f, 0.5f, 1.0f) * 5;
+    const vec3 color_up = vec3(0.25f, 0.5f, 1.0f) * 1;
 
-    return mix(mix(vec3(2.0f), color_up, direction.y),
-               mix(vec3(2.0f), vec3(0.2f), 4 * -direction.y), direction.y > 0.0 ? 0.0 : 1.0);
+    vec3 col = mix(vec3(0.9f), color_up, abs(direction.y));
+
+    const vec3 sun_dir = normalize(vec3(1.0, 0.75, 1.0));
+    float sun = clamp(dot(direction, sun_dir), 0.0, 1.0);
+    col += 40 * vec3(1.0, 0.5, 0.1) * pow(sun, 200.0);
+
+    return col;
 }
 
 void main()
@@ -70,10 +84,13 @@ void main()
     payload.normal = vec3(0.);
     payload.position = vec3(0.);
 
-    float d = march(payload.ray);
+    float d = march(payload.ray).x;
     vec3 p = payload.ray.origin + payload.ray.direction * d;
     vec3 n = calc_normal(p, 0.0);
 
-    payload.radiance += payload.beta * sky_color(reflect(payload.ray.direction, n));
-//    payload.radiance += payload.beta * n;
+    vec3 col = d < 10.0 ? mix(sky_color(reflect(payload.ray.direction, n)), n / 2.0 + .5 + vec3(0.04), 0.99) :
+                                  sky_color(payload.ray.direction);
+//    col += payload.beta * n / 2.0 + .5;
+
+    payload.radiance += payload.beta * col;//sky_color(payload.ray.direction);
 }

@@ -8,7 +8,6 @@
 #include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
 #include "vierkant/Renderer.hpp"
-#include "vierkant/DepthOfField.h"
 
 namespace vierkant
 {
