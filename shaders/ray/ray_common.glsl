@@ -50,6 +50,12 @@ struct push_constants_t
     //! sample-batch index
     uint batch_index;
 
+    //! spp - samples per pixel
+    uint num_samples;
+
+    //! spp - samples per pixel
+    uint max_trace_depth;
+
     //! override albedo colors
     bool disable_material;
 

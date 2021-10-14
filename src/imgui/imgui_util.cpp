@@ -464,8 +464,15 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     ImGui::Text((std::to_string(path_tracer->current_batch()) + " / ").c_str());
     ImGui::SameLine();
     int max_num_batches = static_cast<int>(path_tracer->settings.max_num_batches);
+    int num_samples = static_cast<int>(path_tracer->settings.num_samples);
+    int max_trace_depth = static_cast<int>(path_tracer->settings.max_trace_depth);
+
     if(ImGui::InputInt("num batches", &max_num_batches) &&
        max_num_batches >= 0){ path_tracer->settings.max_num_batches = max_num_batches; }
+    if(ImGui::InputInt("spp (samples/pixel)", &num_samples) &&
+       num_samples >= 0){ path_tracer->settings.num_samples = num_samples; }
+    if(ImGui::InputInt("max bounces", &max_trace_depth) &&
+       max_trace_depth >= 0){ path_tracer->settings.max_trace_depth = max_trace_depth; }
 
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);

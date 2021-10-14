@@ -10,11 +10,11 @@
 #define POSITIONS 2
 #define ACCUMULATED_RADIANCE 3
 
-// limit the number of samples/traces
-const uint NUM_SAMPLES = 1;
-
-// limit the length of traced paths
-const uint MAX_PATH_LENGTH = 8;
+//// limit the number of samples/traces
+//const uint NUM_SAMPLES = 1;
+//
+//// limit the length of traced paths
+//const uint MAX_PATH_LENGTH = 8;
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
@@ -62,10 +62,10 @@ trace_result_t trace(vec2 coord, vec2 size)
     //    |      |      |
     //    '------+------'
     //          -1
-    for (int sampleIdx = 0; sampleIdx < NUM_SAMPLES; sampleIdx++)
+    for (int sampleIdx = 0; sampleIdx < push_constants.num_samples; sampleIdx++)
     {
         // random+stratified sampling
-        const vec2 randomPixelCenter = coord + fract(Hammersley(sampleIdx, NUM_SAMPLES) + vec2(sample_offset));
+        const vec2 randomPixelCenter = coord + fract(Hammersley(sampleIdx, push_constants.num_samples) + vec2(sample_offset));
         const vec2 inUV = randomPixelCenter / size;
         vec2 d = inUV * 2.0 - 1.0;
 
@@ -89,7 +89,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         vec3 path_radiance = vec3(0);
 
         // trace a path
-        for (int i = 0; i < MAX_PATH_LENGTH; i++)
+        for (int i = 0; i < push_constants.max_trace_depth; i++)
         {
             payload.stop = false;
             payload.radiance = path_radiance;
@@ -136,7 +136,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         trace_result.radiance += path_radiance;
     }
 
-    trace_result.radiance /= NUM_SAMPLES;
+    trace_result.radiance /= push_constants.num_samples;
     if(any(isinf(trace_result.radiance)) || any(isnan(trace_result.radiance))){ trace_result.radiance = vec3(0); }
     return trace_result;
 }

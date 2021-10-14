@@ -30,6 +30,12 @@ public:
         //! optional maximum number of batches to trace, default: 0 -> no limit
         uint32_t max_num_batches = 0;
 
+        //! spp - samples per pixel
+        uint32_t num_samples = 1;
+
+        //! spp - samples per pixel
+        uint32_t max_trace_depth = 6;
+
         //! disable colors from textures, material, vertices
         bool disable_material = false;
 
@@ -174,6 +180,12 @@ private:
 
         //! sample-batch index
         uint32_t batch_index = 0;
+
+        //! spp - samples per pixel
+        uint32_t num_samples = 1;
+
+        //! spp - samples per pixel
+        uint32_t max_trace_depth = 6;
 
         //! override albedo colors
         uint32_t disable_material = 0;

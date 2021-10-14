@@ -258,6 +258,8 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     using namespace std::chrono;
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.batch_index = m_batch_index;
+    push_constants.num_samples = settings.num_samples;
+    push_constants.max_trace_depth = settings.max_trace_depth;
     push_constants.disable_material = settings.disable_material;
     push_constants.random_seed = m_random_engine();
 
