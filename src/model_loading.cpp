@@ -81,7 +81,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
     // node animations
     mesh->node_animations = mesh_assets.node_animations;
 
-    mesh->materials.resize(mesh_assets.materials.size());
+    mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
     // cache textures
     std::unordered_map<crocore::ImagePtr, vierkant::ImagePtr> texture_cache;
@@ -100,7 +100,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
         cache_helper(asset_mat.img_transmission);
     }
 
-    for(uint32_t i = 0; i < mesh->materials.size(); ++i)
+    for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
     {
         auto &material = mesh->materials[i];
         material = vierkant::Material::create();

@@ -326,14 +326,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             key.matrix_buffer_index = indexed_drawable.matrix_buffer_index;
             key.material_buffer_index = indexed_drawable.material_buffer_index;
 
-            // start searching in
-            auto render_asset_it = next_assets.render_assets.find(key);
-
             // transition image layouts
-            for(auto &pair : descriptors)
+            for(auto &[binding, descriptor] : descriptors)
             {
-                auto &desc = pair.second;
-                for(auto &img : desc.image_samplers)
+                for(auto &img : descriptor.image_samplers)
                 {
                     img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                            command_buffer.handle());
@@ -342,6 +338,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
             // handle for a descriptor-set
             VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
+
+            // start searching in next_assets
+            auto render_asset_it = next_assets.render_assets.find(key);
 
             // not found in next assets
             if(render_asset_it == next_assets.render_assets.end())
