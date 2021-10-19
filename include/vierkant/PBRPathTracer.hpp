@@ -227,8 +227,6 @@ private:
 
     bool m_compaction;
 
-    bool m_denoising;
-
     vierkant::RayBuilder::acceleration_asset_map_t m_acceleration_assets;
 
     size_t m_batch_index = 0;

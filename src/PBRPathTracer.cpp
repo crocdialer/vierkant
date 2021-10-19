@@ -49,7 +49,6 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     m_compaction = create_info.settings.compaction;
 
     // denoise compute
-    m_denoising = settings.denoising;
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.num_frames_in_flight = create_info.num_frames_in_flight;
     compute_info.pipeline_cache = create_info.pipeline_cache;
@@ -206,8 +205,6 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
                                                            const CameraPtr &cam,
                                                            const std::set<std::string> &tags)
 {
-    m_denoising = settings.denoising;
-
     auto &frame_asset = m_frame_assets[renderer.current_index()];
 
     // sync and reset semaphore
@@ -301,7 +298,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_denoise.begin();
 
-    if(m_denoising)
+    if(settings.denoising)
     {
         // transition storage image
         frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,

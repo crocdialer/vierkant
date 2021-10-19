@@ -55,7 +55,7 @@ private:
     glm::vec2 m_brightness_thresh;
 
     VkSpecializationInfo m_specialization_info = {};
-    std::array<VkSpecializationMapEntry, 2> m_specialization_entry;
+    std::array<VkSpecializationMapEntry, 2> m_specialization_entry{};
 
     vierkant::Semaphore m_semaphore;
 };

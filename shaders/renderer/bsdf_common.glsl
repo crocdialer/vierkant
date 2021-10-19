@@ -67,7 +67,6 @@ vec3 sample_cosine(vec2 Xi)
 // sample a GGX-distribution
 vec3 sample_GGX(vec2 Xi, float roughness)
 {
-    roughness = roughness * roughness;
     float a = max(0.001, roughness);
 
     float phi = 2.0 * PI * Xi.x;
@@ -81,7 +80,6 @@ vec3 sample_GGX(vec2 Xi, float roughness)
 // sample a 'GGX-distribution of visible normals' (from Eric Heitz, 2018)
 vec3 sample_GGX_VNDF(vec2 Xi, vec3 V, vec2 roughness)
 {
-    roughness = roughness * roughness;
     roughness = max(vec2(0.001), roughness);
 
     // transform view-direction to hemisphere configuration

@@ -51,6 +51,8 @@ vec3 ImportanceSampleDiffuse(vec3 N, samplerCube cubemap)
 
 vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
 {
+    roughness = max(0.001, roughness);
+
     // Approximation: assume V == R
     // We lose enlongated reflection by doing this but we also get rid
     // of one variable. So we are able to bake irradiance into a single
@@ -82,7 +84,7 @@ vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
             float D = GTR2(NoH, roughness);
             float pdf = D * NoH / (4.0 * VoH);
             float solidAngleSample = 1.0 / (numSamples * pdf);
-            float lod = roughness == 0.0 ? 0.0 : 0.5 * log2(solidAngleSample / solidAngleTexel);
+            float lod = 0.5 * log2(solidAngleSample / solidAngleTexel);
 
             vec3 hdrRadiance = textureLod(cubemap, L, lod).rgb;
             result += vec4(hdrRadiance * NoL, NoL);
@@ -95,6 +97,7 @@ vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
 vec2 IntegrateBRDF(float roughness, float NoV)
 {
     roughness = max(0.001, roughness);
+    float a2 = roughness * roughness;
 
     vec3 N = vec3(0.0, 0.0, 1.0);
     vec3 V = vec3(sqrt(clamp(1.0 - NoV * NoV, 0.0, 1.0)), 0.0, NoV); // assuming isotropic BRDF
@@ -110,7 +113,7 @@ vec2 IntegrateBRDF(float roughness, float NoV)
     for (uint i = 0; i < numSamples; ++i)
     {
         vec2 Xi = Hammersley(i, numSamples);
-        vec3 H = local_frame * sample_GGX(Xi, roughness);
+        vec3 H = local_frame * sample_GGX(Xi, a2);
         vec3 L = reflect(-V, H);//2.0 * dot(V, H) * H - V;
 
         float NoL = clamp(L.z, 0.0, 1.0);
