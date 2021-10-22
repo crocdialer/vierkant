@@ -461,6 +461,11 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 
 void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr &cam)
 {
+    int res[2] = {static_cast<int>(path_tracer->settings.resolution.x),
+                  static_cast<int>(path_tracer->settings.resolution.y)};
+    if(ImGui::InputInt2("resolution", res) &&
+       res[0] > 0 && res[1] > 0){ path_tracer->settings.resolution = {res[0], res[1]}; }
+
     ImGui::Text((std::to_string(path_tracer->current_batch()) + " / ").c_str());
     ImGui::SameLine();
     int max_num_batches = static_cast<int>(path_tracer->settings.max_num_batches);
@@ -658,7 +663,7 @@ void draw_material_ui(const MaterialPtr &material)
 {
     const float w = ImGui::GetContentRegionAvailWidth();
 
-    auto draw_texture = [&material, w](vierkant::Material::TextureType type, const std::string& text)
+    auto draw_texture = [&material, w](vierkant::Material::TextureType type, const std::string &text)
     {
         auto it = material->textures.find(type);
 

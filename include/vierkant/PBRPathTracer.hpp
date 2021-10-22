@@ -208,12 +208,16 @@ private:
 
     void post_fx_pass(frame_assets_t &frame_asset);
 
+    void resize_storage(frame_assets_t &frame_asset, const glm::uvec2 &resolution);
+
     //! device
     vierkant::DevicePtr m_device;
 
     VkQueue m_queue = VK_NULL_HANDLE;
 
     vierkant::CommandPoolPtr m_command_pool;
+
+    vierkant::PipelineCachePtr m_pipeline_cache;
 
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;

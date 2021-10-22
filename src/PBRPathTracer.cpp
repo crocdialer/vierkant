@@ -18,6 +18,7 @@ PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTra
 
 PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info) :
         m_device(device),
+        m_pipeline_cache(create_info.pipeline_cache),
         m_random_engine(create_info.seed)
 {
     settings = create_info.settings;
@@ -64,70 +65,11 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     denoise_computable.pipeline_info.shader_stage = vierkant::create_shader_module(m_device,
                                                                                    vierkant::shaders::ray::denoise_comp);
 
-    // create renderer for post-fx-pass
-    vierkant::RenderPassPtr post_fx_renderpass;
-    vierkant::Renderer::create_info_t post_render_info = {};
-    post_render_info.num_frames_in_flight = create_info.num_frames_in_flight;
-    post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    post_render_info.viewport.width = static_cast<float>(size.width);
-    post_render_info.viewport.height = static_cast<float>(size.height);
-    post_render_info.viewport.maxDepth = 1;
-    post_render_info.pipeline_cache = create_info.pipeline_cache;
-
-    // create storage images
-    vierkant::Image::Format storage_format = {};
-    storage_format.extent = size;
-    storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-    storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-    storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
-
-    // shared path-tracer-storage for all frame-assets
-    m_storage_images.radiance = vierkant::Image::create(m_device, storage_format);
-    m_storage_images.normals = vierkant::Image::create(m_device, storage_format);
-    m_storage_images.positions = vierkant::Image::create(m_device, storage_format);
-    m_storage_images.accumulated_radiance = vierkant::Image::create(m_device, storage_format);
-
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
     for(auto &frame_asset : m_frame_assets)
     {
-        frame_asset.tracable.extent = size;
-
-        // not really needed, idk. maybe prepare for shadow-rays
-        frame_asset.tracable.pipeline_info.max_recursion = 3;
-
-        // create a denoise image
-        vierkant::Image::Format denoise_format = {};
-        denoise_format.extent = size;
-        denoise_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
-        denoise_format.usage =
-                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        denoise_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
-        frame_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
         frame_asset.denoise_computable = denoise_computable;
-
-        // denoise-compute
-        vierkant::descriptor_t desc_denoise_input = {};
-        desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_input.image_samplers = {m_storage_images.accumulated_radiance, m_storage_images.normals,
-                                             m_storage_images.positions};
-        frame_asset.denoise_computable.descriptors[0] = desc_denoise_input;
-
-        vierkant::descriptor_t desc_denoise_output = {};
-        desc_denoise_output.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        desc_denoise_output.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_output.image_samplers = {frame_asset.denoise_image};
-        frame_asset.denoise_computable.descriptors[1] = desc_denoise_output;
-
-        // create bloom
-        Bloom::create_info_t bloom_info = {};
-        bloom_info.size = size;
-        bloom_info.size.width /= 2;
-        bloom_info.size.height /= 2;
-        bloom_info.num_blur_iterations = 3;
-        bloom_info.pipeline_cache = create_info.pipeline_cache;
-        frame_asset.bloom = Bloom::create(device, bloom_info);
 
         frame_asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
                                                                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -203,6 +145,8 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
     frame_asset.semaphore = vierkant::Semaphore(m_device);
 
+    // resize storage-assets if necessary
+    resize_storage(frame_asset, settings.resolution);
 
     // max num batches reached, bail out
     if(!settings.max_num_batches || m_batch_index < settings.max_num_batches)
@@ -536,6 +480,71 @@ void PBRPathTracer::reset_accumulator()
 size_t PBRPathTracer::current_batch() const
 {
     return m_batch_index;
+}
+
+void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2 &resolution)
+{
+    VkExtent3D size = {resolution.x, resolution.y, 1};
+
+    if(!m_storage_images.radiance || m_storage_images.radiance->extent() != size)
+    {
+        // create storage images
+        vierkant::Image::Format storage_format = {};
+        storage_format.extent = size;
+        storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+
+        // shared path-tracer-storage for all frame-assets
+        m_storage_images.radiance = vierkant::Image::create(m_device, storage_format);
+        m_storage_images.normals = vierkant::Image::create(m_device, storage_format);
+        m_storage_images.positions = vierkant::Image::create(m_device, storage_format);
+        m_storage_images.accumulated_radiance = vierkant::Image::create(m_device, storage_format);
+
+        m_batch_index = 0;
+    }
+
+    if(!frame_asset.denoise_image || frame_asset.denoise_image->extent() != size)
+    {
+        frame_asset.tracable.extent = size;
+
+        // not really needed, idk. maybe prepare for shadow-rays
+        frame_asset.tracable.pipeline_info.max_recursion = 3;
+
+        frame_asset.denoise_computable.extent = size;
+        frame_asset.denoise_computable.extent.width = vierkant::div_up(size.width, 16);
+        frame_asset.denoise_computable.extent.height = vierkant::div_up(size.height, 16);
+
+        // create a denoise image
+        vierkant::Image::Format denoise_format = {};
+        denoise_format.extent = size;
+        denoise_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+        denoise_format.usage =
+                VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        denoise_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+        frame_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
+
+        // denoise-compute
+        vierkant::descriptor_t desc_denoise_input = {};
+        desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_denoise_input.image_samplers = {m_storage_images.accumulated_radiance, m_storage_images.normals,
+                                             m_storage_images.positions};
+        frame_asset.denoise_computable.descriptors[0] = desc_denoise_input;
+
+        vierkant::descriptor_t desc_denoise_output = {};
+        desc_denoise_output.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        desc_denoise_output.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_denoise_output.image_samplers = {frame_asset.denoise_image};
+        frame_asset.denoise_computable.descriptors[1] = desc_denoise_output;
+
+        // create bloom
+        Bloom::create_info_t bloom_info = {};
+        bloom_info.size = {std::max<uint32_t>(size.width / 2, 1), std::max<uint32_t>(size.height / 2, 1), 1};
+        bloom_info.num_blur_iterations = 3;
+        bloom_info.pipeline_cache = m_pipeline_cache;
+        frame_asset.bloom = Bloom::create(m_device, bloom_info);
+    }
 }
 
 }// namespace vierkant

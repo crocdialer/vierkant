@@ -14,6 +14,7 @@ DEFINE_CLASS_PTR(Image)
 using VkImagePtr = std::shared_ptr<VkImage_T>;
 
 VkDeviceSize num_bytes(VkFormat format);
+
 VkDeviceSize num_bytes(VkIndexType format);
 
 class Image
@@ -255,6 +256,16 @@ private:
 };
 
 }//namespace vierkant
+
+static inline bool operator==(const VkExtent3D &lhs, const VkExtent3D &rhs)
+{
+    if(lhs.width != rhs.width){ return false; }
+    if(lhs.height != rhs.height){ return false; }
+    if(lhs.depth != rhs.depth){ return false; }
+    return true;
+}
+
+static inline bool operator!=(const VkExtent3D &lhs, const VkExtent3D &rhs){ return !(lhs == rhs); }
 
 namespace std
 {
