@@ -24,9 +24,12 @@ class PBRPathTracer : public vierkant::SceneRenderer
 {
 public:
 
-    //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
+    //! group settings
     struct settings_t
     {
+        //! path-tracing resolution
+        glm::uvec2 resolution = {1280, 720};
+
         //! optional maximum number of batches to trace, default: 0 -> no limit
         uint32_t max_num_batches = 0;
 
@@ -66,7 +69,6 @@ public:
 
     struct create_info_t
     {
-        VkExtent3D size = {};
         uint32_t num_frames_in_flight = 0;
 
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
@@ -145,15 +147,6 @@ private:
 
         vierkant::Compute::computable_t denoise_computable = {};
 
-        //! path-tracing storage images
-        struct
-        {
-            vierkant::ImagePtr radiance;
-            vierkant::ImagePtr normals;
-            vierkant::ImagePtr positions;
-            vierkant::ImagePtr accumulated_radiance;
-        } storage;
-
         vierkant::ImagePtr denoise_image;
 
         vierkant::BufferPtr composition_ubo;
@@ -230,6 +223,15 @@ private:
     vierkant::RayBuilder::acceleration_asset_map_t m_acceleration_assets;
 
     size_t m_batch_index = 0;
+
+    //! path-tracing storage images
+    struct
+    {
+        vierkant::ImagePtr radiance;
+        vierkant::ImagePtr normals;
+        vierkant::ImagePtr positions;
+        vierkant::ImagePtr accumulated_radiance;
+    } m_storage_images;
 
     //! owns raytracing pipelines and shader-bindingtables
     vierkant::RayTracer m_ray_tracer;

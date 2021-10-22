@@ -54,59 +54,51 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     compute_info.pipeline_cache = create_info.pipeline_cache;
     m_compute = vierkant::Compute(device, compute_info);
 
+    VkExtent3D size = {create_info.settings.resolution.x, create_info.settings.resolution.y, 1};
+
     vierkant::Compute::computable_t denoise_computable = {};
-    denoise_computable.extent = create_info.size;
-    denoise_computable.extent.width = vierkant::div_up(create_info.size.width, 16);
-    denoise_computable.extent.height = vierkant::div_up(create_info.size.height, 16);
+    denoise_computable.extent = size;
+    denoise_computable.extent.width = vierkant::div_up(size.width, 16);
+    denoise_computable.extent.height = vierkant::div_up(size.height, 16);
 
     denoise_computable.pipeline_info.shader_stage = vierkant::create_shader_module(m_device,
                                                                                    vierkant::shaders::ray::denoise_comp);
-
-    vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
-    post_fx_buffer_info.size = create_info.size;
-    post_fx_buffer_info.color_attachment_format.usage =
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
     // create renderer for post-fx-pass
     vierkant::RenderPassPtr post_fx_renderpass;
     vierkant::Renderer::create_info_t post_render_info = {};
     post_render_info.num_frames_in_flight = create_info.num_frames_in_flight;
     post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    post_render_info.viewport.width = create_info.size.width;
-    post_render_info.viewport.height = create_info.size.height;
+    post_render_info.viewport.width = static_cast<float>(size.width);
+    post_render_info.viewport.height = static_cast<float>(size.height);
     post_render_info.viewport.maxDepth = 1;
     post_render_info.pipeline_cache = create_info.pipeline_cache;
 
     // create storage images
     vierkant::Image::Format storage_format = {};
-    storage_format.extent = create_info.size;
+    storage_format.extent = size;
     storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
     storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
 
     // shared path-tracer-storage for all frame-assets
-    auto radiance_img = vierkant::Image::create(m_device, storage_format);
-    auto normals_img = vierkant::Image::create(m_device, storage_format);
-    auto positions_img = vierkant::Image::create(m_device, storage_format);
-    auto accumulated_radiance_img = vierkant::Image::create(m_device, storage_format);
+    m_storage_images.radiance = vierkant::Image::create(m_device, storage_format);
+    m_storage_images.normals = vierkant::Image::create(m_device, storage_format);
+    m_storage_images.positions = vierkant::Image::create(m_device, storage_format);
+    m_storage_images.accumulated_radiance = vierkant::Image::create(m_device, storage_format);
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
     for(auto &frame_asset : m_frame_assets)
     {
-        frame_asset.tracable.extent = create_info.size;
+        frame_asset.tracable.extent = size;
 
         // not really needed, idk. maybe prepare for shadow-rays
         frame_asset.tracable.pipeline_info.max_recursion = 3;
 
-        frame_asset.storage.radiance = radiance_img;
-        frame_asset.storage.normals = normals_img;
-        frame_asset.storage.positions = positions_img;
-        frame_asset.storage.accumulated_radiance = accumulated_radiance_img;
-
         // create a denoise image
         vierkant::Image::Format denoise_format = {};
-        denoise_format.extent = create_info.size;
+        denoise_format.extent = size;
         denoise_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
         denoise_format.usage =
                 VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -118,8 +110,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         vierkant::descriptor_t desc_denoise_input = {};
         desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_input.image_samplers = {frame_asset.storage.accumulated_radiance, frame_asset.storage.normals,
-                                             frame_asset.storage.positions};
+        desc_denoise_input.image_samplers = {m_storage_images.accumulated_radiance, m_storage_images.normals,
+                                             m_storage_images.positions};
         frame_asset.denoise_computable.descriptors[0] = desc_denoise_input;
 
         vierkant::descriptor_t desc_denoise_output = {};
@@ -130,7 +122,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
         // create bloom
         Bloom::create_info_t bloom_info = {};
-        bloom_info.size = create_info.size;
+        bloom_info.size = size;
         bloom_info.size.width /= 2;
         bloom_info.size.height /= 2;
         bloom_info.num_blur_iterations = 3;
@@ -210,6 +202,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     // sync and reset semaphore
     frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
     frame_asset.semaphore = vierkant::Semaphore(m_device);
+
 
     // max num batches reached, bail out
     if(!settings.max_num_batches || m_batch_index < settings.max_num_batches)
@@ -310,10 +303,10 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     else
     {
         // actual copy command
-        frame_asset.storage.accumulated_radiance->copy_to(frame_asset.denoise_image, frame_asset.cmd_denoise.handle());
+        m_storage_images.accumulated_radiance->copy_to(frame_asset.denoise_image, frame_asset.cmd_denoise.handle());
 
-        frame_asset.storage.accumulated_radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
-                                                                    frame_asset.cmd_denoise.handle());
+        m_storage_images.accumulated_radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
+                                                                 frame_asset.cmd_denoise.handle());
     }
 
     frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -377,8 +370,8 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     vierkant::descriptor_t desc_storage_images = {};
     desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_storage_images.image_samplers = {frame_asset.storage.radiance, frame_asset.storage.normals,
-                                          frame_asset.storage.positions, frame_asset.storage.accumulated_radiance};
+    desc_storage_images.image_samplers = {m_storage_images.radiance, m_storage_images.normals,
+                                          m_storage_images.positions, m_storage_images.accumulated_radiance};
     frame_asset.tracable.descriptors[1] = desc_storage_images;
 
     // provide inverse modelview and projection matrices
@@ -408,13 +401,13 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     frame_asset.tracable.descriptors[4] = desc_index_buffers;
 
     vierkant::descriptor_t desc_entries = {};
-    desc_entries.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_entries.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_entries.buffers = {frame_asset.acceleration_asset.entry_buffer};
     frame_asset.tracable.descriptors[5] = desc_entries;
 
     vierkant::descriptor_t desc_materials = {};
-    desc_materials.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_materials.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_materials.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_materials.buffers = {frame_asset.acceleration_asset.material_buffer};
     frame_asset.tracable.descriptors[6] = desc_materials;

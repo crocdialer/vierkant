@@ -9,8 +9,6 @@
 //#include "bsdf_UE4.glsl"
 #include "bsdf_disney.glsl"
 
-const uint MAX_NUM_ENTRIES = 1024;
-
 layout(push_constant) uniform PushConstants
 {
     push_constants_t push_constants;
@@ -22,15 +20,9 @@ layout(binding = 3, set = 0, scalar) readonly buffer Vertices { Vertex v[]; } ve
 // array of index-buffers
 layout(binding = 4, set = 0) readonly buffer Indices { uint i[]; } indices[];
 
-layout(binding = 5, set = 0) uniform Entries
-{
-    entry_t u_entries[MAX_NUM_ENTRIES];
-};
+layout(binding = 5, set = 0) readonly buffer Entries { entry_t entries[]; };
 
-layout(binding = 6, set = 0) uniform Materials
-{
-    material_t materials[MAX_NUM_ENTRIES];
-};
+layout(binding = 6, set = 0) readonly buffer Materials{ material_t materials[]; };
 
 layout(binding = 7) uniform sampler2D u_albedos[];
 
@@ -51,7 +43,7 @@ Vertex interpolate_vertex()
     const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
 
     // entry aka instance
-    entry_t entry = u_entries[gl_InstanceCustomIndexEXT];
+    entry_t entry = entries[gl_InstanceCustomIndexEXT];
 
     // triangle indices
     ivec3 ind = ivec3(indices[nonuniformEXT(entry.buffer_index)].i[entry.base_index + 3 * gl_PrimitiveID + 0],
@@ -84,7 +76,7 @@ void main()
     //    vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     Vertex v = interpolate_vertex();
 
-    material_t material = materials[u_entries[gl_InstanceCustomIndexEXT].material_index];
+    material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
 
     payload.position = v.position;
     payload.normal = v.normal;

@@ -478,12 +478,12 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
 
     // needed to access buffer/vertex/index/material in closest-hit shader
     top_level.entry_buffer = vierkant::Buffer::create(m_device, entries,
-                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // material information for all entries
     top_level.material_buffer = vierkant::Buffer::create(m_device, materials,
-                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // move texture-assets
