@@ -17,7 +17,7 @@ struct material_t
 {
     std::string name;
 
-    glm::vec4 diffuse;
+    glm::vec4 base_color;
     glm::vec3 emission;
 
     float roughness = 1.f;

@@ -105,6 +105,18 @@ vec3 sample_GGX_VNDF(vec2 Xi, vec3 V, vec2 roughness)
     return Ne;
 }
 
+vec3 sample_GTR1(vec2 Xi, float roughness)
+{
+    float a = max(0.001, roughness);
+    float a2 = a * a;
+
+    float phi = Xi.x * 2 * PI;
+    float cosTheta = sqrt((1.0 - pow(a2, 1.0 - Xi.y)) / (1.0 - a2));
+    float sinTheta = clamp(sqrt(1.0 - (cosTheta * cosTheta)), 0.0, 1.0);
+
+    return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
+}
+
 /*
  * Schlick's approximation of the specular reflection coefficient R
  * (1 - cosTheta)^5

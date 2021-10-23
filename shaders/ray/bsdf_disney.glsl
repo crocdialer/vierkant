@@ -199,7 +199,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
             // Sample primary specular lobe
             if (rnd(rng_state) < primarySpecRatio)
             {
-//                vec3 H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
+//                H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
 //                if (dot(V, H) < 0.0){ H = -H; }
 
                 ret.direction = normalize(reflect(-V, H));
@@ -209,11 +209,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
             }
             else // Sample clearcoat lobe
             {
-//                vec3 H = ImportanceSampleGTR1(mix(0.1, 0.001, material.clearcoat_factor), r1, r2);
-//                H = frame * H;
-
-                H = frame * sample_GGX(Xi, material.clearcoat_roughness);
-//                H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.clearcoat_roughness));
+                H = frame * sample_GTR1(Xi, mix(0.1, 0.001, material.clearcoat));
                 if (dot(V, H) < 0.0){ H = -H; }
 
                 ret.direction = normalize(reflect(-V, H));

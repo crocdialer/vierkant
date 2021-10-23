@@ -319,13 +319,16 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     frame_asset.tracable.descriptors[1] = desc_storage_images;
 
     // provide inverse modelview and projection matrices
-    std::vector<glm::mat4> matrices = {glm::inverse(cam->view_matrix()),
-                                       glm::inverse(cam->projection_matrix())};
+    camera_ubo_t camera_ubo = {};
+    camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
+    camera_ubo.view_inverse = glm::inverse(cam->view_matrix());
+    camera_ubo.aperture = settings.aperture;
+    camera_ubo.focal_distance = settings.focal_distance;
 
     vierkant::descriptor_t desc_matrices = {};
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_matrices.buffers = {vierkant::Buffer::create(m_device, matrices,
+    desc_matrices.buffers = {vierkant::Buffer::create(m_device, &camera_ubo, sizeof(camera_ubo),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_CPU_TO_GPU)};
     frame_asset.tracable.descriptors[2] = desc_matrices;

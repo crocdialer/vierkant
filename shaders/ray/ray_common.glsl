@@ -21,8 +21,11 @@ struct payload_t
     // worldspace position
     vec3 position;
 
-    // faceforward, worldspace normal
+    // worldspace normal
     vec3 normal;
+
+    // faceforward worldspace normal
+    vec3 ff_normal;
 
     // accumulated radiance along a path
     vec3 radiance;
@@ -61,4 +64,12 @@ struct push_constants_t
 
     //! a provided random seed
     uint random_seed;
+};
+
+struct camera_ubo_t
+{
+    mat4 projection_inverse;
+    mat4 view_inverse;
+    float aperture;
+    float focal_distance;
 };

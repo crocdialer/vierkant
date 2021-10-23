@@ -107,7 +107,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
 {
     model::material_t ret;
     ret.name = tiny_mat.name;
-    ret.diffuse = *reinterpret_cast<const glm::dvec4 *>(tiny_mat.pbrMetallicRoughness.baseColorFactor.data());
+    ret.base_color = *reinterpret_cast<const glm::dvec4 *>(tiny_mat.pbrMetallicRoughness.baseColorFactor.data());
     ret.emission = *reinterpret_cast<const glm::dvec3 *>(tiny_mat.emissiveFactor.data());
 
     // blend_mode defaults to opaque

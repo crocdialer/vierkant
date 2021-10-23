@@ -63,8 +63,9 @@ public:
         //! exposure setting for tone-mapping
         float exposure = 2.0;
 
-        //! desired depth-of-field settings, disabled by default
-        postfx::dof_settings_t dof = {};
+        float aperture = 0.f;
+
+        float focal_distance = 1.f;
     };
 
     struct create_info_t
@@ -185,6 +186,15 @@ private:
 
         //! a provided random seed
         uint32_t random_seed = 0;
+    };
+
+    struct camera_ubo_t
+    {
+        glm::mat4 projection_inverse{};
+        glm::mat4 view_inverse{};
+        float aperture = 0.f;
+        float focal_distance = 1.f;
+        int padding[2]{};
     };
 
     struct composition_ubo_t

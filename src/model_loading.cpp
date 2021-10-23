@@ -106,7 +106,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
         material = vierkant::Material::create();
 
         material->name = mesh_assets.materials[i].name;
-        material->color = mesh_assets.materials[i].diffuse;
+        material->color = mesh_assets.materials[i].base_color;
         material->emission = mesh_assets.materials[i].emission;
         material->roughness = mesh_assets.materials[i].roughness;
         material->metalness = mesh_assets.materials[i].metalness;

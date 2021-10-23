@@ -490,6 +490,12 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
 
     // gamma
     ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
+
+    // aperture
+    ImGui::InputFloat("aperture", &path_tracer->settings.aperture);
+
+    // focal distance
+    ImGui::InputFloat("focal distance", &path_tracer->settings.focal_distance);
 }
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
@@ -510,7 +516,6 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
     }
     else if(auto path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer))
     {
-        settings_dof = &path_tracer->settings.dof;
         draw_scene_renderer_ui_intern(path_tracer, cam);
     }
 

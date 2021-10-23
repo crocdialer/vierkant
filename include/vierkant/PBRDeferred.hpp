@@ -70,7 +70,7 @@ public:
         // base settings for a SceneRenderer
         settings_t settings = {};
 
-        // convolved diffuse irradiance cube
+        // convolved base_color irradiance cube
         vierkant::ImagePtr conv_lambert;
 
         // convolved specular irradiance cube mipmaps
@@ -203,7 +203,7 @@ private:
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;
 
-    // convolved diffuse irradiance cube
+    // convolved base_color irradiance cube
     vierkant::ImagePtr m_conv_lambert;
 
     // convolved specular irradiance cube mipmaps

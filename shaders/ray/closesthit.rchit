@@ -97,7 +97,7 @@ void main()
     }
 
     // flip the normal so it points against the ray direction:
-    payload.normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
+    payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
 
     // max emission from material/map
     const float emission_tex_gain = 10.0;
@@ -133,7 +133,7 @@ void main()
 
     // TODO: compile-time toggle BSDF
 //    bsdf_sample_t bsdf_sample = sample_UE4(material, payload.normal, V, eta, rngState);
-    bsdf_sample_t bsdf_sample = sample_disney(material, payload.normal, V, eta, rngState);
+    bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rngState);
 
     payload.ray.direction = bsdf_sample.direction;
 
