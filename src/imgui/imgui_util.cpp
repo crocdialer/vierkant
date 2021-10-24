@@ -492,10 +492,17 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 
     // aperture
-    ImGui::InputFloat("aperture", &path_tracer->settings.aperture);
+    constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
+
+    float f_stop =  clamp(1.f / path_tracer->settings.aperture, f_stop_min, f_stop_max);
+
+    if(ImGui::SliderFloat("f-stop", &f_stop, f_stop_min, f_stop_max))
+    {
+        path_tracer->settings.aperture = 1.f / f_stop;
+    }
 
     // focal distance
-    ImGui::InputFloat("focal distance", &path_tracer->settings.focal_distance);
+    ImGui::SliderFloat("focal distance", &path_tracer->settings.focal_distance, cam->near(), cam->far());
 }
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
