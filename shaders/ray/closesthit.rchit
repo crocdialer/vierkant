@@ -132,7 +132,7 @@ void main()
     payload.ior = payload.inside_media ? material.ior : 1.0;
 
     // TODO: compile-time toggle BSDF
-//    bsdf_sample_t bsdf_sample = sample_UE4(material, payload.normal, V, eta, rngState);
+//    bsdf_sample_t bsdf_sample = sample_UE4(material, payload.ff_normal, V, eta, rngState);
     bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rngState);
 
     payload.ray.direction = bsdf_sample.direction;

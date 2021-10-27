@@ -55,8 +55,8 @@ vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float 
     vec3 diffColor = albedo * (1.0 - metalness);// if it is metal, no diffuse color
     vec3 specColor = mix(dielectricF0, albedo, metalness);// since metal has no albedo, we use the space to store its F0
 
-    // TODO: nasty correction factor here
-    vec3 distEnvLighting = 0.6 * diffColor * diffIr + specIr * (specColor * (brdfTerm.x + brdfTerm.y));
+    // TODO: still in doubt about application of brdfTerm
+    vec3 distEnvLighting = diffColor * diffIr + specIr * (specColor * (brdfTerm.x + brdfTerm.y));
     distEnvLighting *= u_env_light_strength * ambient_occlusion;
 
     return distEnvLighting;

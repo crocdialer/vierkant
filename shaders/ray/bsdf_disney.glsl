@@ -125,7 +125,7 @@ vec3 EvalDiffuse(vec3 albedo, float roughness, float metallic, float sheen_rough
     vec3 Fsheen = FH * sheen_roughness * Csheen;
 
 //    return ((1.0 / PI) * mix(Fd, ss, material.subsurface) * material.albedo.xyz + Fsheen) * (1.0 - material.metallic);
-    return (ONE_OVER_PI * Fd * albedo.xyz + Fsheen) * (1.0 - metallic);
+    return (ONE_OVER_PI * Fd * albedo + Fsheen) * (1.0 - metallic);
 }
 
 
@@ -137,9 +137,9 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
     ret.transmission = false;
 
     float diffuseRatio = 0.5 * (1.0 - material.metalness);
-    float transWeight = (1.0 - material.metalness) * material.transmission;
+    float trans_weight = (1.0 - material.metalness) * material.transmission;
 
-    material.roughness = max(0.001, material.roughness);
+    material.roughness = max(0.001, material.roughness * material.roughness);
     material.sheen_roughness = max(0.001, material.sheen_roughness);
 
 //    vec3 Cdlin = material.color.rgb;
@@ -156,10 +156,9 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
 
     // possible half-vector from GGX distribution
     vec3 H = frame * sample_GGX(Xi, material.roughness);
-//    vec3 H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
     if (dot(V, H) < 0.0){ H = -H; }
 
-    if (rnd(rng_state) < transWeight)
+    if (rnd(rng_state) < trans_weight)
     {
         vec3 R = reflect(-V, H);
         float F = DielectricFresnel(abs(dot(R, H)), eta);
@@ -172,13 +171,16 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         }
         else // Transmission
         {
+//            H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
+//            if (dot(V, H) < 0.0){ H = -H; }
+            float trans_roughness = min(material.roughness, .4);
             ret.direction = normalize(refract(-V, H, eta));
-            ret.F = EvalDielectricRefraction(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);
+            ret.F = EvalDielectricRefraction(material.color.rgb, trans_roughness, eta, V, N, ret.direction, H, ret.pdf);
             ret.transmission = true;
         }
 
-        ret.F *= transWeight;
-        ret.pdf *= transWeight;
+        ret.F *= trans_weight;
+        ret.pdf *= trans_weight;
     }
     else
     {
@@ -219,8 +221,8 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
             }
         }
 
-        ret.F *= (1.0 - transWeight);
-        ret.pdf *= (1.0 - transWeight);
+        ret.F *= (1.0 - trans_weight);
+        ret.pdf *= (1.0 - trans_weight);
     }
 
     return ret;
@@ -255,14 +257,14 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
 //
 //    float diffuseRatio = 0.5 * (1.0 - material.metallic);
 //    float primarySpecRatio = 1.0 / (1.0 + material.clearcoat);
-//    float transWeight = (1.0 - material.metallic) * material.transmission;
+//    float trans_weight = (1.0 - material.metallic) * material.transmission;
 //
 //    vec3 brdf = vec3(0.0);
 //    vec3 bsdf = vec3(0.0);
 //    float brdfPdf = 0.0;
 //    float bsdfPdf = 0.0;
 //
-//    if (transWeight > 0.0)
+//    if (trans_weight > 0.0)
 //    {
 //        // Reflection
 //        if (refl)
@@ -277,7 +279,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
 //
 //    float m_pdf;
 //
-//    if (transWeight < 1.0)
+//    if (trans_weight < 1.0)
 //    {
 //        vec3 Cdlin = material.albedo.xyz;
 //        float Cdlum = 0.3 * Cdlin.x + 0.6 * Cdlin.y + 0.1 * Cdlin.z; // luminance approx.
@@ -299,7 +301,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
 //        brdfPdf += m_pdf * (1.0 - primarySpecRatio) * (1.0 - diffuseRatio);
 //    }
 //
-//    pdf = mix(brdfPdf, bsdfPdf, transWeight);
+//    pdf = mix(brdfPdf, bsdfPdf, trans_weight);
 //
-//    return mix(brdf, bsdf, transWeight);
+//    return mix(brdf, bsdf, trans_weight);
 //}

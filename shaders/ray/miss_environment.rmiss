@@ -12,17 +12,22 @@ layout(location = 0) rayPayloadInEXT payload_t payload;
 
 const float eps =  0.001;
 
+float powerHeuristic(float a, float b)
+{
+    float t = a * a;
+    return t / (b * b + t);
+}
+
 void main()
 {
-    float cube_width = float(textureSize(u_sampler_cube, 0).x);
-    float solid_angle_texel = 4.0 * PI / (6.0 * cube_width * cube_width);
-    float solid_angle_sample = 4.0 * PI * (1.0 - payload.pdf);
-    float lod = 0.5 * log2(solid_angle_sample / solid_angle_texel);
+//    float cube_width = float(textureSize(u_sampler_cube, 0).x);
+//    float solid_angle_texel = 4.0 * PI / (6.0 * cube_width * cube_width);
+//    float solid_angle_sample = solid_angle_texel / payload.pdf + EPS;
+//    float lod = 0.5 * log2(solid_angle_sample / solid_angle_texel);
+    float lod = 0.5 * log2(1.0 / (payload.pdf + EPS));
 
     // stop path tracing loop from rgen shader
     payload.stop = true;
-//    payload.normal = vec3(0);
-//    payload.position = vec3(0);
 
     payload.radiance += payload.beta * textureLod(u_sampler_cube, gl_WorldRayDirectionEXT, lod).rgb;
 //    payload.radiance += payload.beta * texture(u_sampler_cube, gl_WorldRayDirectionEXT).rgb;

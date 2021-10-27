@@ -51,7 +51,7 @@ vec3 ImportanceSampleDiffuse(vec3 N, samplerCube cubemap)
 
 vec3 ImportanceSampleSpecular(vec3 R, float roughness, samplerCube cubemap)
 {
-    roughness = max(0.001, roughness);
+    roughness = max(0.001, roughness * roughness);
 
     // Approximation: assume V == R
     // We lose enlongated reflection by doing this but we also get rid

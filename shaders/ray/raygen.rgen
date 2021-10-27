@@ -67,8 +67,9 @@ trace_result_t trace(vec2 coord, vec2 size)
         vec3 origin = (cam.view_inverse * vec4(lens_offset, 1)).xyz;
 
         // ray direction
-        vec3 target = (cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz;
-        vec3 direction = (cam.view_inverse * vec4(normalize(target * cam.focal_distance - lens_offset), 0)).xyz;
+        vec3 target_dir = normalize((cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz);
+        vec3 fpoint = target_dir * cam.focal_distance / abs(target_dir.z);
+        vec3 direction = (cam.view_inverse * vec4(normalize(fpoint - lens_offset), 0)).xyz;
 
         // next ray
         Ray ray = Ray(origin, direction);

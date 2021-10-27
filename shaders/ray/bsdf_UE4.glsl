@@ -51,15 +51,17 @@ vec3 eval_refract(vec3 albedo, float roughness, float eta, vec3 V, vec3 N, vec3 
     pdf = 0.0;
     if (dot(N, L) >= 0.0){ return vec3(0.0); }
 
-    float F = DielectricFresnel(abs(dot(V, H)), eta);
+    float VoH = dot(V, H);
+
+    float F = DielectricFresnel(abs(VoH), eta);
     float D = GTR2(dot(N, H), roughness);
 
-    float denomSqrt = dot(L, H) + dot(V, H) * eta;
+    float denomSqrt = dot(L, H) + VoH * eta;
     pdf = D * dot(N, H) * (1.0 - F) * abs(dot(L, H)) / (denomSqrt * denomSqrt);
 
     float G = SmithGGX(abs(dot(N, L)), roughness) * SmithGGX(abs(dot(N, V)), roughness);
 
-    return albedo * (1.0 - F) * D * G * abs(dot(V, H)) * abs(dot(L, H)) * 4.0 * eta * eta / (denomSqrt * denomSqrt);
+    return albedo * (1.0 - F) * D * G * abs(VoH) * abs(dot(L, H)) * 4.0 * eta * eta / (denomSqrt * denomSqrt);
 }
 
 bsdf_sample_t sample_UE4(in material_t material,
@@ -70,6 +72,9 @@ bsdf_sample_t sample_UE4(in material_t material,
 {
     bsdf_sample_t ret;
     ret.transmission = false;
+
+    material.roughness = max(0.001, material.roughness * material.roughness);
+    float trans_weight = (1.0 - material.metalness) * material.transmission;
 
     // local coordinate-frame
     mat3 local_basis = local_frame(N);
@@ -90,14 +95,15 @@ bsdf_sample_t sample_UE4(in material_t material,
     // diffuse or transmission case. no internal reflections
     if (rnd(rngState) < diffuse_ratio)
     {
-        if (rnd(rngState) < material.transmission)
+        if (rnd(rngState) < trans_weight)
         {
             ret.transmission = true;
 
             // refraction into medium
             ret.direction = normalize(refract(-V, H, eta));
+
             ret.F = eval_refract(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);
-            ret.pdf *= diffuse_ratio * material.transmission;
+            ret.pdf *= trans_weight;
         }
         else
         {
@@ -105,7 +111,7 @@ bsdf_sample_t sample_UE4(in material_t material,
             ret.direction = local_basis * sample_cosine(Xi);
 
             ret.F = eval_diffuse(material.color.rgb, material.roughness, material.metalness, V, N, ret.direction, ret.pdf);
-            ret.pdf *= diffuse_ratio;
+            ret.pdf *= diffuse_ratio * (1.0 - trans_weight);
         }
     }
     else
