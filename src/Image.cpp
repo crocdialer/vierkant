@@ -530,15 +530,15 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
         // copy src-image -> dst0image
         VkImageCopy region = {};
         region.extent = extent;
-        region.dstOffset = region.srcOffset = {0, 0, 0};
+        region.dstOffset = region.srcOffset = offset;
         region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         region.srcSubresource.baseArrayLayer = 0;
-        region.srcSubresource.layerCount = 1;
+        region.srcSubresource.layerCount = m_format.num_layers;
         region.srcSubresource.mipLevel = 0;
 
         region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         region.dstSubresource.baseArrayLayer = 0;
-        region.dstSubresource.layerCount = 1;
+        region.dstSubresource.layerCount = m_format.num_layers;
         region.dstSubresource.mipLevel = 0;
 
         // transition src-layout
@@ -571,7 +571,12 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
     VkFormatProperties format_properties;
     vkGetPhysicalDeviceFormatProperties(m_device->physical_device(), m_format.format, &format_properties);
 
-    if(!(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
+    constexpr VkFormatFeatureFlags needed_features = VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT |
+                                                     VK_FORMAT_FEATURE_BLIT_SRC_BIT | VK_FORMAT_FEATURE_BLIT_DST_BIT;
+
+    constexpr VkFilter blit_filter = VK_FILTER_LINEAR;
+
+    if((format_properties.optimalTilingFeatures & needed_features) != needed_features)
     {
         throw std::runtime_error("texture image format does not support linear blitting!");
     }
@@ -630,7 +635,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
                        m_image.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                        m_image.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                        1, &blit,
-                       VK_FILTER_LINEAR);
+                       blit_filter);
 
         barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;

@@ -104,6 +104,8 @@ void main()
     material.emission.rgb = max(material.emission.rgb,
                                 emission_tex_gain * texture(u_emissionmaps[material.emission_index], v.tex_coord).rgb);
 
+    material.emission.rgb = dot(payload.normal, payload.ff_normal) > 0 ? material.emission.rgb : vec3(0.0);
+
     // absorption in media
     payload.beta *= exp(-payload.absorption * gl_HitTEXT);
     payload.absorption = vec3(0);
@@ -113,7 +115,7 @@ void main()
 
     // modulate beta with albedo
     material.color.rgb = push_constants.disable_material ?
-        vec3(1) : material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
+        vec3(.8) : material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
 
     // roughness / metalness
     vec2 rough_metal_tex = texture(u_ao_rough_metal_maps[material.ao_rough_metal_index], v.tex_coord).gb;
@@ -139,7 +141,8 @@ void main()
 
     float cos_theta = abs(dot(payload.normal, payload.ray.direction));
 
-    if (bsdf_sample.pdf <= 0.0)
+    if (bsdf_sample.pdf <= 0.0 ||
+        all(lessThan(payload.beta, vec3(0.01))))
     {
         payload.stop = true;
         return;

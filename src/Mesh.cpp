@@ -161,8 +161,12 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
 
     std::vector<size_t> vertex_offsets;
 
-    std::map<vierkant::GeometryConstPtr, size_t> geom_base_vertices;
-    size_t current_base_vertex = 0;
+    // store base vertex/index
+    std::map<vierkant::GeometryConstPtr, std::pair<size_t, size_t>> geom_base_vertices;
+    size_t current_base_vertex = 0, current_base_index;
+
+    // concat indices
+    std::vector<vierkant::index_t> indices;
 
     // insert all geometries
     for(auto &ci : entry_create_infos)
@@ -179,8 +183,11 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
                 return nullptr;
             }
 
-            geom_base_vertices[ci.geometry] = current_base_vertex;
+            geom_base_vertices[ci.geometry] = {current_base_vertex, current_base_index};
             current_base_vertex += ci.geometry->vertices.size();
+            current_base_index += ci.geometry->indices.size();
+
+            indices.insert(indices.end(), ci.geometry->indices.begin(), ci.geometry->indices.end());
         }
     }
 
@@ -235,27 +242,22 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     // copy combined vertex data to device-buffer
     staging_buffer->copy_to(vertex_buffer, create_info.command_buffer);
 
-    // concat indices
-    std::vector<vierkant::index_t> indices;
-    size_t current_base_index = 0;
-
     // keep track of used material-indices
     std::set<uint32_t> material_index_set;
 
     for(const auto &entry_info : entry_create_infos)
     {
         const auto &geom = entry_info.geometry;
-        indices.insert(indices.end(), geom->indices.begin(), geom->indices.end());
+
+        auto [base_vertex, base_index] = geom_base_vertices[geom];
 
         vierkant::Mesh::entry_t entry = {};
         entry.name = entry_info.name;
         entry.primitive_type = geom->topology;
-        entry.base_vertex = geom_base_vertices[geom];
+        entry.base_vertex = base_vertex;
         entry.num_vertices = geom->vertices.size();
-        entry.base_index = current_base_index;
+        entry.base_index = base_index;
         entry.num_indices = geom->indices.size();
-        current_base_vertex += geom->vertices.size();
-        current_base_index += geom->indices.size();
 
         // use provided transforms for sub-meshes, if any
         entry.transform = entry_info.transform;

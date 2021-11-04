@@ -514,7 +514,7 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     // framebuffer image-format
     vierkant::Image::Format img_fmt = {};
     img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    img_fmt.format = VK_FORMAT_R32G32_SFLOAT;
+    img_fmt.format = VK_FORMAT_R16G16_SFLOAT;
 
     // create framebuffer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
