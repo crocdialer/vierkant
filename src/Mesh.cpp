@@ -105,7 +105,9 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     };
     std::vector<vertex_data_t> vertex_data;
 
-    auto add_offset = [](uint32_t location, const auto &array, std::vector<vertex_data_t> &vertex_data, size_t &offset,
+    auto add_attrib = [](uint32_t location,
+                         const auto &array, std::vector<vertex_data_t> &vertex_data,
+                         size_t &offset,
                          size_t &stride,
                          size_t &num_bytes, size_t &num_attribs)
     {
@@ -129,15 +131,15 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     size_t stride = 0, num_bytes = 0, num_attribs = 0;
 
     // sanity check array sizes
-    auto check_and_insert = [add_offset, &stride, &num_bytes, &num_attribs](const GeometryConstPtr &g,
+    auto check_and_insert = [add_attrib, &stride, &num_bytes, &num_attribs](const GeometryConstPtr &g,
                                                                             std::vector<vertex_data_t> &vertex_data) -> bool
     {
         stride = 0;
         size_t offset = 0;
         size_t num_geom_attribs = 0;
-        auto num_vertices = g->vertices.size();
+        auto num_vertices = g->positions.size();
 
-        if(g->vertices.empty()){ return false; }
+        if(g->positions.empty()){ return false; }
         if(!g->colors.empty() && g->colors.size() != num_vertices){ return false; }
         if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
         if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
@@ -145,13 +147,13 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices){ return false; }
         if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
 
-        add_offset(ATTRIB_POSITION, g->vertices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-        add_offset(ATTRIB_COLOR, g->colors, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-        add_offset(ATTRIB_TEX_COORD, g->tex_coords, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-        add_offset(ATTRIB_NORMAL, g->normals, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-        add_offset(ATTRIB_TANGENT, g->tangents, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-        add_offset(ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
-        add_offset(ATTRIB_BONE_WEIGHTS, g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_attrib(ATTRIB_POSITION, g->positions, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_attrib(ATTRIB_COLOR, g->colors, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_attrib(ATTRIB_TEX_COORD, g->tex_coords, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_attrib(ATTRIB_NORMAL, g->normals, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_attrib(ATTRIB_TANGENT, g->tangents, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_attrib(ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, stride, num_bytes, num_geom_attribs);
+        add_attrib(ATTRIB_BONE_WEIGHTS, g->bone_weights, vertex_data, offset, stride, num_bytes, num_geom_attribs);
 
         if(num_attribs && num_geom_attribs != num_attribs){ return false; }
         num_attribs = num_geom_attribs;
@@ -163,7 +165,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
 
     // store base vertex/index
     std::map<vierkant::GeometryConstPtr, std::pair<size_t, size_t>> geom_base_vertices;
-    size_t current_base_vertex = 0, current_base_index;
+    size_t current_base_vertex = 0, current_base_index = 0;
 
     // concat indices
     std::vector<vierkant::index_t> indices;
@@ -184,7 +186,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
             }
 
             geom_base_vertices[ci.geometry] = {current_base_vertex, current_base_index};
-            current_base_vertex += ci.geometry->vertices.size();
+            current_base_vertex += ci.geometry->positions.size();
             current_base_index += ci.geometry->indices.size();
 
             indices.insert(indices.end(), ci.geometry->indices.begin(), ci.geometry->indices.end());
@@ -255,7 +257,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         entry.name = entry_info.name;
         entry.primitive_type = geom->topology;
         entry.base_vertex = base_vertex;
-        entry.num_vertices = geom->vertices.size();
+        entry.num_vertices = geom->positions.size();
         entry.base_index = base_index;
         entry.num_indices = geom->indices.size();
 
@@ -270,7 +272,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         material_index_set.insert(entry_info.material_index);
 
         // combine with aabb
-        entry.boundingbox = vierkant::compute_aabb(geom->vertices);
+        entry.boundingbox = vierkant::compute_aabb(geom->positions);
 
         // insert new entry
         mesh->entries.push_back(entry);
@@ -355,18 +357,17 @@ std::vector<VkVertexInputAttributeDescription> Mesh::attribute_descriptions() co
 
     std::vector<VkVertexInputAttributeDescription> ret;
 
-    for(const auto &pair : vertex_attribs)
+    for(const auto &[location, attrib] : vertex_attribs)
     {
-        auto &att_in = pair.second;
-        auto binding = binding_index(att_in, buf_tuples);
+        auto binding = binding_index(attrib, buf_tuples);
 
         if(binding >= 0)
         {
             VkVertexInputAttributeDescription att;
-            att.offset = att_in.offset;
+            att.offset = attrib.offset;
             att.binding = static_cast<uint32_t>(binding);
-            att.location = pair.first;
-            att.format = att_in.format;
+            att.location = location;
+            att.format = attrib.format;
             ret.push_back(att);
         }
     }

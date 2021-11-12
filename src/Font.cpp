@@ -263,7 +263,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
     auto quads = m_impl->create_quads(theText, nullptr, &max_y);
 
     auto geom = vierkant::Geometry::create();
-    auto &vertices = geom->vertices;
+    auto &vertices = geom->positions;
     auto &colors = geom->colors;
     auto &tex_coords = geom->tex_coords;
     auto &indices = geom->indices;
@@ -277,7 +277,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
     for(const auto &quad : quads)
     {
         // CREATE QUAD
-        // create vertices
+        // create positions
         vertices.emplace_back(quad.x0, quad.y1, 0);
         vertices.emplace_back(quad.x1, quad.y1, 0);
         vertices.emplace_back(quad.x1, quad.y0, 0);

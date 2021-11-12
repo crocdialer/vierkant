@@ -775,7 +775,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
         num_faces += e.num_indices / 3;
     }
     ImGui::Separator();
-    ImGui::BulletText("%d vertices", num_vertices);
+    ImGui::BulletText("%d positions", num_vertices);
     ImGui::BulletText("%d faces", num_faces);
     ImGui::BulletText("%d bones", vierkant::nodes::num_nodes_in_hierarchy(mesh->root_bone));
     ImGui::Separator();
@@ -804,7 +804,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
             if(ImGui::TreeNodeEx((void *) (mesh_id + index), 0, "%s", entry_name.c_str()))
             {
                 std::stringstream ss;
-                ss << "vertices: " << std::to_string(e.num_vertices) << "\n";
+                ss << "positions: " << std::to_string(e.num_vertices) << "\n";
                 ss << "faces: " << std::to_string(e.num_indices / 3) << "\n";
                 ss << "material index: " << std::to_string(e.material_index);
 

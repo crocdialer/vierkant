@@ -39,7 +39,7 @@ public:
         //! spp - samples per pixel
         uint32_t max_trace_depth = 6;
 
-        //! disable colors from textures, material, vertices
+        //! disable colors from textures, material, positions
         bool disable_material = false;
 
         //! draw the skybox, if any

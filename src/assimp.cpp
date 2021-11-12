@@ -109,7 +109,7 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh)
 {
     auto geom = vierkant::Geometry::create();
 
-    geom->vertices.insert(geom->vertices.end(), (glm::vec3 *) aMesh->mVertices,
+    geom->positions.insert(geom->positions.end(), (glm::vec3 *) aMesh->mVertices,
                           (glm::vec3 *) aMesh->mVertices + aMesh->mNumVertices);
 
     if(aMesh->HasTextureCoords(0))
@@ -158,7 +158,7 @@ vierkant::GeometryPtr create_geometry(const aiMesh *aMesh)
         // compute tangents
         geom->compute_tangents();
     }
-    else{ geom->tangents.resize(geom->vertices.size(), glm::vec3(0)); }
+    else{ geom->tangents.resize(geom->positions.size(), glm::vec3(0)); }
 
     return geom;
 }
@@ -198,8 +198,8 @@ void insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map
     if(weightmap.empty()){ return; }
 
     // allocate storage for indices and weights
-    geom->bone_indices.resize(geom->vertices.size());
-    geom->bone_weights.resize(geom->vertices.size());
+    geom->bone_indices.resize(geom->positions.size());
+    geom->bone_weights.resize(geom->positions.size());
 
     for(const auto&[index, weights] : weightmap)
     {
@@ -596,7 +596,7 @@ mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool &thr
         auto model_name = crocore::fs::get_filename_part(found_path);
 
 
-        LOG_DEBUG << crocore::format("loaded model: geometries: %d -- vertices: %d -- faces: %d -- bones: %d ",
+        LOG_DEBUG << crocore::format("loaded model: geometries: %d -- positions: %d -- faces: %d -- bones: %d ",
                                      mesh_assets.entry_create_infos.size(), num_vertices, num_indices * 3,
                                      nodes::num_nodes_in_hierarchy(mesh_assets.root_bone));
         LOG_DEBUG << "bounds: " << glm::to_string(aabb.min) << " - " << glm::to_string(aabb.max);
@@ -666,7 +666,7 @@ void process_node_hierarchy(const aiScene *scene,
             else
             {
                 geometry = create_geometry(ai_mesh);
-                geometry->colors.resize(geometry->vertices.size(), glm::vec4(1));
+                geometry->colors.resize(geometry->positions.size(), glm::vec4(1));
                 geometry_map[ai_mesh] = geometry;
             }
 
@@ -675,7 +675,7 @@ void process_node_hierarchy(const aiScene *scene,
             load_bones_and_weights(ai_mesh, 0, bonemap, weightmap);
             insert_bone_vertex_data(geometry, weightmap, 0);
 
-            num_vertices += geometry->vertices.size();
+            num_vertices += geometry->positions.size();
             num_indices += geometry->indices.size();
 
             vierkant::Mesh::entry_create_info_t create_info = {};
@@ -694,7 +694,7 @@ void process_node_hierarchy(const aiScene *scene,
                                                                             scene->mMaterials[ai_mesh->mMaterialIndex],
                                                                             &image_cache);
 
-            aabb += vierkant::compute_aabb(geometry->vertices).transform(node_transform);
+            aabb += vierkant::compute_aabb(geometry->positions).transform(node_transform);
         }
 
         for(uint32_t c = 0; c < ai_node->mNumChildren; ++c)

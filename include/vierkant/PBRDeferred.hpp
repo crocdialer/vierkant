@@ -22,7 +22,7 @@ public:
     //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
     struct settings_t
     {
-        //! disable colors from textures, material, vertices
+        //! disable colors from textures, material, positions
         bool disable_material = false;
 
         //! draw the skybox, if any

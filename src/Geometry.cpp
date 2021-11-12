@@ -83,15 +83,15 @@ void Geometry::compute_face_normals()
 {
     if(indices.empty()){ return; }
 
-    normals.resize(vertices.size());
+    normals.resize(positions.size());
 
     for(size_t i = 0; i < indices.size(); i += 3)
     {
         index_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
 
-        const glm::vec3 &vA = vertices[a];
-        const glm::vec3 &vB = vertices[b];
-        const glm::vec3 &vC = vertices[c];
+        const glm::vec3 &vA = positions[a];
+        const glm::vec3 &vB = positions[b];
+        const glm::vec3 &vC = positions[c];
         glm::vec3 normal = glm::normalize(glm::cross(vB - vA, vC - vA));
         normals[a] = normals[b] = normals[c] = normal;
     }
@@ -102,21 +102,21 @@ void Geometry::compute_vertex_normals()
     if(indices.size() < 3){ return; }
 
     // assert correct size
-    if(normals.size() != vertices.size())
+    if(normals.size() != positions.size())
     {
         normals.clear();
-        normals.resize(vertices.size(), glm::vec3(0));
+        normals.resize(positions.size(), glm::vec3(0));
     }
     else{ std::fill(normals.begin(), normals.end(), glm::vec3(0)); }
 
-    // iterate faces and sum normals for all vertices
+    // iterate faces and sum normals for all positions
     for(size_t i = 0; i < indices.size(); i += 3)
     {
         index_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
 
-        const glm::vec3 &vA = vertices[a];
-        const glm::vec3 &vB = vertices[b];
-        const glm::vec3 &vC = vertices[c];
+        const glm::vec3 &vA = positions[a];
+        const glm::vec3 &vB = positions[b];
+        const glm::vec3 &vC = positions[c];
         glm::vec3 normal = glm::normalize(glm::cross(vB - vA, vC - vA));
         normals[a] += normal;
         normals[b] += normal;
@@ -132,23 +132,23 @@ void Geometry::compute_vertex_normals()
 void Geometry::compute_tangents()
 {
     if(indices.size() % 3){ return; }
-    if(tex_coords.size() != vertices.size()){ return; }
+    if(tex_coords.size() != positions.size()){ return; }
 
     std::vector<glm::vec3> tangents_tmp, bitangents_tmp;
 
-    if(tangents.size() != vertices.size())
+    if(tangents.size() != positions.size())
     {
         tangents.clear();
-        tangents.resize(vertices.size(), glm::vec3(0));
-        tangents_tmp.resize(vertices.size(), glm::vec3(0));
-        bitangents_tmp.resize(vertices.size(), glm::vec3(0));
+        tangents.resize(positions.size(), glm::vec3(0));
+        tangents_tmp.resize(positions.size(), glm::vec3(0));
+        bitangents_tmp.resize(positions.size(), glm::vec3(0));
     }
 
     for(size_t i = 0; i < indices.size(); i += 3)
     {
         index_t a = indices[i], b = indices[i + 1], c = indices[i + 2];
 
-        const glm::vec3 &v0 = vertices[a], &v1 = vertices[b], &v2 = vertices[c];
+        const glm::vec3 &v0 = positions[a], &v1 = positions[b], &v2 = positions[c];
         const glm::vec2 &uv0 = tex_coords[a], &uv1 = tex_coords[b], &uv2 = tex_coords[c];
 
         float x1 = v1.x - v0.x;
@@ -175,7 +175,7 @@ void Geometry::compute_tangents()
         bitangents_tmp[c] += tdir;
     }
 
-    for(uint32_t a = 0; a < vertices.size(); ++a)
+    for(uint32_t a = 0; a < positions.size(); ++a)
     {
         const glm::vec3 &n = normals[a];
         const glm::vec3 &t = tangents_tmp[a];
@@ -203,7 +203,7 @@ GeometryPtr Geometry::Grid(float width, float depth, uint32_t numSegments_W, uin
     auto geom = Geometry::create();
     geom->topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 
-    auto &vertices = geom->vertices;
+    auto &vertices = geom->positions;
     auto &colors = geom->colors;
     auto &tex_coords = geom->tex_coords;
 
@@ -248,7 +248,7 @@ GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, u
 {
     auto geom = Geometry::create();
 
-    auto &vertices = geom->vertices;
+    auto &vertices = geom->positions;
     auto &normals = geom->normals;
     auto &colors = geom->colors;
     auto &tex_coords = geom->tex_coords;
@@ -261,7 +261,7 @@ GeometryPtr Geometry::Plane(float width, float height, uint32_t numSegments_W, u
 
     glm::vec3 normal(0, 0, 1);
 
-    // create vertices
+    // create positions
     for(uint32_t iz = 0; iz < gridZ1; ++iz)
     {
         for(uint32_t ix = 0; ix < gridX1; ++ix)
@@ -305,7 +305,7 @@ GeometryPtr Geometry::Box(const glm::vec3 &half_extents)
 {
     auto geom = Geometry::create();
 
-    auto &vertices = geom->vertices;
+    auto &vertices = geom->positions;
     auto &normals = geom->normals;
     auto &colors = geom->colors;
     auto &tex_coords = geom->tex_coords;
@@ -468,7 +468,7 @@ GeometryPtr Geometry::BoxOutline(const glm::vec3 &half_extents)
 {
     auto geom = Geometry::create();
     geom->topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
-    auto &vertices = geom->vertices;
+    auto &vertices = geom->positions;
     auto &colors = geom->colors;
 
     auto bb = vierkant::AABB(-half_extents, half_extents);

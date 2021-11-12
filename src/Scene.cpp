@@ -102,7 +102,7 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
 ////                if()
 //                {
 //                    vierkant::Ray ray_in_object_space = ray.transform(glm::inverse(object->global_transform()));
-//                    const auto &vertices = m->geometry()->vertices();
+//                    const auto &positions = m->geometry()->positions();
 //                    const auto &indices = m->geometry()->indices();
 //
 //                    for(const auto &e : m->entries)
@@ -111,9 +111,9 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
 //
 //                        for(uint32_t i = 0; i < e.num_indices; i += 3)
 //                        {
-//                            vierkant::Triangle t(vertices[indices[i + e.base_index] + e.base_vertex],
-//                                                 vertices[indices[i + e.base_index + 1] + e.base_vertex],
-//                                                 vertices[indices[i + e.base_index + 2] + e.base_vertex]);
+//                            vierkant::Triangle t(positions[indices[i + e.base_index] + e.base_vertex],
+//                                                 positions[indices[i + e.base_index + 1] + e.base_vertex],
+//                                                 positions[indices[i + e.base_index + 2] + e.base_vertex]);
 //
 //                            if(ray_triangle_intersection ray_tri_hit = t.intersect(ray_in_object_space))
 //                            {

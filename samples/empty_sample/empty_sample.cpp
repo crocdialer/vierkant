@@ -102,9 +102,9 @@ void HelloTriangleApplication::create_graphics_pipeline()
 void HelloTriangleApplication::load_model()
 {
     auto geom = vk::Geometry::create();
-    geom->vertices = {glm::vec3(-0.5f, -0.5f, 0.f),
-                      glm::vec3(0.5f, -0.5f, 0.f),
-                      glm::vec3(0.f, 0.5f, 0.f)};
+    geom->positions = {glm::vec3(-0.5f, -0.5f, 0.f),
+                       glm::vec3(0.5f, -0.5f, 0.f),
+                       glm::vec3(0.f, 0.5f, 0.f)};
     geom->colors = {glm::vec4(1.f, 0.f, 0.f, 1.f),
                     glm::vec4(0.f, 1.f, 0.f, 1.f),
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};

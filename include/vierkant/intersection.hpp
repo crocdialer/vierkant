@@ -66,8 +66,8 @@ struct Ray
     glm::vec3 origin;
     glm::vec3 direction;
 
-    Ray(const glm::vec3 &theOrigin, const glm::vec3 &theDir) :
-            origin(theOrigin), direction(normalize(theDir)){}
+    Ray(const glm::vec3 &origin_, const glm::vec3 &direction_) :
+            origin(origin_), direction(normalize(direction_)){}
 
     inline Ray &transform(const glm::mat4 &t)
     {

@@ -44,7 +44,7 @@ public:
 
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec3> positions;
     std::vector<glm::vec4> colors;
     std::vector<glm::vec2> tex_coords;
     std::vector<glm::vec3> normals;
@@ -77,7 +77,7 @@ public:
     static GeometryPtr create();
 
     /**
-    * @brief   Factory to create an indexed plane-geometry with vertices in the XY-plane
+    * @brief   Factory to create an indexed plane-geometry with positions in the XY-plane
     *
     * @param   width            the desired width
     * @param   height           the desired height

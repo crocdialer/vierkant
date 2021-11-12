@@ -624,7 +624,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                         }
                     };
 
-                    if(attrib == attrib_position){ insert(buffer, geometry->vertices); }
+                    if(attrib == attrib_position){ insert(buffer, geometry->positions); }
                     else if(attrib == attrib_normal){ insert(buffer, geometry->normals); }
                     else if(attrib == attrib_tangent){ insert(buffer, geometry->tangents); }
                     else if(attrib == attrib_color){ insert(buffer, geometry->colors); }
@@ -645,13 +645,13 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
                 if(geometry->indices.empty())
                 {
-                    geometry->indices.resize(geometry->vertices.size());
+                    geometry->indices.resize(geometry->positions.size());
                     std::iota(geometry->indices.begin(), geometry->indices.end(), 0);
                 }
 
                 // sanity resize
-                geometry->colors.resize(geometry->vertices.size(), glm::vec4(1.f));
-                geometry->tex_coords.resize(geometry->vertices.size(), glm::vec2(0.f));
+                geometry->colors.resize(geometry->positions.size(), glm::vec4(1.f));
+                geometry->tex_coords.resize(geometry->positions.size(), glm::vec2(0.f));
 
                 if(geometry->tangents.empty() && !geometry->normals.empty() && !geometry->tex_coords.empty())
                 {
@@ -659,7 +659,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 }
                 else if(geometry->tangents.empty())
                 {
-                    geometry->tangents.resize(geometry->vertices.size(), glm::vec3(0.f));
+                    geometry->tangents.resize(geometry->positions.size(), glm::vec3(0.f));
                 }
 
                 vierkant::Mesh::entry_create_info_t create_info = {};
