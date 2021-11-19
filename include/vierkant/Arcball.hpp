@@ -12,6 +12,8 @@ namespace vierkant
 
 using transform_cb_t = std::function<void(const glm::mat4 &)>;
 
+DEFINE_CLASS_PTR(CameraControl)
+
 class CameraControl
 {
 public:
@@ -33,6 +35,8 @@ public:
     [[nodiscard]] virtual glm::mat4 transform() const = 0;
 };
 
+DEFINE_CLASS_PTR(Arcball)
+
 class Arcball : public CameraControl
 {
 public:
@@ -51,7 +55,11 @@ public:
 
     [[nodiscard]] glm::mat4 transform() const override;
 
+    static ArcballUPtr create(){ return ArcballUPtr(new Arcball()); }
+
 private:
+
+    Arcball() = default;
 
     void mouse_press(const MouseEvent &e);
 
@@ -71,6 +79,8 @@ private:
 
     bool m_mouse_down = false;
 };
+
+DEFINE_CLASS_PTR(FlyCamera)
 
 class FlyCamera : public CameraControl
 {
@@ -95,7 +105,11 @@ public:
         return ret;
     }
 
+    static FlyCameraUPtr create(){ return FlyCameraUPtr (new FlyCamera()); }
+
 private:
+
+    FlyCamera() = default;
 
     std::unordered_map<int, bool> m_keys;
 

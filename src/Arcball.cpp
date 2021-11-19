@@ -108,11 +108,14 @@ void FlyCamera::update(double time_delta)
     if(enabled)
     {
         glm::vec3 move_mask(0.f);
+        bool needs_update = false;
 
         for(const auto &[key, state] : m_keys)
         {
             if(state)
             {
+                needs_update = true;
+
                 switch(key)
                 {
                     case vierkant::Key::_PAGE_UP:
@@ -138,10 +141,11 @@ void FlyCamera::update(double time_delta)
                 }
             }
         }
-
-        position += static_cast<float>(time_delta) * move_speed * (glm::mat3_cast(rotation) * move_mask);
-
-        if(enabled && transform_cb){ transform_cb(transform()); }
+        if(needs_update)
+        {
+            position += static_cast<float>(time_delta) * move_speed * (glm::mat3_cast(rotation) * move_mask);
+            if(transform_cb){ transform_cb(transform()); }
+        }
     }
 }
 
@@ -155,9 +159,9 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
         m_last_pos = e.position();
         m_last_rotation = rotation;
     };
-    ret.mouse_move = [this](const MouseEvent &e)
+    ret.mouse_drag = [this](const MouseEvent &e)
     {
-        if(enabled)
+        if(enabled && e.is_left())
         {
             glm::vec2 diff = m_last_pos - e.position();
 
