@@ -164,7 +164,7 @@ private:
         RAYTRACING,
         DENOISER,
         COMPOSITION,
-        RENDER_DONE
+        RENDER_DONE = COMPOSITION
     };
 
     struct push_constants_t
@@ -257,6 +257,8 @@ private:
     raytracing_shader_map_t m_shader_stages = {}, m_shader_stages_env = {};
 
     std::vector<frame_assets_t> m_frame_assets;
+
+    size_t m_frame_index = 0;
 
     vierkant::DrawContext m_draw_context;
 
