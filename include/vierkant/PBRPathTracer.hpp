@@ -63,6 +63,10 @@ public:
         //! exposure setting for tone-mapping
         float exposure = 2.0;
 
+        //! enable depth of field
+        bool depth_of_field = false;
+
+        //! aperture diameter
         float aperture = 0.f;
 
         float focal_distance = 1.f;

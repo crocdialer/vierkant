@@ -491,18 +491,23 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     // gamma
     ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 
-    // aperture
-    constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
+    ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
 
-    float f_stop =  clamp(1.f / path_tracer->settings.aperture, f_stop_min, f_stop_max);
-
-    if(ImGui::SliderFloat("f-stop", &f_stop, f_stop_min, f_stop_max))
+    if(path_tracer->settings.depth_of_field)
     {
-        path_tracer->settings.aperture = 1.f / f_stop;
-    }
+        // aperture
+        constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
 
-    // focal distance
-    ImGui::SliderFloat("focal distance", &path_tracer->settings.focal_distance, cam->near(), cam->far());
+        float f_stop =  clamp(1.f / path_tracer->settings.aperture, f_stop_min, f_stop_max);
+
+        if(ImGui::SliderFloat("f-stop", &f_stop, f_stop_min, f_stop_max))
+        {
+            path_tracer->settings.aperture = 1.f / f_stop;
+        }
+
+        // focal distance
+        ImGui::SliderFloat("focal distance", &path_tracer->settings.focal_distance, cam->near(), cam->far());
+    }
 }
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
