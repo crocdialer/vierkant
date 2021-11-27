@@ -96,4 +96,9 @@ BOOST_AUTO_TEST_CASE(WaitBeforeSignal)
 
     semaphore.wait(signal2);
     BOOST_CHECK_EQUAL(semaphore.value(), signal2);
+
+    // appeared ~2021/11 with new validation layers.
+    // Cannot call vkDestroySemaphore on VkSemaphore 0xf443490000000006[] that is currently in use by a command buffer.
+    vkQueueWaitIdle(queue1);
+    vkQueueWaitIdle(queue2);
 }
