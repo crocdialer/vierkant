@@ -41,13 +41,8 @@ void build_node_matrices_bfs(const NodeConstPtr &root,
     if(!root){ return; }
     matrices.resize(num_nodes_in_hierarchy(root));
 
-    struct node_helper_t
-    {
-        NodeConstPtr node;
-        glm::mat4 global_joint_transform;
-    };
-    std::deque<node_helper_t> node_queue;
-    node_queue.push_back({root, glm::mat4(1)});
+    std::deque<std::pair<vierkant::nodes::NodeConstPtr, glm::mat4>> node_queue;
+    node_queue.emplace_back(root, glm::mat4(1));
 
     while(!node_queue.empty())
     {
@@ -68,7 +63,7 @@ void build_node_matrices_bfs(const NodeConstPtr &root,
         matrices[node->index] = global_joint_transform * node->offset;
 
         // queue all children
-        for(auto &child_node : node->children){ node_queue.push_back({child_node, global_joint_transform}); }
+        for(auto &child_node : node->children){ node_queue.emplace_back(child_node, global_joint_transform); }
     }
 }
 

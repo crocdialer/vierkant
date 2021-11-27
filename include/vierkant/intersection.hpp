@@ -48,6 +48,12 @@ ray_intersection intersect(const AABB &theAABB, const Ray &theRay);
 
 ray_intersection intersect(const OBB &theOBB, const Ray &theRay);
 
+/********************************** Triangle intersection tests ****************************************/
+
+bool intersect(const Triangle &t, const AABB &b);
+
+bool intersect(const Triangle &t1, const Triangle &t2);
+
 /**
  *    A  +-------------+  B
  *      /               \
@@ -188,6 +194,10 @@ struct Triangle
     {
         return normalize(cross(v1 - v0, v2 - v0));
     }
+
+    inline const glm::vec3 &operator[](int i) const{ return (&v0)[i]; }
+
+    inline glm::vec3 &operator[](int i){ return (&v0)[i]; }
 };
 
 struct Sphere
@@ -316,7 +326,7 @@ struct AABB
 
     [[nodiscard]] ray_intersection intersect(const Ray &ray) const;
 
-    [[nodiscard]] uint32_t intersect(const Triangle &t) const;
+//    [[nodiscard]] uint32_t intersect(const Triangle &t) const;
 };
 
 struct OBB
