@@ -62,6 +62,9 @@ inline int coplanar_tri_tri3d(const real p1[3], const real q1[3], const real r1[
 inline int tri_tri_overlap_test_2d(const real p1[2], const real q1[2], const real r1[2],
                                    const real p2[2], const real q2[2], const real r2[2]);
 
+/* coplanar returns whether the triangles are coplanar
+*  source and target are the endpoints of the segment of intersection if it exists
+*/
 inline int tri_tri_intersection_test_3d(const real p1[3], const real q1[3], const real r1[3],
                                         const real p2[3], const real q2[3], const real r2[3],
                                         int *coplanar,
@@ -69,11 +72,6 @@ inline int tri_tri_intersection_test_3d(const real p1[3], const real q1[3], cons
 
 /* fast AABB <-> Triangle test from Tomas Akenine-Möller */
 int tri_box_overlap(const float boxcenter[3], const float boxhalfsize[3], const float triverts[3][3]);
-
-/* coplanar returns whether the triangles are coplanar
-*  source and target are the endpoints of the segment of
-*  intersection if it exists)
-*/
 
 #define CROSS(dest, v1, v2)   dest[0] = v1[1]*v2[2] - v1[2]*v2[1]; \
  dest[1] = v1[2]*v2[0] - v1[0]*v2[2]; \

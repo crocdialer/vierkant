@@ -336,19 +336,16 @@ glm::mat4 compute_homography(const glm::vec2 *src, const glm::vec2 *dst)
 
 bool intersect(const Triangle &t, const AABB &b)
 {
-    //    float triVerts[3][3] = {{t.v0[0], t.v0[1], t.v0[2]},
-    //                            {t.v1[0], t.v1[1], t.v1[2]},
-    //                            {t.v2[0], t.v2[1], t.v2[2]}
-    //    };
-    return tri_box_overlap(&b.center()[0], &b.half_extents()[0],
+    auto box_center = b.center();
+    auto box_half_extents = b.half_extents();
+    return tri_box_overlap(glm::value_ptr(box_center), glm::value_ptr(box_half_extents),
                            reinterpret_cast<const float (*)[3]>(&t));
 }
 
 bool intersect(const Triangle &t1, const Triangle &t2)
 {
-    tri_tri_overlap_test_3d(glm::value_ptr(t1.v0), glm::value_ptr(t1.v1), glm::value_ptr(t1.v2),
-                            glm::value_ptr(t2.v0), glm::value_ptr(t2.v1), glm::value_ptr(t2.v2));
-    return false;
+    return tri_tri_overlap_test_3d(glm::value_ptr(t1.v0), glm::value_ptr(t1.v1), glm::value_ptr(t1.v2),
+                                   glm::value_ptr(t2.v0), glm::value_ptr(t2.v1), glm::value_ptr(t2.v2));;
 }
 
 }//namespace
