@@ -241,6 +241,7 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline,
                 group_elements[shader_binding_table_t::Group::Miss]++;
                 break;
 
+            case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
             case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
             case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
                 group_elements[shader_binding_table_t::Group::Hit]++;

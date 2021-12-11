@@ -523,8 +523,7 @@ void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vi
 
         if(!out_buffer)
         {
-            out_buffer = vierkant::Buffer::create(m_device, bones_matrices.data(),
-                                                  bones_matrices.size() * sizeof(glm::mat4),
+            out_buffer = vierkant::Buffer::create(m_device, bones_matrices,
                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
         }
