@@ -68,7 +68,7 @@ public:
             {
                 // check intersection of aabb in eye-coords with view-frustum
                 auto aabb = object.aabb().transform(m_transform_stack.top() * object.transform());
-                return m_frustum.intersect(aabb);
+                return vierkant::intersect(m_frustum, aabb);
             }
             return true;
         }

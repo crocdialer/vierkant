@@ -5,7 +5,7 @@
 namespace vierkant
 {
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ray_intersection intersect(const Plane &plane, const Ray &ray)
 {
@@ -20,7 +20,7 @@ ray_intersection intersect(const Plane &plane, const Ray &ray)
     return REJECT;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices)
 {
@@ -34,40 +34,40 @@ vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices)
     return ret;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::vec3 compute_centroid(const std::vector<glm::vec3> &vertices)
 {
     return crocore::mean<glm::vec3>(vertices);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ray_triangle_intersection intersect(const Triangle &theTri, const Ray &theRay)
+ray_triangle_intersection intersect(const Triangle &triangle, const Ray &ray)
 {
-    glm::vec3 e1 = theTri.v1 - theTri.v0, e2 = theTri.v2 - theTri.v0;
-    glm::vec3 pvec = glm::cross(theRay.direction, e2);
+    glm::vec3 e1 = triangle.v1 - triangle.v0, e2 = triangle.v2 - triangle.v0;
+    glm::vec3 pvec = glm::cross(ray.direction, e2);
     float det = glm::dot(e1, pvec);
     constexpr float epsilon = 10.0e-10;
     if(det > -epsilon && det < epsilon) return REJECT;
     float inv_det = 1.0f / det;
-    glm::vec3 tvec = theRay.origin - theTri.v0;
+    glm::vec3 tvec = ray.origin - triangle.v0;
     float u = inv_det * glm::dot(tvec, pvec);
     if(u < 0.0f || u > 1.0f) return REJECT;
     glm::vec3 qvec = glm::cross(tvec, e1);
-    float v = glm::dot(theRay.direction, qvec) * inv_det;
+    float v = glm::dot(ray.direction, qvec) * inv_det;
     if(v < 0.0f || (u + v) > 1.0f) return REJECT;
     return {INTERSECT, glm::dot(e2, qvec) * inv_det, u, v};
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ray_intersection intersect(const Sphere &theSphere, const Ray &theRay)
+ray_intersection intersect(const Sphere &sphere, const Ray &ray)
 {
-    glm::vec3 l = theSphere.center - theRay.origin;
-    float s = glm::dot(l, theRay.direction);
+    glm::vec3 l = sphere.center - ray.origin;
+    float s = glm::dot(l, ray.direction);
     float l2 = glm::dot(l, l);
-    float r2 = theSphere.radius * theSphere.radius;
+    float r2 = sphere.radius * sphere.radius;
     if(s < 0 && l2 > r2) return REJECT;
     float m2 = l2 - s * s;
     if(m2 > r2) return REJECT;
@@ -78,24 +78,26 @@ ray_intersection intersect(const Sphere &theSphere, const Ray &theRay)
     return {INTERSECT, t};
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-ray_intersection intersect(const OBB &theOBB, const Ray &theRay)
+ray_intersection intersect(const OBB &obb, const Ray &ray)
 {
+    constexpr float epsilon = 1e-10f;
+
     float t_min = std::numeric_limits<float>::lowest();
     float t_max = std::numeric_limits<float>::max();
-    glm::vec3 p = theOBB.center - theRay.origin;
+    glm::vec3 p = obb.center - ray.origin;
 
     for(int i = 0; i < 3; i++)
     {
-        float e = glm::dot(theOBB.axis[i], p);
-        float f = glm::dot(theOBB.axis[i], theRay.direction);
+        float e = glm::dot(obb.axis[i], p);
+        float f = glm::dot(obb.axis[i], ray.direction);
 
         // this test avoids overflow from division
-        if(std::abs(f) > std::numeric_limits<float>::epsilon())
+        if(std::abs(f) > epsilon)
         {
-            float t1 = (e + theOBB.half_lengths[i]) / f;
-            float t2 = (e - theOBB.half_lengths[i]) / f;
+            float t1 = (e + obb.half_lengths[i]) / f;
+            float t2 = (e - obb.half_lengths[i]) / f;
 
             if(t1 > t2) std::swap(t1, t2);
             if(t1 > t_min) t_min = t1;
@@ -103,13 +105,13 @@ ray_intersection intersect(const OBB &theOBB, const Ray &theRay)
             if(t_min > t_max) return REJECT;
             if(t_max < 0) return REJECT;
         }
-        else if((-e - theOBB.half_lengths[i]) > 0 || (-e + theOBB.half_lengths[i]) < 0){ return REJECT; }
+        else if((-e - obb.half_lengths[i]) > 0 || (-e + obb.half_lengths[i]) < 0){ return REJECT; }
     }
     if(t_min > 0){ return {INTERSECT, t_min}; }
     else{ return {INTERSECT, t_max}; }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Plane::Plane(const glm::vec4 &theCoefficients)
 {
@@ -117,7 +119,7 @@ Plane::Plane(const glm::vec4 &theCoefficients)
     coefficients = theCoefficients / len;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Plane::Plane(float a, float b, float c, float d)
 {
@@ -140,7 +142,7 @@ Plane::Plane(const glm::vec3 &theFoot, const glm::vec3 &theNormal)
     coefficients = glm::vec4(normal, distance);
 }
 
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 OBB::OBB(const AABB &aabb, const glm::mat4 &t)
 {
@@ -166,7 +168,7 @@ OBB &OBB::transform(const glm::mat4 &t)
     return *this;
 }
 
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 AABB &AABB::transform(const glm::mat4 &t)
 {
@@ -209,10 +211,10 @@ AABB &AABB::transform(const glm::mat4 &t)
 ray_intersection AABB::intersect(const Ray &ray) const
 {
     OBB obb(*this, glm::mat4(1));
-    return obb.intersect(ray);
+    return vierkant::intersect(obb, ray);
 }
 
-///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Frustum::Frustum(const glm::mat4 &the_VP_martix)
 {
@@ -262,77 +264,7 @@ Frustum::Frustum(float left, float right, float bottom, float top,
 
 }
 
-////////////////////////////////////////////////////////////////////////////////////
-
-// Adapted from code found here: http://forum.openframeworks.cc/t/quad-warping-homography-without-opencv/3121/19
-void gaussian_elimination(float *a, int n)
-{
-    int i = 0;
-    int j = 0;
-    int m = n - 1;
-
-    while(i < m && j < n)
-    {
-        int maxi = i;
-        for(int k = i + 1; k < m; ++k)
-        {
-            if(fabsf(a[k * n + j]) > fabsf(a[maxi * n + j])){ maxi = k; }
-        }
-
-        if(a[maxi * n + j] != 0)
-        {
-            if(i != maxi)
-                for(int k = 0; k < n; k++)
-                {
-                    float aux = a[i * n + k];
-                    a[i * n + k] = a[maxi * n + k];
-                    a[maxi * n + k] = aux;
-                }
-
-            float a_ij = a[i * n + j];
-            for(int k = 0; k < n; k++)
-            {
-                a[i * n + k] /= a_ij;
-            }
-
-            for(int u = i + 1; u < m; u++)
-            {
-                float a_uj = a[u * n + j];
-                for(int k = 0; k < n; k++)
-                {
-                    a[u * n + k] -= a_uj * a[i * n + k];
-                }
-            }
-            ++i;
-        }
-        ++j;
-    }
-
-    for(int i = m - 2; i >= 0; --i)
-    {
-        for(int j = i + 1; j < n - 1; j++)
-        {
-            a[i * n + m] -= a[i * n + j] * a[j * n + m];
-        }
-    }
-}
-
-// Adapted from code found here: http://forum.openframeworks.cc/t/quad-warping-homography-without-opencv/3121/19
-glm::mat4 compute_homography(const glm::vec2 *src, const glm::vec2 *dst)
-{
-    float p[8][9] = {
-            {-src[0][0], -src[0][1], -1, 0, 0, 0, src[0][0] * dst[0][0], src[0][1] * dst[0][0], -dst[0][0]}, // h11
-            {0, 0, 0, -src[0][0], -src[0][1], -1, src[0][0] * dst[0][1], src[0][1] * dst[0][1], -dst[0][1]}, // h12
-            {-src[1][0], -src[1][1], -1, 0, 0, 0, src[1][0] * dst[1][0], src[1][1] * dst[1][0], -dst[1][0]}, // h13
-            {0, 0, 0, -src[1][0], -src[1][1], -1, src[1][0] * dst[1][1], src[1][1] * dst[1][1], -dst[1][1]}, // h21
-            {-src[2][0], -src[2][1], -1, 0, 0, 0, src[2][0] * dst[2][0], src[2][1] * dst[2][0], -dst[2][0]}, // h22
-            {0, 0, 0, -src[2][0], -src[2][1], -1, src[2][0] * dst[2][1], src[2][1] * dst[2][1], -dst[2][1]}, // h23
-            {-src[3][0], -src[3][1], -1, 0, 0, 0, src[3][0] * dst[3][0], src[3][1] * dst[3][0], -dst[3][0]}, // h31
-            {0, 0, 0, -src[3][0], -src[3][1], -1, src[3][0] * dst[3][1], src[3][1] * dst[3][1], -dst[3][1]}, // h32
-    };
-    gaussian_elimination(&p[0][0], 9);
-    return glm::mat4(p[0][8], p[3][8], 0, p[6][8], p[1][8], p[4][8], 0, p[7][8], 0, 0, 1, 0, p[2][8], p[5][8], 0, 1);
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool intersect(const Triangle &t, const AABB &b)
 {
@@ -342,10 +274,84 @@ bool intersect(const Triangle &t, const AABB &b)
                            reinterpret_cast<const float (*)[3]>(&t));
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool intersect(const Triangle &t1, const Triangle &t2)
 {
     return tri_tri_overlap_test_3d(glm::value_ptr(t1.v0), glm::value_ptr(t1.v1), glm::value_ptr(t1.v2),
-                                   glm::value_ptr(t2.v0), glm::value_ptr(t2.v1), glm::value_ptr(t2.v2));;
+                                   glm::value_ptr(t2.v0), glm::value_ptr(t2.v1), glm::value_ptr(t2.v2));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/* used for fast AABB <-> Plane intersection test */
+inline glm::vec3 pos_vertex(const AABB &aabb, const glm::vec3 &dir)
+{
+    glm::vec3 ret = aabb.min;
+    if(dir.x >= 0){ ret.x = aabb.max.x; }
+    if(dir.y >= 0){ ret.y = aabb.max.y; }
+    if(dir.z >= 0){ ret.z = aabb.max.z; }
+    return ret;
+}
+
+/* used for fast AABB <-> Plane intersection test */
+inline glm::vec3 neg_vertex(const AABB &aabb, const glm::vec3 &dir)
+{
+    glm::vec3 ret = aabb.max;
+    if(dir.x >= 0){ ret.x = aabb.min.x; }
+    if(dir.y >= 0){ ret.y = aabb.min.y; }
+    if(dir.z >= 0){ ret.z = aabb.min.z; }
+    return ret;
+}
+
+uint32_t intersect(const Plane &plane, const AABB &aabb)
+{
+    // positive vertex outside ?
+    if(plane.distance(pos_vertex(aabb, plane.normal())) < 0){ return REJECT; }
+
+    // negative vertex outside ?
+    if(plane.distance(neg_vertex(aabb, plane.normal())) < 0){ return INTERSECT; }
+
+    return REJECT;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32_t intersect(const Frustum &frustum, const glm::vec3 &p)
+{
+    for(const Plane &plane : frustum.planes)
+    {
+        if(plane.distance(p) < 0){ return REJECT; }
+    }
+    return INSIDE;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32_t intersect(const Frustum &frustum, const Sphere &s)
+{
+    for(const Plane &plane : frustum.planes)
+    {
+        if(-plane.distance(s.center) > s.radius){ return REJECT; }
+    }
+    return INSIDE;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+uint32_t intersect(const Frustum &frustum, const AABB &aabb)
+{
+    uint32_t ret = INSIDE;
+
+    for(const Plane &plane : frustum.planes)
+    {
+        //positive vertex outside ?
+        if(plane.distance(pos_vertex(aabb, plane.normal())) < 0){ return REJECT; }
+
+        //negative vertex outside ?
+        else if(plane.distance(neg_vertex(aabb, plane.normal())) < 0){ ret = INTERSECT; }
+    }
+    return ret;
 }
 
 }//namespace

@@ -26,6 +26,35 @@ enum intersection_type
     REJECT = 0, INTERSECT = 1, INSIDE = 2
 };
 
+/*!
+ * Encapsulates type of intersection and distance along a ray.
+ */
+struct ray_intersection
+{
+    intersection_type type = REJECT;
+    float distance = 0.f;
+
+    ray_intersection(intersection_type theType, float theDistance = 0.0f) :
+            type(theType), distance(theDistance){}
+
+    explicit operator intersection_type() const{ return type; }
+
+    explicit operator bool() const{ return type; }
+};
+
+/*!
+ * Encapsulates type of intersection and distance along a ray.
+ * Additionally return barycentric coordiantes within the triangle.
+ */
+struct ray_triangle_intersection : public ray_intersection
+{
+    float u = 0.f, v = 0.f;
+
+    ray_triangle_intersection(intersection_type theType, float theDistance = 0.0f,
+                              float theU = 0.0f, float theV = 0.0f)
+            : ray_intersection(theType, theDistance), u(theU), v(theV){}
+};
+
 struct Ray;
 struct Plane;
 struct Triangle;
@@ -33,20 +62,43 @@ struct Sphere;
 struct AABB;
 struct OBB;
 struct Frustum;
-struct ray_intersection;
-struct ray_triangle_intersection;
+
+/**
+ * @brief   Plane <-> AABB intersection.
+ *
+ * @param   plane   a vierkant::Plane
+ * @param   aabb    a vierkant::AABB
+ * @return  true if provided plane and aabb intersect.
+ */
+uint32_t intersect(const Plane &plane, const AABB &aabb);
+
+inline uint32_t intersect(const AABB &aabb, const Plane &plane){ return intersect(plane, aabb); }
 
 /********************************** Ray intersection tests ****************************************/
 
 ray_intersection intersect(const Plane &plane, const Ray &ray);
 
-ray_triangle_intersection intersect(const Triangle &theTri, const Ray &theRay);
+inline ray_intersection intersect(const Ray &ray, const Plane &plane){ return intersect(plane, ray); }
 
-ray_intersection intersect(const Sphere &theSphere, const Ray &theRay);
 
-ray_intersection intersect(const AABB &theAABB, const Ray &theRay);
+ray_triangle_intersection intersect(const Triangle &triangle, const Ray &ray);
 
-ray_intersection intersect(const OBB &theOBB, const Ray &theRay);
+inline ray_triangle_intersection intersect(const Ray &ray, const Triangle &triangle){ return intersect(triangle, ray); }
+
+
+ray_intersection intersect(const Sphere &sphere, const Ray &ray);
+
+inline ray_intersection intersect(const Ray &ray, const Sphere &sphere){ return intersect(sphere, ray); }
+
+
+ray_intersection intersect(const AABB &aabb, const Ray &ray);
+
+inline ray_intersection intersect(const Ray &ray, const AABB &aabb){ return intersect(aabb, ray); }
+
+
+ray_intersection intersect(const OBB &obb, const Ray &ray);
+
+inline ray_intersection intersect(const Ray &ray, const OBB &obb){ return intersect(obb, ray); }
 
 /********************************** Triangle intersection tests ****************************************/
 
@@ -54,14 +106,14 @@ bool intersect(const Triangle &t, const AABB &b);
 
 bool intersect(const Triangle &t1, const Triangle &t2);
 
-/**
- *    A  +-------------+  B
- *      /               \
- *     /                 \
- *    /                   \
- * D +-------------------- +  C
- */
-glm::mat4 compute_homography(const glm::vec2 *src, const glm::vec2 *dst);
+/********************************** Frustum intersection tests ****************************************/
+
+uint32_t intersect(const Frustum &frustum, const glm::vec3 &p);
+
+uint32_t intersect(const Frustum &frustum, const Sphere &s);
+
+uint32_t intersect(const Frustum &frustum, const AABB &aabb);
+
 
 vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices);
 
@@ -91,35 +143,6 @@ struct Ray
     inline friend glm::vec3 operator*(const Ray &theRay, float t){ return theRay.origin + t * theRay.direction; }
 
     inline friend glm::vec3 operator*(float t, const Ray &theRay){ return theRay.origin + t * theRay.direction; }
-};
-
-/*!
- * Encapsulates type of intersection and distance along the ray.
- */
-struct ray_intersection
-{
-    intersection_type type = REJECT;
-    float distance = 0.f;
-
-    ray_intersection(intersection_type theType, float theDistance = 0.0f) :
-            type(theType), distance(theDistance){}
-
-    explicit operator intersection_type() const{ return type; }
-
-    explicit operator bool() const{ return type; }
-};
-
-/*!
- * Encapsulates type of intersection and distance along the ray.
- * Additionally adds the coordinates within the triangle.
- */
-struct ray_triangle_intersection : public ray_intersection
-{
-    float u = 0.f, v = 0.f;
-
-    ray_triangle_intersection(intersection_type theType, float theDistance = 0.0f,
-                              float theU = 0.0f, float theV = 0.0f)
-            : ray_intersection(theType, theDistance), u(theU), v(theV){}
 };
 
 struct Plane
@@ -155,21 +178,11 @@ struct Plane
         Plane ret = *this;
         return ret.transform(t);
     };
-
-    [[nodiscard]] inline ray_intersection intersect(const Ray &ray) const
-    {
-        return vierkant::intersect(*this, ray);
-    }
 };
 
 struct Triangle
 {
-    glm::vec3 v0;
-    glm::vec3 v1;
-    glm::vec3 v2;
-
-    Triangle(const glm::vec3 &_v0, const glm::vec3 &_v1, const glm::vec3 &_v2)
-            : v0(_v0), v1(_v1), v2(_v2){}
+    glm::vec3 v0, v1, v2;
 
     inline Triangle &transform(const glm::mat4 &t)
     {
@@ -183,11 +196,6 @@ struct Triangle
     {
         Triangle ret = *this;
         return ret.transform(t);
-    }
-
-    [[nodiscard]] inline ray_triangle_intersection intersect(const Ray &theRay) const
-    {
-        return vierkant::intersect(*this, theRay);
     }
 
     [[nodiscard]] inline glm::vec3 normal() const
@@ -233,13 +241,7 @@ struct Sphere
         {
             return REJECT;
         }
-
         return INSIDE;
-    }
-
-    [[nodiscard]] inline ray_intersection intersect(const Ray &theRay) const
-    {
-        return vierkant::intersect(*this, theRay);
     }
 };
 
@@ -288,26 +290,6 @@ struct AABB
         return min == aabb.min && max == aabb.max;
     }
 
-    /* used for fast AABB <-> Plane intersection test */
-    [[nodiscard]] inline glm::vec3 pos_vertex(const glm::vec3 &dir) const
-    {
-        glm::vec3 ret = min;
-        if(dir.x >= 0){ ret.x = max.x; }
-        if(dir.y >= 0){ ret.y = max.y; }
-        if(dir.z >= 0){ ret.z = max.z; }
-        return ret;
-    }
-
-    /* used for fast AABB <-> Plane intersection test */
-    [[nodiscard]] inline glm::vec3 neg_vertex(const glm::vec3 &dir) const
-    {
-        glm::vec3 ret = max;
-        if(dir.x >= 0){ ret.x = min.x; }
-        if(dir.y >= 0){ ret.y = min.y; }
-        if(dir.z >= 0){ ret.z = min.z; }
-        return ret;
-    }
-
     AABB &transform(const glm::mat4 &t);
 
     [[nodiscard]] inline AABB transform(const glm::mat4 &t) const
@@ -325,8 +307,6 @@ struct AABB
     }
 
     [[nodiscard]] ray_intersection intersect(const Ray &ray) const;
-
-//    [[nodiscard]] uint32_t intersect(const Triangle &t) const;
 };
 
 struct OBB
@@ -343,11 +323,6 @@ struct OBB
     {
         OBB ret = *this;
         return ret.transform(t);
-    }
-
-    [[nodiscard]] inline ray_intersection intersect(const Ray &theRay) const
-    {
-        return vierkant::intersect(*this, theRay);
     }
 
     [[nodiscard]] inline bool contains(const glm::vec3 &p) const
@@ -383,8 +358,7 @@ struct Frustum
 
     inline Frustum &transform(const glm::mat4 &t)
     {
-        Plane *end = planes + NUM_PLANES;
-        for(Plane *p = planes; p < end; p++){ p->transform(t); }
+        for(Plane &p : planes){ p.transform(t); }
         return *this;
     }
 
@@ -392,42 +366,6 @@ struct Frustum
     {
         Frustum ret = *this;
         return ret.transform(t);
-    };
-
-    inline uint32_t intersect(const glm::vec3 &v)
-    {
-        Plane *end = planes + NUM_PLANES;
-        for(Plane *p = planes; p < end; p++)
-        {
-            if(p->distance(v) < 0){ return REJECT; }
-        }
-        return INSIDE;
-    };
-
-    inline uint32_t intersect(const Sphere &s)
-    {
-        Plane *end = planes + NUM_PLANES;
-        for(Plane *p = planes; p < end; p++)
-        {
-            if(-p->distance(s.center) > s.radius){ return REJECT; }
-        }
-        return INSIDE;
-    };
-
-    inline uint32_t intersect(const AABB &aabb)
-    {
-        uint32_t ret = INSIDE;
-
-        Plane *end = planes + NUM_PLANES;
-        for(Plane *p = planes; p < end; p++)
-        {
-            //positive vertex outside ?
-            if(p->distance(aabb.pos_vertex(p->normal())) < 0){ return REJECT; }
-
-                //negative vertex outside ?
-            else if(p->distance(aabb.neg_vertex(p->normal())) < 0){ ret = INTERSECT; }
-        }
-        return ret;
     };
 };
 
