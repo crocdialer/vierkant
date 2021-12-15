@@ -21,6 +21,17 @@ constexpr char attrib_texcoord[] = "TEXCOORD_0";
 constexpr char attrib_joints[] = "JOINTS_0";
 constexpr char attrib_weights[] = "WEIGHTS_0";
 
+// animation targets
+constexpr char animation_target_translation[] = "translation";
+constexpr char animation_target_rotation[] = "rotation";
+constexpr char animation_target_scale[] = "scale";
+constexpr char animation_target_weights[] = "weights";
+
+// interpolation modes
+constexpr char interpolation_linear[] = "LINEAR";
+constexpr char interpolation_step[] = "STEP";
+constexpr char interpolation_cubic_spline[] = "CUBICSPLINE";
+
 // extensions
 constexpr char KHR_materials_specular[] = "KHR_materials_specular";
 constexpr char KHR_materials_transmission[] = "KHR_materials_transmission";
@@ -54,12 +65,6 @@ constexpr char ext_sheen_color_factor[] = "sheenColorFactor";
 constexpr char ext_sheen_color_texture[] = "sheenColorTexture";
 constexpr char ext_sheen_roughness_factor[] = "sheenRoughnessFactor";
 constexpr char ext_sheen_roughness_texture[] = "sheenRoughnessTexture";
-
-// animation targets
-constexpr char animation_target_translation[] = "translation";
-constexpr char animation_target_rotation[] = "rotation";
-constexpr char animation_target_scale[] = "scale";
-constexpr char animation_target_weights[] = "weights";
 
 struct node_t
 {
@@ -413,12 +418,26 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 input_times = {ptr, ptr + accessor.count};
                 animation.duration = std::max(animation.duration,
                                               *std::max_element(input_times.begin(), input_times.end()));
+
+                animation.interpolation_mode = vierkant::InterpolationMode::Linear;
+
+                if(sampler.interpolation == interpolation_step)
+                {
+                    animation.interpolation_mode = vierkant::InterpolationMode::Step;
+                }
+                else if(sampler.interpolation == interpolation_cubic_spline)
+                {
+                    animation.interpolation_mode = vierkant::InterpolationMode::CubicSpline;
+                }
             }
 
             const auto &accessor = model.accessors[sampler.output];
             const auto &buffer_view = model.bufferViews[accessor.bufferView];
             const auto &buffer = model.buffers[buffer_view.buffer];
             auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
+
+//            uint32_t stride = accessor.ByteStride(buffer_view);
+//            size_t num_values = animation.interpolation_mode == vierkant::InterpolationMode::CubicSpline ? 3 : 1;
 
             if(channel.target_path == animation_target_translation)
             {
@@ -667,7 +686,8 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 create_info.geometry = geometry;
                 create_info.transform = world_transform;
                 create_info.node_index = out_assets.entry_create_infos.size();
-                create_info.material_index = std::clamp(primitive.material, 0, std::max<int>(model.materials.size() - 1, 0));
+                create_info.material_index = std::clamp(primitive.material, 0,
+                                                        std::max<int>(model.materials.size() - 1, 0));
 
                 // pushback new entry
                 out_assets.entry_create_infos.push_back(std::move(create_info));

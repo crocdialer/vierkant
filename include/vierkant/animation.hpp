@@ -11,6 +11,21 @@
 namespace vierkant
 {
 
+enum class InterpolationMode
+{
+    Linear,
+    Step,
+    CubicSpline
+};
+
+template<typename T>
+struct animation_value_t
+{
+    T in_tangent = T(0);
+    T value = T(0);
+    T out_tangent = T(0);
+};
+
 /**
  *  @brief  animation_keys_t groups all existing keys for an entity.
  */
@@ -35,6 +50,7 @@ struct animation_t
     float duration = 0.f;
     float ticks_per_sec = 1.f;
     std::map<T, animation_keys_t> keys;
+    InterpolationMode interpolation_mode = InterpolationMode::Linear;
 };
 
 template<typename T>
@@ -57,6 +73,9 @@ void update_animation(animation_t<T> &animation, float time_delta, float animati
  *
  * @param   out_transform   ref to a mat4, used to write out an interpolated transformation.
  */
-void create_animation_transform(const animation_keys_t &keys, float time, glm::mat4 &out_transform);
+void create_animation_transform(const animation_keys_t &keys,
+                                float time,
+                                InterpolationMode interpolation_mode,
+                                glm::mat4 &out_transform);
 
 }

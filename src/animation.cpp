@@ -7,7 +7,10 @@
 namespace vierkant
 {
 
-void create_animation_transform(const animation_keys_t &keys, float time, glm::mat4 &out_transform)
+void create_animation_transform(const animation_keys_t &keys,
+                                float time,
+                                InterpolationMode interpolation_mode,
+                                glm::mat4 &out_transform)
 {
     bool has_keys = false;
 
@@ -42,6 +45,7 @@ void create_animation_transform(const animation_keys_t &keys, float time, glm::m
             float startTime = it_lhs->first;
             float endTime = it_rhs->first;
             float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
+            if(interpolation_mode == InterpolationMode::Step){ frac = 0.f; }
             glm::vec3 pos = glm::mix(it_lhs->second, it_rhs->second, frac);
             translation = glm::translate(glm::mat4(1), pos);
         }
@@ -77,6 +81,7 @@ void create_animation_transform(const animation_keys_t &keys, float time, glm::m
             float startTime = it_lhs->first;
             float endTime = it_rhs->first;
             float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
+            if(interpolation_mode == InterpolationMode::Step){ frac = 0.f; }
 
             // quaternion spherical linear interpolation
             glm::quat interpolRot = glm::slerp(it_lhs->second, it_rhs->second, frac);
@@ -115,6 +120,8 @@ void create_animation_transform(const animation_keys_t &keys, float time, glm::m
             float startTime = it_lhs->first;
             float endTime = it_rhs->first;
             float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
+            if(interpolation_mode == InterpolationMode::Step){ frac = 0.f; }
+
             glm::vec3 scale = glm::mix(it_lhs->second, it_rhs->second, frac);
             scale_matrix = glm::scale(scale_matrix, scale);
         }

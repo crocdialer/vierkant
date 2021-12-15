@@ -42,9 +42,19 @@ public:
     {
         if(should_visit(node))
         {
+            auto model_view = m_transform_stack.top() * node.transform();
+
+            auto entry_filter = [&model_view, &frustum = m_frustum](const Mesh::entry_t &entry) -> bool
+            {
+                if(!entry.enabled){ return false; }
+                auto aabb = entry.boundingbox.transform(model_view * entry.transform);
+                return vierkant::intersect(aabb, frustum);
+            };
+
             // create drawables
             auto mesh_drawables = vierkant::Renderer::create_drawables(node.mesh,
-                                                                       m_transform_stack.top() * node.transform());
+                                                                       model_view,
+                                                                       entry_filter);
 
             for(auto &drawable : mesh_drawables)
             {

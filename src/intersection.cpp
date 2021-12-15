@@ -229,7 +229,7 @@ Frustum::Frustum(const glm::mat4 &the_VP_martix)
 Frustum::Frustum(float aspect, float fov, float near, float far)
 {
     glm::mat4 t;
-    const glm::vec3 look_at = glm::vec3(0, 0, -1), eye = glm::vec3(0),
+    constexpr glm::vec3 look_at = glm::vec3(0, 0, -1), eye = glm::vec3(0),
             side = glm::vec3(1, 0, 0), up = glm::vec3(0, 1, 0);
     float angle_y = glm::radians(90.0f - aspect * fov / 2.0f);
     float angle_x = glm::radians(90.0f - (fov / 2.0f));
@@ -266,7 +266,7 @@ Frustum::Frustum(float left, float right, float bottom, float top,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool intersect(const Triangle &t, const AABB &b)
+uint32_t intersect(const Triangle &t, const AABB &b)
 {
     auto box_center = b.center();
     auto box_half_extents = b.half_extents();
@@ -276,7 +276,7 @@ bool intersect(const Triangle &t, const AABB &b)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool intersect(const Triangle &t1, const Triangle &t2)
+uint32_t intersect(const Triangle &t1, const Triangle &t2)
 {
     return tri_tri_overlap_test_3d(glm::value_ptr(t1.v0), glm::value_ptr(t1.v1), glm::value_ptr(t1.v2),
                                    glm::value_ptr(t2.v0), glm::value_ptr(t2.v1), glm::value_ptr(t2.v2));

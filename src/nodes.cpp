@@ -55,7 +55,8 @@ void build_node_matrices_bfs(const NodeConstPtr &root,
         if(it != animation.keys.end())
         {
             const auto &animation_keys = it->second;
-            create_animation_transform(animation_keys, animation.current_time, node_transform);
+            create_animation_transform(animation_keys, animation.current_time, animation.interpolation_mode,
+                                       node_transform);
         }
         global_joint_transform = global_joint_transform * node_transform;
 
@@ -87,7 +88,7 @@ void build_node_matrices_helper(const NodeConstPtr &node,
     if(it != animation.keys.end())
     {
         const auto &animation_keys = it->second;
-        create_animation_transform(animation_keys, time, node_transform);
+        create_animation_transform(animation_keys, time, animation.interpolation_mode, node_transform);
     }
     global_joint_transform = global_joint_transform * node_transform;
 

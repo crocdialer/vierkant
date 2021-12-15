@@ -17,8 +17,8 @@ struct cull_result_t
     //! a list of drawables in eye-coordinates
     std::vector<vierkant::Renderer::drawable_t> drawables;
 
-    //! a list of lightsources in eye-coordinates
-    std::vector<vierkant::Renderer::lightsource_t> lightsources;
+//    //! a list of lightsources in eye-coordinates
+//    std::vector<vierkant::Renderer::lightsource_t> lightsources;
 
     //! the camera used to perform culling
     CameraPtr camera;

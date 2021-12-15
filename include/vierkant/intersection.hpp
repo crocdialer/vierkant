@@ -102,17 +102,25 @@ inline ray_intersection intersect(const Ray &ray, const OBB &obb){ return inters
 
 /********************************** Triangle intersection tests ****************************************/
 
-bool intersect(const Triangle &t, const AABB &b);
+uint32_t intersect(const Triangle &t, const AABB &b);
 
-bool intersect(const Triangle &t1, const Triangle &t2);
+inline uint32_t intersect(const AABB &b, const Triangle &t){ return intersect(t, b); };
+
+uint32_t intersect(const Triangle &t1, const Triangle &t2);
 
 /********************************** Frustum intersection tests ****************************************/
 
 uint32_t intersect(const Frustum &frustum, const glm::vec3 &p);
 
+inline uint32_t intersect(const glm::vec3 &p, const Frustum &frustum){ return intersect(frustum, p); }
+
 uint32_t intersect(const Frustum &frustum, const Sphere &s);
 
+inline uint32_t intersect(const Sphere &s, const Frustum &frustum){ return intersect(frustum, s); }
+
 uint32_t intersect(const Frustum &frustum, const AABB &aabb);
+
+inline uint32_t intersect(const AABB &aabb, const Frustum &frustum){ return intersect(frustum, aabb); }
 
 
 vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices);
@@ -269,7 +277,7 @@ struct AABB
 
     [[nodiscard]] inline glm::vec3 size() const{ return (max - min); }
 
-    [[nodiscard]] inline glm::vec3 center() const{ return max - half_extents(); }
+    [[nodiscard]] inline glm::vec3 center() const{ return (max + min) / 2.f; }
 
     AABB operator+(const AABB &aabb) const
     {
