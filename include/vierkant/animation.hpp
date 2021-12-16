@@ -11,6 +11,7 @@
 namespace vierkant
 {
 
+//! InterpolationMode defines available interpolation-modes for animations.
 enum class InterpolationMode
 {
     Linear,
@@ -18,12 +19,16 @@ enum class InterpolationMode
     CubicSpline
 };
 
+/**
+ *  @brief  animation_value_t can be used to store animation data-points.
+ *          optionally stores in- and out-tangents that can be used for cubic hermite-interpolation.
+ */
 template<typename T>
 struct animation_value_t
 {
-    T in_tangent = T(0);
-    T value = T(0);
-    T out_tangent = T(0);
+    T value;
+    T in_tangent;
+    T out_tangent;
 };
 
 /**
@@ -31,9 +36,9 @@ struct animation_value_t
  */
 struct animation_keys_t
 {
-    std::map<float, glm::vec3> positions;
-    std::map<float, glm::quat> rotations;
-    std::map<float, glm::vec3> scales;
+    std::map<float, animation_value_t<glm::vec3>> positions;
+    std::map<float, animation_value_t<glm::quat>> rotations;
+    std::map<float, animation_value_t<glm::vec3>> scales;
 };
 
 /**

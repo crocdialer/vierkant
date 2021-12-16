@@ -1,6 +1,7 @@
 //
 // Created by crocdialer on 3/13/20.
 //
+#include <glm/gtx/spline.hpp>
 
 #include <vierkant/animation.hpp>
 
@@ -32,21 +33,34 @@ void create_animation_transform(const animation_keys_t &keys,
         if(it_rhs == keys.positions.begin())
         {
             // time is before first key
-            translation = glm::translate(glm::mat4(1), it_rhs->second);
+            translation = glm::translate(glm::mat4(1), it_rhs->second.value);
         }
         else if(it_rhs == keys.positions.end())
         {
             // time is past last key
-            translation = glm::translate(glm::mat4(1), it_lhs->second);
+            translation = glm::translate(glm::mat4(1), it_lhs->second.value);
         }
         else
         {
             // interpolate two surrounding keys
-            float startTime = it_lhs->first;
-            float endTime = it_rhs->first;
-            float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
-            if(interpolation_mode == InterpolationMode::Step){ frac = 0.f; }
-            glm::vec3 pos = glm::mix(it_lhs->second, it_rhs->second, frac);
+            float start_time = it_lhs->first;
+            float end_time = it_rhs->first;
+            float frac = std::max((time - start_time) / (end_time - start_time), 0.0f);
+            glm::vec3 pos = {};
+
+            switch(interpolation_mode)
+            {
+                case InterpolationMode::Step:
+                    frac = 0.f;
+                case InterpolationMode::Linear:
+                    pos = glm::mix(it_lhs->second.value, it_rhs->second.value, frac);
+                    break;
+                case InterpolationMode::CubicSpline:
+                    pos = glm::hermite(it_lhs->second.value, it_lhs->second.out_tangent, it_rhs->second.value,
+                                       it_rhs->second.in_tangent, frac);
+                    break;
+            }
+
             translation = glm::translate(glm::mat4(1), pos);
         }
     }
@@ -68,24 +82,43 @@ void create_animation_transform(const animation_keys_t &keys,
         if(it_rhs == keys.rotations.begin())
         {
             // time is before first key
-            rotation = glm::mat4_cast(it_rhs->second);
+            rotation = glm::mat4_cast(it_rhs->second.value);
         }
         else if(it_rhs == keys.rotations.end())
         {
             // time is past last key
-            rotation = glm::mat4_cast(it_lhs->second);
+            rotation = glm::mat4_cast(it_lhs->second.value);
         }
         else
         {
             // interpolate two surrounding keys
-            float startTime = it_lhs->first;
-            float endTime = it_rhs->first;
-            float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
-            if(interpolation_mode == InterpolationMode::Step){ frac = 0.f; }
+            float start_time = it_lhs->first;
+            float end_time = it_rhs->first;
+            float frac = std::max((time - start_time) / (end_time - start_time), 0.0f);
+            auto quat = glm::quat(out_transform);
 
-            // quaternion spherical linear interpolation
-            glm::quat interpolRot = glm::slerp(it_lhs->second, it_rhs->second, frac);
-            rotation = glm::mat4_cast(interpolRot);
+            switch(interpolation_mode)
+            {
+                case InterpolationMode::Step:
+                    frac = 0.f;
+
+                case InterpolationMode::Linear:
+                    // quaternion spherical linear interpolation
+                    quat = glm::slerp(it_lhs->second.value, it_rhs->second.value, frac);
+                    break;
+
+                case InterpolationMode::CubicSpline:
+                    //! @see https://www.khronos.org/registry/glTF/specs/2.0/glTF-2.0.html#appendix-c-interpolation
+                    auto tmp_quat = glm::hermite(it_lhs->second.value, it_lhs->second.out_tangent, it_rhs->second.value,
+                                                 it_rhs->second.in_tangent, frac);
+                    if(tmp_quat != -tmp_quat)
+                    {
+                        tmp_quat = glm::normalize(tmp_quat);
+                        quat = tmp_quat;
+                    }
+                    break;
+            }
+            rotation = glm::mat4_cast(quat);
         }
     }
 
@@ -107,22 +140,36 @@ void create_animation_transform(const animation_keys_t &keys,
         if(it_rhs == keys.scales.begin())
         {
             // time is before first key
-            scale_matrix = glm::scale(scale_matrix, it_rhs->second);
+            scale_matrix = glm::scale(scale_matrix, it_rhs->second.value);
         }
         else if(it_rhs == keys.scales.end())
         {
             // time is past last key
-            scale_matrix = glm::scale(scale_matrix, it_lhs->second);
+            scale_matrix = glm::scale(scale_matrix, it_lhs->second.value);
         }
         else
         {
             // interpolate two surrounding keys
-            float startTime = it_lhs->first;
-            float endTime = it_rhs->first;
-            float frac = std::max((time - startTime) / (endTime - startTime), 0.0f);
-            if(interpolation_mode == InterpolationMode::Step){ frac = 0.f; }
+            float start_time = it_lhs->first;
+            float end_time = it_rhs->first;
+            float frac = std::max((time - start_time) / (end_time - start_time), 0.0f);
 
-            glm::vec3 scale = glm::mix(it_lhs->second, it_rhs->second, frac);
+            glm::vec3 scale(1);
+
+            switch(interpolation_mode)
+            {
+                case InterpolationMode::Step:
+                    frac = 0.f;
+
+                case InterpolationMode::Linear:
+                    scale = glm::mix(it_lhs->second.value, it_rhs->second.value, frac);
+                    break;
+
+                case InterpolationMode::CubicSpline:
+                    scale = glm::hermite(it_lhs->second.value, it_lhs->second.out_tangent, it_rhs->second.value,
+                                         it_rhs->second.in_tangent, frac);
+                    break;
+            }
             scale_matrix = glm::scale(scale_matrix, scale);
         }
     }

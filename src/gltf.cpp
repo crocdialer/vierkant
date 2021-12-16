@@ -437,14 +437,24 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
             auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
 
 //            uint32_t stride = accessor.ByteStride(buffer_view);
-//            size_t num_values = animation.interpolation_mode == vierkant::InterpolationMode::CubicSpline ? 3 : 1;
+
+            // number of elements per time-point
+            bool is_cubic_spline = animation.interpolation_mode == vierkant::InterpolationMode::CubicSpline;
+            size_t num_elems = is_cubic_spline ? 3 : 1;
 
             if(channel.target_path == animation_target_translation)
             {
                 assert(accessor.type == TINYGLTF_TYPE_VEC3);
                 assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
                 auto ptr = reinterpret_cast<const glm::vec3 *>(data);
-                for(float t : input_times){ animation_keys.positions.insert({t, *ptr++}); }
+
+                for(float t : input_times)
+                {
+                    vierkant::animation_value_t<glm::vec3> animation_value = {ptr[0]};
+                    if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
+                    animation_keys.positions.insert({t, animation_value});
+                    ptr += num_elems;
+                }
 
             }
             else if(channel.target_path == animation_target_rotation)
@@ -452,14 +462,28 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 assert(accessor.type == TINYGLTF_TYPE_VEC4);
                 assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
                 auto ptr = reinterpret_cast<const glm::quat *>(data);
-                for(float t : input_times){ animation_keys.rotations.insert({t, *ptr++}); }
+
+                for(float t : input_times)
+                {
+                    vierkant::animation_value_t<glm::quat> animation_value = {ptr[0]};
+                    if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
+                    animation_keys.rotations.insert({t, animation_value});
+                    ptr += num_elems;
+                }
             }
             else if(channel.target_path == animation_target_scale)
             {
                 assert(accessor.type == TINYGLTF_TYPE_VEC3);
                 assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
                 auto ptr = reinterpret_cast<const glm::vec3 *>(data);
-                for(float t : input_times){ animation_keys.scales.insert({t, *ptr++}); }
+
+                for(float t : input_times)
+                {
+                    vierkant::animation_value_t<glm::vec3> animation_value = {ptr[0]};
+                    if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
+                    animation_keys.scales.insert({t, animation_value});
+                    ptr += num_elems;
+                }
             }
             else if(channel.target_path == animation_target_weights)
             {
