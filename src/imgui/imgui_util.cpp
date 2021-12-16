@@ -498,7 +498,7 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
         // aperture
         constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
 
-        float f_stop =  clamp(1.f / path_tracer->settings.aperture, f_stop_min, f_stop_max);
+        float f_stop = clamp(1.f / path_tracer->settings.aperture, f_stop_min, f_stop_max);
 
         if(ImGui::SliderFloat("f-stop", &f_stop, f_stop_min, f_stop_max))
         {
@@ -869,6 +869,23 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
         if(ImGui::SliderFloat("speed", &mesh->animation_speed, -3.f, 3.f)){}
         ImGui::SameLine();
         if(ImGui::Checkbox("play", &animation.playing)){}
+
+        // interpolation-mode
+        const char *interpolation_mode_items[] = {"Linear", "Step", "CubicSpline"};
+        constexpr InterpolationMode interpolation_modes[] = {InterpolationMode::Linear, InterpolationMode::Step,
+                                                             InterpolationMode::CubicSpline};
+        int mode_index = 0;
+
+        for(auto mode : interpolation_modes)
+        {
+            if(animation.interpolation_mode == mode){ break; }
+            mode_index++;
+        }
+
+        if(ImGui::Combo("interpolation", &mode_index, interpolation_mode_items, IM_ARRAYSIZE(interpolation_mode_items)))
+        {
+            animation.interpolation_mode = interpolation_modes[mode_index];
+        }
 
         float current_time = animation.current_time / animation.ticks_per_sec;
         float duration = animation.duration / animation.ticks_per_sec;
