@@ -21,7 +21,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: install dependencies
-        run: sudo apt-get install libboost-all-dev libcurl4-openssl-dev libglfw3
+      run: sudo apt-get install libboost-all-dev libcurl4-openssl-dev libglfw3
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
