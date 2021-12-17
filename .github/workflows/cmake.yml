@@ -24,7 +24,12 @@ jobs:
 
     - name: install dependencies
       run:
-        sudo apt-get install libboost-all-dev libcurl4-openssl-dev libglfw3-dev vulkan-validationlayers vulkan-tools
+        # lunarg - vulkan SDK
+        wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+        sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.2.198-focal.list https://packages.lunarg.com/vulkan/1.2.198/lunarg-vulkan-1.2.198-focal.list
+        sudo apt update
+
+        sudo apt-get install libboost-all-dev libcurl4-openssl-dev libglfw3-dev vulkan-sdk
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
