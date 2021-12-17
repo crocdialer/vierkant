@@ -68,7 +68,7 @@ include_directories(${crocore_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
 #shaders
-set(GLSLANG_VALIDATOR "glslangValidator")
+find_program(GLSLANG_VALIDATOR "glslangValidator" REQUIRED)
 stringify_shaders("shaders" "shaders" ${GLSLANG_VALIDATOR})
 
 option(USE_ASSIMP OFF)
