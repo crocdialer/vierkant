@@ -2,7 +2,7 @@
 
 ![Preview](https://crocdialer.com/wp-content/uploads/2021/09/whisky_dragon.jpg)
 - vierkant is a Vulkan 1.2 based rendering library written in C++17.
-- ![example workflow](https://github.com/crocdialer/vierkant/actions/workflows/cmake.yml/badge.svg)
+- ![example workflow](https://github.com/crocdialer/vierkant/actions/workflows/cmake_build.yml/badge.svg)
 
 rendering backends
 -
