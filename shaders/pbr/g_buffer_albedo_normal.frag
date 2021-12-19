@@ -28,9 +28,8 @@ layout(location = 0) in VertexData
 
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out vec4 out_normal;
-layout(location = 2) out vec4 out_position;
-layout(location = 3) out vec4 out_emission;
-layout(location = 4) out vec4 out_ao_rough_metal;
+layout(location = 2) out vec4 out_emission;
+layout(location = 3) out vec4 out_ao_rough_metal;
 
 void main()
 {
@@ -60,6 +59,5 @@ void main()
     normal = transpose_tbn * normal;
 
     out_normal = vec4(normalize(normal), 1);
-    out_position = vec4(vertex_in.eye_vec, 1);
     out_ao_rough_metal = vec4(material.ambient, material.roughness, material.metalness, 1);
 }
