@@ -27,6 +27,11 @@ constexpr char animation_target_rotation[] = "rotation";
 constexpr char animation_target_scale[] = "scale";
 constexpr char animation_target_weights[] = "weights";
 
+// blend modes
+constexpr char blend_mode_opaque[] = "OPAQUE";
+constexpr char blend_mode_blend[] = "BLEND";
+constexpr char blend_mode_mask[] = "MASK";
+
 // interpolation modes
 constexpr char interpolation_linear[] = "LINEAR";
 constexpr char interpolation_step[] = "STEP";
@@ -116,8 +121,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     ret.emission = *reinterpret_cast<const glm::dvec3 *>(tiny_mat.emissiveFactor.data());
 
     // blend_mode defaults to opaque
-    if(tiny_mat.alphaMode == "BLEND"){ ret.blend_mode = vierkant::Material::BlendMode::Blend; }
-    else if(tiny_mat.alphaMode == "MASK"){ ret.blend_mode = vierkant::Material::BlendMode::Mask; }
+    if(tiny_mat.alphaMode == blend_mode_blend){ ret.blend_mode = vierkant::Material::BlendMode::Blend; }
+    else if(tiny_mat.alphaMode == blend_mode_mask){ ret.blend_mode = vierkant::Material::BlendMode::Mask; }
     ret.alpha_cutoff = static_cast<float>(tiny_mat.alphaCutoff);
 
     ret.metalness = static_cast<float>(tiny_mat.pbrMetallicRoughness.metallicFactor);
@@ -436,8 +441,6 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
             const auto &buffer = model.buffers[buffer_view.buffer];
             auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
 
-//            uint32_t stride = accessor.ByteStride(buffer_view);
-
             // number of elements per time-point
             bool is_cubic_spline = animation.interpolation_mode == vierkant::InterpolationMode::CubicSpline;
             size_t num_elems = is_cubic_spline ? 3 : 1;
@@ -498,15 +501,13 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
 mesh_assets_t gltf(const std::filesystem::path &path)
 {
-
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
     std::string err, warn;
 
-//    loader.SetPreserveImageChannels(true);
-
     bool ret = false;
-    auto ext_str = path.extension();
+    auto ext_str = path.extension().string();
+    std::transform(ext_str.begin(), ext_str.end(), ext_str.begin(), ::tolower);
     if(ext_str == ".gltf"){ ret = loader.LoadASCIIFromFile(&model, &err, &warn, path); }
     else if(ext_str == ".glb"){ ret = loader.LoadBinaryFromFile(&model, &err, &warn, path); }
     if(!warn.empty()){ LOG_WARNING << warn; }
