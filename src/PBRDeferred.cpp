@@ -330,6 +330,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     environment_lighting_ubo_t ubo = {};
     ubo.camera_transform = cull_result.camera->global_transform();
+    ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) - 1);
 
     frame_assets.lighting_ubo->set_data(&ubo, sizeof(ubo));
@@ -339,7 +340,6 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     drawable.descriptors[0].buffers = {frame_assets.lighting_ubo};
     drawable.descriptors[1].image_samplers = {frame_assets.g_buffer.color_attachment(G_BUFFER_ALBEDO),
                                               frame_assets.g_buffer.color_attachment(G_BUFFER_NORMAL),
-                                              frame_assets.g_buffer.color_attachment(G_BUFFER_POSITION),
                                               frame_assets.g_buffer.color_attachment(G_BUFFER_EMISSION),
                                               frame_assets.g_buffer.color_attachment(G_BUFFER_AO_ROUGH_METAL),
                                               m_brdf_lut};

@@ -160,6 +160,7 @@ private:
     struct environment_lighting_ubo_t
     {
         glm::mat4 camera_transform = glm::mat4(1);
+        glm::mat4 inverse_projection = glm::mat4(1);
         int num_mip_levels = 0;
         float env_light_strength = 1.f;
     };
