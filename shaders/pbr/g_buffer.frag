@@ -20,7 +20,6 @@ layout(location = 0) in VertexData
 {
     vec4 color;
     vec3 normal;
-    vec3 eye_vec;
 } vertex_in;
 
 layout(location = 0) out vec4 out_color;

@@ -32,7 +32,6 @@ layout(location = 0) out VertexData
 {
     vec4 color;
     vec3 normal;
-    vec3 eye_vec;
 } vertex_out;
 
 void main()
@@ -47,6 +46,5 @@ void main()
     }
     vertex_out.color = a_color;
     vertex_out.normal = normalize(m.normal * vec4(a_normal, 1.0)).xyz;
-    vertex_out.eye_vec = (m.modelview * vec4(new_vertex.xyz, 1.0)).xyz;
     gl_Position = m.projection * m.modelview * vec4(new_vertex.xyz, 1.0);
 }

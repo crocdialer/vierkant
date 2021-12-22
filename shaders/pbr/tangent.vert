@@ -29,7 +29,7 @@ layout(location = 0) out VertexData
     vec2 tex_coord;
     vec3 normal;
     vec3 tangent;
-    vec3 eye_vec;
+//    vec3 eye_vec;
 } vertex_out;
 
 void main()
@@ -41,5 +41,5 @@ void main()
     vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
     vertex_out.normal = normalize(m.normal * vec4(a_normal, 1.0)).xyz;
     vertex_out.tangent = normalize(m.normal * vec4(a_tangent, 1.0)).xyz;
-    vertex_out.eye_vec = (m.modelview * vec4(a_position, 1.0)).xyz;
+//    vertex_out.eye_vec = (m.modelview * vec4(a_position, 1.0)).xyz;
 }
