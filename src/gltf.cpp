@@ -111,6 +111,120 @@ glm::mat4 node_transform(const tinygltf::Node &tiny_node)
     return glm::translate(glm::dmat4(1), translation) * glm::mat4_cast(rotation) * glm::scale(glm::dmat4(1), scale);
 }
 
+vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, const tinygltf::Model &model)
+{
+    auto geometry = vierkant::Geometry::create();
+
+    // extract indices
+    if(primitive.indices >= 0 && static_cast<size_t>(primitive.indices) < model.accessors.size())
+    {
+        tinygltf::Accessor index_accessor = model.accessors[primitive.indices];
+        const auto &buffer_view = model.bufferViews[index_accessor.bufferView];
+        const auto &buffer = model.buffers[buffer_view.buffer];
+
+        if(buffer_view.target == 0){ LOG_WARNING << "bufferView.target is zero"; }
+
+        assert(index_accessor.type == TINYGLTF_TYPE_SCALAR);
+
+        auto data = static_cast<const uint8_t *>(buffer.data.data() + index_accessor.byteOffset +
+                                                 buffer_view.byteOffset);
+
+
+        if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
+        {
+            const auto *ptr = reinterpret_cast<const uint16_t *>(data);
+            geometry->indices = {ptr, ptr + index_accessor.count};
+        }
+        else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
+        {
+            const auto *ptr = reinterpret_cast<const uint8_t *>(data);
+            geometry->indices = {ptr, ptr + index_accessor.count};
+        }
+        else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
+        {
+            const auto *ptr = reinterpret_cast<const uint32_t *>(data);
+            geometry->indices = {ptr, ptr + index_accessor.count};
+        }
+        else{ LOG_ERROR << "unsupported index-type: " << index_accessor.componentType; }
+    }
+
+    for(const auto &[attrib, accessor_idx] : primitive.attributes)
+    {
+        tinygltf::Accessor accessor = model.accessors[accessor_idx];
+        const auto &buffer_view = model.bufferViews[accessor.bufferView];
+        const auto &buffer = model.buffers[buffer_view.buffer];
+
+        if(accessor.sparse.isSparse){ assert(false); }
+
+        auto insert = [&accessor, &buffer_view](const tinygltf::Buffer &input, auto &array)
+        {
+            using elem_t = typename std::decay<decltype(array)>::type::value_type;
+            constexpr size_t elem_size = sizeof(elem_t);
+
+            // data with offset
+            const uint8_t *data = input.data.data() + buffer_view.byteOffset + accessor.byteOffset;
+            uint32_t stride = accessor.ByteStride(buffer_view);
+
+            if(stride == elem_size)
+            {
+                const auto *ptr = reinterpret_cast<const elem_t *>(data);
+                auto end = ptr + accessor.count;
+                array = {ptr, end};
+            }
+            else
+            {
+                auto ptr = data;
+                auto end = data + accessor.count * stride;
+
+                // prealloc
+                array.resize(accessor.count);
+                auto dst = reinterpret_cast<uint8_t *>(array.data());
+
+                // stride copy
+                for(; ptr < end; ptr += stride, dst += elem_size){ std::memcpy(dst, ptr, elem_size); }
+            }
+        };
+
+        if(attrib == attrib_position){ insert(buffer, geometry->positions); }
+        else if(attrib == attrib_normal){ insert(buffer, geometry->normals); }
+        else if(attrib == attrib_tangent){ insert(buffer, geometry->tangents); }
+        else if(attrib == attrib_color){ insert(buffer, geometry->colors); }
+        else if(attrib == attrib_texcoord){ insert(buffer, geometry->tex_coords); }
+        else if(attrib == attrib_joints)
+        {
+            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
+            assert(accessor.type == TINYGLTF_TYPE_VEC4);
+            insert(buffer, geometry->bone_indices);
+        }
+        else if(attrib == attrib_weights)
+        {
+            assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+            assert(accessor.type == TINYGLTF_TYPE_VEC4);
+            insert(buffer, geometry->bone_weights);
+        }
+    }// for all attributes
+
+    if(geometry->indices.empty())
+    {
+        geometry->indices.resize(geometry->positions.size());
+        std::iota(geometry->indices.begin(), geometry->indices.end(), 0);
+    }
+
+    // sanity resize
+    geometry->colors.resize(geometry->positions.size(), glm::vec4(1.f));
+    geometry->tex_coords.resize(geometry->positions.size(), glm::vec2(0.f));
+
+    if(geometry->tangents.empty() && !geometry->normals.empty() && !geometry->tex_coords.empty())
+    {
+        geometry->compute_tangents();
+    }
+    else if(geometry->tangents.empty())
+    {
+        geometry->tangents.resize(geometry->positions.size(), glm::vec3(0.f));
+    }
+    return geometry;
+}
+
 model::material_t convert_material(const tinygltf::Material &tiny_mat,
                                    const tinygltf::Model &model,
                                    const std::map<uint32_t, crocore::ImagePtr> &image_cache)
@@ -563,6 +677,10 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     node_map_t node_map;
 
+    // cache geometries (index_accessor, attributes) -> geometry
+    using geometry_key = std::tuple<int, const std::map<std::string, int>&>;
+    std::map<geometry_key, vierkant::GeometryPtr> geometry_cache;
+
     while(!node_queue.empty())
     {
         auto[current_index, world_transform, parent_node] = node_queue.front();
@@ -596,114 +714,15 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
             for(const auto &primitive : mesh.primitives)
             {
-                auto geometry = vierkant::Geometry::create();
+                vierkant::GeometryPtr geometry;
 
-                // extract indices
-                if(primitive.indices >= 0 && static_cast<size_t>(primitive.indices) < model.accessors.size())
+                geometry_key geom_key = {primitive.indices, primitive.attributes};
+                auto it = geometry_cache.find(geom_key);
+                if(it != geometry_cache.end()){ geometry = it->second; }
+                else
                 {
-                    tinygltf::Accessor index_accessor = model.accessors[primitive.indices];
-                    const auto &buffer_view = model.bufferViews[index_accessor.bufferView];
-                    const auto &buffer = model.buffers[buffer_view.buffer];
-
-                    if(buffer_view.target == 0){ LOG_WARNING << "bufferView.target is zero"; }
-
-                    assert(index_accessor.type == TINYGLTF_TYPE_SCALAR);
-
-                    auto data = static_cast<const uint8_t *>(buffer.data.data() + index_accessor.byteOffset +
-                                                             buffer_view.byteOffset);
-
-
-                    if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
-                    {
-                        const auto *ptr = reinterpret_cast<const uint16_t *>(data);
-                        geometry->indices = {ptr, ptr + index_accessor.count};
-                    }
-                    else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE)
-                    {
-                        const auto *ptr = reinterpret_cast<const uint8_t *>(data);
-                        geometry->indices = {ptr, ptr + index_accessor.count};
-                    }
-                    else if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT)
-                    {
-                        const auto *ptr = reinterpret_cast<const uint32_t *>(data);
-                        geometry->indices = {ptr, ptr + index_accessor.count};
-                    }
-                    else{ LOG_ERROR << "unsupported index-type: " << index_accessor.componentType; }
-                }
-
-                for(const auto &[attrib, accessor_idx] : primitive.attributes)
-                {
-                    tinygltf::Accessor accessor = model.accessors[accessor_idx];
-                    const auto &buffer_view = model.bufferViews[accessor.bufferView];
-                    const auto &buffer = model.buffers[buffer_view.buffer];
-
-                    if(accessor.sparse.isSparse){ assert(false); }
-
-                    auto insert = [&accessor, &buffer_view](const tinygltf::Buffer &input, auto &array)
-                    {
-                        using elem_t = typename std::decay<decltype(array)>::type::value_type;
-                        constexpr size_t elem_size = sizeof(elem_t);
-
-                        // data with offset
-                        const uint8_t *data = input.data.data() + buffer_view.byteOffset + accessor.byteOffset;
-                        uint32_t stride = accessor.ByteStride(buffer_view);
-
-                        if(stride == elem_size)
-                        {
-                            const auto *ptr = reinterpret_cast<const elem_t *>(data);
-                            auto end = ptr + accessor.count;
-                            array = {ptr, end};
-                        }
-                        else
-                        {
-                            auto ptr = data;
-                            auto end = data + accessor.count * stride;
-
-                            // prealloc
-                            array.resize(accessor.count);
-                            auto dst = reinterpret_cast<uint8_t *>(array.data());
-
-                            // stride copy
-                            for(; ptr < end; ptr += stride, dst += elem_size){ std::memcpy(dst, ptr, elem_size); }
-                        }
-                    };
-
-                    if(attrib == attrib_position){ insert(buffer, geometry->positions); }
-                    else if(attrib == attrib_normal){ insert(buffer, geometry->normals); }
-                    else if(attrib == attrib_tangent){ insert(buffer, geometry->tangents); }
-                    else if(attrib == attrib_color){ insert(buffer, geometry->colors); }
-                    else if(attrib == attrib_texcoord){ insert(buffer, geometry->tex_coords); }
-                    else if(attrib == attrib_joints)
-                    {
-                        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
-                        assert(accessor.type == TINYGLTF_TYPE_VEC4);
-                        insert(buffer, geometry->bone_indices);
-                    }
-                    else if(attrib == attrib_weights)
-                    {
-                        assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-                        assert(accessor.type == TINYGLTF_TYPE_VEC4);
-                        insert(buffer, geometry->bone_weights);
-                    }
-                }// for all attributes
-
-                if(geometry->indices.empty())
-                {
-                    geometry->indices.resize(geometry->positions.size());
-                    std::iota(geometry->indices.begin(), geometry->indices.end(), 0);
-                }
-
-                // sanity resize
-                geometry->colors.resize(geometry->positions.size(), glm::vec4(1.f));
-                geometry->tex_coords.resize(geometry->positions.size(), glm::vec2(0.f));
-
-                if(geometry->tangents.empty() && !geometry->normals.empty() && !geometry->tex_coords.empty())
-                {
-                    geometry->compute_tangents();
-                }
-                else if(geometry->tangents.empty())
-                {
-                    geometry->tangents.resize(geometry->positions.size(), glm::vec3(0.f));
+                    geometry = create_geometry(primitive, model);
+                    geometry_cache[geom_key] = geometry;
                 }
 
                 vierkant::Mesh::entry_create_info_t create_info = {};
@@ -735,6 +754,8 @@ mesh_assets_t gltf(const std::filesystem::path &path)
             }
         }
     }
+
+//    size_t num_geoms = geometry_cache.size(), num_entries = out_assets.entry_create_infos.size();
 
     // animations
     for(const auto &tiny_animation : model.animations)

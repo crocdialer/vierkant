@@ -46,6 +46,9 @@ trace_result_t trace(vec2 coord, vec2 size)
 
     float sample_offset = rnd(rng_state);
 
+    float fov = PI / 2.0;
+    float spread_angle = atan(2.0 * tan(fov / 2.0) / size.y);
+
     // sample random dirctions around the pixel's center
     //           1
     //    .------+------.
@@ -74,6 +77,8 @@ trace_result_t trace(vec2 coord, vec2 size)
         // next ray
         Ray ray = Ray(origin, direction);
 
+        RayCone cone = RayCone(spread_angle, 0.0);
+
         float tmin = 0.0001;
         float tmax = 10000.0;
 
@@ -97,6 +102,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.inside_media = inside_media;
             payload.pdf = pdf;
             payload.ray = ray;
+            payload.cone = cone;
 
             const uint ray_flags = gl_RayFlagsOpaqueEXT | (inside_media ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
 
@@ -113,6 +119,7 @@ trace_result_t trace(vec2 coord, vec2 size)
                         tmax,           // ray max range
                         0);             // payload (location = 0)
 
+            cone = payload.cone;
             ray = payload.ray;
             beta = payload.beta;
             ior = payload.ior;

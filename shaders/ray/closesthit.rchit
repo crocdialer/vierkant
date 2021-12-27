@@ -38,10 +38,25 @@ layout(location = 0) rayPayloadInEXT payload_t payload;
 // builtin barycentric coords
 hitAttributeEXT vec2 attribs;
 
-Vertex interpolate_vertex()
+struct Triangle
 {
-    const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
+    Vertex v0, v1, v2;
+};
 
+RayCone propagate(RayCone cone, float surface_spread_angle, float hitT)
+{
+    RayCone new_cone;
+
+    // grow footprint
+    new_cone.width = cone.width + cone.spread_angle * hitT;
+
+    // alter spread_angle
+    new_cone.spread_angle = cone.spread_angle + surface_spread_angle;
+    return new_cone;
+}
+
+Triangle get_triangle()
+{
     // entry aka instance
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
 
@@ -51,19 +66,25 @@ Vertex interpolate_vertex()
     indices[nonuniformEXT(entry.buffer_index)].i[entry.base_index + 3 * gl_PrimitiveID + 2]);
 
     // triangle vertices
-    Vertex v0 = vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.x];
-    Vertex v1 = vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.y];
-    Vertex v2 = vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.z];
+    return Triangle(vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.x],
+                    vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.y],
+                    vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.z]);
+}
+
+Vertex interpolate_vertex(Triangle t)
+{
+    const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
 
     // interpolated vertex
     Vertex out_vert;
-    out_vert.position = v0.position * barycentric.x + v1.position * barycentric.y + v2.position * barycentric.z;
-    out_vert.color = v0.color * barycentric.x + v1.color * barycentric.y + v2.color * barycentric.z;
-    out_vert.tex_coord = v0.tex_coord * barycentric.x + v1.tex_coord * barycentric.y + v2.tex_coord * barycentric.z;
-    out_vert.normal = v0.normal * barycentric.x + v1.normal * barycentric.y + v2.normal * barycentric.z;
-    out_vert.tangent = v0.tangent * barycentric.x + v1.tangent * barycentric.y + v2.tangent * barycentric.z;
+    out_vert.position = t.v0.position * barycentric.x + t.v1.position * barycentric.y + t.v2.position * barycentric.z;
+    out_vert.color = t.v0.color * barycentric.x + t.v1.color * barycentric.y + t.v2.color * barycentric.z;
+    out_vert.tex_coord = t.v0.tex_coord * barycentric.x + t.v1.tex_coord * barycentric.y + t.v2.tex_coord * barycentric.z;
+    out_vert.normal = t.v0.normal * barycentric.x + t.v1.normal * barycentric.y + t.v2.normal * barycentric.z;
+    out_vert.tangent = t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z;
 
     // bring surfel into worldspace
+    entry_t entry = entries[gl_InstanceCustomIndexEXT];
     out_vert.position = (entry.modelview * vec4(out_vert.position, 1.0)).xyz;
     out_vert.normal = normalize((entry.normal_matrix * vec4(out_vert.normal, 1.0)).xyz);
     out_vert.tangent = normalize((entry.normal_matrix * vec4(out_vert.tangent, 1.0)).xyz);
@@ -74,7 +95,8 @@ Vertex interpolate_vertex()
 void main()
 {
     //    vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
-    Vertex v = interpolate_vertex();
+    Triangle triangle = get_triangle();
+    Vertex v = interpolate_vertex(triangle);
 
     material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
 
@@ -98,6 +120,8 @@ void main()
 
     // flip the normal so it points against the ray direction:
     payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
+
+    vec3 V = -gl_WorldRayDirectionEXT;
 
     // max emission from material/map
     const float emission_tex_gain = 10.0;
@@ -125,9 +149,11 @@ void main()
     // next ray from current position
     payload.ray.origin = payload.position;
 
+    // propagate ray-cone
+    payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
+
     uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 
-    vec3 V = -gl_WorldRayDirectionEXT;
     float eta = payload.inside_media ? material.ior / payload.ior : payload.ior / material.ior;
     eta += EPS;
 

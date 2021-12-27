@@ -9,11 +9,20 @@ struct Ray
     vec3 direction;
 };
 
+struct RayCone
+{
+    float spread_angle;
+    float width;
+};
+
 //! simple struct to groupt rayhit-parameters
 struct payload_t
 {
     // the ray that generated this payload
     Ray ray;
+
+    // used to determine texture-LoD
+    RayCone cone;
 
     // terminate path
     bool stop;
