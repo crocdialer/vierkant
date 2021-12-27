@@ -116,9 +116,10 @@ public:
         vierkant::Semaphore semaphore;
         vierkant::QueryPoolPtr query_pool;
 
-        //! per bottom-lvl-build
-        std::vector<vierkant::CommandBuffer> build_commands;
+        //! bottom-lvl-build
+        vierkant::CommandBuffer build_command;
 
+        //! copy/compaction
         vierkant::CommandBuffer compact_command;
     };
 

@@ -47,7 +47,6 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     ray_tracer_create_info.pipeline_cache = create_info.pipeline_cache;
     m_ray_tracer = vierkant::RayTracer(device, ray_tracer_create_info);
     m_ray_builder = vierkant::RayBuilder(device, m_queue, pool);
-    m_compaction = create_info.settings.compaction;
 
     // denoise compute
     vierkant::Compute::create_info_t compute_info = {};
@@ -418,7 +417,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     // run compaction on structures from previous frame
     for(auto &[mesh, result] : previous_builds)
     {
-        if(m_compaction && result.compacted_assets.empty())
+        if(settings.compaction && result.compacted_assets.empty())
         {
             // run compaction
             m_ray_builder.compact(result);
@@ -437,7 +436,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     // clear left-overs
     frame_asset.bottom_lvl_assets.clear();
 
-    // schedule non-blocking build+compaction of acceleration structures
+    //  cache-lookup / non-blocking build of acceleration structures
     for(const auto &node: mesh_selector.objects)
     {
         auto search_it = m_acceleration_assets.find(node->mesh);

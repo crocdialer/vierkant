@@ -75,25 +75,26 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
     bool enable_compaction = (flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR)
                              == VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
 
-    std::vector<VkAccelerationStructureGeometryKHR> geometries(mesh->entries.size());
-    std::vector<VkAccelerationStructureBuildRangeInfoKHR> offsets(mesh->entries.size());
-    std::vector<VkAccelerationStructureBuildGeometryInfoKHR> build_infos(mesh->entries.size());
+    size_t num_entries = mesh->entries.size();
+    std::vector<VkAccelerationStructureGeometryKHR> geometries(num_entries);
+    std::vector<VkAccelerationStructureBuildRangeInfoKHR> offsets(num_entries);
+    std::vector<VkAccelerationStructureBuildGeometryInfoKHR> build_infos(num_entries);
 
     // timelinesemaphore to track builds
     build_result_t ret = {};
     ret.semaphore = vierkant::Semaphore(m_device);
 
-    // one per bottom-lvl-build
-    ret.build_commands.resize(mesh->entries.size());
+    ret.build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    ret.build_command.begin();
 
     // used to query compaction sizes after building
-    ret.query_pool = create_query_pool(m_device, mesh->entries.size(),
+    ret.query_pool = create_query_pool(m_device, num_entries,
                                        VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR);
 
     // those will be stored
-    std::vector<acceleration_asset_ptr> entry_assets(mesh->entries.size());
+    std::vector<acceleration_asset_ptr> entry_assets(num_entries);
 
-    for(uint32_t i = 0; i < mesh->entries.size(); ++i)
+    for(uint32_t i = 0; i < num_entries; ++i)
     {
         const auto &entry = mesh->entries[i];
 
@@ -162,14 +163,9 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
         build_info.dstAccelerationStructure = acceleration_asset.structure.get();
         build_info.scratchData.deviceAddress = acceleration_asset.scratch_buffer->device_address();
 
-        // create commandbuffer for building the bottomlevel-structure
-        auto &cmd_buffer = ret.build_commands[i];
-        cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        cmd_buffer.begin();
-
         // build the AS
         const VkAccelerationStructureBuildRangeInfoKHR *offset_ptr = &offset;
-        vkCmdBuildAccelerationStructuresKHR(cmd_buffer.handle(), 1, &build_info, &offset_ptr);
+        vkCmdBuildAccelerationStructuresKHR(ret.build_command.handle(), 1, &build_info, &offset_ptr);
 
         // Write compacted size to query number idx.
         if(enable_compaction)
@@ -178,26 +174,22 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
             VkMemoryBarrier barrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
             barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
             barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
-            vkCmdPipelineBarrier(cmd_buffer.handle(),
+            vkCmdPipelineBarrier(ret.build_command.handle(),
                                  VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                                  VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                                  0, 1, &barrier, 0, nullptr, 0, nullptr);
 
             VkAccelerationStructureKHR accel_structure = acceleration_asset.structure.get();
-            vkCmdWriteAccelerationStructuresPropertiesKHR(cmd_buffer.handle(), 1, &accel_structure,
+            vkCmdWriteAccelerationStructuresPropertiesKHR(ret.build_command.handle(), 1, &accel_structure,
                                                           VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR,
                                                           ret.query_pool.get(), i);
         }
-        cmd_buffer.end();
     }
-
-    std::vector<VkCommandBuffer> cmd_handles(ret.build_commands.size());
-    for(uint32_t i = 0; i < ret.build_commands.size(); ++i){ cmd_handles[i] = ret.build_commands[i].handle(); }
 
     vierkant::semaphore_submit_info_t semaphore_build_info = {};
     semaphore_build_info.semaphore = ret.semaphore.handle();
     semaphore_build_info.signal_value = SemaphoreValue::BUILD;
-    vierkant::submit(m_device, m_queue, cmd_handles, false, VK_NULL_HANDLE, {semaphore_build_info});
+    ret.build_command.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_build_info});
 
     ret.acceleration_assets = std::move(entry_assets);
     return ret;

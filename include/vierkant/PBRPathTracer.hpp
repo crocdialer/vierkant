@@ -237,8 +237,6 @@ private:
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
 
-    bool m_compaction;
-
     vierkant::RayBuilder::acceleration_asset_map_t m_acceleration_assets;
 
     size_t m_batch_index = 0;
