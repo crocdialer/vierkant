@@ -28,6 +28,8 @@ public:
 
     virtual float far() const = 0;
 
+    virtual float fov() const = 0;
+
     virtual vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const = 0;
 
 protected:
@@ -66,6 +68,8 @@ public:
         m_far = val;
         update_projection_matrix();
     };
+
+    float fov() const override { return glm::degrees(atanf(std::abs(m_right - m_left) / std::abs(m_far - m_near))); };
 
     inline float left() const { return m_left; };
 
@@ -125,7 +129,7 @@ public:
 
     void set_fov(float theFov);
 
-    float fov() const { return m_fov; };
+    float fov() const override { return m_fov; };
 
     void set_aspect(float theAspect);
 
@@ -164,6 +168,8 @@ public:
     float near() const override { return m_near; };
 
     float far() const override { return m_far; };
+
+    float fov() const override { return 45.f; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 

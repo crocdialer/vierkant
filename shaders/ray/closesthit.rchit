@@ -71,6 +71,32 @@ Triangle get_triangle()
                     vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.z]);
 }
 
+float lod_constant(Triangle t)
+{
+    // transform vertices
+    entry_t entry = entries[gl_InstanceCustomIndexEXT];
+    t.v0.position = (entry.modelview * vec4(t.v0.position, 1.0)).xyz;
+    t.v1.position = (entry.modelview * vec4(t.v1.position, 1.0)).xyz;
+    t.v2.position = (entry.modelview * vec4(t.v2.position, 1.0)).xyz;
+
+    float p_a = length(cross(t.v1.position - t.v0.position, t.v2.position - t.v0.position));
+    float t_a = abs((t.v1.tex_coord.x - t.v0.tex_coord.x) * (t.v2.tex_coord.y - t.v0.tex_coord.y) -
+                    (t.v2.tex_coord.x - t.v0.tex_coord.x) * (t.v1.tex_coord.y - t.v0.tex_coord.y));
+    return 0.5 * log2(t_a / p_a);
+}
+
+vec4 sample_texture_lod(sampler2D tex, vec2 tex_coord, float NoV, float cone_width, float lambda)
+{
+    vec2 sz = textureSize(tex, 0);
+
+    // Eq . 34
+    lambda += log2(abs(cone_width));
+    lambda += 0.5 * log2(sz.x * sz.y);
+    lambda -= log2(NoV);
+    return textureLod(tex, tex_coord, lambda);
+//    return texture(tex, tex_coord);
+}
+
 Vertex interpolate_vertex(Triangle t)
 {
     const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
@@ -97,11 +123,18 @@ void main()
     //    vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     Triangle triangle = get_triangle();
     Vertex v = interpolate_vertex(triangle);
+    float triangle_lod = lod_constant(triangle);
 
     material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
 
+    vec3 V = -gl_WorldRayDirectionEXT;
+    float NoV = abs(dot(V, v.normal));
+
     payload.position = v.position;
     payload.normal = v.normal;
+
+    // propagate ray-cone
+    payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
     bool tangent_valid = any(greaterThan(abs(v.tangent), vec3(0.0)));
 
@@ -111,7 +144,8 @@ void main()
         v.tangent = normalize(v.tangent);
 
         // sample normalmap
-        vec3 normal = normalize(2.0 * (texture(u_normalmaps[material.normalmap_index], v.tex_coord).xyz - vec3(0.5)));
+        vec3 normal = normalize(2.0 * (sample_texture_lod(u_normalmaps[material.normalmap_index],
+                                                          v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz - vec3(0.5)));
 
         // normal, tangent, bi-tangent
         vec3 b = normalize(cross(v.normal, v.tangent));
@@ -121,12 +155,12 @@ void main()
     // flip the normal so it points against the ray direction:
     payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
 
-    vec3 V = -gl_WorldRayDirectionEXT;
-
     // max emission from material/map
     const float emission_tex_gain = 10.0;
     material.emission.rgb = max(material.emission.rgb,
-                                emission_tex_gain * texture(u_emissionmaps[material.emission_index], v.tex_coord).rgb);
+                                emission_tex_gain * sample_texture_lod(u_emissionmaps[material.emission_index],
+                                                                       v.tex_coord, NoV, payload.cone.width,
+                                                                       triangle_lod).rgb);
 
     material.emission.rgb = dot(payload.normal, payload.ff_normal) > 0 ? material.emission.rgb : vec3(0.0);
 
@@ -139,18 +173,17 @@ void main()
 
     // modulate beta with albedo
     material.color.rgb = push_constants.disable_material ?
-        vec3(.8) : material.color.rgb * texture(u_albedos[material.texture_index], v.tex_coord).rgb;
+        vec3(.8) : material.color.rgb * sample_texture_lod(u_albedos[material.texture_index],
+                                                           v.tex_coord, NoV, payload.cone.width, triangle_lod).rgb;
 
     // roughness / metalness
-    vec2 rough_metal_tex = texture(u_ao_rough_metal_maps[material.ao_rough_metal_index], v.tex_coord).gb;
+    vec2 rough_metal_tex = sample_texture_lod(u_ao_rough_metal_maps[material.ao_rough_metal_index],
+                                              v.tex_coord, NoV, payload.cone.width, triangle_lod).gb;
     material.roughness *= rough_metal_tex.x;
     material.metalness *= rough_metal_tex.y;
 
     // next ray from current position
     payload.ray.origin = payload.position;
-
-    // propagate ray-cone
-    payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
     uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 

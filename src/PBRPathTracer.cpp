@@ -321,6 +321,7 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     camera_ubo_t camera_ubo = {};
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
     camera_ubo.view_inverse = glm::inverse(cam->view_matrix());
+    camera_ubo.fov = glm::radians(cam->fov());
     camera_ubo.aperture = settings.depth_of_field ? settings.aperture : 0.f;
     camera_ubo.focal_distance = settings.focal_distance;
 

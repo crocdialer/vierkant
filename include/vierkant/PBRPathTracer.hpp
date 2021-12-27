@@ -196,6 +196,7 @@ private:
     {
         glm::mat4 projection_inverse{};
         glm::mat4 view_inverse{};
+        float fov = glm::quarter_pi<float>();
         float aperture = 0.f;
         float focal_distance = 1.f;
         int padding[2]{};

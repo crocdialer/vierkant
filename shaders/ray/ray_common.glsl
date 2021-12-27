@@ -79,6 +79,7 @@ struct camera_ubo_t
 {
     mat4 projection_inverse;
     mat4 view_inverse;
+    float fov;
     float aperture;
     float focal_distance;
 };
