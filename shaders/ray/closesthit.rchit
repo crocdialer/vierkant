@@ -38,11 +38,6 @@ layout(location = 0) rayPayloadInEXT payload_t payload;
 // builtin barycentric coords
 hitAttributeEXT vec2 attribs;
 
-struct Triangle
-{
-    Vertex v0, v1, v2;
-};
-
 RayCone propagate(RayCone cone, float surface_spread_angle, float hitT)
 {
     RayCone new_cone;
@@ -55,6 +50,7 @@ RayCone propagate(RayCone cone, float surface_spread_angle, float hitT)
     return new_cone;
 }
 
+//! returns the current triangle in object-space
 Triangle get_triangle()
 {
     // entry aka instance
@@ -71,6 +67,7 @@ Triangle get_triangle()
                     vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.z]);
 }
 
+//! returns a base LoD for a triangle. derives the result by comparing tex-coord and world-space sizes.
 float lod_constant(Triangle t)
 {
     // transform vertices
@@ -133,6 +130,9 @@ void main()
     payload.position = v.position;
     payload.normal = v.normal;
 
+    // next ray from current position
+    payload.ray.origin = payload.position;
+
     // propagate ray-cone
     payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
@@ -171,19 +171,19 @@ void main()
     // add radiance from emission
     payload.radiance += payload.beta * material.emission.rgb;
 
-    // modulate beta with albedo
-    material.color.rgb = push_constants.disable_material ?
-        vec3(.8) : material.color.rgb * sample_texture_lod(u_albedos[material.texture_index],
-                                                           v.tex_coord, NoV, payload.cone.width, triangle_lod).rgb;
+    // albedo
+    material.color = push_constants.disable_material ?
+        vec4(vec3(.8), 1.0) : material.color * sample_texture_lod(u_albedos[material.texture_index],
+                                                                  v.tex_coord, NoV, payload.cone.width, triangle_lod);
+
+    // hardcoded alpha-cutoff
+    if(material.color.a < 0.01){ return; }
 
     // roughness / metalness
     vec2 rough_metal_tex = sample_texture_lod(u_ao_rough_metal_maps[material.ao_rough_metal_index],
                                               v.tex_coord, NoV, payload.cone.width, triangle_lod).gb;
     material.roughness *= rough_metal_tex.x;
     material.metalness *= rough_metal_tex.y;
-
-    // next ray from current position
-    payload.ray.origin = payload.position;
 
     uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 

@@ -730,8 +730,11 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 create_info.geometry = geometry;
                 create_info.transform = world_transform;
                 create_info.node_index = out_assets.entry_create_infos.size();
-                create_info.material_index = std::clamp<uint32_t>(primitive.material, 0,
-                                                                  std::max<uint32_t>(model.materials.size() - 1, 0));
+
+                if(primitive.material >= 0 && static_cast<size_t>(primitive.material) < model.materials.size())
+                {
+                    create_info.material_index = primitive.material;
+                }
 
                 // pushback new entry
                 out_assets.entry_create_infos.push_back(std::move(create_info));

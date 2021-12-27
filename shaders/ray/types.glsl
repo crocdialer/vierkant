@@ -8,6 +8,12 @@ struct Vertex
     vec3 tangent;
 };
 
+//! Triangle groups triangle vertices
+struct Triangle
+{
+    Vertex v0, v1, v2;
+};
+
 //! entry_t holds properties for geometric entries with common attributes
 struct entry_t
 {

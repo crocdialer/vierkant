@@ -29,7 +29,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     g_buffer_info.color_attachment_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     g_buffer_info.color_attachment_format.sample_count = create_info.sample_count;
 
-    g_buffer_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT;
+    g_buffer_info.depth_attachment_format.format = VK_FORMAT_D24_UNORM_S8_UINT;
     g_buffer_info.depth_attachment_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
     g_buffer_info.depth_attachment_format.usage =
             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
