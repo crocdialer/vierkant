@@ -15,12 +15,15 @@ VkDeviceSize num_bytes(VkFormat format)
 {
     switch(format)
     {
+        case VK_FORMAT_BC7_UNORM_BLOCK:
+        case VK_FORMAT_BC7_SRGB_BLOCK:
+        case VK_FORMAT_R8_UNORM:
+            return 1;
+
         case VK_FORMAT_R8G8B8A8_UNORM:
             return 4;
         case VK_FORMAT_R8G8B8_UNORM:
             return 3;
-        case VK_FORMAT_R8_UNORM:
-            return 1;
         case VK_FORMAT_R32G32B32A32_SFLOAT:
             return 16;
         case VK_FORMAT_R32G32B32_SFLOAT:

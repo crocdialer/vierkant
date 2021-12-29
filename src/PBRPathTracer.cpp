@@ -171,7 +171,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     renderer.stage_drawable(frame_asset.out_drawable);
 
     render_result_t ret;
-    ret.num_objects = frame_asset.bottom_lvl_assets.size();
+    for(const auto &[mesh, assets] : frame_asset.bottom_lvl_assets){ ret.num_objects += assets.size(); }
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};

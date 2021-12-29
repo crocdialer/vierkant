@@ -6,7 +6,7 @@ set(3RDPARTY_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/3rdparty/include)
 # suppress warnings from 3rd party headers
 include_directories(SYSTEM ${3RDPARTY_INCLUDE_DIR})
 
-FILE(GLOB FOLDER_SOURCES *.c* imgui/*.c* ${CMAKE_CURRENT_BINARY_DIR}/*.cpp)
+FILE(GLOB FOLDER_SOURCES *.c* imgui/*.c* bc7enc/*.c* ${CMAKE_CURRENT_BINARY_DIR}/*.cpp)
 FILE(GLOB FOLDER_HEADERS *.h* ${CMAKE_BINARY_DIR}/include/${PROJECT_NAME} ${CMAKE_SOURCE_DIR}/include/${PROJECT_NAME}
         ${3RDPARTY_INCLUDE_DIR}/${PROJECT_NAME})
 
