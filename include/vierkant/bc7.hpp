@@ -10,17 +10,17 @@ namespace vierkant::bc7
 {
 
 //! 128-bit block encoding 4x4 texels
-struct block16
+struct block_t
 {
     uint64_t m_vals[2];
 };
 
-//! groups encoded blocks and dimension
+//! groups encoded blocks by level and base-dimension
 struct compression_result_t
 {
-    uint32_t width;
-    uint32_t height;
-    std::vector<bc7::block16> blocks;
+    uint32_t base_width;
+    uint32_t base_height;
+    std::vector<std::vector<bc7::block_t>> levels;
 };
 
 /**
@@ -29,6 +29,6 @@ struct compression_result_t
  * @param   img a provided crocore::ImagePtr
  * @return  a struct grouping encoded blocks and dimension
  */
-compression_result_t compress(crocore::ImagePtr img);
+compression_result_t compress(const crocore::ImagePtr& img, bool generate_mipmaps);
 
 }// namespace vierkant::bc7
