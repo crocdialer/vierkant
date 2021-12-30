@@ -5,10 +5,10 @@
 
 #include <filesystem>
 #include <crocore/Image.hpp>
-#include <crocore/ThreadPool.hpp>
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Material.hpp>
+#include <vierkant/bc7.hpp>
 
 namespace vierkant::model
 {
@@ -107,5 +107,18 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
                             const vierkant::model::mesh_assets_t &mesh_assets,
                             VkQueue load_queue,
                             VkBufferUsageFlags buffer_flags);
+
+/**
+ * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.
+ *          used format will be VK_FORMAT_BC7_UNORM_BLOCK.
+ *
+ * @param   device              handle to a vierkant::Device
+ * @param   compression_result  a struct providing compressed bc7-blocks
+ * @param   load_queue          the VkQueue that shall be used for required image-transfers.
+ * @return  a newly created texture
+ */
+vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
+                                             const vierkant::bc7::compress_result_t &compression_result,
+                                             VkQueue load_queue);
 
 }// namespace vierkant::model

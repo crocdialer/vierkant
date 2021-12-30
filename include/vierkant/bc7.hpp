@@ -5,6 +5,7 @@
 #pragma once
 
 #include <crocore/Image.hpp>
+#include <vierkant/delegate.hpp>
 
 namespace vierkant::bc7
 {
@@ -16,19 +17,27 @@ struct block_t
 };
 
 //! groups encoded blocks by level and base-dimension
-struct compression_result_t
+struct compress_result_t
 {
     uint32_t base_width;
     uint32_t base_height;
     std::vector<std::vector<bc7::block_t>> levels;
 };
 
+//! groups parameters passed to compress() routine
+struct compress_info_t
+{
+    crocore::ImageConstPtr image;
+    bool generate_mipmaps = false;
+    vierkant::delegate_fn_t delegate_fn;
+};
+
 /**
  * @brief   compress an image using BC7 block-compression.
  *
- * @param   img a provided crocore::ImagePtr
+ * @param   compress_info    a provided bc7::compress_info_t struct
  * @return  a struct grouping encoded blocks and dimension
  */
-compression_result_t compress(const crocore::ImagePtr& img, bool generate_mipmaps);
+compress_result_t compress(const compress_info_t &compress_info);
 
 }// namespace vierkant::bc7

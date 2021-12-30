@@ -144,4 +144,38 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
     return mesh;
 }
 
+vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
+                                             const vierkant::bc7::compress_result_t &compression_result,
+                                             VkQueue load_queue)
+{
+    vierkant::Image::Format fmt = {};
+
+    fmt.format = VK_FORMAT_BC7_UNORM_BLOCK;
+    fmt.extent = {compression_result.base_width, compression_result.base_height, 1};
+    fmt.use_mipmap = compression_result.levels.size() > 1;
+    fmt.autogenerate_mipmaps = false;
+    auto compressed_img = vierkant::Image::create(device, compression_result.levels[0].data(), fmt);
+
+    // adhoc using global pool
+    auto command_buffer = vierkant::CommandBuffer(device, device->command_pool());
+    command_buffer.begin();
+
+    std::vector<vierkant::BufferPtr> level_buffers(compression_result.levels.size());
+
+    compressed_img->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_buffer.handle());
+
+    for(uint32_t lvl = 1; lvl < compression_result.levels.size(); ++lvl)
+    {
+        level_buffers[lvl] = vierkant::Buffer::create(device, compression_result.levels[lvl],
+                                                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                      VMA_MEMORY_USAGE_CPU_ONLY);
+        compressed_img->copy_from(level_buffers[lvl], command_buffer.handle(), {}, {}, 0, lvl);
+    }
+    compressed_img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
+
+    // submit and sync
+    command_buffer.submit(load_queue, true);
+    return compressed_img;
+}
+
 }// namespace vierkant::model
