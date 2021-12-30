@@ -72,6 +72,20 @@ BOOST_AUTO_TEST_CASE(basic)
     check(compress_info, compress_result);
 }
 
+BOOST_AUTO_TEST_CASE(missing_alpha)
+{
+    auto img = crocore::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(checker_board_4x4), 4, 4, 3);
+    BOOST_CHECK(img);
+
+    uint32_t width = 512, height = 256;
+    auto img8u = img->resize(width, height);
+
+    vierkant::bc7::compress_info_t compress_info = {};
+    compress_info.image = img8u;
+    auto compress_result = vierkant::bc7::compress(compress_info);
+    check(compress_info, compress_result);
+}
+
 BOOST_AUTO_TEST_CASE(mips)
 {
     auto img = crocore::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(checker_board_4x4), 4, 4, 4);

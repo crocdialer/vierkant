@@ -29,6 +29,7 @@ struct init_helper_t
 inline void get_block(const crocore::Image_<uint8_t>::ConstPtr &img,
                       uint32_t bx, uint32_t by,
                       uint32_t width, uint32_t height,
+                      uint32_t elem_size,
                       color_quad_u8 *pPixels)
 {
     assert((bx * width + width) <= img->width());
@@ -36,7 +37,7 @@ inline void get_block(const crocore::Image_<uint8_t>::ConstPtr &img,
 
     for(uint32_t y = 0; y < height; y++)
     {
-        memcpy(pPixels + y * width, img->at(bx * width, by * height + y), width * sizeof(color_quad_u8));
+        memcpy(pPixels + y * width, img->at(bx * width, by * height + y), width * elem_size);
     }
 }
 
@@ -46,8 +47,8 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
 {
     static init_helper_t init_helper;
 
-    assert(std::dynamic_pointer_cast<const crocore::Image_<uint8_t>>(compress_info.image) &&
-           compress_info.image->num_components() == 4);
+//    assert(std::dynamic_pointer_cast<const crocore::Image_<uint8_t>>(compress_info.image) &&
+//           compress_info.image->num_components() == 4);
 
     auto start_time = std::chrono::steady_clock::now();
 
@@ -72,6 +73,7 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     ret.levels.resize(num_levels);
 
     auto source_image = std::dynamic_pointer_cast<const crocore::Image_<uint8_t>>(compress_info.image);
+    uint32_t elem_size = source_image->num_components();
 
     std::vector<std::future<void>> tasks;
 
@@ -86,14 +88,14 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
         for(uint32_t by = 0; by < num_blocks_y; by++)
         {
             // function to encode one row of compressed blocks
-            auto fn = [by, num_blocks_x, source_image, &blocks, &pack_params]
+            auto fn = [by, num_blocks_x, source_image, elem_size, &blocks, &pack_params]
             {
                 // scratch-space for block-encoding
                 color_quad_u8 pixels[16];
 
                 for(uint32_t bx = 0; bx < num_blocks_x; bx++)
                 {
-                    get_block(source_image, bx, by, 4, 4, pixels);
+                    get_block(source_image, bx, by, 4, 4, elem_size, pixels);
                     block_t *pBlock = &blocks[bx + by * num_blocks_x];
 
                     // encode one block
