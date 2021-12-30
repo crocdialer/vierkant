@@ -109,7 +109,7 @@ static endpoint_err g_bc7_mode_1_optimal_endpoints[256][2]; // [c][pbit]
 static const uint32_t BC7ENC_MODE_1_OPTIMAL_INDEX = 2;
 
 static endpoint_err g_bc7_mode_7_optimal_endpoints[256][2][2]; // [c][pbit][hp][lp]
-const uint32_t BC7E_MODE_7_OPTIMAL_INDEX = 1;
+const uint32_t BC7ENC_MODE_7_OPTIMAL_INDEX = 1;
 
 // Initialize the lookup table used for optimal single color compression in mode 1. Must be called before encoding.
 void bc7enc_compress_block_init()
@@ -164,7 +164,7 @@ void bc7enc_compress_block_init()
 						uint32_t high = ((h << 1) | hp) << 2;
 						high |= (high >> 6);
 
-						const int k = (low * (64 - g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6;
+						const int k = (low * (64 - g_bc7_weights2[BC7ENC_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7ENC_MODE_7_OPTIMAL_INDEX] + 32) >> 6;
 
 						const int err = (k - c) * (k - c);
 						if (err < best.m_error)
@@ -519,7 +519,7 @@ static uint64_t pack_mode7_to_one_color(const color_cell_compressor_params* pPar
 	pResults->m_pbits[1] = best_hi_p;
 
 	for (uint32_t i = 0; i < num_pixels; i++)
-		pSelectors[i] = BC7E_MODE_7_OPTIMAL_INDEX;
+		pSelectors[i] = BC7ENC_MODE_7_OPTIMAL_INDEX;
 
 	color_quad_u8 p;
 
@@ -531,7 +531,7 @@ static uint64_t pack_mode7_to_one_color(const color_cell_compressor_params* pPar
 		low = (low << 2) | (low >> 6);
 		high = (high << 2) | (high >> 6);
 
-		p.m_c[i] = (low * (64 - g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7E_MODE_7_OPTIMAL_INDEX] + 32) >> 6;
+		p.m_c[i] = (low * (64 - g_bc7_weights2[BC7ENC_MODE_7_OPTIMAL_INDEX]) + high * g_bc7_weights2[BC7ENC_MODE_7_OPTIMAL_INDEX] + 32) >> 6;
 	}
 
 	uint64_t total_err = 0;

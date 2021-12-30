@@ -83,7 +83,7 @@ public:
      *
      * @return  a newly created ImagePtr
      */
-    static ImagePtr create(DevicePtr device, void *data, Format format);
+    static ImagePtr create(DevicePtr device, const void *data, Format format);
 
     /**
      * @brief   Factory to create instances of ImagePtr.
@@ -186,12 +186,14 @@ public:
      * @param   offset  the offset used for the copy operation
      * @param   extent  the extent of the memory region to copy
      * @param   layer   the target layer in the image to copy the data into
+     * @param   level   the target mip-level to copy the data into
      */
     void copy_from(const BufferPtr &src,
                    VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE,
                    VkOffset3D offset = {0, 0, 0},
                    VkExtent3D extent = {0, 0, 0},
-                   uint32_t layer = 0);
+                   uint32_t layer = 0,
+                   uint32_t level = 0);
 
     /**
      * @brief   copy contents from this image to a buffer
@@ -200,12 +202,14 @@ public:
      * @param   offset  the offset used for the copy operation
      * @param   extent  the extent of the memory region to copy
      * @param   layer   the target layer in the image to copy the data from
+     * @param   level   the target mip-level to copy the data into
      */
     void copy_to(const BufferPtr &dst,
                  VkCommandBuffer command_buffer = VK_NULL_HANDLE,
                  VkOffset3D offset = {0, 0, 0},
                  VkExtent3D extent = {0, 0, 0},
-                 uint32_t layer = 0);
+                 uint32_t layer = 0,
+                 uint32_t level = 0);
 
     /**
      * @brief   copy contents from this image to another image
@@ -226,9 +230,9 @@ public:
 
 private:
 
-    Image(DevicePtr device, void *data, const VkImagePtr &shared_image, Format format);
+    Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format);
 
-    void init(void *data, const VkImagePtr &shared_image = nullptr);
+    void init(const void *data, const VkImagePtr &shared_image = nullptr);
 
     DevicePtr m_device;
 

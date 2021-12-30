@@ -95,6 +95,10 @@ endif (USE_ASSIMP)
 # tinygltf, suppress warnings from 3rd party header
 include_directories(BEFORE SYSTEM "tinygltf")
 
+## bc7e
+#find_library(BC7E_LIBRARY "bc7e" REQUIRED)
+#SET(LIBS ${LIBS} ${BC7E_LIBRARY})
+
 # vierkant
 add_subdirectory("src")
 include_directories(${vierkant_INCLUDE_DIRS})

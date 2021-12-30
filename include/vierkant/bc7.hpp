@@ -12,7 +12,7 @@ namespace vierkant::bc7
 //! 128-bit block encoding 4x4 texels
 struct block_t
 {
-    uint64_t m_vals[2];
+    uint64_t value[2];
 };
 
 //! groups encoded blocks by level and base-dimension

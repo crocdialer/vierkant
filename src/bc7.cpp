@@ -5,6 +5,8 @@
 #include "bc7enc/bc7enc.h"
 #include "bc7enc/bc7decomp.h"
 
+//#include <bc7e/bc7e.h>
+
 #include <vierkant/bc7.hpp>
 
 using duration_t = std::chrono::duration<float>;
@@ -64,7 +66,11 @@ struct color_quad_u8
 
 struct init_helper_t
 {
-    init_helper_t(){ bc7enc_compress_block_init(); }
+    init_helper_t()
+    {
+        bc7enc_compress_block_init();
+//        ispc::bc7e_compress_block_init();
+    }
 };
 
 inline void get_block(const crocore::Image_<uint8_t>::Ptr &img,
@@ -81,7 +87,7 @@ inline void get_block(const crocore::Image_<uint8_t>::Ptr &img,
     }
 }
 
-bc7::compression_result_t compress(const crocore::ImagePtr& img, bool generate_mipmaps)
+bc7::compression_result_t compress(const crocore::ImagePtr &img, bool generate_mipmaps)
 {
     static init_helper_t init_helper;
 
@@ -90,8 +96,13 @@ bc7::compression_result_t compress(const crocore::ImagePtr& img, bool generate_m
     bc7enc_compress_block_params pack_params;
     bc7enc_compress_block_params_init(&pack_params);
 
-    uint32_t width = generate_mipmaps ? crocore::next_pow_2(img->width()) : (img->width() + 3) & ~3;
-    uint32_t height = generate_mipmaps ? crocore::next_pow_2(img->height()) : (img->height() + 3) & ~3;
+//    // faster alternative bc7e
+//    ispc::bc7e_compress_block_params bc7e_params = {};
+//    ispc::bc7e_compress_block_params_init_basic(&bc7e_params, true);
+
+//    crocore::next_pow_2(img->width())
+    uint32_t width = (img->width() + 3) & ~3;
+    uint32_t height = (img->height() + 3) & ~3;
 
     // lowest level will be a 4x4 pixel block
     uint32_t max_levels = static_cast<uint32_t>(
@@ -105,10 +116,11 @@ bc7::compression_result_t compress(const crocore::ImagePtr& img, bool generate_m
 
     // scratch-space for block-encoding
     color_quad_u8 pixels[16];
+    auto source_image = std::dynamic_pointer_cast<crocore::Image_<uint8_t>>(img);
 
     for(auto &blocks : ret.levels)
     {
-        auto source_image = std::dynamic_pointer_cast<crocore::Image_<uint8_t>>(img->resize(width, height));
+        source_image = std::dynamic_pointer_cast<crocore::Image_<uint8_t>>(source_image->resize(width, height));
 
         uint32_t num_blocks_x = width / 4;
         uint32_t num_blocks_y = height / 4;
@@ -123,11 +135,17 @@ bc7::compression_result_t compress(const crocore::ImagePtr& img, bool generate_m
 
                 // encode one block
                 bc7enc_compress_block(pBlock, pixels, &pack_params);
+
+//                ispc::bc7e_compress_blocks(1, pBlock->value, reinterpret_cast<const uint32_t *>(pixels), &bc7e_params);
             }
         }
 
         width = std::max<uint32_t>(width / 2, 1);
         height = std::max<uint32_t>(height / 2, 1);
+
+        // round to multiple of 4
+        width = (width + 3) & ~3;
+        height = (height + 3) & ~3;
     }
     return ret;
 }

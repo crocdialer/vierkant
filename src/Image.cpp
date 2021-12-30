@@ -213,7 +213,7 @@ VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format &form
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImagePtr Image::create(DevicePtr device, void *data, Format format)
+ImagePtr Image::create(DevicePtr device, const void *data, Format format)
 {
     return ImagePtr(new Image(std::move(device), data, VK_NULL_HANDLE, std::move(format)));
 }
@@ -234,7 +234,7 @@ ImagePtr Image::create(DevicePtr device, const VkImagePtr &shared_image, Format 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::Image(DevicePtr device, void *data, const VkImagePtr &shared_image, Format format) :
+Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format) :
         m_device(std::move(device)),
         m_format(std::move(format))
 {
@@ -251,7 +251,7 @@ Image::~Image()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::init(void *data, const VkImagePtr &shared_image)
+void Image::init(const void *data, const VkImagePtr &shared_image)
 {
     if(!m_format.extent.width || !m_format.extent.height || !m_format.extent.depth)
     {
@@ -271,6 +271,10 @@ void Image::init(void *data, const VkImagePtr &shared_image)
     {
         // number of images in the mipmap chain
         m_num_mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(width(), height())))) + 1;
+
+        // BC7 has blocks >= 4 pixels and thus 2 levels less
+        bool compressed = m_format.format == VK_FORMAT_BC7_UNORM_BLOCK || m_format.format == VK_FORMAT_BC7_SRGB_BLOCK;
+        if(compressed){ m_num_mip_levels = std::max(static_cast<int32_t>(m_num_mip_levels) - 2, 1); }
 
         // in order to generate mipmaps we need to be able to transfer from base mip-level
         img_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -431,7 +435,7 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
-                      VkOffset3D offset, VkExtent3D extent, uint32_t layer)
+                      VkOffset3D offset, VkExtent3D extent, uint32_t layer, uint32_t level)
 {
     if(src)
     {
@@ -445,14 +449,20 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
         }
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cmd_buffer_handle);
 
-        if(!extent.width || !extent.height || !extent.depth){ extent = m_format.extent; }
+        if(!extent.width || !extent.height || !extent.depth)
+        {
+            extent = m_format.extent;
+            extent.width = std::max<uint32_t>(extent.width >> level, 1);
+            extent.height = std::max<uint32_t>(extent.height >> level, 1);
+            extent.depth = std::max<uint32_t>(extent.depth >> level, 1);
+        }
 
         VkBufferImageCopy region = {};
         region.bufferOffset = 0;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
         region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.mipLevel = level;
         region.imageSubresource.baseArrayLayer = layer;
         region.imageSubresource.layerCount = 1;
         region.imageOffset = offset;
@@ -472,7 +482,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffset3D offset, VkExtent3D extent,
-                    uint32_t layer)
+                    uint32_t layer, uint32_t level)
 {
     if(dst)
     {
@@ -497,7 +507,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
         region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
+        region.imageSubresource.mipLevel = level;
         region.imageSubresource.baseArrayLayer = layer;
         region.imageSubresource.layerCount = 1;
         region.imageOffset = offset;
