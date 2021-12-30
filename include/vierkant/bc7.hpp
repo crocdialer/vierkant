@@ -21,8 +21,8 @@ struct block_t
 //! groups encoded blocks by level and base-dimension
 struct compress_result_t
 {
-    uint32_t base_width;
-    uint32_t base_height;
+    uint32_t base_width = 0;
+    uint32_t base_height = 0;
     std::vector<std::vector<bc7::block_t>> levels;
     std::chrono::milliseconds duration;
 };

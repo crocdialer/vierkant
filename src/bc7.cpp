@@ -3,7 +3,7 @@
 #include "bc7enc/bc7enc.h"
 #include "bc7enc/bc7decomp.h"
 
-//#include <bc7e/bc7e.h>
+//#include <bc7e/bc7e_avx2.h>
 
 #include <vierkant/bc7.hpp>
 
@@ -54,7 +54,7 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     bc7enc_compress_block_params pack_params;
     bc7enc_compress_block_params_init(&pack_params);
 
-//    // faster alternative bc7e
+//    // faster(wtf!?) alternative bc7e
 //    ispc::bc7e_compress_block_params bc7e_params = {};
 //    ispc::bc7e_compress_block_params_init_basic(&bc7e_params, true);
 
@@ -93,7 +93,6 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
 
                 for(uint32_t bx = 0; bx < num_blocks_x; bx++)
                 {
-
                     get_block(source_image, bx, by, 4, 4, pixels);
                     block_t *pBlock = &blocks[bx + by * num_blocks_x];
 
