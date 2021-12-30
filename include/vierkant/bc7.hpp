@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <chrono>
+
 #include <crocore/Image.hpp>
 #include <vierkant/delegate.hpp>
 
@@ -22,6 +24,7 @@ struct compress_result_t
     uint32_t base_width;
     uint32_t base_height;
     std::vector<std::vector<bc7::block_t>> levels;
+    std::chrono::milliseconds duration;
 };
 
 //! groups parameters passed to compress() routine

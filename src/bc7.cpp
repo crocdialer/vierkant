@@ -1,6 +1,4 @@
-
 #include <cstring>
-#include <chrono>
 
 #include "bc7enc/bc7enc.h"
 #include "bc7enc/bc7decomp.h"
@@ -51,6 +49,8 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     assert(std::dynamic_pointer_cast<const crocore::Image_<uint8_t>>(compress_info.image) &&
            compress_info.image->num_components() == 4);
 
+    auto start_time = std::chrono::steady_clock::now();
+
     bc7enc_compress_block_params pack_params;
     bc7enc_compress_block_params_init(&pack_params);
 
@@ -58,7 +58,6 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
 //    ispc::bc7e_compress_block_params bc7e_params = {};
 //    ispc::bc7e_compress_block_params_init_basic(&bc7e_params, true);
 
-//    crocore::next_pow_2(img->width())
     uint32_t width = round4(compress_info.image->width());
     uint32_t height = round4(compress_info.image->height());
 
@@ -116,6 +115,10 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
         height = round4(height);
     }
     for(const auto &t : tasks){ t.wait(); }
+
+    // timing
+    ret.duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time);
+
     return ret;
 }
 

@@ -148,23 +148,25 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bc7::compress_result_t &compression_result,
                                              VkQueue load_queue)
 {
-    vierkant::Image::Format fmt = {};
+    // adhoc using global pool
+    auto command_buffer = vierkant::CommandBuffer(device, device->command_pool());
+    command_buffer.begin();
 
+    vierkant::Image::Format fmt = {};
+    fmt.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     fmt.format = VK_FORMAT_BC7_UNORM_BLOCK;
     fmt.extent = {compression_result.base_width, compression_result.base_height, 1};
     fmt.use_mipmap = compression_result.levels.size() > 1;
     fmt.autogenerate_mipmaps = false;
-    auto compressed_img = vierkant::Image::create(device, compression_result.levels[0].data(), fmt);
-
-    // adhoc using global pool
-    auto command_buffer = vierkant::CommandBuffer(device, device->command_pool());
-    command_buffer.begin();
+    fmt.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    fmt.initial_cmd_buffer = command_buffer.handle();
+    auto compressed_img = vierkant::Image::create(device, fmt);
 
     std::vector<vierkant::BufferPtr> level_buffers(compression_result.levels.size());
 
     compressed_img->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_buffer.handle());
 
-    for(uint32_t lvl = 1; lvl < compression_result.levels.size(); ++lvl)
+    for(uint32_t lvl = 0; lvl < compression_result.levels.size(); ++lvl)
     {
         level_buffers[lvl] = vierkant::Buffer::create(device, compression_result.levels[lvl],
                                                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
