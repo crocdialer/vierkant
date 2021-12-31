@@ -114,11 +114,13 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
  *
  * @param   device              handle to a vierkant::Device
  * @param   compression_result  a struct providing compressed bc7-blocks
+ * @param   format              a vierkant::Image::Format struct providing sampler+texture settings
  * @param   load_queue          the VkQueue that shall be used for required image-transfers.
  * @return  a newly created texture
  */
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bc7::compress_result_t &compression_result,
+                                             vierkant::Image::Format format,
                                              VkQueue load_queue);
 
 }// namespace vierkant::model

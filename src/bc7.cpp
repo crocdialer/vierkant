@@ -14,7 +14,14 @@ namespace vierkant::bc7
 
 struct color_quad_u8
 {
-    uint8_t m_c[4]{};
+    union
+    {
+        uint8_t m_c[4];
+        struct
+        {
+            uint8_t r, g, b, a;
+        };
+    };
 };
 
 struct init_helper_t
@@ -28,16 +35,26 @@ struct init_helper_t
 
 inline void get_block(const crocore::Image_<uint8_t>::ConstPtr &img,
                       uint32_t bx, uint32_t by,
-                      uint32_t width, uint32_t height,
-                      uint32_t elem_size,
+                      bool alpha,
                       color_quad_u8 *pPixels)
 {
+    constexpr uint32_t width = 4, height = 4;
     assert((bx * width + width) <= img->width());
     assert((by * height + height) <= img->height());
 
-    for(uint32_t y = 0; y < height; y++)
+    for(uint32_t y = 0; y < height; ++y)
     {
-        memcpy(pPixels + y * width, img->at(bx * width, by * height + y), width * elem_size);
+//        memcpy(pPixels + y * width, img->at(bx * width, by * height + y), width * sizeof(color_quad_u8));
+
+        for(uint32_t x = 0; x < width; ++x)
+        {
+            auto in = img->at(bx * width + x, by * height + y);
+            color_quad_u8 &out = pPixels[y * width + x];
+            out.r = in[0];
+            out.g = in[1];
+            out.b = in[2];
+            out.a =  alpha ? in[3] : 255;
+        }
     }
 }
 
@@ -47,8 +64,8 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
 {
     static init_helper_t init_helper;
 
-//    assert(std::dynamic_pointer_cast<const crocore::Image_<uint8_t>>(compress_info.image) &&
-//           compress_info.image->num_components() == 4);
+    assert(std::dynamic_pointer_cast<const crocore::Image_<uint8_t>>(compress_info.image) &&
+           compress_info.image->num_components() >= 3);
 
     auto start_time = std::chrono::steady_clock::now();
 
@@ -73,7 +90,7 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     ret.levels.resize(num_levels);
 
     auto source_image = std::dynamic_pointer_cast<const crocore::Image_<uint8_t>>(compress_info.image);
-    uint32_t elem_size = source_image->num_components();
+    bool has_alpha = source_image->num_components() == 4;
 
     std::vector<std::future<void>> tasks;
 
@@ -88,14 +105,14 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
         for(uint32_t by = 0; by < num_blocks_y; by++)
         {
             // function to encode one row of compressed blocks
-            auto fn = [by, num_blocks_x, source_image, elem_size, &blocks, &pack_params]
+            auto fn = [by, num_blocks_x, source_image, has_alpha, &blocks, &pack_params]
             {
                 // scratch-space for block-encoding
                 color_quad_u8 pixels[16];
 
                 for(uint32_t bx = 0; bx < num_blocks_x; bx++)
                 {
-                    get_block(source_image, bx, by, 4, 4, elem_size, pixels);
+                    get_block(source_image, bx, by, has_alpha, pixels);
                     block_t *pBlock = &blocks[bx + by * num_blocks_x];
 
                     // encode one block

@@ -146,21 +146,22 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
 
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bc7::compress_result_t &compression_result,
+                                             vierkant::Image::Format format,
                                              VkQueue load_queue)
 {
     // adhoc using global pool
     auto command_buffer = vierkant::CommandBuffer(device, device->command_pool());
     command_buffer.begin();
 
-    vierkant::Image::Format fmt = {};
-    fmt.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    fmt.format = VK_FORMAT_BC7_UNORM_BLOCK;
-    fmt.extent = {compression_result.base_width, compression_result.base_height, 1};
-    fmt.use_mipmap = compression_result.levels.size() > 1;
-    fmt.autogenerate_mipmaps = false;
-    fmt.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    fmt.initial_cmd_buffer = command_buffer.handle();
-    auto compressed_img = vierkant::Image::create(device, fmt);
+    format.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    format.format = VK_FORMAT_BC7_UNORM_BLOCK;
+    format.extent = {compression_result.base_width, compression_result.base_height, 1};
+    format.use_mipmap = compression_result.levels.size() > 1;
+    format.autogenerate_mipmaps = false;
+    format.initial_layout_transition = false;
+//    format.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+//    format.initial_cmd_buffer = command_buffer.handle();
+    auto compressed_img = vierkant::Image::create(device, format);
 
     std::vector<vierkant::BufferPtr> level_buffers(compression_result.levels.size());
 
