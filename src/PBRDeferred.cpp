@@ -5,9 +5,11 @@
 #include <crocore/gaussian.hpp>
 
 #include <vierkant/cubemap_utils.hpp>
-#include "vierkant/shaders.hpp"
-#include "vierkant/culling.hpp"
-#include "vierkant/PBRDeferred.hpp"
+#include <vierkant/shaders.hpp>
+#include <vierkant/culling.hpp>
+#include <vierkant/GBuffer.hpp>
+
+#include <vierkant/PBRDeferred.hpp>
 
 namespace vierkant
 {
@@ -20,23 +22,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
-    vierkant::Framebuffer::create_info_t g_buffer_info = {};
-    g_buffer_info.size = create_info.size;
-    g_buffer_info.depth = true;
-    g_buffer_info.num_color_attachments = G_BUFFER_SIZE;
-
-    g_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    g_buffer_info.color_attachment_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    g_buffer_info.color_attachment_format.sample_count = create_info.sample_count;
-
-    g_buffer_info.depth_attachment_format.format = VK_FORMAT_D24_UNORM_S8_UINT;
-    g_buffer_info.depth_attachment_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-    g_buffer_info.depth_attachment_format.usage =
-            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
     vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
     post_fx_buffer_info.size = create_info.size;
-//    post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     post_fx_buffer_info.color_attachment_format.usage =
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -46,15 +34,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     vierkant::Renderer::create_info_t post_render_info = {};
     post_render_info.num_frames_in_flight = create_info.num_frames_in_flight;
     post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    post_render_info.viewport.width = create_info.size.width;
-    post_render_info.viewport.height = create_info.size.height;
+    post_render_info.viewport.width = static_cast<float>(create_info.size.width);
+    post_render_info.viewport.height = static_cast<float>(create_info.size.height);
     post_render_info.viewport.maxDepth = 1;
     post_render_info.pipeline_cache = m_pipeline_cache;
 
     for(auto &asset : m_frame_assets)
     {
-        asset.g_buffer = vierkant::Framebuffer(device, g_buffer_info, g_renderpass);
-        asset.g_buffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+        asset.g_buffer = create_g_buffer(device, create_info.size, g_renderpass);
         g_renderpass = asset.g_buffer.renderpass();
 
         // init lighting framebuffer

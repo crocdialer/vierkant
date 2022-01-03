@@ -6,13 +6,13 @@
 
 // 4x4 black/white checkerboard RGBA
 uint32_t checker_board_4x4[] = {0xFFFFFFFF, 0xFF000000, 0xFFFFFFFF, 0xFF000000,
-                                0xFF000000, 0xFFFFFFFF, 0xFF000000, 0xFFFFFFFF,
-                                0xFFFFFFFF, 0xFF000000, 0xFFFFFFFF, 0xFF000000,
+                                0xFF000000, 0xFFFFFFFF, 0x00000000, 0xFFFFFFFF,
+                                0xFFFFFFFF, 0x00000000, 0xFFFFFFFF, 0xFF000000,
                                 0xFF000000, 0xFFFFFFFF, 0xFF000000, 0xFFFFFFFF};
 
 inline uint32_t round4(uint32_t val){ return (val + 3) & ~3; }
 
-//! helper to derive number of mip-levels (all levels need to be devisible by 4 and at least 4x4 texels)
+//! helper to derive number of mip-levels (all levels need to be divisible by 4 and at least 4x4 texels)
 inline uint32_t num_levels(uint32_t width, uint32_t height)
 {
     width = round4(width);
@@ -74,10 +74,11 @@ BOOST_AUTO_TEST_CASE(basic)
 
 BOOST_AUTO_TEST_CASE(missing_alpha)
 {
+    // treat same data as 3channel here
     auto img = crocore::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(checker_board_4x4), 4, 4, 3);
     BOOST_CHECK(img);
 
-    uint32_t width = 512, height = 256;
+    uint32_t width = 64, height = 128;
     auto img8u = img->resize(width, height);
 
     vierkant::bc7::compress_info_t compress_info = {};

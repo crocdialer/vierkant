@@ -62,7 +62,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
         fmt.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         fmt.initial_cmd_buffer = cmd_buf_handle;
 
-        auto vk_img = vierkant::Image::create(device, nullptr, fmt);
+        auto vk_img = vierkant::Image::create(device, fmt);
         auto buf = vierkant::Buffer::create(device, img->data(), img->num_bytes(),
                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
         vk_img->copy_from(buf, cmd_buf_handle);
@@ -159,8 +159,7 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     format.use_mipmap = compression_result.levels.size() > 1;
     format.autogenerate_mipmaps = false;
     format.initial_layout_transition = false;
-//    format.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-//    format.initial_cmd_buffer = command_buffer.handle();
+
     auto compressed_img = vierkant::Image::create(device, format);
 
     std::vector<vierkant::BufferPtr> level_buffers(compression_result.levels.size());

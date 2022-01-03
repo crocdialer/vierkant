@@ -9,6 +9,7 @@
 #include <vierkant/imgui/imgui_util.h>
 #include <vierkant/PBRDeferred.hpp>
 #include <vierkant/PBRPathTracer.hpp>
+#include <vierkant/GBuffer.hpp>
 
 #include "imgui_internal.h"
 
@@ -438,11 +439,11 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     {
         auto extent = pbr_renderer->lighting_buffer().extent();
 
-        if(ImGui::TreeNode("g-buffer", "g-buffer (%d)", vierkant::PBRDeferred::G_BUFFER_SIZE))
+        if(ImGui::TreeNode("g-buffer", "g-buffer (%d)", vierkant::G_BUFFER_SIZE))
         {
-            std::vector<vierkant::ImagePtr> images(vierkant::PBRDeferred::G_BUFFER_SIZE);
+            std::vector<vierkant::ImagePtr> images(vierkant::G_BUFFER_SIZE);
 
-            for(uint32_t i = 0; i < vierkant::PBRDeferred::G_BUFFER_SIZE; ++i)
+            for(uint32_t i = 0; i < vierkant::G_BUFFER_SIZE; ++i)
             {
                 images[i] = pbr_renderer->g_buffer().color_attachment(i);
             }
@@ -687,8 +688,10 @@ void draw_material_ui(const MaterialPtr &material)
         if(it != material->textures.end())
         {
             const auto &img = it->second;
+            bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
+                          img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
             ImVec2 sz(w, w / (img->width() / (float) img->height()));
-            ImGui::BulletText("%s (%d x %d)", text.c_str(), img->width(), img->height());
+            ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), is_bc7 ? ", BC7" : "");
             ImGui::Image((ImTextureID) (img.get()), sz);
             ImGui::Separator();
         }

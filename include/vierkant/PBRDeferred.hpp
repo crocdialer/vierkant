@@ -50,15 +50,6 @@ public:
         postfx::dof_settings_t dof = {};
     };
 
-    enum G_BUFFER
-    {
-        G_BUFFER_ALBEDO = 0,
-        G_BUFFER_NORMAL = 1,
-        G_BUFFER_EMISSION = 2,
-        G_BUFFER_AO_ROUGH_METAL = 3,
-        G_BUFFER_SIZE = 4
-    };
-
     struct create_info_t
     {
         VkExtent3D size = {};
