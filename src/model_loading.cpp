@@ -2,6 +2,8 @@
 // Created by crocdialer on 9/17/21.
 //
 
+#include <crocore/ThreadPool.hpp>
+
 #include <vierkant/model_loading.hpp>
 
 namespace vierkant::model
@@ -31,6 +33,7 @@ VkFormat vk_format(const crocore::ImagePtr &img)
 
 vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
                             const vierkant::model::mesh_assets_t &mesh_assets,
+                            bool compress_textures,
                             VkQueue load_queue,
                             VkBufferUsageFlags buffer_flags)
 {
@@ -83,11 +86,31 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
 
     mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
+    crocore::ThreadPool threadpool(compress_textures ? std::thread::hardware_concurrency() : 0);
+
     // cache textures
     std::unordered_map<crocore::ImagePtr, vierkant::ImagePtr> texture_cache;
-    auto cache_helper = [&texture_cache, &create_texture](const crocore::ImagePtr &img)
+    auto cache_helper = [&device, load_queue, compress_textures, &texture_cache, &create_texture, &threadpool](
+            const crocore::ImagePtr &img)
     {
-        if(img && !texture_cache.count(img)){ texture_cache[img] = create_texture(img); }
+        if(img && !texture_cache.count(img))
+        {
+            if(!compress_textures){ texture_cache[img] = create_texture(img); }
+            else
+            {
+                vierkant::Image::Format fmt;
+                fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+                fmt.max_anisotropy = device->properties().limits.maxSamplerAnisotropy;
+                fmt.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+                fmt.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+                bc7::compress_info_t compress_info = {};
+                compress_info.image = img;
+                compress_info.generate_mipmaps = true;
+                compress_info.delegate_fn = [&threadpool](auto fn){ return threadpool.post(fn); };
+                texture_cache[img] = create_compressed_texture(device, bc7::compress(compress_info), fmt, load_queue);
+            }
+        }
     };
 
     for(const auto &asset_mat : mesh_assets.materials)

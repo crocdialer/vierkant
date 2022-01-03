@@ -46,8 +46,8 @@ enum GBufferPropertyFlagBits : uint32_t
     PROP_EMMISION = 0x20
 };
 
-using GBufferPropertyFlag = uint32_t;
-using g_buffer_stage_map_t = std::unordered_map<GBufferPropertyFlag, vierkant::shader_stage_map_t>;
+using GBufferPropertyFlags = uint32_t;
+using g_buffer_stage_map_t = std::unordered_map<GBufferPropertyFlags, vierkant::shader_stage_map_t>;
 
 /**
  * @brief   create_g_buffer_shader_stages can be used to create a lookup-table for g-buffer shader-stages.

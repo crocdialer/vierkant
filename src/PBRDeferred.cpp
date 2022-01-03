@@ -83,17 +83,17 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
 
-    // blendstates for g-buffer pass
-    vierkant::graphics_pipeline_info_t default_pipeline_fmt = {};
-    m_g_attachment_blend_states.resize(G_BUFFER_SIZE, default_pipeline_fmt.blend_state);
-    m_g_attachment_blend_states[G_BUFFER_ALBEDO].blendEnable = true;
+//    // blendstates for g-buffer pass
+//    vierkant::graphics_pipeline_info_t default_pipeline_fmt = {};
+//    m_g_attachment_blend_states.resize(G_BUFFER_SIZE, default_pipeline_fmt.blend_state);
+//    m_g_attachment_blend_states[G_BUFFER_ALBEDO].blendEnable = true;
 
     // create renderer for g-buffer-pass
     vierkant::Renderer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
     render_create_info.sample_count = create_info.sample_count;
-    render_create_info.viewport.width = create_info.size.width;
-    render_create_info.viewport.height = create_info.size.height;
+    render_create_info.viewport.width = static_cast<float>(create_info.size.width);
+    render_create_info.viewport.height = static_cast<float>(create_info.size.height);
     render_create_info.viewport.maxDepth = 1;
     render_create_info.pipeline_cache = m_pipeline_cache;
     m_g_renderer = vierkant::Renderer(device, render_create_info);
@@ -286,11 +286,14 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         // set attachment count
         drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
 
-        // set attachment blendstates
-        if(drawable.material.blend_mode == static_cast<uint32_t>(Material::BlendMode::Blend))
-        {
-            drawable.pipeline_format.attachment_blend_states = m_g_attachment_blend_states;
-        }
+        // disable rendering (only sanity, should have been filtered earlier)
+        drawable.pipeline_format.blend_state.blendEnable = false;
+
+//        // set attachment blendstates
+//        if(drawable.material.blend_mode == static_cast<uint32_t>(Material::BlendMode::Blend))
+//        {
+//            drawable.pipeline_format.attachment_blend_states = m_g_attachment_blend_states;
+//        }
 
         // stage drawable
         m_g_renderer.stage_drawable(std::move(drawable));
