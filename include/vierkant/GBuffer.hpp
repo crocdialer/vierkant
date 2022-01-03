@@ -5,11 +5,13 @@
 #pragma once
 
 #include <vierkant/Framebuffer.hpp>
+#include <vierkant/pipeline_formats.hpp>
 
 namespace vierkant
 {
 
-enum G_BUFFER
+//! GBuffer is an enum used to index g-buffer attachments
+enum GBuffer : uint32_t
 {
     G_BUFFER_ALBEDO = 0,
     G_BUFFER_NORMAL = 1,
@@ -26,9 +28,35 @@ enum G_BUFFER
  * @param   device      handle to a vierkant::Device to create the framebuffer.
  * @param   extent      desired framebuffer-extent.
  * @param   renderpass  optional renderpass to use for framebuffer-creation.
+ *
  * @return  a vierkant::Framebuffer representing a g-buffer
  */
 vierkant::Framebuffer create_g_buffer(const DevicePtr &device,
                                       const VkExtent3D &extent,
                                       const vierkant::RenderPassPtr &renderpass = nullptr);
+
+enum GBufferPropertyFlagBits : uint32_t
+{
+    PROP_DEFAULT = 0x00,
+    PROP_ALBEDO = 0x01,
+    PROP_SKIN = 0x02,
+    PROP_NORMAL = 0x04,
+    PROP_SPEC = 0x08,
+    PROP_AO_METAL_ROUGH = 0x10,
+    PROP_EMMISION = 0x20
+};
+
+using GBufferPropertyFlag = uint32_t;
+using g_buffer_stage_map_t = std::unordered_map<GBufferPropertyFlag, vierkant::shader_stage_map_t>;
+
+/**
+ * @brief   create_g_buffer_shader_stages can be used to create a lookup-table for g-buffer shader-stages.
+ *          the lookup-table contains all possible permutations of the GBufferPropertyFlagBits enum.
+ *
+ * @param   device  handle to a vierkant::Device to create the shader-stages.
+ *
+ * @return  a map containing shader-stages.
+ */
+g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device);
+
 }// namespace vierkant

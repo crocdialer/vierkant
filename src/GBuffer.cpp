@@ -3,6 +3,7 @@
 //
 
 #include <vierkant/GBuffer.hpp>
+#include <vierkant/shaders.hpp>
 
 namespace vierkant
 {
@@ -51,4 +52,81 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     ret.clear_color = {{0.f, 0.f, 0.f, 0.f}};
     return ret;
 }
+
+g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
+{
+    g_buffer_stage_map_t ret;
+
+    // vertex
+    auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_vert);
+    auto pbr_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_skin_vert);
+    auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_vert);
+    auto pbr_tangent_skin_vert = vierkant::create_shader_module(device,
+                                                                vierkant::shaders::pbr::g_buffer_tangent_skin_vert);
+
+    // fragment
+    auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_frag);
+    auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device,
+                                                                   vierkant::shaders::pbr::g_buffer_albedo_frag);
+    auto pbr_g_buffer_albedo_normal_frag =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_normal_frag);
+    auto pbr_g_buffer_albedo_rough_frag =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_rough_frag);
+    auto pbr_g_buffer_albedo_normal_rough_frag =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_normal_rough_frag);
+    auto pbr_g_buffer_complete_frag =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_complete_frag);
+
+    auto &stages_default = ret[PROP_DEFAULT];
+    stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_vert;
+    stages_default[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
+
+    // albedo
+    auto &stages_albedo = ret[PROP_ALBEDO];
+    stages_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
+
+    // skin
+    auto &stages_skin = ret[PROP_SKIN];
+    stages_skin[VK_SHADER_STAGE_VERTEX_BIT] = pbr_skin_vert;
+    stages_skin[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
+
+    // skin + albedo
+    auto &stages_skin_albedo = ret[PROP_SKIN | PROP_ALBEDO];
+    stages_skin_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
+    stages_skin_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
+
+    // albedo + normals
+    auto &stages_albedo_normal = ret[PROP_ALBEDO | PROP_NORMAL];
+    stages_albedo_normal[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_albedo_normal[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_frag;
+
+    // albedo + ao/rough/metal
+    auto &stages_albedo_rough = ret[PROP_ALBEDO | PROP_AO_METAL_ROUGH];
+    stages_albedo_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_albedo_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_rough_frag;
+
+    // albedo + normals + ao/rough/metal
+    auto &stages_albedo_normal_rough = ret[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
+    stages_albedo_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_albedo_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
+
+    // skin + albedo + normals + ao/rough/metal
+    auto &stages_skin_albedo_normal_rough = ret[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
+    stages_skin_albedo_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
+    stages_skin_albedo_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
+
+    // albedo + normals + ao/rough/metal + emmission
+    auto &stages_complete = ret[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH | PROP_EMMISION];
+    stages_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
+    stages_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
+
+    // skin + albedo + normals + ao/rough/metal + emmission
+    auto &stages_skin_complete = ret[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH | PROP_EMMISION];
+    stages_skin_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
+    stages_skin_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
+
+    return ret;
+}
+
 }

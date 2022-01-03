@@ -7,7 +7,6 @@
 #include <vierkant/cubemap_utils.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/culling.hpp>
-#include <vierkant/GBuffer.hpp>
 
 #include <vierkant/PBRDeferred.hpp>
 
@@ -194,7 +193,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     }
 
     // create required permutations of shader-stages
-    create_shader_stages(device);
+    m_g_buffer_shader_stages = vierkant::create_g_buffer_shader_stages(device);
 
     // use provided settings
     settings = create_info.settings;
@@ -278,11 +277,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         if(textures.count(vierkant::Material::Ao_rough_metal)){ shader_flags |= PROP_AO_METAL_ROUGH; }
 
         // select shader-stages from cache
-        auto stage_it = m_g_shader_stages.find(shader_flags);
+        auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
 
         // fallback to default if not found
-        if(stage_it != m_g_shader_stages.end()){ drawable.pipeline_format.shader_stages = stage_it->second; }
-        else{ drawable.pipeline_format.shader_stages = m_g_shader_stages[PROP_DEFAULT]; }
+        if(stage_it != m_g_buffer_shader_stages.end()){ drawable.pipeline_format.shader_stages = stage_it->second; }
+        else{ drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT]; }
 
         // set attachment count
         drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
@@ -419,79 +418,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
     // draw final color+depth with provided renderer
     m_draw_context.draw_image_fullscreen(renderer, output_img, depth, true);
-}
-
-void PBRDeferred::create_shader_stages(const DevicePtr &device)
-{
-    // vertex
-    auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::default_vert);
-    auto pbr_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::skin_vert);
-    auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::tangent_vert);
-    auto pbr_tangent_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::tangent_skin_vert);
-
-    // fragment
-    auto pbr_g_buffer_frag = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_frag);
-    auto pbr_g_buffer_albedo_frag = vierkant::create_shader_module(device,
-                                                                   vierkant::shaders::pbr::g_buffer_albedo_frag);
-    auto pbr_g_buffer_albedo_normal_frag =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_normal_frag);
-    auto pbr_g_buffer_albedo_rough_frag =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_rough_frag);
-    auto pbr_g_buffer_albedo_normal_rough_frag =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_albedo_normal_rough_frag);
-    auto pbr_g_buffer_complete_frag =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_complete_frag);
-
-    auto &stages_default = m_g_shader_stages[PROP_DEFAULT];
-    stages_default[VK_SHADER_STAGE_VERTEX_BIT] = pbr_vert;
-    stages_default[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
-
-    // albedo
-    auto &stages_albedo = m_g_shader_stages[PROP_ALBEDO];
-    stages_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
-
-    // skin
-    auto &stages_skin = m_g_shader_stages[PROP_SKIN];
-    stages_skin[VK_SHADER_STAGE_VERTEX_BIT] = pbr_skin_vert;
-    stages_skin[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_frag;
-
-    // skin + albedo
-    auto &stages_skin_albedo = m_g_shader_stages[PROP_SKIN | PROP_ALBEDO];
-    stages_skin_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
-    stages_skin_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_frag;
-
-    // albedo + normals
-    auto &stages_albedo_normal = m_g_shader_stages[PROP_ALBEDO | PROP_NORMAL];
-    stages_albedo_normal[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_albedo_normal[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_frag;
-
-    // albedo + ao/rough/metal
-    auto &stages_albedo_rough = m_g_shader_stages[PROP_ALBEDO | PROP_AO_METAL_ROUGH];
-    stages_albedo_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_albedo_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_rough_frag;
-
-    // albedo + normals + ao/rough/metal
-    auto &stages_albedo_normal_rough = m_g_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH];
-    stages_albedo_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_albedo_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
-
-    // skin + albedo + normals + ao/rough/metal
-    auto &stages_skin_albedo_normal_rough = m_g_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL |
-                                                              PROP_AO_METAL_ROUGH];
-    stages_skin_albedo_normal_rough[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
-    stages_skin_albedo_normal_rough[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_albedo_normal_rough_frag;
-
-    // albedo + normals + ao/rough/metal + emmission
-    auto &stages_complete = m_g_shader_stages[PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH | PROP_EMMISION];
-    stages_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
-    stages_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
-
-    // skin + albedo + normals + ao/rough/metal + emmission
-    auto &stages_skin_complete = m_g_shader_stages[PROP_SKIN | PROP_ALBEDO | PROP_NORMAL | PROP_AO_METAL_ROUGH |
-                                                   PROP_EMMISION];
-    stages_skin_complete[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
-    stages_skin_complete[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_complete_frag;
 }
 
 vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &device)

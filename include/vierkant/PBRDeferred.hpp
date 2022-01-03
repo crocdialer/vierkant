@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <vierkant/GBuffer.hpp>
 #include "vierkant/culling.hpp"
 #include "vierkant/PipelineCache.hpp"
 #include "vierkant/DrawContext.hpp"
@@ -118,17 +119,6 @@ public:
 
 private:
 
-    enum ShaderPropertyFlagBits
-    {
-        PROP_DEFAULT = 0x00,
-        PROP_ALBEDO = 0x01,
-        PROP_SKIN = 0x02,
-        PROP_NORMAL = 0x04,
-        PROP_SPEC = 0x08,
-        PROP_AO_METAL_ROUGH = 0x10,
-        PROP_EMMISION = 0x20
-    };
-
     struct frame_assets_t
     {
         vierkant::Framebuffer g_buffer;
@@ -164,8 +154,6 @@ private:
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void create_shader_stages(const DevicePtr &device);
-
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
     vierkant::Framebuffer &lighting_pass(const vierkant::cull_result_t &cull_result);
@@ -181,7 +169,7 @@ private:
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 
-    std::unordered_map<uint32_t, vierkant::shader_stage_map_t> m_g_shader_stages;
+    g_buffer_stage_map_t m_g_buffer_shader_stages;
 
     std::vector<frame_assets_t> m_frame_assets;
 
