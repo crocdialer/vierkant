@@ -83,6 +83,12 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         drawable.descriptors[BINDING_MATRIX] = desc_matrices;
 
+        // previous matrices
+        vierkant::descriptor_t desc_prev_matrices = {};
+        desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_prev_matrices;
+
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -534,6 +540,7 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
     copy_to_uniform_buffers(matrix_data, frame_asset.matrix_buffers);
     copy_to_uniform_buffers(material_data, frame_asset.material_buffers);
     if(has_matrix_history){ copy_to_uniform_buffers(matrix_history_data, frame_asset.matrix_history_buffers); }
+//    else{ frame_asset.matrix_history_buffers = frame_asset.matrix_buffers; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

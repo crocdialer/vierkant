@@ -268,12 +268,6 @@ void PBRDeferred::update_matrix_history(vierkant::cull_result_t &cull_result)
         auto it = m_matrix_cache.find(key);
         if(it != m_matrix_cache.end()){ drawable.last_matrices = it->second; }
 
-        // descriptors
-        vierkant::descriptor_t desc_matrices = {};
-        desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_matrices;
-
         // store current matrices
         next_cache[key] = drawable.matrices;
     }

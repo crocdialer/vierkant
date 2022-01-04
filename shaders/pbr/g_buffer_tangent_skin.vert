@@ -36,6 +36,8 @@ layout(location = 0) out VertexData
     vec2 tex_coord;
     vec3 normal;
     vec3 tangent;
+    vec4 current_position;
+    vec4 last_position;
 } vertex_out;
 
 void main()

@@ -22,12 +22,15 @@ layout(location = 0) in VertexData
     vec2 tex_coord;
     vec3 normal;
     vec3 tangent;
+    vec4 current_position;
+    vec4 last_position;
 } vertex_in;
 
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out vec4 out_normal;
 layout(location = 2) out vec4 out_emission;
 layout(location = 3) out vec4 out_ao_rough_metal;
+layout(location = 4) out vec2 out_motion;
 
 void main()
 {
@@ -47,4 +50,8 @@ void main()
 
     out_normal = vec4(normalize(vertex_in.normal), 1);
     out_ao_rough_metal = vec4(material.ambient, material.roughness, material.metalness, 1);
+
+    // motion
+    out_motion = vertex_in.current_position.xy / vertex_in.current_position.w -
+                 vertex_in.last_position.xy / vertex_in.last_position.w;
 }
