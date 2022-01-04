@@ -83,11 +83,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
 
-//    // blendstates for g-buffer pass
-//    vierkant::graphics_pipeline_info_t default_pipeline_fmt = {};
-//    m_g_attachment_blend_states.resize(G_BUFFER_SIZE, default_pipeline_fmt.blend_state);
-//    m_g_attachment_blend_states[G_BUFFER_ALBEDO].blendEnable = true;
-
     // create renderer for g-buffer-pass
     vierkant::Renderer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
@@ -227,6 +222,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
 {
     auto cull_result = vierkant::cull(scene, cam, true, tags);
 
+    // apply+update transform history
+    update_matrix_history(cull_result);
+
     // create g-buffer
     auto &g_buffer = geometry_pass(cull_result);
 
@@ -256,6 +254,30 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     SceneRenderer::render_result_t ret = {};
     ret.num_objects = cull_result.drawables.size();
     return ret;
+}
+
+void PBRDeferred::update_matrix_history(vierkant::cull_result_t &cull_result)
+{
+    matrix_cache_t next_cache;
+
+    // insert previous matrices from cache, if any
+    for(auto &drawable : cull_result.drawables)
+    {
+        // search previous matrices
+        matrix_key_t key = {drawable.mesh, drawable.entry_index};
+        auto it = m_matrix_cache.find(key);
+        if(it != m_matrix_cache.end()){ drawable.last_matrices = it->second; }
+
+        // descriptors
+        vierkant::descriptor_t desc_matrices = {};
+        desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_matrices;
+
+        // store current matrices
+        next_cache[key] = drawable.matrices;
+    }
+    m_matrix_cache = std::move(next_cache);
 }
 
 vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
@@ -288,12 +310,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         // disable rendering (only sanity, should have been filtered earlier)
         drawable.pipeline_format.blend_state.blendEnable = false;
-
-//        // set attachment blendstates
-//        if(drawable.material.blend_mode == static_cast<uint32_t>(Material::BlendMode::Blend))
-//        {
-//            drawable.pipeline_format.attachment_blend_states = m_g_attachment_blend_states;
-//        }
 
         // stage drawable
         m_g_renderer.stage_drawable(std::move(drawable));
@@ -443,9 +459,9 @@ vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &devic
     vierkant::Renderer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = 1;
     render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    render_create_info.viewport.width = framebuffer.extent().width;
-    render_create_info.viewport.height = framebuffer.extent().height;
-    render_create_info.viewport.maxDepth = framebuffer.extent().depth;
+    render_create_info.viewport.width = static_cast<float>(framebuffer.extent().width);
+    render_create_info.viewport.height = static_cast<float>(framebuffer.extent().height);
+    render_create_info.viewport.maxDepth = static_cast<float>(framebuffer.extent().depth);
     auto renderer = vierkant::Renderer(device, render_create_info);
 
     // create a drawable
@@ -507,6 +523,14 @@ void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
 {
     m_conv_lambert = lambert;
     m_conv_ggx = ggx;
+}
+
+size_t PBRDeferred::matrix_key_hash_t::operator()(PBRDeferred::matrix_key_t const &key) const
+{
+    size_t h = 0;
+    crocore::hash_combine(h, key.mesh);
+    crocore::hash_combine(h, key.entry_index);
+    return h;
 }
 
 }// namespace vierkant

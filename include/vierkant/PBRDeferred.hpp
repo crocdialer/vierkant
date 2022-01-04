@@ -152,7 +152,26 @@ private:
         int padding[2]{};
     };
 
+    struct matrix_key_t
+    {
+        vierkant::MeshConstPtr mesh;
+        uint32_t entry_index;
+
+        inline bool operator==(const matrix_key_t &other) const
+        {
+            return mesh == other.mesh && entry_index == other.entry_index;
+        }
+    };
+
+    struct matrix_key_hash_t
+    {
+        size_t operator()(matrix_key_t const &key) const;
+    };
+    using matrix_cache_t = std::unordered_map<matrix_key_t, Renderer::matrix_struct_t, matrix_key_hash_t>;
+
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
+
+    void update_matrix_history(vierkant::cull_result_t &cull_result);
 
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
@@ -177,8 +196,6 @@ private:
 
     vierkant::Renderer m_g_renderer, m_light_renderer;
 
-//    std::vector<VkPipelineColorBlendAttachmentState> m_g_attachment_blend_states;
-
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;
 
@@ -192,6 +209,8 @@ private:
     vierkant::ImagePtr m_empty_img;
 
     vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom;
+
+    matrix_cache_t m_matrix_cache;
 };
 
 }// namespace vierkant

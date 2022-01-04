@@ -64,6 +64,7 @@ struct render_context_t
 #define BINDING_MATERIAL 1
 #define BINDING_TEXTURES 2
 #define BINDING_BONES 3
+#define BINDING_PREVIOUS_MATRIX 4
 
 //! constant for maximum number of drawables per renderpass
 const int MAX_NUM_DRAWABLES = 4096;

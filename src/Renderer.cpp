@@ -17,7 +17,8 @@ using duration_t = std::chrono::duration<float>;
 
 std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr &mesh,
                                                              const glm::mat4 &model_view,
-                                                             std::function<bool(const Mesh::entry_t &entry)> entry_filter)
+                                                             std::function<bool(
+                                                                     const Mesh::entry_t &entry)> entry_filter)
 {
     if(!mesh){ return {}; }
 
@@ -32,17 +33,17 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
     // default filters disabled entries
     if(!entry_filter)
     {
-        entry_filter = [](const Mesh::entry_t &entry) -> bool { return entry.enabled; };
+        entry_filter = [](const Mesh::entry_t &entry) -> bool{ return entry.enabled; };
     }
 
     for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
         const auto &entry = mesh->entries[i];
 
-        // filter disables entries
+        // filter disabled entries, sanity check material-index
         if(!entry_filter(entry)){ continue; }
+        if(entry.material_index >= mesh->materials.size()){ continue; }
 
-        // TODO: wonky
         const auto &material = mesh->materials[entry.material_index];
 
         // aquire ref for mesh-drawable
@@ -319,12 +320,19 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             // update/create descriptor set
             auto &descriptors = drawable->descriptors;
 
+            // predefined buffers
             if(!drawable->use_own_buffers)
             {
                 descriptors[BINDING_MATRIX].buffers = {
                         next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index]};
                 descriptors[BINDING_MATERIAL].buffers = {
                         next_assets.material_buffers[indexed_drawable.material_buffer_index]};
+
+                if(!next_assets.matrix_history_buffers.empty())
+                {
+                    descriptors[BINDING_PREVIOUS_MATRIX].buffers = {
+                            next_assets.matrix_history_buffers[indexed_drawable.matrix_buffer_index]};
+                }
             }
 
             // search/create descriptor set
@@ -404,7 +412,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
                     next_assets.render_assets[key] = std::move(render_asset);
                 }
-
             }
             else
             {
@@ -456,12 +463,21 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
 {
     // joined drawable buffers
     std::vector<matrix_struct_t> matrix_data(drawables.size());
+    std::vector<matrix_struct_t> matrix_history_data(drawables.size());
     std::vector<material_struct_t> material_data(drawables.size());
+
+    bool has_matrix_history = false;
 
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
         matrix_data[i] = drawables[i].matrices;
         material_data[i] = drawables[i].material;
+
+        if(drawables[i].last_matrices)
+        {
+            matrix_history_data[i] = *drawables[i].last_matrices;
+            has_matrix_history = true;
+        }
     }
 
 //    // calculate required alignment based on minimum device offset alignment
@@ -517,6 +533,7 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
     // create/upload joined buffers
     copy_to_uniform_buffers(matrix_data, frame_asset.matrix_buffers);
     copy_to_uniform_buffers(material_data, frame_asset.material_buffers);
+    if(has_matrix_history){ copy_to_uniform_buffers(matrix_history_data, frame_asset.matrix_history_buffers); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

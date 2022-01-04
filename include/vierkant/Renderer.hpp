@@ -28,6 +28,7 @@ public:
         BINDING_MATERIAL = 1,
         BINDING_TEXTURES = 2,
         BINDING_BONES = 3,
+        BINDING_PREVIOUS_MATRIX = 4,
         BINDING_MAX_RANGE
     };
 
@@ -84,6 +85,8 @@ public:
         graphics_pipeline_info_t pipeline_format = {};
 
         matrix_struct_t matrices = {};
+
+        std::optional<matrix_struct_t> last_matrices;
 
         material_struct_t material = {};
 
@@ -235,6 +238,7 @@ private:
         std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_set_layouts;
         asset_map_t render_assets;
         std::vector<vierkant::BufferPtr> matrix_buffers;
+        std::vector<vierkant::BufferPtr> matrix_history_buffers;
         std::vector<vierkant::BufferPtr> material_buffers;
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
