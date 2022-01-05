@@ -29,6 +29,7 @@ public:
         BINDING_TEXTURES = 2,
         BINDING_BONES = 3,
         BINDING_PREVIOUS_MATRIX = 4,
+        BINDING_PREVIOUS_BONES = 5,
         BINDING_MAX_RANGE
     };
 
@@ -212,7 +213,7 @@ private:
 
     struct render_asset_t
     {
-        vierkant::BufferPtr bone_buffer;
+//        vierkant::BufferPtr bone_buffer;
         vierkant::DescriptorSetPtr descriptor_set;
     };
 
@@ -246,9 +247,6 @@ private:
 
     //! update the combined uniform buffers
     void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
-
-    //! create bone data and update uniform buffer
-    void update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer);
 
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,

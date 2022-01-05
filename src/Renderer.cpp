@@ -83,12 +83,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         drawable.descriptors[BINDING_MATRIX] = desc_matrices;
 
-        // previous matrices
-        vierkant::descriptor_t desc_prev_matrices = {};
-        desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_prev_matrices;
-
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
@@ -102,15 +96,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
             for(auto &p : material->textures){ desc_texture.image_samplers.push_back(p.second); };
             drawable.descriptors[BINDING_TEXTURES] = desc_texture;
-        }
-
-        // bone matrices
-        if(mesh->root_bone)
-        {
-            vierkant::descriptor_t desc_bones = {};
-            desc_bones.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-            desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-            drawable.descriptors[BINDING_BONES] = desc_bones;
         }
 
         // push drawable to vector
@@ -334,7 +319,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                 descriptors[BINDING_MATERIAL].buffers = {
                         next_assets.material_buffers[indexed_drawable.material_buffer_index]};
 
-                if(!next_assets.matrix_history_buffers.empty())
+                if(descriptors.count(BINDING_PREVIOUS_MATRIX) && !next_assets.matrix_history_buffers.empty())
                 {
                     descriptors[BINDING_PREVIOUS_MATRIX].buffers = {
                             next_assets.matrix_history_buffers[indexed_drawable.matrix_buffer_index]};
@@ -380,13 +365,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                     new_render_asset.descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
                                                                                       indexed_drawable.descriptor_set_layout);
 
-                    // update bone buffers, if necessary
-                    if(!drawable->use_own_buffers && current_mesh && current_mesh->root_bone)
-                    {
-                        update_bone_uniform_buffer(current_mesh, new_render_asset.bone_buffer);
-                        descriptors[BINDING_BONES].buffers = {new_render_asset.bone_buffer};
-                    }
-
                     // keep handle
                     descriptor_set_handle = new_render_asset.descriptor_set.get();
 
@@ -398,17 +376,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                 }
                 else
                 {
-
                     // use existing render_asset
                     render_asset_t render_asset = std::move(current_assets_it->second);
                     current_assets.render_assets.erase(current_assets_it);
-
-                    // update bone buffers, if necessary
-                    if(!drawable->use_own_buffers && current_mesh->root_bone)
-                    {
-                        update_bone_uniform_buffer(current_mesh, render_asset.bone_buffer);
-                        descriptors[BINDING_BONES].buffers = {render_asset.bone_buffer};
-                    }
 
                     // keep handle
                     descriptor_set_handle = render_asset.descriptor_set.get();
@@ -540,27 +510,7 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
     copy_to_uniform_buffers(matrix_data, frame_asset.matrix_buffers);
     copy_to_uniform_buffers(material_data, frame_asset.material_buffers);
     if(has_matrix_history){ copy_to_uniform_buffers(matrix_history_data, frame_asset.matrix_history_buffers); }
-//    else{ frame_asset.matrix_history_buffers = frame_asset.matrix_buffers; }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Renderer::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer)
-{
-    if(mesh && mesh->root_bone && mesh->animation_index < mesh->node_animations.size())
-    {
-        std::vector<glm::mat4> bones_matrices;
-        vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, mesh->node_animations[mesh->animation_index],
-                                                 bones_matrices);
-
-        if(!out_buffer)
-        {
-            out_buffer = vierkant::Buffer::create(m_device, bones_matrices,
-                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
-        }
-        else{ out_buffer->set_data(bones_matrices); }
-    }
+    else{ frame_asset.matrix_history_buffers = frame_asset.matrix_buffers; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

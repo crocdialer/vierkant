@@ -169,6 +169,8 @@ private:
     };
     using matrix_cache_t = std::unordered_map<matrix_key_t, Renderer::matrix_struct_t, matrix_key_hash_t>;
 
+    using bone_buffer_cache_t = std::unordered_map<vierkant::nodes::NodeConstPtr, vierkant::BufferPtr>;
+
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     void update_matrix_history(vierkant::cull_result_t &cull_result);
@@ -183,6 +185,8 @@ private:
                       const vierkant::ImagePtr &depth);
 
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
+
+    void update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer);
 
     vierkant::DevicePtr m_device;
 
@@ -210,7 +214,9 @@ private:
 
     vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom;
 
-    matrix_cache_t m_matrix_cache;
+    matrix_cache_t m_entry_matrix_cache;
+
+    bone_buffer_cache_t m_bone_buffer_cache;
 };
 
 }// namespace vierkant

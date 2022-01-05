@@ -51,6 +51,9 @@ public:
                 return vierkant::intersect(aabb, frustum);
             };
 
+            // keep track of meshes
+            if(node.mesh){ m_cull_result.meshes.insert(node.mesh); }
+
             // create drawables
             auto mesh_drawables = vierkant::Renderer::create_drawables(node.mesh,
                                                                        model_view,

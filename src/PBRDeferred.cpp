@@ -258,20 +258,52 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
 
 void PBRDeferred::update_matrix_history(vierkant::cull_result_t &cull_result)
 {
-    matrix_cache_t next_cache;
+    matrix_cache_t new_entry_matrix_cache;
+
+    bone_buffer_cache_t new_bone_buffer_cache;
+
+    for(const auto &mesh : cull_result.meshes)
+    {
+        vierkant::BufferPtr buffer;
+        update_bone_uniform_buffer(mesh, buffer);
+
+        new_bone_buffer_cache[mesh->root_bone] = buffer;
+    }
 
     // insert previous matrices from cache, if any
     for(auto &drawable : cull_result.drawables)
     {
         // search previous matrices
         matrix_key_t key = {drawable.mesh, drawable.entry_index};
-        auto it = m_matrix_cache.find(key);
-        if(it != m_matrix_cache.end()){ drawable.last_matrices = it->second; }
+        auto it = m_entry_matrix_cache.find(key);
+        if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
+
+        // previous matrices
+        vierkant::descriptor_t desc_prev_matrices = {};
+        desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_prev_matrices;
+
+        // descriptors for bone buffers, if necessary
+        if(drawable.mesh && drawable.mesh->root_bone)
+        {
+            vierkant::descriptor_t desc_bones = {};
+            desc_bones.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+            desc_bones.buffers = {new_bone_buffer_cache[drawable.mesh->root_bone]};
+            drawable.descriptors[Renderer::BINDING_BONES] = desc_bones;
+
+            // search previous bone-buffer
+            auto prev_bones_it = m_bone_buffer_cache.find(drawable.mesh->root_bone);
+            if(prev_bones_it != m_bone_buffer_cache.end()){ desc_bones.buffers = {prev_bones_it->second}; }
+            drawable.descriptors[Renderer::BINDING_PREVIOUS_BONES] = desc_bones;
+        }
 
         // store current matrices
-        next_cache[key] = drawable.matrices;
+        new_entry_matrix_cache[key] = drawable.matrices;
     }
-    m_matrix_cache = std::move(next_cache);
+    m_entry_matrix_cache = std::move(new_entry_matrix_cache);
+    m_bone_buffer_cache = std::move(new_bone_buffer_cache);
 }
 
 vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
@@ -525,6 +557,24 @@ size_t PBRDeferred::matrix_key_hash_t::operator()(PBRDeferred::matrix_key_t cons
     crocore::hash_combine(h, key.mesh);
     crocore::hash_combine(h, key.entry_index);
     return h;
+}
+
+void PBRDeferred::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer)
+{
+    if(mesh && mesh->root_bone && mesh->animation_index < mesh->node_animations.size())
+    {
+        std::vector<glm::mat4> bones_matrices;
+        vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, mesh->node_animations[mesh->animation_index],
+                                                 bones_matrices);
+
+        if(!out_buffer)
+        {
+            out_buffer = vierkant::Buffer::create(m_device, bones_matrices,
+                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
+        }
+        else{ out_buffer->set_data(bones_matrices); }
+    }
 }
 
 }// namespace vierkant

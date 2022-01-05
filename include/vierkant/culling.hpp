@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <unordered_set>
+
 #include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
 #include "vierkant/Renderer.hpp"
@@ -14,8 +16,10 @@ namespace vierkant
 //! a struct grouping drawables and other assets returned from a culling operation.
 struct cull_result_t
 {
-    //! a list of drawables in eye-coordinates
+    //! list of drawables
     std::vector<vierkant::Renderer::drawable_t> drawables;
+
+    std::unordered_set<vierkant::MeshConstPtr> meshes;
 
 //    //! a list of lightsources in eye-coordinates
 //    std::vector<vierkant::Renderer::lightsource_t> lightsources;
