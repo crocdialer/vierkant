@@ -61,10 +61,10 @@ struct render_context_t
 
 //! descriptorset-bindings in vierkant::Renderer
 #define BINDING_MATRIX 0
-#define BINDING_MATERIAL 1
-#define BINDING_TEXTURES 2
-#define BINDING_BONES 3
-#define BINDING_PREVIOUS_MATRIX 4
+#define BINDING_PREVIOUS_MATRIX 1
+#define BINDING_MATERIAL 2
+#define BINDING_TEXTURES 3
+#define BINDING_BONES 4
 #define BINDING_PREVIOUS_BONES 5
 
 //! constant for maximum number of drawables per renderpass

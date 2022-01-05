@@ -25,10 +25,10 @@ public:
     enum DescriptorBinding
     {
         BINDING_MATRIX = 0,
-        BINDING_MATERIAL = 1,
-        BINDING_TEXTURES = 2,
-        BINDING_BONES = 3,
-        BINDING_PREVIOUS_MATRIX = 4,
+        BINDING_PREVIOUS_MATRIX = 1,
+        BINDING_MATERIAL = 2,
+        BINDING_TEXTURES = 3,
+        BINDING_BONES = 4,
         BINDING_PREVIOUS_BONES = 5,
         BINDING_MAX_RANGE
     };
@@ -211,33 +211,27 @@ private:
         int disable_material = 0;
     };
 
-    struct render_asset_t
-    {
-//        vierkant::BufferPtr bone_buffer;
-        vierkant::DescriptorSetPtr descriptor_set;
-    };
-
-    struct asset_key_t
+    struct descriptor_set_key_t
     {
         vierkant::MeshConstPtr mesh;
         uint32_t matrix_buffer_index = 0;
         uint32_t material_buffer_index = 0;
         descriptor_map_t descriptors;
 
-        bool operator==(const asset_key_t &other) const;
+        bool operator==(const descriptor_set_key_t &other) const;
     };
 
-    struct asset_key_hash_t
+    struct descriptor_set_key_hash_t
     {
-        size_t operator()(const asset_key_t &key) const;
+        size_t operator()(const descriptor_set_key_t &key) const;
     };
 
-    using asset_map_t = std::unordered_map<asset_key_t, render_asset_t, asset_key_hash_t>;
+    using descriptor_set_map_t = std::unordered_map<descriptor_set_key_t, vierkant::DescriptorSetPtr, descriptor_set_key_hash_t>;
 
     struct frame_assets_t
     {
         std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_set_layouts;
-        asset_map_t render_assets;
+        descriptor_set_map_t descriptor_sets;
         std::vector<vierkant::BufferPtr> matrix_buffers;
         std::vector<vierkant::BufferPtr> matrix_history_buffers;
         std::vector<vierkant::BufferPtr> material_buffers;

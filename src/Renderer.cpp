@@ -327,7 +327,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             }
 
             // search/create descriptor set
-            asset_key_t key = {};
+            descriptor_set_key_t key = {};
             key.mesh = current_mesh;
             key.descriptors = drawable->descriptors;
             key.matrix_buffer_index = indexed_drawable.matrix_buffer_index;
@@ -347,51 +347,49 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
 
             // start searching in next_assets
-            auto render_asset_it = next_assets.render_assets.find(key);
+            auto descriptor_set_it = next_assets.descriptor_sets.find(key);
 
             // not found in next assets
-            if(render_asset_it == next_assets.render_assets.end())
+            if(descriptor_set_it == next_assets.descriptor_sets.end())
             {
                 // search in current assets (might already been processed for this frame)
-                auto current_assets_it = current_assets.render_assets.find(key);
+                auto current_assets_it = current_assets.descriptor_sets.find(key);
 
                 // not found in current assets
-                if(current_assets_it == current_assets.render_assets.end())
+                if(current_assets_it == current_assets.descriptor_sets.end())
                 {
-                    // create a new render_asset
-                    render_asset_t new_render_asset = {};
 
                     // create a new descriptor set
-                    new_render_asset.descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
+                    auto descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
                                                                                       indexed_drawable.descriptor_set_layout);
 
                     // keep handle
-                    descriptor_set_handle = new_render_asset.descriptor_set.get();
+                    descriptor_set_handle = descriptor_set.get();
 
                     // update the newly created descriptor set
-                    vierkant::update_descriptor_set(m_device, new_render_asset.descriptor_set, descriptors);
+                    vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
                     // insert all created assets and store in map
-                    next_assets.render_assets[key] = std::move(new_render_asset);
+                    next_assets.descriptor_sets[key] = std::move(descriptor_set);
                 }
                 else
                 {
-                    // use existing render_asset
-                    render_asset_t render_asset = std::move(current_assets_it->second);
-                    current_assets.render_assets.erase(current_assets_it);
+                    // use existing descriptor set
+                    auto descriptor_set = std::move(current_assets_it->second);
+                    current_assets.descriptor_sets.erase(current_assets_it);
 
                     // keep handle
-                    descriptor_set_handle = render_asset.descriptor_set.get();
+                    descriptor_set_handle = descriptor_set.get();
 
                     // update existing descriptor set
-                    vierkant::update_descriptor_set(m_device, render_asset.descriptor_set, descriptors);
+                    vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
 
-                    next_assets.render_assets[key] = std::move(render_asset);
+                    next_assets.descriptor_sets[key] = std::move(descriptor_set);
                 }
             }
             else
             {
-                descriptor_set_handle = render_asset_it->second.descriptor_set.get();
+                descriptor_set_handle = descriptor_set_it->second.get();
             }
 
             // bind descriptor sets (uniforms, samplers)
@@ -564,7 +562,7 @@ glm::vec2 Renderer::clipping_distances(const glm::mat4 &projection)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Renderer::asset_key_t::operator==(const Renderer::asset_key_t &other) const
+bool Renderer::descriptor_set_key_t::operator==(const Renderer::descriptor_set_key_t &other) const
 {
     if(mesh != other.mesh){ return false; }
     if(matrix_buffer_index != other.matrix_buffer_index){ return false; }
@@ -575,7 +573,7 @@ bool Renderer::asset_key_t::operator==(const Renderer::asset_key_t &other) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-size_t Renderer::asset_key_hash_t::operator()(const Renderer::asset_key_t &key) const
+size_t Renderer::descriptor_set_key_hash_t::operator()(const Renderer::descriptor_set_key_t &key) const
 {
     size_t h = 0;
     crocore::hash_combine(h, key.mesh);

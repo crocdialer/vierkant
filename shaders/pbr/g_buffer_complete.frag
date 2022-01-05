@@ -49,7 +49,7 @@ void main()
         if(tex_color.a < cut_off){ discard; }
         out_color = material.color * tex_color;
         out_emission = texture(u_sampler_2D[EMMISSION], vertex_in.tex_coord);
-        out_emission.rgb *= 10.0 * out_emission.a;
+//        out_emission.rgb *= 10.0 * out_emission.a;
     }
 
     vec3 normal = normalize(2.0 * (texture(u_sampler_2D[NORMAL], vertex_in.tex_coord.xy).xyz - vec3(0.5)));
