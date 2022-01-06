@@ -278,6 +278,9 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
         // generate bloom image
         auto bloom_img = m_empty_img;
 
+        // motion shortcut
+        auto motion_img = m_empty_img;
+
         if(settings.bloom){ bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_submit}); }
         else{ vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, {bloom_submit}); }
 
@@ -287,7 +290,7 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
         frame_asset.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
         frame_asset.out_drawable = m_drawable_bloom;
-        frame_asset.out_drawable.descriptors[0].image_samplers = {output_img, bloom_img};
+        frame_asset.out_drawable.descriptors[0].image_samplers = {output_img, bloom_img, motion_img};
         frame_asset.out_drawable.descriptors[1].buffers = {frame_asset.composition_ubo};
     }
     else

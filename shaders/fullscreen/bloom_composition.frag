@@ -30,14 +30,16 @@ layout(location = 0) out vec4 out_color;
 
 vec3 sample_motion_blur(sampler2D tex, vec2 coord, vec2 motion)
 {
-    const uint num_taps = 8;
+    const uint max_num_taps = 8;
+    float pixel_motion = length(motion * textureSize(tex, 0));
+    uint num_taps = clamp(uint(pixel_motion + 0.5), 1, max_num_taps);
 
-    vec2 motion_inc = -motion / num_taps;
-    vec3 color = vec3(0);
+    vec3 color = texture(tex, coord).rgb;
 
-    for(uint i = 0; i < num_taps; ++i)
+    for(uint i = 1; i < num_taps; ++i)
     {
-        color += texture(tex, coord + i * motion_inc).rgb;
+        vec2 offset = motion * (float(i) / (num_taps - 1) - 0.5);
+        color += texture(tex, coord + offset).rgb;
     }
     return color / num_taps;
 }
