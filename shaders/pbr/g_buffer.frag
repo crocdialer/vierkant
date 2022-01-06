@@ -20,7 +20,8 @@ layout(location = 0) in VertexData
 {
     vec4 color;
     vec3 normal;
-    vec2 velocity;
+    vec4 current_position;
+    vec4 last_position;
 } vertex_in;
 
 layout(location = 0) out vec4 out_color;
@@ -49,5 +50,5 @@ void main()
     out_ao_rough_metal = vec4(material.ambient, material.roughness, material.metalness, 1);
 
     // motion
-    out_motion = vertex_in.velocity;
+    out_motion = 0.5 * (vertex_in.current_position.xy / vertex_in.current_position.w - vertex_in.last_position.xy / vertex_in.last_position.w);
 }

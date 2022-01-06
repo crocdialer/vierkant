@@ -42,7 +42,9 @@ layout(location = 0) out VertexData
 {
     vec4 color;
     vec3 normal;
-    vec2 velocity;
+
+    vec4 current_position;
+    vec4 last_position;
 } vertex_out;
 
 void main()
@@ -61,9 +63,8 @@ void main()
     vertex_out.color = a_color;
     vertex_out.normal = normalize(m.normal * vec4(a_normal, 1.0)).xyz;
 
-    vec4 current_position = m.projection * m.modelview * vec4(current_vertex.xyz, 1.0);
-    vec4 last_position = m_last.projection * m_last.modelview * vec4(last_vertex.xyz, 1.0);
-    vertex_out.velocity = 0.5 * (current_position.xy / current_position.w - last_position.xy / last_position.w);
+    vertex_out.current_position = m.projection * m.modelview * vec4(current_vertex.xyz, 1.0);
+    vertex_out.last_position = m_last.projection * m_last.modelview * vec4(last_vertex.xyz, 1.0);
 
-    gl_Position = current_position;
+    gl_Position = vertex_out.current_position;
 }
