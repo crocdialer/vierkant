@@ -440,7 +440,7 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
     std::vector<matrix_struct_t> matrix_history_data(drawables.size());
     std::vector<material_struct_t> material_data(drawables.size());
 
-    bool has_matrix_history = false;
+//    bool has_matrix_history = false;
 
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
@@ -450,8 +450,9 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
         if(drawables[i].last_matrices)
         {
             matrix_history_data[i] = *drawables[i].last_matrices;
-            has_matrix_history = true;
+//            has_matrix_history = true;
         }
+        else{ matrix_history_data[i] = drawables[i].matrices; }
     }
 
 //    // calculate required alignment based on minimum device offset alignment
@@ -507,8 +508,7 @@ void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, 
     // create/upload joined buffers
     copy_to_uniform_buffers(matrix_data, frame_asset.matrix_buffers);
     copy_to_uniform_buffers(material_data, frame_asset.material_buffers);
-    if(has_matrix_history){ copy_to_uniform_buffers(matrix_history_data, frame_asset.matrix_history_buffers); }
-    else{ frame_asset.matrix_history_buffers = frame_asset.matrix_buffers; }
+    copy_to_uniform_buffers(matrix_history_data, frame_asset.matrix_history_buffers);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

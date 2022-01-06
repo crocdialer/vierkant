@@ -53,6 +53,5 @@ void main()
     out_ao_rough_metal = vec4(texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord).xyz, 1.0);
 
     // motion
-    out_motion = vertex_in.current_position.xy / vertex_in.current_position.w -
-                 vertex_in.last_position.xy / vertex_in.last_position.w;
+    out_motion = 0.5 * (vertex_in.current_position.xy / vertex_in.current_position.w - vertex_in.last_position.xy / vertex_in.last_position.w);
 }

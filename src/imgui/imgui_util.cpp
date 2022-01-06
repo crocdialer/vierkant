@@ -428,6 +428,10 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
     ImGui::Checkbox("tonemap", &pbr_renderer->settings.tonemap);
     ImGui::Checkbox("bloom", &pbr_renderer->settings.bloom);
+    ImGui::Checkbox("motionblur", &pbr_renderer->settings.motionblur);
+
+    // motionblur gain
+    ImGui::SliderFloat("motionblur gain", &pbr_renderer->settings.motionblur_gain, 0.f, 10.f);
 
     // exposure
     ImGui::SliderFloat("exposure", &pbr_renderer->settings.exposure, 0.f, 10.f);

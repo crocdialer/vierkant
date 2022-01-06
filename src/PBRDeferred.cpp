@@ -220,6 +220,8 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
                                                          const CameraPtr &cam,
                                                          const std::set<std::string> &tags)
 {
+    m_timestamp_current = std::chrono::steady_clock::now();
+
     auto cull_result = vierkant::cull(scene, cam, true, tags);
 
     // apply+update transform history
@@ -253,6 +255,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
 
     SceneRenderer::render_result_t ret = {};
     ret.num_objects = cull_result.drawables.size();
+    m_timestamp_last = m_timestamp_current;
     return ret;
 }
 
@@ -425,12 +428,23 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         // generate bloom image
         if(settings.bloom){ bloom_img = frame_assets.bloom->apply(output_img, VK_NULL_HANDLE, {}); }
 
+        // motionblur
+        auto motion_img = m_empty_img;
+        if(settings.motionblur){ motion_img = frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION); }
+
         composition_ubo_t comp_ubo = {};
         comp_ubo.exposure = settings.exposure;
         comp_ubo.gamma = settings.gamma;
+
+        using duration_t = std::chrono::duration<float>;
+        comp_ubo.time_delta = duration_t(m_timestamp_current - m_timestamp_last).count();
+        comp_ubo.motionblur_gain = settings.motionblur_gain;
+//        comp_ubo.shutter_time = ;
+//        comp_ubo.motionblur_gain = ;
+
         frame_assets.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
-        m_drawable_bloom.descriptors[0].image_samplers = {output_img, bloom_img};
+        m_drawable_bloom.descriptors[0].image_samplers = {output_img, bloom_img, motion_img};
         m_drawable_bloom.descriptors[1].buffers = {frame_assets.composition_ubo};
 
         output_img = pingpong_render(m_drawable_bloom);

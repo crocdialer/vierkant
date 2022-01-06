@@ -41,6 +41,12 @@ public:
         //! use bloom
         bool bloom = true;
 
+        //! use motionblur
+        bool motionblur = true;
+
+        //! motionblur gain
+        float motionblur_gain = 1.f;
+
         //! gamma correction of output
         float gamma = 1.0;
 
@@ -149,7 +155,12 @@ private:
     {
         float gamma = 2.2f;
         float exposure = 1.f;
-        int padding[2]{};
+
+        float time_delta = 1.f / 60.f;
+        float shutter_time = 1.f / 60.f;
+        float motionblur_gain = 1.f;
+
+        int padding[3]{};
     };
 
     struct matrix_key_t
@@ -217,6 +228,9 @@ private:
     matrix_cache_t m_entry_matrix_cache;
 
     bone_buffer_cache_t m_bone_buffer_cache;
+
+    std::chrono::steady_clock::time_point m_timestamp_current = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point m_timestamp_last = m_timestamp_current;
 };
 
 }// namespace vierkant
