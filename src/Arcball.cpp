@@ -156,19 +156,20 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
     {
         if(!enabled){ return; }
 
-        m_last_pos = e.position();
-        m_last_rotation = rotation;
+        m_last_cursor_pos = e.position();
     };
     ret.mouse_drag = [this](const MouseEvent &e)
     {
         if(enabled && e.is_left())
         {
-            glm::vec2 diff = m_last_pos - e.position();
+            glm::vec2 diff = m_last_cursor_pos - e.position();
 
-            rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(diff.y), glm::radians(diff.x), 0));
+            m_last_rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
 
-//            m_last_pos = e.position();
-//            m_last_rotation = rotation;
+            pitch = std::clamp(pitch + diff.y, -90.f, 90.f);
+            rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
+
+            m_last_cursor_pos = e.position();
 
             if(enabled && transform_cb){ transform_cb(transform()); }
         }

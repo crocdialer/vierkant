@@ -225,10 +225,11 @@ private:
 
     vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom;
 
+    // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;
-
     bone_buffer_cache_t m_bone_buffer_cache;
 
+    // keep track of frame-times
     std::chrono::steady_clock::time_point m_timestamp_current = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point m_timestamp_last = m_timestamp_current;
 };

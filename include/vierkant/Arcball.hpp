@@ -113,8 +113,10 @@ private:
 
     std::unordered_map<int, bool> m_keys;
 
-    glm::ivec2 m_last_pos{};
+    glm::ivec2 m_last_cursor_pos{};
     glm::quat m_last_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
+
+    float pitch = 0.f;
 };
 
 }// namespace vierkant
