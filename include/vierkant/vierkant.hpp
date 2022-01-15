@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "vierkant/Arcball.hpp"
+#include "vierkant/CameraControl.hpp"
 #include "vierkant/Instance.hpp"
 #include "vierkant/Device.hpp"
 #include "vierkant/Buffer.hpp"

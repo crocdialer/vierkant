@@ -2,7 +2,7 @@
 // Created by crocdialer on 12/20/19.
 //
 
-#include "vierkant/Arcball.hpp"
+#include "vierkant/CameraControl.hpp"
 
 namespace vierkant
 {
@@ -141,6 +141,34 @@ void FlyCamera::update(double time_delta)
                 }
             }
         }
+
+        // quick and dirty joystick-controls
+        auto joystick_states = get_joystick_states();
+
+        if(!joystick_states.empty())
+        {
+            const auto &state = joystick_states[0];
+
+            move_mask.x += state.analog_left().x;
+            move_mask.z += state.analog_left().y;
+
+            glm::vec2 diff = -state.analog_right() * static_cast<float>(time_delta);
+
+            bool above_thresh = glm::length2(state.analog_right()) > 0.01;
+
+            if(above_thresh)
+            {
+                constexpr float controller_sensitivity = 250.f;
+                diff *= controller_sensitivity;
+
+                m_last_rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
+
+                pitch = std::clamp(pitch + diff.y, -90.f, 90.f);
+                rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
+            }
+            if(glm::length2(move_mask) > 0.f || above_thresh){ needs_update = true; }
+        }
+
         if(needs_update)
         {
             position += static_cast<float>(time_delta) * move_speed * (glm::mat3_cast(rotation) * move_mask);
@@ -163,6 +191,8 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
         if(enabled && e.is_left())
         {
             glm::vec2 diff = m_last_cursor_pos - e.position();
+
+            diff *= mouse_sensitivity;
 
             m_last_rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
 

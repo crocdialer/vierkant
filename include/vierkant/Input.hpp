@@ -229,16 +229,7 @@ public:
         BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_STICK_LEFT, BUTTON_STICK_RIGHT
     };
 
-    struct MapHash
-    {
-        inline size_t operator()(const Mapping &the_enum) const
-        {
-            std::hash<uint32_t> hasher;
-            return hasher(static_cast<uint32_t>(the_enum));
-        }
-    };
-
-    using ButtonMap = std::unordered_map<Mapping, uint32_t, MapHash>;
+    using ButtonMap = std::unordered_map<Mapping, uint32_t>;
 
     JoystickState(std::string n,
                   std::vector<uint8_t> b,
@@ -261,7 +252,7 @@ public:
     static ButtonMap &mapping() { return s_button_map; }
 
 private:
-    float m_dead_zone = 0.03f;
+    float m_dead_zone = 0.1f;
     std::string m_name;
     std::vector<uint8_t> m_buttons;
     std::vector<float> m_axis;
