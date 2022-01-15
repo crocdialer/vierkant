@@ -200,21 +200,16 @@ void main()
 
     float cos_theta = abs(dot(payload.normal, payload.ray.direction));
 
-    if (bsdf_sample.pdf <= 0.0 ||
-        all(lessThan(payload.beta, vec3(0.01))))
+    if (bsdf_sample.pdf <= 0.0 || all(lessThan(payload.beta, vec3(0.01))))
     {
         payload.stop = true;
         return;
     }
 
     payload.beta *= bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS);
-    payload.pdf *= bsdf_sample.pdf;
     payload.inside_media = bsdf_sample.transmission ? !payload.inside_media : payload.inside_media;
 
 //    if (dot(payload.normal, payload.ray.direction) < 0.0)
     payload.absorption = payload.inside_media ?
                          -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS) : vec3(0);
-
-    //    // new rays won't contribute much
-    //    if (all(lessThan(payload.beta, vec3(0.01)))){ payload.stop = true; }
 }

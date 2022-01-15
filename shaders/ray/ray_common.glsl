@@ -42,9 +42,6 @@ struct payload_t
     // material absorbtion
     vec3 beta;
 
-    // probability density
-    float pdf;
-
     // media refraction index
     float ior;
 
