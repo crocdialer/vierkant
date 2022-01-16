@@ -35,9 +35,9 @@ public:
     [[nodiscard]] virtual glm::mat4 transform() const = 0;
 };
 
-DEFINE_CLASS_PTR(Arcball)
+DEFINE_CLASS_PTR(OrbitCamera)
 
-class Arcball : public CameraControl
+class OrbitCamera : public CameraControl
 {
 public:
 
@@ -55,11 +55,11 @@ public:
 
     [[nodiscard]] glm::mat4 transform() const override;
 
-    static ArcballUPtr create(){ return ArcballUPtr(new Arcball()); }
+    static OrbitCameraUPtr create(){ return OrbitCameraUPtr(new OrbitCamera()); }
 
 private:
 
-    Arcball() = default;
+    OrbitCamera() = default;
 
     void mouse_press(const MouseEvent &e);
 

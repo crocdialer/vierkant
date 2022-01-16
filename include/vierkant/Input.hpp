@@ -252,7 +252,7 @@ public:
     static ButtonMap &mapping() { return s_button_map; }
 
 private:
-    float m_dead_zone = 0.1f;
+    float m_dead_zone = 0.15f;
     std::string m_name;
     std::vector<uint8_t> m_buttons;
     std::vector<float> m_axis;

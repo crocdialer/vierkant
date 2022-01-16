@@ -63,6 +63,8 @@ vec2 march(Ray ray)
     return vec2(march_distance, min_distance);
 }
 
+#define PI 3.1415926535897932384626433832795
+
 // low-life skycolor routine
 vec3 sky_color(vec3 direction)
 {
@@ -70,9 +72,13 @@ vec3 sky_color(vec3 direction)
 
     vec3 col = mix(vec3(0.9f), color_up, abs(direction.y));
 
-    const vec3 sun_dir = normalize(vec3(1.0, 0.75, 1.0));
+    const vec3 sun_dir = normalize(vec3(.4, 1.0, 0.7));
     float sun = clamp(dot(direction, sun_dir), 0.0, 1.0);
-    col += 40 * vec3(1.0, 0.5, 0.1) * pow(sun, 200.0);
+
+    // sun angular diameter
+    const float sun_angle =  0.524167 *  PI / 180.0;
+    const vec3 sun_color = vec3(1.0, 0.5, 0.1);
+    col += cos(sun_angle) < sun ? 40 * sun_color : vec3(0);
 
     return col;
 }

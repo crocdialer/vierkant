@@ -7,12 +7,12 @@
 namespace vierkant
 {
 
-void Arcball::update(double time_delta)
+void OrbitCamera::update(double time_delta)
 {
     if(!enabled){ return; }
 }
 
-void Arcball::mouse_press(const MouseEvent &e)
+void OrbitCamera::mouse_press(const MouseEvent &e)
 {
     if(!enabled){ return; }
 
@@ -25,7 +25,7 @@ void Arcball::mouse_press(const MouseEvent &e)
     else if(e.is_right()){ m_last_look_at = look_at; }
 }
 
-void Arcball::mouse_drag(const MouseEvent &e)
+void OrbitCamera::mouse_drag(const MouseEvent &e)
 {
     if(enabled && e.is_left())
     {
@@ -48,8 +48,7 @@ void Arcball::mouse_drag(const MouseEvent &e)
         glm::vec2 mouse_diff = e.position() - m_clicked_pos;
         mouse_diff *= distance / screen_size;
 
-        glm::mat3 rotation_mat = glm::mat3_cast(rotation);
-        look_at = m_last_look_at - glm::normalize(rotation_mat * glm::vec3(1, 0, 0)) * mouse_diff.x +
+        look_at = m_last_look_at - glm::normalize(rotation * glm::vec3(1, 0, 0)) * mouse_diff.x +
                   glm::normalize(rotation * glm::vec3(0, 1, 0)) * mouse_diff.y;
     }
     if(enabled && transform_cb){ transform_cb(transform()); }
@@ -61,7 +60,7 @@ void Arcball::mouse_drag(const MouseEvent &e)
  * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
  * sphere, return the nearest point on the virtual ball surface.
  */
-glm::vec3 Arcball::get_arcball_vector(const glm::vec2 &screen_pos) const
+glm::vec3 OrbitCamera::get_arcball_vector(const glm::vec2 &screen_pos) const
 {
     // screenpos in range [-1 .. 1]
     glm::vec3 surface_point = glm::vec3(screen_pos / screen_size * 2.f - 1.f, 0.f);
@@ -82,7 +81,7 @@ glm::vec3 Arcball::get_arcball_vector(const glm::vec2 &screen_pos) const
     return surface_point;
 }
 
-vierkant::mouse_delegate_t Arcball::mouse_delegate()
+vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
 {
     vierkant::mouse_delegate_t ret = {};
     ret.mouse_press = [this](const MouseEvent &e){ mouse_press(e); };
@@ -96,7 +95,7 @@ vierkant::mouse_delegate_t Arcball::mouse_delegate()
     return ret;
 }
 
-glm::mat4 Arcball::transform() const
+glm::mat4 OrbitCamera::transform() const
 {
     glm::mat4 ret = glm::mat4_cast(rotation);
     ret[3] = glm::vec4(look_at + (ret * glm::vec4(0, 0, distance, 1.f)).xyz(), 1.f);
@@ -171,7 +170,7 @@ void FlyCamera::update(double time_delta)
 
         if(needs_update)
         {
-            position += static_cast<float>(time_delta) * move_speed * (glm::mat3_cast(rotation) * move_mask);
+            position += static_cast<float>(time_delta) * move_speed * (rotation * move_mask);
             if(transform_cb){ transform_cb(transform()); }
         }
     }
