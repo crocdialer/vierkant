@@ -36,7 +36,6 @@ endif (NOT BUILD_SHARED_LIBS)
 
 ## cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake_modules ${CMAKE_MODULE_PATH})
-include(add_test_helper)
 include(vierkant_utils)
 
 ##### BOOST
@@ -121,8 +120,9 @@ set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
 
 #examples
 if (BUILD_EXAMPLES)
-    add_subdirectory("samples")
+    add_subdirectory(samples)
 endif (BUILD_EXAMPLES)
 
-#Boost Unit-Tests
-addTestMacro()
+if(BUILD_TESTS)
+    add_subdirectory(tests)
+endif(BUILD_TESTS)
