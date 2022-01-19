@@ -32,8 +32,11 @@ public:
         //! draw a grid for orientation
         bool draw_grid = true;
 
-        //! apply anti-aliasing using fxaa
+        //! apply anti-aliasing using FXAA
         bool use_fxaa = true;
+
+        //! apply anti-aliasing using TAA
+        bool use_taa = true;
 
         //! use tonemapping
         bool tonemap = true;
@@ -63,6 +66,7 @@ public:
         uint32_t num_frames_in_flight = 0;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
+        VkQueue queue = VK_NULL_HANDLE;
 
         // base settings for a SceneRenderer
         settings_t settings = {};
@@ -128,7 +132,8 @@ private:
     struct frame_assets_t
     {
         vierkant::Framebuffer g_buffer;
-        vierkant::Framebuffer lighting_buffer;
+        vierkant::Framebuffer lighting_buffer, sky_buffer;
+        vierkant::ImagePtr history_color, history_depth;
         vierkant::BufferPtr lighting_ubo;
         vierkant::BufferPtr composition_ubo;
 
@@ -147,6 +152,8 @@ private:
     {
         glm::mat4 camera_transform = glm::mat4(1);
         glm::mat4 inverse_projection = glm::mat4(1);
+        float near = 0;
+        float far = 0;
         int num_mip_levels = 0;
         float env_light_strength = 1.f;
     };
@@ -201,6 +208,8 @@ private:
 
     vierkant::DevicePtr m_device;
 
+    VkQueue m_queue = VK_NULL_HANDLE;
+
     vierkant::PipelineCachePtr m_pipeline_cache;
 
     g_buffer_stage_map_t m_g_buffer_shader_stages;
@@ -209,7 +218,7 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::Renderer m_g_renderer, m_light_renderer;
+    vierkant::Renderer m_g_renderer, m_light_renderer, m_sky_renderer;
 
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;

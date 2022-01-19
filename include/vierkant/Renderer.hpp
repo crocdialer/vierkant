@@ -115,6 +115,10 @@ public:
         uint32_t num_frames_in_flight = 1;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
+
+        // TODO: hook up
+        vierkant::CommandPoolPtr command_pool = nullptr;
+        vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
     };
 
     /**
@@ -153,7 +157,7 @@ public:
     Renderer &operator=(Renderer other);
 
     /**
-     * @brief   Stage a drawable object to be rendered.
+     * @brief   Stage a drawable to be rendered.
      *
      * @param   drawable    a drawable_t object.
      */
