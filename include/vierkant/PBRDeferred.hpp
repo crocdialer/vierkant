@@ -148,12 +148,16 @@ private:
         BloomUPtr bloom;
     };
 
+    struct taa_ubo_t
+    {
+        float near;
+        float far;
+    };
+
     struct environment_lighting_ubo_t
     {
         glm::mat4 camera_transform = glm::mat4(1);
         glm::mat4 inverse_projection = glm::mat4(1);
-        float near = 0;
-        float far = 0;
         int num_mip_levels = 0;
         float env_light_strength = 1.f;
     };
@@ -232,7 +236,8 @@ private:
     // helper, empty image
     vierkant::ImagePtr m_empty_img;
 
-    vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom;
+    vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom,
+        m_drawable_taa;
 
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;

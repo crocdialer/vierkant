@@ -15,8 +15,6 @@ layout(std140, binding = 0) uniform ubo_t
 {
     mat4 camera_transform;
     mat4 inverse_projection;
-    float near;
-    float far;
     int num_mip_levels;
     float env_light_strength;
 } ubo;
@@ -28,10 +26,8 @@ layout(std140, binding = 0) uniform ubo_t
 #define MOTION 4
 #define DEPTH 5
 #define BRDF_LUT 6
-#define HISTORY_COLOR 7
-#define HISTORY_DEPTH 8
 
-layout(binding = 1) uniform sampler2D u_sampler_2D[9];
+layout(binding = 1) uniform sampler2D u_sampler_2D[7];
 
 #define ENV_DIFFUSE 0
 #define ENV_SPEC 1
@@ -77,25 +73,6 @@ layout(location = 0) in VertexData
 
 layout(location = 0) out vec4 out_color;
 
-float linear_depth(float depth)
-{
-    float n = ubo.near;
-    float f = ubo.far;
-    return (2.0 * n) / (f + n - depth * (f - n));
-}
-
-vec3 luma_weight(vec3 color)
-{
-    float luma = dot(LuminanceNTSC, color);
-    return color / (1.0 + luma);
-}
-
-vec3 luma_weight_inverse(vec3 color)
-{
-    float luma = dot(LuminanceNTSC, color);
-    return color / (1.0 - luma);
-}
-
 void main()
 {
     float depth = texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x;
@@ -112,42 +89,6 @@ void main()
     vec3 emission = texture(u_sampler_2D[EMISSION], vertex_in.tex_coord).rgb;
 
     vec3 env_color = compute_enviroment_lighting(position, normal, albedo.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r);
-
     env_color += emission;
-
-    // WIP: TAA implementation here
-    vec2 history_coord = vertex_in.tex_coord - texture(u_sampler_2D[MOTION], vertex_in.tex_coord).rg;
-    vec3 history_color = texture(u_sampler_2D[HISTORY_COLOR], history_coord).rgb;
-    float history_depth = texture(u_sampler_2D[HISTORY_DEPTH], history_coord).x;
-
-    float alpha = 0.1;
-
-    // out of bounds sampling
-    if(any(lessThan(history_coord, vec2(0))) || any(greaterThan(history_coord, vec2(1)))){ alpha = 1.0; }
-
-    // reject based on depth
-    const float depth_eps = 5.0e-3; // 0.00000006 = 1.0 / (1 << 24)
-    alpha = abs(linear_depth(depth) - linear_depth(history_depth)) > depth_eps ? 1.0 : alpha;
-
-    // TODO: reject and/or rectify based on color
-    vec2 texel = 1.0 / textureSize(u_sampler_2D[ALBEDO], 0);
-    vec3 min_color = vec3(1);
-    vec3 max_color = vec3(0);
-
-    // TODO: wrong place here, bring TAA into separate pass
-//    // construct an AABB in color-space
-//    for(int y = -1; y <= 1; ++y)
-//    {
-//        for(int x = -1; x <= 1; ++x)
-//        {
-//            vec3 color = luma_weight(texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord + texel * vec2(x, y)).rgb;
-//            min_color = min(min_color, color);
-//            max_color = max(max_color, color);
-//        }
-//    }
-
-//    env_color = mix(clamp(history_color, min_color, max_color), env_color, alpha);
-    env_color = mix(vec3(1, 0, 0), env_color, alpha);
-
     out_color = vec4(env_color, 1.0);
 }

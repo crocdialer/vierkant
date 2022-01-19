@@ -16,6 +16,8 @@ namespace vierkant
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) :
         m_device(device)
 {
+    m_queue = create_info.queue ? create_info.queue : device->queue();
+
     m_pipeline_cache = create_info.pipeline_cache ?
                        create_info.pipeline_cache : vierkant::PipelineCache::create(device);
 
@@ -170,6 +172,21 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         fullscreen_drawable.descriptors[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         fullscreen_drawable.descriptors[0].stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+        // TAA
+        m_drawable_taa = fullscreen_drawable;
+        m_drawable_taa.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+                vierkant::create_shader_module(device, vierkant::shaders::fullscreen::taa_frag);
+
+        // TAA settings uniform-buffer
+        vierkant::descriptor_t desc_taa_ubo = {};
+        desc_taa_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_taa_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_taa_ubo.buffers = {vierkant::Buffer::create(m_device, nullptr, sizeof(taa_ubo_t),
+                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                         VMA_MEMORY_USAGE_CPU_TO_GPU)};
+
+        m_drawable_taa.descriptors[1] = std::move(desc_taa_ubo);
+
         // fxaa
         m_drawable_fxaa = fullscreen_drawable;
         m_drawable_fxaa.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
@@ -180,15 +197,15 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         m_drawable_dof.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::dof_frag);
 
-        // descriptor
-        vierkant::descriptor_t desc_settings_ubo = {};
-        desc_settings_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        desc_settings_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_settings_ubo.buffers = {vierkant::Buffer::create(m_device, &settings.dof, sizeof(postfx::dof_settings_t),
-                                                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                              VMA_MEMORY_USAGE_CPU_TO_GPU)};
+        // DOF settings uniform-buffer
+        vierkant::descriptor_t desc_dof_ubo = {};
+        desc_dof_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_dof_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        desc_dof_ubo.buffers = {vierkant::Buffer::create(m_device, &settings.dof, sizeof(postfx::dof_settings_t),
+                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                         VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
-        m_drawable_dof.descriptors[1] = std::move(desc_settings_ubo);
+        m_drawable_dof.descriptors[1] = std::move(desc_dof_ubo);
 
         // bloom
         m_drawable_bloom = fullscreen_drawable;
@@ -363,7 +380,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     auto &g_buffer = m_frame_assets[m_g_renderer.current_index()].g_buffer;
     auto cmd_buffer = m_g_renderer.render(g_buffer);
-    g_buffer.submit({cmd_buffer}, m_g_renderer.device()->queue());
+    g_buffer.submit({cmd_buffer}, m_queue);
     return g_buffer;
 }
 
@@ -379,8 +396,6 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     environment_lighting_ubo_t ubo = {};
     ubo.camera_transform = cull_result.camera->global_transform();
     ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
-    ubo.near = cull_result.camera->near();
-    ubo.far = cull_result.camera->far();
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
 
     frame_assets.lighting_ubo->set_data(&ubo, sizeof(ubo));
@@ -394,15 +409,13 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                                               frame_assets.g_buffer.color_attachment(G_BUFFER_AO_ROUGH_METAL),
                                               frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
                                               frame_assets.g_buffer.depth_attachment(),
-                                              m_brdf_lut,
-                                              frame_assets.history_color,
-                                              frame_assets.history_depth};
+                                              m_brdf_lut};
     drawable.descriptors[2].image_samplers = {m_conv_lambert, m_conv_ggx};
 
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
     auto cmd_buffer = m_light_renderer.render(frame_assets.lighting_buffer);
-    frame_assets.lighting_buffer.submit({cmd_buffer}, m_light_renderer.device()->queue());
+    frame_assets.lighting_buffer.submit({cmd_buffer}, m_queue);
 
     // skybox rendering
     if(settings.draw_skybox)
@@ -413,7 +426,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         }
     }
     cmd_buffer = m_sky_renderer.render(frame_assets.sky_buffer);
-    frame_assets.sky_buffer.submit({cmd_buffer}, m_sky_renderer.device()->queue());
+    frame_assets.sky_buffer.submit({cmd_buffer}, m_queue);
 
     return frame_assets.sky_buffer;
 }
@@ -430,16 +443,39 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     vierkant::ImagePtr output_img = color;
 
     // get next set of pingpong assets, increment index
-    auto pingpong_render = [&frame_assets, &buffer_index](
+    auto pingpong_render = [&frame_assets, &buffer_index, queue = m_queue](
             Renderer::drawable_t &drawable) -> vierkant::ImagePtr
     {
         auto &pingpong = frame_assets.post_fx_ping_pongs[buffer_index];
         buffer_index = (buffer_index + 1) % frame_assets.post_fx_ping_pongs.size();
         pingpong.renderer.stage_drawable(drawable);
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-        pingpong.framebuffer.submit({cmd_buf}, pingpong.renderer.device()->queue());
+        pingpong.framebuffer.submit({cmd_buf}, queue);
         return pingpong.framebuffer.color_attachment(0);
     };
+
+    // TAA
+    if(settings.use_taa)
+    {
+        auto drawable = m_drawable_taa;
+        drawable.descriptors[0].image_samplers = {output_img,
+                                                  depth,
+                                                  frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
+                                                  frame_assets.history_color,
+                                                  frame_assets.history_depth};
+
+        // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
+        drawable.matrices.projection = cam->projection_matrix();
+
+        if(!drawable.descriptors[1].buffers.empty())
+        {
+            taa_ubo_t taa_ubo = {};
+            taa_ubo.near = cam->near();
+            taa_ubo.far = cam->far();
+            drawable.descriptors[1].buffers.front()->set_data(&taa_ubo, sizeof(taa_ubo_t));
+        }
+        output_img = pingpong_render(drawable);
+    }
 
     // tonemap / bloom
     if(settings.tonemap)
