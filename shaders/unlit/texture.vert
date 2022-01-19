@@ -12,11 +12,6 @@ layout(std140, binding = BINDING_MATRIX) uniform UBOMatrices
     matrix_struct_t matrices[MAX_NUM_DRAWABLES];
 };
 
-out gl_PerVertex
-{
-    vec4 gl_Position;
-};
-
 layout(location = ATTRIB_POSITION) in vec3 a_position;
 layout(location = ATTRIB_COLOR) in vec4 a_color;
 layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;

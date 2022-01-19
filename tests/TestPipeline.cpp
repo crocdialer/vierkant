@@ -71,7 +71,7 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
     BOOST_CHECK(pipeline);
 
     // expected error here
-    BOOST_CHECK(test_context.validation_data.error);
+    BOOST_CHECK(test_context.validation_data.num_errors);
     test_context.validation_data.reset();
 
 

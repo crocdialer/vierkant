@@ -27,7 +27,8 @@ inline bool is_stencil(VkFormat fmt)
 RenderPassPtr
 Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
                                const Framebuffer::AttachmentMap &attachments,
-                               bool clear_color, bool clear_depth,
+                               bool clear_color,
+                               bool clear_depth,
                                const std::vector<VkSubpassDependency> &subpass_dependencies)
 {
     VkRenderPass renderpass = VK_NULL_HANDLE;
@@ -48,7 +49,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
     // create RenderPass according to AttachmentMap
     std::vector<VkAttachmentDescription> attachment_descriptions;
 
-    for(auto &pair : attachments)
+    for(const auto &[type, images] : attachments)
     {
         VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -57,7 +58,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
 
 //        bool is_depth_attachment = false;
 
-        switch(pair.first)
+        switch(type)
         {
             case AttachmentType::Color:
                 loadOp = clear_color ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -88,7 +89,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
 //        auto final_layout = is_depth_attachment ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
 //                                                : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-        for(const auto &img : pair.second)
+        for(const auto &img : images)
         {
             VkAttachmentDescription description = {};
             description.format = img->format().format;

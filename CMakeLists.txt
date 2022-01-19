@@ -123,3 +123,6 @@ set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
 if (BUILD_EXAMPLES)
     add_subdirectory("samples")
 endif (BUILD_EXAMPLES)
+
+#Boost Unit-Tests
+addTestMacro()

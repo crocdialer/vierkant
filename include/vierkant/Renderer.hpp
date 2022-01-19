@@ -160,11 +160,16 @@ public:
     void stage_drawable(drawable_t drawable);
 
     /**
+     * @brief   Stage an ordered sequence of drawables to be rendered.
+     *
+     * @param   drawables    an array of drawable_t objects.
+     */
+    void stage_drawables(std::vector<drawable_t> drawables);
+
+    /**
      * @brief   Records drawing-commands for all staged drawables into a secondary VkCommandBuffer.
      *          Also advances the current in-flight-index.
      *
-     * @param   inheritance pointer to a VkCommandBufferInheritanceInfo that contains information about the
-     *          current renderpass and framebuffer.
      * @return  handle to the recorded VkCommandBuffer.
      */
     VkCommandBuffer render(const vierkant::Framebuffer &framebuffer);

@@ -13,12 +13,12 @@ public:
 
     struct ValidationData
     {
-        bool error = false;
+        size_t num_errors = 0;
         std::ostringstream errorMsgStream;
 
         void reset()
         {
-            error = false;
+            num_errors = 0;
             errorMsgStream = std::ostringstream{};
         }
     };
@@ -36,8 +36,8 @@ public:
         // set a debug-function to intercept validation-warnings/errors
         instance.set_debug_fn([&](const char *msg)
                               {
-                                  validation_data.error = true;
-                                  validation_data.errorMsgStream << "\nError:\n" << msg;
+                                  validation_data.num_errors++;
+                                  validation_data.errorMsgStream << "\nError:\n" << msg << "\n";
                               });
 
         BOOST_CHECK_NE(instance.handle(), nullptr);
@@ -55,6 +55,10 @@ public:
         device = vierkant::Device::create(deviceInfo);
     }
 
-    ~vulkan_test_context_t(){ BOOST_CHECK(!validation_data.error); }
+    ~vulkan_test_context_t()
+    {
+        if(validation_data.num_errors){ std::cerr << validation_data.errorMsgStream.str(); }
+        BOOST_CHECK(!validation_data.num_errors);
+    }
 };
 
