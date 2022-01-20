@@ -13,6 +13,21 @@
 namespace vierkant
 {
 
+float halton(uint32_t index, int base)
+{
+    float f = 1;
+    float r = 0;
+    int current = index;
+
+    do
+    {
+        f = f / base;
+        r = r + f * (current % base);
+        current = glm::floor(current / base);
+    } while (current > 0);
+    return r;
+}
+
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) :
         m_device(device)
 {
@@ -23,9 +38,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
-
     vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
     post_fx_buffer_info.size = create_info.size;
+    post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     post_fx_buffer_info.color_attachment_format.usage =
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
@@ -43,6 +58,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     for(auto &asset : m_frame_assets)
     {
         asset.g_buffer = create_g_buffer(device, create_info.size, g_renderpass);
+        asset.g_buffer_ubo = vierkant::Buffer::create(device, nullptr, sizeof(glm::vec2),
+                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
         g_renderpass = asset.g_buffer.renderpass();
 
         // init lighting framebuffer
@@ -240,6 +258,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     fmt.extent = {1, 1, 1};
     fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
     m_empty_img = vierkant::Image::create(m_device, &v, fmt);
+
+    // populate a 2,3 halton sequence
+    m_sample_offsets.resize(16);
+
+    for(uint32_t i = 0; i < m_sample_offsets.size(); ++i)
+    {
+        m_sample_offsets[i] = glm::vec2(halton(i + 1, 2), halton(i + 1, 3));
+    }
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -343,6 +369,19 @@ void PBRDeferred::update_matrix_history(vierkant::cull_result_t &cull_result)
 
 vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 {
+    auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
+
+    // jitter state
+    float halton_multiplier = .2f;
+    auto jitter_offset = settings.use_taa ? halton_multiplier * m_sample_offsets[m_sample_index] : glm::vec2(0);
+    m_sample_index = (m_sample_index + 1) % m_sample_offsets.size();
+
+    frame_asset.g_buffer_ubo->set_data(&jitter_offset, sizeof(glm::vec2));
+    vierkant::descriptor_t jitter_desc = {};
+    jitter_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    jitter_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+    jitter_desc.buffers = {frame_asset.g_buffer_ubo};
+
     // draw all gemoetry
     for(auto &drawable : cull_result.drawables)
     {
@@ -369,8 +408,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         // set attachment count
         drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
 
-        // disable rendering (only sanity, should have been filtered earlier)
-        drawable.pipeline_format.blend_state.blendEnable = false;
+        // add descriptor for a jitter-offset
+        drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = jitter_desc;
 
         // stage drawable
         m_g_renderer.stage_drawable(std::move(drawable));
@@ -483,7 +522,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto bloom_img = m_empty_img;
 
         // generate bloom image
-        if(settings.bloom){ bloom_img = frame_assets.bloom->apply(output_img, VK_NULL_HANDLE, {}); }
+        if(settings.bloom){ bloom_img = frame_assets.bloom->apply(output_img, m_queue, {}); }
 
         // motionblur
         auto motion_img = m_empty_img;

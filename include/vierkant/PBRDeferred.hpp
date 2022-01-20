@@ -134,6 +134,7 @@ private:
         vierkant::Framebuffer g_buffer;
         vierkant::Framebuffer lighting_buffer, sky_buffer;
         vierkant::ImagePtr history_color, history_depth;
+        vierkant::BufferPtr g_buffer_ubo;
         vierkant::BufferPtr lighting_ubo;
         vierkant::BufferPtr composition_ubo;
 
@@ -217,6 +218,10 @@ private:
     vierkant::PipelineCachePtr m_pipeline_cache;
 
     g_buffer_stage_map_t m_g_buffer_shader_stages;
+
+    std::vector<glm::vec2> m_sample_offsets;
+
+    size_t m_sample_index = 0;
 
     std::vector<frame_assets_t> m_frame_assets;
 

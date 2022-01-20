@@ -18,6 +18,17 @@
 namespace vierkant
 {
 
+/**
+ * @brief   Renderer can be used to run arbitrary rasterization/graphics pipelines.
+ *
+ *          It will not render anything on its own, only record secondary command-buffers,
+ *          meant to be executed within an existing renderpass.
+ *
+ *          Required resources like descriptor-sets and uniform-buffers will be created
+ *          and kept alive, depending on the requested number of in-flight (pending) frames.
+ *
+ *          Renderer is NOT thread-safe, with the exception of stage_drawables(...).
+ */
 class Renderer
 {
 public:
@@ -30,6 +41,7 @@ public:
         BINDING_TEXTURES = 3,
         BINDING_BONES = 4,
         BINDING_PREVIOUS_BONES = 5,
+        BINDING_JITTER_OFFSET = 6,
         BINDING_MAX_RANGE
     };
 

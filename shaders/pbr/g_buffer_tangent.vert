@@ -17,9 +17,9 @@ layout(std140, binding = BINDING_PREVIOUS_MATRIX) uniform UBOPreviousMatrices
     matrix_struct_t u_previous_matrices[MAX_NUM_DRAWABLES];
 };
 
-out gl_PerVertex
+layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
 {
-    vec4 gl_Position;
+    vec2 u_jitter_offset;
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
@@ -46,7 +46,11 @@ void main()
     vertex_out.current_position = m.projection * m.modelview * vec4(a_position, 1.0);
     vertex_out.last_position = m_last.projection * m_last.modelview * vec4(a_position, 1.0);
 
-    gl_Position = vertex_out.current_position;
+    const vec2 pixel_step = 1.0 / context.size;
+    mat4 jitter_projection = m.projection;
+    jitter_projection[3].xy += pixel_step * u_jitter_offset;
+
+    gl_Position = jitter_projection * m.modelview * vec4(a_position, 1.0);
 
     vertex_out.color = a_color;
     vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
