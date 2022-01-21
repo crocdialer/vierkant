@@ -1,5 +1,28 @@
 #include "color_ycc.glsl"
 
+struct taa_ubo_t
+{
+    float near;
+    float far;
+    vec2 sample_offset;
+
+    mat4 current_inverse_vp;
+    mat4 previous_vp;
+};
+
+vec2 unjitter(vec2 coord,
+              float depth,
+              mat4 current_inverse_vp,
+              mat4 previous_vp)
+{
+    // reconstruct position from depth
+    vec3 clip_pos = vec3(coord, depth);
+    vec4 viewspace_pos = current_inverse_vp * vec4(2.0 * clip_pos.xy - 1, clip_pos.z, 1);
+    vec3 position = viewspace_pos.xyz / viewspace_pos.w;
+    vec4 prev_ndc = previous_vp * vec4(position, 1.0);
+    return 0.5 * prev_ndc.xy / prev_ndc.w + 0.5;
+}
+
 float linear_depth(float depth, float near, float far)
 {
 //    return near * far / (far + depth * (near - far));
@@ -33,20 +56,23 @@ vec3 clip_aabb(vec3 aabb_min,
 }
 
 //! temporal anti-aliasing (TAA) routine
-vec3 taa(vec2 sample_coord,
+vec3 taa(vec2 coord,
          sampler2D sampler_color,
          sampler2D sampler_depth,
          sampler2D sampler_motion,
          sampler2D sampler_color_history,
          sampler2D sampler_depth_history,
-         float z_near,
-         float z_far)
+         taa_ubo_t taa_settings)
 {
+    float depth = texture(sampler_depth, coord).x;
+
+    vec2 unjittered_coord = unjitter(coord, depth, taa_settings.current_inverse_vp, taa_settings.previous_vp);
+
     // current
-    vec3 color = texture(sampler_color, sample_coord).rgb;
+    vec3 color = texture(sampler_color, coord).rgb;
 
     // previous
-    vec2 history_coord = sample_coord - texture(sampler_motion, sample_coord).xy;
+    vec2 history_coord = unjittered_coord - texture(sampler_motion, coord).xy;
     vec3 history_color = texture(sampler_color_history, history_coord).rgb;
 
     // accumulation/blend factor
@@ -57,59 +83,43 @@ vec3 taa(vec2 sample_coord,
 
     // reject and/or rectify based on color
     vec2 texel = 1.0 / textureSize(sampler_color, 0);
-    vec3 min_color_0 = vec3(1);
-    vec3 min_color_1 = vec3(1);
-    vec3 max_color_0 = vec3(0);
-    vec3 max_color_1 = vec3(0);
+    vec3 min_color_0 = color;
+    vec3 min_color_1 = color;
+    vec3 max_color_0 = color;
+    vec3 max_color_1 = color;
 
     // construct an averaged 3x3 neighbourhood AABB (in YCoCg color-space!?)
-    const vec2[4] cross_0 = vec2[](vec2(-1, 0), vec2(1, 0), vec2(0, 1), vec2(0, -1));
-    const vec2[4] cross_1 = vec2[](vec2(-1), vec2(1), vec2(-1, 1), vec2(1, -1));
+    const vec2[4] n_cross = vec2[](vec2(-1, 0), vec2(1, 0), vec2(0, 1), vec2(0, -1));
+    const vec2[4] n_3x3 = vec2[](vec2(-1), vec2(1), vec2(-1, 1), vec2(1, -1));
 
-    float depth = 1.0;
     float history_depth = 1.0;
 
+    // neighbourhood in a cross shape
     for(uint i = 0; i < 4; ++i)
     {
-        vec3 c_0 = RGB2YCoCg * texture(sampler_color, sample_coord + texel * cross_0[i]).rgb;
+        vec3 c_0 = RGB2YCoCg * texture(sampler_color, coord + texel * n_cross[i]).rgb;
         min_color_0 = min(min_color_0, c_0);
         max_color_0 = max(min_color_0, c_0);
 
-        vec3 c_1 = RGB2YCoCg * texture(sampler_color, sample_coord + texel * cross_1[i]).rgb;
+        vec3 c_1 = RGB2YCoCg * texture(sampler_color, coord + texel * n_3x3[i]).rgb;
         min_color_1 = min(min_color_1, c_1);
         max_color_1 = max(min_color_1, c_1);
 
-        depth = min(depth, texture(sampler_depth, sample_coord + texel * cross_0[i]).x);
-        depth = min(depth, texture(sampler_depth, sample_coord + texel * cross_1[i]).x);
+        depth = min(depth, texture(sampler_depth, coord + texel * n_cross[i]).x);
+        depth = min(depth, texture(sampler_depth, coord + texel * n_3x3[i]).x);
 
-        history_depth = min(history_depth, texture(sampler_depth, history_coord + texel * cross_0[i]).x);
-        history_depth = min(history_depth, texture(sampler_depth, history_coord + texel * cross_1[i]).x);
+        history_depth = min(history_depth, texture(sampler_depth_history, history_coord + texel * n_cross[i]).x);
+        history_depth = min(history_depth, texture(sampler_depth_history, history_coord + texel * n_3x3[i]).x);
     }
     vec3 min_color = 0.5 * (min_color_0 + min_color_1);
     vec3 max_color = 0.5 * (max_color_0 + max_color_1);
 
-    float depth_delta = abs(linear_depth(depth, z_near, z_far) - linear_depth(history_depth, z_near, z_far));
-
-//    for(int y = -1; y <= 1; ++y)
-//    {
-//        for(int x = -1; x <= 1; ++x)
-//        {
-//            vec3 c = RGB2YCoCg * texture(sampler_color, sample_coord + texel * vec2(x, y)).rgb;
-//            min_color = min(min_color, c);
-//            max_color = max(max_color, c);
-//
-//            float depth = texture(sampler_depth, sample_coord + texel * vec2(x, y)).x;
-//            depth_delta = min(depth_delta,
-//                              abs(linear_depth(depth, z_near, z_far) - linear_depth(history_depth, z_near, z_far)));
-//        }
-//    }
+    float depth_delta = abs(linear_depth(depth, taa_settings.near, taa_settings.far) -
+        linear_depth(history_depth, taa_settings.near, taa_settings.far));
 
     // reject based on depth
     const float depth_eps = 5.0e-3; // 0.00000006 = 1.0 / (1 << 24)
     alpha = depth_delta > depth_eps ? 1.0 : alpha;
-
-//    // clamp history against AABB
-//    history_color = YCoCg2RGB * clamp(RGB2YCoCg * history_color, min_color, max_color);
 
     // clip history against AABB
     history_color = YCoCg2RGB * clip_aabb(min_color, max_color, RGB2YCoCg * history_color);

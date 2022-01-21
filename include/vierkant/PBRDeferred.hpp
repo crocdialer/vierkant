@@ -131,6 +131,7 @@ private:
 
     struct frame_assets_t
     {
+        glm::vec2 jitter_offset;
         vierkant::Framebuffer g_buffer;
         vierkant::Framebuffer lighting_buffer, sky_buffer;
         vierkant::ImagePtr history_color, history_depth;
@@ -153,6 +154,9 @@ private:
     {
         float near;
         float far;
+        glm::vec2 sample_offset;
+        glm::mat4 current_inverse_vp;
+        glm::mat4 previous_vp;
     };
 
     struct environment_lighting_ubo_t
@@ -222,6 +226,8 @@ private:
     std::vector<glm::vec2> m_sample_offsets;
 
     size_t m_sample_index = 0;
+
+    std::optional<glm::mat4> m_previous_view_projection;
 
     std::vector<frame_assets_t> m_frame_assets;
 

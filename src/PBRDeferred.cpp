@@ -260,7 +260,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_empty_img = vierkant::Image::create(m_device, &v, fmt);
 
     // populate a 2,3 halton sequence
-    m_sample_offsets.resize(16);
+    m_sample_offsets.resize(8);
 
     for(uint32_t i = 0; i < m_sample_offsets.size(); ++i)
     {
@@ -373,10 +373,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     // jitter state
     float halton_multiplier = .2f;
-    auto jitter_offset = settings.use_taa ? halton_multiplier * m_sample_offsets[m_sample_index] : glm::vec2(0);
+    frame_asset.jitter_offset = settings.use_taa ? halton_multiplier * m_sample_offsets[m_sample_index] : glm::vec2(0);
     m_sample_index = (m_sample_index + 1) % m_sample_offsets.size();
 
-    frame_asset.g_buffer_ubo->set_data(&jitter_offset, sizeof(glm::vec2));
+    frame_asset.g_buffer_ubo->set_data(&frame_asset.jitter_offset, sizeof(glm::vec2));
     vierkant::descriptor_t jitter_desc = {};
     jitter_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     jitter_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -506,11 +506,20 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
         drawable.matrices.projection = cam->projection_matrix();
 
+        glm::mat4 current_vp_matrix = cam->projection_matrix() * cam->view_matrix();
+        glm::mat4 jittered_vp_matrix = current_vp_matrix;
+        jittered_vp_matrix[3].xy() += frame_assets.jitter_offset;
+
+        glm::mat4 previous_view_projection = m_previous_view_projection ? *m_previous_view_projection : current_vp_matrix;
+        m_previous_view_projection = current_vp_matrix;
         if(!drawable.descriptors[1].buffers.empty())
         {
             taa_ubo_t taa_ubo = {};
             taa_ubo.near = cam->near();
             taa_ubo.far = cam->far();
+            taa_ubo.sample_offset = frame_assets.jitter_offset;
+            taa_ubo.current_inverse_vp = glm::inverse(jittered_vp_matrix);
+            taa_ubo.previous_vp = previous_view_projection;
             drawable.descriptors[1].buffers.front()->set_data(&taa_ubo, sizeof(taa_ubo_t));
         }
         output_img = pingpong_render(drawable);

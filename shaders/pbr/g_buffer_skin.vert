@@ -67,8 +67,8 @@ void main()
     vertex_out.last_position = m_last.projection * m_last.modelview * vec4(last_vertex.xyz, 1.0);
 
     const vec2 pixel_step = 1.0 / context.size;
-    mat4 jitter_projection = m.projection;
+    mat4 jitter_projection = m.projection * m.modelview;
     jitter_projection[3].xy += pixel_step * u_jitter_offset;
 
-    gl_Position = jitter_projection * m.modelview * vec4(current_vertex.xyz, 1.0);
+    gl_Position = jitter_projection * vec4(current_vertex.xyz, 1.0);
 }

@@ -51,11 +51,10 @@ void main()
 
     const vec2 pixel_step = 1.0 / context.size;
 
-    mat4 jitter_projection = m.projection;
-    jitter_projection[3][0] += pixel_step.x * u_jitter_offset.x;
-    jitter_projection[3][1] += pixel_step.y * u_jitter_offset.y;
+    mat4 jitter_projection = m.projection * m.modelview;
+    jitter_projection[3].xy += pixel_step * u_jitter_offset;
 
-    gl_Position = jitter_projection * m.modelview * vec4(a_position, 1.0);
+    gl_Position = jitter_projection * vec4(a_position, 1.0);
 
     vertex_out.color = a_color;
     vertex_out.normal = normalize(m.normal * vec4(a_normal, 1.0)).xyz;
