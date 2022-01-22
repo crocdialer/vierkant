@@ -372,8 +372,12 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
 
     // jitter state
-    float halton_multiplier = .2f;
-    frame_asset.jitter_offset = settings.use_taa ? halton_multiplier * m_sample_offsets[m_sample_index] : glm::vec2(0);
+    constexpr float halton_multiplier = .2f;
+    const glm::vec2 pixel_step =
+            1.f / glm::vec2(frame_asset.g_buffer.extent().width, frame_asset.g_buffer.extent().height);
+
+    glm::vec2 jitter_offset = halton_multiplier * pixel_step * (2.f * m_sample_offsets[m_sample_index] - glm::vec2(1.f));
+    frame_asset.jitter_offset = settings.use_taa ? jitter_offset : glm::vec2(0);
     m_sample_index = (m_sample_index + 1) % m_sample_offsets.size();
 
     frame_asset.g_buffer_ubo->set_data(&frame_asset.jitter_offset, sizeof(glm::vec2));
@@ -503,22 +507,22 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
                                                   frame_assets.history_color,
                                                   frame_assets.history_depth};
 
-        // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
-        drawable.matrices.projection = cam->projection_matrix();
+        glm::mat4 current_vp = cam->projection_matrix() * cam->view_matrix();
 
-        glm::mat4 current_vp_matrix = cam->projection_matrix() * cam->view_matrix();
-        glm::mat4 jittered_vp_matrix = current_vp_matrix;
-        jittered_vp_matrix[3].xy() += frame_assets.jitter_offset;
+//        glm::mat4 jittered_projection = cam->projection_matrix();
+//        jittered_projection[3].xy() += frame_assets.jitter_offset;
 
-        glm::mat4 previous_view_projection = m_previous_view_projection ? *m_previous_view_projection : current_vp_matrix;
-        m_previous_view_projection = current_vp_matrix;
+        glm::mat4 previous_view_projection = m_previous_view_projection ? *m_previous_view_projection : current_vp;
+        m_previous_view_projection = current_vp;
+
         if(!drawable.descriptors[1].buffers.empty())
         {
             taa_ubo_t taa_ubo = {};
             taa_ubo.near = cam->near();
             taa_ubo.far = cam->far();
             taa_ubo.sample_offset = frame_assets.jitter_offset;
-            taa_ubo.current_inverse_vp = glm::inverse(jittered_vp_matrix);
+            taa_ubo.current_vp = current_vp;
+            taa_ubo.current_inverse_vp = glm::inverse(current_vp);
             taa_ubo.previous_vp = previous_view_projection;
             drawable.descriptors[1].buffers.front()->set_data(&taa_ubo, sizeof(taa_ubo_t));
         }

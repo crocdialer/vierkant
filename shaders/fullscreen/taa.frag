@@ -25,13 +25,11 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    vec3 taa_color = taa(vertex_in.tex_coord,
-                         u_sampler_2D[COLOR],
-                         u_sampler_2D[DEPTH],
-                         u_sampler_2D[MOTION],
-                         u_sampler_2D[HISTORY_COLOR],
-                         u_sampler_2D[HISTORY_DEPTH],
-                         u_settings);
-
-    out_color = vec4(taa_color, 1.0);
+    out_color = taa(vertex_in.tex_coord,
+                    u_sampler_2D[COLOR],
+                    u_sampler_2D[DEPTH],
+                    u_sampler_2D[MOTION],
+                    u_sampler_2D[HISTORY_COLOR],
+                    u_sampler_2D[HISTORY_DEPTH],
+                    u_settings);
 }

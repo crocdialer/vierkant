@@ -152,11 +152,12 @@ private:
 
     struct taa_ubo_t
     {
+        glm::mat4 current_vp;
+        glm::mat4 current_inverse_vp;
+        glm::mat4 previous_vp;
         float near;
         float far;
         glm::vec2 sample_offset;
-        glm::mat4 current_inverse_vp;
-        glm::mat4 previous_vp;
     };
 
     struct environment_lighting_ubo_t
