@@ -24,7 +24,7 @@ float halton(uint32_t index, int base)
         f = f / base;
         r = r + f * (current % base);
         current = glm::floor(current / base);
-    } while (current > 0);
+    } while(current > 0);
     return r;
 }
 
@@ -65,27 +65,30 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         // init lighting framebuffer
         vierkant::Framebuffer::AttachmentMap lighting_attachments, sky_attachments;
-        {
-            vierkant::Image::Format fmt = {};
-            fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            fmt.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-            fmt.extent = create_info.size;
-            lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
+        vierkant::Image::Format img_attachment_16f = {};
+        img_attachment_16f.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        img_attachment_16f.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+        img_attachment_16f.extent = create_info.size;
+        lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(device, img_attachment_16f)};
 
-            sky_attachments = lighting_attachments;
+        sky_attachments = lighting_attachments;
 
-            // use depth from g_buffer
-            sky_attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {
-                    asset.g_buffer.depth_attachment()};
+        // use depth from g_buffer
+        sky_attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {
+                asset.g_buffer.depth_attachment()};
 
-            lighting_renderpass = vierkant::Framebuffer::create_renderpass(device, lighting_attachments, true, false);
-            sky_renderpass = vierkant::Framebuffer::create_renderpass(device, sky_attachments, false, false);
-        }
+        lighting_renderpass = vierkant::Framebuffer::create_renderpass(device, lighting_attachments, true, false);
+        sky_renderpass = vierkant::Framebuffer::create_renderpass(device, sky_attachments, false, false);
         asset.lighting_buffer = vierkant::Framebuffer(device, lighting_attachments, lighting_renderpass);
         asset.lighting_ubo = vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         asset.sky_buffer = vierkant::Framebuffer(device, sky_attachments, sky_renderpass);
+
+        vierkant::Framebuffer::create_info_t taa_framebuffer_info = {};
+        taa_framebuffer_info.color_attachment_format = img_attachment_16f;
+        taa_framebuffer_info.size = create_info.size;
+        asset.taa_buffer = vierkant::Framebuffer(device, taa_framebuffer_info);
 
         // create post_fx ping pong buffers and renderers
         for(auto &post_fx_ping_pong : asset.post_fx_ping_pongs)
@@ -112,7 +115,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     for(uint32_t i = 0; i < m_frame_assets.size(); ++i)
     {
         uint32_t last_index = (i + m_frame_assets.size() - 1) % m_frame_assets.size();
-        m_frame_assets[i].history_color = m_frame_assets[last_index].lighting_buffer.color_attachment();
+        m_frame_assets[i].history_color = m_frame_assets[last_index].taa_buffer.color_attachment();
         m_frame_assets[i].history_depth = m_frame_assets[last_index].g_buffer.depth_attachment();
     }
 
@@ -131,6 +134,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     m_light_renderer = vierkant::Renderer(device, render_create_info);
     m_sky_renderer = vierkant::Renderer(device, render_create_info);
+    m_taa_renderer = vierkant::Renderer(device, render_create_info);
 
     // create drawable for environment lighting-pass
     {
@@ -372,11 +376,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
 
     // jitter state
-    constexpr float halton_multiplier = .2f;
+    constexpr float halton_multiplier = 1.f;
     const glm::vec2 pixel_step =
             1.f / glm::vec2(frame_asset.g_buffer.extent().width, frame_asset.g_buffer.extent().height);
 
-    glm::vec2 jitter_offset = halton_multiplier * pixel_step * (2.f * m_sample_offsets[m_sample_index] - glm::vec2(1.f));
+    glm::vec2 jitter_offset = halton_multiplier * pixel_step * (m_sample_offsets[m_sample_index] - glm::vec2(.5f));
     frame_asset.jitter_offset = settings.use_taa ? jitter_offset : glm::vec2(0);
     m_sample_index = (m_sample_index + 1) % m_sample_offsets.size();
 
@@ -526,7 +530,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
             taa_ubo.previous_vp = previous_view_projection;
             drawable.descriptors[1].buffers.front()->set_data(&taa_ubo, sizeof(taa_ubo_t));
         }
-        output_img = pingpong_render(drawable);
+        m_taa_renderer.stage_drawable(drawable);
+        auto cmd = m_taa_renderer.render(frame_assets.taa_buffer);
+        frame_assets.taa_buffer.submit({cmd}, m_queue);
+        output_img = frame_assets.taa_buffer.color_attachment();
+//        output_img = pingpong_render(drawable);
     }
 
     // tonemap / bloom

@@ -133,7 +133,7 @@ private:
     {
         glm::vec2 jitter_offset;
         vierkant::Framebuffer g_buffer;
-        vierkant::Framebuffer lighting_buffer, sky_buffer;
+        vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
         vierkant::ImagePtr history_color, history_depth;
         vierkant::BufferPtr g_buffer_ubo;
         vierkant::BufferPtr lighting_ubo;
@@ -234,7 +234,7 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::Renderer m_g_renderer, m_light_renderer, m_sky_renderer;
+    vierkant::Renderer m_g_renderer, m_light_renderer, m_sky_renderer, m_taa_renderer;
 
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;
