@@ -50,7 +50,7 @@ void main()
     vertex_out.last_position = m_last.projection * m_last.modelview * vec4(a_position, 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
-    jittered_position.xy += u_jitter_offset * jittered_position.w;
+    jittered_position.xy += 2.0 * u_jitter_offset * jittered_position.w;
     gl_Position = jittered_position;
 
     vertex_out.color = a_color;
