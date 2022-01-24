@@ -90,6 +90,9 @@ aabb_t neighbourhood_variance(sampler2D tex, vec2 coord)
     }
     vec3 stddev = sqrt(sq_sum / 9.0);
 
+    float variance_factor = 1.25;
+    stddev *= variance_factor;
+
     ret.min = mean - stddev;
     ret.max = mean + stddev;
     return ret;
@@ -104,8 +107,7 @@ vec4 taa(vec2 in_coord,
          sampler2D sampler_depth_history,
          taa_ubo_t taa_settings)
 {
-//    vec2 coord = in_coord;
-    vec2 coord = in_coord + taa_settings.sample_offset;
+    vec2 coord = in_coord - taa_settings.sample_offset;
     vec2 texSize = textureSize(sampler_color, 0);
     vec2 texel = 1.0 / texSize;
 
@@ -114,27 +116,26 @@ vec4 taa(vec2 in_coord,
     color.rgb = luma_weight(color.rgb);
 
     // find min depth in 3x3 neighbourhood
-    float min_depth = 1.0;
-    vec2 min_depth_coord;
+    float min_depth = texelFetch(sampler_depth, ivec2(coord * texSize), 0).x;
+    vec2 min_depth_coord = coord;
 
-    for(int y = -1; y <= 1; ++y)
+    const vec2[4] diagonal_cross = vec2[](vec2(-1), vec2(1), vec2(-1, 1), vec2(1, -1));
+
+    for(uint o = 0; o < 4; ++o)
     {
-        for(int x = -1; x <= 1; ++x)
-        {
-            vec2 d_coord = coord + texel * vec2(x, y);
-            float d = texelFetch(sampler_depth, ivec2(d_coord * texSize), 0).x;
+        vec2 d_coord = coord + texel * diagonal_cross[o];
+        float d = texelFetch(sampler_depth, ivec2(d_coord * texSize), 0).x;
 
-            if(d < min_depth)
-            {
-                min_depth = d;
-                min_depth_coord = d_coord;
-            }
+        if(d < min_depth)
+        {
+            min_depth = d;
+            min_depth_coord = d_coord;
         }
     }
     vec2 motion_delta = texture(sampler_motion, min_depth_coord).xy;
 
     // previous
-    vec2 history_coord = coord - motion_delta;
+    vec2 history_coord = in_coord - motion_delta;
     vec3 history_color = luma_weight(texture(sampler_color_history, history_coord).rgb);
 
     float history_depth = 1.0;//texelFetch(sampler_depth_history, ivec2(history_coord * texSize), 0).x;
