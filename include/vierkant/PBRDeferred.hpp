@@ -152,9 +152,6 @@ private:
 
     struct taa_ubo_t
     {
-        glm::mat4 current_vp;
-        glm::mat4 current_inverse_vp;
-        glm::mat4 previous_vp;
         float near;
         float far;
         glm::vec2 sample_offset;
@@ -227,8 +224,6 @@ private:
     std::vector<glm::vec2> m_sample_offsets;
 
     size_t m_sample_index = 0;
-
-    std::optional<glm::mat4> m_previous_view_projection;
 
     std::vector<frame_assets_t> m_frame_assets;
 

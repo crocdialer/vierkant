@@ -511,23 +511,12 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
                                                   frame_assets.history_color,
                                                   frame_assets.history_depth};
 
-        glm::mat4 current_vp = cam->projection_matrix() * cam->view_matrix();
-
-//        glm::mat4 jittered_projection = cam->projection_matrix();
-//        jittered_projection[3].xy() += frame_assets.jitter_offset;
-
-        glm::mat4 previous_view_projection = m_previous_view_projection ? *m_previous_view_projection : current_vp;
-        m_previous_view_projection = current_vp;
-
         if(!drawable.descriptors[1].buffers.empty())
         {
             taa_ubo_t taa_ubo = {};
             taa_ubo.near = cam->near();
             taa_ubo.far = cam->far();
             taa_ubo.sample_offset = frame_assets.jitter_offset;
-            taa_ubo.current_vp = current_vp;
-            taa_ubo.current_inverse_vp = glm::inverse(current_vp);
-            taa_ubo.previous_vp = previous_view_projection;
             drawable.descriptors[1].buffers.front()->set_data(&taa_ubo, sizeof(taa_ubo_t));
         }
         m_taa_renderer.stage_drawable(drawable);
