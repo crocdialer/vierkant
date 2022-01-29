@@ -13,18 +13,18 @@
 namespace vierkant
 {
 
-float halton(uint32_t index, int base)
+float halton(uint32_t index, uint32_t base)
 {
     float f = 1;
     float r = 0;
-    int current = index;
+    uint32_t current = index;
 
-    do
+    while(current)
     {
-        f = f / base;
-        r = r + f * (current % base);
-        current = glm::floor(current / base);
-    } while(current > 0);
+        f = f / static_cast<float>(base);
+        r = r + f * static_cast<float>(current % base);
+        current /= base;
+    }
     return r;
 }
 
@@ -38,85 +38,19 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
-    vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
-    post_fx_buffer_info.size = create_info.size;
-    post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    post_fx_buffer_info.color_attachment_format.usage =
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-
-    vierkant::RenderPassPtr g_renderpass, lighting_renderpass, sky_renderpass, post_fx_renderpass;
-
-    // create renderer for g-buffer-pass
-    vierkant::Renderer::create_info_t post_render_info = {};
-    post_render_info.num_frames_in_flight = create_info.num_frames_in_flight;
-    post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    post_render_info.viewport.width = static_cast<float>(create_info.size.width);
-    post_render_info.viewport.height = static_cast<float>(create_info.size.height);
-    post_render_info.viewport.maxDepth = 1;
-    post_render_info.pipeline_cache = m_pipeline_cache;
-
     for(auto &asset : m_frame_assets)
     {
-        asset.g_buffer = create_g_buffer(device, create_info.size, g_renderpass);
-        asset.g_buffer_ubo = vierkant::Buffer::create(device, nullptr, sizeof(glm::vec2),
+        resize_storage(asset, create_info.settings.resolution);
+
+        asset.g_buffer_ubo = vierkant::Buffer::create(m_device, nullptr, sizeof(glm::vec2),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        g_renderpass = asset.g_buffer.renderpass();
-
-        // init lighting framebuffer
-        vierkant::Framebuffer::AttachmentMap lighting_attachments, sky_attachments;
-        vierkant::Image::Format img_attachment_16f = {};
-        img_attachment_16f.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        img_attachment_16f.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-        img_attachment_16f.extent = create_info.size;
-        lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(device, img_attachment_16f)};
-
-        sky_attachments = lighting_attachments;
-
-        // use depth from g_buffer
-        sky_attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {
-                asset.g_buffer.depth_attachment()};
-
-        lighting_renderpass = vierkant::Framebuffer::create_renderpass(device, lighting_attachments, true, false);
-        sky_renderpass = vierkant::Framebuffer::create_renderpass(device, sky_attachments, false, false);
-        asset.lighting_buffer = vierkant::Framebuffer(device, lighting_attachments, lighting_renderpass);
         asset.lighting_ubo = vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-        asset.sky_buffer = vierkant::Framebuffer(device, sky_attachments, sky_renderpass);
-
-        vierkant::Framebuffer::create_info_t taa_framebuffer_info = {};
-        taa_framebuffer_info.color_attachment_format = img_attachment_16f;
-        taa_framebuffer_info.size = create_info.size;
-        asset.taa_buffer = vierkant::Framebuffer(device, taa_framebuffer_info);
-
-        // create post_fx ping pong buffers and renderers
-        for(auto &post_fx_ping_pong : asset.post_fx_ping_pongs)
-        {
-            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(device, post_fx_buffer_info, post_fx_renderpass);
-            post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
-            post_fx_ping_pong.renderer = vierkant::Renderer(device, post_render_info);
-        }
-
-        // create bloom
-        Bloom::create_info_t bloom_info = {};
-        bloom_info.size = create_info.size;
-        bloom_info.size.width /= 2;
-        bloom_info.size.height /= 2;
-        bloom_info.num_blur_iterations = 3;
-        asset.bloom = Bloom::create(device, bloom_info);
 
         asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-
-    // assign history
-    for(uint32_t i = 0; i < m_frame_assets.size(); ++i)
-    {
-        uint32_t last_index = (i + m_frame_assets.size() - 1) % m_frame_assets.size();
-        m_frame_assets[i].history_color = m_frame_assets[last_index].taa_buffer.color_attachment();
-        m_frame_assets[i].history_depth = m_frame_assets[last_index].g_buffer.depth_attachment();
     }
 
     // create renderer for g-buffer-pass
@@ -285,6 +219,10 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     m_timestamp_current = std::chrono::steady_clock::now();
 
     auto cull_result = vierkant::cull(scene, cam, true, tags);
+
+    // resize internal framebuffers, if necessary
+    auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
+    resize_storage(frame_asset, settings.resolution);
 
     // apply+update transform history
     update_matrix_history(cull_result);
@@ -504,12 +442,18 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     // TAA
     if(settings.use_taa)
     {
+        size_t last_frame_index = (frame_index + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+
+        // assign history
+        auto history_color = m_frame_assets[last_frame_index].taa_buffer.color_attachment();
+        auto history_depth = m_frame_assets[last_frame_index].g_buffer.depth_attachment();
+
         auto drawable = m_drawable_taa;
         drawable.descriptors[0].image_samplers = {output_img,
                                                   depth,
                                                   frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
-                                                  frame_assets.history_color,
-                                                  frame_assets.history_depth};
+                                                  history_color,
+                                                  history_depth};
 
         if(!drawable.descriptors[1].buffers.empty())
         {
@@ -695,6 +639,83 @@ void PBRDeferred::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh,
         }
         else{ out_buffer->set_data(bones_matrices); }
     }
+}
+
+void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t &asset,
+                                           const glm::uvec2 &resolution)
+{
+    VkExtent3D size = {resolution.x, resolution.y, 1};
+
+    VkViewport viewport = {};
+    viewport.width = static_cast<float>(size.width);
+    viewport.height = static_cast<float>(size.height);
+    viewport.maxDepth = 1;
+
+    m_g_renderer.viewport = viewport;
+    m_light_renderer.viewport = viewport;
+    m_sky_renderer.viewport = viewport;
+    m_taa_renderer.viewport = viewport;
+
+    // nothing to do
+    if(asset.g_buffer && asset.g_buffer.color_attachment()->extent() == size){ return ; }
+
+    vierkant::RenderPassPtr lighting_renderpass, sky_renderpass, post_fx_renderpass;
+
+    asset.g_buffer = create_g_buffer(m_device, size);
+
+    // init lighting framebuffer
+    vierkant::Framebuffer::AttachmentMap lighting_attachments, sky_attachments;
+    vierkant::Image::Format img_attachment_16f = {};
+    img_attachment_16f.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    img_attachment_16f.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    img_attachment_16f.extent = size;
+    lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(m_device, img_attachment_16f)};
+
+    sky_attachments = lighting_attachments;
+
+    // use depth from g_buffer
+    sky_attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {
+            asset.g_buffer.depth_attachment()};
+
+    lighting_renderpass = vierkant::Framebuffer::create_renderpass(m_device, lighting_attachments, true, false);
+    sky_renderpass = vierkant::Framebuffer::create_renderpass(m_device, sky_attachments, false, false);
+    asset.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments, lighting_renderpass);
+
+    asset.sky_buffer = vierkant::Framebuffer(m_device, sky_attachments, sky_renderpass);
+
+    vierkant::Framebuffer::create_info_t taa_framebuffer_info = {};
+    taa_framebuffer_info.color_attachment_format = img_attachment_16f;
+    taa_framebuffer_info.size = size;
+    asset.taa_buffer = vierkant::Framebuffer(m_device, taa_framebuffer_info);
+
+    vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
+    post_fx_buffer_info.size = size;
+    post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    post_fx_buffer_info.color_attachment_format.usage =
+            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+
+    // create renderer for g-buffer-pass
+    vierkant::Renderer::create_info_t post_render_info = {};
+    post_render_info.num_frames_in_flight = m_frame_assets.size();
+    post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
+    post_render_info.viewport = viewport;
+    post_render_info.pipeline_cache = m_pipeline_cache;
+
+    // create post_fx ping pong buffers and renderers
+    for(auto &post_fx_ping_pong : asset.post_fx_ping_pongs)
+    {
+        post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info, post_fx_renderpass);
+        post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+        post_fx_ping_pong.renderer = vierkant::Renderer(m_device, post_render_info);
+    }
+
+    // create bloom
+    Bloom::create_info_t bloom_info = {};
+    bloom_info.size = size;
+    bloom_info.size.width = std::max(1U, bloom_info.size.width / 2);
+    bloom_info.size.height = std::max(1U, bloom_info.size.height / 2);
+    bloom_info.num_blur_iterations = 3;
+    asset.bloom = Bloom::create(m_device, bloom_info);
 }
 
 }// namespace vierkant

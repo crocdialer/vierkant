@@ -174,7 +174,7 @@ vec4 taa(vec2 in_coord,
 
     alpha = clamp(alpha, 0.0, 1.0);
 
-    history_color = mix(history_color, rectified_color, 0.5);
+    history_color = mix(history_color, rectified_color, 1.0);
 
     color.rgb = mix(history_color, color.rgb, alpha);
     color.rgb = luma_weight_inverse(color.rgb);

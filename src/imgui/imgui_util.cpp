@@ -422,6 +422,11 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
 
 void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const CameraPtr &cam)
 {
+    int res[2] = {static_cast<int>(pbr_renderer->settings.resolution.x),
+                  static_cast<int>(pbr_renderer->settings.resolution.y)};
+    if(ImGui::InputInt2("resolution", res) &&
+    res[0] > 0 && res[1] > 0){ pbr_renderer->settings.resolution = {res[0], res[1]}; }
+
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
     ImGui::Checkbox("grid", &pbr_renderer->settings.draw_grid);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);

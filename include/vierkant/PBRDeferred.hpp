@@ -23,6 +23,9 @@ public:
     //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
     struct settings_t
     {
+        //! internal resolution
+        glm::uvec2 resolution = {1920, 1080};
+
         //! disable colors from textures, material, positions
         bool disable_material = false;
 
@@ -134,7 +137,6 @@ private:
         glm::vec2 jitter_offset;
         vierkant::Framebuffer g_buffer;
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
-        vierkant::ImagePtr history_color, history_depth;
         vierkant::BufferPtr g_buffer_ubo;
         vierkant::BufferPtr lighting_ubo;
         vierkant::BufferPtr composition_ubo;
@@ -199,6 +201,8 @@ private:
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     void update_matrix_history(vierkant::cull_result_t &cull_result);
+
+    void resize_storage(frame_assets_t &frame_asset, const glm::uvec2 &resolution);
 
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
