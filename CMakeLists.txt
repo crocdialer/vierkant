@@ -60,6 +60,9 @@ set(LIBS ${LIBS} glfw)
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glm)
 
+# tinygltf, suppress warnings from 3rd party header
+include_directories(BEFORE SYSTEM "submodules/tinygltf")
+
 ## Vulkan
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
@@ -94,13 +97,6 @@ endif (USE_ASSIMP)
 #add_subdirectory("assimp")
 #include_directories(assimp/include)
 #set(LIBS ${LIBS} assimp)
-
-# tinygltf, suppress warnings from 3rd party header
-include_directories(BEFORE SYSTEM "submodules/tinygltf")
-
-## bc7e
-#find_library(BC7E_LIBRARY "bc7e" REQUIRED)
-#SET(LIBS ${LIBS} ${BC7E_LIBRARY})
 
 # vierkant
 add_subdirectory("src")

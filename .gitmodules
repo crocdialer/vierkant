@@ -1,12 +1,12 @@
-[submodule "crocore"]
-	path = submodules/crocore
-	url = git@github.com:crocdialer/crocore.git
-[submodule "tinygltf"]
-	path = submodules/tinygltf
-	url = git@github.com:syoyo/tinygltf.git
 [submodule "submodules/glfw"]
 	path = submodules/glfw
 	url = git@github.com:glfw/glfw.git
 [submodule "submodules/glm"]
 	path = submodules/glm
 	url = git@github.com:g-truc/glm.git
+[submodule "submodules/crocore"]
+	path = submodules/crocore
+	url = git@github.com:crocdialer/crocore.git
+[submodule "submodules/tinygltf"]
+	path = submodules/tinygltf
+	url = git@github.com:syoyo/tinygltf.git
