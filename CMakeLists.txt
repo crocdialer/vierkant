@@ -52,9 +52,13 @@ include_directories(${Boost_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${Boost_LIBRARIES})
 #####
 
-## GLFW
-find_package(glfw3 3.2 REQUIRED)
+# glfw
+add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glfw)
+
+# glm
+add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
+set(LIBS ${LIBS} glm)
 
 ## Vulkan
 find_package(Vulkan REQUIRED)
@@ -62,7 +66,7 @@ include_directories(${Vulkan_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
 
 #crocore
-add_subdirectory("crocore")
+add_subdirectory("submodules/crocore")
 include_directories(${crocore_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
@@ -92,7 +96,7 @@ endif (USE_ASSIMP)
 #set(LIBS ${LIBS} assimp)
 
 # tinygltf, suppress warnings from 3rd party header
-include_directories(BEFORE SYSTEM "tinygltf")
+include_directories(BEFORE SYSTEM "submodules/tinygltf")
 
 ## bc7e
 #find_library(BC7E_LIBRARY "bc7e" REQUIRED)
