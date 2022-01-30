@@ -578,14 +578,21 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
             {
                 assert(accessor.type == TINYGLTF_TYPE_VEC4);
                 assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-                auto ptr = reinterpret_cast<const glm::quat *>(data);
+                auto ptr = reinterpret_cast<const float *>(data);
 
                 for(float t : input_times)
                 {
-                    vierkant::animation_value_t<glm::quat> animation_value = {ptr[0]};
-                    if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
+                    auto q0 = glm::quat(ptr[3], ptr[0], ptr[1], ptr[2]);
+                    vierkant::animation_value_t<glm::quat> animation_value = {q0};
+
+                    if(is_cubic_spline)
+                    {
+                        auto q1 = glm::quat(ptr[7], ptr[4], ptr[5], ptr[6]);
+                        auto q2 = glm::quat(ptr[11], ptr[8], ptr[9], ptr[10]);
+                        animation_value = {q1, q0, q2};
+                    }
                     animation_keys.rotations.insert({t, animation_value});
-                    ptr += num_elems;
+                    ptr += 4 * num_elems;
                 }
             }
             else if(channel.target_path == animation_target_scale)
