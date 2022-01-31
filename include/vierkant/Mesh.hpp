@@ -9,6 +9,7 @@
 #include "vierkant/Image.hpp"
 #include "vierkant/Geometry.hpp"
 #include "vierkant/Material.hpp"
+#include <vierkant/vertex_attrib.hpp>
 #include <vierkant/intersection.hpp>
 
 namespace vierkant
@@ -42,10 +43,6 @@ VkFormat format();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 DEFINE_CLASS_PTR(Mesh)
 
 /**
@@ -66,19 +63,6 @@ public:
         ATTRIB_BONE_INDICES = 5,
         ATTRIB_BONE_WEIGHTS = 6,
         ATTRIB_MAX
-    };
-
-    /**
-     * @brief   Mesh::VertexAttrib defines a vertex-attribute available in the vertex-shader-stage.
-     */
-    struct attrib_t
-    {
-        vierkant::BufferPtr buffer;
-        VkDeviceSize buffer_offset = 0;
-        uint32_t offset = 0;
-        uint32_t stride = 0;
-        VkFormat format = VK_FORMAT_UNDEFINED;
-        VkVertexInputRate input_rate = VK_VERTEX_INPUT_RATE_VERTEX;
     };
 
     struct entry_t
@@ -176,7 +160,7 @@ public:
     void update_entry_transforms();
 
     // vertex attributes
-    std::map<uint32_t, attrib_t> vertex_attribs;
+    vertex_attrib_map_t vertex_attribs;
 
     // entries for sub-meshes
     std::vector<entry_t> entries;

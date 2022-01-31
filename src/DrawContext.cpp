@@ -2,6 +2,8 @@
 // Created by crocdialer on 3/2/19.
 //
 
+#include <deque>
+
 #include "vierkant/DrawContext.hpp"
 #include <vierkant/shaders.hpp>
 
@@ -197,12 +199,50 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer,
-                                      const vierkant::nodes::NodeConstPtr &node,
+                                      const vierkant::nodes::NodeConstPtr &root_node,
+                                      const vierkant::nodes::node_animation_t &animation,
                                       const glm::mat4 &model_view,
-                                      const glm::mat4 &projection,
-                                      vierkant::ShaderType shader_type)
+                                      const glm::mat4 &projection)
 {
+    if(!root_node){ return; }
 
+    // create line-list
+    std::vector<glm::vec3> lines;
+    lines.reserve(256);
+
+    std::deque<std::pair<vierkant::nodes::NodeConstPtr, glm::mat4>> node_queue;
+    node_queue.emplace_back(root_node, glm::mat4(1));
+
+    while(!node_queue.empty())
+    {
+        auto[node, joint_transform] = node_queue.front();
+        node_queue.pop_front();
+
+        glm::mat4 node_transform = node->transform;
+
+        auto it = animation.keys.find(node);
+
+        if(it != animation.keys.end())
+        {
+            const auto &animation_keys = it->second;
+            create_animation_transform(animation_keys, animation.current_time, animation.interpolation_mode,
+                                       node_transform);
+        }
+        joint_transform = joint_transform * node_transform;
+
+        // queue all children
+        for(auto &child_node : node->children)
+        {
+            // draw line from current to child
+            auto child_transform = joint_transform * child_node->transform;
+            lines.push_back(joint_transform[3].xyz());
+            lines.push_back(child_transform[3].xyz());
+
+            node_queue.emplace_back(child_node, joint_transform);
+        }
+    }
+
+    draw_lines(renderer, lines, glm::vec4(1, 0, 0, 1), model_view, projection);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -251,6 +291,78 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
     drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {image};
 
     // stage image drawable
+    renderer.stage_drawable(std::move(drawable));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void DrawContext::draw_lines(vierkant::Renderer &renderer,
+                             const std::vector<glm::vec3> &lines,
+                             const glm::vec4 &color,
+                             const glm::mat4 &model_view,
+                             const glm::mat4 &projection)
+{
+    // search drawable
+    auto drawable_it = m_drawables.find(DrawableType::Lines);
+
+    if(drawable_it == m_drawables.end())
+    {
+        Renderer::drawable_t drawable = {};
+
+        auto &fmt = drawable.pipeline_format;
+        fmt.blend_state.blendEnable = true;
+        fmt.depth_test = false;
+        fmt.depth_write = false;
+        fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT);
+        fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+
+        // descriptors
+        vierkant::descriptor_t desc_matrix = {};
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        drawable.descriptors[vierkant::Renderer::BINDING_MATRIX] = desc_matrix;
+
+        vierkant::descriptor_t desc_material = {};
+        desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        drawable.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
+
+        auto mesh = vierkant::Mesh::create();
+
+        // vertex attrib -> position
+        vierkant::vertex_attrib_t position_attrib;
+        position_attrib.offset = 0;
+        position_attrib.stride = sizeof(glm::vec3);
+        position_attrib.buffer = nullptr;
+        position_attrib.buffer_offset = 0;
+        position_attrib.format = vierkant::format<glm::vec3>();
+        mesh->vertex_attribs[vierkant::Mesh::ATTRIB_POSITION] = position_attrib;
+
+        drawable.mesh = mesh;
+
+        drawable_it = m_drawables.insert({DrawableType::Lines, std::move(drawable)}).first;
+    }
+
+    auto drawable = drawable_it->second;
+
+    auto mesh = vierkant::Mesh::create();
+    mesh->vertex_attribs = drawable.mesh->vertex_attribs;
+
+    auto &position_attrib = mesh->vertex_attribs.at(vierkant::Mesh::ATTRIB_POSITION);
+    position_attrib.buffer = vierkant::Buffer::create(renderer.device(), lines,
+                                                      VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                      VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    drawable.mesh = mesh;
+    drawable.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
+    drawable.pipeline_format.binding_descriptions = mesh->binding_descriptions();
+    drawable.num_vertices = lines.size();
+
+    // line color via material
+    drawable.material.color = color;
+
+    drawable.matrices.modelview = model_view;
+    drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }
 

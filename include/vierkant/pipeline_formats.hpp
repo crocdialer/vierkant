@@ -43,8 +43,15 @@ raytracing_shader_groups(const raytracing_shader_map_t &shader_stages);
  */
 enum class ShaderType
 {
-    UNLIT_COLOR, UNLIT_COLOR_SKIN, FULLSCREEN_TEXTURE, FULLSCREEN_TEXTURE_DEPTH,
-    UNLIT_TEXTURE, UNLIT_TEXTURE_SKIN, UNLIT_CUBE, CUSTOM
+    UNLIT,
+    UNLIT_COLOR,
+    UNLIT_COLOR_SKIN,
+    UNLIT_TEXTURE,
+    UNLIT_TEXTURE_SKIN,
+    UNLIT_CUBE,
+    FULLSCREEN_TEXTURE,
+    FULLSCREEN_TEXTURE_DEPTH,
+    CUSTOM
 };
 
 /**

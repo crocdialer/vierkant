@@ -8,8 +8,8 @@
 namespace vierkant::gui
 {
 
-// 1 double per second
-using double_sec_t = std::chrono::duration<double, std::chrono::seconds::period>;
+// 1 float per second
+using float_sec_t = std::chrono::duration<float, std::chrono::seconds::period>;
 
 void set_style()
 {
@@ -97,7 +97,7 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
     auto mesh = vierkant::Mesh::create();
 
     // vertex attrib -> position
-    vierkant::Mesh::attrib_t position_attrib;
+    vierkant::vertex_attrib_t position_attrib;
     position_attrib.offset = offsetof(ImDrawVert, pos);
     position_attrib.stride = sizeof(ImDrawVert);
     position_attrib.buffer = vertex_buffer;
@@ -106,7 +106,7 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
     mesh->vertex_attribs[vierkant::Mesh::ATTRIB_POSITION] = position_attrib;
 
     // vertex attrib -> color
-    vierkant::Mesh::attrib_t color_attrib;
+    vierkant::vertex_attrib_t color_attrib;
     color_attrib.offset = offsetof(ImDrawVert, col);
     color_attrib.stride = sizeof(ImDrawVert);
     color_attrib.buffer = vertex_buffer;
@@ -115,7 +115,7 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
     mesh->vertex_attribs[vierkant::Mesh::ATTRIB_COLOR] = color_attrib;
 
     // vertex attrib -> tex coords
-    vierkant::Mesh::attrib_t tex_coord_attrib;
+    vierkant::vertex_attrib_t tex_coord_attrib;
     tex_coord_attrib.offset = offsetof(ImDrawVert, uv);
     tex_coord_attrib.stride = sizeof(ImDrawVert);
     tex_coord_attrib.buffer = vertex_buffer;
@@ -251,7 +251,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
 
     // update time step
     auto now = std::chrono::steady_clock::now();
-    io.DeltaTime = double_sec_t(now - m_imgui_assets.time_point).count();
+    io.DeltaTime = float_sec_t(now - m_imgui_assets.time_point).count();
     m_imgui_assets.time_point = now;
 
     int fb_width = (int) (io.DisplaySize.x * io.DisplayFramebufferScale.x);
@@ -271,7 +271,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
     auto &mesh_assets = m_imgui_assets.frame_assets[renderer.current_index()];
 
     // provide enough mesh_assets (1 vertex/index buffer per window)
-    for(int32_t i = mesh_assets.size(); i < draw_data->CmdListsCount; ++i)
+    for(auto i = static_cast<int32_t>(mesh_assets.size()); i < draw_data->CmdListsCount; ++i)
     {
         mesh_assets.push_back(create_mesh_assets(renderer.device()));
     }

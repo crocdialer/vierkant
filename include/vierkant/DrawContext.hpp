@@ -61,6 +61,18 @@ public:
                     const crocore::Area_<int> &area = {});
 
     /**
+     * @brief   Draws a set of lines.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   lines       a set of lines.
+     */
+    void draw_lines(vierkant::Renderer &renderer,
+                    const std::vector<glm::vec3> &lines,
+                    const glm::vec4 &color,
+                    const glm::mat4 &model_view,
+                    const glm::mat4 &projection);
+
+    /**
      * @brief   Draws an image in a 2D context.
      *
      * @param   renderer    a provided vierkant::Renderer.
@@ -108,9 +120,20 @@ public:
     void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
                    const glm::mat4 &projection, vierkant::ShaderType shader_type);
 
-    void draw_node_hierarchy(vierkant::Renderer &renderer, const vierkant::nodes::NodeConstPtr &node,
+    /**
+     * @brief   Draws a node hierarchy as set of lines.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
+     * @param   node        a provided vierkant::nodes::NodeConstPtr.
+     * @param   animation   an optional vierkant::nodes::node_animation_t
+     * @param   model_view  the modelview matrix to use for drawing.
+     * @param   projection  the projection matrix to use for drawing.
+     */
+    void draw_node_hierarchy(vierkant::Renderer &renderer,
+                             const vierkant::nodes::NodeConstPtr &node,
+                             const vierkant::nodes::node_animation_t &animation,
                              const glm::mat4 &model_view,
-                             const glm::mat4 &projection, vierkant::ShaderType shader_type);
+                             const glm::mat4 &projection);
 
     /**
      * @brief   Render a skybox.
@@ -125,6 +148,21 @@ public:
 private:
 
     vierkant::DevicePtr m_device;
+
+    enum class DrawableType
+    {
+        Points,
+        Lines,
+        Text,
+        Image,
+        ImageFullscreen,
+        ImageFullscreenDepth,
+        AABB,
+        Grid,
+        Skybox
+    };
+
+    std::unordered_map<DrawableType, Renderer::drawable_t> m_drawables;
 
     Renderer::drawable_t m_drawable_text = {};
 

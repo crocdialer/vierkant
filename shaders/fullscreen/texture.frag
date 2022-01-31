@@ -15,6 +15,4 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     out_color = texture(u_sampler_2D[0], vertex_in.tex_coord);
-//    out_color.rgb = tonemap_exposure(out_color.rgb, 2.0);
-
 }
