@@ -43,12 +43,20 @@ FontPtr Font::create(const vierkant::DevicePtr& device,
     {
         auto p = crocore::fs::search_file(path);
         auto font_data = crocore::fs::read_binary_file(p);
-        return FontPtr(new Font(device, font_data, size, use_sdf));
+        return create(device, font_data, size, use_sdf);
     } catch(const std::exception &e)
     {
         LOG_ERROR << e.what();
         return nullptr;
     }
+}
+
+FontPtr Font::create(const DevicePtr &device,
+                     const std::vector<uint8_t> &font_data,
+                     size_t size,
+                     bool use_sdf)
+{
+    return FontPtr(new Font(device, font_data, size, use_sdf));
 }
 
 struct FontImpl
@@ -412,11 +420,5 @@ vierkant::Object3DPtr Font::create_text_object(const std::string &the_text,
     return create_text_object(std::list<std::string>(lines.begin(), lines.end()),
                               the_align, the_linewidth, the_lineheight);
 }
-
-FontPtr Font::create(const DevicePtr &device, const std::vector<uint8_t> &data, size_t size, bool use_sdf)
-{
-    return vierkant::FontPtr();
-}
-
 
 }// namespace
