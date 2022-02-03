@@ -173,15 +173,11 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     io.KeyMap[ImGuiKey_Y] = Key::_Y;
     io.KeyMap[ImGuiKey_Z] = Key::_Z;
 
-    if(!create_info.font_path.empty())
+    if(!create_info.font_data.empty())
     {
-        std::vector<uint8_t> font_data;
-
-        font_data = crocore::filesystem::read_binary_file(create_info.font_path);
-
         ImFontConfig font_cfg;
-        font_cfg.FontData = font_data.data();
-        font_cfg.FontDataSize = font_data.size();
+        font_cfg.FontData = const_cast<uint8_t*>(create_info.font_data.data());
+        font_cfg.FontDataSize = static_cast<int>(create_info.font_data.size());
         font_cfg.FontDataOwnedByAtlas = false;
         font_cfg.SizePixels = create_info.font_size;
         font_cfg.GlyphRanges = io.Fonts->GetGlyphRangesDefault();
@@ -259,7 +255,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
     if(fb_width == 0 || fb_height == 0){ return; }
 
     // fire draw delegates
-    for(auto &p : delegates){ if(p.second){ p.second(); }}
+    for(const auto &[name, delegate] : delegates){ if(delegate){ delegate(); }}
 
     // create imgui drawlists
     ImGui::Render();

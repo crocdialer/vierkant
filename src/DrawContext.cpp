@@ -178,6 +178,15 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         mat->textures[vierkant::Material::TextureType::Environment] = {};
         m_drawable_skybox = vierkant::Renderer::create_drawables(mesh).front();
     }
+
+    // memorypool with 128MB blocks
+    constexpr size_t block_size = 1U << 27U;
+    constexpr size_t min_num_blocks = 0, max_num_blocks = 0;
+    m_memory_pool = vierkant::Buffer::create_pool(m_device,
+                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                  VMA_MEMORY_USAGE_CPU_TO_GPU,
+                                                  block_size, min_num_blocks, max_num_blocks,
+                                                  VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -351,7 +360,8 @@ void DrawContext::draw_lines(vierkant::Renderer &renderer,
     auto &position_attrib = mesh->vertex_attribs.at(vierkant::Mesh::ATTRIB_POSITION);
     position_attrib.buffer = vierkant::Buffer::create(renderer.device(), lines,
                                                       VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                      VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                      VMA_MEMORY_USAGE_CPU_TO_GPU,
+                                                      m_memory_pool);
 
     drawable.mesh = mesh;
     drawable.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();

@@ -34,12 +34,16 @@ struct string_mesh_container
     bool operator<(const string_mesh_container &other) const{ return counter < other.counter; }
 };
 
-FontPtr Font::create(const vierkant::DevicePtr& device, const std::string &the_path, size_t size, bool use_sdf)
+FontPtr Font::create(const vierkant::DevicePtr& device,
+                     const std::string &path,
+                     size_t size,
+                     bool use_sdf)
 {
     try
     {
-        auto p = crocore::fs::search_file(the_path);
-        return FontPtr(new Font(device, the_path, size, use_sdf));
+        auto p = crocore::fs::search_file(path);
+        auto font_data = crocore::fs::read_binary_file(p);
+        return FontPtr(new Font(device, font_data, size, use_sdf));
     } catch(const std::exception &e)
     {
         LOG_ERROR << e.what();
@@ -50,7 +54,6 @@ FontPtr Font::create(const vierkant::DevicePtr& device, const std::string &the_p
 struct FontImpl
 {
     vierkant::DevicePtr device;
-    std::string path;
     std::unique_ptr<stbtt_packedchar[]> char_data;
     uint32_t font_height;
     uint32_t line_height;
@@ -126,18 +129,16 @@ struct FontImpl
 };
 
 
-Font::Font(const vierkant::DevicePtr &device, const std::string &path, size_t size, bool use_sdf) : m_impl(
+Font::Font(const vierkant::DevicePtr &device, const std::vector<uint8_t> &data, size_t size, bool use_sdf) : m_impl(
         new FontImpl())
 {
-    std::vector<uint8_t> font_data = crocore::fs::read_binary_file(path);
     m_impl->device = device;
-    m_impl->path = path;
     m_impl->string_mesh_map.clear();
     m_impl->font_height = size;
     m_impl->line_height = size;
     m_impl->use_sdf = use_sdf;
 
-    auto img_quads_pair = m_impl->create_bitmap(font_data, size, BITMAP_WIDTH(size),
+    auto img_quads_pair = m_impl->create_bitmap(data, size, BITMAP_WIDTH(size),
                                                 use_sdf ? 6 : 2);
 
     m_impl->bitmap = img_quads_pair.first;
@@ -149,11 +150,6 @@ Font::Font(const vierkant::DevicePtr &device, const std::string &path, size_t si
     fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                              VK_COMPONENT_SWIZZLE_R};
     m_impl->texture = vierkant::Image::create(device, m_impl->bitmap->data(), fmt);
-}
-
-std::string Font::path() const
-{
-    return m_impl->path;
 }
 
 vierkant::ImagePtr Font::glyph_texture() const
@@ -415,6 +411,11 @@ vierkant::Object3DPtr Font::create_text_object(const std::string &the_text,
     auto lines = crocore::split(the_text, '\n', false);
     return create_text_object(std::list<std::string>(lines.begin(), lines.end()),
                               the_align, the_linewidth, the_lineheight);
+}
+
+FontPtr Font::create(const DevicePtr &device, const std::vector<uint8_t> &data, size_t size, bool use_sdf)
+{
+    return vierkant::FontPtr();
 }
 
 

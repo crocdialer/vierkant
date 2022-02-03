@@ -179,6 +179,8 @@ private:
     Renderer::drawable_t m_drawable_skybox = {};
 
     vierkant::PipelineCachePtr m_pipeline_cache;
+
+    vierkant::VmaPoolPtr m_memory_pool;
 };
 
 }

@@ -25,7 +25,7 @@ public:
 
     struct create_info_t
     {
-        std::filesystem::path font_path;
+        std::vector<uint8_t> font_data;
         float font_size = 0.f;
         float ui_scale = 1.f;
     };

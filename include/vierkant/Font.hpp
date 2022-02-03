@@ -22,15 +22,21 @@ public:
         LEFT, CENTER, RIGHT
     };
 
-    static FontPtr create(const vierkant::DevicePtr& device, const std::string &the_path, size_t size, bool use_sdf = false);
+    static FontPtr create(const vierkant::DevicePtr& device,
+                          const std::string &path,
+                          size_t size,
+                          bool use_sdf = false);
+
+    static FontPtr create(const vierkant::DevicePtr& device,
+                          const std::vector<uint8_t> &data,
+                          size_t size,
+                          bool use_sdf = false);
 
     Font(const Font &) = delete;
 
     Font(Font &&) = delete;
 
     Font &operator=(Font other) = delete;
-
-    std::string path() const;
 
     vierkant::ImagePtr glyph_texture() const;
 
@@ -80,7 +86,7 @@ public:
 
 private:
 
-    Font(const vierkant::DevicePtr& device, const std::string &path, size_t size, bool use_sdf);
+    Font(const vierkant::DevicePtr& device, const std::vector<uint8_t> &data, size_t size, bool use_sdf);
 
     std::unique_ptr<struct FontImpl> m_impl;
 };
