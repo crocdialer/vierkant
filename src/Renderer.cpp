@@ -66,7 +66,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
 
         drawable.base_index = entry.base_index;
         drawable.num_indices = entry.num_indices;
-        drawable.base_vertex = entry.base_vertex;
+        drawable.vertex_offset = entry.vertex_offset;
         drawable.num_vertices = entry.num_vertices;
 
         drawable.pipeline_format.binding_descriptions = binding_descriptions;
@@ -295,20 +295,33 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
         }
 
-        // keep track of current mesh, fallback instead of iterating sorted-by-mesh to respect order of drawcalls
-        vierkant::MeshConstPtr current_mesh;
+        // group data to enable instancing
+        using instance_group_t = std::tuple<vierkant::MeshConstPtr, uint32_t, uint32_t, int32_t, uint32_t>;
+        std::vector<std::pair<instance_group_t, std::vector<indexed_drawable_t>>> mesh_drawables;
 
         for(auto &indexed_drawable : indexed_drawables)
         {
             auto &drawable = indexed_drawable.drawable;
 
-            if(drawable->mesh && current_mesh != drawable->mesh)
-            {
-                current_mesh = drawable->mesh;
+            instance_group_t mesh_key = {drawable->mesh, drawable->base_index, drawable->num_indices,
+                                         drawable->vertex_offset, drawable->num_vertices};
 
-                // bind vertex- and index-buffers
-                current_mesh->bind_buffers(command_buffer.handle());
+            if(mesh_drawables.empty() || mesh_drawables.back().first != mesh_key)
+            {
+                mesh_drawables.push_back({mesh_key, {}});
             }
+            mesh_drawables.back().second.push_back(indexed_drawable);
+        }
+
+        for(auto &[instance_group, drawables] : mesh_drawables)
+        {
+            auto[mesh, base_index, num_indices, base_vertex, num_vertices] = instance_group;
+            uint32_t num_instances = drawables.size();
+
+            const auto &indexed_drawable = drawables.front();
+            auto drawable = indexed_drawable.drawable;
+
+            if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
 
             if(dynamic_scissor)
             {
@@ -336,7 +349,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
             // search/create descriptor set
             descriptor_set_key_t key = {};
-            key.mesh = current_mesh;
+            key.mesh = mesh;
             key.descriptors = drawable->descriptors;
             key.matrix_buffer_index = indexed_drawable.matrix_buffer_index;
             key.material_buffer_index = indexed_drawable.material_buffer_index;
@@ -369,7 +382,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
                     // create a new descriptor set
                     auto descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                                      indexed_drawable.descriptor_set_layout);
+                                                                          indexed_drawable.descriptor_set_layout);
 
                     // keep handle
                     descriptor_set_handle = descriptor_set.get();
@@ -412,12 +425,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                                sizeof(push_constants_t), &push_constants);
 
             // issue (indexed) drawing command
-            if(drawable->mesh && drawable->mesh->index_buffer)
+            if(mesh && mesh->index_buffer)
             {
-                vkCmdDrawIndexed(command_buffer.handle(), drawable->num_indices, 1, drawable->base_index,
-                                 drawable->base_vertex, 0);
+                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, base_vertex, 0);
             }
-            else{ vkCmdDraw(command_buffer.handle(), drawable->num_vertices, 1, drawable->base_vertex, 0); }
+            else{ vkCmdDraw(command_buffer.handle(), num_vertices, num_instances, base_vertex, 0); }
         }
     }
 

@@ -6,10 +6,98 @@
 #include <vierkant/pipeline_formats.hpp>
 #include "vierkant/shaders.hpp"
 
-namespace vierkant
+//! comparison operators for some vulkan-structs used by vierkant::Pipeline
+static inline bool operator==(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
 {
+    if(lhs.binding != rhs.binding){ return false; }
+    if(lhs.inputRate != rhs.inputRate){ return false; }
+    if(lhs.stride != rhs.stride){ return false; }
+    return true;
+}
+
+static inline bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
+{
+    return !(lhs == rhs);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static inline bool operator==(const VkVertexInputAttributeDescription &lhs,
+                              const VkVertexInputAttributeDescription &rhs)
+{
+    if(lhs.binding != rhs.binding){ return false; }
+    if(lhs.format != rhs.format){ return false; }
+    if(lhs.location != rhs.location){ return false; }
+    if(lhs.offset != rhs.offset){ return false; }
+    return true;
+}
+
+static inline bool operator!=(const VkVertexInputAttributeDescription &lhs,
+                              const VkVertexInputAttributeDescription &rhs)
+{
+    return !(lhs == rhs);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+static inline bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
+                              const VkPipelineColorBlendAttachmentState &rhs)
+{
+    if(lhs.blendEnable != rhs.blendEnable){ return false; }
+    if(lhs.srcColorBlendFactor != rhs.srcColorBlendFactor){ return false; }
+    if(lhs.dstColorBlendFactor != rhs.dstColorBlendFactor){ return false; }
+    if(lhs.colorBlendOp != rhs.colorBlendOp){ return false; }
+    if(lhs.srcAlphaBlendFactor != rhs.srcAlphaBlendFactor){ return false; }
+    if(lhs.dstAlphaBlendFactor != rhs.dstAlphaBlendFactor){ return false; }
+    if(lhs.alphaBlendOp != rhs.alphaBlendOp){ return false; }
+    if(lhs.colorWriteMask != rhs.colorWriteMask){ return false; }
+    return true;
+}
+
+static inline bool operator!=(const VkPipelineColorBlendAttachmentState &lhs,
+                              const VkPipelineColorBlendAttachmentState &rhs)
+{
+    return !(lhs == rhs);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+static inline bool operator==(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
+{
+    if(lhs.failOp != rhs.failOp){ return false; }
+    if(lhs.passOp != rhs.passOp){ return false; }
+    if(lhs.depthFailOp != rhs.depthFailOp){ return false; }
+    if(lhs.compareOp != rhs.compareOp){ return false; }
+    if(lhs.compareMask != rhs.compareMask){ return false; }
+    if(lhs.writeMask != rhs.writeMask){ return false; }
+    if(lhs.reference != rhs.reference){ return false; }
+    return true;
+}
+
+static inline bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
+{
+    return !(lhs == rhs);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+static inline bool operator==(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
+{
+    if(lhs.size != rhs.size){ return false; }
+    if(lhs.offset != rhs.offset){ return false; }
+    if(lhs.stageFlags != rhs.stageFlags){ return false; }
+    return true;
+}
+
+static inline bool operator!=(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
+{
+    return !(lhs == rhs);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace vierkant
+{
 
 ShaderModulePtr create_shader_module(const DevicePtr &device,
                                      const void *spirv_code,
@@ -205,93 +293,6 @@ bool compute_pipeline_info_t::operator==(const compute_pipeline_info_t &other) c
 }// namespace vierkant
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool operator==(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
-{
-    if(lhs.binding != rhs.binding){ return false; }
-    if(lhs.inputRate != rhs.inputRate){ return false; }
-    if(lhs.stride != rhs.stride){ return false; }
-    return true;
-}
-
-bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
-{
-    return !(lhs == rhs);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool operator==(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs)
-{
-    if(lhs.binding != rhs.binding){ return false; }
-    if(lhs.format != rhs.format){ return false; }
-    if(lhs.location != rhs.location){ return false; }
-    if(lhs.offset != rhs.offset){ return false; }
-    return true;
-}
-
-bool operator!=(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs)
-{
-    return !(lhs == rhs);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
-                const VkPipelineColorBlendAttachmentState &rhs)
-{
-    if(lhs.blendEnable != rhs.blendEnable){ return false; }
-    if(lhs.srcColorBlendFactor != rhs.srcColorBlendFactor){ return false; }
-    if(lhs.dstColorBlendFactor != rhs.dstColorBlendFactor){ return false; }
-    if(lhs.colorBlendOp != rhs.colorBlendOp){ return false; }
-    if(lhs.srcAlphaBlendFactor != rhs.srcAlphaBlendFactor){ return false; }
-    if(lhs.dstAlphaBlendFactor != rhs.dstAlphaBlendFactor){ return false; }
-    if(lhs.alphaBlendOp != rhs.alphaBlendOp){ return false; }
-    if(lhs.colorWriteMask != rhs.colorWriteMask){ return false; }
-    return true;
-}
-
-bool operator!=(const VkPipelineColorBlendAttachmentState &lhs,
-                const VkPipelineColorBlendAttachmentState &rhs)
-{
-    return !(lhs == rhs);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool operator==(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
-{
-    if(lhs.failOp != rhs.failOp){ return false; }
-    if(lhs.passOp != rhs.passOp){ return false; }
-    if(lhs.depthFailOp != rhs.depthFailOp){ return false; }
-    if(lhs.compareOp != rhs.compareOp){ return false; }
-    if(lhs.compareMask != rhs.compareMask){ return false; }
-    if(lhs.writeMask != rhs.writeMask){ return false; }
-    if(lhs.reference != rhs.reference){ return false; }
-    return true;
-}
-
-bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
-{
-    return !(lhs == rhs);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool operator==(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
-{
-    if(lhs.size != rhs.size){ return false; }
-    if(lhs.offset != rhs.offset){ return false; }
-    if(lhs.stageFlags != rhs.stageFlags){ return false; }
-    return true;
-}
-
-bool operator!=(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
-{
-    return !(lhs == rhs);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
 
 using crocore::hash_combine;
 

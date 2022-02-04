@@ -72,7 +72,7 @@ public:
         vierkant::AABB boundingbox;
         uint32_t node_index = 0;
 
-        uint32_t base_vertex = 0;
+        int32_t vertex_offset = 0;
         uint32_t num_vertices = 0;
         uint32_t base_index = 0;
         uint32_t num_indices = 0;

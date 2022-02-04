@@ -200,28 +200,6 @@ struct compute_pipeline_info_t
 
 }// namespace vierkant
 
-// comparison operators for some vulkan-structs used by vierkant::Pipeline
-
-bool operator==(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs);
-
-bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs);
-
-bool operator==(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs);
-
-bool operator!=(const VkVertexInputAttributeDescription &lhs, const VkVertexInputAttributeDescription &rhs);
-
-bool operator==(const VkPipelineColorBlendAttachmentState &lhs, const VkPipelineColorBlendAttachmentState &rhs);
-
-bool operator!=(const VkPipelineColorBlendAttachmentState &lhs, const VkPipelineColorBlendAttachmentState &rhs);
-
-bool operator==(const VkStencilOpState &lhs, const VkStencilOpState &rhs);
-
-bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs);
-
-bool operator==(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs);
-
-bool operator!=(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs);
-
 // template specializations for hashing
 namespace std
 {

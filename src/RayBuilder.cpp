@@ -111,7 +111,7 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
         triangles.indexType = mesh->index_type;
         triangles.indexData.deviceAddress = index_base_address + entry.base_index * sizeof(index_t);
         triangles.vertexFormat = vertex_attrib.format;
-        triangles.vertexData.deviceAddress = vertex_base_address + entry.base_vertex * vertex_attrib.stride;
+        triangles.vertexData.deviceAddress = vertex_base_address + entry.vertex_offset * vertex_attrib.stride;
         triangles.vertexStride = vertex_attrib.stride;
         triangles.maxVertex = entry.num_vertices;
         triangles.transformData = {};
@@ -369,7 +369,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             top_level_entry.normal_matrix = glm::inverseTranspose(modelview);
             top_level_entry.buffer_index = mesh_index;
             top_level_entry.material_index = materials.size();
-            top_level_entry.base_vertex = mesh_entry.base_vertex;
+            top_level_entry.vertex_offset = mesh_entry.vertex_offset;
             top_level_entry.base_index = mesh_entry.base_index;
             entries.push_back(top_level_entry);
 

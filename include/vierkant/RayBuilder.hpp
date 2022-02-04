@@ -26,7 +26,8 @@ public:
         glm::mat4 modelview = glm::mat4(1);
         glm::mat4 normal_matrix = glm::mat4(1);
         uint32_t material_index = 0;
-        uint32_t base_vertex = 0;
+
+        int32_t vertex_offset = 0;
         uint32_t base_index = 0;
 
         // per mesh

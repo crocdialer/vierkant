@@ -256,7 +256,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         vierkant::Mesh::entry_t entry = {};
         entry.name = entry_info.name;
         entry.primitive_type = geom->topology;
-        entry.base_vertex = base_vertex;
+        entry.vertex_offset = base_vertex;
         entry.num_vertices = geom->positions.size();
         entry.base_index = base_index;
         entry.num_indices = geom->indices.size();

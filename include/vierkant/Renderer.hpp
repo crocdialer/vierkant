@@ -115,7 +115,7 @@ public:
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
 
-        uint32_t base_vertex = 0;
+        int32_t vertex_offset = 0;
         uint32_t num_vertices = 0;
 
         bool use_own_buffers = false;
@@ -214,10 +214,10 @@ private:
     struct push_constants_t
     {
         //! index into matrix uniform-buffer
-        int matrix_index = 0;
+        uint32_t matrix_index = 0;
 
         //! index into material uniform-buffer
-        int material_index = 0;
+        uint32_t material_index = 0;
 
         //! current viewport-size
         glm::vec2 size;

@@ -28,7 +28,7 @@ struct material_struct_t
 struct lightsource_t
 {
     vec3 position;
-    int type;
+    uint type;
     vec4 diffuse;
     vec4 ambient;
     vec3 direction;
@@ -42,8 +42,8 @@ struct lightsource_t
 //! some render-context passed as push-constant
 struct render_context_t
 {
-    int matrix_index;
-    int material_index;
+    uint matrix_index;
+    uint material_index;
     vec2 size;
     vec2 clipping;
     float time;

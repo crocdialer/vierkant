@@ -317,7 +317,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     const auto &mesh_entry = drawable.mesh->entries.front();
     drawable.base_index = mesh_entry.base_index;
     drawable.num_indices = mesh_entry.num_indices;
-    drawable.base_vertex = mesh_entry.base_vertex;
+    drawable.vertex_offset = mesh_entry.vertex_offset;
     drawable.num_vertices = mesh_entry.num_vertices;
 
     drawable.pipeline_format.binding_descriptions = drawable.mesh->binding_descriptions();
