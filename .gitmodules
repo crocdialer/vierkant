@@ -1,12 +1,16 @@
 [submodule "submodules/glfw"]
 	path = submodules/glfw
 	url = git@github.com:glfw/glfw.git
+	shallow = true
 [submodule "submodules/glm"]
 	path = submodules/glm
 	url = git@github.com:g-truc/glm.git
+	shallow = true
 [submodule "submodules/crocore"]
 	path = submodules/crocore
 	url = git@github.com:crocdialer/crocore.git
+	shallow = true
 [submodule "submodules/tinygltf"]
 	path = submodules/tinygltf
 	url = git@github.com:syoyo/tinygltf.git
+	shallow = true
