@@ -157,7 +157,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
         path_trace_pass(frame_asset, cam);
 
         // increase batch index
-        m_batch_index++;
+        m_batch_index = std::min<size_t>(m_batch_index + 1, settings.max_num_batches);
     }
     else{ frame_asset.semaphore.signal(SemaphoreValue::RAYTRACING); }
 

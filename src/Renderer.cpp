@@ -315,11 +315,13 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
         for(auto &[instance_group, drawables] : mesh_drawables)
         {
-            auto[mesh, base_index, num_indices, base_vertex, num_vertices] = instance_group;
+            auto[mesh, base_index, num_indices, vertex_offset, num_vertices] = instance_group;
             uint32_t num_instances = drawables.size();
 
             const auto &indexed_drawable = drawables.front();
             auto drawable = indexed_drawable.drawable;
+
+            if(num_instances > 1){ LOG_TRACE << "batching " << num_instances << " drawcalls"; }
 
             if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
 
@@ -427,9 +429,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             // issue (indexed) drawing command
             if(mesh && mesh->index_buffer)
             {
-                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, base_vertex, 0);
+                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, vertex_offset, 0);
             }
-            else{ vkCmdDraw(command_buffer.handle(), num_vertices, num_instances, base_vertex, 0); }
+            else{ vkCmdDraw(command_buffer.handle(), num_vertices, num_instances, vertex_offset, 0); }
         }
     }
 

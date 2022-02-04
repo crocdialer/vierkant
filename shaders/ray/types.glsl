@@ -21,7 +21,7 @@ struct entry_t
     mat4 modelview;
     mat4 normal_matrix;
     uint material_index;
-    uint base_vertex;
+    int vertex_offset;
     uint base_index;
 
     // per mesh

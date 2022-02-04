@@ -62,9 +62,9 @@ Triangle get_triangle()
     indices[nonuniformEXT(entry.buffer_index)].i[entry.base_index + 3 * gl_PrimitiveID + 2]);
 
     // triangle vertices
-    return Triangle(vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.x],
-                    vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.y],
-                    vertices[nonuniformEXT(entry.buffer_index)].v[entry.base_vertex + ind.z]);
+    return Triangle(vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.x],
+                    vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.y],
+                    vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.z]);
 }
 
 //! returns a base LoD for a triangle. derives the result by comparing tex-coord and world-space sizes.
