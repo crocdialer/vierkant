@@ -529,7 +529,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
     if(is_child_window){ ImGui::BeginChild(window_name); }
     else{ ImGui::Begin(window_name); }
 
-    vierkant::postfx::dof_settings_t *settings_dof = nullptr;
+    vierkant::dof_settings_t *settings_dof = nullptr;
 
     if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
     {

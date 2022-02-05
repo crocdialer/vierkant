@@ -60,7 +60,7 @@ public:
         float exposure = 2.0;
 
         //! desired depth-of-field settings, disabled by default
-        postfx::dof_settings_t dof = {};
+        vierkant::dof_settings_t dof = {};
     };
 
     struct create_info_t

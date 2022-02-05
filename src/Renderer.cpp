@@ -296,26 +296,30 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         }
 
         // group data to enable instancing
-        using instance_group_t = std::tuple<vierkant::MeshConstPtr, uint32_t, uint32_t, int32_t, uint32_t>;
+        using instance_group_t = std::tuple<vierkant::MeshConstPtr, uint32_t, uint32_t, int32_t, uint32_t, uint32_t, uint32_t>;
         std::vector<std::pair<instance_group_t, std::vector<indexed_drawable_t>>> mesh_drawables;
 
         for(auto &indexed_drawable : indexed_drawables)
         {
             auto &drawable = indexed_drawable.drawable;
 
-            instance_group_t mesh_key = {drawable->mesh, drawable->base_index, drawable->num_indices,
-                                         drawable->vertex_offset, drawable->num_vertices};
+            instance_group_t instance_group = {drawable->mesh, drawable->base_index, drawable->num_indices,
+                                               drawable->vertex_offset, drawable->num_vertices,
+                                               indexed_drawable.matrix_buffer_index,
+                                               indexed_drawable.material_buffer_index};
 
-            if(mesh_drawables.empty() || mesh_drawables.back().first != mesh_key)
+            if(mesh_drawables.empty() || mesh_drawables.back().first != instance_group)
             {
-                mesh_drawables.push_back({mesh_key, {}});
+                mesh_drawables.push_back({instance_group, {}});
             }
             mesh_drawables.back().second.push_back(indexed_drawable);
         }
 
         for(auto &[instance_group, drawables] : mesh_drawables)
         {
-            auto[mesh, base_index, num_indices, vertex_offset, num_vertices] = instance_group;
+            auto[mesh, base_index, num_indices, vertex_offset, num_vertices, matrix_buffer_index,
+            material_buffer_index] = instance_group;
+
             uint32_t num_instances = drawables.size();
 
             const auto &indexed_drawable = drawables.front();
@@ -338,14 +342,14 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             if(!drawable->use_own_buffers)
             {
                 descriptors[BINDING_MATRIX].buffers = {
-                        next_assets.matrix_buffers[indexed_drawable.matrix_buffer_index]};
+                        next_assets.matrix_buffers[matrix_buffer_index]};
                 descriptors[BINDING_MATERIAL].buffers = {
-                        next_assets.material_buffers[indexed_drawable.material_buffer_index]};
+                        next_assets.material_buffers[material_buffer_index]};
 
                 if(descriptors.count(BINDING_PREVIOUS_MATRIX) && !next_assets.matrix_history_buffers.empty())
                 {
                     descriptors[BINDING_PREVIOUS_MATRIX].buffers = {
-                            next_assets.matrix_history_buffers[indexed_drawable.matrix_buffer_index]};
+                            next_assets.matrix_history_buffers[matrix_buffer_index]};
                 }
             }
 
@@ -353,8 +357,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             descriptor_set_key_t key = {};
             key.mesh = mesh;
             key.descriptors = drawable->descriptors;
-            key.matrix_buffer_index = indexed_drawable.matrix_buffer_index;
-            key.material_buffer_index = indexed_drawable.material_buffer_index;
+            key.matrix_buffer_index = matrix_buffer_index;
+            key.material_buffer_index = material_buffer_index;
 
             // transition image layouts
             for(auto &[binding, descriptor] : descriptors)

@@ -13,8 +13,6 @@ namespace vierkant
 
 DEFINE_CLASS_PTR(Object3D);
 
-class Visitor;
-
 /**
  * @brief   Utility to check if one set of tags contains at least one item from another set.
  *
@@ -43,7 +41,7 @@ public:
 
     inline uint32_t id() const{ return m_id; };
 
-    inline const std::string name() const{ return m_name; }
+    inline const std::string& name() const{ return m_name; }
 
     inline void set_name(const std::string &the_name){ m_name = the_name; }
 
@@ -151,7 +149,7 @@ public:
      */
     void set_update_function(update_fn_t f){ m_update_function = f; }
 
-    virtual void accept(Visitor &theVisitor);
+    virtual void accept(class Visitor &theVisitor);
 
 protected:
     explicit Object3D(std::string name = "");

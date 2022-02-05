@@ -157,7 +157,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         vierkant::descriptor_t desc_dof_ubo = {};
         desc_dof_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_dof_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_dof_ubo.buffers = {vierkant::Buffer::create(m_device, &settings.dof, sizeof(postfx::dof_settings_t),
+        desc_dof_ubo.buffers = {vierkant::Buffer::create(m_device, &settings.dof, sizeof(vierkant::dof_settings_t),
                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
@@ -520,7 +520,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
         if(!drawable.descriptors[1].buffers.empty())
         {
-            drawable.descriptors[1].buffers.front()->set_data(&settings.dof, sizeof(postfx::dof_settings_t));
+            drawable.descriptors[1].buffers.front()->set_data(&settings.dof, sizeof(vierkant::dof_settings_t));
         }
         output_img = pingpong_render(drawable);
     }

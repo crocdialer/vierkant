@@ -6,7 +6,7 @@
 
 #include <cstdint>
 
-namespace vierkant::postfx
+namespace vierkant
 {
 
 //! Describes the buffer-layout for Depth

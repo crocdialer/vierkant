@@ -54,32 +54,32 @@ void OrbitCamera::mouse_drag(const MouseEvent &e)
     if(enabled && transform_cb){ transform_cb(transform()); }
 }
 
-/**
- * Get a normalized vector from the center of the virtual ball O to a
- * point P on the virtual ball surface, such that P is aligned on
- * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
- * sphere, return the nearest point on the virtual ball surface.
- */
-glm::vec3 OrbitCamera::get_arcball_vector(const glm::vec2 &screen_pos) const
-{
-    // screenpos in range [-1 .. 1]
-    glm::vec3 surface_point = glm::vec3(screen_pos / screen_size * 2.f - 1.f, 0.f);
-
-    surface_point.y *= -1.f;
-    float OP_squared = glm::length2(surface_point); //P.x * P.x + P.y * P.y;
-
-    if(OP_squared <= 1.f)
-    {
-        // pythagoras
-        surface_point.z = sqrtf(1 * 1 - OP_squared);
-    }
-    else
-    {
-        // nearest point
-        surface_point = glm::normalize(surface_point);
-    }
-    return surface_point;
-}
+///**
+// * Get a normalized vector from the center of the virtual ball O to a
+// * point P on the virtual ball surface, such that P is aligned on
+// * screen's (X,Y) coordinates.  If (X,Y) is too far away from the
+// * sphere, return the nearest point on the virtual ball surface.
+// */
+//glm::vec3 OrbitCamera::get_arcball_vector(const glm::vec2 &screen_pos) const
+//{
+//    // screenpos in range [-1 .. 1]
+//    glm::vec3 surface_point = glm::vec3(screen_pos / screen_size * 2.f - 1.f, 0.f);
+//
+//    surface_point.y *= -1.f;
+//    float OP_squared = glm::length2(surface_point); //P.x * P.x + P.y * P.y;
+//
+//    if(OP_squared <= 1.f)
+//    {
+//        // pythagoras
+//        surface_point.z = sqrtf(1 * 1 - OP_squared);
+//    }
+//    else
+//    {
+//        // nearest point
+//        surface_point = glm::normalize(surface_point);
+//    }
+//    return surface_point;
+//}
 
 vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
 {

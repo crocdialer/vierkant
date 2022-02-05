@@ -5,6 +5,7 @@
 #pragma once
 
 #include <crocore/CircularBuffer.hpp>
+#include <memory>
 #include "vierkant/Input.hpp"
 
 namespace vierkant
@@ -55,27 +56,21 @@ public:
 
     [[nodiscard]] glm::mat4 transform() const override;
 
-    static OrbitCameraUPtr create(){ return OrbitCameraUPtr(new OrbitCamera()); }
+    static OrbitCameraUPtr create(){ return std::make_unique<OrbitCamera>(); }
 
 private:
 
-    OrbitCamera() = default;
+//    OrbitCamera() = default;
 
     void mouse_press(const MouseEvent &e);
 
     void mouse_drag(const MouseEvent &e);
 
-    [[nodiscard]] glm::vec3 get_arcball_vector(const glm::vec2 &screen_pos) const;
-
     glm::ivec2 m_clicked_pos{}, m_last_pos{};
 
     glm::vec3 m_last_look_at{};
 
-    // mouse rotation control
-    glm::vec2 m_inertia = {};
-
     glm::quat m_last_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
-    crocore::CircularBuffer<glm::vec2> m_drag_buffer;
 
     bool m_mouse_down = false;
 };
@@ -105,11 +100,11 @@ public:
         return ret;
     }
 
-    static FlyCameraUPtr create(){ return FlyCameraUPtr (new FlyCamera()); }
+    static FlyCameraUPtr create(){ return std::make_unique<FlyCamera>(); }
 
 private:
 
-    FlyCamera() = default;
+//    FlyCamera() = default;
 
     std::unordered_map<int, bool> m_keys;
 
