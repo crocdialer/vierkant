@@ -10,38 +10,73 @@ namespace vierkant
 void OrbitCamera::update(double time_delta)
 {
     if(!enabled){ return; }
+
+    bool needs_update = false;
+
+    // quick and dirty joystick-controls
+    auto joystick_states = get_joystick_states();
+
+    if(!joystick_states.empty())
+    {
+        const auto &state = joystick_states[0];
+
+        glm::vec2 pan_diff = glm::vec2(1, -1) * state.analog_left() * static_cast<float>(time_delta);
+
+        constexpr float orbit_sensitivity = 250.f;
+        constexpr float zoom_sensitivity = 0.1f;
+
+        glm::vec2 orbit_diff = orbit_sensitivity * -state.analog_right() * static_cast<float>(time_delta);
+
+        float zoom = state.trigger().y - state.trigger().x;
+        zoom *= zoom_sensitivity;
+
+        spherical_coords.x = std::max(.1f, spherical_coords.x - zoom);
+        pan(pan_diff);
+        orbit(orbit_diff);
+
+        auto trigger = (state.trigger() + 1.f) / 2.f;
+
+        constexpr float thresh = 0.01;
+        bool above_thresh = glm::length2(state.analog_right()) > thresh ||
+                            glm::length2(state.analog_left()) > thresh ||
+                            glm::length2(trigger) > thresh;
+
+        if(above_thresh){ needs_update = true; }
+    }
+    if(needs_update && transform_cb){ transform_cb(transform()); }
+}
+
+void OrbitCamera::pan(const glm::vec2 &diff)
+{
+    auto rot = rotation();
+
+    look_at -= glm::normalize(rot * glm::vec3(1, 0, 0)) * diff.x +
+               glm::normalize(rot * glm::vec3(0, 1, 0)) * diff.y;
+}
+
+void OrbitCamera::orbit(const glm::vec2 &diff)
+{
+    spherical_coords += glm::vec3(0.f, glm::radians(diff.x), glm::radians(diff.y));
+    spherical_coords.z = std::clamp(spherical_coords.z, -glm::half_pi<float>(), glm::half_pi<float>());
+    spherical_coords.y = std::fmod(spherical_coords.y, glm::two_pi<float>());
 }
 
 void OrbitCamera::mouse_press(const MouseEvent &e)
 {
     if(!enabled){ return; }
     m_last_pos = m_clicked_pos = e.position();
-    if(e.is_left()){ m_last_spherical_coords = spherical_coords; }
-    else if(e.is_right()){ m_last_look_at = look_at; }
 }
 
 void OrbitCamera::mouse_drag(const MouseEvent &e)
 {
-    if(enabled && e.is_left())
-    {
-        glm::vec2 diff = m_last_pos - e.position();
-        spherical_coords = m_last_spherical_coords + glm::vec3(0.f, glm::radians(diff.x), glm::radians(diff.y));
+    glm::vec2 diff = m_last_pos - e.position();
+    m_last_pos = e.position();
 
-        spherical_coords.z = std::clamp(spherical_coords.z, -glm::half_pi<float>(), glm::half_pi<float>());
-        spherical_coords.y = std::fmod(spherical_coords.y, glm::two_pi<float>());
-
-        m_last_pos = e.position();
-        m_last_spherical_coords = spherical_coords;
-    }
+    if(enabled && e.is_left()){ orbit(diff); }
     else if(enabled && e.is_right())
     {
-        glm::vec2 mouse_diff = e.position() - m_clicked_pos;
-        mouse_diff *= m_last_spherical_coords.x / screen_size;
-
-        auto rot = rotation();
-
-        look_at = m_last_look_at - glm::normalize(rot * glm::vec3(1, 0, 0)) * mouse_diff.x +
-                  glm::normalize(rot * glm::vec3(0, 1, 0)) * mouse_diff.y;
+        diff *= glm::vec2(-1, 1) * spherical_coords.x / screen_size;
+        pan(diff);
     }
     if(enabled && transform_cb){ transform_cb(transform()); }
 }
@@ -54,7 +89,6 @@ vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
     ret.mouse_wheel = [this](const vierkant::MouseEvent &e)
     {
         float scroll_gain = e.is_control_down() ? .1f : 1.f;
-
         if(enabled){ spherical_coords.x = std::max(.1f, spherical_coords.x - scroll_gain * e.wheel_increment().y); }
         if(enabled && transform_cb){ transform_cb(transform()); }
     };

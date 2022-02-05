@@ -61,6 +61,10 @@ private:
 
 //    OrbitCamera() = default;
 
+    void pan(const glm::vec2 &diff);
+
+    void orbit(const glm::vec2 &diff);
+
     void mouse_press(const MouseEvent &e);
 
     void mouse_drag(const MouseEvent &e);
@@ -68,10 +72,6 @@ private:
     [[nodiscard]] inline glm::quat rotation() const{ return {glm::vec3(spherical_coords.zy(), 0.f)}; }
 
     glm::ivec2 m_clicked_pos{}, m_last_pos{};
-
-    glm::vec3 m_last_look_at{};
-
-    glm::vec3 m_last_spherical_coords{};
 
     bool m_mouse_down = false;
 };
