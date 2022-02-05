@@ -42,11 +42,10 @@ class OrbitCamera : public CameraControl
 {
 public:
 
-    glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
-
     glm::vec3 look_at = glm::vec3(0.f);
 
-    float distance = 1.f;
+    // (dist, theta, phi)
+    glm::vec3 spherical_coords = {1.f, glm::half_pi<float>(), 0.f};
 
     void update(double time_delta) override;
 
@@ -66,11 +65,13 @@ private:
 
     void mouse_drag(const MouseEvent &e);
 
+    [[nodiscard]] inline glm::quat rotation() const{ return {glm::vec3(spherical_coords.zy(), 0.f)}; }
+
     glm::ivec2 m_clicked_pos{}, m_last_pos{};
 
     glm::vec3 m_last_look_at{};
 
-    glm::quat m_last_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
+    glm::vec3 m_last_spherical_coords{};
 
     bool m_mouse_down = false;
 };
