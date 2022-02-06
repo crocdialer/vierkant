@@ -115,7 +115,7 @@ set(${PROJECT_NAME}_INCLUDE_DIRS
 set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
-# message("includes: ${vierkant_INCLUDE_DIRS}")
+message("includes: ${vierkant_INCLUDE_DIRS}")
 # message("libs: ${vierkant_LIBRARIES}")
 
 #examples

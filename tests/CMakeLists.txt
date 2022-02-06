@@ -1,4 +1,5 @@
-include_directories(${CMAKE_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/${LIB_NAME}/include ${PROJECT_SOURCE_DIR}/include)
+include_directories(${vierkant_INCLUDE_DIRS})
+set(LIBS ${LIBS} vierkant)
 
 FILE(GLOB TEST_SOURCES "*.c*")
 FILE(GLOB TEST_HEADERS "*.h")
@@ -10,5 +11,5 @@ FOREACH(testFile ${TEST_SOURCES})
     add_executable(${testName} ${testFile} ${TEST_HEADERS})
     TARGET_LINK_LIBRARIES(${testName} ${LIBS})
     add_test(${testName} "${EXECUTABLE_OUTPUT_PATH}/${testName}")
-#                message(STATUS "found unit-test: ${testName}")
+#              message(STATUS "found unit-test: ${testName}")
 ENDFOREACH(testFile)
