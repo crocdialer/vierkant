@@ -407,8 +407,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                                     0, 1, &descriptor_set_handle, 0, nullptr);
 
             // update push_constants for each draw call
-            push_constants.object_index = indexed_drawable.object_index;
-
             push_constants.clipping = clipping_distances(indexed_drawable.drawable->matrices.projection);
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
                                sizeof(push_constants_t), &push_constants);
@@ -534,8 +532,6 @@ glm::vec2 Renderer::clipping_distances(const glm::mat4 &projection)
 bool Renderer::descriptor_set_key_t::operator==(const Renderer::descriptor_set_key_t &other) const
 {
     if(mesh != other.mesh){ return false; }
-//    if(matrix_buffer_index != other.matrix_buffer_index){ return false; }
-//    if(material_buffer_index != other.material_buffer_index){ return false; }
     if(descriptors != other.descriptors){ return false; }
     return true;
 }
@@ -546,8 +542,6 @@ size_t Renderer::descriptor_set_key_hash_t::operator()(const Renderer::descripto
 {
     size_t h = 0;
     crocore::hash_combine(h, key.mesh);
-//    crocore::hash_combine(h, key.matrix_buffer_index);
-//    crocore::hash_combine(h, key.material_buffer_index);
 
     for(const auto &pair : key.descriptors)
     {

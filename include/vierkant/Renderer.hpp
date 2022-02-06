@@ -224,17 +224,11 @@ private:
 
         //! optional flag to disable colors from materials
         int disable_material = 0;
-
-        // TODO: get rid of those indices
-        //! index into matrix/material storage-buffers
-        uint32_t object_index = 0;
     };
 
     struct descriptor_set_key_t
     {
         vierkant::MeshConstPtr mesh;
-//        uint32_t matrix_buffer_index = 0;
-//        uint32_t material_buffer_index = 0;
         descriptor_map_t descriptors;
 
         bool operator==(const descriptor_set_key_t &other) const;

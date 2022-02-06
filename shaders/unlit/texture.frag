@@ -14,7 +14,8 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
 
 layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[1];
 
-layout(location = 0) in VertexData
+layout(location = 0) flat in uint object_index;
+layout(location = 1) in VertexData
 {
     vec4 color;
     vec2 tex_coord;
@@ -25,5 +26,5 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     vec4 tex_color = texture(u_sampler_2D[0], vertex_in.tex_coord);
-    out_color = tex_color * materials[context.object_index].color * vertex_in.color;
+    out_color = tex_color * materials[object_index].color * vertex_in.color;
 }

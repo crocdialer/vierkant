@@ -16,7 +16,8 @@ layout(location = ATTRIB_POSITION) in vec3 a_position;
 layout(location = ATTRIB_COLOR) in vec4 a_color;
 layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;
 
-layout(location = 0) out VertexData
+layout(location = 0) flat out uint object_index;
+layout(location = 1) out VertexData
 {
     vec4 color;
     vec2 tex_coord;
@@ -24,7 +25,7 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    uint object_index = context.object_index;//gl_BaseInstance + gl_InstanceIndex;
+    object_index = gl_InstanceIndex;//gl_BaseInstance + gl_InstanceIndex
     matrix_struct_t m = u_matrices[object_index];
 
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);

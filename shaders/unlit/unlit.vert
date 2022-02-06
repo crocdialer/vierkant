@@ -14,10 +14,11 @@ layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
 
+layout(location = 0) flat out uint object_index;
 
 void main()
 {
-    uint object_index = context.object_index;//gl_BaseInstance + gl_InstanceIndex;
+    object_index = gl_InstanceIndex;//gl_BaseInstance + gl_InstanceIndex
     matrix_struct_t m = u_matrices[object_index];
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
 }

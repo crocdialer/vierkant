@@ -17,7 +17,8 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
 
 layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[3];
 
-layout(location = 0) in VertexData
+layout(location = 0) flat in uint object_index;
+layout(location = 1) in VertexData
 {
     vec4 color;
     vec2 tex_coord;
@@ -35,7 +36,7 @@ layout(location = 4) out vec2 out_motion;
 
 void main()
 {
-    material_struct_t material = materials[context.object_index];
+    material_struct_t material = materials[object_index];
 
     out_color = vec4(1);
     out_emission = vec4(0);

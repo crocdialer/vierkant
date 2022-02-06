@@ -40,7 +40,8 @@ layout(location = ATTRIB_TANGENT) in vec3 a_tangent;
 layout(location = ATTRIB_BONE_INDICES) in uvec4 a_bone_ids;
 layout(location = ATTRIB_BONE_WEIGHTS) in vec4 a_bone_weights;
 
-layout(location = 0) out VertexData
+layout(location = 0) flat out uint object_index;
+layout(location = 1) out VertexData
 {
     vec4 color;
     vec2 tex_coord;
@@ -52,7 +53,7 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    uint object_index = context.object_index;//gl_BaseInstance + gl_InstanceIndex;
+    object_index = gl_InstanceIndex;//gl_BaseInstance + gl_InstanceIndex;
     matrix_struct_t m = u_matrices[object_index];
     matrix_struct_t m_last = u_previous_matrices[object_index];
 

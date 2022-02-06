@@ -14,7 +14,8 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
 
 layout(binding = BINDING_TEXTURES) uniform samplerCube u_sampler_cube[1];
 
-layout(location = 0) in VertexData
+layout(location = 0) flat in uint object_index;
+layout(location = 1) in VertexData
 {
     vec3 eye_vec;
 } vertex_in;

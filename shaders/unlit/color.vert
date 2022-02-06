@@ -3,10 +3,10 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "../renderer/types.glsl"
 
-layout(push_constant) uniform PushConstants {
+layout(push_constant) uniform PushConstants
+{
     render_context_t context;
 };
-
 
 layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
 {
@@ -16,14 +16,15 @@ layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
 layout(location = ATTRIB_POSITION) in vec3 a_position;
 layout(location = ATTRIB_COLOR) in vec4 a_color;
 
-layout(location = 0) out VertexData
+layout(location = 0) flat out uint object_index;
+layout(location = 1) out VertexData
 {
     vec4 color;
 } vertex_out;
 
 void main()
 {
-    uint object_index = context.object_index;//gl_BaseInstance + gl_InstanceIndex;
+    object_index = gl_InstanceIndex;
 
     matrix_struct_t m = matrices[object_index];
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);

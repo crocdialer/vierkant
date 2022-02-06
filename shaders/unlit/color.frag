@@ -12,7 +12,8 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
     material_struct_t materials[];
 };
 
-layout(location = 0) in VertexData
+layout(location = 0) flat in uint object_index;
+layout(location = 1) in VertexData
 {
     vec4 color;
 } vertex_in;
@@ -21,5 +22,5 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = vertex_in.color * materials[context.object_index].color;
+    out_color = vertex_in.color * materials[object_index].color;
 }

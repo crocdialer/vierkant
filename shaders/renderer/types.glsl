@@ -46,7 +46,6 @@ struct render_context_t
     vec2 clipping;
     float time;
     bool disable_material;
-    uint object_index;
 };
 
 //! attribute locations in vierkant::Mesh
