@@ -42,12 +42,11 @@ struct lightsource_t
 //! some render-context passed as push-constant
 struct render_context_t
 {
-    uint matrix_index;
-    uint material_index;
     vec2 size;
     vec2 clipping;
     float time;
     bool disable_material;
+    uint object_index;
 };
 
 //! attribute locations in vierkant::Mesh

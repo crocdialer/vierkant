@@ -7,14 +7,14 @@ layout(push_constant) uniform PushConstants {
     render_context_t context;
 };
 
-layout(std140, binding = BINDING_MATRIX) uniform UBOMatrices
+layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
 {
-    matrix_struct_t u_matrices[MAX_NUM_DRAWABLES];
+    matrix_struct_t u_matrices[];
 };
 
-layout(std140, binding = BINDING_PREVIOUS_MATRIX) uniform UBOPreviousMatrices
+layout(std140, set = 0, binding = BINDING_PREVIOUS_MATRIX) readonly buffer MatrixBufferPrevious
 {
-    matrix_struct_t u_previous_matrices[MAX_NUM_DRAWABLES];
+    matrix_struct_t u_previous_matrices[];
 };
 
 layout(std140, binding = BINDING_BONES) uniform UBOBones
@@ -49,8 +49,9 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    matrix_struct_t m = u_matrices[context.matrix_index + gl_InstanceIndex];
-    matrix_struct_t m_last = u_previous_matrices[context.matrix_index + gl_InstanceIndex];
+    uint object_index = gl_BaseInstance + gl_InstanceIndex;
+    matrix_struct_t m = u_matrices[object_index];
+    matrix_struct_t m_last = u_previous_matrices[object_index];
 
     vec4 current_vertex = vec4(0);
     vec4 last_vertex = vec4(0);

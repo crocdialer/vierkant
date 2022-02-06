@@ -63,12 +63,12 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
         // descriptors
         vierkant::descriptor_t desc_matrix = {};
-        desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         m_drawable_image.descriptors[vierkant::Renderer::BINDING_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         m_drawable_image.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
 
@@ -122,12 +122,12 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
         // descriptors
         vierkant::descriptor_t desc_matrix = {};
-        desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         m_drawable_text.descriptors[vierkant::Renderer::BINDING_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         m_drawable_text.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
 

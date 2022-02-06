@@ -283,7 +283,7 @@ void PBRDeferred::update_matrix_history(vierkant::cull_result_t &cull_result)
 
         // previous matrices
         vierkant::descriptor_t desc_prev_matrices = {};
-        desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_prev_matrices;
 

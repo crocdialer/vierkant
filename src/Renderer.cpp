@@ -79,12 +79,12 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};
-        desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         drawable.descriptors[BINDING_MATRIX] = desc_matrices;
 
         vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         drawable.descriptors[BINDING_MATERIAL] = desc_material;
 
@@ -214,8 +214,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     frame_assets_t next_assets = {};
 
     // keep uniform buffers
-    next_assets.matrix_buffers = std::move(current_assets.matrix_buffers);
-    next_assets.material_buffers = std::move(current_assets.material_buffers);
+    next_assets.matrix_buffer = std::move(current_assets.matrix_buffer);
+    next_assets.material_buffer = std::move(current_assets.material_buffer);
 
     VkCommandBufferInheritanceInfo inheritance = {};
     inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
@@ -228,15 +228,17 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
     // update uniform buffers
-    update_uniform_buffers(current_assets.drawables, next_assets);
+    update_storage_buffers(current_assets.drawables, next_assets);
 
     // sort by pipelines
     struct indexed_drawable_t
     {
-        uint32_t matrix_index = 0;
-        uint32_t material_index = 0;
-        uint32_t matrix_buffer_index = 0;
-        uint32_t material_buffer_index = 0;
+//        uint32_t matrix_index = 0;
+//        uint32_t material_index = 0;
+//        uint32_t matrix_buffer_index = 0;
+//        uint32_t material_buffer_index = 0;
+
+        uint32_t object_index = 0;
         vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
         drawable_t *drawable = nullptr;
     };
@@ -253,12 +255,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
         indexed_drawable_t indexed_drawable = {};
-        indexed_drawable.matrix_buffer_index = i * sizeof(matrix_struct_t) / max_num_uniform_bytes;
-        indexed_drawable.material_buffer_index = i * sizeof(material_struct_t) / max_num_uniform_bytes;
+//        indexed_drawable.matrix_buffer_index = i * sizeof(matrix_struct_t) / max_num_uniform_bytes;
+//        indexed_drawable.material_buffer_index = i * sizeof(material_struct_t) / max_num_uniform_bytes;
+//        indexed_drawable.matrix_index = i % (max_num_uniform_bytes / sizeof(matrix_struct_t));
+//        indexed_drawable.material_index = i % (max_num_uniform_bytes / sizeof(material_struct_t));
 
-        indexed_drawable.matrix_index = i % (max_num_uniform_bytes / sizeof(matrix_struct_t));
-        indexed_drawable.material_index = i % (max_num_uniform_bytes / sizeof(material_struct_t));
-
+        indexed_drawable.object_index = i;
         indexed_drawable.drawable = &current_assets.drawables[i];
 
         if(!current_assets.drawables[i].descriptor_set_layout)
@@ -296,7 +298,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         }
 
         // group data to enable instancing
-        using instance_group_t = std::tuple<vierkant::MeshConstPtr, uint32_t, uint32_t, int32_t, uint32_t, uint32_t, uint32_t>;
+        using instance_group_t = std::tuple<vierkant::MeshConstPtr, uint32_t, uint32_t, int32_t, uint32_t>;
         std::vector<std::pair<instance_group_t, std::vector<indexed_drawable_t>>> mesh_drawables;
 
         for(auto &indexed_drawable : indexed_drawables)
@@ -304,9 +306,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             auto &drawable = indexed_drawable.drawable;
 
             instance_group_t instance_group = {drawable->mesh, drawable->base_index, drawable->num_indices,
-                                               drawable->vertex_offset, drawable->num_vertices,
-                                               indexed_drawable.matrix_buffer_index,
-                                               indexed_drawable.material_buffer_index};
+                                               drawable->vertex_offset, drawable->num_vertices};
 
             if(mesh_drawables.empty() || mesh_drawables.back().first != instance_group)
             {
@@ -317,8 +317,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
         for(auto &[instance_group, drawables] : mesh_drawables)
         {
-            auto[mesh, base_index, num_indices, vertex_offset, num_vertices, matrix_buffer_index,
-            material_buffer_index] = instance_group;
+            auto[mesh, base_index, num_indices, vertex_offset, num_vertices] = instance_group;
 
             uint32_t num_instances = drawables.size();
 
@@ -341,15 +340,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             // predefined buffers
             if(!drawable->use_own_buffers)
             {
-                descriptors[BINDING_MATRIX].buffers = {
-                        next_assets.matrix_buffers[matrix_buffer_index]};
-                descriptors[BINDING_MATERIAL].buffers = {
-                        next_assets.material_buffers[material_buffer_index]};
+                descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
+                descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
 
-                if(descriptors.count(BINDING_PREVIOUS_MATRIX) && !next_assets.matrix_history_buffers.empty())
+                if(descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
                 {
-                    descriptors[BINDING_PREVIOUS_MATRIX].buffers = {
-                            next_assets.matrix_history_buffers[matrix_buffer_index]};
+                    descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
                 }
             }
 
@@ -357,8 +353,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             descriptor_set_key_t key = {};
             key.mesh = mesh;
             key.descriptors = drawable->descriptors;
-            key.matrix_buffer_index = matrix_buffer_index;
-            key.material_buffer_index = material_buffer_index;
+//            key.matrix_buffer_index = matrix_buffer_index;
+//            key.material_buffer_index = material_buffer_index;
 
             // transition image layouts
             for(auto &[binding, descriptor] : descriptors)
@@ -424,8 +420,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                                     0, 1, &descriptor_set_handle, 0, nullptr);
 
             // update push_constants for each draw call
-            push_constants.matrix_index = indexed_drawable.matrix_index;
-            push_constants.material_index = indexed_drawable.material_index;
+
+//            push_constants.matrix_index = indexed_drawable.matrix_index;
+        push_constants.object_index = indexed_drawable.object_index;
+
             push_constants.clipping = clipping_distances(indexed_drawable.drawable->matrices.projection);
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
                                sizeof(push_constants_t), &push_constants);
@@ -433,9 +431,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             // issue (indexed) drawing command
             if(mesh && mesh->index_buffer)
             {
-                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, vertex_offset, 0);
+                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, vertex_offset, indexed_drawable.object_index);
             }
-            else{ vkCmdDraw(command_buffer.handle(), num_vertices, num_instances, vertex_offset, 0); }
+            else{ vkCmdDraw(command_buffer.handle(), num_vertices, num_instances, vertex_offset, indexed_drawable.object_index); }
         }
     }
 
@@ -459,82 +457,37 @@ void Renderer::reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::update_uniform_buffers(const std::vector<drawable_t> &drawables, Renderer::frame_assets_t &frame_asset)
+void Renderer::update_storage_buffers(const std::vector<drawable_t> &drawables, Renderer::frame_assets_t &frame_asset)
 {
     // joined drawable buffers
     std::vector<matrix_struct_t> matrix_data(drawables.size());
     std::vector<matrix_struct_t> matrix_history_data(drawables.size());
     std::vector<material_struct_t> material_data(drawables.size());
 
-//    bool has_matrix_history = false;
-
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
         matrix_data[i] = drawables[i].matrices;
         material_data[i] = drawables[i].material;
 
-        if(drawables[i].last_matrices)
-        {
-            matrix_history_data[i] = *drawables[i].last_matrices;
-//            has_matrix_history = true;
-        }
+        if(drawables[i].last_matrices){ matrix_history_data[i] = *drawables[i].last_matrices; }
         else{ matrix_history_data[i] = drawables[i].matrices; }
     }
 
-//    // calculate required alignment based on minimum device offset alignment
-//    size_t minUboAlignment = m_device->properties().limits.minUniformBufferOffsetAlignment;
-//    size_t dynamic_alignment = sizeof(glm::mat4);
-//
-//    if(minUboAlignment > 0)
-//    {
-//        dynamic_alignment = (dynamic_alignment + minUboAlignment - 1) & ~(minUboAlignment - 1);
-//    }
-
-    // define a copy-utility
-    auto max_num_bytes = m_device->properties().limits.maxUniformBufferRange;
-    auto copy_to_uniform_buffers = [&device = m_device, max_num_bytes](const auto &array,
-                                                                       std::vector<vierkant::BufferPtr> &out_buffers)
+    auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer)
     {
-        if(array.empty()){ return; }
-
-        // tame template nastyness
-        using elem_t = typename std::decay<decltype(array)>::type::value_type;
-        size_t elem_size = sizeof(elem_t);
-
-        size_t num_bytes = elem_size * array.size();
-        size_t num_buffers = 1 + num_bytes / max_num_bytes;
-
-        // grow if necessary
-        if(out_buffers.size() < num_buffers){ out_buffers.resize(num_buffers); }
-
-        // init values
-        const size_t max_num_elems = max_num_bytes / elem_size;
-        size_t num_elems = array.size();
-        const elem_t *data_start = array.data();
-
-        for(uint32_t i = 0; i < num_buffers; ++i)
+        // create/upload joined buffers
+        if(!out_buffer)
         {
-            size_t num_buffer_elems = std::min(num_elems, max_num_elems);
-            num_elems -= num_buffer_elems;
-
-            // create/upload joined buffers
-            if(!out_buffers[i])
-            {
-                out_buffers[i] = vierkant::Buffer::create(device, data_start, elem_size * num_buffer_elems,
-                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-            }
-            else{ out_buffers[i]->set_data(data_start, elem_size * num_buffer_elems); }
-
-            // advance data ptr
-            data_start += num_buffer_elems;
+            out_buffer = vierkant::Buffer::create(device, array,
+                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
         }
+        else{ out_buffer->set_data(array); }
     };
 
-    // create/upload joined buffers
-    copy_to_uniform_buffers(matrix_data, frame_asset.matrix_buffers);
-    copy_to_uniform_buffers(material_data, frame_asset.material_buffers);
-    copy_to_uniform_buffers(matrix_history_data, frame_asset.matrix_history_buffers);
+    copy_to_buffer(matrix_data, frame_asset.matrix_buffer);
+    copy_to_buffer(material_data, frame_asset.material_buffer);
+    copy_to_buffer(matrix_history_data, frame_asset.matrix_history_buffer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -591,8 +544,8 @@ glm::vec2 Renderer::clipping_distances(const glm::mat4 &projection)
 bool Renderer::descriptor_set_key_t::operator==(const Renderer::descriptor_set_key_t &other) const
 {
     if(mesh != other.mesh){ return false; }
-    if(matrix_buffer_index != other.matrix_buffer_index){ return false; }
-    if(material_buffer_index != other.material_buffer_index){ return false; }
+//    if(matrix_buffer_index != other.matrix_buffer_index){ return false; }
+//    if(material_buffer_index != other.material_buffer_index){ return false; }
     if(descriptors != other.descriptors){ return false; }
     return true;
 }
@@ -603,8 +556,8 @@ size_t Renderer::descriptor_set_key_hash_t::operator()(const Renderer::descripto
 {
     size_t h = 0;
     crocore::hash_combine(h, key.mesh);
-    crocore::hash_combine(h, key.matrix_buffer_index);
-    crocore::hash_combine(h, key.material_buffer_index);
+//    crocore::hash_combine(h, key.matrix_buffer_index);
+//    crocore::hash_combine(h, key.material_buffer_index);
 
     for(const auto &pair : key.descriptors)
     {

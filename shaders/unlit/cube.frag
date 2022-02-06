@@ -7,9 +7,9 @@ layout(push_constant) uniform PushConstants {
     render_context_t context;
 };
 
-layout(std140, binding = BINDING_MATERIAL) uniform ubo_materials
+layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuffer
 {
-    material_struct_t materials[MAX_NUM_DRAWABLES];
+    material_struct_t materials[];
 };
 
 layout(binding = BINDING_TEXTURES) uniform samplerCube u_sampler_cube[1];

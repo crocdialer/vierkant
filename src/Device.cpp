@@ -169,9 +169,14 @@ Device::Device(const create_info_t &create_info) :
         }
     }
 
+    // query Vulkan 1.1 features
+    VkPhysicalDeviceVulkan12Features device_features_11 = {};
+    device_features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+
     // query Vulkan 1.2 features
     VkPhysicalDeviceVulkan12Features device_features_12 = {};
     device_features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    device_features_11.pNext = &device_features_12;
 
     //-------------------------------------- raytracing features -------------------------------------------------------
 
@@ -197,7 +202,7 @@ Device::Device(const create_info_t &create_info) :
 
     // query support for the required device-features
     VkPhysicalDeviceFeatures2 query_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
-    query_features.pNext = &device_features_12;
+    query_features.pNext = &device_features_11;
     vkGetPhysicalDeviceFeatures2(m_physical_device, &query_features);
 
     // check availability
@@ -208,7 +213,7 @@ Device::Device(const create_info_t &create_info) :
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
 
     // pNext feature chaining
-    device_create_info.pNext = ray_features_available ? &device_features_12 : create_info.create_device_pNext;
+    device_create_info.pNext = ray_features_available ? &device_features_11 : create_info.create_device_pNext;
     device_create_info.pQueueCreateInfos = queue_create_infos.data();
     device_create_info.queueCreateInfoCount = queue_create_infos.size();
     device_create_info.pEnabledFeatures = &device_features;

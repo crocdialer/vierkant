@@ -9,9 +9,9 @@ layout(push_constant) uniform PushConstants {
     render_context_t context;
 };
 
-layout(std140, binding = BINDING_MATERIAL) uniform ubo_materials
+layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuffer
 {
-    material_struct_t materials[MAX_NUM_DRAWABLES];
+    material_struct_t materials[];
 };
 
 layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[1];
@@ -34,7 +34,7 @@ layout(location = 4) out vec2 out_motion;
 
 void main()
 {
-    material_struct_t material = materials[context.material_index];
+    material_struct_t material = materials[context.object_index];
 
     out_color = vec4(1);
     out_emission = vec4(0);

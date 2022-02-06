@@ -213,12 +213,6 @@ private:
 
     struct push_constants_t
     {
-        //! index into matrix uniform-buffer
-        uint32_t matrix_index = 0;
-
-        //! index into material uniform-buffer
-        uint32_t material_index = 0;
-
         //! current viewport-size
         glm::vec2 size;
 
@@ -230,13 +224,17 @@ private:
 
         //! optional flag to disable colors from materials
         int disable_material = 0;
+
+        // TODO: get rid of those indices
+        //! index into matrix/material storage-buffers
+        uint32_t object_index = 0;
     };
 
     struct descriptor_set_key_t
     {
         vierkant::MeshConstPtr mesh;
-        uint32_t matrix_buffer_index = 0;
-        uint32_t material_buffer_index = 0;
+//        uint32_t matrix_buffer_index = 0;
+//        uint32_t material_buffer_index = 0;
         descriptor_map_t descriptors;
 
         bool operator==(const descriptor_set_key_t &other) const;
@@ -253,15 +251,18 @@ private:
     {
         std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_set_layouts;
         descriptor_set_map_t descriptor_sets;
-        std::vector<vierkant::BufferPtr> matrix_buffers;
-        std::vector<vierkant::BufferPtr> matrix_history_buffers;
-        std::vector<vierkant::BufferPtr> material_buffers;
+
+        // SSBOs containing everything
+        vierkant::BufferPtr matrix_buffer;
+        vierkant::BufferPtr matrix_history_buffer;
+        vierkant::BufferPtr material_buffer;
+
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
     };
 
     //! update the combined uniform buffers
-    void update_uniform_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
+    void update_storage_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
