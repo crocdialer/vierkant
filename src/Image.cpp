@@ -378,6 +378,11 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
         sampler_create_info.mipLodBias = 0.0f;
         sampler_create_info.minLod = 0.0f;
         sampler_create_info.maxLod = static_cast<float>(m_num_mip_levels);
+        
+        VkSamplerReductionModeCreateInfo reduction_mode_info = {};
+        reduction_mode_info.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
+        reduction_mode_info.reductionMode = m_format.reduction_mode;
+        sampler_create_info.pNext = &reduction_mode_info;
 
         vkCheck(vkCreateSampler(m_device->handle(), &sampler_create_info, nullptr, &m_sampler),
                 "failed to create texture sampler!");
@@ -702,6 +707,7 @@ bool Image::Format::operator==(const Image::Format &other) const
     if(address_mode_w != other.address_mode_w){ return false; }
     if(min_filter != other.min_filter){ return false; }
     if(mag_filter != other.mag_filter){ return false; }
+    if(reduction_mode != other.reduction_mode){ return false; }
     if(memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) != 0){ return false; }
     if(max_anisotropy != other.max_anisotropy){ return false; }
     if(initial_layout_transition != other.initial_layout_transition){ return false; }
@@ -740,6 +746,7 @@ size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format co
     hash_combine(h, fmt.address_mode_w);
     hash_combine(h, fmt.min_filter);
     hash_combine(h, fmt.mag_filter);
+    hash_combine(h, fmt.reduction_mode);
     hash_combine(h, fmt.component_swizzle.r);
     hash_combine(h, fmt.component_swizzle.g);
     hash_combine(h, fmt.component_swizzle.b);

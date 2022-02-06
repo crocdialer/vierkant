@@ -42,6 +42,9 @@ public:
         VkSamplerAddressMode address_mode_w = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         VkFilter min_filter = VK_FILTER_LINEAR;
         VkFilter mag_filter = VK_FILTER_LINEAR;
+        
+        VkSamplerReductionMode reduction_mode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
+
         VkComponentMapping component_swizzle = {VK_COMPONENT_SWIZZLE_IDENTITY,
                                                 VK_COMPONENT_SWIZZLE_IDENTITY,
                                                 VK_COMPONENT_SWIZZLE_IDENTITY,
