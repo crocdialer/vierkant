@@ -22,11 +22,6 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
     vec2 u_jitter_offset;
 };
 
-out gl_PerVertex
-{
-    vec4 gl_Position;
-};
-
 layout(location = ATTRIB_POSITION) in vec3 a_position;
 layout(location = ATTRIB_COLOR) in vec4 a_color;
 layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;
@@ -43,7 +38,7 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    uint object_index = gl_BaseInstance + gl_InstanceIndex;
+    uint object_index = context.object_index;//gl_BaseInstance + gl_InstanceIndex;
     matrix_struct_t m = u_matrices[object_index];
     matrix_struct_t m_last = u_previous_matrices[object_index];
 

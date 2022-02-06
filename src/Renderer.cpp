@@ -233,17 +233,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     // sort by pipelines
     struct indexed_drawable_t
     {
-//        uint32_t matrix_index = 0;
-//        uint32_t material_index = 0;
-//        uint32_t matrix_buffer_index = 0;
-//        uint32_t material_buffer_index = 0;
-
         uint32_t object_index = 0;
         vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
         drawable_t *drawable = nullptr;
     };
     std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipelines;
-    size_t max_num_uniform_bytes = m_device->properties().limits.maxUniformBufferRange;
 
     // preprocess drawables
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
@@ -255,11 +249,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
         indexed_drawable_t indexed_drawable = {};
-//        indexed_drawable.matrix_buffer_index = i * sizeof(matrix_struct_t) / max_num_uniform_bytes;
-//        indexed_drawable.material_buffer_index = i * sizeof(material_struct_t) / max_num_uniform_bytes;
-//        indexed_drawable.matrix_index = i % (max_num_uniform_bytes / sizeof(matrix_struct_t));
-//        indexed_drawable.material_index = i % (max_num_uniform_bytes / sizeof(material_struct_t));
-
         indexed_drawable.object_index = i;
         indexed_drawable.drawable = &current_assets.drawables[i];
 
@@ -353,8 +342,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             descriptor_set_key_t key = {};
             key.mesh = mesh;
             key.descriptors = drawable->descriptors;
-//            key.matrix_buffer_index = matrix_buffer_index;
-//            key.material_buffer_index = material_buffer_index;
 
             // transition image layouts
             for(auto &[binding, descriptor] : descriptors)
@@ -420,9 +407,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                                     0, 1, &descriptor_set_handle, 0, nullptr);
 
             // update push_constants for each draw call
-
-//            push_constants.matrix_index = indexed_drawable.matrix_index;
-        push_constants.object_index = indexed_drawable.object_index;
+            push_constants.object_index = indexed_drawable.object_index;
 
             push_constants.clipping = clipping_distances(indexed_drawable.drawable->matrices.projection);
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
@@ -431,9 +416,14 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             // issue (indexed) drawing command
             if(mesh && mesh->index_buffer)
             {
-                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, vertex_offset, indexed_drawable.object_index);
+                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, vertex_offset,
+                                 indexed_drawable.object_index);
             }
-            else{ vkCmdDraw(command_buffer.handle(), num_vertices, num_instances, vertex_offset, indexed_drawable.object_index); }
+            else
+            {
+                vkCmdDraw(command_buffer.handle(), num_vertices, num_instances, vertex_offset,
+                          indexed_drawable.object_index);
+            }
         }
     }
 

@@ -24,7 +24,7 @@ layout(location = 0) out VertexData
 
 void main()
 {
-    uint object_index = gl_BaseInstance + gl_InstanceIndex;
+    uint object_index = context.object_index;//gl_BaseInstance + gl_InstanceIndex;
     matrix_struct_t m = u_matrices[object_index];
 
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
