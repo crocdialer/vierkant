@@ -18,7 +18,7 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
     material_struct_t materials[];
 };
 
-layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[];
+layout(set = 1, binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[];
 
 layout(location = 0) flat in uint object_index;
 layout(location = 1) in VertexData

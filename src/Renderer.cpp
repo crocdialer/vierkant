@@ -241,11 +241,21 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     std::vector<vierkant::ImagePtr> textures;
     std::unordered_map<vierkant::ImagePtr, size_t> texture_index_map = {{nullptr, 0}};
 
-    using mesh_entry_key_t = std::pair<vierkant::MeshConstPtr, uint32_t>;
-    using mesh_entry_hash_t = crocore::pair_hash<vierkant::MeshConstPtr, uint32_t>;
-    using mesh_entry_map_t = std::unordered_map<mesh_entry_key_t, size_t, mesh_entry_hash_t>;
+    using mesh_material_key_t = std::pair<vierkant::MeshConstPtr, vierkant::MaterialConstPtr>;
+    using mesh_material_hash_t = crocore::pair_hash<vierkant::MeshConstPtr, vierkant::MaterialConstPtr>;
+    using mesh_material_map_t = std::unordered_map<mesh_material_key_t, size_t, mesh_material_hash_t>;
 
-    mesh_entry_map_t texture_base_index_map;
+    auto create_mesh_key = [](const drawable_t &drawable) -> mesh_material_key_t
+    {
+        if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size())
+        {
+            const auto &mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
+            return {drawable.mesh, mat};
+        }
+        return {};
+    };
+
+    mesh_material_map_t texture_base_index_map;
 
     // swoop all texture-indices
     for(auto &drawable : current_assets.drawables)
@@ -254,16 +264,16 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         {
             if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size())
             {
-                mesh_entry_key_t key = {drawable.mesh, drawable.entry_index};
-
-                if(!texture_base_index_map.count(key))
+                if(drawable.mesh->entries[drawable.entry_index].material_index < drawable.mesh->materials.size())
                 {
-                    if(drawable.mesh->entries[drawable.entry_index].material_index < drawable.mesh->materials.size())
-                    {
-                        const auto &mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
-                        if(!mat){ continue; }
+                    const auto &mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
+                    if(!mat){ continue; }
 
-                        if(!mat->textures.empty()){ texture_base_index_map[key] = textures.size(); }
+                    mesh_material_key_t key = {drawable.mesh, mat};
+
+                    if(!texture_base_index_map.count(key))
+                    {
+                        texture_base_index_map[key] = textures.size();
 
                         for(const auto &[tex_type, tex] : mat->textures)
                         {
@@ -290,6 +300,25 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         }
     }
 
+    // transition image-layouts
+    for(const auto &tex : textures)
+    {
+        tex->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
+    }
+
+    vierkant::descriptor_map_t bindless_texture_desc;
+
+    vierkant::descriptor_t desc_texture = {};
+    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_texture.image_samplers = textures;
+    bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
+
+    auto bindless_texture_layout = find_set_layout(bindless_texture_desc,
+                                                   current_assets,
+                                                   next_assets,
+                                                   true);
+
     // preprocess drawables
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
@@ -300,16 +329,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline_format.sample_count = m_sample_count;
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
-        auto baseIndex = texture_base_index_map[{drawable.mesh, drawable.entry_index}];
-        LOG_TRACE_IF(baseIndex) << "baseIndex: " << baseIndex << " - num_textures: " << textures.size();
+        auto baseIndex = texture_base_index_map[create_mesh_key(drawable)];
+//        LOG_TRACE_IF(baseIndex) << "baseIndex: " << baseIndex << " - num_textures: " << textures.size();
 
-//        // adjust baseTextureIndex
-//        drawable.material.baseTextureIndex = texture_base_index_map[drawable.mesh];
-//
-//        if(drawable.mesh && drawable.mesh->index_buffer && drawable.descriptors.count(BINDING_TEXTURES))
-//        {
-//            drawable.descriptors[BINDING_TEXTURES].image_samplers = textures;
-//        }
+        // adjust baseTextureIndex
+        drawable.material.baseTextureIndex = baseIndex;
 
         indexed_drawable_t indexed_drawable = {};
         indexed_drawable.object_index = i;
@@ -318,10 +342,15 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         if(!current_assets.drawables[i].descriptor_set_layout)
         {
             indexed_drawable.descriptor_set_layout = find_set_layout(drawable.descriptors,
-                                                                     current_assets, next_assets);
+                                                                     current_assets,
+                                                                     next_assets,
+                                                                     false);
             pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
         else{ indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
+
+        // bindless texture-array
+        pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
         pipelines[pipeline_format].push_back(indexed_drawable);
     }
@@ -423,73 +452,22 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 //                }
             }
 
-            // search/create descriptor set
-            descriptor_set_key_t key = {};
-            key.mesh = mesh;
-            key.descriptors = drawable->descriptors;
+            auto descriptor_set = find_set(mesh, indexed_drawable.descriptor_set_layout, descriptors, current_assets,
+                                           next_assets, false);
 
-            // transition image layouts
-            for(auto &[binding, descriptor] : descriptors)
-            {
-                for(auto &img : descriptor.image_samplers)
-                {
-                    img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                           command_buffer.handle());
-                }
-            }
+            auto bindless_texture_set = find_set(mesh, bindless_texture_layout, bindless_texture_desc, current_assets,
+                                                 next_assets, true);
 
-            // handle for a descriptor-set
-            VkDescriptorSet descriptor_set_handle = VK_NULL_HANDLE;
-
-            // start searching in next_assets
-            auto descriptor_set_it = next_assets.descriptor_sets.find(key);
-
-            // not found in next assets
-            if(descriptor_set_it == next_assets.descriptor_sets.end())
-            {
-                // search in current assets (might already been processed for this frame)
-                auto current_assets_it = current_assets.descriptor_sets.find(key);
-
-                // not found in current assets
-                if(current_assets_it == current_assets.descriptor_sets.end())
-                {
-
-                    // create a new descriptor set
-                    auto descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                          indexed_drawable.descriptor_set_layout);
-
-                    // keep handle
-                    descriptor_set_handle = descriptor_set.get();
-
-                    // update the newly created descriptor set
-                    vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
-
-                    // insert all created assets and store in map
-                    next_assets.descriptor_sets[key] = std::move(descriptor_set);
-                }
-                else
-                {
-                    // use existing descriptor set
-                    auto descriptor_set = std::move(current_assets_it->second);
-                    current_assets.descriptor_sets.erase(current_assets_it);
-
-                    // keep handle
-                    descriptor_set_handle = descriptor_set.get();
-
-                    // update existing descriptor set
-                    vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
-
-                    next_assets.descriptor_sets[key] = std::move(descriptor_set);
-                }
-            }
-            else
-            {
-                descriptor_set_handle = descriptor_set_it->second.get();
-            }
+            std::vector<VkDescriptorSet> descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
 
             // bind descriptor sets (uniforms, samplers)
-            vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(),
-                                    0, 1, &descriptor_set_handle, 0, nullptr);
+            vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    pipeline->layout(),
+                                    0,
+                                    descriptor_set_handles.size(),
+                                    descriptor_set_handles.data(),
+                                    0,
+                                    nullptr);
 
             // update push_constants for each draw call
             push_constants.clipping = clipping_distances(indexed_drawable.drawable->matrices.projection);
@@ -603,7 +581,8 @@ void Renderer::update_storage_buffers(const std::vector<drawable_t> &drawables, 
 
 DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
                                                  frame_assets_t &current,
-                                                 frame_assets_t &next)
+                                                 frame_assets_t &next,
+                                                 bool variable_count)
 {
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor] : descriptors)
@@ -626,11 +605,71 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     // not found -> create and insert descriptor-set layout
     if(set_it == next.descriptor_set_layouts.end())
     {
-        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
+        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors, variable_count);
         set_it = next.descriptor_set_layouts.insert(
                 std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }
     return set_it->second;
+}
+
+DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh,
+                                    const DescriptorSetLayoutPtr &set_layout,
+                                    const descriptor_map_t &descriptors,
+                                    frame_assets_t &current,
+                                    frame_assets_t &next,
+                                    bool variable_count)
+{
+    // handle for a descriptor-set
+    DescriptorSetPtr ret;
+
+    // search/create descriptor set
+    descriptor_set_key_t key = {};
+    key.mesh = mesh;
+    key.descriptors = descriptors;
+
+    // start searching in next_assets
+    auto descriptor_set_it = next.descriptor_sets.find(key);
+
+    // not found in next assets
+    if(descriptor_set_it == next.descriptor_sets.end())
+    {
+        // search in current assets (might already been processed for this frame)
+        auto current_assets_it = current.descriptor_sets.find(key);
+
+        // not found in current assets
+        if(current_assets_it == current.descriptor_sets.end())
+        {
+
+            // create a new descriptor set
+            auto descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool, set_layout,
+                                                                  variable_count);
+
+            // keep handle
+            ret = descriptor_set;
+
+            // update the newly created descriptor set
+            vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
+
+            // insert all created assets and store in map
+            next.descriptor_sets[key] = std::move(descriptor_set);
+        }
+        else
+        {
+            // use existing descriptor set
+            auto descriptor_set = std::move(current_assets_it->second);
+            current.descriptor_sets.erase(current_assets_it);
+
+            // keep handle
+            ret = descriptor_set;
+
+            // update existing descriptor set
+            vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
+
+            next.descriptor_sets[key] = std::move(descriptor_set);
+        }
+    }
+    else{ ret = descriptor_set_it->second; }
+    return ret;
 }
 
 glm::vec2 Renderer::clipping_distances(const glm::mat4 &projection)

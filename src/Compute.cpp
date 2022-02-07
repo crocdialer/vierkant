@@ -51,10 +51,10 @@ Compute::Compute(const vierkant::DevicePtr &device, const create_info_t &create_
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
     // we also need a DescriptorPool ...
-    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              256},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             128},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             256},
-                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     256}};
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          256},
+                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         128},
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         256},
+                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256}};
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
 }
 
@@ -86,7 +86,8 @@ void Compute::dispatch(computable_t computable, VkCommandBuffer commandbuffer)
     {
         descriptor_set = compute_asset.descriptor_sets.put(descriptor_set_layout,
                                                            vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                                         descriptor_set_layout));
+                                                                                           descriptor_set_layout,
+                                                                                           false));
     }
     // update descriptor-set with actual descriptors
     vierkant::update_descriptor_set(m_device, descriptor_set, computable.descriptors);

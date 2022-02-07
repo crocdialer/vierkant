@@ -253,6 +253,7 @@ private:
         vierkant::BufferPtr matrix_history_buffer;
         vierkant::BufferPtr material_buffer;
 
+        // draw-indirect buffers
         vierkant::BufferPtr indirect_draw_buffer;
         vierkant::BufferPtr indexed_indirect_draw_buffer;
 
@@ -266,7 +267,15 @@ private:
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
                                            frame_assets_t &current,
-                                           frame_assets_t &next);
+                                           frame_assets_t &next,
+                                           bool variable_count);
+
+    DescriptorSetPtr find_set(const vierkant::MeshConstPtr &mesh,
+                              const DescriptorSetLayoutPtr &set_layout,
+                              const descriptor_map_t& descriptors,
+                              frame_assets_t &current,
+                              frame_assets_t &next,
+                              bool variable_count);
 
     /**
      * @brief   Extract the near- and far-clipping distances from a projection matrix.

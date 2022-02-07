@@ -39,7 +39,7 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
 
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
                                                     const descriptor_map_t &descriptors,
-                                                    bool variableCount)
+                                                    bool variable_count)
 {
 //    if(descriptors.empty()){ return nullptr; }
 
@@ -52,7 +52,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
         layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
         layout_binding.descriptorCount = std::max<uint32_t>(layout_binding.descriptorCount,
                                                             static_cast<uint32_t>(desc.buffers.size()));
-        layout_binding.descriptorCount = variableCount ? g_max_bindless_resources : layout_binding.descriptorCount;
+        layout_binding.descriptorCount = variable_count ? g_max_bindless_resources : layout_binding.descriptorCount;
 
         layout_binding.descriptorType = desc.type;
         layout_binding.pImmutableSamplers = nullptr;
@@ -73,7 +73,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 
     VkDescriptorSetLayoutCreateInfo layout_info = {};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layout_info.pNext = variableCount ? &extended_info : nullptr;
+    layout_info.pNext = variable_count ? &extended_info : nullptr;
     layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
     layout_info.pBindings = bindings.data();
     layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
@@ -93,7 +93,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
                                        const DescriptorPoolPtr &pool,
                                        const DescriptorSetLayoutPtr &layout,
-                                       bool variableCount)
+                                       bool variable_count)
 {
     VkDescriptorSet descriptor_set;
     VkDescriptorSetLayout layout_handle = layout.get();
@@ -108,7 +108,7 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 
     VkDescriptorSetAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    alloc_info.pNext = variableCount ? &descriptor_count_allocate_info : nullptr;
+    alloc_info.pNext = variable_count ? &descriptor_count_allocate_info : nullptr;
     alloc_info.descriptorPool = pool.get();
     alloc_info.descriptorSetCount = 1;
     alloc_info.pSetLayouts = &layout_handle;
@@ -263,7 +263,7 @@ DescriptorSetLayoutPtr find_set_layout(const vierkant::DevicePtr &device,
     // not found -> create and insert descriptor-set layout
     if(set_it == layout_map.end())
     {
-        auto new_set = vierkant::create_descriptor_set_layout(device, descriptors);
+        auto new_set = vierkant::create_descriptor_set_layout(device, descriptors, false);
         set_it = layout_map.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }
     return set_it->second;
