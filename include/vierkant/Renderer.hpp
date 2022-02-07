@@ -69,7 +69,9 @@ public:
 
         float alpha_cutoff = 0.5f;
 
-        int padding[3];
+        uint32_t baseTextureIndex = 0;
+
+        int padding[2];
     };
 
 //    struct lightsource_t

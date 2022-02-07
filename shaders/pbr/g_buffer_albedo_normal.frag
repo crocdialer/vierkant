@@ -1,6 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+
 #include "../renderer/types.glsl"
 
 #define ALBEDO 0
@@ -15,7 +17,7 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
     material_struct_t materials[];
 };
 
-layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[2];
+layout(binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[];
 
 layout(location = 0) flat in uint object_index;
 layout(location = 1) in VertexData
@@ -45,14 +47,16 @@ void main()
 
     if(!context.disable_material)
     {
-        vec4 tex_color = vertex_in.color * texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord);
+        vec4 tex_color = vertex_in.color * texture(u_sampler_2D[nonuniformEXT(material.baseTextureIndex + ALBEDO)],
+                                                   vertex_in.tex_coord);
         float cut_off = (material.blend_mode == BLEND_MODE_MASK) ? material.alpha_cutoff : 0.f;
         if(tex_color.a < cut_off){ discard; }
         out_color = material.color * tex_color;
         out_emission = material.emission * tex_color;
     }
 
-    vec3 normal = normalize(2.0 * (texture(u_sampler_2D[NORMAL], vertex_in.tex_coord.xy).xyz - vec3(0.5)));
+    vec3 normal = normalize(2.0 * (texture(u_sampler_2D[nonuniformEXT(material.baseTextureIndex + NORMAL)],
+                                   vertex_in.tex_coord.xy).xyz - vec3(0.5)));
 
     // normal, tangent, bi-tangent
     vec3 t = normalize(vertex_in.tangent);

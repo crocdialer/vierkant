@@ -302,6 +302,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                 mesh_drawables.push_back({instance_group, {}});
             }
             mesh_drawables.back().second.push_back(indexed_drawable);
+
+            VkDrawIndexedIndirectCommand draw_command = {};
         }
 
         for(auto &[instance_group, drawables] : mesh_drawables)

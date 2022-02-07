@@ -22,6 +22,7 @@ struct material_struct_t
     float ambient;
     uint blend_mode;
     float alpha_cutoff;
+    uint baseTextureIndex;
 };
 
 //! definition of a directional- or point-light
