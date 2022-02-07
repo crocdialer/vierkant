@@ -7,7 +7,7 @@
 namespace vierkant
 {
 
-constexpr uint32_t g_max_bindless_resources = 256;
+constexpr uint32_t g_max_bindless_resources = 64;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -38,7 +38,8 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
-                                                    const descriptor_map_t &descriptors)
+                                                    const descriptor_map_t &descriptors,
+                                                    bool variableCount)
 {
 //    if(descriptors.empty()){ return nullptr; }
 
@@ -51,7 +52,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
         layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
         layout_binding.descriptorCount = std::max<uint32_t>(layout_binding.descriptorCount,
                                                             static_cast<uint32_t>(desc.buffers.size()));
-//        layout_binding.descriptorCount = g_max_bindless_resources;
+        layout_binding.descriptorCount = variableCount ? g_max_bindless_resources : layout_binding.descriptorCount;
 
         layout_binding.descriptorType = desc.type;
         layout_binding.pImmutableSamplers = nullptr;
@@ -63,8 +64,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
                                               VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
                                               VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
 
-    std::vector<VkDescriptorBindingFlags> flags_array(bindings.size(), 0);
-    if(!flags_array.empty()){ flags_array.back() = bindless_flags; }
+    std::vector<VkDescriptorBindingFlags> flags_array(bindings.size(), bindless_flags);
 
     VkDescriptorSetLayoutBindingFlagsCreateInfo extended_info = {};
     extended_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
@@ -73,7 +73,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 
     VkDescriptorSetLayoutCreateInfo layout_info = {};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-//    layout_info.pNext = &extended_info;
+    layout_info.pNext = variableCount ? &extended_info : nullptr;
     layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
     layout_info.pBindings = bindings.data();
     layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
@@ -92,7 +92,8 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
                                        const DescriptorPoolPtr &pool,
-                                       const DescriptorSetLayoutPtr &layout)
+                                       const DescriptorSetLayoutPtr &layout,
+                                       bool variableCount)
 {
     VkDescriptorSet descriptor_set;
     VkDescriptorSetLayout layout_handle = layout.get();
@@ -107,7 +108,7 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 
     VkDescriptorSetAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-//    alloc_info.pNext = &descriptor_count_allocate_info;
+    alloc_info.pNext = variableCount ? &descriptor_count_allocate_info : nullptr;
     alloc_info.descriptorPool = pool.get();
     alloc_info.descriptorSetCount = 1;
     alloc_info.pSetLayouts = &layout_handle;

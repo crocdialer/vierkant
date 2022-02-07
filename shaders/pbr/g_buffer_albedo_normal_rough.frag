@@ -46,7 +46,7 @@ void main()
 
     if(!context.disable_material)
     {
-        vec4 tex_color = vertex_in.color * texture(u_sampler_2D[nonuniformEXT(material.baseTextureIndex + ALBEDO)],
+        vec4 tex_color = vertex_in.color * texture(u_sampler_2D[material.baseTextureIndex + ALBEDO],
                                                    vertex_in.tex_coord);
         float cut_off = (material.blend_mode == BLEND_MODE_MASK) ? material.alpha_cutoff : 0.f;
         if(tex_color.a < cut_off){ discard; }
@@ -54,7 +54,7 @@ void main()
         out_emission = material.emission * tex_color;
     }
 
-    vec3 normal = normalize(2.0 * (texture(u_sampler_2D[nonuniformEXT(material.baseTextureIndex + NORMAL)],
+    vec3 normal = normalize(2.0 * (texture(u_sampler_2D[material.baseTextureIndex + NORMAL],
                                            vertex_in.tex_coord.xy).xyz - vec3(0.5)));
 
     // normal, tangent, bi-tangent
@@ -65,7 +65,7 @@ void main()
     normal = transpose_tbn * normal;
 
     out_normal = vec4(normalize(normal), 1);
-    out_ao_rough_metal = vec4(texture(u_sampler_2D[nonuniformEXT(material.baseTextureIndex + AO_ROUGH_METAL)],
+    out_ao_rough_metal = vec4(texture(u_sampler_2D[material.baseTextureIndex + AO_ROUGH_METAL],
                                       vertex_in.tex_coord).xyz, 1.0);
 
     // motion

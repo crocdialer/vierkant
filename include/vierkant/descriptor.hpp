@@ -71,7 +71,9 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
  * @return  the newly created DescriptorSetLayoutPtr
  */
 DescriptorSetLayoutPtr
-create_descriptor_set_layout(const vierkant::DevicePtr &device, const descriptor_map_t &descriptors);
+create_descriptor_set_layout(const vierkant::DevicePtr &device,
+                             const descriptor_map_t &descriptors,
+                             bool variableCount = false);
 
 /**
  * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a provided DescriptorLayout
@@ -83,7 +85,8 @@ create_descriptor_set_layout(const vierkant::DevicePtr &device, const descriptor
  */
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
                                        const DescriptorPoolPtr &pool,
-                                       const DescriptorSetLayoutPtr &layout);
+                                       const DescriptorSetLayoutPtr &layout,
+                                       bool variableCount = false);
 
 /**
  * @brief   Update an existing shared VkDescriptorSet with a provided array of vierkant::descriptor_t.

@@ -252,7 +252,9 @@ private:
         vierkant::BufferPtr matrix_buffer;
         vierkant::BufferPtr matrix_history_buffer;
         vierkant::BufferPtr material_buffer;
+
         vierkant::BufferPtr indirect_draw_buffer;
+        vierkant::BufferPtr indexed_indirect_draw_buffer;
 
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
