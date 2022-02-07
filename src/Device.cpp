@@ -133,6 +133,7 @@ Device::Device(const create_info_t &create_info) :
     device_features.samplerAnisotropy = true;
     device_features.sampleRateShading = true;
     device_features.independentBlend = true;
+    device_features.multiDrawIndirect = true;
 
     std::vector<const char *> extensions;
     for(const auto &ext : create_info.extensions){ extensions.push_back(ext); }

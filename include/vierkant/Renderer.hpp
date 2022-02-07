@@ -38,10 +38,10 @@ public:
         BINDING_MATRIX = 0,
         BINDING_PREVIOUS_MATRIX = 1,
         BINDING_MATERIAL = 2,
-        BINDING_TEXTURES = 3,
-        BINDING_BONES = 4,
-        BINDING_PREVIOUS_BONES = 5,
-        BINDING_JITTER_OFFSET = 6,
+        BINDING_BONES = 3,
+        BINDING_PREVIOUS_BONES = 4,
+        BINDING_JITTER_OFFSET = 5,
+        BINDING_TEXTURES = 6,
         BINDING_MAX_RANGE
     };
 
@@ -252,6 +252,7 @@ private:
         vierkant::BufferPtr matrix_buffer;
         vierkant::BufferPtr matrix_history_buffer;
         vierkant::BufferPtr material_buffer;
+        vierkant::BufferPtr indirect_draw_buffer;
 
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;

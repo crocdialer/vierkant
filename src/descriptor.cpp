@@ -7,6 +7,8 @@
 namespace vierkant
 {
 
+constexpr uint32_t g_max_bindless_resources = 256;
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
@@ -21,7 +23,8 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
     pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
     pool_info.pPoolSizes = pool_sizes.data();
     pool_info.maxSets = max_sets;
-    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.flags =
+            VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     vkCheck(vkCreateDescriptorPool(device->handle(), &pool_info, nullptr, &descriptor_pool),
@@ -37,6 +40,8 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
                                                     const descriptor_map_t &descriptors)
 {
+//    if(descriptors.empty()){ return nullptr; }
+
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
     for(const auto &[binding, desc] : descriptors)
@@ -46,15 +51,32 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
         layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
         layout_binding.descriptorCount = std::max<uint32_t>(layout_binding.descriptorCount,
                                                             static_cast<uint32_t>(desc.buffers.size()));
+//        layout_binding.descriptorCount = g_max_bindless_resources;
+
         layout_binding.descriptorType = desc.type;
         layout_binding.pImmutableSamplers = nullptr;
         layout_binding.stageFlags = desc.stage_flags;
         bindings.push_back(layout_binding);
     }
+
+    VkDescriptorBindingFlags bindless_flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+                                              VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
+                                              VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+
+    std::vector<VkDescriptorBindingFlags> flags_array(bindings.size(), 0);
+    if(!flags_array.empty()){ flags_array.back() = bindless_flags; }
+
+    VkDescriptorSetLayoutBindingFlagsCreateInfo extended_info = {};
+    extended_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    extended_info.bindingCount = flags_array.size();
+    extended_info.pBindingFlags = flags_array.data();
+
     VkDescriptorSetLayoutCreateInfo layout_info = {};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+//    layout_info.pNext = &extended_info;
     layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
     layout_info.pBindings = bindings.data();
+    layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
 
     VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
     vkCheck(vkCreateDescriptorSetLayout(device->handle(), &layout_info, nullptr, &descriptor_set_layout),
@@ -75,8 +97,17 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
     VkDescriptorSet descriptor_set;
     VkDescriptorSetLayout layout_handle = layout.get();
 
+    // max allocatable count
+    uint32_t max_binding = g_max_bindless_resources - 1;
+
+    VkDescriptorSetVariableDescriptorCountAllocateInfo descriptor_count_allocate_info = {};
+    descriptor_count_allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
+    descriptor_count_allocate_info.descriptorSetCount = 1;
+    descriptor_count_allocate_info.pDescriptorCounts = &max_binding;
+
     VkDescriptorSetAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+//    alloc_info.pNext = &descriptor_count_allocate_info;
     alloc_info.descriptorPool = pool.get();
     alloc_info.descriptorSetCount = 1;
     alloc_info.pSetLayouts = &layout_handle;

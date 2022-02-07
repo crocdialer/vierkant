@@ -2,6 +2,7 @@
 // Created by crocdialer on 3/22/19.
 //
 
+#include <unordered_set>
 #include <crocore/Area.hpp>
 #include <vierkant/Pipeline.hpp>
 #include "vierkant/Renderer.hpp"
@@ -227,9 +228,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
-    // update uniform buffers
-    update_storage_buffers(current_assets.drawables, next_assets);
-
     // sort by pipelines
     struct indexed_drawable_t
     {
@@ -239,29 +237,82 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     };
     std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipelines;
 
+    std::vector<vierkant::ImagePtr> textures;
+    std::unordered_map<vierkant::ImagePtr, size_t> texture_index_map = {{nullptr, 0}};
+    std::unordered_map<vierkant::MeshConstPtr, size_t> texture_base_index_map = {{nullptr, 0}};
+
+    // swoop all texture-indices
+    for(auto &drawable : current_assets.drawables)
+    {
+        if(drawable.descriptors.count(BINDING_TEXTURES))
+        {
+            if(drawable.mesh && !texture_base_index_map.count(drawable.mesh))
+            {
+                texture_base_index_map[drawable.mesh] = textures.size();
+
+                for(const auto &mat : drawable.mesh->materials)
+                {
+                    if(!mat){ continue; }
+                    for(const auto &[tex_type, tex] : mat->textures)
+                    {
+                        if(!texture_index_map.count(tex))
+                        {
+                            texture_index_map[tex] = textures.size();
+                            textures.push_back(tex);
+                        }
+                    }
+                }
+            }
+
+            const auto &drawable_textures = drawable.descriptors[BINDING_TEXTURES].image_samplers;
+
+            for(const auto &tex : drawable_textures)
+            {
+                if(!texture_index_map.count(tex))
+                {
+                    texture_index_map[tex] = textures.size();
+                    textures.push_back(tex);
+                }
+            }
+//            textures.insert(textures.end(), drawable_textures.begin(), drawable_textures.end());
+        }
+    }
+
     // preprocess drawables
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
         auto &pipeline_format = current_assets.drawables[i].pipeline_format;
+        auto &drawable = current_assets.drawables[i];
         pipeline_format.renderpass = framebuffer.renderpass().get();
         pipeline_format.viewport = viewport;
         pipeline_format.sample_count = m_sample_count;
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
+//        // adjust baseTextureIndex
+//        drawable.material.baseTextureIndex = texture_base_index_map[drawable.mesh];
+//
+//        if(drawable.mesh && drawable.mesh->index_buffer && drawable.descriptors.count(BINDING_TEXTURES))
+//        {
+//            drawable.descriptors[BINDING_TEXTURES].image_samplers = textures;
+//        }
+
         indexed_drawable_t indexed_drawable = {};
         indexed_drawable.object_index = i;
-        indexed_drawable.drawable = &current_assets.drawables[i];
+        indexed_drawable.drawable = &drawable;
 
         if(!current_assets.drawables[i].descriptor_set_layout)
         {
-            indexed_drawable.descriptor_set_layout = find_set_layout(current_assets.drawables[i].descriptors,
+            indexed_drawable.descriptor_set_layout = find_set_layout(drawable.descriptors,
                                                                      current_assets, next_assets);
             pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
-        else{ indexed_drawable.descriptor_set_layout = std::move(current_assets.drawables[i].descriptor_set_layout); }
+        else{ indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
 
         pipelines[pipeline_format].push_back(indexed_drawable);
     }
+
+    // update uniform buffers
+    update_storage_buffers(current_assets.drawables, next_assets);
 
     // push constants
     push_constants_t push_constants = {};
@@ -287,35 +338,42 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         }
 
         // group data to enable instancing
-        using instance_group_t = std::tuple<vierkant::MeshConstPtr, uint32_t, uint32_t, int32_t, uint32_t>;
-        std::vector<std::pair<instance_group_t, std::vector<indexed_drawable_t>>> mesh_drawables;
+//        using instance_group_t = std::tuple<vierkant::MeshConstPtr, uint32_t, uint32_t, int32_t, uint32_t>;
+//        std::vector<std::pair<instance_group_t, std::vector<indexed_drawable_t>>> mesh_drawables;
+
+        std::vector<std::pair<vierkant::MeshConstPtr, std::vector<indexed_drawable_t>>> mesh_drawables;
 
         for(auto &indexed_drawable : indexed_drawables)
         {
             auto &drawable = indexed_drawable.drawable;
 
-            instance_group_t instance_group = {drawable->mesh, drawable->base_index, drawable->num_indices,
-                                               drawable->vertex_offset, drawable->num_vertices};
+//            instance_group_t instance_group = {drawable->mesh, drawable->base_index, drawable->num_indices,
+//                                               drawable->vertex_offset, drawable->num_vertices};
 
-            if(mesh_drawables.empty() || mesh_drawables.back().first != instance_group)
+            if(mesh_drawables.empty() || mesh_drawables.back().first != drawable->mesh)
             {
-                mesh_drawables.push_back({instance_group, {}});
+                mesh_drawables.push_back({drawable->mesh, {}});
             }
             mesh_drawables.back().second.push_back(indexed_drawable);
 
-            VkDrawIndexedIndirectCommand draw_command = {};
+            auto draw_command = static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
+                                indexed_drawable.object_index;
+
+            draw_command->firstIndex = drawable->base_index;
+            draw_command->indexCount = drawable->num_indices;
+            draw_command->vertexOffset = drawable->vertex_offset;
+            draw_command->firstInstance = indexed_drawable.object_index;
+            draw_command->instanceCount = 1;
         }
 
-        for(auto &[instance_group, drawables] : mesh_drawables)
+        for(auto &[mesh, drawables] : mesh_drawables)
         {
-            auto[mesh, base_index, num_indices, vertex_offset, num_vertices] = instance_group;
-
-            uint32_t num_instances = drawables.size();
+//            auto[mesh, base_index, num_indices, vertex_offset, num_vertices] = instance_group;
 
             const auto &indexed_drawable = drawables.front();
             auto drawable = indexed_drawable.drawable;
 
-            if(num_instances > 1){ LOG_TRACE << "batching " << num_instances << " drawcalls"; }
+            if(drawables.size() > 1){ LOG_TRACE << "batching " << drawables.size() << " drawcalls"; }
 
             if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
 
@@ -338,6 +396,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                 {
                     descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
                 }
+//                if(drawable->mesh && descriptors.count(BINDING_TEXTURES))
+//                {
+//                    descriptors[BINDING_TEXTURES].image_samplers = textures;
+//                }
             }
 
             // search/create descriptor set
@@ -416,12 +478,19 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             // issue (indexed) drawing command
             if(mesh && mesh->index_buffer)
             {
-                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, vertex_offset,
-                                 indexed_drawable.object_index);
+//                vkCmdDrawIndexed(command_buffer.handle(), num_indices, num_instances, base_index, vertex_offset,
+//                                 indexed_drawable.object_index);
+                size_t indirect_cmd_stride = sizeof(VkDrawIndexedIndirectCommand);
+
+                vkCmdDrawIndexedIndirect(command_buffer.handle(),
+                                         next_assets.indirect_draw_buffer->handle(),
+                                         indirect_cmd_stride * indexed_drawable.object_index,
+                                         drawables.size(),
+                                         indirect_cmd_stride);
             }
             else
             {
-                vkCmdDraw(command_buffer.handle(), num_vertices, num_instances, vertex_offset,
+                vkCmdDraw(command_buffer.handle(), drawable->num_vertices, 1, drawable->vertex_offset,
                           indexed_drawable.object_index);
             }
         }
@@ -475,9 +544,23 @@ void Renderer::update_storage_buffers(const std::vector<drawable_t> &drawables, 
         else{ out_buffer->set_data(array); }
     };
 
+    // create/upload joined buffers
     copy_to_buffer(matrix_data, frame_asset.matrix_buffer);
     copy_to_buffer(material_data, frame_asset.material_buffer);
     copy_to_buffer(matrix_history_data, frame_asset.matrix_history_buffer);
+
+    // reserve space for indirect drawing-commands
+    size_t indirect_buf_size = drawables.size() * sizeof(VkDrawIndexedIndirectCommand);
+
+    if(!frame_asset.indirect_draw_buffer)
+    {
+        frame_asset.indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
+                                                                    indirect_buf_size,
+                                                                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ frame_asset.indirect_draw_buffer->set_data(nullptr, indirect_buf_size); }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -489,8 +572,8 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor] : descriptors)
     {
-        for(auto &img : descriptor.image_samplers){ img.reset(); };
-        for(auto &buf : descriptor.buffers){ buf.reset(); };
+        for(auto &img : descriptor.image_samplers){ img.reset(); }
+        for(auto &buf : descriptor.buffers){ buf.reset(); }
     }
 
     // retrieve set-layout
