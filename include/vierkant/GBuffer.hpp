@@ -41,9 +41,8 @@ enum GBufferPropertyFlagBits : uint32_t
     PROP_ALBEDO = 0x01,
     PROP_SKIN = 0x02,
     PROP_NORMAL = 0x04,
-    PROP_SPEC = 0x08,
-    PROP_AO_METAL_ROUGH = 0x10,
-    PROP_EMMISION = 0x20
+    PROP_AO_METAL_ROUGH = 0x08,
+    PROP_EMMISION = 0x10
 };
 
 using GBufferPropertyFlags = uint32_t;

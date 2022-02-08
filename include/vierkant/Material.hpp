@@ -24,20 +24,19 @@ public:
         Mask = 2
     };
 
-    enum TextureType
+    enum TextureType : uint32_t
     {
-        Color,
-        Normal,
-        Specular,
-        Ao_rough_metal,
-        Emission,
-        Displacement,
-        Thickness,
-        Transmission,
-        Clearcoat,
-        SheenColor,
-        SheenRoughness,
-        Environment
+        Color = 0x01,
+        Normal = 0x02,
+        Ao_rough_metal = 0x04,
+        Emission = 0x08,
+        Displacement = 0x10,
+        Thickness = 0x20,
+        Transmission = 0x40,
+        Clearcoat = 0x80,
+        SheenColor = 0x100,
+        SheenRoughness = 0x200,
+        Environment = 0x400
     };
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };

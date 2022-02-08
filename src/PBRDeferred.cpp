@@ -340,7 +340,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         const auto &textures = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index]->textures;
         if(textures.count(vierkant::Material::Color)){ shader_flags |= PROP_ALBEDO; }
         if(textures.count(vierkant::Material::Normal)){ shader_flags |= PROP_NORMAL; }
-        if(textures.count(vierkant::Material::Specular)){ shader_flags |= PROP_SPEC; }
         if(textures.count(vierkant::Material::Emission)){ shader_flags |= PROP_EMMISION; }
         if(textures.count(vierkant::Material::Ao_rough_metal)){ shader_flags |= PROP_AO_METAL_ROUGH; }
 

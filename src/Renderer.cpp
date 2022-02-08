@@ -121,7 +121,12 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
             vierkant::descriptor_t desc_texture = {};
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-            for(auto &p : material->textures){ desc_texture.image_samplers.push_back(p.second); };
+
+            for(auto &[type_flag, tex] : material->textures)
+            {
+                drawable.material.texture_type_flags |= type_flag;
+                desc_texture.image_samplers.push_back(tex);
+            };
             drawable.descriptors[BINDING_TEXTURES] = desc_texture;
         }
 
@@ -327,7 +332,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
         // adjust baseTextureIndex
-        drawable.material.baseTextureIndex = texture_base_index_map[create_mesh_key(drawable)];
+        drawable.material.base_texture_index = texture_base_index_map[create_mesh_key(drawable)];
 
         indexed_drawable_t indexed_drawable = {};
         indexed_drawable.object_index = i;

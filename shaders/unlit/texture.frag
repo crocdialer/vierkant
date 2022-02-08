@@ -27,6 +27,6 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    vec4 tex_color = texture(u_sampler_2D[materials[object_index].baseTextureIndex], vertex_in.tex_coord);
+    vec4 tex_color = texture(u_sampler_2D[materials[object_index].base_texture_index], vertex_in.tex_coord);
     out_color = tex_color * materials[object_index].color * vertex_in.color;
 }

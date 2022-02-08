@@ -45,7 +45,7 @@ void main()
 
     if(!context.disable_material)
     {
-        vec4 tex_color = vertex_in.color * texture(u_sampler_2D[material.baseTextureIndex + ALBEDO],
+        vec4 tex_color = vertex_in.color * texture(u_sampler_2D[material.base_texture_index + ALBEDO],
                                                    vertex_in.tex_coord);
         float cut_off = (material.blend_mode == BLEND_MODE_MASK) ? material.alpha_cutoff : 0.f;
         if(tex_color.a < cut_off){ discard; }
@@ -54,7 +54,7 @@ void main()
     }
 
     out_normal = vec4(vertex_in.normal, 1.0);
-    out_ao_rough_metal = vec4(texture(u_sampler_2D[material.baseTextureIndex + AO_ROUGH_METAL],
+    out_ao_rough_metal = vec4(texture(u_sampler_2D[material.base_texture_index + AO_ROUGH_METAL],
                                       vertex_in.tex_coord).xyz, 1.0);
 
     // motion
