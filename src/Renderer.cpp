@@ -355,13 +355,17 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     }
 
     // update uniform buffers
-    update_storage_buffers(current_assets.drawables, next_assets);
+    update_buffers(current_assets.drawables, next_assets);
 
     // push constants
     push_constants_t push_constants = {};
     push_constants.size = {viewport.width, viewport.height};
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.disable_material = disable_material;
+
+    // global indices for rendering-commands
+    size_t indirect_draw_index = 0;
+    size_t indexed_indirect_draw_index = 0;
 
     // grouped by pipelines
     for(auto &[pipe_fmt, indexed_drawables] : pipelines)
@@ -380,7 +384,17 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
         }
 
-        std::vector<std::pair<vierkant::MeshConstPtr, std::vector<indexed_drawable_t>>> indirect_draws;
+        struct indirect_draw_asset_t
+        {
+            uint32_t num_draws = 0;
+            uint32_t first_indirect_draw_index = 0;
+            uint32_t first_indexed_indirect_draw_index = 0;
+
+            vierkant::descriptor_map_t descriptors;
+            vierkant::DescriptorSetLayoutPtr descriptor_set_layout;
+            VkRect2D scissor = {};
+        };
+        std::vector<std::pair<vierkant::MeshConstPtr, indirect_draw_asset_t>> indirect_draws;
 
         // gather indirect drawing commands into buffers
         for(auto &indexed_drawable : indexed_drawables)
@@ -389,15 +403,35 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
             if(indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
             {
-                indirect_draws.push_back({drawable->mesh, {}});
+                indirect_draw_asset_t new_draw = {};
+                new_draw.first_indirect_draw_index = indirect_draw_index;
+                new_draw.first_indexed_indirect_draw_index = indexed_indirect_draw_index;
+                new_draw.descriptors = drawable->descriptors;
+                new_draw.descriptor_set_layout = indexed_drawable.descriptor_set_layout;
+                new_draw.scissor = drawable->pipeline_format.scissor;
+
+                // predefined buffers
+                if(!drawable->use_own_buffers)
+                {
+                    new_draw.descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
+                    new_draw.descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
+
+                    if(new_draw.descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
+                    {
+                        new_draw.descriptors[BINDING_PREVIOUS_MATRIX].buffers = {
+                                next_assets.matrix_history_buffer};
+                    }
+                }
+                indirect_draws.emplace_back(drawable->mesh, std::move(new_draw));
             }
-            indirect_draws.back().second.push_back(indexed_drawable);
+            auto &indirect_draw_asset = indirect_draws.back().second;
+            indirect_draw_asset.num_draws++;
 
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
                 auto draw_command =
                         static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
-                        indexed_drawable.object_index;
+                        indexed_indirect_draw_index++;
 
                 draw_command->firstIndex = drawable->base_index;
                 draw_command->indexCount = drawable->num_indices;
@@ -408,7 +442,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             else
             {
                 auto draw_command = static_cast<VkDrawIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
-                                    indexed_drawable.object_index;
+                                    indirect_draw_index++;
 
                 draw_command->vertexCount = drawable->num_vertices;
                 draw_command->instanceCount = 1;
@@ -417,37 +451,22 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             }
         }
 
-        for(auto &[mesh, drawables] : indirect_draws)
+        for(auto &[mesh, draw_asset] : indirect_draws)
         {
-            const auto &indexed_drawable = drawables.front();
-            auto drawable = indexed_drawable.drawable;
-
-            if(drawables.size() > 1){ LOG_TRACE << "batching " << drawables.size() << " drawcalls"; }
+            if(draw_asset.num_draws > 1){ LOG_TRACE << "batching " << draw_asset.num_draws << " drawcalls"; }
 
             if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
 
             if(dynamic_scissor)
             {
                 // set dynamic scissor
-                vkCmdSetScissor(command_buffer.handle(), 0, 1, &drawable->pipeline_format.scissor);
+                vkCmdSetScissor(command_buffer.handle(), 0, 1, &draw_asset.scissor);
             }
 
             // update/create descriptor set
-            auto &descriptors = drawable->descriptors;
+            auto &descriptors = draw_asset.descriptors;
 
-            // predefined buffers
-            if(!drawable->use_own_buffers)
-            {
-                descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
-                descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
-
-                if(descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
-                {
-                    descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
-                }
-            }
-
-            auto descriptor_set = find_set(mesh, indexed_drawable.descriptor_set_layout, descriptors, current_assets,
+            auto descriptor_set = find_set(mesh, draw_asset.descriptor_set_layout, descriptors, current_assets,
                                            next_assets, false);
 
             auto bindless_texture_set = find_set(mesh, bindless_texture_layout, bindless_texture_desc, current_assets,
@@ -465,7 +484,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                                     nullptr);
 
             // update push_constants for each draw call
-            push_constants.clipping = clipping_distances(indexed_drawable.drawable->matrices.projection);
+//            push_constants.clipping = clipping_distances(indexed_drawable.drawable->matrices.projection);
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
                                sizeof(push_constants_t), &push_constants);
 
@@ -476,8 +495,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
                 vkCmdDrawIndexedIndirect(command_buffer.handle(),
                                          next_assets.indexed_indirect_draw_buffer->handle(),
-                                         indexed_indirect_cmd_stride * indexed_drawable.object_index,
-                                         drawables.size(),
+                                         indexed_indirect_cmd_stride * draw_asset.first_indexed_indirect_draw_index,
+                                         draw_asset.num_draws,
                                          indexed_indirect_cmd_stride);
             }
             else
@@ -486,8 +505,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
                 vkCmdDrawIndirect(command_buffer.handle(),
                                   next_assets.indirect_draw_buffer->handle(),
-                                  indirect_cmd_stride * indexed_drawable.object_index,
-                                  drawables.size(),
+                                  indirect_cmd_stride * draw_asset.first_indirect_draw_index,
+                                  draw_asset.num_draws,
                                   indirect_cmd_stride);
             }
         }
@@ -513,7 +532,7 @@ void Renderer::reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::update_storage_buffers(const std::vector<drawable_t> &drawables, Renderer::frame_assets_t &frame_asset)
+void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer::frame_assets_t &frame_asset)
 {
     // joined drawable buffers
     std::vector<matrix_struct_t> matrix_data(drawables.size());

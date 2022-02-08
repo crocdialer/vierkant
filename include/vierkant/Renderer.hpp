@@ -262,7 +262,7 @@ private:
     };
 
     //! update the combined uniform buffers
-    void update_storage_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
+    void update_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
