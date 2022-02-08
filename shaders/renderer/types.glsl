@@ -67,8 +67,5 @@ struct render_context_t
 #define BINDING_JITTER_OFFSET 5
 #define BINDING_TEXTURES 6
 
-//! constant for maximum number of drawables per renderpass
-const int MAX_NUM_DRAWABLES = 4096;
-
 //! constant for maximum number of bones per mesh
 const int MAX_NUM_BONES = 512;

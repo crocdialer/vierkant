@@ -33,6 +33,9 @@ struct descriptor_t
     VkDescriptorType type;
     VkShaderStageFlags stage_flags;
 
+    //! using Vulkan 1.2 descriptor-indexing
+    bool variable_count = false;
+
     //! used for descriptors containing buffers
     std::vector<vierkant::BufferPtr> buffers;
 

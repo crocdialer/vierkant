@@ -378,7 +378,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
     auto &drawable = m_imgui_assets.drawable;
-    drawable.mesh = mesh;
+//    drawable.mesh = mesh;
     drawable.pipeline_format = std::move(pipeline_fmt);
 
     // descriptors

@@ -16,6 +16,32 @@ using duration_t = std::chrono::duration<float>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+struct mesh_index_key_t
+{
+    vierkant::MeshConstPtr mesh;
+    std::vector<vierkant::ImagePtr> textures;
+
+    inline bool operator==(const mesh_index_key_t &other) const
+    {
+        return mesh == other.mesh && textures == other.textures;
+    }
+};
+
+struct mesh_index_hash_t
+{
+    size_t operator()(mesh_index_key_t const &key) const
+    {
+        size_t h = 0;
+        crocore::hash_combine(h, key.mesh);
+        for(const auto &tex : key.textures){ crocore::hash_combine(h, tex); }
+        return h;
+    }
+};
+
+using mesh_index_map_t = std::unordered_map<mesh_index_key_t, size_t, mesh_index_hash_t>;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr &mesh,
                                                              const glm::mat4 &model_view,
                                                              std::function<bool(
@@ -241,63 +267,38 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     std::vector<vierkant::ImagePtr> textures;
     std::unordered_map<vierkant::ImagePtr, size_t> texture_index_map = {{nullptr, 0}};
 
-    using mesh_material_key_t = std::pair<vierkant::MeshConstPtr, vierkant::MaterialConstPtr>;
-    using mesh_material_hash_t = crocore::pair_hash<vierkant::MeshConstPtr, vierkant::MaterialConstPtr>;
-    using mesh_material_map_t = std::unordered_map<mesh_material_key_t, size_t, mesh_material_hash_t>;
-
-    auto create_mesh_key = [](const drawable_t &drawable) -> mesh_material_key_t
+    auto create_mesh_key = [](const drawable_t &drawable) -> mesh_index_key_t
     {
-        if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size())
-        {
-            const auto &mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
-            return {drawable.mesh, mat};
-        }
-        return {};
+        auto it = drawable.descriptors.find(BINDING_TEXTURES);
+        if(it == drawable.descriptors.end() || it->second.image_samplers.empty()){ return {drawable.mesh, {}}; }
+
+        const auto &drawable_textures = it->second.image_samplers;
+        return {drawable.mesh, drawable_textures};
     };
 
-    mesh_material_map_t texture_base_index_map;
+    mesh_index_map_t texture_base_index_map;
 
     // swoop all texture-indices
-    for(auto &drawable : current_assets.drawables)
+    for(const auto &drawable : current_assets.drawables)
     {
-        if(drawable.descriptors.count(BINDING_TEXTURES))
-        {
-            if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size())
-            {
-                if(drawable.mesh->entries[drawable.entry_index].material_index < drawable.mesh->materials.size())
-                {
-                    const auto &mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
-                    if(!mat){ continue; }
+        auto it = drawable.descriptors.find(BINDING_TEXTURES);
+        if(it == drawable.descriptors.end() || it->second.image_samplers.empty()){ continue; }
 
-                    mesh_material_key_t key = {drawable.mesh, mat};
-
-                    if(!texture_base_index_map.count(key))
-                    {
-                        texture_base_index_map[key] = textures.size();
-
-                        for(const auto &[tex_type, tex] : mat->textures)
-                        {
-                            if(!texture_index_map.count(tex))
-                            {
-                                texture_index_map[tex] = textures.size();
-                                textures.push_back(tex);
-                            }
-                        }
-                    }
-                }
-            }
+        const auto &drawable_textures = it->second.image_samplers;
 
             // insert other textures from drawables
-            const auto &drawable_textures = drawable.descriptors[BINDING_TEXTURES].image_samplers;
-            for(const auto &tex : drawable_textures)
+            mesh_index_key_t key = {drawable.mesh, drawable_textures};
+
+            if(!texture_base_index_map.count(key))
             {
-                if(!texture_index_map.count(tex))
+                texture_base_index_map[key] = textures.size();
+
+                for(const auto &tex : drawable_textures)
                 {
-                    texture_index_map[tex] = textures.size();
-                    textures.push_back(tex);
+                        texture_index_map[tex] = textures.size();
+                        textures.push_back(tex);
                 }
             }
-        }
     }
 
     // transition image-layouts
@@ -330,7 +331,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
         auto baseIndex = texture_base_index_map[create_mesh_key(drawable)];
-//        LOG_TRACE_IF(baseIndex) << "baseIndex: " << baseIndex << " - num_textures: " << textures.size();
+        LOG_TRACE << "baseIndex: " << baseIndex << " - num_textures: " << textures.size();
 
         // adjust baseTextureIndex
         drawable.material.baseTextureIndex = baseIndex;
@@ -446,10 +447,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                 {
                     descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
                 }
-//                if(drawable->mesh && descriptors.count(BINDING_TEXTURES))
-//                {
-//                    descriptors[BINDING_TEXTURES].image_samplers = textures;
-//                }
             }
 
             auto descriptor_set = find_set(mesh, indexed_drawable.descriptor_set_layout, descriptors, current_assets,

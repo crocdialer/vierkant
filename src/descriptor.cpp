@@ -7,7 +7,7 @@
 namespace vierkant
 {
 
-constexpr uint32_t g_max_bindless_resources = 64;
+constexpr uint32_t g_max_bindless_resources = 1024;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -274,6 +274,7 @@ bool descriptor_t::operator==(const descriptor_t &other) const
 {
     if(type != other.type){ return false; }
     if(stage_flags != other.stage_flags){ return false; }
+    if(variable_count != other.variable_count){ return false; }
     if(buffers != other.buffers){ return false; }
     if(buffer_offsets != other.buffer_offsets){ return false; }
     if(image_samplers != other.image_samplers){ return false; }
@@ -292,6 +293,7 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     size_t h = 0;
     hash_combine(h, descriptor.type);
     hash_combine(h, descriptor.stage_flags);
+    hash_combine(h, descriptor.variable_count);
     for(const auto &buf : descriptor.buffers){ hash_combine(h, buf); }
     for(const auto &offset : descriptor.buffer_offsets){ hash_combine(h, offset); }
     for(const auto &img : descriptor.image_samplers){ hash_combine(h, img); }
@@ -305,10 +307,10 @@ size_t std::hash<vierkant::descriptor_map_t>::operator()(const vierkant::descrip
 {
     size_t h = 0;
 
-    for(auto &pair : map)
+    for(auto &[binding, descriptor] : map)
     {
-        hash_combine(h, pair.first);
-        hash_combine(h, pair.second);
+        hash_combine(h, binding);
+        hash_combine(h, descriptor);
     }
     return h;
 }
