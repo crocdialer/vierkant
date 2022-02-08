@@ -2,7 +2,8 @@
 
 #include "Object3D.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 DEFINE_CLASS_PTR(Camera)
 
@@ -12,11 +13,19 @@ DEFINE_CLASS_PTR(PerspectiveCamera)
 
 DEFINE_CLASS_PTR(CubeCamera)
 
+/**
+ * @brief   Extract the near- and far-clipping distances from a projection matrix.
+ *
+ * @param   projection  a provided 4x4 projection matrix.
+ * @return  a glm::vec2 containing (near, far) distances
+ */
+glm::vec2 clipping_distances(const glm::mat4 &projection);
+
 class Camera : public Object3D
 {
 public:
 
-    glm::mat4 projection_matrix() const { return m_projection; };
+    glm::mat4 projection_matrix() const{ return m_projection; };
 
     glm::mat4 view_matrix() const;
 
@@ -51,7 +60,7 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override { return m_near; };
+    float near() const override{ return m_near; };
 
     void near(float val)
     {
@@ -61,7 +70,7 @@ public:
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
-    float far() const override { return m_far; };
+    float far() const override{ return m_far; };
 
     void far(float val)
     {
@@ -69,9 +78,9 @@ public:
         update_projection_matrix();
     };
 
-    float fov() const override { return glm::degrees(atanf(std::abs(m_right - m_left) / std::abs(m_far - m_near))); };
+    float fov() const override{ return glm::degrees(atanf(std::abs(m_right - m_left) / std::abs(m_far - m_near))); };
 
-    inline float left() const { return m_left; };
+    inline float left() const{ return m_left; };
 
     void left(float val)
     {
@@ -79,7 +88,7 @@ public:
         update_projection_matrix();
     };
 
-    inline float right() const { return m_right; };
+    inline float right() const{ return m_right; };
 
     void right(float val)
     {
@@ -87,7 +96,7 @@ public:
         update_projection_matrix();
     };
 
-    inline float bottom() const { return m_bottom; };
+    inline float bottom() const{ return m_bottom; };
 
     void bottom(float val)
     {
@@ -95,7 +104,7 @@ public:
         update_projection_matrix();
     };
 
-    inline float top() const { return m_top; };
+    inline float top() const{ return m_top; };
 
     void top(float val)
     {
@@ -129,17 +138,17 @@ public:
 
     void set_fov(float theFov);
 
-    float fov() const override { return m_fov; };
+    float fov() const override{ return m_fov; };
 
     void set_aspect(float theAspect);
 
-    float aspect() const { return m_aspect; };
+    float aspect() const{ return m_aspect; };
 
     void set_clipping(float near, float far);
 
-    float near() const override { return m_near; };
+    float near() const override{ return m_near; };
 
-    float far() const override { return m_far; };
+    float far() const override{ return m_far; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
@@ -165,11 +174,11 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override { return m_near; };
+    float near() const override{ return m_near; };
 
-    float far() const override { return m_far; };
+    float far() const override{ return m_far; };
 
-    float fov() const override { return 45.f; };
+    float fov() const override{ return 45.f; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 

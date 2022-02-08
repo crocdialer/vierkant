@@ -520,6 +520,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
         if(!drawable.descriptors[1].buffers.empty())
         {
+            settings.dof.clipping = vierkant::clipping_distances(cam->projection_matrix());
             drawable.descriptors[1].buffers.front()->set_data(&settings.dof, sizeof(vierkant::dof_settings_t));
         }
         output_img = pingpong_render(drawable);

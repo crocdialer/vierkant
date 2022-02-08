@@ -328,12 +328,12 @@ void DrawContext::draw_lines(vierkant::Renderer &renderer,
 
         // descriptors
         vierkant::descriptor_t desc_matrix = {};
-        desc_matrix.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
         drawable.descriptors[vierkant::Renderer::BINDING_MATRIX] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         drawable.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
 

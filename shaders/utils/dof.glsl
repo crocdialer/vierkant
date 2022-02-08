@@ -46,6 +46,9 @@ struct dof_settings_t
     //! flag indicating if DoF should be applied
     bool enabled;
 
+    //! clipping planes
+    vec2 clipping;
+
     //! focal distance value in meters, but you may use u_auto_focus option below
     float focal_depth;
 
@@ -257,24 +260,24 @@ float vignette(vec2 coord, dof_settings_t p)
     return clamp(dist, 0.0, 1.0);
 }
 
-vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 viewport_size, vec2 clip_distances,
+vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 viewport_size,
                     const dof_settings_t params)
 {
     // scene depth calculation
     float raw_depth = texture(depth_map, coord).x;
-    float depth = linearize(raw_depth, clip_distances.x, clip_distances.y);
+    float depth = linearize(raw_depth, params.clipping.x, params.clipping.y);
 
     if(g_use_depth_blur)
     {
         float depth_blurred = blur_depth(depth_map, coord, viewport_size);
-        depth = linearize(depth_blurred, clip_distances.x, clip_distances.y);
+        depth = linearize(depth_blurred, params.clipping.x, params.clipping.y);
     }
 
     // focal plane calculation
     float fDepth = params.focal_depth;
 
     // autofocus will use a sampled depth-value at the focus point
-    if(params.auto_focus){ fDepth = linearize(texture(depth_map, g_focus).x, clip_distances.x, clip_distances.y); }
+    if(params.auto_focus){ fDepth = linearize(texture(depth_map, g_focus).x, params.clipping.x, params.clipping.y); }
 
     // dof blur factor calculation
     float blur = 0.0;

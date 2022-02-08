@@ -44,7 +44,6 @@ struct lightsource_t
 struct render_context_t
 {
     vec2 size;
-    vec2 clipping;
     float time;
     bool disable_material;
 };

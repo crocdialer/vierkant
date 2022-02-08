@@ -41,8 +41,6 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
                                                     const descriptor_map_t &descriptors,
                                                     bool variable_count)
 {
-//    if(!device || descriptors.empty()){ return nullptr; }
-
     std::vector<VkDescriptorSetLayoutBinding> bindings;
 
     for(const auto &[binding, desc] : descriptors)
@@ -95,8 +93,6 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
                                        const DescriptorSetLayoutPtr &layout,
                                        bool variable_count)
 {
-//    if(!device || !pool || !layout){ return nullptr; }
-
     VkDescriptorSet descriptor_set;
     VkDescriptorSetLayout layout_handle = layout.get();
 

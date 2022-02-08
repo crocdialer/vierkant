@@ -15,6 +15,9 @@ struct dof_settings_t
     //! flag indicating if DoF should be applied
     uint32_t enabled = false;
 
+    //! clipping planes
+    glm::vec2 clipping;
+
     //! focal distance in meters, but you may use auto_focus option below
     float focal_depth = 5;
 

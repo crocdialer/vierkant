@@ -218,9 +218,6 @@ private:
         //! current viewport-size
         glm::vec2 size;
 
-        //! near- and far-clipping planes
-        glm::vec2 clipping = glm::vec2(0.f, 1.f);
-
         //! current time since start in seconds
         float time;
 
@@ -267,8 +264,7 @@ private:
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
                                            frame_assets_t &current,
-                                           frame_assets_t &next,
-                                           bool variable_count);
+                                           frame_assets_t &next);
 
     DescriptorSetPtr find_set(const vierkant::MeshConstPtr &mesh,
                               const DescriptorSetLayoutPtr &set_layout,
@@ -276,14 +272,6 @@ private:
                               frame_assets_t &current,
                               frame_assets_t &next,
                               bool variable_count);
-
-    /**
-     * @brief   Extract the near- and far-clipping distances from a projection matrix.
-     *
-     * @param   projection  a provided 4x4 projection matrix.
-     * @return  a glm::vec2 containing (near, far) distances
-     */
-    static glm::vec2 clipping_distances(const glm::mat4 &projection);
 
     DevicePtr m_device;
 

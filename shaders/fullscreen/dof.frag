@@ -31,5 +31,5 @@ void main()
 
     // depth of field
     out_color = depth_of_field(u_sampler_2D[COLOR], u_sampler_2D[DEPTH], vertex_in.tex_coord, context.size,
-                               context.clipping, dof_settings);
+                               dof_settings);
 }

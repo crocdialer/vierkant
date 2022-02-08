@@ -309,14 +309,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
     vierkant::descriptor_t desc_texture = {};
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_texture.variable_count = true;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.image_samplers = textures;
     bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
 
-    auto bindless_texture_layout = find_set_layout(bindless_texture_desc,
-                                                   current_assets,
-                                                   next_assets,
-                                                   true);
+    auto bindless_texture_layout = find_set_layout(bindless_texture_desc, current_assets, next_assets);
 
     // preprocess drawables
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
@@ -328,11 +326,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline_format.sample_count = m_sample_count;
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
-        auto baseIndex = texture_base_index_map[create_mesh_key(drawable)];
-        LOG_TRACE << "baseIndex: " << baseIndex << " - num_textures: " << textures.size();
-
         // adjust baseTextureIndex
-        drawable.material.baseTextureIndex = baseIndex;
+        drawable.material.baseTextureIndex = texture_base_index_map[create_mesh_key(drawable)];
 
         indexed_drawable_t indexed_drawable = {};
         indexed_drawable.object_index = i;
@@ -342,8 +337,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         {
             indexed_drawable.descriptor_set_layout = find_set_layout(drawable.descriptors,
                                                                      current_assets,
-                                                                     next_assets,
-                                                                     false);
+                                                                     next_assets);
             pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
         else{ indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
@@ -376,6 +370,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         // bind pipeline
         pipeline->bind(command_buffer.handle());
 
+        vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
+                           sizeof(push_constants_t), &push_constants);
+
         bool dynamic_scissor = crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
 
         if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT))
@@ -389,9 +386,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             uint32_t num_draws = 0;
             uint32_t first_indirect_draw_index = 0;
             uint32_t first_indexed_indirect_draw_index = 0;
-
-            vierkant::descriptor_map_t descriptors;
-            vierkant::DescriptorSetLayoutPtr descriptor_set_layout;
+            std::vector<VkDescriptorSet> descriptor_set_handles;
             VkRect2D scissor = {};
         };
         std::vector<std::pair<vierkant::MeshConstPtr, indirect_draw_asset_t>> indirect_draws;
@@ -401,27 +396,37 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         {
             auto &drawable = indexed_drawable.drawable;
 
+            // create new indirect-draw batch
             if(indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
             {
                 indirect_draw_asset_t new_draw = {};
                 new_draw.first_indirect_draw_index = indirect_draw_index;
                 new_draw.first_indexed_indirect_draw_index = indexed_indirect_draw_index;
-                new_draw.descriptors = drawable->descriptors;
-                new_draw.descriptor_set_layout = indexed_drawable.descriptor_set_layout;
                 new_draw.scissor = drawable->pipeline_format.scissor;
+
+                auto descriptors = drawable->descriptors;
 
                 // predefined buffers
                 if(!drawable->use_own_buffers)
                 {
-                    new_draw.descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
-                    new_draw.descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
+                    descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
+                    descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
 
-                    if(new_draw.descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
+                    if(descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
                     {
-                        new_draw.descriptors[BINDING_PREVIOUS_MATRIX].buffers = {
-                                next_assets.matrix_history_buffer};
+                        descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
                     }
                 }
+
+                auto descriptor_set = find_set(drawable->mesh, indexed_drawable.descriptor_set_layout, descriptors,
+                                               current_assets, next_assets, false);
+
+                auto bindless_texture_set = find_set(drawable->mesh, bindless_texture_layout, bindless_texture_desc,
+                                                     current_assets,
+                                                     next_assets, true);
+
+                new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
+
                 indirect_draws.emplace_back(drawable->mesh, std::move(new_draw));
             }
             auto &indirect_draw_asset = indirect_draws.back().second;
@@ -453,8 +458,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
         for(auto &[mesh, draw_asset] : indirect_draws)
         {
-            if(draw_asset.num_draws > 1){ LOG_TRACE << "batching " << draw_asset.num_draws << " drawcalls"; }
-
             if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
 
             if(dynamic_scissor)
@@ -463,30 +466,14 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                 vkCmdSetScissor(command_buffer.handle(), 0, 1, &draw_asset.scissor);
             }
 
-            // update/create descriptor set
-            auto &descriptors = draw_asset.descriptors;
-
-            auto descriptor_set = find_set(mesh, draw_asset.descriptor_set_layout, descriptors, current_assets,
-                                           next_assets, false);
-
-            auto bindless_texture_set = find_set(mesh, bindless_texture_layout, bindless_texture_desc, current_assets,
-                                                 next_assets, true);
-
-            std::vector<VkDescriptorSet> descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
-
             // bind descriptor sets (uniforms, samplers)
             vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     pipeline->layout(),
                                     0,
-                                    descriptor_set_handles.size(),
-                                    descriptor_set_handles.data(),
+                                    draw_asset.descriptor_set_handles.size(),
+                                    draw_asset.descriptor_set_handles.data(),
                                     0,
                                     nullptr);
-
-            // update push_constants for each draw call
-//            push_constants.clipping = clipping_distances(indexed_drawable.drawable->matrices.projection);
-            vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
-                               sizeof(push_constants_t), &push_constants);
 
             // issue (indexed) drawing command
             if(mesh && mesh->index_buffer)
@@ -595,14 +582,17 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
 
 DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
                                                  frame_assets_t &current,
-                                                 frame_assets_t &next,
-                                                 bool variable_count)
+                                                 frame_assets_t &next)
 {
+    bool variable_count = false;
+
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor] : descriptors)
     {
         for(auto &img : descriptor.image_samplers){ img.reset(); }
         for(auto &buf : descriptor.buffers){ buf.reset(); }
+
+        variable_count = variable_count || descriptor.variable_count;
     }
 
     // retrieve set-layout
@@ -683,21 +673,6 @@ DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh,
         }
     }
     else{ ret = descriptor_set_it->second; }
-    return ret;
-}
-
-glm::vec2 Renderer::clipping_distances(const glm::mat4 &projection)
-{
-    glm::vec2 ret;
-    auto &c = projection[2][2]; // zFar / (zNear - zFar);
-    auto &d = projection[3][2]; // -(zFar * zNear) / (zFar - zNear);
-
-    // n = near clip plane distance
-    ret.x = d / c;
-
-    // f  = far clip plane distance
-    ret.y = d / (c + 1.f);
-
     return ret;
 }
 

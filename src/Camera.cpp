@@ -3,6 +3,21 @@
 namespace vierkant
 {
 
+glm::vec2 clipping_distances(const glm::mat4 &projection)
+{
+    glm::vec2 ret;
+    auto &c = projection[2][2]; // zFar / (zNear - zFar);
+    auto &d = projection[3][2]; // -(zFar * zNear) / (zFar - zNear);
+
+    // n = near clip plane distance
+    ret.x = d / c;
+
+    // f  = far clip plane distance
+    ret.y = d / (c + 1.f);
+
+    return ret;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Camera::Camera(const std::string &name) : Object3D(name){}

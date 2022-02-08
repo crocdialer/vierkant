@@ -18,30 +18,33 @@ void OrbitCamera::update(double time_delta)
 
     if(!joystick_states.empty())
     {
-        const auto &state = joystick_states[0];
-
-        glm::vec2 pan_diff = glm::vec2(1, -1) * state.analog_left() * static_cast<float>(time_delta);
-
-        constexpr float orbit_sensitivity = 250.f;
+        constexpr float js_sensitivity = 250.f;
         constexpr float zoom_sensitivity = 0.1f;
+        glm::vec2 pan_sensitivity = js_sensitivity * spherical_coords.x / screen_size;
 
-        glm::vec2 orbit_diff = orbit_sensitivity * -state.analog_right() * static_cast<float>(time_delta);
+        const auto &state = joystick_states[0];
+        auto trigger = (state.trigger() + 1.f) / 2.f;
+
+        constexpr float deadzone_thresh = 0.008;
+        bool above_thresh = glm::length2(state.analog_right()) > deadzone_thresh ||
+                            glm::length2(state.analog_left()) > deadzone_thresh ||
+                            glm::length2(trigger) > deadzone_thresh;
+
+        glm::vec2 pan_diff = pan_sensitivity * glm::vec2(1, -1) * state.analog_left() * static_cast<float>(time_delta);
+
+        glm::vec2 orbit_diff = js_sensitivity * -state.analog_right() * static_cast<float>(time_delta);
 
         float zoom = state.trigger().y - state.trigger().x;
         zoom *= zoom_sensitivity;
 
-        spherical_coords.x = std::max(.1f, spherical_coords.x - zoom);
-        pan(pan_diff);
-        orbit(orbit_diff);
+        if(above_thresh)
+        {
+            spherical_coords.x = std::max(.1f, spherical_coords.x - zoom);
+            pan(pan_diff);
+            orbit(orbit_diff);
 
-        auto trigger = (state.trigger() + 1.f) / 2.f;
-
-        constexpr float thresh = 0.01;
-        bool above_thresh = glm::length2(state.analog_right()) > thresh ||
-                            glm::length2(state.analog_left()) > thresh ||
-                            glm::length2(trigger) > thresh;
-
-        if(above_thresh){ needs_update = true; }
+            needs_update = true;
+        }
     }
     if(needs_update && transform_cb){ transform_cb(transform()); }
 }
@@ -153,7 +156,7 @@ void FlyCamera::update(double time_delta)
 
             glm::vec2 diff = -state.analog_right() * static_cast<float>(time_delta);
 
-            bool above_thresh = glm::length2(state.analog_right()) > 0.01;
+            bool above_thresh = glm::length2(move_mask) > 0.f || glm::length2(state.analog_right()) > 0.01;
 
             if(above_thresh)
             {
@@ -164,8 +167,9 @@ void FlyCamera::update(double time_delta)
 
                 pitch = std::clamp(pitch + diff.y, -90.f, 90.f);
                 rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
+
+                needs_update = true;
             }
-            if(glm::length2(move_mask) > 0.f || above_thresh){ needs_update = true; }
         }
 
         if(needs_update)
