@@ -286,25 +286,23 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
         const auto &drawable_textures = it->second.image_samplers;
 
-            // insert other textures from drawables
-            mesh_index_key_t key = {drawable.mesh, drawable_textures};
+        // insert other textures from drawables
+        mesh_index_key_t key = {drawable.mesh, drawable_textures};
 
-            if(!texture_base_index_map.count(key))
+        if(!texture_base_index_map.count(key))
+        {
+            texture_base_index_map[key] = textures.size();
+
+            for(const auto &tex : drawable_textures)
             {
-                texture_base_index_map[key] = textures.size();
+                texture_index_map[tex] = textures.size();
 
-                for(const auto &tex : drawable_textures)
-                {
-                        texture_index_map[tex] = textures.size();
-                        textures.push_back(tex);
-                }
+                // transition image-layouts
+                tex->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
+
+                textures.push_back(tex);
             }
-    }
-
-    // transition image-layouts
-    for(const auto &tex : textures)
-    {
-        tex->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
+        }
     }
 
     vierkant::descriptor_map_t bindless_texture_desc;
