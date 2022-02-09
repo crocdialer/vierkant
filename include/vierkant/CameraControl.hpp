@@ -61,8 +61,6 @@ public:
 
 private:
 
-//    OrbitCamera() = default;
-
     void pan(const glm::vec2 &diff);
 
     void orbit(const glm::vec2 &diff);
@@ -90,6 +88,8 @@ public:
 
     glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
 
+    float pitch = 0.f;
+
     float move_speed = 1.f;
 
     void update(double time_delta) override;
@@ -102,7 +102,7 @@ public:
 
     glm::mat4 transform() const override
     {
-        glm::mat4 ret = glm::mat4_cast(rotation);
+        glm::mat4 ret = glm::mat4_cast(rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0)));
         ret[3] = glm::vec4(position, 1.f);
         return ret;
     }
@@ -111,15 +111,11 @@ public:
 
 private:
 
-//    FlyCamera() = default;
-
     std::unordered_map<int, bool> m_keys;
 
     std::vector<JoystickState> m_last_joystick_states;
     glm::ivec2 m_last_cursor_pos{};
     glm::quat m_last_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
-
-    float pitch = 0.f;
 };
 
 }// namespace vierkant

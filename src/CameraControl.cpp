@@ -169,19 +169,16 @@ void FlyCamera::update(double time_delta)
             {
                 constexpr float controller_sensitivity = 250.f;
                 diff *= controller_sensitivity;
-
-                m_last_rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
-
+                rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
                 pitch = std::clamp(pitch + diff.y, -90.f, 90.f);
-                rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
-
                 needs_update = true;
             }
         }
 
         if(needs_update)
         {
-            position += static_cast<float>(time_delta) * move_speed * (rotation * move_mask);
+            auto q = rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
+            position += static_cast<float>(time_delta) * move_speed * (q * move_mask);
             if(transform_cb){ transform_cb(transform()); }
         }
     }
@@ -193,7 +190,6 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
     ret.mouse_press = [this](const MouseEvent &e)
     {
         if(!enabled){ return; }
-
         m_last_cursor_pos = e.position();
     };
     ret.mouse_drag = [this](const MouseEvent &e)
@@ -201,16 +197,11 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
         if(enabled && e.is_left())
         {
             glm::vec2 diff = m_last_cursor_pos - e.position();
-
             diff *= mouse_sensitivity;
-
-            m_last_rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
-
+            rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
             pitch = std::clamp(pitch + diff.y, -90.f, 90.f);
-            rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
-
+//            rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
             m_last_cursor_pos = e.position();
-
             if(enabled && transform_cb){ transform_cb(transform()); }
         }
     };
