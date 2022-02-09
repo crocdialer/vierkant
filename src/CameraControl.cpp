@@ -13,8 +13,8 @@ void OrbitCamera::update(double time_delta)
 
     bool needs_update = false;
 
-    // quick and dirty joystick-controls
-    auto joystick_states = get_joystick_states();
+    // joystick-controls
+    auto joystick_states = std::move(m_last_joystick_states);
 
     if(!joystick_states.empty())
     {
@@ -105,6 +105,13 @@ glm::mat4 OrbitCamera::transform() const
     return ret;
 }
 
+vierkant::joystick_delegate_t OrbitCamera::joystick_delegate()
+{
+    joystick_delegate_t ret = {};
+    ret.joystick_cb = [&](auto states){ m_last_joystick_states = std::move(states); };
+    return ret;
+}
+
 void FlyCamera::update(double time_delta)
 {
     if(enabled)
@@ -144,8 +151,8 @@ void FlyCamera::update(double time_delta)
             }
         }
 
-        // quick and dirty joystick-controls
-        auto joystick_states = get_joystick_states();
+        // joystick-controls
+        auto joystick_states = std::move(m_last_joystick_states);
 
         if(!joystick_states.empty())
         {
@@ -245,6 +252,13 @@ vierkant::key_delegate_t FlyCamera::key_delegate()
                 break;
         }
     };
+    return ret;
+}
+
+vierkant::joystick_delegate_t FlyCamera::joystick_delegate()
+{
+    joystick_delegate_t ret = {};
+    ret.joystick_cb = [&](auto states){ m_last_joystick_states = std::move(states); };
     return ret;
 }
 

@@ -1,16 +1,12 @@
 #pragma once
 
 #include <unordered_map>
-#include <GLFW/glfw3.h>
 
 #define GLM_FORCE_CXX11
 #define GLM_FORCE_SWIZZLE
-#define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
 #include <glm/glm.hpp>
-#include "glm/gtc/matrix_transform.hpp"
-#include "glm/gtc/matrix_inverse.hpp"
 
 #define GLM_ENABLE_EXPERIMENTAL
 
@@ -26,10 +22,6 @@ class MouseEvent;
 class KeyEvent;
 
 class JoystickState;
-
-struct Touch;
-
-std::vector<JoystickState> get_joystick_states();
 
 /**
  * @brief   mouse_delegate_t is a struct to group mouse-callbacks.

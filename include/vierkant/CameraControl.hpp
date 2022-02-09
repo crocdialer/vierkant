@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <crocore/CircularBuffer.hpp>
-#include <memory>
 #include "vierkant/Input.hpp"
 
 namespace vierkant
@@ -33,6 +31,8 @@ public:
 
     virtual vierkant::key_delegate_t key_delegate() = 0;
 
+    virtual vierkant::joystick_delegate_t joystick_delegate() = 0;
+
     [[nodiscard]] virtual glm::mat4 transform() const = 0;
 };
 
@@ -52,6 +52,8 @@ public:
     vierkant::key_delegate_t key_delegate() override{ return {}; };
 
     vierkant::mouse_delegate_t mouse_delegate() override;
+
+    vierkant::joystick_delegate_t joystick_delegate() override;
 
     [[nodiscard]] glm::mat4 transform() const override;
 
@@ -74,6 +76,8 @@ private:
     glm::ivec2 m_clicked_pos{}, m_last_pos{};
 
     bool m_mouse_down = false;
+
+    std::vector<JoystickState> m_last_joystick_states;
 };
 
 DEFINE_CLASS_PTR(FlyCamera)
@@ -94,6 +98,8 @@ public:
 
     vierkant::key_delegate_t key_delegate() override;
 
+    vierkant::joystick_delegate_t joystick_delegate() override;
+
     glm::mat4 transform() const override
     {
         glm::mat4 ret = glm::mat4_cast(rotation);
@@ -109,6 +115,7 @@ private:
 
     std::unordered_map<int, bool> m_keys;
 
+    std::vector<JoystickState> m_last_joystick_states;
     glm::ivec2 m_last_cursor_pos{};
     glm::quat m_last_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
 

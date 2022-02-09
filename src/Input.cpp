@@ -1,29 +1,7 @@
 #include "vierkant/Input.hpp"
 
-#include <utility>
-
 namespace vierkant
 {
-
-std::vector<JoystickState> get_joystick_states()
-{
-    std::vector<JoystickState> ret;
-    int count;
-    for(int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; i++)
-    {
-        if(!glfwJoystickPresent(i)){ continue; }
-
-        const float *glfw_axis = glfwGetJoystickAxes(i, &count);
-        std::vector<float> axis(glfw_axis, glfw_axis + count);
-
-        const uint8_t *glfw_buttons = glfwGetJoystickButtons(i, &count);
-        std::vector<uint8_t> buttons(glfw_buttons, glfw_buttons + count);
-
-        std::string name(glfwGetJoystickName(i));
-        ret.emplace_back(std::move(name), std::move(buttons), std::move(axis));
-    }
-    return ret;
-}
 
 JoystickState::ButtonMap JoystickState::s_button_map =
         {
