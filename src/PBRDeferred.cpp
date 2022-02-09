@@ -336,12 +336,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         // check if vertex-skinning is required
         if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
 
-        // check
-        const auto &textures = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index]->textures;
-        if(textures.count(vierkant::Material::Color)){ shader_flags |= PROP_ALBEDO; }
-        if(textures.count(vierkant::Material::Normal)){ shader_flags |= PROP_NORMAL; }
-        if(textures.count(vierkant::Material::Emission)){ shader_flags |= PROP_EMMISION; }
-        if(textures.count(vierkant::Material::Ao_rough_metal)){ shader_flags |= PROP_AO_METAL_ROUGH; }
+        // check if tangents are available
+        if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)){ shader_flags |= PROP_TANGENT; }
 
         // select shader-stages from cache
         auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
@@ -466,7 +462,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto cmd = m_taa_renderer.render(frame_assets.taa_buffer);
         frame_assets.taa_buffer.submit({cmd}, m_queue);
         output_img = frame_assets.taa_buffer.color_attachment();
-//        output_img = pingpong_render(drawable);
     }
 
     // tonemap / bloom
@@ -488,8 +483,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         using duration_t = std::chrono::duration<float>;
         comp_ubo.time_delta = duration_t(m_timestamp_current - m_timestamp_last).count();
         comp_ubo.motionblur_gain = settings.motionblur_gain;
-//        comp_ubo.shutter_time = ;
-//        comp_ubo.motionblur_gain = ;
 
         frame_assets.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
@@ -657,7 +650,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     m_taa_renderer.viewport = viewport;
 
     // nothing to do
-    if(asset.g_buffer && asset.g_buffer.color_attachment()->extent() == size){ return ; }
+    if(asset.g_buffer && asset.g_buffer.color_attachment()->extent() == size){ return; }
 
     vierkant::RenderPassPtr lighting_renderpass, sky_renderpass, post_fx_renderpass;
 
@@ -669,7 +662,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     img_attachment_16f.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     img_attachment_16f.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     img_attachment_16f.extent = size;
-    lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(m_device, img_attachment_16f)};
+    lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] = {
+            vierkant::Image::create(m_device, img_attachment_16f)};
 
     sky_attachments = lighting_attachments;
 

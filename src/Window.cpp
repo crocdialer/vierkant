@@ -137,6 +137,8 @@ void Window::init_handles(int width, int height, const std::string &title, GLFWm
     glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
     glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
     glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
+    glfwSetJoystickCallback(&Window::glfw_joystick_cb);
+    glfwSetWindowRefreshCallback(m_handle, &Window::glfw_refresh_cb);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -174,7 +176,24 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::poll_events()
+{
+    glfwPollEvents();
+
+    if(!joystick_delegates.empty())
+    {
+        auto states = get_joystick_states();
+
+        for(auto &[name, delegate] : joystick_delegates)
+        {
+            if(delegate.enabled && delegate.joystick_cb){ delegate.joystick_cb(states); }
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::ivec2 Window::size() const
 {
@@ -400,7 +419,7 @@ void Window::glfw_error_cb(int error_code, const char *error_msg)
 
 void Window::glfw_refresh_cb(GLFWwindow *window)
 {
-
+    // like resizing!?
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

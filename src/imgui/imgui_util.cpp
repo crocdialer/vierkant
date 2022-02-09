@@ -328,7 +328,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
     ImGui::SetNextWindowBgAlpha(bg_alpha);
 
-    if(ImGui::Begin("Example: Simple overlay", &is_open,
+    if(ImGui::Begin("about: blank", &is_open,
                     (corner != -1 ? ImGuiWindowFlags_NoMove : 0) | ImGuiWindowFlags_NoTitleBar |
                     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))

@@ -57,14 +57,14 @@ void main()
         float cut_off = (material.blend_mode == BLEND_MODE_MASK) ? material.alpha_cutoff : 0.f;
         if(tex_color.a < cut_off){ discard; }
         out_color = material.color * tex_color;
-        out_emission = vec4(0);
+
+        out_emission = material.emission;
 
         if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
         {
             out_emission = texture(u_sampler_2D[material.base_texture_index + EMMISSION], vertex_in.tex_coord);
+            out_emission.a *= material.emission.a;
         }
-        texture(u_sampler_2D[material.base_texture_index + EMMISSION], vertex_in.tex_coord);
-//        out_emission.rgb *= 10.0 * out_emission.a;
     }
 
     vec3 normal = vertex_in.normal;

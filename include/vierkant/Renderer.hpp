@@ -80,14 +80,14 @@ public:
 //    {
 //        glm::vec3 position;
 //        int type;
-//        glm::vec4 diffuse;
-//        glm::vec4 ambient;
-//        glm::vec3 direction;
+//        glm::vec3 color;
 //        float intensity;
+//        glm::vec3 direction;
 //        float radius;
 //        float spot_cos_cutoff;
 //        float spot_exponent;
 //        float quadratic_attenuation;
+//        int padding[1];
 //    };
 
     /**
@@ -127,12 +127,12 @@ public:
 
     struct create_info_t
     {
-        VkViewport viewport = {};
+        VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
+        VkRect2D scissor = {.offset = {0, 0}, .extent = {0, 0}};
         uint32_t num_frames_in_flight = 1;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
-
-        // TODO: hook up
+        bool indirect_draw = true;
         vierkant::CommandPoolPtr command_pool = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
     };
@@ -156,6 +156,9 @@ public:
 
     //! option to disable colors from materials.
     bool disable_material = false;
+
+    //! option to use indirect drawing
+    bool indirect_draw = true;
 
     Renderer() = default;
 

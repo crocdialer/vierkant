@@ -61,6 +61,9 @@ public:
     //! Delegate objects for keyboard callbacks
     std::map<std::string, key_delegate_t> key_delegates;
 
+    //! Delegate objects for joystick callbacks
+    std::map<std::string, joystick_delegate_t> joystick_delegates;
+
     //! Delegate objects for window callbacks
     std::map<std::string, window_delegate_t> window_delegates;
 
@@ -97,6 +100,11 @@ public:
      * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
      */
     void draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos = {});
+
+    /**
+     *  @brief  poll_events.
+     */
+    void poll_events();
 
     /**
      * @return  the size of the contained framebuffer in pixels (might be different from the window size)
