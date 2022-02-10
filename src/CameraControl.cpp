@@ -20,7 +20,7 @@ void OrbitCamera::update(double time_delta)
     {
         constexpr float js_sensitivity = 250.f;
         constexpr float zoom_sensitivity = 0.1f;
-        glm::vec2 pan_sensitivity = js_sensitivity * spherical_coords.x / screen_size;
+        glm::vec2 pan_sensitivity = js_sensitivity * distance / screen_size;
 
         const auto &state = joystick_states[0];
         auto trigger = (state.trigger() + 1.f) / 2.f;
@@ -39,7 +39,7 @@ void OrbitCamera::update(double time_delta)
 
         if(above_thresh)
         {
-            spherical_coords.x = std::max(.1f, spherical_coords.x - zoom);
+            distance = std::max(.1f, distance - zoom);
             pan(pan_diff);
             orbit(orbit_diff);
 
@@ -59,15 +59,15 @@ void OrbitCamera::pan(const glm::vec2 &diff)
 
 void OrbitCamera::orbit(const glm::vec2 &diff)
 {
-    spherical_coords += glm::vec3(0.f, glm::radians(diff.x), glm::radians(diff.y));
-    spherical_coords.z = std::clamp(spherical_coords.z, -glm::half_pi<float>(), glm::half_pi<float>());
-    spherical_coords.y = std::fmod(spherical_coords.y, glm::two_pi<float>());
+    spherical_coords += glm::vec2(glm::radians(diff.x), glm::radians(diff.y));
+    spherical_coords.x = std::fmod(spherical_coords.x + glm::two_pi<float>(), glm::two_pi<float>());
+    spherical_coords.y = std::clamp(spherical_coords.y, -glm::half_pi<float>(), glm::half_pi<float>());
 }
 
 void OrbitCamera::mouse_press(const MouseEvent &e)
 {
     if(!enabled){ return; }
-    m_last_pos = m_clicked_pos = e.position();
+    m_last_pos = e.position();
 }
 
 void OrbitCamera::mouse_drag(const MouseEvent &e)
@@ -78,7 +78,7 @@ void OrbitCamera::mouse_drag(const MouseEvent &e)
     if(enabled && e.is_left()){ orbit(diff); }
     else if(enabled && e.is_right())
     {
-        diff *= glm::vec2(-1, 1) * spherical_coords.x / screen_size;
+        diff *= glm::vec2(-1, 1) * distance / screen_size;
         pan(diff);
     }
     if(enabled && transform_cb){ transform_cb(transform()); }
@@ -92,7 +92,7 @@ vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
     ret.mouse_wheel = [this](const vierkant::MouseEvent &e)
     {
         float scroll_gain = e.is_control_down() ? .1f : 1.f;
-        if(enabled){ spherical_coords.x = std::max(.1f, spherical_coords.x - scroll_gain * e.wheel_increment().y); }
+        if(enabled){ distance = std::max(.1f, distance - scroll_gain * e.wheel_increment().y); }
         if(enabled && transform_cb){ transform_cb(transform()); }
     };
     return ret;
@@ -101,7 +101,7 @@ vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
 glm::mat4 OrbitCamera::transform() const
 {
     glm::mat4 ret = glm::mat4_cast(rotation());
-    ret[3] = glm::vec4(look_at + (ret * glm::vec4(0, 0, spherical_coords.x, 1.f)).xyz(), 1.f);
+    ret[3] = glm::vec4(look_at + (ret * glm::vec4(0, 0, distance, 1.f)).xyz(), 1.f);
     return ret;
 }
 
@@ -169,16 +169,14 @@ void FlyCamera::update(double time_delta)
             {
                 constexpr float controller_sensitivity = 250.f;
                 diff *= controller_sensitivity;
-                rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
-                pitch = std::clamp(pitch + diff.y, -90.f, 90.f);
+                orbit(diff);
                 needs_update = true;
             }
         }
 
         if(needs_update)
         {
-            auto q = rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
-            position += static_cast<float>(time_delta) * move_speed * (q * move_mask);
+            position += static_cast<float>(time_delta) * move_speed * (rotation() * move_mask);
             if(transform_cb){ transform_cb(transform()); }
         }
     }
@@ -198,9 +196,7 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
         {
             glm::vec2 diff = m_last_cursor_pos - e.position();
             diff *= mouse_sensitivity;
-            rotation *= glm::quat(glm::vec3(0, glm::radians(diff.x), 0));
-            pitch = std::clamp(pitch + diff.y, -90.f, 90.f);
-//            rotation = m_last_rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0));
+            orbit(diff);
             m_last_cursor_pos = e.position();
             if(enabled && transform_cb){ transform_cb(transform()); }
         }
@@ -251,6 +247,20 @@ vierkant::joystick_delegate_t FlyCamera::joystick_delegate()
     joystick_delegate_t ret = {};
     ret.joystick_cb = [&](auto states){ m_last_joystick_states = std::move(states); };
     return ret;
+}
+
+glm::mat4 FlyCamera::transform() const
+{
+    glm::mat4 ret = glm::mat4_cast(rotation());
+    ret[3] = glm::vec4(position, 1.f);
+    return ret;
+}
+
+void FlyCamera::orbit(const glm::vec2 &diff)
+{
+    spherical_coords += glm::vec2(glm::radians(diff.x), glm::radians(diff.y));
+    spherical_coords.x = std::fmod(spherical_coords.x + glm::two_pi<float>(), glm::two_pi<float>());
+    spherical_coords.y = std::clamp(spherical_coords.y, -glm::half_pi<float>(), glm::half_pi<float>());
 }
 
 }

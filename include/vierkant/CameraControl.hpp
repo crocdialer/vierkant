@@ -44,8 +44,10 @@ public:
 
     glm::vec3 look_at = glm::vec3(0.f);
 
-    // (dist, theta, phi)
-    glm::vec3 spherical_coords = {1.f, glm::half_pi<float>(), 0.f};
+    // (theta, phi)
+    glm::vec2 spherical_coords = {glm::half_pi<float>(), 0.f};
+
+    float distance = 1.f;
 
     void update(double time_delta) override;
 
@@ -69,9 +71,9 @@ private:
 
     void mouse_drag(const MouseEvent &e);
 
-    [[nodiscard]] inline glm::quat rotation() const{ return {glm::vec3(spherical_coords.zy(), 0.f)}; }
+    [[nodiscard]] inline glm::quat rotation() const{ return {glm::vec3(spherical_coords.yx(), 0.f)}; }
 
-    glm::ivec2 m_clicked_pos{}, m_last_pos{};
+    glm::ivec2 m_last_pos{};
 
     bool m_mouse_down = false;
 
@@ -86,9 +88,8 @@ public:
 
     glm::vec3 position = {0.0f, 0.0f, 0.0f};
 
-    glm::quat rotation = {1.0f, 0.0f, 0.0f, 0.0f};
-
-    float pitch = 0.f;
+    // (theta, phi)
+    glm::vec2 spherical_coords = {glm::half_pi<float>(), 0.f};
 
     float move_speed = 1.f;
 
@@ -100,22 +101,20 @@ public:
 
     vierkant::joystick_delegate_t joystick_delegate() override;
 
-    glm::mat4 transform() const override
-    {
-        glm::mat4 ret = glm::mat4_cast(rotation * glm::quat(glm::vec3(glm::radians(pitch), 0, 0)));
-        ret[3] = glm::vec4(position, 1.f);
-        return ret;
-    }
+    glm::mat4 transform() const override;
 
     static FlyCameraUPtr create(){ return std::make_unique<FlyCamera>(); }
 
 private:
 
+    void orbit(const glm::vec2 &diff);
+
+    [[nodiscard]] inline glm::quat rotation() const{ return {glm::vec3(spherical_coords.yx(), 0.f)}; }
+
     std::unordered_map<int, bool> m_keys;
 
     std::vector<JoystickState> m_last_joystick_states;
     glm::ivec2 m_last_cursor_pos{};
-    glm::quat m_last_rotation = {1.0f, 0.0f, 0.0f, 0.0f};
 };
 
 }// namespace vierkant
