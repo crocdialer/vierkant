@@ -52,6 +52,9 @@ include_directories(${Boost_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${Boost_LIBRARIES})
 #####
 
+add_subdirectory(submodules/spdlog EXCLUDE_FROM_ALL)
+set(LIBS ${LIBS} spdlog)
+
 # glfw
 add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glfw)

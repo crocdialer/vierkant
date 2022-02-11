@@ -14,3 +14,7 @@
 	path = submodules/tinygltf
 	url = git@github.com:syoyo/tinygltf.git
 	shallow = true
+[submodule "submodules/spdlog"]
+	path = submodules/spdlog
+	url = git@github.com:gabime/spdlog.git
+	shallow = true
