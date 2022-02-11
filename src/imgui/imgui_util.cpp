@@ -394,6 +394,37 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     ImGui::End();
 }
 
+void draw_logger_ui(const std::deque<std::string> &items)
+{
+    int corner = 2;
+    float bg_alpha = .2f;
+    const float DISTANCE = 10.0f;
+    ImGuiIO &io = ImGui::GetIO();
+    ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
+                               (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
+    ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
+    ImGui::SetNextWindowSizeConstraints(ImVec2(io.DisplaySize.x - 2 * DISTANCE, 240),
+                                        ImVec2(io.DisplaySize.x - 2 * DISTANCE,
+                                               io.DisplaySize.y / 0.33f - 2 * DISTANCE));
+    ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+    ImGui::SetNextWindowBgAlpha(bg_alpha);
+
+    bool show_logger = true;
+
+    ImGui::Begin("logger", &show_logger, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
+    ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+    ImGuiWindowFlags_NoNav);
+
+    ImGuiListClipper clipper(static_cast<int>(items.size()));
+    while(clipper.Step())
+    {
+        for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++){ ImGui::Text(items[i].c_str()); }
+    }
+    if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()){ ImGui::SetScrollHereY(); }
+
+    ImGui::End();
+}
+
 void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
 {
     constexpr char window_name[] = "textures";
