@@ -183,7 +183,7 @@ void draw_property_ui(const Property_<std::vector<std::string>>::Ptr &the_proper
 
             strcpy(text_buf, array[i].c_str());
 
-            if(ImGui::InputText(to_string(i).c_str(), text_buf, buf_size,
+            if(ImGui::InputText(std::to_string(i).c_str(), text_buf, buf_size,
                                 ImGuiInputTextFlags_EnterReturnsTrue))
             {
                 array[i] = text_buf;

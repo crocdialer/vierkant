@@ -9,13 +9,13 @@
 namespace vierkant
 {
 
-using transform_cb_t = std::function<void(const glm::mat4 &)>;
-
 DEFINE_CLASS_PTR(CameraControl)
 
 class CameraControl
 {
 public:
+
+    using transform_cb_t = std::function<void(const glm::mat4 &)>;
 
     bool enabled = true;
 
@@ -77,7 +77,7 @@ private:
 
     bool m_mouse_down = false;
 
-    std::vector<JoystickState> m_last_joystick_states;
+    std::vector<Joystick> m_last_joystick_states;
 };
 
 DEFINE_CLASS_PTR(FlyCamera)
@@ -113,7 +113,7 @@ private:
 
     std::unordered_map<int, bool> m_keys;
 
-    std::vector<JoystickState> m_last_joystick_states;
+    std::vector<Joystick> m_last_joystick_states;
     glm::ivec2 m_last_cursor_pos{};
 };
 

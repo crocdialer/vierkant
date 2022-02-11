@@ -256,6 +256,9 @@ private:
     // keep track of window params when switching between window/fullscreen
     glm::ivec2 m_window_size{}, m_window_pos{};
 
+    // keep track of previous joystick-states
+    std::vector<vierkant::Joystick> m_joysticks;
+
     static void glfw_resize_cb(GLFWwindow *window, int width, int height);
 
     static void glfw_close_cb(GLFWwindow *window);

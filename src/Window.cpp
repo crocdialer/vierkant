@@ -71,9 +71,9 @@ void get_modifiers(GLFWwindow *window, uint32_t &buttonModifiers, uint32_t &keyM
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<JoystickState> get_joystick_states()
+std::vector<Joystick> get_joystick_states(const std::vector<Joystick> &previous_joysticks)
 {
-    std::vector<JoystickState> ret;
+    std::vector<Joystick> ret;
     int count;
     for(int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; i++)
     {
@@ -86,7 +86,10 @@ std::vector<JoystickState> get_joystick_states()
         std::vector<uint8_t> buttons(glfw_buttons, glfw_buttons + count);
 
         std::string name(glfwGetJoystickName(i));
-        ret.emplace_back(std::move(name), std::move(buttons), std::move(axis));
+
+        std::vector<uint8_t> previous_buttons;
+        if(static_cast<uint32_t>(i) < previous_joysticks.size()){ previous_buttons = previous_joysticks[i].buttons(); }
+        ret.emplace_back(std::move(name), std::move(buttons), std::move(axis), previous_buttons);
     }
     return ret;
 }
@@ -206,11 +209,11 @@ void Window::poll_events()
 
     if(!joystick_delegates.empty())
     {
-        auto states = get_joystick_states();
+        m_joysticks = get_joystick_states(m_joysticks);
 
         for(auto &[name, delegate] : joystick_delegates)
         {
-            if(delegate.joystick_cb && (!delegate.enabled || delegate.enabled())){ delegate.joystick_cb(states); }
+            if(delegate.joystick_cb && (!delegate.enabled || delegate.enabled())){ delegate.joystick_cb(m_joysticks); }
         }
     }
 }

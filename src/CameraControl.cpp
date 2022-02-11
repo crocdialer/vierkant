@@ -23,7 +23,7 @@ void OrbitCamera::update(double time_delta)
         glm::vec2 pan_sensitivity = js_sensitivity * distance / screen_size;
 
         const auto &state = joystick_states[0];
-        auto trigger = (state.trigger() + 1.f) / 2.f;
+        auto trigger = state.trigger();
 
         constexpr float deadzone_thresh = 0.008;
         bool above_thresh = glm::length2(state.analog_right()) > deadzone_thresh ||
