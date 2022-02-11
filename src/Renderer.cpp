@@ -398,8 +398,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         struct indirect_draw_asset_t
         {
             uint32_t num_draws = 0;
-            uint32_t first_indirect_draw_index = 0;
-            uint32_t first_indexed_indirect_draw_index = 0;
+            uint32_t first_draw_index = 0;
+            uint32_t first_indexed_draw_index = 0;
             std::vector<VkDescriptorSet> descriptor_set_handles;
             VkRect2D scissor = {};
         };
@@ -411,11 +411,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             auto &drawable = indexed_drawable.drawable;
 
             // create new indirect-draw batch
-            if(indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
+            if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
             {
                 indirect_draw_asset_t new_draw = {};
-                new_draw.first_indirect_draw_index = indirect_draw_index;
-                new_draw.first_indexed_indirect_draw_index = indexed_indirect_draw_index;
+                new_draw.first_draw_index = indirect_draw_index;
+                new_draw.first_indexed_draw_index = indexed_indirect_draw_index;
                 new_draw.scissor = drawable->pipeline_format.scissor;
 
                 auto descriptors = drawable->descriptors;
@@ -474,12 +474,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         {
             if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
 
-            if(dynamic_scissor)
-            {
-                // set dynamic scissor
-                vkCmdSetScissor(command_buffer.handle(), 0, 1, &draw_asset.scissor);
-            }
-
             // bind descriptor sets (uniforms, samplers)
             vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     pipeline->layout(),
@@ -489,43 +483,50 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                                     0,
                                     nullptr);
 
-            // issue (indexed) drawing command
-            if(mesh && mesh->index_buffer)
+            if(dynamic_scissor)
             {
-                if(indirect_draw)
+                // set dynamic scissor
+                vkCmdSetScissor(command_buffer.handle(), 0, 1, &draw_asset.scissor);
+            }
+
+            if(indirect_draw)
+            {
+                // issue (indexed) drawing command
+                if(mesh && mesh->index_buffer)
                 {
+
                     size_t indexed_indirect_cmd_stride = sizeof(VkDrawIndexedIndirectCommand);
 
                     vkCmdDrawIndexedIndirect(command_buffer.handle(),
                                              next_assets.indexed_indirect_draw_buffer->handle(),
-                                             indexed_indirect_cmd_stride * draw_asset.first_indexed_indirect_draw_index,
+                                             indexed_indirect_cmd_stride * draw_asset.first_indexed_draw_index,
                                              draw_asset.num_draws,
                                              indexed_indirect_cmd_stride);
                 }
                 else
                 {
-                    for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
-                    {
-                        auto cmd =
-                                static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
-                                draw_asset.first_indexed_indirect_draw_index + i;
-
-                        vkCmdDrawIndexed(command_buffer.handle(), cmd->indexCount, cmd->instanceCount, cmd->firstIndex,
-                                         cmd->vertexOffset, cmd->firstInstance);
-                    }
-                }
-            }
-            else
-            {
-                if(indirect_draw)
-                {
                     size_t indirect_cmd_stride = sizeof(VkDrawIndirectCommand);
 
                     vkCmdDrawIndirect(command_buffer.handle(),
                                       next_assets.indirect_draw_buffer->handle(),
-                                      indirect_cmd_stride * draw_asset.first_indirect_draw_index,
+                                      indirect_cmd_stride * draw_asset.first_draw_index,
                                       draw_asset.num_draws,
                                       indirect_cmd_stride);
+                }
+            }
+            else
+            {
+                if(mesh && mesh->index_buffer)
+                {
+                    for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
+                    {
+                        auto cmd =
+                                static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
+                                draw_asset.first_indexed_draw_index + i;
+
+                        vkCmdDrawIndexed(command_buffer.handle(), cmd->indexCount, cmd->instanceCount, cmd->firstIndex,
+                                         cmd->vertexOffset, cmd->firstInstance);
+                    }
                 }
                 else
                 {
@@ -533,7 +534,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                     {
                         auto cmd =
                                 static_cast<VkDrawIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
-                                draw_asset.first_indirect_draw_index + i;
+                                draw_asset.first_draw_index + i;
 
                         vkCmdDraw(command_buffer.handle(),
                                   cmd->vertexCount,
