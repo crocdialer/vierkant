@@ -394,10 +394,10 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     ImGui::End();
 }
 
-void draw_logger_ui(const std::deque<std::string> &items)
+void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level_enum>> &items)
 {
     int corner = 2;
-    float bg_alpha = .2f;
+    float bg_alpha = .1f;
     const float DISTANCE = 10.0f;
     ImGuiIO &io = ImGui::GetIO();
     ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
@@ -412,13 +412,31 @@ void draw_logger_ui(const std::deque<std::string> &items)
     bool show_logger = true;
 
     ImGui::Begin("logger", &show_logger, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
-    ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-    ImGuiWindowFlags_NoNav);
+                                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+                                         ImGuiWindowFlags_NoNav);
+
+    uint32_t color_white = 0xFFFFFFFF;
+    uint32_t color_error = 0xFFFF3366;
+    uint32_t color_warn = 0xFF09AADD;
+    uint32_t color_debug = 0xFFFFCCDD;
 
     ImGuiListClipper clipper(static_cast<int>(items.size()));
+
     while(clipper.Step())
     {
-        for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++){ ImGui::Text(items[i].c_str()); }
+        for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+        {
+            const auto &[msg, log_level] = items[i];
+            uint32_t color = color_white;
+            if(log_level == spdlog::level::err){ color = color_error; }
+            else if(log_level == spdlog::level::warn){ color = color_warn; }
+            else if(log_level == spdlog::level::debug){ color = color_debug; }
+
+            ImGui::PushStyleColor(ImGuiCol_Text, color);
+            ImGui::Text(msg.c_str());
+            ImGui::PopStyleColor();
+        }
+
     }
     if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()){ ImGui::SetScrollHereY(); }
 
@@ -455,7 +473,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     int res[2] = {static_cast<int>(pbr_renderer->settings.resolution.x),
                   static_cast<int>(pbr_renderer->settings.resolution.y)};
     if(ImGui::InputInt2("resolution", res) &&
-    res[0] > 0 && res[1] > 0){ pbr_renderer->settings.resolution = {res[0], res[1]}; }
+       res[0] > 0 && res[1] > 0){ pbr_renderer->settings.resolution = {res[0], res[1]}; }
 
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
     ImGui::Checkbox("grid", &pbr_renderer->settings.draw_grid);
