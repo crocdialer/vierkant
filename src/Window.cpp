@@ -437,7 +437,7 @@ void Window::glfw_close_cb(GLFWwindow *window)
 
 void Window::glfw_error_cb(int error_code, const char *error_msg)
 {
-    LOG_ERROR << error_msg;
+    spdlog::error(error_msg);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -612,8 +612,8 @@ void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **p
 void Window::glfw_monitor_cb(GLFWmonitor *the_monitor, int status)
 {
     std::string name = glfwGetMonitorName(the_monitor);
-    if(status == GLFW_CONNECTED){ LOG_DEBUG << "monitor connected: " << name; }
-    else if(status == GLFW_DISCONNECTED){ LOG_DEBUG << "monitor disconnected: " << name; }
+    if(status == GLFW_CONNECTED){ spdlog::debug("monitor connected: {}", name); }
+    else if(status == GLFW_DISCONNECTED){ spdlog::debug("monitor disconnected: {}", name); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -622,11 +622,11 @@ void Window::glfw_joystick_cb(int joy, int event)
 {
     if(event == GLFW_CONNECTED)
     {
-        LOG_DEBUG << "joystick " << joy << " connected";
+        spdlog::debug("{} connected ({})", glfwGetJoystickName(joy), joy) ;
     }
     else if(event == GLFW_DISCONNECTED)
     {
-        LOG_DEBUG << "joystick " << joy << " disconnected";
+        spdlog::debug("{} disconnected ({})", glfwGetJoystickName(joy), joy) ;
     }
 }
 

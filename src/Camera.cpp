@@ -1,5 +1,7 @@
 #include "vierkant/Camera.hpp"
 
+#include <spdlog/spdlog.h>
+
 namespace vierkant
 {
 
@@ -87,8 +89,7 @@ vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &
                     crocore::map_value<float>(pos.y, extent.y, 0, bottom(), top()));
     click_world_pos = position() + lookAt() * near() + side() * coord.x + up() * coord.y;
     ray_dir = lookAt();
-    LOG_TRACE_2 << "clicked_world: (" << click_world_pos.x << ",  " << click_world_pos.y
-                << ",  " << click_world_pos.z << ")";
+    spdlog::trace("clicked_world: ({}, {}, {})", click_world_pos.x, click_world_pos.y, click_world_pos.z);
     return Ray(click_world_pos, ray_dir);
 }
 
@@ -180,9 +181,6 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
     ray_origin = position() + lookAt() * near() + side() * hLength * click_2D.x
                  + up() * vLength * click_2D.y;
     ray_dir = ray_origin - position();
-
-    LOG_TRACE_2 << "ray-origin: " << glm::to_string(ray_origin) << " -- dir: "
-                << glm::to_string(glm::normalize(ray_dir));
     return Ray(ray_origin, ray_dir);
 }
 

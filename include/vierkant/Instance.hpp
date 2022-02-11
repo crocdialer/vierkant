@@ -5,6 +5,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include <spdlog/spdlog.h>
 #include "crocore/crocore.hpp"
 
 namespace vierkant

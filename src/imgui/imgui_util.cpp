@@ -336,13 +336,12 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
         ImGui::Text(app->name().c_str());
         ImGui::Separator();
 
-        const char *log_items[] = {"Disabled", "Print", "Fatal", "Error", "Warning", "Info", "Debug", "Trace_1",
-                                   "Trace_2", "Trace_3"};
-        int log_level = (int) crocore::g_logger.severity();
+        const char *log_items[] = {"Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
+        int log_level = static_cast<int>(spdlog::get_level());
 
         if(ImGui::Combo("log level", &log_level, log_items, IM_ARRAYSIZE(log_items)))
         {
-            crocore::g_logger.set_severity(crocore::Severity(log_level));
+            spdlog::set_level(spdlog::level::level_enum(log_level));
         }
         ImGui::Spacing();
         ImGui::Text("time: %s", crocore::secs_to_time_str(app->application_time()).c_str());

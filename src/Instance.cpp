@@ -239,8 +239,8 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
         auto version_major = VK_VERSION_MAJOR(device_props.apiVersion);
         auto version_minor = VK_VERSION_MINOR(device_props.apiVersion);
         auto version_patch = VK_VERSION_PATCH(device_props.apiVersion);
-        LOG_INFO << "device: " << device_props.deviceName;
-        LOG_INFO << "API-version: " << version_major << "." << version_minor << " (patch: " << version_patch << ")";
+        spdlog::info("device: {}", device_props.deviceName);
+        spdlog::info("API-version: {}.{} (patch: {})", version_major, version_minor, version_patch);
     }
     return true;
 }

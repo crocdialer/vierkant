@@ -215,9 +215,9 @@ void RayBuilder::compact(build_result_t &build_result) const
     // compacting
     for(uint32_t i = 0; i < entry_assets_compact.size(); i++)
     {
-        LOG_TRACE << crocore::format("reducing bottom-lvl-size (%d), from %dkB to %dkB", i,
-                                     (uint32_t) build_result.acceleration_assets[i]->buffer->num_bytes() / 1024,
-                                     compact_sizes[i] / 1024);
+        spdlog::trace("reducing bottom-lvl-size ({}), from {}kB to {}kB", i,
+                      (uint32_t) build_result.acceleration_assets[i]->buffer->num_bytes() / 1024,
+                      compact_sizes[i] / 1024);
 
         // Creating a compact version of the AS
         VkAccelerationStructureCreateInfoKHR create_info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};

@@ -130,8 +130,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
 
     if(compress_textures)
     {
-        LOG_DEBUG << crocore::format("compressed %d textures in %d ms",
-                                     texture_cache.size(), compress_total_duration.count());
+        spdlog::debug("compressed {} textures in {} ms", texture_cache.size(), compress_total_duration.count());
     }
 
     for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)

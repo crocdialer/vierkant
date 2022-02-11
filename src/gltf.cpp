@@ -122,7 +122,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
         const auto &buffer_view = model.bufferViews[index_accessor.bufferView];
         const auto &buffer = model.buffers[buffer_view.buffer];
 
-        if(buffer_view.target == 0){ LOG_WARNING << "bufferView.target is zero"; }
+        if(buffer_view.target == 0){ spdlog::warn("bufferView.target is zero"); }
 
         assert(index_accessor.type == TINYGLTF_TYPE_SCALAR);
 

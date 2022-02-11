@@ -13,7 +13,7 @@ void HelloTriangleApplication::setup()
 
 void HelloTriangleApplication::teardown()
 {
-    LOG_INFO << "ciao " << name();
+    spdlog::info("ciao {}", name());
     vkDeviceWaitIdle(m_device->handle());
 }
 
