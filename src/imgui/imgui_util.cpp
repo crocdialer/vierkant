@@ -319,79 +319,83 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
                                });
     };
 
-    float bg_alpha = .35f;
-    const float DISTANCE = 10.0f;
     ImGuiIO &io = ImGui::GetIO();
-    ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
-                               (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
-    ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
-    ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
-    ImGui::SetNextWindowBgAlpha(bg_alpha);
+    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
 
-    if(ImGui::Begin("about: blank", &is_open,
-                    (corner != -1 ? ImGuiWindowFlags_NoMove : 0) | ImGuiWindowFlags_NoTitleBar |
-                    ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
-                    ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
+    if(!is_child_window)
     {
-        ImGui::Text(app->name().c_str());
-        ImGui::Separator();
+        float bg_alpha = .35f;
+        const float DISTANCE = 10.0f;
+        ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
+                                   (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
+        ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
+        ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
+        ImGui::SetNextWindowBgAlpha(bg_alpha);
 
-        const char *log_items[] = {"Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
-        int log_level = static_cast<int>(spdlog::get_level());
-
-        if(ImGui::Combo("log level", &log_level, log_items, IM_ARRAYSIZE(log_items)))
-        {
-            spdlog::set_level(spdlog::level::level_enum(log_level));
-        }
-        ImGui::Spacing();
-        ImGui::Text("time: %s", crocore::secs_to_time_str(app->application_time()).c_str());
-        ImGui::Spacing();
-
-        ImGui::Text("%.0f x %.0f", io.DisplaySize.x, io.DisplaySize.y);
-        ImGui::SameLine();
-
-        if(ImGui::Checkbox("fullscreen", &is_fullscreen))
-        {
-            size_t monitor_index = window->monitor_index();
-            window->set_fullscreen(is_fullscreen, monitor_index);
-        }
-        ImGui::SameLine();
-
-        if(ImGui::Checkbox("vsync", &v_sync))
-        {
-            create_swapchain(window->swapchain().sample_count(), v_sync);
-        }
-
-        ImGui::Spacing();
-
-        auto clear_color = window->swapchain().framebuffers().front().clear_color;
-
-        if(ImGui::ColorEdit4("clear color", clear_color.float32))
-        {
-            for(auto &framebuffer : window->swapchain().framebuffers()){ framebuffer.clear_color = clear_color; }
-        }
-
-        VkSampleCountFlagBits const msaa_levels[] = {VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT,
-                                                     VK_SAMPLE_COUNT_4_BIT, VK_SAMPLE_COUNT_8_BIT};
-        const char *msaa_items[] = {"None", "MSAA 2x", "MSAA 4x", "MSAA 8x"};
-        int msaa_index = 0;
-
-        for(auto lvl : msaa_levels)
-        {
-            if(msaa_current == lvl){ break; }
-            msaa_index++;
-        }
-
-        if(ImGui::Combo("multisampling", &msaa_index, msaa_items, IM_ARRAYSIZE(msaa_items)))
-        {
-            create_swapchain(msaa_levels[msaa_index], v_sync);
-        }
-
-        ImGui::Spacing();
-        auto loop_time = app->current_loop_time();
-        ImGui::Text("fps: %.1f (%.1f ms)", 1.f / loop_time, loop_time * 1000.f);
+        ImGui::Begin("about: blank", &is_open,
+                     (corner != -1 ? ImGuiWindowFlags_NoMove : 0) | ImGuiWindowFlags_NoTitleBar |
+                     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
+                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
     }
-    ImGui::End();
+//    ImGui::Text(app->name().c_str());
+//    ImGui::Separator();
+
+    const char *log_items[] = {"Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
+    int log_level = static_cast<int>(spdlog::get_level());
+
+    if(ImGui::Combo("log level", &log_level, log_items, IM_ARRAYSIZE(log_items)))
+    {
+        spdlog::set_level(spdlog::level::level_enum(log_level));
+    }
+    ImGui::Spacing();
+    ImGui::Text("time: %s", crocore::secs_to_time_str(app->application_time()).c_str());
+    ImGui::Spacing();
+
+    ImGui::Text("%.0f x %.0f", io.DisplaySize.x, io.DisplaySize.y);
+    ImGui::SameLine();
+
+    if(ImGui::Checkbox("fullscreen", &is_fullscreen))
+    {
+        size_t monitor_index = window->monitor_index();
+        window->set_fullscreen(is_fullscreen, monitor_index);
+    }
+    ImGui::SameLine();
+
+    if(ImGui::Checkbox("vsync", &v_sync))
+    {
+        create_swapchain(window->swapchain().sample_count(), v_sync);
+    }
+
+    ImGui::Spacing();
+
+    auto clear_color = window->swapchain().framebuffers().front().clear_color;
+
+    if(ImGui::ColorEdit4("clear color", clear_color.float32))
+    {
+        for(auto &framebuffer : window->swapchain().framebuffers()){ framebuffer.clear_color = clear_color; }
+    }
+
+    VkSampleCountFlagBits const msaa_levels[] = {VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT,
+                                                 VK_SAMPLE_COUNT_4_BIT, VK_SAMPLE_COUNT_8_BIT};
+    const char *msaa_items[] = {"None", "MSAA 2x", "MSAA 4x", "MSAA 8x"};
+    int msaa_index = 0;
+
+    for(auto lvl : msaa_levels)
+    {
+        if(msaa_current == lvl){ break; }
+        msaa_index++;
+    }
+
+    if(ImGui::Combo("multisampling", &msaa_index, msaa_items, IM_ARRAYSIZE(msaa_items)))
+    {
+        create_swapchain(msaa_levels[msaa_index], v_sync);
+    }
+
+    ImGui::Spacing();
+    auto loop_time = app->current_loop_time();
+    ImGui::Text("fps: %.1f (%.1f ms)", 1.f / loop_time, loop_time * 1000.f);
+
+    if(!is_child_window){ ImGui::End(); }
 }
 
 void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level_enum>> &items)
