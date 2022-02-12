@@ -172,6 +172,9 @@ Instance::~Instance()
 Instance &Instance::operator=(Instance other)
 {
     swap(*this, other);
+
+    // set user-pointer to current instance
+    if(m_debug_fn){ set_debug_fn(m_debug_fn); }
     return *this;
 }
 
@@ -242,6 +245,10 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
         spdlog::info("device: {}", device_props.deviceName);
         spdlog::info("API-version: {}.{} (patch: {})", version_major, version_minor, version_patch);
     }
+
+    // attach logger for debug-output
+    set_debug_fn([](const char *msg){ spdlog::warn(msg); });
+
     return true;
 }
 

@@ -36,7 +36,7 @@ public:
         bool draw_grid = true;
 
         //! apply anti-aliasing using FXAA
-        bool use_fxaa = true;
+        bool use_fxaa = false;
 
         //! apply anti-aliasing using TAA
         bool use_taa = true;

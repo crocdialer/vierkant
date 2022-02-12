@@ -49,7 +49,7 @@ public:
         bool compaction = true;
 
         //! flag indicating if a denoising pass shall be performed
-        bool denoising = true;
+        bool denoising = false;
 
         //! tonemapping
         bool tonemap = true;
