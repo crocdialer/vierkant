@@ -44,7 +44,7 @@ uint tex_offset(uint type, uint flags)
 
     for(uint i = 0; i < type; ++i)
     {
-        if((type & (TEXTURE_TYPE_COLOR << i)) > 0){ ret++; }
+        if((flags & (TEXTURE_TYPE_COLOR << i)) > 0){ ret++; }
     }
     return ret;
 }
