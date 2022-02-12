@@ -248,11 +248,6 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     // dof, bloom, anti-aliasing
     post_fx_pass(renderer, cam, out_img, depth_map);
 
-    if(settings.draw_grid)
-    {
-        m_draw_context.draw_grid(renderer, 10.f, 100, cam->view_matrix(), cam->projection_matrix());
-    }
-
     SceneRenderer::render_result_t ret = {};
     ret.num_objects = cull_result.drawables.size();
     m_timestamp_last = m_timestamp_current;

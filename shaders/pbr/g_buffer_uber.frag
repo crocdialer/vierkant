@@ -66,8 +66,8 @@ void main()
             tex_color *= texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord);
         }
 
-        float cut_off = (material.blend_mode == BLEND_MODE_MASK) ? material.alpha_cutoff : 0.f;
-        if(tex_color.a < cut_off){ discard; }
+        // apply alpha-cutoff
+        if(material.blend_mode == BLEND_MODE_MASK && tex_color.a < material.alpha_cutoff){ discard; }
         out_color = material.color * tex_color;
 
         out_emission = material.emission;

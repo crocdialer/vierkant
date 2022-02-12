@@ -626,7 +626,7 @@ void Window::glfw_joystick_cb(int joy, int event)
     }
     else if(event == GLFW_DISCONNECTED)
     {
-        spdlog::debug("{} disconnected joystick ({})", joy) ;
+        spdlog::debug("disconnected joystick ({})", joy) ;
     }
 }
 

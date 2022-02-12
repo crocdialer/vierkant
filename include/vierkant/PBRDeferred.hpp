@@ -32,9 +32,6 @@ public:
         //! draw the skybox, if any
         bool draw_skybox = true;
 
-        //! draw a grid for orientation
-        bool draw_grid = true;
-
         //! apply anti-aliasing using FXAA
         bool use_fxaa = false;
 

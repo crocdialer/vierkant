@@ -480,7 +480,6 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
        res[0] > 0 && res[1] > 0){ pbr_renderer->settings.resolution = {res[0], res[1]}; }
 
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
-    ImGui::Checkbox("grid", &pbr_renderer->settings.draw_grid);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
     ImGui::Checkbox("taa", &pbr_renderer->settings.use_taa);
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
