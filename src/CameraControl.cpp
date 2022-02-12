@@ -34,7 +34,8 @@ void OrbitCamera::update(double time_delta)
 
         glm::vec2 orbit_diff = js_sensitivity * -state.analog_right() * static_cast<float>(time_delta);
 
-        float zoom = state.trigger().y - state.trigger().x;
+        trigger *= js_sensitivity * static_cast<float>(time_delta);
+        float zoom = trigger.y - trigger.x;
         zoom *= zoom_sensitivity;
 
         if(state.input_events().count(Joystick::Input::BUTTON_STICK_LEFT))
