@@ -6,8 +6,8 @@
 #include "../renderer/types.glsl"
 
 #define ALBEDO 0
-#define AO_ROUGH_METAL 1
-#define NORMAL 2
+#define NORMAL 1
+#define AO_ROUGH_METAL 2
 #define EMMISSION 3
 
 layout(push_constant) uniform PushConstants {
@@ -38,6 +38,17 @@ layout(location = 2) out vec4 out_emission;
 layout(location = 3) out vec4 out_ao_rough_metal;
 layout(location = 4) out vec2 out_motion;
 
+uint tex_offset(uint type, uint flags)
+{
+    uint ret = 0;
+
+    for(uint i = 0; i < type; ++i)
+    {
+        if((type & (TEXTURE_TYPE_COLOR << i)) > 0){ ret++; }
+    }
+    return ret;
+}
+
 void main()
 {
     material_struct_t material = materials[object_index];
@@ -51,7 +62,8 @@ void main()
 
         if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
         {
-            tex_color *= texture(u_sampler_2D[material.base_texture_index + ALBEDO], vertex_in.tex_coord);
+            uint offset = tex_offset(ALBEDO, material.texture_type_flags);
+            tex_color *= texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord);
         }
 
         float cut_off = (material.blend_mode == BLEND_MODE_MASK) ? material.alpha_cutoff : 0.f;
@@ -62,7 +74,8 @@ void main()
 
         if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
         {
-            out_emission = texture(u_sampler_2D[material.base_texture_index + EMMISSION], vertex_in.tex_coord);
+            uint offset = tex_offset(EMMISSION, material.texture_type_flags);
+            out_emission = texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord);
             out_emission.a *= material.emission.a;
         }
     }
@@ -71,7 +84,8 @@ void main()
 
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
-        normal = normalize(2.0 * (texture(u_sampler_2D[material.base_texture_index + NORMAL],
+        uint offset = tex_offset(NORMAL, material.texture_type_flags);
+        normal = normalize(2.0 * (texture(u_sampler_2D[material.base_texture_index + offset],
         vertex_in.tex_coord.xy).xyz - vec3(0.5)));
 
         // normal, tangent, bi-tangent
@@ -87,7 +101,8 @@ void main()
 
     if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)
     {
-        out_ao_rough_metal = vec4(texture(u_sampler_2D[material.base_texture_index + AO_ROUGH_METAL],
+        uint offset = tex_offset(AO_ROUGH_METAL, material.texture_type_flags);
+        out_ao_rough_metal = vec4(texture(u_sampler_2D[material.base_texture_index + offset],
                                           vertex_in.tex_coord).xyz, 1.0);
     }
 
