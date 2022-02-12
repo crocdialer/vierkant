@@ -181,7 +181,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
 
             if(!check_and_insert(ci.geometry, vertex_data))
             {
-                LOG_WARNING << "create_mesh_from_geometry: array sizes do not match";
+                spdlog::warn("create_mesh_from_geometry: array sizes do not match");
                 return nullptr;
             }
 

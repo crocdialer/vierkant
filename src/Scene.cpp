@@ -138,7 +138,7 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
     {
         clicked_items.sort();
         ret = clicked_items.front().object->shared_from_this();
-        LOG_TRACE << "ray hit id " << ret->id() << " (" << clicked_items.size() << " total)";
+        spdlog::trace("ray hit id {} ({} total)", ret->id(), clicked_items.size());
     }
     return ret;
 }
@@ -147,6 +147,7 @@ vierkant::Object3DPtr Scene::object_by_name(const std::string &name) const
 {
     vierkant::SelectVisitor<vierkant::Object3D> sv({}, false);
     root()->accept(sv);
+
     for(vierkant::Object3D *o : sv.objects)
     {
         if(o->name() == name){ return o->shared_from_this(); }

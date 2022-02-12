@@ -17,7 +17,7 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
 {
     if(geom->topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST || geom->indices.size() < 3)
     {
-        LOG_WARNING << "requested computation of half-edges for non-triangle mesh";
+        spdlog::warn("requested computation of half-edges for non-triangle mesh");
         return {};
     }
 
@@ -71,9 +71,9 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
 
     if(boundaryCount > 0)
     {
-        LOG_DEBUG << "mesh is not watertight. contains " << boundaryCount << " boundary edges.";
+        spdlog::debug("mesh is not watertight. contains {} boundary edges.", boundaryCount);
     }
-    LOG_TRACE << "half-edge computation took " << (int) std::round(timer.time_elapsed() * 1000.0) << " ms";
+    spdlog::trace("half-edge computation took {} ms", (int) std::round(timer.time_elapsed() * 1000.0));
     return ret;
 }
 
