@@ -6,8 +6,8 @@
 #include "../renderer/types.glsl"
 
 #define ALBEDO 0
-#define NORMAL 1
-#define AO_ROUGH_METAL 2
+#define AO_ROUGH_METAL 1
+#define NORMAL 2
 #define EMMISSION 3
 
 layout(push_constant) uniform PushConstants {

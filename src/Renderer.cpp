@@ -124,8 +124,11 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
 
             for(auto &[type_flag, tex] : material->textures)
             {
-                drawable.material.texture_type_flags |= type_flag;
-                desc_texture.image_samplers.push_back(tex);
+                if(tex)
+                {
+                    drawable.material.texture_type_flags |= type_flag;
+                    desc_texture.image_samplers.push_back(tex);
+                }
             };
             drawable.descriptors[BINDING_TEXTURES] = desc_texture;
         }

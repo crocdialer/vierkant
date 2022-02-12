@@ -27,8 +27,8 @@ public:
     enum TextureType : uint32_t
     {
         Color = 0x01,
-        Normal = 0x02,
-        Ao_rough_metal = 0x04,
+        Ao_rough_metal = 0x02,
+        Normal = 0x04,
         Emission = 0x08,
         Displacement = 0x10,
         Thickness = 0x20,

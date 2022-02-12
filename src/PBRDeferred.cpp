@@ -337,7 +337,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
 
         // check if tangents are available
-        if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)){ shader_flags |= PROP_TANGENT; }
+        if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)){ shader_flags |= PROP_TANGENT_SPACE; }
 
         // select shader-stages from cache
         auto stage_it = m_g_buffer_shader_stages.find(shader_flags);

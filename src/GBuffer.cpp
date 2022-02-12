@@ -78,12 +78,12 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
     stages_skin[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
 
     //  normals
-    auto &stages_albedo_normal = ret[PROP_TANGENT];
+    auto &stages_albedo_normal = ret[PROP_TANGENT_SPACE];
     stages_albedo_normal[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_vert;
     stages_albedo_normal[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
 
     // skin + normals
-    auto &stages_skin_albedo = ret[PROP_TANGENT | PROP_SKIN];
+    auto &stages_skin_albedo = ret[PROP_TANGENT_SPACE | PROP_SKIN];
     stages_skin_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
     stages_skin_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
 
