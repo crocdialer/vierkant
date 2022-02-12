@@ -387,27 +387,32 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             material.sheen_color = {mesh_material->sheen_color, 0.f};
             material.sheen_roughness = mesh_material->sheen_roughness;
 
-            if(mesh_material->textures.count(vierkant::Material::TextureType::Color))
+            for(auto &[type_flag, tex] : mesh_material->textures)
             {
-                material.texture_index = textures.size();
-                textures.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Color));
+                material.texture_type_flags |= type_flag;
+
+                if(type_flag == vierkant::Material::TextureType::Color)
+                {
+                    material.texture_index = textures.size();
+                    textures.push_back(tex);
+                }
+                else if(type_flag == vierkant::Material::TextureType::Normal)
+                {
+                    material.normalmap_index = normalmaps.size();
+                    normalmaps.push_back(tex);
+                }
+                else if(type_flag == vierkant::Material::TextureType::Emission)
+                {
+                    material.emission_index = emissions.size();
+                    emissions.push_back(tex);
+                }
+                else if(type_flag == vierkant::Material::TextureType::Ao_rough_metal)
+                {
+                    material.ao_rough_metal_index = ao_rough_metal_maps.size();
+                    ao_rough_metal_maps.push_back(tex);
+                }
             }
-            if(mesh_material->textures.count(vierkant::Material::TextureType::Normal))
-            {
-                material.normalmap_index = normalmaps.size();
-                normalmaps.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Normal));
-            }
-            if(mesh_material->textures.count(vierkant::Material::TextureType::Emission))
-            {
-                material.emission_index = emissions.size();
-                emissions.push_back(mesh_material->textures.at(vierkant::Material::TextureType::Emission));
-            }
-            if(mesh_material->textures.count(vierkant::Material::TextureType::Ao_rough_metal))
-            {
-                material.ao_rough_metal_index = ao_rough_metal_maps.size();
-                ao_rough_metal_maps.push_back(
-                        mesh_material->textures.at(vierkant::Material::TextureType::Ao_rough_metal));
-            }
+
             materials.push_back(material);
         }
         mesh_index++;

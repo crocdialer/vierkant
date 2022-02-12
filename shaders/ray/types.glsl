@@ -28,6 +28,19 @@ struct entry_t
     uint buffer_index;
 };
 
+//! texture-type flag bits
+#define TEXTURE_TYPE_COLOR 0x01
+#define TEXTURE_TYPE_NORMAL 0x02
+#define TEXTURE_TYPE_AO_ROUGH_METAL 0x04
+#define TEXTURE_TYPE_EMISSION 0x08
+#define TEXTURE_TYPE_DISPLACEMENT 0x10
+#define TEXTURE_TYPE_THICKNESS 0x20
+#define TEXTURE_TYPE_TRANSMISSION 0x40
+#define TEXTURE_TYPE_CLEARCOAT 0x80
+#define TEXTURE_TYPE_SHEEN_COLOR 0x100
+#define TEXTURE_TYPE_SHEEN_ROUGHNESS 0x200
+#define TEXTURE_TYPE_ENVIRONMENT 0x400
+
 //! material_t groups all material-properties
 struct material_t
 {
@@ -48,4 +61,6 @@ struct material_t
     uint normalmap_index;
     uint emission_index;
     uint ao_rough_metal_index;
+
+    uint texture_type_flags;
 };

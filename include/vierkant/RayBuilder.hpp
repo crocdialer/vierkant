@@ -68,7 +68,9 @@ public:
 
         uint32_t ao_rough_metal_index = 0;
 
-//        int padding[0];
+        uint32_t texture_type_flags = 0;
+
+        int padding[3];
     };
 
     //! used for both bottom and toplevel acceleration-structures

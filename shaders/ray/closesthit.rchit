@@ -136,16 +136,16 @@ void main()
     // propagate ray-cone
     payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
-    bool tangent_valid = any(greaterThan(abs(v.tangent), vec3(0.0)));
+    //    bool tangent_valid = any(greaterThan(abs(v.tangent), vec3(0.0)));
 
-    if (tangent_valid)
+    if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
         // normalize after checking for validity
         v.tangent = normalize(v.tangent);
 
         // sample normalmap
         vec3 normal = normalize(2.0 * (sample_texture_lod(u_normalmaps[material.normalmap_index],
-                                                          v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz - vec3(0.5)));
+        v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz - vec3(0.5)));
 
         // normal, tangent, bi-tangent
         vec3 b = normalize(cross(v.normal, v.tangent));
@@ -156,12 +156,14 @@ void main()
     payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
 
     // max emission from material/map
-    const float emission_tex_gain = 10.0;
-    material.emission.rgb = max(material.emission.rgb,
-                                emission_tex_gain * sample_texture_lod(u_emissionmaps[material.emission_index],
-                                                                       v.tex_coord, NoV, payload.cone.width,
-                                                                       triangle_lod).rgb);
-
+    if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
+    {
+        const float emission_tex_gain = 10.0;
+        material.emission.rgb = max(material.emission.rgb,
+        emission_tex_gain * sample_texture_lod(u_emissionmaps[material.emission_index],
+        v.tex_coord, NoV, payload.cone.width,
+        triangle_lod).rgb);
+    }
     material.emission.rgb = dot(payload.normal, payload.ff_normal) > 0 ? material.emission.rgb : vec3(0.0);
 
     // absorption in media
@@ -172,18 +174,24 @@ void main()
     payload.radiance += payload.beta * material.emission.rgb;
 
     // albedo
-    material.color = push_constants.disable_material ?
-        vec4(vec3(.8), 1.0) : material.color * sample_texture_lod(u_albedos[material.texture_index],
-                                                                  v.tex_coord, NoV, payload.cone.width, triangle_lod);
+    material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
 
+    if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
+    {
+        material.color *= sample_texture_lod(u_albedos[material.texture_index],
+                                             v.tex_coord, NoV, payload.cone.width, triangle_lod);
+    }
     // hardcoded alpha-cutoff
     if(material.color.a < 0.01){ return; }
 
     // roughness / metalness
-    vec2 rough_metal_tex = sample_texture_lod(u_ao_rough_metal_maps[material.ao_rough_metal_index],
-                                              v.tex_coord, NoV, payload.cone.width, triangle_lod).gb;
-    material.roughness *= rough_metal_tex.x;
-    material.metalness *= rough_metal_tex.y;
+    if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)
+    {
+        vec2 rough_metal_tex = sample_texture_lod(u_ao_rough_metal_maps[material.ao_rough_metal_index],
+        v.tex_coord, NoV, payload.cone.width, triangle_lod).gb;
+        material.roughness *= rough_metal_tex.x;
+        material.metalness *= rough_metal_tex.y;
+    }
 
     uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 
