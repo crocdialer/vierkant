@@ -158,6 +158,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     {
         // unit grid
         auto geom = vierkant::Geometry::Grid();
+        geom->tex_coords.clear();
         auto mesh = vierkant::Mesh::create_from_geometry(m_device, geom, {});
         m_drawable_grid = vierkant::Renderer::create_drawables(mesh).front();
         m_drawable_grid.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(

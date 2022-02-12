@@ -420,7 +420,7 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
                                          ImGuiWindowFlags_NoNav);
 
     uint32_t color_white = 0xFFFFFFFF;
-    uint32_t color_error = 0xFFFF3366;
+    uint32_t color_error = 0xFF6666FF;
     uint32_t color_warn = 0xFF09AADD;
     uint32_t color_debug = 0xFFFFCCDD;
 

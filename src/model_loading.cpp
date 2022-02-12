@@ -130,7 +130,16 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
 
     if(compress_textures)
     {
-        spdlog::debug("compressed {} textures in {} ms", texture_cache.size(), compress_total_duration.count());
+        size_t num_pixels = 0;
+        for(const auto &[img, tex] : texture_cache)
+        {
+            num_pixels += img->width() * img->height();
+        }
+        float mpx_per_sec =
+                1.e-6f * static_cast<float>(num_pixels) / std::chrono::duration<float>(compress_total_duration).count();
+
+        spdlog::debug("compressed {} textures in {} ms - avg. {:03.2f} Mpx/s", texture_cache.size(),
+                      compress_total_duration.count(), mpx_per_sec);
     }
 
     for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
