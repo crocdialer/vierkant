@@ -114,6 +114,8 @@ public:
 
     vierkant::ImagePtr environment_ggx() const{ return m_conv_ggx; };
 
+    vierkant::ImagePtr bsdf_lut() const{ return m_brdf_lut; }
+
     /**
      * @return a const ref to the g-buffer used for last rendering.
      */
@@ -191,6 +193,7 @@ private:
     {
         size_t operator()(matrix_key_t const &key) const;
     };
+
     using matrix_cache_t = std::unordered_map<matrix_key_t, Renderer::matrix_struct_t, matrix_key_hash_t>;
 
     using bone_buffer_cache_t = std::unordered_map<vierkant::nodes::NodeConstPtr, vierkant::BufferPtr>;
@@ -245,7 +248,7 @@ private:
     vierkant::ImagePtr m_empty_img;
 
     vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom,
-        m_drawable_taa;
+            m_drawable_taa;
 
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;

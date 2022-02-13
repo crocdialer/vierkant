@@ -512,6 +512,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
         }
         if(ImGui::TreeNode("lighting buffer", "lighting buffer (%d x %d)", extent.width, extent.height))
         {
+            vierkant::gui::draw_images_ui({pbr_renderer->bsdf_lut()});
             vierkant::gui::draw_images_ui({pbr_renderer->lighting_buffer().color_attachment()});
 
             ImGui::TreePop();

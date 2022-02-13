@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../renderer/types.glsl"
+#include "../renderer/bsdf_common.glsl"
 #include "../utils/color_ycc.glsl"
 
 #define ONE_OVER_PI 0.31830988618379067153776752674503
@@ -46,24 +47,29 @@ vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float 
     vec3 world_normal = mat3(ubo.camera_transform) * normal;
     vec3 world_reflect = mat3(ubo.camera_transform) * r;
 
-    vec3 diffIr = sample_diffuse(u_sampler_cube[ENV_DIFFUSE], world_normal);
+    vec3 irradiance = sample_diffuse(u_sampler_cube[ENV_DIFFUSE], world_normal);
 
     float spec_mip_lvl = roughness * float(ubo.num_mip_levels - 1);
 
-    vec3 specIr = textureLod(u_sampler_cube[ENV_SPEC], world_reflect, spec_mip_lvl).rgb;
+    vec3 reflection = textureLod(u_sampler_cube[ENV_SPEC], world_reflect, spec_mip_lvl).rgb;
     float NoV = clamp(dot(normal, v), 0.0, 1.0);
 
-    vec2 brdfTerm = texture(u_sampler_2D[BRDF_LUT], vec2(NoV, roughness)).rg;
+    vec2 brdf = texture(u_sampler_2D[BRDF_LUT], vec2(NoV, roughness)).rg;
 
     const vec3 dielectricF0 = vec3(0.04);
-    vec3 diffColor = albedo * (1.0 - metalness);// if it is metal, no diffuse color
-    vec3 specColor = mix(dielectricF0, albedo, metalness);// since metal has no albedo, we use the space to store its F0
+    vec3 F0 = mix(dielectricF0, albedo, metalness);// since metal has no albedo, we use the space to store its F0
+    vec3 F = F_SchlickR(max(NoV, 0.0), F0, roughness);
 
-    // TODO: still in doubt about application of brdfTerm
-    vec3 distEnvLighting = diffColor * diffIr + specIr * (specColor * (brdfTerm.x + brdfTerm.y));
-    distEnvLighting *= ubo.env_light_strength * ambient_occlusion;
+    // specular reflectance
+    vec3 specular = reflection * (F * brdf.x + brdf.y);
 
-    return distEnvLighting;
+    // diffuse based on irradiance
+    vec3 diffuse = irradiance * albedo;
+    diffuse *= 1.0 - metalness;
+
+    vec3 ambient = diffuse + F0 * specular * pow(ambient_occlusion, 2);
+
+    return ambient;
 }
 
 layout(location = 0) in VertexData
