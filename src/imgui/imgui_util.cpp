@@ -337,8 +337,6 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
                      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
                      ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
     }
-//    ImGui::Text(app->name().c_str());
-//    ImGui::Separator();
 
     const char *log_items[] = {"Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
     int log_level = static_cast<int>(spdlog::get_level());
@@ -595,60 +593,33 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
 
     ImGui::Separator();
 
-    if(cam)
+    // dof
+    if(settings_dof)
     {
-        if(ImGui::TreeNode("camera"))
+        auto &dof = *settings_dof;
+
+        ImGui::PushID(std::addressof(dof));
+        ImGui::Checkbox("", reinterpret_cast<bool *>(std::addressof(dof.enabled)));
+        ImGui::PopID();
+
+        ImGui::SameLine();
+        if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
+
+        if(ImGui::TreeNode("dof"))
         {
-            auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
 
-            if(perspective_cam)
-            {
-                // fov
-                float fov = perspective_cam->fov();
-                if(ImGui::SliderFloat("fov", &fov, 0.f, 180.f)){ perspective_cam->set_fov(fov); }
-
-                // clipping planes
-                float clipping[2] = {perspective_cam->near(), perspective_cam->far()};
-                if(ImGui::InputFloat2("clipping near/far", clipping))
-                {
-                    perspective_cam->set_clipping(clipping[0], clipping[1]);
-                }
-
-                // dof
-                if(settings_dof)
-                {
-                    auto &dof = *settings_dof;
-
-                    ImGui::PushID(std::addressof(dof));
-                    ImGui::Checkbox("", reinterpret_cast<bool *>(std::addressof(dof.enabled)));
-                    ImGui::PopID();
-
-                    ImGui::SameLine();
-                    if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
-
-                    if(ImGui::TreeNode("dof"))
-                    {
-
-                        ImGui::Checkbox("autofocus", reinterpret_cast<bool *>(std::addressof(dof.auto_focus)));
-                        ImGui::SliderFloat("focal distance (m)", &dof.focal_depth, 0.f, cam->far());
-                        ImGui::SliderFloat("focal length (mm)", &dof.focal_length, 0.f, 280.f);
-                        ImGui::SliderFloat("f-stop", &dof.fstop, 0.f, 180.f);
-                        ImGui::InputFloat("circle of confusion (mm)", &dof.circle_of_confusion_sz, 0.001f, .01f);
-                        ImGui::SliderFloat("gain", &dof.gain, 0.f, 10.f);
-                        ImGui::SliderFloat("color fringe", &dof.fringe, 0.f, 10.f);
-                        ImGui::SliderFloat("max blur", &dof.max_blur, 0.f, 10.f);
-                        ImGui::Checkbox("debug focus", reinterpret_cast<bool *>(std::addressof(dof.debug_focus)));
-                        ImGui::TreePop();
-                    }
-                    if(!dof.enabled){ ImGui::PopStyleColor(); }
-                }
-            }
-
+            ImGui::Checkbox("autofocus", reinterpret_cast<bool *>(std::addressof(dof.auto_focus)));
+            ImGui::SliderFloat("focal distance (m)", &dof.focal_depth, 0.f, cam->far());
+            ImGui::SliderFloat("focal length (mm)", &dof.focal_length, 0.f, 280.f);
+            ImGui::SliderFloat("f-stop", &dof.fstop, 0.f, 180.f);
+            ImGui::InputFloat("circle of confusion (mm)", &dof.circle_of_confusion_sz, 0.001f, .01f);
+            ImGui::SliderFloat("gain", &dof.gain, 0.f, 10.f);
+            ImGui::SliderFloat("color fringe", &dof.fringe, 0.f, 10.f);
+            ImGui::SliderFloat("max blur", &dof.max_blur, 0.f, 10.f);
+            ImGui::Checkbox("debug focus", reinterpret_cast<bool *>(std::addressof(dof.debug_focus)));
             ImGui::TreePop();
         }
-
-        ImGui::Separator();
-        ImGui::Spacing();
+        if(!dof.enabled){ ImGui::PopStyleColor(); }
     }
 
     // end window
