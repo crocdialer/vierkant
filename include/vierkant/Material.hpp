@@ -45,7 +45,7 @@ public:
 
     glm::vec4 color = glm::vec4(1);
 
-    glm::vec3 emission = glm::vec3(0);
+    glm::vec4 emission = glm::vec4(0, 0, 0, 1);
 
     float metalness = 1.f;
 

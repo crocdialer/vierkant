@@ -149,7 +149,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
 
         material->name = mesh_assets.materials[i].name;
         material->color = mesh_assets.materials[i].base_color;
-        material->emission = mesh_assets.materials[i].emission;
+        material->emission = glm::vec4(mesh_assets.materials[i].emission, 1.f);
         material->roughness = mesh_assets.materials[i].roughness;
         material->metalness = mesh_assets.materials[i].metalness;
         material->blend_mode = mesh_assets.materials[i].blend_mode;

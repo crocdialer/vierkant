@@ -158,13 +158,12 @@ void main()
     // max emission from material/map
     if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
     {
-        const float emission_tex_gain = 10.0;
-        material.emission.rgb = max(material.emission.rgb,
-        emission_tex_gain * sample_texture_lod(u_emissionmaps[material.emission_index],
-        v.tex_coord, NoV, payload.cone.width,
-        triangle_lod).rgb);
+        material.emission.rgb = max(material.emission.rgb, sample_texture_lod(u_emissionmaps[material.emission_index],
+                                                                              v.tex_coord, NoV, payload.cone.width,
+                                                                              triangle_lod).rgb);
+
     }
-    material.emission.rgb = dot(payload.normal, payload.ff_normal) > 0 ? material.emission.rgb : vec3(0.0);
+    material.emission.rgb *= dot(payload.normal, payload.ff_normal) > 0 ? material.emission.a : 0.0;
 
     // absorption in media
     payload.beta *= exp(-payload.absorption * gl_HitTEXT);

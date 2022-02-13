@@ -84,7 +84,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
 
         // material params
         drawable.material.color = material->color;
-        drawable.material.emission = glm::vec4(material->emission, 0.f);
+        drawable.material.emission = material->emission;
         drawable.material.ambient = material->occlusion;
         drawable.material.roughness = material->roughness;
         drawable.material.metalness = material->metalness;
