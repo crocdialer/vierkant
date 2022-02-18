@@ -298,13 +298,7 @@ struct AABB
         return min == aabb.min && max == aabb.max;
     }
 
-    AABB &transform(const glm::mat4 &t);
-
-    [[nodiscard]] inline AABB transform(const glm::mat4 &t) const
-    {
-        AABB ret = *this;
-        return ret.transform(t);
-    }
+    [[nodiscard]] AABB transform(const glm::mat4 &t) const;
 
     [[nodiscard]] inline uint32_t intersect(const glm::vec3 &point) const
     {

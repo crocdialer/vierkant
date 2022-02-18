@@ -39,7 +39,8 @@ vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
     return texture(diff_map, normal).rgb * ONE_OVER_PI;
 }
 
-vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float roughness, float metalness, float ambient_occlusion)
+vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float roughness, float metalness,
+                                 float ambient_occlusion)
 {
     vec3 v = normalize(position);
     vec3 r = normalize(reflect(v, normal));
@@ -67,7 +68,7 @@ vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float 
     vec3 diffuse = irradiance * albedo;
     diffuse *= 1.0 - metalness;
 
-    vec3 ambient = diffuse + F0 * specular * pow(ambient_occlusion, 2);
+    vec3 ambient = diffuse + F0 * specular * ambient_occlusion;
 
     return ambient;
 }

@@ -55,11 +55,11 @@ public:
      */
     void draw_gui(vierkant::Renderer &renderer);
 
-    const vierkant::mouse_delegate_t &mouse_delegate() const;
+    [[nodiscard]] const vierkant::mouse_delegate_t &mouse_delegate() const;
 
-    const vierkant::key_delegate_t &key_delegate() const;
+    [[nodiscard]] const vierkant::key_delegate_t &key_delegate() const;
 
-    CaptureFlags capture_flags() const;
+    [[nodiscard]] CaptureFlags capture_flags() const;
 
     friend void swap(Context &lhs, Context &rhs) noexcept;
 

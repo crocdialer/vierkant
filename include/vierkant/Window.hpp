@@ -75,15 +75,11 @@ public:
 
     /**
      * @brief               Factory to create a new WindowPtr.
-     *                      New Windows do not have an initialized SwapChain,
-     *                      so after Window creation you'd probably want to call @ref create_swapchain at some point
      *
-     * @param instance      a VkInstance to create the Window for
-     * @param width         desired width for the Window
-     * @param height        desired height for the Window
-     * @param title         the Window title
-     * @param fullscreen    flag to request a fullscreen Window
-     * @param monitor_index monitor index to open the Window on
+     * New Windows do not have an initialized SwapChain.
+     * After Window creation you'll probably want to call @ref create_swapchain at some point
+     *
+     * @param create_info   a struct grouping all parameters
      * @return              the newly created WindowPtr
      */
     static WindowPtr

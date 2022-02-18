@@ -80,7 +80,7 @@ void draw_property_ui(const Property_<float>::Ptr &the_property)
     else
     {
         if(ImGui::InputFloat(prop_name.c_str(), &the_property->value(), 0.f, 0.f,
-                             (std::abs(the_property->value()) < 1.f) ? 5 : 2,
+                             (std::abs(the_property->value()) < 1.f) ? "%.4f" : "%.2f",
                              ImGuiInputTextFlags_EnterReturnsTrue))
         {
             the_property->notify_observers();
@@ -104,7 +104,7 @@ void draw_property_ui(const Property_<glm::vec2>::Ptr &the_property)
 {
     std::string prop_name = the_property->name();
 
-    if(ImGui::InputFloat2(prop_name.c_str(), &the_property->value()[0], 2, ImGuiInputTextFlags_EnterReturnsTrue))
+    if(ImGui::InputFloat2(prop_name.c_str(), &the_property->value()[0], "%.2f", ImGuiInputTextFlags_EnterReturnsTrue))
     {
         the_property->notify_observers();
     }
@@ -115,7 +115,7 @@ void draw_property_ui(const Property_<glm::vec3>::Ptr &the_property)
 {
     std::string prop_name = the_property->name();
 
-    if(ImGui::InputFloat3(prop_name.c_str(), &the_property->value()[0], 2, ImGuiInputTextFlags_EnterReturnsTrue))
+    if(ImGui::InputFloat3(prop_name.c_str(), &the_property->value()[0], "%.2f", ImGuiInputTextFlags_EnterReturnsTrue))
     {
         the_property->notify_observers();
     }
@@ -205,7 +205,7 @@ void draw_property_ui(const Property_<std::vector<float>>::Ptr &the_property)
         for(size_t i = 0; i < array.size(); ++i)
         {
             if(ImGui::InputFloat(std::to_string(i).c_str(), &array[i], 0.f, 0.f,
-                                 (std::abs(array[i]) < 1.f) ? 5 : 2,
+                                 (std::abs(array[i]) < 1.f) ? "%.5f" : "%.2f",
                                  ImGuiInputTextFlags_EnterReturnsTrue))
             {
                 the_property->notify_observers();
@@ -399,50 +399,50 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level_enum>> &items)
 {
     int corner = 2;
-    float bg_alpha = .1f;
     const float DISTANCE = 10.0f;
     ImGuiIO &io = ImGui::GetIO();
     ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
                                (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
     ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(io.DisplaySize.x - 2 * DISTANCE, 240),
+    ImGui::SetNextWindowSizeConstraints(ImVec2(io.DisplaySize.x - 2 * DISTANCE, 0),
                                         ImVec2(io.DisplaySize.x - 2 * DISTANCE,
                                                io.DisplaySize.y / 0.33f - 2 * DISTANCE));
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
-    ImGui::SetNextWindowBgAlpha(bg_alpha);
 
-    bool show_logger = true;
+    bool show_logger = false;
 
-    ImGui::Begin("logger", &show_logger, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
+    if(ImGui::Begin("log", &show_logger, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
                                          ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                                         ImGuiWindowFlags_NoNav);
-
-    uint32_t color_white = 0xFFFFFFFF;
-    uint32_t color_error = 0xFF6666FF;
-    uint32_t color_warn = 0xFF09AADD;
-    uint32_t color_debug = 0xFFFFCCDD;
-
-    ImGuiListClipper clipper(static_cast<int>(items.size()));
-
-    while(clipper.Step())
+                                         ImGuiWindowFlags_NoNav))
     {
-        for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+        uint32_t color_white = 0xFFFFFFFF;
+        uint32_t color_error = 0xFF6666FF;
+        uint32_t color_warn = 0xFF09AADD;
+        uint32_t color_debug = 0xFFFFCCDD;
+
+        ImGuiListClipper clipper(static_cast<int>(items.size()));
+
+        while(clipper.Step())
         {
-            const auto &[msg, log_level] = items[i];
-            uint32_t color = color_white;
-            if(log_level == spdlog::level::err){ color = color_error; }
-            else if(log_level == spdlog::level::warn){ color = color_warn; }
-            else if(log_level == spdlog::level::debug){ color = color_debug; }
+            for(int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++)
+            {
+                const auto &[msg, log_level] = items[i];
+                uint32_t color = color_white;
+                if(log_level == spdlog::level::err){ color = color_error; }
+                else if(log_level == spdlog::level::warn){ color = color_warn; }
+                else if(log_level == spdlog::level::debug){ color = color_debug; }
 
-            ImGui::PushStyleColor(ImGuiCol_Text, color);
-            ImGui::Text(msg.c_str());
-            ImGui::PopStyleColor();
+                ImGui::PushStyleColor(ImGuiCol_Text, color);
+                ImGui::Text(msg.c_str());
+                ImGui::PopStyleColor();
+            }
+
         }
-
+        if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()){ ImGui::SetScrollHereY(); }
     }
-    if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()){ ImGui::SetScrollHereY(); }
-
     ImGui::End();
+
+//    ImGui::PopStyleColor(ImGuiCol_TitleBg);
 }
 
 void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
@@ -452,7 +452,7 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
 
     if(!is_child_window){ ImGui::Begin(window_name); }
 
-    const float w = ImGui::GetContentRegionAvailWidth();
+    const float w = ImGui::GetContentRegionAvail().x;
     const ImVec2 uv_0(0, 0), uv_1(1, 1);
 
     for(const auto &tex : images)
@@ -712,7 +712,7 @@ void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &c
 
 void draw_material_ui(const MaterialPtr &material)
 {
-    const float w = ImGui::GetContentRegionAvailWidth();
+    const float w = ImGui::GetContentRegionAvail().x;
 
     auto draw_texture = [&material, w](vierkant::Material::TextureType type, const std::string &text)
     {
@@ -972,9 +972,10 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
         glm::vec3 rotation = glm::degrees(glm::eulerAngles(glm::quat_cast(transform)));
         glm::vec3 scale = glm::vec3(length(transform[0]), length(transform[1]), length(transform[2]));
 
-        bool changed = ImGui::InputFloat3("position", glm::value_ptr(position), 3);
-        changed = ImGui::InputFloat3("rotation", glm::value_ptr(rotation), 3) || changed;
-        changed = ImGui::InputFloat3("scale", glm::value_ptr(scale), 3) || changed;
+        constexpr char fmt[] = "%.4f";
+        bool changed = ImGui::InputFloat3("position", glm::value_ptr(position), fmt);
+        changed = ImGui::InputFloat3("rotation", glm::value_ptr(rotation), fmt) || changed;
+        changed = ImGui::InputFloat3("scale", glm::value_ptr(scale), fmt) || changed;
 
         if(changed)
         {

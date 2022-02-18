@@ -170,8 +170,10 @@ OBB &OBB::transform(const glm::mat4 &t)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-AABB &AABB::transform(const glm::mat4 &t)
+AABB AABB::transform(const glm::mat4 &t) const
 {
+    AABB ret = *this;
+
     glm::vec3 aMin, aMax;
     float a, b;
     int i, j;
@@ -181,11 +183,10 @@ AABB &AABB::transform(const glm::mat4 &t)
     aMax = max;
 
     // Begin at T.
-    min = max = t[3].xyz();
+    ret.min = ret.max = t[3].xyz();
 
     // Find extreme points by considering product of
     // min and max with each component of t.
-
     for(j = 0; j < 3; j++)
     {
         for(i = 0; i < 3; i++)
@@ -195,17 +196,17 @@ AABB &AABB::transform(const glm::mat4 &t)
 
             if(a < b)
             {
-                min[j] += a;
-                max[j] += b;
+                ret.min[j] += a;
+                ret.max[j] += b;
             }
             else
             {
-                min[j] += b;
-                max[j] += a;
+                ret.min[j] += b;
+                ret.max[j] += a;
             }
         }
     }
-    return *this;
+    return ret;
 }
 
 ray_intersection AABB::intersect(const Ray &ray) const
