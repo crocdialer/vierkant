@@ -2,6 +2,7 @@
 #include "vierkant/Window.hpp"
 #include "vierkant/Renderer.hpp"
 #include "imgui.h"
+#include "implot.h"
 #include "ImGuizmo.h"
 
 namespace vierkant::gui
@@ -90,6 +91,8 @@ private:
     bool create_device_objects(const vierkant::DevicePtr &device);
 
     ImGuiContext *m_imgui_context = nullptr;
+
+    ImPlotContext *m_implot_context = nullptr;
 
     imgui_assets_t m_imgui_assets = {};
 };

@@ -125,7 +125,7 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
 
     // index buffer
     mesh->index_buffer = index_buffer;
-    mesh->index_type = VK_INDEX_TYPE_UINT16;
+    mesh->index_type = index_type<ImDrawIdx>();
 
     return {mesh, vertex_buffer, index_buffer};
 }
@@ -140,9 +140,11 @@ ImVec4 im_vec_cast(const glm::vec3 &v)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_info) :
-        m_imgui_context(ImGui::CreateContext())
+        m_imgui_context(ImGui::CreateContext()),
+        m_implot_context(ImPlot::CreateContext())
 {
     ImGui::SetCurrentContext(m_imgui_context);
+    ImPlot::SetCurrentContext(m_implot_context);
 
     // Setup back-end capabilities flags
     ImGuiIO &io = ImGui::GetIO();
@@ -176,7 +178,7 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     if(!create_info.font_data.empty())
     {
         ImFontConfig font_cfg;
-        font_cfg.FontData = const_cast<uint8_t*>(create_info.font_data.data());
+        font_cfg.FontData = const_cast<uint8_t *>(create_info.font_data.data());
         font_cfg.FontDataSize = static_cast<int>(create_info.font_data.size());
         font_cfg.FontDataOwnedByAtlas = false;
         font_cfg.SizePixels = create_info.font_size;
@@ -215,6 +217,7 @@ Context::Context(Context &&other) noexcept:
 Context::~Context()
 {
     if(m_imgui_context){ ImGui::DestroyContext(m_imgui_context); }
+    if(m_implot_context){ ImPlot::DestroyContext(m_implot_context); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -230,6 +233,7 @@ Context &Context::operator=(Context other)
 void Context::draw_gui(vierkant::Renderer &renderer)
 {
     ImGui::SetCurrentContext(m_imgui_context);
+    ImPlot::SetCurrentContext(m_implot_context);
 
     // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
     ImGuiIO &io = ImGui::GetIO();
@@ -407,6 +411,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
 void swap(Context &lhs, Context &rhs) noexcept
 {
     std::swap(lhs.m_imgui_context, rhs.m_imgui_context);
+    std::swap(lhs.m_implot_context, rhs.m_implot_context);
     std::swap(lhs.m_imgui_assets, rhs.m_imgui_assets);
 }
 
