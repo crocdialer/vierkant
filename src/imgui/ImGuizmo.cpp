@@ -31,6 +31,7 @@
 #include "imgui_internal.h"
 #include <vierkant/imgui/ImGuizmo.h>
 
+
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h>
 #endif
@@ -61,10 +62,10 @@ namespace IMGUIZMO_NAMESPACE
      return static_cast<int>(lhs) != rhs;
    }
 
-   static bool operator==(OPERATION lhs, int rhs)
-   {
-     return static_cast<int>(lhs) == rhs;
-   }
+//   static bool operator==(OPERATION lhs, int rhs)
+//   {
+//     return static_cast<int>(lhs) == rhs;
+//   }
 
    static bool Intersects(OPERATION lhs, OPERATION rhs)
    {
@@ -1320,7 +1321,7 @@ namespace IMGUIZMO_NAMESPACE
          {
             continue;
          }
-         const bool usingAxis = (gContext.mbUsing && type == MT_SCALE_X + i);
+         const bool usingAxis = (gContext.mbUsing && (size_t)type == MT_SCALE_X + i);
          if (!gContext.mbUsing || usingAxis)
          {
             vec_t dirPlaneX, dirPlaneY, dirAxis;
@@ -1407,7 +1408,7 @@ namespace IMGUIZMO_NAMESPACE
          {
             continue;
          }
-         const bool usingAxis = (gContext.mbUsing && type == MT_SCALE_X + i);
+         const bool usingAxis = (gContext.mbUsing && (size_t)type == MT_SCALE_X + i);
          if (!gContext.mbUsing || usingAxis)
          {
             vec_t dirPlaneX, dirPlaneY, dirAxis;
@@ -1419,21 +1420,10 @@ namespace IMGUIZMO_NAMESPACE
             {
                bool hasTranslateOnAxis = Contains(op, static_cast<OPERATION>(TRANSLATE_X << i));
                float markerScale = hasTranslateOnAxis ? 1.4f : 1.0f;
-               ImVec2 baseSSpace = worldToPos(dirAxis * 0.1f * gContext.mScreenFactor, gContext.mMVPLocal);
+//               ImVec2 baseSSpace = worldToPos(dirAxis * 0.1f * gContext.mScreenFactor, gContext.mMVPLocal);
                //ImVec2 worldDirSSpaceNoScale = worldToPos(dirAxis * markerScale * gContext.mScreenFactor, gContext.mMVP);
                ImVec2 worldDirSSpace = worldToPos((dirAxis * markerScale * scaleDisplay[i]) * gContext.mScreenFactor, gContext.mMVPLocal);
 
-               /*if (gContext.mbUsing && (gContext.mActualID == -1 || gContext.mActualID == gContext.mEditingID))
-               {
-                  drawList->AddLine(baseSSpace, worldDirSSpaceNoScale, IM_COL32(0x40, 0x40, 0x40, 0xFF), 3.f);
-                  drawList->AddCircleFilled(worldDirSSpaceNoScale, 6.f, IM_COL32(0x40, 0x40, 0x40, 0xFF));
-               }
-               /*
-               if (!hasTranslateOnAxis || gContext.mbUsing)
-               {
-                  drawList->AddLine(baseSSpace, worldDirSSpace, colors[i + 1], 3.f);
-               }
-               */
                drawList->AddCircleFilled(worldDirSSpace, 12.f, colors[i + 1]);
             }
          }
@@ -1489,7 +1479,7 @@ namespace IMGUIZMO_NAMESPACE
          vec_t dirPlaneX, dirPlaneY, dirAxis;
          ComputeTripodAxisAndVisibility(i, dirAxis, dirPlaneX, dirPlaneY, belowAxisLimit, belowPlaneLimit);
 
-         if (!gContext.mbUsing || (gContext.mbUsing && type == MT_MOVE_X + i))
+         if (!gContext.mbUsing || (gContext.mbUsing && (size_t)type == MT_MOVE_X + i))
          {
             // draw axis
             if (belowAxisLimit && Intersects(op, static_cast<OPERATION>(TRANSLATE_X << i)))
@@ -1518,7 +1508,7 @@ namespace IMGUIZMO_NAMESPACE
             }
          }
          // draw plane
-         if (!gContext.mbUsing || (gContext.mbUsing && type == MT_MOVE_YZ + i))
+         if (!gContext.mbUsing || (gContext.mbUsing && (size_t)type == MT_MOVE_YZ + i))
          {
             if (belowPlaneLimit && Contains(op, TRANSLATE_PLANS[i]))
             {
@@ -1900,7 +1890,7 @@ namespace IMGUIZMO_NAMESPACE
          {
             bool hasTranslateOnAxis = Contains(op, static_cast<OPERATION>(TRANSLATE_X << i));
             float markerScale = hasTranslateOnAxis ? 1.4f : 1.0f;
-            ImVec2 baseSSpace = worldToPos(dirAxis * 0.1f * gContext.mScreenFactor, gContext.mMVPLocal);
+//            ImVec2 baseSSpace = worldToPos(dirAxis * 0.1f * gContext.mScreenFactor, gContext.mMVPLocal);
             //ImVec2 worldDirSSpaceNoScale = worldToPos(dirAxis * markerScale * gContext.mScreenFactor, gContext.mMVP);
             ImVec2 worldDirSSpace = worldToPos((dirAxis * markerScale) * gContext.mScreenFactor, gContext.mMVPLocal);
 
