@@ -97,7 +97,7 @@ vierkant::descriptor_map_t create_descriptors(const vk::DevicePtr &device)
 
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.image_samplers = {texture};
+    desc_texture.images = {texture};
 
     return {{0, desc_ubo},
             {1, desc_texture}};
