@@ -275,7 +275,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
     drawable.matrices.projection = glm::orthoRH(0.f, renderer.viewport.width, 0.f, renderer.viewport.height, 0.0f,
                                                 1.0f);
     drawable.matrices.modelview[3] = glm::vec4(pos.x, pos.y, 0, 1);
-    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {font->glyph_texture()};
+    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {font->glyph_texture()};
     drawable.num_indices = entry.num_indices;
     drawable.num_vertices = entry.num_vertices;
     renderer.stage_drawable(std::move(drawable));
@@ -299,7 +299,7 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
                                                1);
 
     // set image
-    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {image};
+    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {image};
 
     // stage image drawable
     renderer.stage_drawable(std::move(drawable));
@@ -391,14 +391,14 @@ void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &imag
         // set image + depth
         drawable = m_drawable_color_depth_fullscreen;
         drawable.pipeline_format.depth_test = depth_test;
-        drawable.descriptors[0].image_samplers = {image, depth};
+        drawable.descriptors[0].images = {image, depth};
     }
     else if(image)
     {
         // set image
         drawable = m_drawable_image_fullscreen;
         drawable.pipeline_format.depth_test = depth_test;
-        drawable.descriptors[0].image_samplers = {image};
+        drawable.descriptors[0].images = {image};
     }
 
     // stage image drawable
@@ -444,7 +444,7 @@ void DrawContext::draw_skybox(vierkant::Renderer &renderer, const vierkant::Imag
     auto drawable = m_drawable_skybox;
     drawable.matrices.modelview = m;
     drawable.matrices.projection = cam->projection_matrix();
-    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {environment};
+    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {environment};
     drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_CUBE);
 
     renderer.stage_drawable(drawable);

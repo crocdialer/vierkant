@@ -378,14 +378,14 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // environment lighting-pass
     auto drawable = m_drawable_lighting_env;
     drawable.descriptors[0].buffers = {frame_assets.lighting_ubo};
-    drawable.descriptors[1].image_samplers = {frame_assets.g_buffer.color_attachment(G_BUFFER_ALBEDO),
-                                              frame_assets.g_buffer.color_attachment(G_BUFFER_NORMAL),
-                                              frame_assets.g_buffer.color_attachment(G_BUFFER_EMISSION),
-                                              frame_assets.g_buffer.color_attachment(G_BUFFER_AO_ROUGH_METAL),
-                                              frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
-                                              frame_assets.g_buffer.depth_attachment(),
-                                              m_brdf_lut};
-    drawable.descriptors[2].image_samplers = {m_conv_lambert, m_conv_ggx};
+    drawable.descriptors[1].images = {frame_assets.g_buffer.color_attachment(G_BUFFER_ALBEDO),
+                                      frame_assets.g_buffer.color_attachment(G_BUFFER_NORMAL),
+                                      frame_assets.g_buffer.color_attachment(G_BUFFER_EMISSION),
+                                      frame_assets.g_buffer.color_attachment(G_BUFFER_AO_ROUGH_METAL),
+                                      frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
+                                      frame_assets.g_buffer.depth_attachment(),
+                                      m_brdf_lut};
+    drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
 
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
@@ -439,11 +439,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto history_depth = m_frame_assets[last_frame_index].g_buffer.depth_attachment();
 
         auto drawable = m_drawable_taa;
-        drawable.descriptors[0].image_samplers = {output_img,
-                                                  depth,
-                                                  frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
-                                                  history_color,
-                                                  history_depth};
+        drawable.descriptors[0].images = {output_img,
+                                          depth,
+                                          frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
+                                          history_color,
+                                          history_depth};
 
         if(!drawable.descriptors[1].buffers.empty())
         {
@@ -481,7 +481,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
         frame_assets.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
-        m_drawable_bloom.descriptors[0].image_samplers = {output_img, bloom_img, motion_img};
+        m_drawable_bloom.descriptors[0].images = {output_img, bloom_img, motion_img};
         m_drawable_bloom.descriptors[1].buffers = {frame_assets.composition_ubo};
 
         output_img = pingpong_render(m_drawable_bloom);
@@ -491,7 +491,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     if(settings.use_fxaa)
     {
         auto drawable = m_drawable_fxaa;
-        drawable.descriptors[0].image_samplers = {output_img};
+        drawable.descriptors[0].images = {output_img};
 
         output_img = pingpong_render(drawable);
     }
@@ -500,7 +500,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     if(settings.dof.enabled)
     {
         auto drawable = m_drawable_dof;
-        drawable.descriptors[0].image_samplers = {output_img, depth};
+        drawable.descriptors[0].images = {output_img, depth};
 
         // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
         drawable.matrices.projection = cam->projection_matrix();

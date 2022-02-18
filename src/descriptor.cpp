@@ -47,7 +47,7 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
     {
         VkDescriptorSetLayoutBinding layout_binding = {};
         layout_binding.binding = binding;
-        layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.image_samplers.size()));
+        layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.images.size()));
         layout_binding.descriptorCount = std::max<uint32_t>(layout_binding.descriptorCount,
                                                             static_cast<uint32_t>(desc.buffers.size()));
         layout_binding.descriptorCount = variable_count ? g_max_bindless_resources : layout_binding.descriptorCount;
@@ -129,7 +129,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
     for(const auto &[binding, descriptor] : descriptors)
     {
         size_t count = 1;
-        count = std::max<size_t>(count, descriptor.image_samplers.size());
+        count = std::max<size_t>(count, descriptor.images.size());
         count = std::max<size_t>(count, descriptor.buffers.size());
         num_writes += count;
     }
@@ -196,15 +196,19 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
             {
                 std::vector<VkDescriptorImageInfo> image_infos;
-                image_infos.reserve(desc.image_samplers.size());
+                image_infos.reserve(desc.images.size());
 
-                for(const auto &img : desc.image_samplers)
+                for(uint32_t j = 0; j < desc.images.size(); ++j)
                 {
+                    const auto &img = desc.images[j];
+
                     if(img)
                     {
+                        auto image_view = j < desc.image_views.size() ? desc.image_views[j] : img->image_view();
+
                         VkDescriptorImageInfo img_info = {};
                         img_info.imageLayout = img->image_layout();
-                        img_info.imageView = img->image_view();
+                        img_info.imageView = image_view;
                         img_info.sampler = img->sampler();
                         image_infos.push_back(img_info);
                     }
@@ -250,7 +254,7 @@ DescriptorSetLayoutPtr find_set_layout(const vierkant::DevicePtr &device,
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor] : descriptors)
     {
-        for(auto &img : descriptor.image_samplers){ img.reset(); }
+        for(auto &img : descriptor.images){ img.reset(); }
         for(auto &buf : descriptor.buffers){ buf.reset(); }
         descriptor.acceleration_structure.reset();
     }
@@ -275,7 +279,8 @@ bool descriptor_t::operator==(const descriptor_t &other) const
     if(variable_count != other.variable_count){ return false; }
     if(buffers != other.buffers){ return false; }
     if(buffer_offsets != other.buffer_offsets){ return false; }
-    if(image_samplers != other.image_samplers){ return false; }
+    if(images != other.images){ return false; }
+    if(image_views != other.image_views){ return false; }
     if(acceleration_structure != other.acceleration_structure){ return false; }
     return true;
 }
@@ -294,7 +299,8 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     hash_combine(h, descriptor.variable_count);
     for(const auto &buf : descriptor.buffers){ hash_combine(h, buf); }
     for(const auto &offset : descriptor.buffer_offsets){ hash_combine(h, offset); }
-    for(const auto &img : descriptor.image_samplers){ hash_combine(h, img); }
+    for(const auto &img : descriptor.images){ hash_combine(h, img); }
+    for(const auto &s : descriptor.image_views){ hash_combine(h, s); }
     hash_combine(h, descriptor.acceleration_structure);
     return h;
 }

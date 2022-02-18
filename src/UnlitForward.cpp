@@ -21,7 +21,7 @@ SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Renderer &re
 
         // check for presence of a color-texture
         auto it = drawable.descriptors.find(vierkant::Renderer::BINDING_TEXTURES);
-        bool has_texture = it != drawable.descriptors.end() && !it->second.image_samplers.empty();
+        bool has_texture = it != drawable.descriptors.end() && !it->second.images.empty();
 
         // check if vertex-skinning is required
         bool has_bones = static_cast<bool>(drawable.mesh->root_bone);

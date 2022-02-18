@@ -404,14 +404,12 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
     ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
                                (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
     ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(io.DisplaySize.x - 2 * DISTANCE, 0),
+    ImGui::SetNextWindowSizeConstraints(ImVec2(io.DisplaySize.x - 2 * DISTANCE, -1),
                                         ImVec2(io.DisplaySize.x - 2 * DISTANCE,
                                                io.DisplaySize.y / 0.33f - 2 * DISTANCE));
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 
-    bool show_logger = false;
-
-    if(ImGui::Begin("log", &show_logger, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
+    if(ImGui::Begin("log", nullptr, ImGuiWindowFlags_NoMove |
                                          ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
                                          ImGuiWindowFlags_NoNav))
     {

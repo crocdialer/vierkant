@@ -302,7 +302,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
                 auto drawable = m_imgui_assets.drawable;
                 drawable.mesh = mesh_assets[n].mesh;
                 drawable.matrices = matrices;
-                drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].image_samplers = {tex};
+                drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {tex};
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;
 

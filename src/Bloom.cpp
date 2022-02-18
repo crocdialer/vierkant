@@ -113,7 +113,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
     auto thresh_submit_infos = wait_infos;
     thresh_submit_infos.push_back(thresh_done);
 
-    m_drawable.descriptors[0].image_samplers = {image};
+    m_drawable.descriptors[0].images = {image};
     m_thresh_renderer.stage_drawable(m_drawable);
     auto cmd_buf = m_thresh_renderer.render(m_thresh_framebuffer);
     m_thresh_framebuffer.submit({cmd_buf}, queue, thresh_submit_infos);

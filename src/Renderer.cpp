@@ -127,7 +127,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
                 if(tex)
                 {
                     drawable.material.texture_type_flags |= type_flag;
-                    desc_texture.image_samplers.push_back(tex);
+                    desc_texture.images.push_back(tex);
                 }
             };
             drawable.descriptors[BINDING_TEXTURES] = desc_texture;
@@ -287,9 +287,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     auto create_mesh_key = [](const drawable_t &drawable) -> texture_index_key_t
     {
         auto it = drawable.descriptors.find(BINDING_TEXTURES);
-        if(it == drawable.descriptors.end() || it->second.image_samplers.empty()){ return {drawable.mesh, {}}; }
+        if(it == drawable.descriptors.end() || it->second.images.empty()){ return {drawable.mesh, {}}; }
 
-        const auto &drawable_textures = it->second.image_samplers;
+        const auto &drawable_textures = it->second.images;
         return {drawable.mesh, drawable_textures};
     };
 
@@ -299,9 +299,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     for(const auto &drawable : current_assets.drawables)
     {
         auto it = drawable.descriptors.find(BINDING_TEXTURES);
-        if(it == drawable.descriptors.end() || it->second.image_samplers.empty()){ continue; }
+        if(it == drawable.descriptors.end() || it->second.images.empty()){ continue; }
 
-        const auto &drawable_textures = it->second.image_samplers;
+        const auto &drawable_textures = it->second.images;
 
         // insert other textures from drawables
         texture_index_key_t key = {drawable.mesh, drawable_textures};
@@ -328,7 +328,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.variable_count = true;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.image_samplers = textures;
+    desc_texture.images = textures;
     bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
 
     auto bindless_texture_layout = find_set_layout(bindless_texture_desc, current_assets, next_assets);
@@ -640,7 +640,7 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor] : descriptors)
     {
-        for(auto &img : descriptor.image_samplers){ img.reset(); }
+        for(auto &img : descriptor.images){ img.reset(); }
         for(auto &buf : descriptor.buffers){ buf.reset(); }
 
         variable_count = variable_count || descriptor.variable_count;

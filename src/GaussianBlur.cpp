@@ -233,8 +233,8 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
         auto &fb_ping = m_framebuffers[i];
         auto &fb_pong = m_framebuffers[i + 1];
 
-        ping.drawable.descriptors[0].image_samplers = {current_img};
-        pong.drawable.descriptors[0].image_samplers = {fb_ping.color_attachment()};
+        ping.drawable.descriptors[0].images = {current_img};
+        pong.drawable.descriptors[0].images = {fb_ping.color_attachment()};
 
         // horizontal pass
         m_renderer.stage_drawable(ping.drawable);

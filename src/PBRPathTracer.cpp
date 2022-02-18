@@ -290,13 +290,13 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
         frame_asset.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
         frame_asset.out_drawable = m_drawable_bloom;
-        frame_asset.out_drawable.descriptors[0].image_samplers = {output_img, bloom_img, motion_img};
+        frame_asset.out_drawable.descriptors[0].images = {output_img, bloom_img, motion_img};
         frame_asset.out_drawable.descriptors[1].buffers = {frame_asset.composition_ubo};
     }
     else
     {
         frame_asset.out_drawable = m_drawable_raw;
-        frame_asset.out_drawable.descriptors[0].image_samplers = {output_img};
+        frame_asset.out_drawable.descriptors[0].images = {output_img};
         vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, {bloom_submit});
     }
 }
@@ -315,8 +315,8 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     vierkant::descriptor_t desc_storage_images = {};
     desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_storage_images.image_samplers = {m_storage_images.radiance, m_storage_images.normals,
-                                          m_storage_images.positions, m_storage_images.accumulated_radiance};
+    desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals,
+                                  m_storage_images.positions, m_storage_images.accumulated_radiance};
     frame_asset.tracable.descriptors[1] = desc_storage_images;
 
     // provide inverse modelview and projection matrices
@@ -364,25 +364,25 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     vierkant::descriptor_t desc_textures = {};
     desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_textures.image_samplers = frame_asset.acceleration_asset.textures;
+    desc_textures.images = frame_asset.acceleration_asset.textures;
     frame_asset.tracable.descriptors[7] = desc_textures;
 
     vierkant::descriptor_t desc_normalmaps = {};
     desc_normalmaps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_normalmaps.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_normalmaps.image_samplers = frame_asset.acceleration_asset.normalmaps;
+    desc_normalmaps.images = frame_asset.acceleration_asset.normalmaps;
     frame_asset.tracable.descriptors[8] = desc_normalmaps;
 
     vierkant::descriptor_t desc_emissions = {};
     desc_emissions.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_emissions.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_emissions.image_samplers = frame_asset.acceleration_asset.emissions;
+    desc_emissions.images = frame_asset.acceleration_asset.emissions;
     frame_asset.tracable.descriptors[9] = desc_emissions;
 
     vierkant::descriptor_t desc_ao_rough_metal_maps = {};
     desc_ao_rough_metal_maps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_ao_rough_metal_maps.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_ao_rough_metal_maps.image_samplers = frame_asset.acceleration_asset.ao_rough_metal_maps;
+    desc_ao_rough_metal_maps.images = frame_asset.acceleration_asset.ao_rough_metal_maps;
     frame_asset.tracable.descriptors[10] = desc_ao_rough_metal_maps;
 
     if(m_environment)
@@ -390,7 +390,7 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
         vierkant::descriptor_t desc_environment = {};
         desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
-        desc_environment.image_samplers = {m_environment};
+        desc_environment.images = {m_environment};
         frame_asset.tracable.descriptors[11] = desc_environment;
     }
 }
@@ -533,14 +533,14 @@ void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2
         vierkant::descriptor_t desc_denoise_input = {};
         desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_input.image_samplers = {m_storage_images.accumulated_radiance, m_storage_images.normals,
-                                             m_storage_images.positions};
+        desc_denoise_input.images = {m_storage_images.accumulated_radiance, m_storage_images.normals,
+                                     m_storage_images.positions};
         frame_asset.denoise_computable.descriptors[0] = desc_denoise_input;
 
         vierkant::descriptor_t desc_denoise_output = {};
         desc_denoise_output.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         desc_denoise_output.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_output.image_samplers = {frame_asset.denoise_image};
+        desc_denoise_output.images = {frame_asset.denoise_image};
         frame_asset.denoise_computable.descriptors[1] = desc_denoise_output;
 
         // create bloom

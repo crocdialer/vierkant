@@ -38,7 +38,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
     vierkant::descriptor_t desc_image = {};
     desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_image.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_image.image_samplers = {panorama_img};
+    desc_image.images = {panorama_img};
     cube.drawable.descriptors[1] = desc_image;
 
     // stage cube-drawable
@@ -126,7 +126,7 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
     vierkant::descriptor_t desc_image = {};
     desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_image.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_image.image_samplers = {cubemap};
+    desc_image.images = {cubemap};
     cube.drawable.descriptors[1] = desc_image;
 
     // stage cube-drawable
@@ -197,7 +197,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
         vierkant::descriptor_t desc_image = {};
         desc_image.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_image.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_image.image_samplers = {cubemap};
+        desc_image.images = {cubemap};
         cube.drawable.descriptors[2] = desc_image;
 
         // stage cube-drawable

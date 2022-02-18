@@ -42,8 +42,11 @@ struct descriptor_t
     //! optional array of buffer-offsets. if no value for a buffer index is found, 0 is used.
     std::vector<VkDeviceSize> buffer_offsets;
 
-    //! used for descriptor containing (an array) of images
-    std::vector<vierkant::ImagePtr> image_samplers;
+    //! used for descriptors containing (an array) of images
+    std::vector<vierkant::ImagePtr> images;
+
+    //! optional array of image-samplers. if no value for an image index is found, it's default sampler is used.
+    std::vector<VkImageView> image_views;
 
     //! used for descriptor containing a raytracing acceleration-structure
     AccelerationStructurePtr acceleration_structure;
