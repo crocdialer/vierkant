@@ -240,7 +240,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
                                                      frame_asset.cmd_denoise.handle());
 
         // dispatch denoising-kernel
-        m_compute.dispatch(frame_asset.denoise_computable, frame_asset.cmd_denoise.handle());
+        m_compute.dispatch({frame_asset.denoise_computable}, frame_asset.cmd_denoise.handle());
     }
     else
     {

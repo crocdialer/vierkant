@@ -60,7 +60,7 @@ public:
      *
      * @param   tracable
      */
-    void dispatch(computable_t computable, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
+    void dispatch(std::vector<computable_t> computables, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
 
     friend void swap(Compute &lhs, Compute &rhs) noexcept;
 
@@ -68,8 +68,8 @@ private:
 
     struct compute_assets_t
     {
-        //! keep passed tracable
-        computable_t computable;
+        //! keep passed computables
+        std::vector<computable_t> computables;
 
         crocore::Cache_<DescriptorSetLayoutPtr, DescriptorSetPtr> descriptor_sets;
     };

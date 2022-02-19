@@ -58,41 +58,10 @@ Compute::Compute(const vierkant::DevicePtr &device, const create_info_t &create_
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
 }
 
-void Compute::dispatch(computable_t computable, VkCommandBuffer commandbuffer)
+void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer commandbuffer)
 {
     auto &compute_asset = m_compute_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_compute_assets.size();
-
-    auto descriptor_set_layout = vierkant::find_set_layout(m_device, computable.descriptors, m_descriptor_set_layouts);
-    computable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
-
-    if(!computable.push_constants.empty())
-    {
-        // push constant range
-        VkPushConstantRange push_constant_range = {};
-        push_constant_range.offset = 0;
-        push_constant_range.size = computable.push_constants.size();
-        push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
-        computable.pipeline_info.push_constant_ranges = {push_constant_range};
-    }
-
-    // create or retrieve an existing raytracing pipeline
-    auto pipeline = m_pipeline_cache->pipeline(computable.pipeline_info);
-
-    // fetch descriptor set
-    DescriptorSetPtr descriptor_set;
-    try{ descriptor_set = compute_asset.descriptor_sets.get(descriptor_set_layout); }
-    catch(std::out_of_range &e)
-    {
-        descriptor_set = compute_asset.descriptor_sets.put(descriptor_set_layout,
-                                                           vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                                           descriptor_set_layout,
-                                                                                           false));
-    }
-    // update descriptor-set with actual descriptors
-    vierkant::update_descriptor_set(m_device, descriptor_set, computable.descriptors);
-
-    VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 
     vierkant::CommandBuffer local_commandbuffer;
 
@@ -103,25 +72,78 @@ void Compute::dispatch(computable_t computable, VkCommandBuffer commandbuffer)
         commandbuffer = local_commandbuffer.handle();
     }
 
-    // bind compute pipeline
-    pipeline->bind(commandbuffer);
-
-    // bind descriptor set (acceleration-structure, uniforms, storage-buffers, samplers, storage-image)
-    vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout(),
-                            0, 1, &descriptor_set_handle, 0, nullptr);
-
-    if(!computable.push_constants.empty())
+    struct item_t
     {
-        // update push_constants
-        vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
-                           computable.push_constants.size(), computable.push_constants.data());
+        computable_t computable;
+        DescriptorSetLayoutPtr set_layout;
+    };
+    std::unordered_map<vierkant::compute_pipeline_info_t, std::vector<item_t>> pipelines;
+
+    for(auto &computable : computables)
+    {
+        auto descriptor_set_layout = vierkant::find_set_layout(m_device, computable.descriptors,
+                                                               m_descriptor_set_layouts);
+        computable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
+
+        pipelines[computable.pipeline_info].push_back({computable, descriptor_set_layout});
     }
 
-    // dispatch compute-operation
-    vkCmdDispatch(commandbuffer, computable.extent.width, computable.extent.height, computable.extent.depth);
+    for(auto &[fmt, items] : pipelines)
+    {
+        // create or retrieve an existing raytracing pipeline
+        auto pipeline = m_pipeline_cache->pipeline(fmt);
+
+        // bind compute pipeline
+        pipeline->bind(commandbuffer);
+
+        for(auto &item : items)
+        {
+            auto &[computable, set_layout] = item;
+
+            if(!computable.push_constants.empty())
+            {
+                // push constant range
+                VkPushConstantRange push_constant_range = {};
+                push_constant_range.offset = 0;
+                push_constant_range.size = computable.push_constants.size();
+                push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
+                computable.pipeline_info.push_constant_ranges = {push_constant_range};
+            }
+
+            // fetch descriptor set
+            DescriptorSetPtr descriptor_set;
+            try{ descriptor_set = compute_asset.descriptor_sets.get(set_layout); }
+            catch(std::out_of_range &e)
+            {
+                descriptor_set = compute_asset.descriptor_sets.put(set_layout,
+                                                                   vierkant::create_descriptor_set(m_device,
+                                                                                                   m_descriptor_pool,
+                                                                                                   set_layout,
+                                                                                                   false));
+            }
+            // update descriptor-set with actual descriptors
+            vierkant::update_descriptor_set(m_device, descriptor_set, computable.descriptors);
+
+            VkDescriptorSet descriptor_set_handle = descriptor_set.get();
+
+            // bind descriptor set (acceleration-structure, uniforms, storage-buffers, samplers, storage-image)
+            vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout(),
+                                    0, 1, &descriptor_set_handle, 0, nullptr);
+
+            if(!computable.push_constants.empty())
+            {
+                // update push_constants
+                vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
+                                   computable.push_constants.size(), computable.push_constants.data());
+            }
+
+            // dispatch compute-operation
+            vkCmdDispatch(commandbuffer, computable.extent.width, computable.extent.height, computable.extent.depth);
+        }
+    }
 
     // keep-alive copy of computable
-    compute_asset.computable = std::move(computable);
+    compute_asset.computables = std::move(computables);
 
     // submit only if we created the command buffer
     if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }

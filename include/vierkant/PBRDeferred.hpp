@@ -135,6 +135,7 @@ private:
     {
         glm::vec2 jitter_offset;
         vierkant::Framebuffer g_buffer;
+        vierkant::ImagePtr depth_pyramid;
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
         vierkant::BufferPtr g_buffer_ubo;
         vierkant::BufferPtr lighting_ubo;
@@ -216,6 +217,8 @@ private:
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
 
     void update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer);
+
+    void create_depth_pyramid(const vierkant::ImagePtr &depth, vierkant::ImagePtr &depth_pyramid);
 
     vierkant::DevicePtr m_device;
 

@@ -45,7 +45,7 @@ struct descriptor_t
     //! used for descriptors containing (an array) of images
     std::vector<vierkant::ImagePtr> images;
 
-    //! optional array of image-samplers. if no value for an image index is found, it's default sampler is used.
+    //! optional array of image-views. if no value for an image index is found, the default view is used.
     std::vector<VkImageView> image_views;
 
     //! used for descriptor containing a raytracing acceleration-structure

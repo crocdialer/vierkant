@@ -247,6 +247,11 @@ Image::~Image()
 {
     if(m_sampler){ vkDestroySampler(m_device->handle(), m_sampler, nullptr); }
     if(m_image_view){ vkDestroyImageView(m_device->handle(), m_image_view, nullptr); }
+
+    for(uint32_t i = 0; i < m_num_mip_levels; ++i)
+    {
+        vkDestroyImageView(m_device->handle(), m_mip_image_views[i], nullptr);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -351,6 +356,15 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
     vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &m_image_view),
             "failed to create texture image view!");
 
+    m_mip_image_views.resize(m_num_mip_levels);
+
+    for(uint32_t i = 0; i < m_num_mip_levels; ++i)
+    {
+        view_create_info.subresourceRange.baseMipLevel = i;
+        view_create_info.subresourceRange.levelCount = 1;
+        vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &m_mip_image_views[i]),
+                "failed to create texture image view!");
+    }
     ////////////////////////////////////////// create image sampler ////////////////////////////////////////////////////
 
     if(img_usage & VK_IMAGE_USAGE_SAMPLED_BIT)
@@ -378,7 +392,7 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
         sampler_create_info.mipLodBias = 0.0f;
         sampler_create_info.minLod = 0.0f;
         sampler_create_info.maxLod = static_cast<float>(m_num_mip_levels);
-        
+
         VkSamplerReductionModeCreateInfo reduction_mode_info = {};
         reduction_mode_info.sType = VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO;
         reduction_mode_info.reductionMode = m_format.reduction_mode;

@@ -42,7 +42,7 @@ public:
         VkSamplerAddressMode address_mode_w = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
         VkFilter min_filter = VK_FILTER_LINEAR;
         VkFilter mag_filter = VK_FILTER_LINEAR;
-        
+
         VkSamplerReductionMode reduction_mode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
 
         VkComponentMapping component_swizzle = {VK_COMPONENT_SWIZZLE_IDENTITY,
@@ -156,6 +156,11 @@ public:
     [[nodiscard]] VkImageView image_view() const{ return m_image_view; };
 
     /**
+     * @return  image view handles for mips
+     */
+    [[nodiscard]] const std::vector<VkImageView> &mip_image_views() const{ return m_mip_image_views; };
+
+    /**
      * @return  image sampler handle
      */
     [[nodiscard]] VkSampler sampler() const{ return m_sampler; };
@@ -247,6 +252,9 @@ private:
 
     // image view handle
     VkImageView m_image_view = VK_NULL_HANDLE;
+
+    // image view handles for mipmap-levels
+    std::vector<VkImageView> m_mip_image_views;
 
     // sampler handle
     VkSampler m_sampler = VK_NULL_HANDLE;

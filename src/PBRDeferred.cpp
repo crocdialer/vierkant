@@ -235,6 +235,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     // depth-attachment
     auto depth_map = g_buffer.depth_attachment();
 
+    // generate depth-pyramid
+    create_depth_pyramid(depth_map, frame_asset.depth_pyramid);
+
     // default to color image
     auto out_img = albedo_map;
 
@@ -649,6 +652,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
 
     vierkant::RenderPassPtr lighting_renderpass, sky_renderpass, post_fx_renderpass;
 
+    // G-buffer
     asset.g_buffer = create_g_buffer(m_device, size);
 
     // init lighting framebuffer
@@ -705,6 +709,28 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     bloom_info.size.height = std::max(1U, bloom_info.size.height / 2);
     bloom_info.num_blur_iterations = 3;
     asset.bloom = Bloom::create(m_device, bloom_info);
+}
+
+void PBRDeferred::create_depth_pyramid(const vierkant::ImagePtr &depth, vierkant::ImagePtr &depth_pyramid)
+{
+    // create/resize depth pyramid
+    if(!depth_pyramid || depth_pyramid->extent() != depth->extent())
+    {
+        vierkant::Image::Format depth_pyramid_fmt = {};
+        depth_pyramid_fmt.extent = depth->extent();
+        depth_pyramid_fmt.format = VK_FORMAT_R32_SFLOAT;
+        depth_pyramid_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        depth_pyramid_fmt.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        depth_pyramid_fmt.use_mipmap = true;
+        depth_pyramid_fmt.autogenerate_mipmaps = false;
+        depth_pyramid_fmt.reduction_mode = VK_SAMPLER_REDUCTION_MODE_MIN;
+        depth_pyramid = vierkant::Image::create(m_device, depth_pyramid_fmt);
+    }
+
+    for(uint32_t lvl = 0; lvl < depth_pyramid->num_mip_levels(); ++lvl)
+    {
+
+    }
 }
 
 }// namespace vierkant
