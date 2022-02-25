@@ -6,7 +6,7 @@ layout(binding = 0) uniform sampler2D in_depth;
 
 layout(binding = 1, r32f) writeonly uniform image2D out_depth;
 
-layout(std140, binding = 2) readonly buffer UniformBuffer
+layout(std140, binding = 2) uniform UniformBuffer
 {
     vec2 image_size;
 };

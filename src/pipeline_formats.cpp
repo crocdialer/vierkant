@@ -6,6 +6,8 @@
 #include <vierkant/pipeline_formats.hpp>
 #include "vierkant/shaders.hpp"
 
+#include "spirv_reflect.h"
+
 //! comparison operators for some vulkan-structs used by vierkant::Pipeline
 static inline bool operator==(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
 {
@@ -101,7 +103,8 @@ namespace vierkant
 
 ShaderModulePtr create_shader_module(const DevicePtr &device,
                                      const void *spirv_code,
-                                     size_t num_bytes)
+                                     size_t num_bytes,
+                                     glm::uvec3 *group_count)
 {
     VkShaderModuleCreateInfo create_info = {};
     create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -111,8 +114,28 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
     VkShaderModule shader_module;
     vkCheck(vkCreateShaderModule(device->handle(), &create_info, nullptr, &shader_module),
             "failed to create shader module!");
-    return ShaderModulePtr(shader_module,
-                           [device](VkShaderModule s){ vkDestroyShaderModule(device->handle(), s, nullptr); });
+
+    SpvReflectShaderModule spv_shader_module;
+    spvReflectCreateShaderModule(num_bytes, spirv_code, &spv_shader_module);
+
+    for(uint32_t i = 0; i < spv_shader_module.entry_point_count; ++i)
+    {
+        if(spv_shader_module.spirv_execution_model == SpvExecutionModelGLCompute)
+        {
+            const SpvReflectEntryPoint &entry_point = spv_shader_module.entry_points[i];
+            spdlog::debug("SpvReflectEntryPoint ({}): local-size: {}, {}, {}",
+                          entry_point.name, entry_point.local_size.x, entry_point.local_size.y,
+                          entry_point.local_size.z);
+
+            if(group_count)
+            {
+                *group_count = {entry_point.local_size.x, entry_point.local_size.y, entry_point.local_size.z};
+            }
+        }
+    }
+
+    spvReflectDestroyShaderModule(&spv_shader_module);
+    return {shader_module, [device](VkShaderModule s){ vkDestroyShaderModule(device->handle(), s, nullptr); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

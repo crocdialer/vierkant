@@ -57,12 +57,14 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     VkExtent3D size = {create_info.settings.resolution.x, create_info.settings.resolution.y, 1};
 
     vierkant::Compute::computable_t denoise_computable = {};
-    denoise_computable.extent = size;
-    denoise_computable.extent.width = vierkant::div_up(size.width, 16);
-    denoise_computable.extent.height = vierkant::div_up(size.height, 16);
-
+    glm::uvec3 group_count;
     denoise_computable.pipeline_info.shader_stage = vierkant::create_shader_module(m_device,
-                                                                                   vierkant::shaders::ray::denoise_comp);
+                                                                                   vierkant::shaders::ray::denoise_comp,
+                                                                                   &group_count);
+    denoise_computable.extent = size;
+    denoise_computable.extent.width = vierkant::group_count(size.width, group_count.x);
+    denoise_computable.extent.height = vierkant::group_count(size.height, group_count.y);
+
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
@@ -517,8 +519,8 @@ void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2
         frame_asset.tracable.pipeline_info.max_recursion = 3;
 
         frame_asset.denoise_computable.extent = size;
-        frame_asset.denoise_computable.extent.width = vierkant::div_up(size.width, 16);
-        frame_asset.denoise_computable.extent.height = vierkant::div_up(size.height, 16);
+        frame_asset.denoise_computable.extent.width = vierkant::group_count(size.width, 16);
+        frame_asset.denoise_computable.extent.height = vierkant::group_count(size.height, 16);
 
         // create a denoise image
         vierkant::Image::Format denoise_format = {};

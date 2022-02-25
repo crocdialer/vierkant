@@ -13,7 +13,10 @@
 namespace vierkant
 {
 
-static inline uint32_t div_up(uint32_t a, uint32_t b){ return (a + b - 1) / b; }
+static inline uint32_t group_count(uint32_t thread_count, uint32_t local_size)
+{
+    return (thread_count + local_size - 1) / local_size;
+}
 
 /**
  * @brief   Raytracer can be used to run raytracing pipelines.

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "vierkant/Device.hpp"
+#include "vierkant/math.hpp"
 
 namespace vierkant
 {
@@ -26,13 +27,15 @@ using raytracing_shader_map_t = std::multimap<VkShaderStageFlagBits, ShaderModul
  */
 ShaderModulePtr create_shader_module(const DevicePtr &device,
                                      const void *spirv_code,
-                                     size_t num_bytes);
+                                     size_t num_bytes,
+                                     glm::uvec3 *group_count);
 
 template<typename T>
 ShaderModulePtr create_shader_module(const DevicePtr &device,
-                                     const T &array)
+                                     const T &array,
+                                     glm::uvec3 *group_count = nullptr)
 {
-    return create_shader_module(device, array.data(), sizeof(typename T::value_type) * array.size());
+    return create_shader_module(device, array.data(), sizeof(typename T::value_type) * array.size(), group_count);
 }
 
 std::vector<VkRayTracingShaderGroupCreateInfoKHR>
