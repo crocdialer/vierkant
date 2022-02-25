@@ -23,6 +23,10 @@ using raytracing_shader_map_t = std::multimap<VkShaderStageFlagBits, ShaderModul
  *
  * @param   device      handle for the vk::Device to create the VkShaderModule
  * @param   spirv_code  the SPIR-V bytecode for the shader
+ * @param   num_bytes   number of bytes in @ref spirv_code
+ * @param   group_count optional pointer to a writable uvec3.
+ *                      can be used to extract the thread-group-counts of a compute-shader-module.
+ *
  * @return  a newly constructed, shared VkShaderModule
  */
 ShaderModulePtr create_shader_module(const DevicePtr &device,

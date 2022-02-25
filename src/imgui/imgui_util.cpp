@@ -398,20 +398,27 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
 void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level_enum>> &items)
 {
-    int corner = 2;
+    constexpr char window_name[] = "log";
+    constexpr int corner = 2;
     const float DISTANCE = 10.0f;
+
     ImGuiIO &io = ImGui::GetIO();
+
+    auto w = ImGui::FindWindowByName(window_name);
+    bool is_minimized = w != nullptr && w->Collapsed;
+
     ImVec2 window_pos = ImVec2((corner & 1) ? io.DisplaySize.x - DISTANCE : DISTANCE,
                                (corner & 2) ? io.DisplaySize.y - DISTANCE : DISTANCE);
     ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(io.DisplaySize.x - 2 * DISTANCE, -1),
-                                        ImVec2(io.DisplaySize.x - 2 * DISTANCE,
-                                               io.DisplaySize.y / 0.33f - 2 * DISTANCE));
+
+    float min_width = is_minimized ? 100 : io.DisplaySize.x - 2 * DISTANCE;
+    ImGui::SetNextWindowSizeConstraints(ImVec2(min_width, -1),
+                                        ImVec2(min_width, -1));
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 
-    if(ImGui::Begin("log", nullptr, ImGuiWindowFlags_NoMove |
-                                         ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                                         ImGuiWindowFlags_NoNav))
+    if(ImGui::Begin(window_name, nullptr, ImGuiWindowFlags_NoMove |
+                                          ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+                                          ImGuiWindowFlags_NoNav))
     {
         uint32_t color_white = 0xFFFFFFFF;
         uint32_t color_error = 0xFF6666FF;
