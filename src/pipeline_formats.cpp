@@ -120,15 +120,12 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
         SpvReflectShaderModule spv_shader_module;
         spvReflectCreateShaderModule(num_bytes, spirv_code, &spv_shader_module);
 
-        for(uint32_t i = 0; i < spv_shader_module.entry_point_count; ++i)
+        if(spv_shader_module.spirv_execution_model == SpvExecutionModelGLCompute)
         {
-            if(spv_shader_module.spirv_execution_model == SpvExecutionModelGLCompute)
-            {
-                const SpvReflectEntryPoint &entry_point = spv_shader_module.entry_points[i];
-                *group_count = {entry_point.local_size.x, entry_point.local_size.y, entry_point.local_size.z};
-            }
-            spvReflectDestroyShaderModule(&spv_shader_module);
+            auto entry_point = spvReflectGetEntryPoint(&spv_shader_module, spv_shader_module.entry_point_name);
+            *group_count = {entry_point->local_size.x, entry_point->local_size.y, entry_point->local_size.z};
         }
+        spvReflectDestroyShaderModule(&spv_shader_module);
     }
     return {shader_module, [device](VkShaderModule s){ vkDestroyShaderModule(device->handle(), s, nullptr); }};
 }
