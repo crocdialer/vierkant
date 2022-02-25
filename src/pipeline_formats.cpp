@@ -115,26 +115,21 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
     vkCheck(vkCreateShaderModule(device->handle(), &create_info, nullptr, &shader_module),
             "failed to create shader module!");
 
-    SpvReflectShaderModule spv_shader_module;
-    spvReflectCreateShaderModule(num_bytes, spirv_code, &spv_shader_module);
-
-    for(uint32_t i = 0; i < spv_shader_module.entry_point_count; ++i)
+    if(group_count)
     {
-        if(spv_shader_module.spirv_execution_model == SpvExecutionModelGLCompute)
-        {
-            const SpvReflectEntryPoint &entry_point = spv_shader_module.entry_points[i];
-            spdlog::debug("SpvReflectEntryPoint ({}): local-size: {}, {}, {}",
-                          entry_point.name, entry_point.local_size.x, entry_point.local_size.y,
-                          entry_point.local_size.z);
+        SpvReflectShaderModule spv_shader_module;
+        spvReflectCreateShaderModule(num_bytes, spirv_code, &spv_shader_module);
 
-            if(group_count)
+        for(uint32_t i = 0; i < spv_shader_module.entry_point_count; ++i)
+        {
+            if(spv_shader_module.spirv_execution_model == SpvExecutionModelGLCompute)
             {
+                const SpvReflectEntryPoint &entry_point = spv_shader_module.entry_points[i];
                 *group_count = {entry_point.local_size.x, entry_point.local_size.y, entry_point.local_size.z};
             }
+            spvReflectDestroyShaderModule(&spv_shader_module);
         }
     }
-
-    spvReflectDestroyShaderModule(&spv_shader_module);
     return {shader_module, [device](VkShaderModule s){ vkDestroyShaderModule(device->handle(), s, nullptr); }};
 }
 
