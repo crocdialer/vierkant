@@ -16,9 +16,12 @@ function(GET_SHADERS_RECURSIVE RESULT GLSL_FOLDER)
 
     foreach (SUBDIR ${SUBDIRS})
 
-        # gather all shader files from subdir
+        # gather main shader files from subdir
         get_shader_sources(GLSL_FOLDER_FILES ${SUBDIR})
-        list(APPEND ALL_SOURCES ${GLSL_FOLDER_FILES})
+
+        file(GLOB GLSL_INLINE_FILES "${SUBDIR}/*.glsl")
+
+        list(APPEND ALL_SOURCES ${GLSL_FOLDER_FILES} ${GLSL_INLINE_FILES})
 
     endforeach (SUBDIR)
 
@@ -47,19 +50,22 @@ function(GET_SHADER_SOURCES RESULT GLSL_FOLDER)
     set(${RESULT} ${GLSL_SOURCE_FILES} PARENT_SCOPE)
 endfunction(GET_SHADER_SOURCES)
 
-function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
+function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR SPIRV_OUT_DIR SOURCE_OUT_DIR)
 
     set(TOP_NAMESPACE "vierkant::shaders")
 
     # remove existing spirv files
-    file(GLOB SPIRV_FILES "${PROJECT_BINARY_DIR}/${TARGET_NAME}/*.spv")
+    file(GLOB SPIRV_FILES "${SPIRV_OUT_DIR}/shaders/*.spv")
 
     if (SPIRV_FILES)
         file(REMOVE "${SPIRV_FILES}")
     endif ()
 
-    set(OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/${TARGET_NAME}.hpp")
-    set(OUTPUT_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/src/${TARGET_NAME}.cpp")
+    set(OUTPUT_HEADER "${SOURCE_OUT_DIR}/include/${TARGET_NAME}/shaders.hpp")
+    set(OUTPUT_SOURCE "${SOURCE_OUT_DIR}/src/shaders.cpp")
+
+#    message("OUTPUT_HEADER: ${OUTPUT_HEADER}")
+#    message("OUTPUT_SOURCE: ${OUTPUT_SOURCE}")
 
     # create output implementation and header
     file(WRITE ${OUTPUT_HEADER}
@@ -69,7 +75,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
             "namespace ${TOP_NAMESPACE}\n{\n\n")
     file(WRITE ${OUTPUT_SOURCE}
             "/* Generated file, do not edit! */\n\n"
-            "#include \"${PROJECT_NAME}/${TARGET_NAME}.hpp\"\n\n"
+            "#include \"${TARGET_NAME}/shaders.hpp\"\n\n"
             "namespace ${TOP_NAMESPACE}\n{\n")
 
     # search subdirs
@@ -98,12 +104,12 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
 
             get_filename_component(FILE_NAME ${GLSL} NAME)
             string(REGEX REPLACE "[.]" "_" NAME ${FILE_NAME})
-            set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${DIR_NAME}_${NAME}.spv")
+            set(SPIRV "${SPIRV_OUT_DIR}/shaders/${DIR_NAME}_${NAME}.spv")
             #                    message(${SPIRV})
             list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 
             execute_process(
-                    COMMAND ${CMAKE_COMMAND} -E make_directory "${PROJECT_BINARY_DIR}/shaders/"
+                    COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OUT_DIR}/shaders/"
                     COMMAND ${GLSL_VALIDATOR} --target-env vulkan1.2 ${GLSL} -o ${SPIRV}
                     OUTPUT_VARIABLE glslangvalidator_std_out
                     ERROR_VARIABLE glslangvalidator_std_err
@@ -140,10 +146,5 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
     # close namespace
     file(APPEND ${OUTPUT_HEADER} "\n}// namespace ${TOP_NAMESPACE}\n")
     file(APPEND ${OUTPUT_SOURCE} "\n}// namespace ${TOP_NAMESPACE}\n")
-
-    add_custom_target(
-            ${TARGET_NAME}
-            DEPENDS ${ALL_GLSL_SOURCES}
-    )
 
 endfunction(STRINGIFY_SHADERS)

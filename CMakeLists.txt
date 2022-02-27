@@ -76,11 +76,23 @@ add_subdirectory("submodules/crocore")
 include_directories(${crocore_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
-#shaders
-find_program(GLSLANG_VALIDATOR "glslangValidator" REQUIRED)
-
+##shaders
+include(build_shaders)
 get_shaders_recursive(GLSL_SOURCE_FILES "shaders")
-stringify_shaders("shaders" "shaders" ${GLSLANG_VALIDATOR})
+set(SHADERS_CPP ${CMAKE_CURRENT_BINARY_DIR}/src/shaders.cpp)
+
+# shaders are automatically recompiled if changed
+add_custom_command(OUTPUT ${SHADERS_CPP}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMAND ${CMAKE_COMMAND} -D SHADER_SOURCE_ROOT="shaders"
+        -D SPIRV_OUTPUT_DIR="${PROJECT_BINARY_DIR}"
+        -D SOURCE_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
+        -D TARGET_NAME="${PROJECT_NAME}"
+        -P cmake_modules/build_shaders.cmake
+        DEPENDS ${GLSL_SOURCE_FILES}
+        COMMENT "recompiling shaders -> SPIRV -> shaders.hpp/cpp")
+
+add_custom_target("shaders" DEPENDS ${SHADERS_CPP})
 
 option(USE_ASSIMP OFF)
 
@@ -120,14 +132,13 @@ set(${PROJECT_NAME}_INCLUDE_DIRS
 set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
-message("includes: ${vierkant_INCLUDE_DIRS}")
-# message("libs: ${vierkant_LIBRARIES}")
+#message("includes: ${vierkant_INCLUDE_DIRS}")
 
 #examples
 if (BUILD_EXAMPLES)
     add_subdirectory(samples)
 endif (BUILD_EXAMPLES)
 
-if(BUILD_TESTS)
+if (BUILD_TESTS)
     add_subdirectory(tests)
-endif(BUILD_TESTS)
+endif (BUILD_TESTS)
