@@ -1,13 +1,51 @@
 macro(SUBDIRLIST result curdir)
     FILE(GLOB children ${curdir}/*)
     SET(dirlist "")
-    FOREACH(child ${children})
-        IF(IS_DIRECTORY ${child})
+    FOREACH (child ${children})
+        IF (IS_DIRECTORY ${child})
             LIST(APPEND dirlist ${child})
-        ENDIF()
-    ENDFOREACH()
+        ENDIF ()
+    ENDFOREACH ()
     SET(${result} ${dirlist})
 endmacro()
+
+function(GET_SHADERS_RECURSIVE RESULT GLSL_FOLDER)
+
+    # search subdirs
+    subdirlist(SUBDIRS ${GLSL_FOLDER})
+
+    foreach (SUBDIR ${SUBDIRS})
+
+        # gather all shader files from subdir
+        get_shader_sources(GLSL_FOLDER_FILES ${SUBDIR})
+        list(APPEND ALL_SOURCES ${GLSL_FOLDER_FILES})
+
+    endforeach (SUBDIR)
+
+    set(${RESULT} ${ALL_SOURCES} PARENT_SCOPE)
+endfunction(GET_SHADERS_RECURSIVE)
+
+function(GET_SHADER_SOURCES RESULT GLSL_FOLDER)
+
+    # gather all shader files
+    file(GLOB GLSL_SOURCE_FILES
+            "${GLSL_FOLDER}/*.vert"
+            "${GLSL_FOLDER}/*.geom"
+            "${GLSL_FOLDER}/*.frag"
+            "${GLSL_FOLDER}/*.tesc"
+            "${GLSL_FOLDER}/*.tese"
+            "${GLSL_FOLDER}/*.comp"
+            "${GLSL_FOLDER}/*.rgen"     # ray generation shader
+            "${GLSL_FOLDER}/*.rint"     # ray intersection shader
+            "${GLSL_FOLDER}/*.rahit"    # ray any hit shader
+            "${GLSL_FOLDER}/*.rchit"    # ray closest hit shader
+            "${GLSL_FOLDER}/*.rmiss"    # ray miss shader
+            "${GLSL_FOLDER}/*.rcall"    # ray callable shader
+            "${GLSL_FOLDER}/*.mesh"
+            "${GLSL_FOLDER}/*.task")
+
+    set(${RESULT} ${GLSL_SOURCE_FILES} PARENT_SCOPE)
+endfunction(GET_SHADER_SOURCES)
 
 function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
 
@@ -16,9 +54,9 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
     # remove existing spirv files
     file(GLOB SPIRV_FILES "${PROJECT_BINARY_DIR}/${TARGET_NAME}/*.spv")
 
-    if(SPIRV_FILES)
+    if (SPIRV_FILES)
         file(REMOVE "${SPIRV_FILES}")
-    endif()
+    endif ()
 
     set(OUTPUT_HEADER "${CMAKE_CURRENT_BINARY_DIR}/include/${PROJECT_NAME}/${TARGET_NAME}.hpp")
     set(OUTPUT_SOURCE "${CMAKE_CURRENT_BINARY_DIR}/src/${TARGET_NAME}.cpp")
@@ -37,48 +75,31 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
     # search subdirs
     subdirlist(SUBDIRS ${GLSL_FOLDER})
 
-#    # add root-dir
-#    FILE(GLOB BASE_DIR ${GLSL_FOLDER})
-#    set(SUBDIRS ${BASE_DIR} ${SUBDIRS})
-#    message("POOP: ${SUBDIRS}")
-
     foreach (SUBDIR ${SUBDIRS})
 
         # start namespace for subdir
         get_filename_component(DIR_NAME ${SUBDIR} NAME)
 
-        # gather all shader files
-        file(GLOB GLSL_SOURCE_FILES
-                "${SUBDIR}/*.vert"
-                "${SUBDIR}/*.geom"
-                "${SUBDIR}/*.frag"
-                "${SUBDIR}/*.tesc"
-                "${SUBDIR}/*.tese"
-                "${SUBDIR}/*.comp"
-                "${SUBDIR}/*.rgen"     # ray generation shader
-                "${SUBDIR}/*.rint"     # ray intersection shader
-                "${SUBDIR}/*.rahit"    # ray any hit shader
-                "${SUBDIR}/*.rchit"    # ray closest hit shader
-                "${SUBDIR}/*.rmiss"    # ray miss shader
-                "${SUBDIR}/*.rcall"    # ray callable shader
-                "${SUBDIR}/*.mesh"
-                "${SUBDIR}/*.task")
+        # gather all shader files from subdir
+        get_shader_sources(GLSL_FOLDER_FILES ${SUBDIR})
 
-        if(GLSL_SOURCE_FILES)
+        if (GLSL_FOLDER_FILES)
 
             message(STATUS "compiling shaders: ${DIR_NAME}")
+
+            list(APPEND ALL_GLSL_SOURCES ${GLSL_FOLDER_FILES})
 
             # open namespace
             file(APPEND ${OUTPUT_HEADER} "\nnamespace ${DIR_NAME}\n{\n\n")
             file(APPEND ${OUTPUT_SOURCE} "\nnamespace ${DIR_NAME}\n{\n\n")
-        endif()
+        endif ()
 
-        foreach (GLSL ${GLSL_SOURCE_FILES})
+        foreach (GLSL ${GLSL_FOLDER_FILES})
 
             get_filename_component(FILE_NAME ${GLSL} NAME)
             string(REGEX REPLACE "[.]" "_" NAME ${FILE_NAME})
             set(SPIRV "${PROJECT_BINARY_DIR}/shaders/${DIR_NAME}_${NAME}.spv")
-#                    message(${SPIRV})
+            #                    message(${SPIRV})
             list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 
             execute_process(
@@ -90,9 +111,9 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
                     #                OUTPUT_QUIET
             )
 
-            if(NOT "${ret}" STREQUAL "0")
+            if (NOT "${ret}" STREQUAL "0")
                 message(WARNING "Failed to compile shader: ${glslangvalidator_std_out}")
-            endif()
+            endif ()
 
             # read spirv binary
             file(READ "${SPIRV}" contents HEX)
@@ -108,11 +129,11 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
             file(APPEND ${OUTPUT_SOURCE} "0x${hex_values}};\n")
         endforeach (GLSL)
 
-        if(GLSL_SOURCE_FILES)
+        if (GLSL_FOLDER_FILES)
             # close namespace
             file(APPEND ${OUTPUT_HEADER} "\n}// namespace ${DIR_NAME}\n")
             file(APPEND ${OUTPUT_SOURCE} "\n}// namespace ${DIR_NAME}\n")
-        endif()
+        endif ()
 
     endforeach (SUBDIR)
 
@@ -122,7 +143,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR)
 
     add_custom_target(
             ${TARGET_NAME}
-            DEPENDS ${SPIRV_BINARY_FILES}
+            DEPENDS ${ALL_GLSL_SOURCES}
     )
 
 endfunction(STRINGIFY_SHADERS)

@@ -78,6 +78,8 @@ set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
 #shaders
 find_program(GLSLANG_VALIDATOR "glslangValidator" REQUIRED)
+
+get_shaders_recursive(GLSL_SOURCE_FILES "shaders")
 stringify_shaders("shaders" "shaders" ${GLSLANG_VALIDATOR})
 
 option(USE_ASSIMP OFF)
