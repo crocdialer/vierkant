@@ -21,6 +21,18 @@ DEFINE_CLASS_PTR(CubeCamera)
  */
 glm::vec2 clipping_distances(const glm::mat4 &projection);
 
+/**
+ * @brief   'perspective_infinite_reverse_RH_ZO' returns a perspective projection-matrix with following properties:
+ *          - far-clipping plane is at infinity
+ *          - depth-range is inverted and falls in range [1..0]
+ *
+ * @param   fovY    vertical field-of-view in radians.
+ * @param   aspect  aspect-ratio (width / height)
+ * @param   zNear   near clipping distance
+ * @return  a perspective projection-matrix
+ */
+glm::mat4 perspective_infinite_reverse_RH_ZO(float fovY, float aspect, float zNear);
+
 class Camera : public Object3D
 {
 public:

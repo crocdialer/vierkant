@@ -59,7 +59,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.sample_count = create_info.sample_count;
     render_create_info.viewport.width = static_cast<float>(create_info.size.width);
     render_create_info.viewport.height = static_cast<float>(create_info.size.height);
-    render_create_info.viewport.maxDepth = 1;
     render_create_info.pipeline_cache = m_pipeline_cache;
     m_g_renderer = vierkant::Renderer(device, render_create_info);
 
@@ -165,8 +164,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         // bloom
         m_drawable_bloom = fullscreen_drawable;
-        m_drawable_bloom.pipeline_format.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
-
         m_drawable_bloom.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::bloom_composition_frag);
 

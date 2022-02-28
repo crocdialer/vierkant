@@ -105,7 +105,7 @@ struct graphics_pipeline_info_t
     bool depth_test = true;
     bool depth_write = true;
     bool depth_clamp = false;
-    VkCompareOp depth_compare_op = VK_COMPARE_OP_LESS;
+    VkCompareOp depth_compare_op = VK_COMPARE_OP_GREATER_OR_EQUAL;
 
     bool stencil_test = false;
     VkStencilOpState stencil_state_front = {};

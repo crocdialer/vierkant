@@ -43,7 +43,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     // precision int24 vs float32 !?
     Image::Format depth_attachment_format = {};
     depth_attachment_format.extent = extent;
-    depth_attachment_format.format = VK_FORMAT_D24_UNORM_S8_UINT;
+    depth_attachment_format.format = VK_FORMAT_D32_SFLOAT;
     depth_attachment_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
     depth_attachment_format.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     attachments[Framebuffer::AttachmentType::DepthStencil] = {vierkant::Image::create(device, depth_attachment_format)};

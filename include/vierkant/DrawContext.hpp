@@ -12,22 +12,6 @@
 namespace vierkant
 {
 
-/**
- * @brief   Render into a framebuffer using a provided vierkant::Renderer.
- *
- * @param   framebuffer a provided framebuffer to render into.
- * @param   renderer    a provided vierkant::Renderer.
- * @param   stage_fn    a provided function-object responsible for the actual staging-commands
- * @param   queue       an optional VkQueue to submit the drawing commands to.
- * @param   sync        if synchornization using a fence shall be performed.
- * @return  a ref to the framebuffer's color-attachment-image.
- */
-vierkant::ImagePtr render_offscreen(vierkant::Framebuffer &framebuffer,
-                                    vierkant::Renderer &renderer,
-                                    const std::function<void()> &stage_fn,
-                                    VkQueue queue = nullptr,
-                                    bool sync = false);
-
 class DrawContext
 {
 public:

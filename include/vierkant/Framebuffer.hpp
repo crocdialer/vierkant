@@ -187,7 +187,7 @@ public:
     /**
      * @brief   the clear-value used for DepthStencil-Attachments
      */
-    VkClearDepthStencilValue clear_depth_stencil = {1.f, 0};
+    VkClearDepthStencilValue clear_depth_stencil = {0.f, 0};
 
 private:
 

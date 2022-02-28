@@ -20,6 +20,17 @@ glm::vec2 clipping_distances(const glm::mat4 &projection)
     return ret;
 }
 
+glm::mat4 perspective_infinite_reverse_RH_ZO(float fovY, float aspect, float z_near)
+{
+    const float f = 1.f / tanf(fovY / 2.f);
+    glm::mat4 ret(0);
+    ret[0][0] = f / aspect;
+    ret[1][1] = -f;
+    ret[2][3] = -1.f;
+    ret[3][2] = z_near;
+    return ret;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Camera::Camera(const std::string &name) : Object3D(name){}
@@ -122,9 +133,7 @@ PerspectiveCamera::PerspectiveCamera(float ascpect, float fov, float near, float
 
 void PerspectiveCamera::update_projection_matrix()
 {
-    auto m = glm::perspectiveRH(glm::radians(m_fov), m_aspect, m_near, m_far);
-    m[1][1] *= -1;
-    m_projection = m;
+    m_projection = perspective_infinite_reverse_RH_ZO(glm::radians(m_fov), m_aspect, m_near);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -198,9 +207,7 @@ CubeCamera::CubeCamera(float the_near, float the_far) :
 
 void CubeCamera::update_projection_matrix()
 {
-    auto m = glm::perspectiveRH(glm::radians(90.f), 1.f, m_near, m_far);
-    m[1][1] *= -1;
-    m_projection = m;
+    m_projection = perspective_infinite_reverse_RH_ZO(glm::radians(90.f), 1.f, m_near);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

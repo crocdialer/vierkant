@@ -377,11 +377,7 @@ void Framebuffer::init(AttachmentMap attachments, RenderPassPtr renderpass)
                                                       VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     m_commandbuffer = vierkant::CommandBuffer(m_device, command_pool.get());
     m_command_pool = command_pool;
-
     m_fence = vierkant::create_fence(m_device, true);
-
-    clear_color = {{0.f, 0.f, 0.f, 1.f}};
-    clear_depth_stencil = {1.0f, 0};
 
     if(!renderpass){ renderpass = create_renderpass(m_device, attachments, true, true); }
     m_renderpass = renderpass;

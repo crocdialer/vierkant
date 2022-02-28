@@ -10,33 +10,6 @@
 namespace vierkant
 {
 
-vierkant::ImagePtr render_offscreen(vierkant::Framebuffer &framebuffer,
-                                    vierkant::Renderer &renderer,
-                                    const std::function<void()> &stage_fn,
-                                    VkQueue queue,
-                                    bool sync)
-{
-    // wait for prior frame to finish
-    framebuffer.wait_fence();
-
-    // invoke function-object to stage drawables
-    stage_fn();
-
-    // create a commandbuffer
-    VkCommandBuffer cmd_buffer = renderer.render(framebuffer);
-
-    // submit rendering commands to queue
-    auto fence = framebuffer.submit({cmd_buffer}, queue ? queue : renderer.device()->queue());
-
-    if(sync){ vkWaitForFences(renderer.device()->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max()); }
-
-    // check for resolve-attachment, fallback to color-attachment
-    return framebuffer.color_attachment();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device))
 {
     // create a pipeline cache
@@ -100,7 +73,6 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_image_fullscreen.num_vertices = 3;
         m_drawable_image_fullscreen.pipeline_format = fmt;
         m_drawable_image_fullscreen.use_own_buffers = true;
-        m_drawable_image_fullscreen.pipeline_format.depth_compare_op = VK_COMPARE_OP_LESS_OR_EQUAL;
 
         m_drawable_color_depth_fullscreen = m_drawable_image_fullscreen;
         m_drawable_color_depth_fullscreen.pipeline_format.depth_test = false;
