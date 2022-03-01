@@ -171,7 +171,7 @@ Device::Device(const create_info_t &create_info) :
     }
 
     // query Vulkan 1.1 features
-    VkPhysicalDeviceVulkan12Features device_features_11 = {};
+    VkPhysicalDeviceVulkan11Features device_features_11 = {};
     device_features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
 
     // query Vulkan 1.2 features
@@ -217,8 +217,6 @@ Device::Device(const create_info_t &create_info) :
     if(!ray_features_available)
     {
         device_features_12.pNext = create_info.create_device_pNext;
-        device_features_12.bufferDeviceAddress = false;
-        device_features_12.bufferDeviceAddressCaptureReplay = false;
     }
 
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
