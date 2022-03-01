@@ -97,8 +97,8 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     depth_stencil.depthWriteEnable = static_cast<VkBool32>(format.depth_write);
     depth_stencil.depthCompareOp = format.depth_compare_op;
     depth_stencil.depthBoundsTestEnable = VK_FALSE;
-    depth_stencil.minDepthBounds = 1.0f;
-    depth_stencil.maxDepthBounds = 0.0f;
+    depth_stencil.minDepthBounds = 0.0f;
+    depth_stencil.maxDepthBounds = 1.0f;
     depth_stencil.stencilTestEnable = static_cast<VkBool32>(format.stencil_test);
     depth_stencil.front = format.stencil_state_front;
     depth_stencil.back = format.stencil_state_back;

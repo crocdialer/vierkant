@@ -27,7 +27,8 @@ vec2 reproject(vec2 coord,
 
 float linear_depth(float depth, float near, float far)
 {
-//    return near * far / (far + depth * (near - far));
+    // TODO: fix after reverse+infite z changes
+//    return near / depth;
     return (2.0 * near) / (far + near - depth * (far - near));
 }
 
@@ -123,7 +124,7 @@ vec4 taa(vec2 in_coord,
         vec2 d_coord = coord + texel * diagonal_cross[o];
         float d = texelFetch(sampler_depth, ivec2(d_coord * texSize), 0).x;
 
-        if(d < min_depth)
+        if(d > min_depth)
         {
             min_depth = d;
             min_depth_coord = d_coord;
@@ -179,6 +180,7 @@ vec4 taa(vec2 in_coord,
     color.rgb = mix(history_color, color.rgb, alpha);
     color.rgb = luma_weight_inverse(color.rgb);
 
+//    return vec4(vec3(linear_depth(min_depth, taa_settings.near, taa_settings.far)), 1.0);
 //    return mix(color, vec4(1, 0, 0, 1), depth_reject);
     return color;
 }

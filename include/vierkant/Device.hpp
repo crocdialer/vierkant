@@ -37,6 +37,9 @@ public:
         //! enable validation layers
         bool use_validation = false;
 
+        //! enable raytracing device-features
+        bool use_raytracing = false;
+
         //! optional VkSurface
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 

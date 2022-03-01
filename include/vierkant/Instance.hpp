@@ -6,6 +6,7 @@
 
 #include <vulkan/vulkan.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/fmt/ranges.h>
 #include "crocore/crocore.hpp"
 
 namespace vierkant

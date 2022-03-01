@@ -191,13 +191,16 @@ Device::Device(const create_info_t &create_info) :
     VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {};
     ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
 
-    // create a pNext-chain connecting the extension-structures
-    device_features_12.pNext = &acceleration_structure_features;
-    acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
-    ray_tracing_pipeline_features.pNext = &ray_query_features;
+    if(create_info.use_raytracing)
+    {
+        // create a pNext-chain connecting the extension-structures
+        device_features_12.pNext = &acceleration_structure_features;
+        acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
+        ray_tracing_pipeline_features.pNext = &ray_query_features;
 
-    // chain the passed pNext
-    ray_query_features.pNext = create_info.create_device_pNext;
+        // chain the passed pNext
+        ray_query_features.pNext = create_info.create_device_pNext;
+    }
 
     //------------------------------------------------------------------------------------------------------------------
 
@@ -211,10 +214,17 @@ Device::Device(const create_info_t &create_info) :
                                   ray_tracing_pipeline_features.rayTracingPipeline &&
                                   ray_query_features.rayQuery;
 
+    if(!ray_features_available)
+    {
+        device_features_12.pNext = create_info.create_device_pNext;
+        device_features_12.bufferDeviceAddress = false;
+        device_features_12.bufferDeviceAddressCaptureReplay = false;
+    }
+
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
 
     // pNext feature chaining
-    device_create_info.pNext = ray_features_available ? &device_features_11 : create_info.create_device_pNext;
+    device_create_info.pNext = &device_features_11;
     device_create_info.pQueueCreateInfos = queue_create_infos.data();
     device_create_info.queueCreateInfoCount = queue_create_infos.size();
     device_create_info.pEnabledFeatures = &device_features;
@@ -227,6 +237,8 @@ Device::Device(const create_info_t &create_info) :
         device_create_info.ppEnabledLayerNames = g_validation_layers.data();
     }
     else{ device_create_info.enabledLayerCount = 0; }
+
+    spdlog::debug("device-extensions: {}", extensions);
 
     vkCheck(vkCreateDevice(m_physical_device, &device_create_info, nullptr, &m_device),
             "failed to create logical device!");

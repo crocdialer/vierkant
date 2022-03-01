@@ -416,9 +416,8 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
                                         ImVec2(min_width, -1));
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 
-    if(ImGui::Begin(window_name, nullptr, ImGuiWindowFlags_NoMove |
-                                          ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                                          ImGuiWindowFlags_NoNav))
+    if(ImGui::Begin(window_name, nullptr,
+                    ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
     {
         uint32_t color_white = 0xFFFFFFFF;
         uint32_t color_error = 0xFF6666FF;

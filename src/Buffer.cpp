@@ -58,7 +58,7 @@ VmaPoolPtr Buffer::create_pool(const DevicePtr& device, VkBufferUsageFlags usage
     vmaCreatePool(device->vk_mem_allocator(), &pool_create_info, &pool);
 
     // return self-destructing VmaPoolPtr
-    return VmaPoolPtr(pool, [device](VmaPool p) { vmaDestroyPool(device->vk_mem_allocator(), p); });
+    return {pool, [device](VmaPool p) { vmaDestroyPool(device->vk_mem_allocator(), p); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
