@@ -412,8 +412,10 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
     ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
 
     float min_width = is_minimized ? 100 : io.DisplaySize.x - 2 * DISTANCE;
-    ImGui::SetNextWindowSizeConstraints(ImVec2(min_width, -1),
-                                        ImVec2(min_width, -1));
+    float max_height = 2 * io.DisplaySize.y / 3.f ;
+
+    ImGui::SetNextWindowSizeConstraints(ImVec2(min_width, 0),
+                                        ImVec2(min_width, max_height));
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 
     if(ImGui::Begin(window_name, nullptr,

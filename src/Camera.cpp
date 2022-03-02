@@ -1,6 +1,6 @@
-#include "vierkant/Camera.hpp"
-
 #include <spdlog/spdlog.h>
+#include <vierkant/projection.hpp>
+#include <vierkant/Camera.hpp>
 
 namespace vierkant
 {
@@ -17,17 +17,6 @@ glm::vec2 clipping_distances(const glm::mat4 &projection)
     // f  = far clip plane distance
     ret.y = d / (c + 1.f);
 
-    return ret;
-}
-
-glm::mat4 perspective_infinite_reverse_RH_ZO(float fovY, float aspect, float z_near)
-{
-    const float f = 1.f / tanf(fovY / 2.f);
-    glm::mat4 ret(0);
-    ret[0][0] = f / aspect;
-    ret[1][1] = -f;
-    ret[2][3] = -1.f;
-    ret[3][2] = z_near;
     return ret;
 }
 
