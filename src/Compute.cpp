@@ -34,6 +34,7 @@ void swap(Compute &lhs, Compute &rhs) noexcept
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_compute_assets, rhs.m_compute_assets);
+    std::swap(lhs.m_descriptor_set_layouts, rhs.m_descriptor_set_layouts);
     std::swap(lhs.m_current_index, rhs.m_current_index);
 }
 

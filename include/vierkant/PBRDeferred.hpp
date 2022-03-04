@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <vierkant/Compute.hpp>
 #include <vierkant/GBuffer.hpp>
 #include "vierkant/culling.hpp"
 #include "vierkant/PipelineCache.hpp"
@@ -135,7 +136,13 @@ private:
     {
         glm::vec2 jitter_offset;
         vierkant::Framebuffer g_buffer;
+
+        vierkant::ImagePtr depth_map;
+
         vierkant::ImagePtr depth_pyramid;
+        std::vector<vierkant::Compute> depth_pyramid_computes;
+        vierkant::CommandBuffer depth_pyramid_cmd_buffer;
+
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
         vierkant::BufferPtr g_buffer_ubo;
         vierkant::BufferPtr lighting_ubo;
@@ -218,11 +225,13 @@ private:
 
     void update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer);
 
-    void create_depth_pyramid(const vierkant::ImagePtr &depth, vierkant::ImagePtr &depth_pyramid);
+    void create_depth_pyramid(frame_assets_t &frame_asset);
 
     vierkant::DevicePtr m_device;
 
     VkQueue m_queue = VK_NULL_HANDLE;
+
+    vierkant::CommandPoolPtr m_command_pool;
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 

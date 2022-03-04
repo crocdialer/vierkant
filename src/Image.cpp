@@ -171,7 +171,8 @@ void transition_image_layout(VkCommandBuffer command_buffer,
             destination_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             break;
     }
-    vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, 0, 0, nullptr, 0, nullptr, 1,
+    vkCmdPipelineBarrier(command_buffer, source_stage, destination_stage, VK_DEPENDENCY_BY_REGION_BIT, 0, nullptr, 0,
+                         nullptr, 1,
                          &barrier);
 }
 
