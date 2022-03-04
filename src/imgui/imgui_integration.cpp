@@ -152,6 +152,9 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     // We can honor GetMouseCursor() values
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
 
+    // support >64k vertices with 16bit indices
+    io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
+
     // Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
     io.KeyMap[ImGuiKey_Tab] = Key::_TAB;
     io.KeyMap[ImGuiKey_LeftArrow] = Key::_LEFT;
@@ -303,6 +306,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
                 drawable.mesh = mesh_assets[n].mesh;
                 drawable.matrices = matrices;
                 drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {tex};
+                drawable.vertex_offset = static_cast<int32_t>(pcmd->VtxOffset);
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;
 
