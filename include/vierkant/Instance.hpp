@@ -32,7 +32,7 @@ class Instance
 {
 public:
 
-    using debug_fn_t = std::function<void(const char *msg)>;
+    using debug_fn_t = std::function<void(const char *msg, VkDebugReportFlagsEXT flags)>;
 
     /**
      * @brief the vulkan-api version used

@@ -67,7 +67,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
     if(user_data)
     {
         Instance::debug_fn_t &debug_fn = *reinterpret_cast<Instance::debug_fn_t *>(user_data);
-        if(debug_fn){ debug_fn(msg); }
+        if(debug_fn){ debug_fn(msg, flags); }
     }
     else{ std::cerr << msg << std::endl; }
     return VK_FALSE;
@@ -247,7 +247,13 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     }
 
     // attach logger for debug-output
-    set_debug_fn([](const char *msg){ spdlog::warn(msg); });
+    set_debug_fn([](const char *msg, VkDebugReportFlagsEXT flags)
+                 {
+                     if(flags & VK_DEBUG_REPORT_ERROR_BIT_EXT){ spdlog::error(msg); }
+                     else if(flags & VK_DEBUG_REPORT_WARNING_BIT_EXT){ spdlog::warn(msg); }
+                     else if(flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT ||
+                             flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT){ spdlog::debug(msg); }
+                 });
 
     return true;
 }
