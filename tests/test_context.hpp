@@ -34,7 +34,7 @@ public:
         instance = vierkant::Instance(use_validation, extensions);
 
         // set a debug-function to intercept validation-warnings/errors
-        instance.set_debug_fn([&](const char *msg)
+        instance.set_debug_fn([&](const char *msg, VkDebugReportFlagsEXT flags)
                               {
                                   validation_data.num_errors++;
                                   validation_data.errorMsgStream << "\nError:\n" << msg << "\n";
