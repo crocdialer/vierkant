@@ -132,8 +132,18 @@ public:
 
 private:
 
+    enum SemaphoreValue : uint64_t
+    {
+        CULLING = 1,
+        G_BUFFER,
+        LIGHTING,
+        POST_FX,
+        TONEMAP
+    };
+
     struct frame_assets_t
     {
+        vierkant::Semaphore timeline;
         glm::vec2 jitter_offset;
         vierkant::Framebuffer g_buffer;
 

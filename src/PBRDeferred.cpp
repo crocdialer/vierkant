@@ -715,8 +715,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
 void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 {
     auto extent_pyramid_lvl0 = frame_asset.depth_map->extent();
-    extent_pyramid_lvl0.width /= 2;
-    extent_pyramid_lvl0.height /= 2;
+    extent_pyramid_lvl0.width = crocore::next_pow_2(extent_pyramid_lvl0.width / 2);
+    extent_pyramid_lvl0.height = crocore::next_pow_2(extent_pyramid_lvl0.height / 2);
 
     // create/resize depth pyramid
     if(!frame_asset.depth_pyramid || frame_asset.depth_pyramid->extent() != extent_pyramid_lvl0)
@@ -774,8 +774,8 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 
     for(uint32_t lvl = 1; lvl < pyramid_views.size(); ++lvl)
     {
-        auto width = std::max(1u, pyramid_images[lvl - 1]->width() >> lvl);
-        auto height = std::max(1u, pyramid_images[lvl - 1]->height() >> lvl);
+        auto width = std::max(1u, extent_pyramid_lvl0.width >> (lvl - 1));
+        auto height = std::max(1u, extent_pyramid_lvl0.height >> (lvl - 1));
 
         pyramid_images[lvl - 1]->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                                    frame_asset.depth_pyramid_cmd_buffer.handle());
