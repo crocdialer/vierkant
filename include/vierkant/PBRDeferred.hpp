@@ -169,14 +169,14 @@ private:
         BloomUPtr bloom;
     };
 
-    struct taa_ubo_t
+    struct alignas(16) taa_ubo_t
     {
         float near;
         float far;
         glm::vec2 sample_offset;
     };
 
-    struct environment_lighting_ubo_t
+    struct alignas(16) environment_lighting_ubo_t
     {
         glm::mat4 camera_transform = glm::mat4(1);
         glm::mat4 inverse_projection = glm::mat4(1);
@@ -184,7 +184,7 @@ private:
         float env_light_strength = 1.f;
     };
 
-    struct composition_ubo_t
+    struct alignas(16) composition_ubo_t
     {
         float gamma = 2.2f;
         float exposure = 1.f;
@@ -192,8 +192,6 @@ private:
         float time_delta = 1.f / 60.f;
         float shutter_time = 1.f / 60.f;
         float motionblur_gain = 1.f;
-
-        int padding[3]{};
     };
 
     struct matrix_key_t
@@ -271,6 +269,9 @@ private:
 
     vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom,
             m_drawable_taa;
+
+    vierkant::Compute::computable_t m_depth_pyramid_computable;
+    glm::uvec3 m_depth_pyramid_local_size;
 
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;

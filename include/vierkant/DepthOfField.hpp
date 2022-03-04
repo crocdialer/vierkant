@@ -10,7 +10,7 @@ namespace vierkant
 {
 
 //! Describes the buffer-layout for Depth
-struct dof_settings_t
+struct alignas(16) dof_settings_t
 {
     //! flag indicating if DoF should be applied
     uint32_t enabled = false;
@@ -44,9 +44,6 @@ struct dof_settings_t
 
     //! show debug focus point and focal range (red = focal point, green = focal range)
     uint32_t debug_focus = false;
-
-    //! padding to comply with std-140 buffer layout
-    uint32_t padding[2]{};
 };
 
 }// namespace vierkant

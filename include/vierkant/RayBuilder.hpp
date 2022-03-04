@@ -20,7 +20,7 @@ class RayBuilder
 {
 public:
 
-    struct entry_t
+    struct alignas(16) entry_t
     {
         // per entry
         glm::mat4 modelview = glm::mat4(1);
@@ -34,7 +34,7 @@ public:
         uint32_t buffer_index = 0;
     };
 
-    struct material_struct_t
+    struct alignas(16) material_struct_t
     {
         glm::vec4 color = glm::vec4(1);
 
@@ -69,8 +69,6 @@ public:
         uint32_t ao_rough_metal_index = 0;
 
         uint32_t texture_type_flags = 0;
-
-        int padding[3];
     };
 
     //! used for both bottom and toplevel acceleration-structures

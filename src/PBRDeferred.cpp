@@ -205,6 +205,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     {
         m_sample_offsets[i] = glm::vec2(halton(i + 1, 2), halton(i + 1, 3));
     }
+
+    auto shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::depth_min_reduce_comp,
+                                                       &m_depth_pyramid_local_size);
+    m_depth_pyramid_computable.pipeline_info.shader_stage = shader_stage;
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -729,6 +733,7 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
         depth_pyramid_fmt.use_mipmap = true;
         depth_pyramid_fmt.autogenerate_mipmaps = false;
         depth_pyramid_fmt.reduction_mode = VK_SAMPLER_REDUCTION_MODE_MIN;
+        depth_pyramid_fmt.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
         frame_asset.depth_pyramid = vierkant::Image::create(m_device, depth_pyramid_fmt);
     }
 
@@ -739,11 +744,7 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
     pyramid_views.insert(pyramid_views.end(), frame_asset.depth_pyramid->mip_image_views().begin(),
                          frame_asset.depth_pyramid->mip_image_views().end());
 
-    glm::uvec3 local_size;
-    auto shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::depth_min_reduce_comp,
-                                                       &local_size);
-    vierkant::Compute::computable_t computable = {};
-    computable.pipeline_info.shader_stage = shader_stage;
+    vierkant::Compute::computable_t computable = m_depth_pyramid_computable;
 
     descriptor_t input_sampler_desc = {};
     input_sampler_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -769,6 +770,19 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
         frame_asset.depth_pyramid_computes.emplace_back(m_device, compute_info);
     }
 
+    // transition all mips to general layout for writing
+    frame_asset.depth_pyramid->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
+                                                 frame_asset.depth_pyramid_cmd_buffer.handle());
+
+    VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    barrier.image = frame_asset.depth_pyramid->image();
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.levelCount = 1;
+
     frame_asset.depth_pyramid_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.depth_pyramid_cmd_buffer.begin();
 
@@ -777,14 +791,8 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
         auto width = std::max(1u, extent_pyramid_lvl0.width >> (lvl - 1));
         auto height = std::max(1u, extent_pyramid_lvl0.height >> (lvl - 1));
 
-        pyramid_images[lvl - 1]->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                                   frame_asset.depth_pyramid_cmd_buffer.handle());
-
-        pyramid_images[lvl]->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
-                                               frame_asset.depth_pyramid_cmd_buffer.handle());
-
-        computable.extent = {vierkant::group_count(width, local_size.x),
-                             vierkant::group_count(height, local_size.y), 1};
+        computable.extent = {vierkant::group_count(width, m_depth_pyramid_local_size.x),
+                             vierkant::group_count(height, m_depth_pyramid_local_size.y), 1};
 
         computable.descriptors[0].images = {pyramid_images[lvl - 1]};
         computable.descriptors[0].image_views = {pyramid_views[lvl - 1]};
@@ -800,6 +808,19 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
         // dispatch compute shader
         frame_asset.depth_pyramid_computes[lvl - 1].dispatch({computable},
                                                              frame_asset.depth_pyramid_cmd_buffer.handle());
+
+        barrier.subresourceRange.baseMipLevel = lvl - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        vkCmdPipelineBarrier(frame_asset.depth_pyramid_cmd_buffer.handle(),
+                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                             VK_DEPENDENCY_BY_REGION_BIT,
+                             0, nullptr,
+                             0, nullptr,
+                             1, &barrier);
     }
 
     // TODO: signal timeline

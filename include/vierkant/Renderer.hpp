@@ -45,7 +45,7 @@ public:
         BINDING_MAX_RANGE
     };
 
-    struct matrix_struct_t
+    struct alignas(16) matrix_struct_t
     {
         glm::mat4 modelview = glm::mat4(1);
         glm::mat4 projection = glm::mat4(1);
@@ -53,7 +53,7 @@ public:
         glm::mat4 texture = glm::mat4(1);
     };
 
-    struct material_struct_t
+    struct alignas(16) material_struct_t
     {
         glm::vec4 color = glm::vec4(1);
 
@@ -72,8 +72,6 @@ public:
         uint32_t base_texture_index = 0;
 
         uint32_t texture_type_flags = 0;
-
-        int padding[1];
     };
 
 //    struct lightsource_t
@@ -218,7 +216,7 @@ public:
 
 private:
 
-    struct push_constants_t
+    struct alignas(16) push_constants_t
     {
         //! current viewport-size
         glm::vec2 size;

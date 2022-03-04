@@ -192,17 +192,16 @@ private:
         uint32_t random_seed = 0;
     };
 
-    struct camera_ubo_t
+    struct alignas(16) camera_ubo_t
     {
         glm::mat4 projection_inverse{};
         glm::mat4 view_inverse{};
         float fov = glm::quarter_pi<float>();
         float aperture = 0.f;
         float focal_distance = 1.f;
-        int padding[2]{};
     };
 
-    struct composition_ubo_t
+    struct alignas(16) composition_ubo_t
     {
         float gamma = 2.2f;
         float exposure = 1.f;
@@ -210,8 +209,6 @@ private:
         float time_delta = 1.f / 60.f;
         float shutter_time = 1.f / 60.f;
         float motionblur_gain = 1.f;
-
-        int padding[3]{};
     };
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
