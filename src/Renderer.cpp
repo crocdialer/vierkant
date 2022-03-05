@@ -273,14 +273,16 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
-    // sort by pipelines
-    struct indexed_drawable_t
+    struct indirect_draw_asset_t
     {
-        uint32_t object_index = 0;
-        vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
-        drawable_t *drawable = nullptr;
+        uint32_t num_draws = 0;
+        uint32_t first_draw_index = 0;
+        uint32_t first_indexed_draw_index = 0;
+        std::vector<VkDescriptorSet> descriptor_set_handles;
+        VkRect2D scissor = {};
     };
-    std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipelines;
+    using draw_batch_t = std::vector<std::pair<vierkant::MeshConstPtr, indirect_draw_asset_t>>;
+    std::unordered_map<graphics_pipeline_info_t, draw_batch_t> pipelines;
 
     std::vector<vierkant::ImagePtr> textures;
     std::unordered_map<vierkant::ImagePtr, size_t> texture_index_map = {{nullptr, 0}};
@@ -334,6 +336,22 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
     auto bindless_texture_layout = find_set_layout(bindless_texture_desc, current_assets, next_assets);
 
+    // global indices for rendering-commands
+    size_t indirect_draw_index = 0;
+    size_t indexed_indirect_draw_index = 0;
+
+    // create/resize draw_indirect buffers
+    resize_draw_indirect_buffers(next_assets, current_assets.drawables.size());
+
+    for(auto &drawable : current_assets.drawables)
+    {
+        // adjust baseTextureIndex
+        drawable.material.base_texture_index = texture_base_index_map[create_mesh_key(drawable)];
+    }
+
+    // update uniform buffers
+    update_buffers(current_assets.drawables, next_assets);
+
     // preprocess drawables
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
@@ -344,30 +362,77 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline_format.sample_count = m_sample_count;
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
-        // adjust baseTextureIndex
-        drawable.material.base_texture_index = texture_base_index_map[create_mesh_key(drawable)];
-
-        indexed_drawable_t indexed_drawable = {};
-        indexed_drawable.object_index = i;
-        indexed_drawable.drawable = &drawable;
+        DescriptorSetLayoutPtr descriptor_set_layout;
 
         if(!current_assets.drawables[i].descriptor_set_layout)
         {
-            indexed_drawable.descriptor_set_layout = find_set_layout(drawable.descriptors,
-                                                                     current_assets,
-                                                                     next_assets);
-            pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
+            descriptor_set_layout = find_set_layout(drawable.descriptors, current_assets, next_assets);
+            pipeline_format.descriptor_set_layouts = {descriptor_set_layout.get()};
         }
-        else{ indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
+        else{ descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
 
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
-        pipelines[pipeline_format].push_back(indexed_drawable);
-    }
+        auto &indirect_draws = pipelines[pipeline_format];
 
-    // update uniform buffers
-    update_buffers(current_assets.drawables, next_assets);
+        // create new indirect-draw batch
+        if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable.mesh)
+        {
+            indirect_draw_asset_t new_draw = {};
+            new_draw.first_draw_index = indirect_draw_index;
+            new_draw.first_indexed_draw_index = indexed_indirect_draw_index;
+            new_draw.scissor = pipeline_format.scissor;
+
+            // predefined buffers
+            if(!drawable.use_own_buffers)
+            {
+                drawable.descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
+                drawable.descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
+
+                if(drawable.descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
+                {
+                    drawable.descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
+                }
+            }
+
+            auto descriptor_set = find_set(drawable.mesh, descriptor_set_layout, drawable.descriptors,
+                                           current_assets, next_assets, false);
+
+            auto bindless_texture_set = find_set(drawable.mesh, bindless_texture_layout, bindless_texture_desc,
+                                                 current_assets,
+                                                 next_assets, true);
+
+            new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
+
+            indirect_draws.emplace_back(drawable.mesh, std::move(new_draw));
+        }
+        auto &indirect_draw_asset = indirect_draws.back().second;
+        indirect_draw_asset.num_draws++;
+
+        if(drawable.mesh && drawable.mesh->index_buffer)
+        {
+            auto draw_command =
+                    static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
+                    indexed_indirect_draw_index++;
+
+            draw_command->firstIndex = drawable.base_index;
+            draw_command->indexCount = drawable.num_indices;
+            draw_command->vertexOffset = drawable.vertex_offset;
+            draw_command->firstInstance = i;
+            draw_command->instanceCount = 1;
+        }
+        else
+        {
+            auto draw_command = static_cast<VkDrawIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
+                                indirect_draw_index++;
+
+            draw_command->vertexCount = drawable.num_vertices;
+            draw_command->instanceCount = 1;
+            draw_command->firstVertex = drawable.vertex_offset;
+            draw_command->firstInstance = i;
+        }
+    }
 
     // push constants
     push_constants_t push_constants = {};
@@ -375,12 +440,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.disable_material = disable_material;
 
-    // global indices for rendering-commands
-    size_t indirect_draw_index = 0;
-    size_t indexed_indirect_draw_index = 0;
-
     // grouped by pipelines
-    for(auto &[pipe_fmt, indexed_drawables] : pipelines)
+    for(auto &[pipe_fmt, indirect_draws] : pipelines)
     {
         // select/create pipeline
         auto pipeline = m_pipeline_cache->pipeline(pipe_fmt);
@@ -397,81 +458,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         {
             // set dynamic viewport
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
-        }
-
-        struct indirect_draw_asset_t
-        {
-            uint32_t num_draws = 0;
-            uint32_t first_draw_index = 0;
-            uint32_t first_indexed_draw_index = 0;
-            std::vector<VkDescriptorSet> descriptor_set_handles;
-            VkRect2D scissor = {};
-        };
-        std::vector<std::pair<vierkant::MeshConstPtr, indirect_draw_asset_t>> indirect_draws;
-
-        // gather indirect drawing commands into buffers
-        for(auto &indexed_drawable : indexed_drawables)
-        {
-            auto &drawable = indexed_drawable.drawable;
-
-            // create new indirect-draw batch
-            if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
-            {
-                indirect_draw_asset_t new_draw = {};
-                new_draw.first_draw_index = indirect_draw_index;
-                new_draw.first_indexed_draw_index = indexed_indirect_draw_index;
-                new_draw.scissor = drawable->pipeline_format.scissor;
-
-                auto descriptors = drawable->descriptors;
-
-                // predefined buffers
-                if(!drawable->use_own_buffers)
-                {
-                    descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
-                    descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
-
-                    if(descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
-                    {
-                        descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
-                    }
-                }
-
-                auto descriptor_set = find_set(drawable->mesh, indexed_drawable.descriptor_set_layout, descriptors,
-                                               current_assets, next_assets, false);
-
-                auto bindless_texture_set = find_set(drawable->mesh, bindless_texture_layout, bindless_texture_desc,
-                                                     current_assets,
-                                                     next_assets, true);
-
-                new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
-
-                indirect_draws.emplace_back(drawable->mesh, std::move(new_draw));
-            }
-            auto &indirect_draw_asset = indirect_draws.back().second;
-            indirect_draw_asset.num_draws++;
-
-            if(drawable->mesh && drawable->mesh->index_buffer)
-            {
-                auto draw_command =
-                        static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
-                        indexed_indirect_draw_index++;
-
-                draw_command->firstIndex = drawable->base_index;
-                draw_command->indexCount = drawable->num_indices;
-                draw_command->vertexOffset = drawable->vertex_offset;
-                draw_command->firstInstance = indexed_drawable.object_index;
-                draw_command->instanceCount = 1;
-            }
-            else
-            {
-                auto draw_command = static_cast<VkDrawIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
-                                    indirect_draw_index++;
-
-                draw_command->vertexCount = drawable->num_vertices;
-                draw_command->instanceCount = 1;
-                draw_command->firstVertex = drawable->vertex_offset;
-                draw_command->firstInstance = indexed_drawable.object_index;
-            }
         }
 
         // hook up GPU frustum/occlusion/distance culling here
@@ -613,31 +599,6 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
     copy_to_buffer(matrix_data, frame_asset.matrix_buffer);
     copy_to_buffer(material_data, frame_asset.material_buffer);
     copy_to_buffer(matrix_history_data, frame_asset.matrix_history_buffer);
-
-    // reserve space for indirect drawing-commands
-    size_t indexed_indirect_size = drawables.size() * sizeof(VkDrawIndexedIndirectCommand);
-
-    if(!frame_asset.indexed_indirect_draw_buffer)
-    {
-        frame_asset.indexed_indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
-                                                                            indexed_indirect_size,
-                                                                            VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                                            VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-    else{ frame_asset.indexed_indirect_draw_buffer->set_data(nullptr, indexed_indirect_size); }
-
-    size_t indirect_size = drawables.size() * sizeof(VkDrawIndirectCommand);
-
-    if(!frame_asset.indirect_draw_buffer)
-    {
-        frame_asset.indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
-                                                                    indirect_size,
-                                                                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-    else{ frame_asset.indirect_draw_buffer->set_data(nullptr, indirect_size); }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -736,6 +697,34 @@ DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh,
     }
     else{ ret = descriptor_set_it->second; }
     return ret;
+}
+
+void Renderer::resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_t num_drawables)
+{
+    // reserve space for indirect drawing-commands
+    size_t indexed_indirect_size = num_drawables * sizeof(VkDrawIndexedIndirectCommand);
+
+    if(!frame_asset.indexed_indirect_draw_buffer)
+    {
+        frame_asset.indexed_indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
+                                                                            indexed_indirect_size,
+                                                                            VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                            VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ frame_asset.indexed_indirect_draw_buffer->set_data(nullptr, indexed_indirect_size); }
+
+    size_t indirect_size = num_drawables * sizeof(VkDrawIndirectCommand);
+
+    if(!frame_asset.indirect_draw_buffer)
+    {
+        frame_asset.indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
+                                                                    indirect_size,
+                                                                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ frame_asset.indirect_draw_buffer->set_data(nullptr, indirect_size); }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

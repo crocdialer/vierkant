@@ -272,6 +272,9 @@ private:
     //! update the combined uniform buffers
     void update_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
+    //! update the combined uniform buffers
+    void resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_t num_drawables);
+
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
                                            frame_assets_t &current,
