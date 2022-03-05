@@ -452,7 +452,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     {
         cull_delegate(next_assets.indexed_indirect_draw_buffer, next_assets.indexed_indirect_culled,
                       indexed_indirect_draw_index);
-        draw_buffer = next_assets.indexed_indirect_culled;
+//        if(next_assets.indexed_indirect_culled){ draw_buffer = next_assets.indexed_indirect_culled; }
     }
 
     // push constants
@@ -729,7 +729,7 @@ void Renderer::resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_
         frame_asset.indexed_indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
                                                                             indexed_indirect_size,
                                                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
     else{ frame_asset.indexed_indirect_draw_buffer->set_data(nullptr, indexed_indirect_size); }
@@ -741,7 +741,7 @@ void Renderer::resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_
         frame_asset.indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
                                                                     indirect_size,
                                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
     else{ frame_asset.indirect_draw_buffer->set_data(nullptr, indirect_size); }

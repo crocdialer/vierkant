@@ -259,6 +259,7 @@ private:
     void create_depth_pyramid(frame_assets_t &frame_asset);
 
     void digest_draw_command_buffer(frame_assets_t &frame_asset,
+                                    const vierkant::ImagePtr &depth_pyramid,
                                     const vierkant::BufferPtr &draws_in,
                                     vierkant::BufferPtr &draws_out,
                                     uint32_t num_draws);

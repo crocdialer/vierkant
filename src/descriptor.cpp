@@ -192,6 +192,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
             }
                 break;
 
+            case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
             case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
             case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
             {

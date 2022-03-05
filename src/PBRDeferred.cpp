@@ -214,7 +214,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     // indirect-draw cull compute
     auto cull_shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::indirect_cull_comp,
                                                             &m_cull_compute_local_size);
-    m_cull_computable.pipeline_info.shader_stage = shader_stage;
+    m_cull_computable.pipeline_info.shader_stage = cull_shader_stage;
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -322,6 +322,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 {
     auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
 
+    size_t last_index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    auto &last_frame_asset = m_frame_assets[last_index];
+
     // jitter state
     constexpr float halton_multiplier = 1.f;
     const glm::vec2 pixel_step =
@@ -367,12 +370,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // material override
     m_g_renderer.disable_material = settings.disable_material;
 
-//    m_g_renderer.cull_delegate = [this, &frame_asset](const vierkant::BufferPtr &draws_in,
-//                                                      vierkant::BufferPtr &draws_out,
-//                                                      uint32_t num_draws)
-//    {
-//        digest_draw_command_buffer(frame_asset, draws_in, draws_out, num_draws);
-//    };
+    m_g_renderer.cull_delegate = [this, &frame_asset, &last_frame_asset](const vierkant::BufferPtr &draws_in,
+                                                                         vierkant::BufferPtr &draws_out,
+                                                                         uint32_t num_draws)
+    {
+        if(draws_in && draws_in->num_bytes() && last_frame_asset.depth_pyramid)
+        {
+            digest_draw_command_buffer(frame_asset, last_frame_asset.depth_pyramid, draws_in, draws_out, num_draws);
+        }
+    };
 
     auto &g_buffer = frame_asset.g_buffer;
     auto cmd_buffer = m_g_renderer.render(g_buffer);
@@ -839,6 +845,7 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 }
 
 void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
+                                             const vierkant::ImagePtr &depth_pyramid,
                                              const vierkant::BufferPtr &draws_in,
                                              vierkant::BufferPtr &draws_out,
                                              uint32_t num_draws)
@@ -860,9 +867,9 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     vierkant::Compute::computable_t computable = m_cull_computable;
 
     descriptor_t depth_pyramid_desc = {};
-    depth_pyramid_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    depth_pyramid_desc.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
     depth_pyramid_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    depth_pyramid_desc.images = {frame_asset.depth_pyramid};
+    depth_pyramid_desc.images = {depth_pyramid};
     computable.descriptors[0] = depth_pyramid_desc;
 
     descriptor_t draw_cull_data_desc = {};
@@ -891,26 +898,46 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
         frame_asset.cull_compute = vierkant::Compute(m_device, compute_info);
     }
 
+    computable.extent = {vierkant::group_count(num_draws, m_cull_compute_local_size.x), 1, 1};
+
     frame_asset.cull_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cull_cmd_buffer.begin();
 
     // dispatch cull-compute
     frame_asset.cull_compute.dispatch({computable}, frame_asset.cull_cmd_buffer.handle());
 
-    VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+    // TODO: synchronization2 when vulkan1.3
+//    VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+//    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+//    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+//    barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+//    barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+//    barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+//    barrier.buffer = draws_out->handle();
+//    barrier.offset = 0;
+//    barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(VkDrawIndexedIndirectCommand));
+//
+//    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+//    dependency_info.bufferMemoryBarrierCount = 1;
+//    dependency_info.pBufferMemoryBarriers = &barrier;
+//    dependency_info.dependencyFlags = 0;
+//
+//    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
+
+    VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     barrier.buffer = draws_out->handle();
     barrier.offset = 0;
     barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(VkDrawIndexedIndirectCommand));
 
-    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-    dependency_info.bufferMemoryBarrierCount = 1;
-    dependency_info.pBufferMemoryBarriers = &barrier;
-    dependency_info.dependencyFlags = 0;
-
-    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
+    vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                         0,
+                         0, nullptr,
+                         1, &barrier,
+                         0, nullptr);
 
     frame_asset.cull_cmd_buffer.submit(m_queue, false);
 }

@@ -40,7 +40,7 @@ struct VkDrawIndexedIndirectCommand
 
 layout(binding = 0) uniform sampler2D u_depth_pyramid;
 
-layout(binding = 1) uniform culldata_ubo
+layout(std140, binding = 1) uniform culldata_ubo_t
 {
     draw_cull_data_t cull_data;
 };
@@ -57,7 +57,7 @@ layout(binding = 3) writeonly buffer DrawBufferOut
     VkDrawIndexedIndirectCommand out_draw_data[];
 };
 
-layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
 void main()
 {
