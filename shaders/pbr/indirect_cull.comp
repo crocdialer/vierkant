@@ -6,7 +6,7 @@ struct draw_cull_data_t
 {
     mat4 view;
     float P00, P11, znear, zfar; // symmetric projection parameters
-    float frustum[4]; // data for left/right/top/bottom frustum planes
+    vec4 frustum; // data for left/right/top/bottom frustum planes
 
     vec2 pyramid_size; // depth pyramid size in texels
 
@@ -57,7 +57,7 @@ layout(binding = 3) writeonly buffer DrawBufferOut
     VkDrawIndexedIndirectCommand out_draw_data[];
 };
 
-layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 void main()
 {
@@ -67,5 +67,13 @@ void main()
     // TODO: bounds sanity-check
 
     // simple pass-through
-    out_draw_data[gid] = in_draw_data[gid];
+    VkDrawIndexedIndirectCommand cmd;
+    cmd.indexCount = 0;
+    cmd.instanceCount = 0;
+    cmd.firstIndex = 0;
+    cmd.vertexOffset = 0;
+    cmd.firstInstance = 0;
+
+    if (cull_data.culling_enabled){ out_draw_data[gid] = cmd; }
+    else { out_draw_data[gid] = in_draw_data[gid]; }
 }

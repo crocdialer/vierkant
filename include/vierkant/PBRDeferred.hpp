@@ -138,7 +138,8 @@ private:
         G_BUFFER,
         LIGHTING,
         POST_FX,
-        TONEMAP
+        TONEMAP,
+        DONE = TONEMAP
     };
 
     struct frame_assets_t
@@ -153,6 +154,7 @@ private:
         std::vector<vierkant::Compute> depth_pyramid_computes;
         vierkant::CommandBuffer depth_pyramid_cmd_buffer, cull_cmd_buffer;
         vierkant::Compute cull_compute;
+        vierkant::BufferPtr cull_ubo;
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
         vierkant::BufferPtr g_buffer_ubo;
@@ -200,7 +202,7 @@ private:
         glm::mat4 view = glm::mat4(1);
 
         float P00, P11, znear, zfar; // symmetric projection parameters
-        float frustum[4]; // data for left/right/top/bottom frustum planes
+        glm::vec4 frustum; // data for left/right/top/bottom frustum planes
 
         // depth pyramid size in texels
         glm::vec2 pyramid_size = glm::vec2(0);
@@ -213,8 +215,9 @@ private:
         VkBool32 distance_cull = false;
 
         VkBool32 AABB_check = false;
-        glm::vec3 aabb_min = glm::vec3(0);
-        glm::vec3 aabb_max = glm::vec3(0);
+        glm::vec4 aabb_min = glm::vec4(0);
+        glm::vec4 aabb_max = glm::vec4(0);
+
     };
 
     struct matrix_key_t

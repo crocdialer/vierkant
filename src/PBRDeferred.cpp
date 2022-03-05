@@ -233,6 +233,11 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
 
     // resize internal framebuffers, if necessary
     auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
+
+    // timeline semaphore
+    frame_asset.timeline.wait(SemaphoreValue::CULLING);
+    frame_asset.timeline = vierkant::Semaphore(m_device);
+
     resize_storage(frame_asset, settings.resolution);
 
     // apply+update transform history
@@ -374,15 +379,18 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                                                          vierkant::BufferPtr &draws_out,
                                                                          uint32_t num_draws)
     {
-        if(draws_in && draws_in->num_bytes() && last_frame_asset.depth_pyramid)
-        {
-            digest_draw_command_buffer(frame_asset, last_frame_asset.depth_pyramid, draws_in, draws_out, num_draws);
-        }
+        digest_draw_command_buffer(frame_asset, last_frame_asset.depth_pyramid, draws_in, draws_out, num_draws);
     };
+
+    vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
+    g_buffer_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
+    g_buffer_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+    g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
+    g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER;
 
     auto &g_buffer = frame_asset.g_buffer;
     auto cmd_buffer = m_g_renderer.render(g_buffer);
-    g_buffer.submit({cmd_buffer}, m_queue);
+    g_buffer.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
     return g_buffer;
 }
 
@@ -850,19 +858,32 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
                                              vierkant::BufferPtr &draws_out,
                                              uint32_t num_draws)
 {
+    if(!draws_in || !draws_in->num_bytes() || !depth_pyramid)
+    {
+        frame_asset.timeline.signal(SemaphoreValue::CULLING);
+        return;
+    }
+
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.draw_count = num_draws;
+    draw_cull_data.culling_enabled = true;
 
     if(!draws_out || draws_out->num_bytes() < draws_in->num_bytes())
     {
         draws_out = vierkant::Buffer::create(m_device, nullptr,
                                              draws_in->num_bytes(),
-                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                             VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                              VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
-    auto ubo_buffer = vierkant::Buffer::create(m_device, &draw_cull_data, sizeof(draw_cull_data),
-                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    if(!frame_asset.cull_ubo)
+    {
+        frame_asset.cull_ubo = vierkant::Buffer::create(m_device, &draw_cull_data, sizeof(draw_cull_data),
+                                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                        VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ frame_asset.cull_ubo->set_data(&draw_cull_data, sizeof(draw_cull_data)); }
 
     vierkant::Compute::computable_t computable = m_cull_computable;
 
@@ -875,7 +896,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     descriptor_t draw_cull_data_desc = {};
     draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     draw_cull_data_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    draw_cull_data_desc.buffers = {ubo_buffer};
+    draw_cull_data_desc.buffers = {frame_asset.cull_ubo};
     computable.descriptors[1] = draw_cull_data_desc;
 
     descriptor_t in_buffer_desc = {};
@@ -903,6 +924,21 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     frame_asset.cull_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cull_cmd_buffer.begin();
 
+    VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    barrier.buffer = draws_out->handle();
+    barrier.offset = 0;
+    barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(VkDrawIndexedIndirectCommand));
+
+    vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
+                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
+                         0,
+                         0, nullptr,
+                         1, &barrier,
+                         0, nullptr);
+
     // dispatch cull-compute
     frame_asset.cull_compute.dispatch({computable}, frame_asset.cull_cmd_buffer.handle());
 
@@ -924,13 +960,9 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
 //
 //    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
 
-    VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
-    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    // swap access
     barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    barrier.buffer = draws_out->handle();
-    barrier.offset = 0;
-    barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(VkDrawIndexedIndirectCommand));
+    barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 
     vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
@@ -939,7 +971,10 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
                          1, &barrier,
                          0, nullptr);
 
-    frame_asset.cull_cmd_buffer.submit(m_queue, false);
+    vierkant::semaphore_submit_info_t culling_semaphore_submit_info = {};
+    culling_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
+    culling_semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
+    frame_asset.cull_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {culling_semaphore_submit_info});
 }
 
 }// namespace vierkant
