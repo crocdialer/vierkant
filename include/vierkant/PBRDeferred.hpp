@@ -151,7 +151,7 @@ private:
 
         vierkant::ImagePtr depth_pyramid;
         std::vector<vierkant::Compute> depth_pyramid_computes;
-        vierkant::CommandBuffer depth_pyramid_cmd_buffer;
+        vierkant::CommandBuffer depth_pyramid_cmd_buffer, cull_cmd_buffer;
         vierkant::Compute cull_compute;
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
@@ -259,10 +259,9 @@ private:
     void create_depth_pyramid(frame_assets_t &frame_asset);
 
     void digest_draw_command_buffer(frame_assets_t &frame_asset,
-                                    VkCommandBuffer cmd_buffer,
-                                    uint32_t num_draws,
                                     const vierkant::BufferPtr &draws_in,
-                                    vierkant::BufferPtr &draws_out);
+                                    vierkant::BufferPtr &draws_out,
+                                    uint32_t num_draws);
 
     vierkant::DevicePtr m_device;
 

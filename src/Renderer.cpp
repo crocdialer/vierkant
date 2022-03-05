@@ -263,16 +263,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     next_assets.matrix_buffer = std::move(current_assets.matrix_buffer);
     next_assets.material_buffer = std::move(current_assets.material_buffer);
 
-    VkCommandBufferInheritanceInfo inheritance = {};
-    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance.framebuffer = framebuffer.handle();
-    inheritance.renderPass = framebuffer.renderpass().get();
-
-    // fetch and start commandbuffer
-    next_assets.command_buffer = std::move(current_assets.command_buffer);
-    auto &command_buffer = next_assets.command_buffer;
-    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
-
     struct indirect_draw_asset_t
     {
         uint32_t num_draws = 0;
@@ -316,10 +306,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             for(const auto &tex : drawable_textures)
             {
                 texture_index_map[tex] = textures.size();
-
-                // transition image-layouts
-                tex->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, command_buffer.handle());
-
                 textures.push_back(tex);
             }
         }
@@ -352,6 +338,15 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     // update uniform buffers
     update_buffers(current_assets.drawables, next_assets);
 
+    // sort by pipelines
+    struct indexed_drawable_t
+    {
+        uint32_t object_index = 0;
+        vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
+        drawable_t *drawable = nullptr;
+    };
+    std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipeline_drawables;
+
     // preprocess drawables
     for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
     {
@@ -362,76 +357,102 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         pipeline_format.sample_count = m_sample_count;
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
-        DescriptorSetLayoutPtr descriptor_set_layout;
+        indexed_drawable_t indexed_drawable = {};
+        indexed_drawable.object_index = i;
+        indexed_drawable.drawable = &drawable;
 
         if(!current_assets.drawables[i].descriptor_set_layout)
         {
-            descriptor_set_layout = find_set_layout(drawable.descriptors, current_assets, next_assets);
-            pipeline_format.descriptor_set_layouts = {descriptor_set_layout.get()};
+            indexed_drawable.descriptor_set_layout = find_set_layout(drawable.descriptors, current_assets, next_assets);
+            pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
-        else{ descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
+        else{ indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
 
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
-        auto &indirect_draws = pipelines[pipeline_format];
+        // push intermediate struct
+        pipeline_drawables[pipeline_format].push_back(indexed_drawable);
+    }
 
-        // create new indirect-draw batch
-        if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable.mesh)
+    // fill up indirect draw buffers
+    for(const auto &[pipe_fmt, indexed_drawables] : pipeline_drawables)
+    {
+        auto &indirect_draws = pipelines[pipe_fmt];
+
+        // gather indirect drawing commands into buffers
+        for(auto &indexed_drawable : indexed_drawables)
         {
-            indirect_draw_asset_t new_draw = {};
-            new_draw.first_draw_index = indirect_draw_index;
-            new_draw.first_indexed_draw_index = indexed_indirect_draw_index;
-            new_draw.scissor = pipeline_format.scissor;
+            auto &drawable = indexed_drawable.drawable;
 
-            // predefined buffers
-            if(!drawable.use_own_buffers)
+            // create new indirect-draw batch
+            if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
             {
-                drawable.descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
-                drawable.descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
+                indirect_draw_asset_t new_draw = {};
+                new_draw.first_draw_index = indirect_draw_index;
+                new_draw.first_indexed_draw_index = indexed_indirect_draw_index;
+                new_draw.scissor = drawable->pipeline_format.scissor;
 
-                if(drawable.descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
+                // predefined buffers
+                if(!drawable->use_own_buffers)
                 {
-                    drawable.descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
+                    drawable->descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
+                    drawable->descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
+
+                    if(drawable->descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
+                    {
+                        drawable->descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
+                    }
                 }
+
+                auto descriptor_set = find_set(drawable->mesh, indexed_drawable.descriptor_set_layout,
+                                               drawable->descriptors,
+                                               current_assets, next_assets, false);
+
+                auto bindless_texture_set = find_set(drawable->mesh, bindless_texture_layout, bindless_texture_desc,
+                                                     current_assets,
+                                                     next_assets, true);
+
+                new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
+
+                indirect_draws.emplace_back(drawable->mesh, std::move(new_draw));
             }
+            auto &indirect_draw_asset = indirect_draws.back().second;
+            indirect_draw_asset.num_draws++;
 
-            auto descriptor_set = find_set(drawable.mesh, descriptor_set_layout, drawable.descriptors,
-                                           current_assets, next_assets, false);
+            if(drawable->mesh && drawable->mesh->index_buffer)
+            {
+                auto draw_command =
+                        static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
+                        indexed_indirect_draw_index++;
 
-            auto bindless_texture_set = find_set(drawable.mesh, bindless_texture_layout, bindless_texture_desc,
-                                                 current_assets,
-                                                 next_assets, true);
+                draw_command->firstIndex = drawable->base_index;
+                draw_command->indexCount = drawable->num_indices;
+                draw_command->vertexOffset = drawable->vertex_offset;
+                draw_command->firstInstance = indexed_drawable.object_index;
+                draw_command->instanceCount = 1;
+            }
+            else
+            {
+                auto draw_command = static_cast<VkDrawIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
+                                    indirect_draw_index++;
 
-            new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
-
-            indirect_draws.emplace_back(drawable.mesh, std::move(new_draw));
+                draw_command->vertexCount = drawable->num_vertices;
+                draw_command->instanceCount = 1;
+                draw_command->firstVertex = drawable->vertex_offset;
+                draw_command->firstInstance = indexed_drawable.object_index;
+            }
         }
-        auto &indirect_draw_asset = indirect_draws.back().second;
-        indirect_draw_asset.num_draws++;
+    }
 
-        if(drawable.mesh && drawable.mesh->index_buffer)
-        {
-            auto draw_command =
-                    static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
-                    indexed_indirect_draw_index++;
+    // hook up GPU frustum/occlusion/distance culling here
+    vierkant::BufferPtr draw_buffer = next_assets.indexed_indirect_draw_buffer;
 
-            draw_command->firstIndex = drawable.base_index;
-            draw_command->indexCount = drawable.num_indices;
-            draw_command->vertexOffset = drawable.vertex_offset;
-            draw_command->firstInstance = i;
-            draw_command->instanceCount = 1;
-        }
-        else
-        {
-            auto draw_command = static_cast<VkDrawIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
-                                indirect_draw_index++;
-
-            draw_command->vertexCount = drawable.num_vertices;
-            draw_command->instanceCount = 1;
-            draw_command->firstVertex = drawable.vertex_offset;
-            draw_command->firstInstance = i;
-        }
+    if(cull_delegate)
+    {
+        cull_delegate(next_assets.indexed_indirect_draw_buffer, next_assets.indexed_indirect_culled,
+                      indexed_indirect_draw_index);
+        draw_buffer = next_assets.indexed_indirect_culled;
     }
 
     // push constants
@@ -439,6 +460,16 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     push_constants.size = {viewport.width, viewport.height};
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.disable_material = disable_material;
+
+    VkCommandBufferInheritanceInfo inheritance = {};
+    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritance.framebuffer = framebuffer.handle();
+    inheritance.renderPass = framebuffer.renderpass().get();
+
+    // fetch and start commandbuffer
+    next_assets.command_buffer = std::move(current_assets.command_buffer);
+    auto &command_buffer = next_assets.command_buffer;
+    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
     // grouped by pipelines
     for(auto &[pipe_fmt, indirect_draws] : pipelines)
@@ -458,16 +489,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         {
             // set dynamic viewport
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
-        }
-
-        // hook up GPU frustum/occlusion/distance culling here
-        vierkant::BufferPtr draw_buffer = next_assets.indexed_indirect_draw_buffer;
-
-        if(cull_delegate)
-        {
-            cull_delegate(command_buffer.handle(), indexed_indirect_draw_index,
-                          next_assets.indexed_indirect_draw_buffer, next_assets.indexed_indirect_culled);
-            draw_buffer = next_assets.indexed_indirect_culled;
         }
 
         for(auto &[mesh, draw_asset] : indirect_draws)
@@ -494,7 +515,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                 // issue (indexed) drawing command
                 if(mesh && mesh->index_buffer)
                 {
-
                     size_t indexed_indirect_cmd_stride = sizeof(VkDrawIndexedIndirectCommand);
 
                     vkCmdDrawIndexedIndirect(command_buffer.handle(),

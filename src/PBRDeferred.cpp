@@ -367,12 +367,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // material override
     m_g_renderer.disable_material = settings.disable_material;
 
-//    m_g_renderer.cull_delegate = [this, &frame_asset](VkCommandBuffer cmd_buffer,
-//                                                      uint32_t num_draws,
-//                                                      const vierkant::BufferPtr &draws_in,
-//                                                      vierkant::BufferPtr &draws_out)
+//    m_g_renderer.cull_delegate = [this, &frame_asset](const vierkant::BufferPtr &draws_in,
+//                                                      vierkant::BufferPtr &draws_out,
+//                                                      uint32_t num_draws)
 //    {
-//        digest_draw_command_buffer(frame_asset, cmd_buffer, num_draws, draws_in, draws_out);
+//        digest_draw_command_buffer(frame_asset, draws_in, draws_out, num_draws);
 //    };
 
     auto &g_buffer = frame_asset.g_buffer;
@@ -840,10 +839,9 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 }
 
 void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
-                                             VkCommandBuffer cmd_buffer,
-                                             uint32_t num_draws,
                                              const vierkant::BufferPtr &draws_in,
-                                             vierkant::BufferPtr &draws_out)
+                                             vierkant::BufferPtr &draws_out,
+                                             uint32_t num_draws)
 {
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.draw_count = num_draws;
@@ -893,8 +891,11 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
         frame_asset.cull_compute = vierkant::Compute(m_device, compute_info);
     }
 
+    frame_asset.cull_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    frame_asset.cull_cmd_buffer.begin();
+
     // dispatch cull-compute
-    frame_asset.cull_compute.dispatch({computable}, cmd_buffer);
+    frame_asset.cull_compute.dispatch({computable}, frame_asset.cull_cmd_buffer.handle());
 
     VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -909,7 +910,9 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     dependency_info.pBufferMemoryBarriers = &barrier;
     dependency_info.dependencyFlags = 0;
 
-    vkCmdPipelineBarrier2(cmd_buffer, &dependency_info);
+    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
+
+    frame_asset.cull_cmd_buffer.submit(m_queue, false);
 }
 
 }// namespace vierkant

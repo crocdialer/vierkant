@@ -89,10 +89,9 @@ public:
 //    };
 
     //! define syntax for a culling-delegate
-    using indirect_draw_cull_delegate_t = std::function<void(VkCommandBuffer cmd_buffer,
-                                                             uint32_t num_draws,
-                                                             const vierkant::BufferPtr &draws_in,
-                                                             vierkant::BufferPtr &draws_out)>;
+    using indirect_draw_cull_delegate_t = std::function<void(const vierkant::BufferPtr &draws_in,
+                                                             vierkant::BufferPtr &draws_out,
+                                                             uint32_t num_draws)>;
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
      */
