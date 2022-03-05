@@ -216,6 +216,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.scissor, rhs.scissor);
     std::swap(lhs.disable_material, rhs.disable_material);
     std::swap(lhs.indirect_draw, rhs.indirect_draw);
+    std::swap(lhs.cull_delegate, rhs.cull_delegate);
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_sample_count, rhs.m_sample_count);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
@@ -473,6 +474,16 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             }
         }
 
+        // hook up GPU frustum/occlusion/distance culling here
+        vierkant::BufferPtr draw_buffer = next_assets.indexed_indirect_draw_buffer;
+
+        if(cull_delegate)
+        {
+            cull_delegate(command_buffer.handle(), indexed_indirect_draw_index,
+                          next_assets.indexed_indirect_draw_buffer, next_assets.indexed_indirect_culled);
+            draw_buffer = next_assets.indexed_indirect_culled;
+        }
+
         for(auto &[mesh, draw_asset] : indirect_draws)
         {
             if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
@@ -501,7 +512,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                     size_t indexed_indirect_cmd_stride = sizeof(VkDrawIndexedIndirectCommand);
 
                     vkCmdDrawIndexedIndirect(command_buffer.handle(),
-                                             next_assets.indexed_indirect_draw_buffer->handle(),
+                                             draw_buffer->handle(),
                                              indexed_indirect_cmd_stride * draw_asset.first_indexed_draw_index,
                                              draw_asset.num_draws,
                                              indexed_indirect_cmd_stride);

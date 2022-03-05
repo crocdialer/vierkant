@@ -206,9 +206,15 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         m_sample_offsets[i] = glm::vec2(halton(i + 1, 2), halton(i + 1, 3));
     }
 
+    // depth pyramid compute
     auto shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::depth_min_reduce_comp,
                                                        &m_depth_pyramid_local_size);
     m_depth_pyramid_computable.pipeline_info.shader_stage = shader_stage;
+
+    // indirect-draw cull compute
+    auto cull_shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::indirect_cull_comp,
+                                                            &m_cull_compute_local_size);
+    m_cull_computable.pipeline_info.shader_stage = shader_stage;
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -361,7 +367,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // material override
     m_g_renderer.disable_material = settings.disable_material;
 
-    auto &g_buffer = m_frame_assets[m_g_renderer.current_index()].g_buffer;
+//    m_g_renderer.cull_delegate = [this, &frame_asset](VkCommandBuffer cmd_buffer,
+//                                                      uint32_t num_draws,
+//                                                      const vierkant::BufferPtr &draws_in,
+//                                                      vierkant::BufferPtr &draws_out)
+//    {
+//        digest_draw_command_buffer(frame_asset, cmd_buffer, num_draws, draws_in, draws_out);
+//    };
+
+    auto &g_buffer = frame_asset.g_buffer;
     auto cmd_buffer = m_g_renderer.render(g_buffer);
     g_buffer.submit({cmd_buffer}, m_queue);
     return g_buffer;
@@ -782,6 +796,9 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
     barrier.subresourceRange.levelCount = 1;
+    barrier.oldLayout = barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
     frame_asset.depth_pyramid_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.depth_pyramid_cmd_buffer.begin();
@@ -810,11 +827,6 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
                                                              frame_asset.depth_pyramid_cmd_buffer.handle());
 
         barrier.subresourceRange.baseMipLevel = lvl - 1;
-        barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
-        barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
         vkCmdPipelineBarrier(frame_asset.depth_pyramid_cmd_buffer.handle(),
                              VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                              VK_DEPENDENCY_BY_REGION_BIT,
@@ -825,6 +837,79 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 
     // TODO: signal timeline
     frame_asset.depth_pyramid_cmd_buffer.submit(m_queue);
+}
+
+void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
+                                             VkCommandBuffer cmd_buffer,
+                                             uint32_t num_draws,
+                                             const vierkant::BufferPtr &draws_in,
+                                             vierkant::BufferPtr &draws_out)
+{
+    draw_cull_data_t draw_cull_data = {};
+    draw_cull_data.draw_count = num_draws;
+
+    if(!draws_out || draws_out->num_bytes() < draws_in->num_bytes())
+    {
+        draws_out = vierkant::Buffer::create(m_device, nullptr,
+                                             draws_in->num_bytes(),
+                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                             VMA_MEMORY_USAGE_GPU_ONLY);
+    }
+
+    auto ubo_buffer = vierkant::Buffer::create(m_device, &draw_cull_data, sizeof(draw_cull_data),
+                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    vierkant::Compute::computable_t computable = m_cull_computable;
+
+    descriptor_t depth_pyramid_desc = {};
+    depth_pyramid_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    depth_pyramid_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+    depth_pyramid_desc.images = {frame_asset.depth_pyramid};
+    computable.descriptors[0] = depth_pyramid_desc;
+
+    descriptor_t draw_cull_data_desc = {};
+    draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    draw_cull_data_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+    draw_cull_data_desc.buffers = {ubo_buffer};
+    computable.descriptors[1] = draw_cull_data_desc;
+
+    descriptor_t in_buffer_desc = {};
+    in_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    in_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+    in_buffer_desc.buffers = {draws_in};
+    computable.descriptors[2] = in_buffer_desc;
+
+    descriptor_t out_buffer_desc = {};
+    out_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    out_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+    out_buffer_desc.buffers = {draws_out};
+    computable.descriptors[3] = out_buffer_desc;
+
+    if(!frame_asset.cull_compute)
+    {
+        vierkant::Compute::create_info_t compute_info = {};
+        compute_info.pipeline_cache = m_pipeline_cache;
+        compute_info.command_pool = m_command_pool;
+        frame_asset.cull_compute = vierkant::Compute(m_device, compute_info);
+    }
+
+    // dispatch cull-compute
+    frame_asset.cull_compute.dispatch({computable}, cmd_buffer);
+
+    VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+    barrier.buffer = draws_out->handle();
+    barrier.offset = 0;
+    barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(VkDrawIndexedIndirectCommand));
+
+    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    dependency_info.bufferMemoryBarrierCount = 1;
+    dependency_info.pBufferMemoryBarriers = &barrier;
+    dependency_info.dependencyFlags = 0;
+
+    vkCmdPipelineBarrier2(cmd_buffer, &dependency_info);
 }
 
 }// namespace vierkant

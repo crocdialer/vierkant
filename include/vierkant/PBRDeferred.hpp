@@ -152,6 +152,7 @@ private:
         vierkant::ImagePtr depth_pyramid;
         std::vector<vierkant::Compute> depth_pyramid_computes;
         vierkant::CommandBuffer depth_pyramid_cmd_buffer;
+        vierkant::Compute cull_compute;
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
         vierkant::BufferPtr g_buffer_ubo;
@@ -192,6 +193,28 @@ private:
         float time_delta = 1.f / 60.f;
         float shutter_time = 1.f / 60.f;
         float motionblur_gain = 1.f;
+    };
+
+    struct alignas(16) draw_cull_data_t
+    {
+        glm::mat4 view = glm::mat4(1);
+
+        float P00, P11, znear, zfar; // symmetric projection parameters
+        float frustum[4]; // data for left/right/top/bottom frustum planes
+
+        // depth pyramid size in texels
+        glm::vec2 pyramid_size = glm::vec2(0);
+
+        uint32_t draw_count = 0;
+
+        VkBool32 culling_enabled = false;
+        VkBool32 lod_enabled = false;
+        VkBool32 occlusion_enabled = false;
+        VkBool32 distance_cull = false;
+
+        VkBool32 AABB_check = false;
+        glm::vec3 aabb_min = glm::vec3(0);
+        glm::vec3 aabb_max = glm::vec3(0);
     };
 
     struct matrix_key_t
@@ -235,6 +258,12 @@ private:
 
     void create_depth_pyramid(frame_assets_t &frame_asset);
 
+    void digest_draw_command_buffer(frame_assets_t &frame_asset,
+                                    VkCommandBuffer cmd_buffer,
+                                    uint32_t num_draws,
+                                    const vierkant::BufferPtr &draws_in,
+                                    vierkant::BufferPtr &draws_out);
+
     vierkant::DevicePtr m_device;
 
     VkQueue m_queue = VK_NULL_HANDLE;
@@ -271,7 +300,10 @@ private:
             m_drawable_taa;
 
     vierkant::Compute::computable_t m_depth_pyramid_computable;
-    glm::uvec3 m_depth_pyramid_local_size;
+    glm::uvec3 m_depth_pyramid_local_size{0};
+
+    vierkant::Compute::computable_t m_cull_computable;
+    glm::uvec3 m_cull_compute_local_size{0};
 
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;

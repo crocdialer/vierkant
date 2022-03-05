@@ -88,6 +88,11 @@ public:
 //        int padding[1];
 //    };
 
+    //! define syntax for a culling-delegate
+    using indirect_draw_cull_delegate_t = std::function<void(VkCommandBuffer cmd_buffer,
+                                                             uint32_t num_draws,
+                                                             const vierkant::BufferPtr &draws_in,
+                                                             vierkant::BufferPtr &draws_out)>;
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
      */
@@ -157,6 +162,9 @@ public:
 
     //! option to use indirect drawing
     bool indirect_draw = true;
+
+    //! optional cull-delegate
+    indirect_draw_cull_delegate_t cull_delegate;
 
     Renderer() = default;
 
@@ -254,8 +262,8 @@ private:
         vierkant::BufferPtr material_buffer;
 
         // draw-indirect buffers
-        vierkant::BufferPtr indirect_draw_buffer;
-        vierkant::BufferPtr indexed_indirect_draw_buffer;
+        vierkant::BufferPtr indirect_draw_buffer, indirect_culled;
+        vierkant::BufferPtr indexed_indirect_draw_buffer, indexed_indirect_culled;
 
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
@@ -271,7 +279,7 @@ private:
 
     DescriptorSetPtr find_set(const vierkant::MeshConstPtr &mesh,
                               const DescriptorSetLayoutPtr &set_layout,
-                              const descriptor_map_t& descriptors,
+                              const descriptor_map_t &descriptors,
                               frame_assets_t &current,
                               frame_assets_t &next,
                               bool variable_count);
