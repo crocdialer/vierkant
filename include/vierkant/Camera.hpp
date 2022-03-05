@@ -25,11 +25,11 @@ class Camera : public Object3D
 {
 public:
 
-    glm::mat4 projection_matrix() const{ return m_projection; };
-
     glm::mat4 view_matrix() const;
 
     vierkant::AABB boundingbox() const;
+
+    virtual glm::mat4 projection_matrix() const = 0;
 
     virtual vierkant::Frustum frustum() const = 0;
 
@@ -45,11 +45,6 @@ protected:
 
     explicit Camera(const std::string &name);
 
-    glm::mat4 m_projection{};
-
-private:
-
-    virtual void update_projection_matrix() = 0;
 };
 
 class OrthoCamera : public Camera
@@ -58,6 +53,8 @@ public:
 
     static OrthoCameraPtr create(float left, float right, float bottom, float top, float near, float far);
 
+    glm::mat4 projection_matrix() const override;
+
     vierkant::Frustum frustum() const override;
 
     float near() const override{ return m_near; };
@@ -65,7 +62,6 @@ public:
     void near(float val)
     {
         m_near = val;
-        update_projection_matrix();
     };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
@@ -75,7 +71,6 @@ public:
     void far(float val)
     {
         m_far = val;
-        update_projection_matrix();
     };
 
     float fov() const override{ return glm::degrees(atanf(std::abs(m_right - m_left) / std::abs(m_far - m_near))); };
@@ -85,7 +80,6 @@ public:
     void left(float val)
     {
         m_left = val;
-        update_projection_matrix();
     };
 
     inline float right() const{ return m_right; };
@@ -93,7 +87,6 @@ public:
     void right(float val)
     {
         m_right = val;
-        update_projection_matrix();
     };
 
     inline float bottom() const{ return m_bottom; };
@@ -101,7 +94,6 @@ public:
     void bottom(float val)
     {
         m_bottom = val;
-        update_projection_matrix();
     };
 
     inline float top() const{ return m_top; };
@@ -109,7 +101,6 @@ public:
     void top(float val)
     {
         m_top = val;
-        update_projection_matrix();
     };
 
     void set_size(const glm::vec2 &the_sz);
@@ -118,8 +109,6 @@ private:
 
     OrthoCamera(float left, float right, float bottom, float top,
                 float near, float far);
-
-    void update_projection_matrix() override;
 
     float m_left, m_right, m_bottom, m_top, m_near, m_far;
 };
@@ -133,6 +122,8 @@ public:
     {
         return PerspectiveCameraPtr(new PerspectiveCamera(ascpect, fov, near, far));
     }
+
+    glm::mat4 projection_matrix() const override;
 
     vierkant::Frustum frustum() const override;
 
@@ -156,8 +147,6 @@ private:
 
     PerspectiveCamera(float ascpect, float fov, float near, float far);
 
-    void update_projection_matrix() override;
-
     float m_near, m_far;
     float m_fov;
     float m_aspect;
@@ -171,6 +160,8 @@ public:
     {
         return CubeCameraPtr(new CubeCamera(the_near, the_far));
     };
+
+    glm::mat4 projection_matrix() const override;
 
     vierkant::Frustum frustum() const override;
 
@@ -189,8 +180,6 @@ public:
 private:
 
     CubeCamera(float the_near, float the_far);
-
-    void update_projection_matrix() override;
 
     float m_near, m_far;
 };

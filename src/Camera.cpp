@@ -60,16 +60,16 @@ OrthoCamera::OrthoCamera(float left, float right,
         m_near(near),
         m_far(far)
 {
-    update_projection_matrix();
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void OrthoCamera::update_projection_matrix()
+glm::mat4 OrthoCamera::projection_matrix() const
 {
     auto m = glm::orthoRH(m_left, m_right, m_bottom, m_top, m_near, m_far);
     m[1][1] *= -1;
-    m_projection = m;
+    return m;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +103,6 @@ void OrthoCamera::set_size(const glm::vec2 &the_sz)
     m_top = the_sz.y;
     m_near = 0.f;
     m_far = 1.f;
-    update_projection_matrix();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,14 +114,14 @@ PerspectiveCamera::PerspectiveCamera(float ascpect, float fov, float near, float
         m_fov(fov),
         m_aspect(ascpect)
 {
-    update_projection_matrix();
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void PerspectiveCamera::update_projection_matrix()
+glm::mat4 PerspectiveCamera::projection_matrix() const
 {
-    m_projection = perspective_infinite_reverse_RH_ZO(glm::radians(m_fov), m_aspect, m_near);
+    return perspective_infinite_reverse_RH_ZO(glm::radians(m_fov), m_aspect, m_near);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,7 +136,6 @@ vierkant::Frustum PerspectiveCamera::frustum() const
 void PerspectiveCamera::set_fov(float theFov)
 {
     m_fov = theFov;
-    update_projection_matrix();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -146,7 +144,6 @@ void PerspectiveCamera::set_aspect(float theAspect)
 {
     if(std::isnan(theAspect)){ return; }
     m_aspect = theAspect;
-    update_projection_matrix();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -155,7 +152,6 @@ void PerspectiveCamera::set_clipping(float near, float far)
 {
     m_near = near;
     m_far = far;
-    update_projection_matrix();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -189,14 +185,14 @@ CubeCamera::CubeCamera(float the_near, float the_far) :
         m_near(the_near),
         m_far(the_far)
 {
-    update_projection_matrix();
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CubeCamera::update_projection_matrix()
+glm::mat4 CubeCamera::projection_matrix() const
 {
-    m_projection = perspective_infinite_reverse_RH_ZO(glm::radians(90.f), 1.f, m_near);
+    return perspective_infinite_reverse_RH_ZO(glm::radians(90.f), 1.f, m_near);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

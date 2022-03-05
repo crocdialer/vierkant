@@ -213,11 +213,6 @@ private:
         VkBool32 lod_enabled = false;
         VkBool32 occlusion_enabled = false;
         VkBool32 distance_cull = false;
-
-        VkBool32 AABB_check = false;
-        glm::vec4 aabb_min = glm::vec4(0);
-        glm::vec4 aabb_max = glm::vec4(0);
-
     };
 
     struct matrix_key_t
@@ -262,6 +257,7 @@ private:
     void create_depth_pyramid(frame_assets_t &frame_asset);
 
     void digest_draw_command_buffer(frame_assets_t &frame_asset,
+                                    const vierkant::CameraPtr &cam,
                                     const vierkant::ImagePtr &depth_pyramid,
                                     const vierkant::BufferPtr &draws_in,
                                     vierkant::BufferPtr &draws_out,

@@ -375,11 +375,12 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // material override
     m_g_renderer.disable_material = settings.disable_material;
 
-    m_g_renderer.cull_delegate = [this, &frame_asset, &last_frame_asset](const vierkant::BufferPtr &draws_in,
-                                                                         vierkant::BufferPtr &draws_out,
-                                                                         uint32_t num_draws)
+    m_g_renderer.cull_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
+            (const vierkant::BufferPtr &draws_in,
+             vierkant::BufferPtr &draws_out,
+             uint32_t num_draws)
     {
-        digest_draw_command_buffer(frame_asset, last_frame_asset.depth_pyramid, draws_in, draws_out, num_draws);
+        digest_draw_command_buffer(frame_asset, cam, last_frame_asset.depth_pyramid, draws_in, draws_out, num_draws);
     };
 
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
@@ -853,6 +854,7 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 }
 
 void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
+                                             const vierkant::CameraPtr &cam,
                                              const vierkant::ImagePtr &depth_pyramid,
                                              const vierkant::BufferPtr &draws_in,
                                              vierkant::BufferPtr &draws_out,
@@ -866,7 +868,15 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
 
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.draw_count = num_draws;
-    draw_cull_data.culling_enabled = true;
+    draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
+    draw_cull_data.occlusion_enabled = true;
+//    draw_cull_data.culling_enabled = true;
+
+    auto projection = cam->projection_matrix();
+    draw_cull_data.P00 = projection[0][0];
+    draw_cull_data.P11 = projection[1][1];
+    draw_cull_data.znear = cam->near();
+    draw_cull_data.zfar = cam->far();
 
     if(!draws_out || draws_out->num_bytes() < draws_in->num_bytes())
     {

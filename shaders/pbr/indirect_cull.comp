@@ -5,10 +5,10 @@
 struct draw_cull_data_t
 {
     mat4 view;
-    float P00, P11, znear, zfar; // symmetric projection parameters
-    vec4 frustum; // data for left/right/top/bottom frustum planes
+    float P00, P11, znear, zfar;// symmetric projection parameters
+    vec4 frustum;// data for left/right/top/bottom frustum planes
 
-    vec2 pyramid_size; // depth pyramid size in texels
+    vec2 pyramid_size;// depth pyramid size in texels
 
     uint draw_count;
 
@@ -16,10 +16,6 @@ struct draw_cull_data_t
     bool lod_enabled;
     bool occlusion_enabled;
     bool distance_cull;
-
-    bool AABB_check;
-    vec3 aabb_min;
-    vec3 aabb_max;
 };
 
 //typedef struct VkDrawIndirectCommand {
@@ -64,16 +60,10 @@ void main()
     uint gid = gl_GlobalInvocationID.x;
     if(gid >= cull_data.draw_count){ return; }
 
-    // TODO: bounds sanity-check
-
     // simple pass-through
-    VkDrawIndexedIndirectCommand cmd;
-    cmd.indexCount = 0;
-    cmd.instanceCount = 0;
-    cmd.firstIndex = 0;
-    cmd.vertexOffset = 0;
-    cmd.firstInstance = 0;
+    VkDrawIndexedIndirectCommand cmd = in_draw_data[gid];
 
-    if (cull_data.culling_enabled){ out_draw_data[gid] = cmd; }
-    else { out_draw_data[gid] = in_draw_data[gid]; }
+    if(cull_data.culling_enabled && (gid % 2) == 0){ cmd.instanceCount = 0; }
+
+    out_draw_data[gid] = cmd;
 }
