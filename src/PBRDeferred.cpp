@@ -870,6 +870,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     draw_cull_data.draw_count = num_draws;
     draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
     draw_cull_data.occlusion_enabled = true;
+    draw_cull_data.distance_cull = true;
 //    draw_cull_data.culling_enabled = true;
 
     auto projection = cam->projection_matrix();
@@ -877,6 +878,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     draw_cull_data.P11 = projection[1][1];
     draw_cull_data.znear = cam->near();
     draw_cull_data.zfar = cam->far();
+    draw_cull_data.view = cam->view_matrix();
 
     if(!draws_out || draws_out->num_bytes() < draws_in->num_bytes())
     {
@@ -940,7 +942,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
     barrier.buffer = draws_out->handle();
     barrier.offset = 0;
-    barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(VkDrawIndexedIndirectCommand));
+    barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(Renderer::indexed_indirect_command_t));
 
     vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,

@@ -423,14 +423,24 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
                 auto draw_command =
-                        static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
+                        static_cast<indexed_indirect_command_t *>(next_assets.indexed_indirect_draw_buffer->map()) +
                         indexed_indirect_draw_index++;
 
-                draw_command->firstIndex = drawable->base_index;
-                draw_command->indexCount = drawable->num_indices;
-                draw_command->vertexOffset = drawable->vertex_offset;
-                draw_command->firstInstance = indexed_drawable.object_index;
-                draw_command->instanceCount = 1;
+                draw_command->first_index = drawable->base_index;
+                draw_command->index_count = drawable->num_indices;
+                draw_command->vertex_offset = drawable->vertex_offset;
+                draw_command->first_instance = indexed_drawable.object_index;
+                draw_command->instance_count = 1;
+
+                draw_command->object_index = indexed_drawable.object_index;
+
+                // bounding sphere xyz, radius
+                if(drawable->mesh && !drawable->mesh->entries.empty())
+                {
+                    auto aabb = drawable->mesh->entries[drawable->entry_index].boundingbox.transform(
+                            drawable->matrices.modelview);
+                    draw_command->sphere_bounds = glm::vec4(aabb.center(), glm::length(aabb.half_extents()));
+                }
             }
             else
             {
@@ -515,7 +525,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                 // issue (indexed) drawing command
                 if(mesh && mesh->index_buffer)
                 {
-                    size_t indexed_indirect_cmd_stride = sizeof(VkDrawIndexedIndirectCommand);
+                    size_t indexed_indirect_cmd_stride = sizeof(indexed_indirect_command_t);
 
                     vkCmdDrawIndexedIndirect(command_buffer.handle(),
                                              draw_buffer->handle(),
@@ -541,11 +551,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
                     for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
                     {
                         auto cmd =
-                                static_cast<VkDrawIndexedIndirectCommand *>(next_assets.indexed_indirect_draw_buffer->map()) +
+                                static_cast<indexed_indirect_command_t *>(next_assets.indexed_indirect_draw_buffer->map()) +
                                 draw_asset.first_indexed_draw_index + i;
 
-                        vkCmdDrawIndexed(command_buffer.handle(), cmd->indexCount, cmd->instanceCount, cmd->firstIndex,
-                                         cmd->vertexOffset, cmd->firstInstance);
+                        vkCmdDrawIndexed(command_buffer.handle(), cmd->index_count, cmd->instance_count,
+                                         cmd->first_index,
+                                         cmd->vertex_offset, cmd->first_instance);
                     }
                 }
                 else
@@ -722,14 +733,14 @@ DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh,
 void Renderer::resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_t num_drawables)
 {
     // reserve space for indirect drawing-commands
-    size_t indexed_indirect_size = num_drawables * sizeof(VkDrawIndexedIndirectCommand);
+    size_t indexed_indirect_size = num_drawables * sizeof(indexed_indirect_command_t);
 
     if(!frame_asset.indexed_indirect_draw_buffer)
     {
         frame_asset.indexed_indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
                                                                             indexed_indirect_size,
                                                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
     else{ frame_asset.indexed_indirect_draw_buffer->set_data(nullptr, indexed_indirect_size); }
@@ -741,7 +752,7 @@ void Renderer::resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_
         frame_asset.indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
                                                                     indirect_size,
                                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
     else{ frame_asset.indirect_draw_buffer->set_data(nullptr, indirect_size); }

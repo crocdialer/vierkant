@@ -88,6 +88,19 @@ public:
 //        int padding[1];
 //    };
 
+    struct alignas(16) indexed_indirect_command_t
+    {
+        //! matches VkDrawIndexedIndirectCommand
+        uint32_t index_count;
+        uint32_t instance_count;
+        uint32_t first_index;
+        int32_t vertex_offset;
+        uint32_t first_instance;
+
+        uint32_t object_index;
+        uint32_t padding[2];
+        glm::vec4 sphere_bounds;
+    };
     //! define syntax for a culling-delegate
     using indirect_draw_cull_delegate_t = std::function<void(const vierkant::BufferPtr &draws_in,
                                                              vierkant::BufferPtr &draws_out,
