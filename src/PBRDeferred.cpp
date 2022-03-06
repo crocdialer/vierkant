@@ -234,9 +234,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     // resize internal framebuffers, if necessary
     auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
 
-    // timeline semaphore
-    frame_asset.timeline.wait(SemaphoreValue::CULLING);
-    frame_asset.timeline = vierkant::Semaphore(m_device);
+//    // timeline semaphore
+//    frame_asset.timeline.wait(SemaphoreValue::CULLING);
+//    frame_asset.timeline = vierkant::Semaphore(m_device);
 
     resize_storage(frame_asset, settings.resolution);
 
@@ -375,7 +375,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // material override
     m_g_renderer.disable_material = settings.disable_material;
 
-    if(settings.gpu_culling)
+    if(settings.frustum_culling || settings.occlusion_culling)
     {
         m_g_renderer.cull_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
                 (const vierkant::BufferPtr &draws_in,
@@ -879,7 +879,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     draw_cull_data.draw_count = num_draws;
     draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
     draw_cull_data.occlusion_enabled = settings.occlusion_culling;
-    draw_cull_data.distance_cull = settings.gpu_culling;
+    draw_cull_data.distance_cull = false;
     draw_cull_data.culling_enabled = settings.frustum_culling;
 
     auto projection = cam->projection_matrix();

@@ -98,12 +98,15 @@ void main()
         visible = visible && center.z * cull_data.frustum[1] - abs(center.x) * cull_data.frustum[0] > -radius;
         visible = visible && center.z * cull_data.frustum[3] - abs(center.y) * cull_data.frustum[2] > -radius;
     }
-    visible = visible && !(cull_data.distance_cull && (-center.z + radius) > cull_data.zfar);
+    visible = visible && !(cull_data.distance_cull && (-center.z - radius) > cull_data.zfar);
 
     if(cull_data.occlusion_enabled)
     {
         // 2D-screenspace AABB for a 3D-boundingsphere
         vec4 aabb;
+
+        //flip Y because we access depth texture that way (!?)
+        center.yz *= -1;
 
         // get cracking with depth-pyramid
         if(project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb))
@@ -117,10 +120,10 @@ void main()
             float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
             float depth_sphere = cull_data.znear / (center.z - radius);
 
-            visible = visible && depth_sphere >= depth;
+            visible = visible && (depth_sphere >= depth);
         }
     }
 
-    if(!visible){ draw.instanceCount = 0; }
+    if(!visible){ draw.instanceCount = draw.indexCount = 0; }
     out_draw_data[gid] = draw;
 }

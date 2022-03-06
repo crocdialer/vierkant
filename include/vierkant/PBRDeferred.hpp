@@ -36,9 +36,6 @@ public:
         //! occlusion-culling
         bool occlusion_culling = true;
 
-        //! distance-culling
-        bool gpu_culling = true;
-
         //! draw the skybox, if any
         bool draw_skybox = true;
 
