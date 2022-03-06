@@ -869,9 +869,9 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.draw_count = num_draws;
     draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
-    draw_cull_data.occlusion_enabled = true;
-    draw_cull_data.distance_cull = true;
-//    draw_cull_data.culling_enabled = true;
+    draw_cull_data.occlusion_enabled = settings.occlusion_culling;
+    draw_cull_data.distance_cull = settings.distance_culling;
+    draw_cull_data.culling_enabled = settings.frustum_culling;
 
     auto projection = cam->projection_matrix();
     draw_cull_data.P00 = projection[0][0];
@@ -879,6 +879,16 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     draw_cull_data.znear = cam->near();
     draw_cull_data.zfar = cam->far();
     draw_cull_data.view = cam->view_matrix();
+
+    glm::mat4 projectionT = transpose(projection);
+    glm::vec4 frustumX = projectionT[3] + projectionT[0]; // x + w < 0
+    frustumX /= glm::length(frustumX.xyz());
+    glm::vec4 frustumY = projectionT[3] + projectionT[1]; // y + w < 0
+    frustumY /= glm::length(frustumY.xyz());
+
+    draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
+
+    spdlog::trace("frustum: {}", glm::to_string(draw_cull_data.frustum));
 
     if(!draws_out || draws_out->num_bytes() < draws_in->num_bytes())
     {
@@ -900,7 +910,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     vierkant::Compute::computable_t computable = m_cull_computable;
 
     descriptor_t depth_pyramid_desc = {};
-    depth_pyramid_desc.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+    depth_pyramid_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     depth_pyramid_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     depth_pyramid_desc.images = {depth_pyramid};
     computable.descriptors[0] = depth_pyramid_desc;
@@ -938,8 +948,8 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
 
     VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
     barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
     barrier.buffer = draws_out->handle();
     barrier.offset = 0;
     barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(Renderer::indexed_indirect_command_t));

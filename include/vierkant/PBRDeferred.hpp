@@ -30,6 +30,15 @@ public:
         //! disable colors from textures, material, positions
         bool disable_material = false;
 
+        //! frustum-culling
+        bool frustum_culling = true;
+
+        //! occlusion-culling
+        bool occlusion_culling = true;
+
+        //! distance-culling
+        bool distance_culling = true;
+
         //! draw the skybox, if any
         bool draw_skybox = true;
 
