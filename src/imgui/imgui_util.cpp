@@ -485,9 +485,9 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
+    ImGui::Checkbox("gpu culling", &pbr_renderer->settings.gpu_culling);
     ImGui::Checkbox("frustum culling", &pbr_renderer->settings.frustum_culling);
     ImGui::Checkbox("occlusion culling", &pbr_renderer->settings.occlusion_culling);
-    ImGui::Checkbox("distance culling", &pbr_renderer->settings.distance_culling);
     ImGui::Checkbox("taa", &pbr_renderer->settings.use_taa);
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
     ImGui::Checkbox("tonemap", &pbr_renderer->settings.tonemap);

@@ -375,13 +375,22 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // material override
     m_g_renderer.disable_material = settings.disable_material;
 
-    m_g_renderer.cull_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
-            (const vierkant::BufferPtr &draws_in,
-             vierkant::BufferPtr &draws_out,
-             uint32_t num_draws)
+    if(settings.gpu_culling)
     {
-        digest_draw_command_buffer(frame_asset, cam, last_frame_asset.depth_pyramid, draws_in, draws_out, num_draws);
-    };
+        m_g_renderer.cull_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
+                (const vierkant::BufferPtr &draws_in,
+                 vierkant::BufferPtr &draws_out,
+                 uint32_t num_draws)
+        {
+            digest_draw_command_buffer(frame_asset, cam, last_frame_asset.depth_pyramid, draws_in, draws_out,
+                                       num_draws);
+        };
+    }
+    else
+    {
+        m_g_renderer.cull_delegate = {};
+        frame_asset.timeline.signal(SemaphoreValue::CULLING);
+    }
 
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
     g_buffer_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
@@ -870,7 +879,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     draw_cull_data.draw_count = num_draws;
     draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
     draw_cull_data.occlusion_enabled = settings.occlusion_culling;
-    draw_cull_data.distance_cull = settings.distance_culling;
+    draw_cull_data.distance_cull = settings.gpu_culling;
     draw_cull_data.culling_enabled = settings.frustum_culling;
 
     auto projection = cam->projection_matrix();
