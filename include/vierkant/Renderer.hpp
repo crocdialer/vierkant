@@ -161,7 +161,7 @@ public:
     static std::vector<drawable_t>
     create_drawables(const MeshConstPtr &mesh,
                      const glm::mat4 &model_view = glm::mat4(1),
-                     std::function<bool(const Mesh::entry_t &entry)> entry_filter = {});
+                     const std::function<bool(const Mesh::entry_t &entry)>& entry_filter = {});
 
     //! Viewport parameters currently used.
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};

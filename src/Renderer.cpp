@@ -44,8 +44,8 @@ using texture_index_map_t = std::unordered_map<texture_index_key_t, size_t, text
 
 std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr &mesh,
                                                              const glm::mat4 &model_view,
-                                                             std::function<bool(
-                                                                     const Mesh::entry_t &entry)> entry_filter)
+                                                             const std::function<bool(
+                                                                     const Mesh::entry_t &entry)> &entry_filter)
 {
     if(!mesh){ return {}; }
 
@@ -57,18 +57,13 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
     auto binding_descriptions = mesh->binding_descriptions();
     auto attribute_descriptions = mesh->attribute_descriptions();
 
-    // default filters disabled entries
-    if(!entry_filter)
-    {
-        entry_filter = [](const Mesh::entry_t &entry) -> bool{ return entry.enabled; };
-    }
-
     for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
         const auto &entry = mesh->entries[i];
 
         // filter disabled entries, sanity check material-index
-        if(!entry_filter(entry)){ continue; }
+        if(!entry_filter && !entry.enabled){ continue; }
+        if(entry_filter && !entry_filter(entry)){ continue; }
         if(entry.material_index >= mesh->materials.size()){ continue; }
 
         const auto &material = mesh->materials[entry.material_index];

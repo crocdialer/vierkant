@@ -261,8 +261,18 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     // dof, bloom, anti-aliasing
     post_fx_pass(renderer, cam, out_img, frame_asset.depth_map);
 
+    draw_cull_result_t gpu_cull_result = {};
+    if(frame_asset.cull_result_buffer_host)
+    {
+        gpu_cull_result = *reinterpret_cast<draw_cull_result_t*>(frame_asset.cull_result_buffer_host->map());
+    }
+
     SceneRenderer::render_result_t ret = {};
-    ret.num_objects = cull_result.drawables.size();
+    ret.draw_count = cull_result.drawables.size();
+    ret.num_frustum_culled = gpu_cull_result.num_frustum_culled;
+    ret.num_occlusion_culled = gpu_cull_result.num_occlusion_culled;
+    ret.num_distance_culled = gpu_cull_result.num_distance_culled;
+
     m_timestamp_last = m_timestamp_current;
     return ret;
 }
@@ -909,8 +919,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     {
         draws_out = vierkant::Buffer::create(m_device, nullptr,
                                              draws_in->num_bytes(),
-                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                             VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                              VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
@@ -1002,6 +1011,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     barrier.offset = 0;
     barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(Renderer::indexed_indirect_command_t));
 
+    // barrier before writing to indirect-draw-buffer
     vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
                          0,

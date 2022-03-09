@@ -42,7 +42,7 @@ SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Renderer &re
         renderer.stage_drawable(std::move(drawable));
     }
     render_result_t ret = {};
-    ret.num_objects = cull_result.drawables.size();
+    ret.draw_count = cull_result.drawables.size();
     return ret;
 }
 

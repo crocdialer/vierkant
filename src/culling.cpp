@@ -56,8 +56,7 @@ public:
 
             // create drawables
             auto mesh_drawables = vierkant::Renderer::create_drawables(node.mesh,
-                                                                       model_view,
-                                                                       entry_filter);
+                                                                       model_view, entry_filter);
 
             for(auto &drawable : mesh_drawables)
             {

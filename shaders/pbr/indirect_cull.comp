@@ -108,13 +108,13 @@ void main()
         if(!visible){ atomicAdd(result.num_frustum_culled, 1); }
     }
 
-    if(cull_data.distance_cull)
+    if(visible && cull_data.distance_cull)
     {
         visible = visible && (-center.z - radius) <= cull_data.zfar;
         if(!visible){ atomicAdd(result.num_distance_culled, 1); }
     }
 
-    if(cull_data.occlusion_enabled)
+    if(visible && cull_data.occlusion_enabled)
     {
         // 2D-screenspace AABB for a 3D-boundingsphere
         vec4 aabb;

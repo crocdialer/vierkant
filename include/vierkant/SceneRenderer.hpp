@@ -21,7 +21,10 @@ public:
     //! groups results of rendering operations.
     struct render_result_t
     {
-        uint32_t num_objects = 0;
+        uint32_t draw_count = 0;
+        uint32_t num_frustum_culled = 0;
+        uint32_t num_occlusion_culled = 0;
+        uint32_t num_distance_culled = 0;
         std::vector<semaphore_submit_info_t> semaphore_infos;
     };
 
