@@ -22,10 +22,7 @@ DEFINE_CLASS_PTR(Object3D);
  */
 inline static bool check_tags(const std::set<std::string> &whitelist, const std::set<std::string> &obj_tags)
 {
-    for(const auto &t : obj_tags)
-    {
-        if(crocore::contains(whitelist, t)){ return true; }
-    }
+    for(const auto &t : obj_tags){ if(whitelist.count(t)){ return true; }}
     return whitelist.empty();
 }
 
@@ -41,7 +38,7 @@ public:
 
     inline uint32_t id() const{ return m_id; };
 
-    inline const std::string& name() const{ return m_name; }
+    inline const std::string &name() const{ return m_name; }
 
     inline void set_name(const std::string &the_name){ m_name = the_name; }
 

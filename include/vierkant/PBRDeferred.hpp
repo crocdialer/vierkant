@@ -160,7 +160,7 @@ private:
         std::vector<vierkant::Compute> depth_pyramid_computes;
         vierkant::CommandBuffer depth_pyramid_cmd_buffer, cull_cmd_buffer;
         vierkant::Compute cull_compute;
-        vierkant::BufferPtr cull_ubo;
+        vierkant::BufferPtr cull_ubo, cull_result_buffer, cull_result_buffer_host;
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
         vierkant::BufferPtr g_buffer_ubo;
@@ -219,6 +219,14 @@ private:
         VkBool32 lod_enabled = false;
         VkBool32 occlusion_enabled = false;
         VkBool32 distance_cull = false;
+    };
+
+    struct alignas(16) draw_cull_result_t
+    {
+        uint32_t draw_count = 0;
+        uint32_t num_frustum_culled = 0;
+        uint32_t num_occlusion_culled = 0;
+        uint32_t num_distance_culled = 0;
     };
 
     struct matrix_key_t

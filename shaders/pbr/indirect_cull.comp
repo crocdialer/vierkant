@@ -18,13 +18,6 @@ struct draw_cull_data_t
     bool distance_cull;
 };
 
-//typedef struct VkDrawIndirectCommand {
-//    uint32_t    vertexCount;
-//    uint32_t    instanceCount;
-//    uint32_t    firstVertex;
-//    uint32_t    firstInstance;
-//} VkDrawIndirectCommand;
-
 struct IndexedIndirectCommand
 {
     uint indexCount;
@@ -35,6 +28,14 @@ struct IndexedIndirectCommand
 
     uint object_index;
     vec4 sphere_bounds;
+};
+
+struct draw_cull_result_t
+{
+    uint draw_count;
+    uint num_frustum_culled;
+    uint num_occlusion_culled;
+    uint num_distance_culled;
 };
 
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
@@ -77,6 +78,12 @@ layout(binding = 3) writeonly buffer DrawBufferOut
     IndexedIndirectCommand out_draw_data[];
 };
 
+// output draw indirect buffer
+layout(binding = 4) buffer DrawResult
+{
+    draw_cull_result_t result;
+};
+
 layout(local_size_x = 256) in;
 
 void main()
@@ -97,15 +104,22 @@ void main()
         // the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
         visible = visible && center.z * cull_data.frustum[1] - abs(center.x) * cull_data.frustum[0] > -radius;
         visible = visible && center.z * cull_data.frustum[3] - abs(center.y) * cull_data.frustum[2] > -radius;
+
+        if(!visible){ atomicAdd(result.num_frustum_culled, 1); }
     }
-    visible = visible && !(cull_data.distance_cull && (-center.z - radius) > cull_data.zfar);
+
+    if(cull_data.distance_cull)
+    {
+        visible = visible && (-center.z - radius) <= cull_data.zfar;
+        if(!visible){ atomicAdd(result.num_distance_culled, 1); }
+    }
 
     if(cull_data.occlusion_enabled)
     {
         // 2D-screenspace AABB for a 3D-boundingsphere
         vec4 aabb;
 
-        //flip Y because we access depth texture that way (!?)
+        // some adjustment for handedness
         center.yz *= -1;
 
         // get cracking with depth-pyramid
@@ -121,9 +135,13 @@ void main()
             float depth_sphere = cull_data.znear / (center.z - radius);
 
             visible = visible && (depth_sphere >= depth);
+            if(!visible){ atomicAdd(result.num_occlusion_culled, 1); }
         }
     }
 
     if(!visible){ draw.instanceCount = draw.indexCount = 0; }
+
+    atomicAdd(result.draw_count, 1);
+
     out_draw_data[gid] = draw;
 }
