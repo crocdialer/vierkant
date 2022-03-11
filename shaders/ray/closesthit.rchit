@@ -180,8 +180,9 @@ void main()
         material.color *= sample_texture_lod(u_albedos[material.texture_index],
                                              v.tex_coord, NoV, payload.cone.width, triangle_lod);
     }
-    // hardcoded alpha-cutoff
-    if(material.color.a < 0.01){ return; }
+
+    // alpha-cutoff
+    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
 
     // roughness / metalness
     if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)

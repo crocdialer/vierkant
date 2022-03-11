@@ -69,6 +69,10 @@ public:
         uint32_t ao_rough_metal_index = 0;
 
         uint32_t texture_type_flags = 0;
+
+        uint32_t blend_mode = static_cast<uint32_t>(Material::BlendMode::Opaque);
+
+        float alpha_cutoff = 0.5f;
     };
 
     //! used for both bottom and toplevel acceleration-structures

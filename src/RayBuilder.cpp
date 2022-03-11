@@ -387,6 +387,9 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             material.sheen_color = {mesh_material->sheen_color, 0.f};
             material.sheen_roughness = mesh_material->sheen_roughness;
 
+            material.blend_mode = static_cast<uint32_t>(mesh_material->blend_mode);
+            material.alpha_cutoff = mesh_material->alpha_cutoff;
+
             for(auto &[type_flag, tex] : mesh_material->textures)
             {
                 material.texture_type_flags |= type_flag;

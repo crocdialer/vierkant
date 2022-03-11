@@ -41,6 +41,11 @@ struct entry_t
 #define TEXTURE_TYPE_SHEEN_ROUGHNESS 0x200
 #define TEXTURE_TYPE_ENVIRONMENT 0x400
 
+//! blendmode definitions
+#define BLEND_MODE_OPAQUE 0
+#define BLEND_MODE_BLEND 1
+#define BLEND_MODE_MASK 2
+
 //! material_t groups all material-properties
 struct material_t
 {
@@ -63,4 +68,7 @@ struct material_t
     uint ao_rough_metal_index;
 
     uint texture_type_flags;
+
+    uint blend_mode;
+    float alpha_cutoff;
 };
