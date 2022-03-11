@@ -39,21 +39,21 @@ vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
     return texture(diff_map, normal).rgb * ONE_OVER_PI;
 }
 
-vec3 compute_enviroment_lighting(vec3 position, vec3 normal, vec3 albedo, float roughness, float metalness,
+vec3 compute_enviroment_lighting(vec3 V, vec3 N, vec3 albedo, float roughness, float metalness,
                                  float ambient_occlusion)
 {
-    vec3 v = normalize(position);
-    vec3 r = normalize(reflect(v, normal));
+//    vec3 v = normalize(position);
+    vec3 R = normalize(reflect(V, N));
 
-    vec3 world_normal = mat3(ubo.camera_transform) * normal;
-    vec3 world_reflect = mat3(ubo.camera_transform) * r;
+//    vec3 world_normal = mat3(ubo.camera_transform) * N;
+//    vec3 world_reflect = mat3(ubo.camera_transform) * R;
 
-    vec3 irradiance = sample_diffuse(u_sampler_cube[ENV_DIFFUSE], world_normal);
+    vec3 irradiance = sample_diffuse(u_sampler_cube[ENV_DIFFUSE], N);
 
     float spec_mip_lvl = roughness * float(ubo.num_mip_levels - 1);
 
-    vec3 reflection = textureLod(u_sampler_cube[ENV_SPEC], world_reflect, spec_mip_lvl).rgb;
-    float NoV = clamp(dot(normal, v), 0.0, 1.0);
+    vec3 reflection = textureLod(u_sampler_cube[ENV_SPEC], R, spec_mip_lvl).rgb;
+    float NoV = clamp(dot(N, V), 0.0, 1.0);
 
     vec2 brdf = texture(u_sampler_2D[BRDF_LUT], vec2(NoV, roughness)).rg;
 
@@ -89,13 +89,16 @@ void main()
     vec4 viewspace_pos = ubo.inverse_projection * vec4(2.0 * clip_pos.xy - 1, clip_pos.z, 1);
     vec3 position = viewspace_pos.xyz / viewspace_pos.w;
 
+    // inverse view
+    vec3 V = normalize(mat3(ubo.camera_transform) * position);
+
     // sample g-buffer
     vec4 albedo = texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord);
     vec3 normal = normalize(texture(u_sampler_2D[NORMAL], vertex_in.tex_coord).xyz);
     vec3 ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord).rgb;
     vec3 emission = texture(u_sampler_2D[EMISSION], vertex_in.tex_coord).rgb;
 
-    vec3 env_color = compute_enviroment_lighting(position, normal, albedo.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r);
+    vec3 env_color = compute_enviroment_lighting(V, normal, albedo.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r);
     env_color += emission;
     out_color = vec4(env_color, 1.0);
 }
