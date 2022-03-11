@@ -18,14 +18,14 @@ layout(std140, set = 0, binding = BINDING_PREVIOUS_MATRIX) readonly buffer Matri
     matrix_struct_t u_previous_matrices[];
 };
 
-layout(std140, binding = BINDING_BONES) uniform UBOBones
+layout(std140, binding = BINDING_BONES) readonly buffer UBOBones
 {
-    mat4 u_bones[MAX_NUM_BONES];
+    mat4 u_bones[];
 };
 
-layout(std140, binding = BINDING_PREVIOUS_BONES) uniform UBOPreviousBones
+layout(std140, binding = BINDING_PREVIOUS_BONES) readonly buffer UBOPreviousBones
 {
-    mat4 u_previous_bones[MAX_NUM_BONES];
+    mat4 u_previous_bones[];
 };
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
@@ -65,7 +65,7 @@ void main()
         last_vertex += u_previous_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
     }
     vertex_out.color = a_color;
-    vertex_out.normal = normalize(mat3(camera.view) * (m.normal * vec4(a_normal, 1.0)).xyz);
+    vertex_out.normal = normalize(mat3(camera.view) * (m.normal * vec4(a_normal, 0)).xyz);
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.xyz, 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_vertex.xyz, 1.0);

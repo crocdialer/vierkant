@@ -79,6 +79,3 @@ struct render_context_t
 #define BINDING_BONES 4
 #define BINDING_PREVIOUS_BONES 5
 #define BINDING_JITTER_OFFSET 6
-
-//! constant for maximum number of bones per mesh
-const int MAX_NUM_BONES = 512;

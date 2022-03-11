@@ -12,14 +12,9 @@ layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
     matrix_struct_t matrices[];
 };
 
-layout(std140, binding = BINDING_BONES) uniform UBOBones
+layout(std140, binding = BINDING_BONES) readonly buffer UBOBones
 {
-    mat4 u_bones[MAX_NUM_BONES];
-};
-
-out gl_PerVertex
-{
-    vec4 gl_Position;
+    mat4 u_bones[];
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;

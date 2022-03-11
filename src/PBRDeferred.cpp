@@ -48,7 +48,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         resize_storage(asset, create_info.settings.resolution);
 
         asset.g_buffer_camera_ubo = vierkant::Buffer::create(m_device, nullptr, sizeof(glm::vec2),
-                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         asset.lighting_ubo = vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -236,9 +237,17 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
     scene->root()->accept(mesh_visitor);
     std::unordered_set<vierkant::MeshConstPtr> meshes;
-    for(const auto &n : mesh_visitor.objects){ meshes.insert(n->mesh); }
 
-    frame_asset.recycle_commands = !meshes.empty() && meshes == frame_asset.cull_result.meshes;
+    bool static_scene = true;
+
+    for(const auto &n : mesh_visitor.objects)
+    {
+        meshes.insert(n->mesh);
+        if(!n->mesh->node_animations.empty()){ static_scene = false; }
+    }
+
+    bool need_culling = !frame_asset.cull_result.camera || meshes != frame_asset.cull_result.meshes;
+    frame_asset.recycle_commands = static_scene && !need_culling;
 
     if(!frame_asset.recycle_commands)
     {
@@ -326,7 +335,7 @@ void PBRDeferred::update_matrix_history(vierkant::cull_result_t &cull_result)
         if(drawable.mesh && drawable.mesh->root_bone)
         {
             vierkant::descriptor_t desc_bones = {};
-            desc_bones.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
             desc_bones.buffers = {new_bone_buffer_cache[drawable.mesh->root_bone]};
             drawable.descriptors[Renderer::BINDING_BONES] = desc_bones;
@@ -371,14 +380,13 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     camera_params_t cameras[2] = {frame_asset.camera_params, last_frame_asset.camera_params};
     frame_asset.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
 
-    //
-    vierkant::descriptor_t jitter_desc = {};
-    jitter_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    jitter_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    jitter_desc.buffers = {frame_asset.g_buffer_camera_ubo};
-
     if(!frame_asset.recycle_commands)
     {
+        vierkant::descriptor_t jitter_desc = {};
+        jitter_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        jitter_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        jitter_desc.buffers = {frame_asset.g_buffer_camera_ubo};
+
         // draw all geometry
         for(auto &drawable : cull_result.drawables)
         {
@@ -708,7 +716,7 @@ void PBRDeferred::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh,
         if(!out_buffer)
         {
             out_buffer = vierkant::Buffer::create(m_device, bones_matrices,
-                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
         }
         else{ out_buffer->set_data(bones_matrices); }
