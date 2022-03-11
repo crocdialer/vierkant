@@ -47,8 +47,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     {
         resize_storage(asset, create_info.settings.resolution);
 
-        asset.g_buffer_ubo = vierkant::Buffer::create(m_device, nullptr, sizeof(glm::vec2),
-                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        asset.g_buffer_camera_ubo = vierkant::Buffer::create(m_device, nullptr, sizeof(glm::vec2),
+                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         asset.lighting_ubo = vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -238,7 +238,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     std::unordered_set<vierkant::MeshConstPtr> meshes;
     for(const auto &n : mesh_visitor.objects){ meshes.insert(n->mesh); }
 
-    if(meshes.empty() || meshes != frame_asset.cull_result.meshes)
+    frame_asset.recycle_commands = !meshes.empty() && meshes == frame_asset.cull_result.meshes;
+
+    if(!frame_asset.recycle_commands)
     {
         vierkant::cull_params_t cull_params = {};
         cull_params.scene = scene;
@@ -367,39 +369,43 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     frame_asset.camera_params.far = cull_result.camera->far();
 
     camera_params_t cameras[2] = {frame_asset.camera_params, last_frame_asset.camera_params};
-    frame_asset.g_buffer_ubo->set_data(&cameras, sizeof(cameras));
+    frame_asset.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
 
+    //
     vierkant::descriptor_t jitter_desc = {};
     jitter_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     jitter_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    jitter_desc.buffers = {frame_asset.g_buffer_ubo};
+    jitter_desc.buffers = {frame_asset.g_buffer_camera_ubo};
 
-    // draw all gemoetry
-    for(auto &drawable : cull_result.drawables)
+    if(!frame_asset.recycle_commands)
     {
-        uint32_t shader_flags = PROP_DEFAULT;
+        // draw all geometry
+        for(auto &drawable : cull_result.drawables)
+        {
+            uint32_t shader_flags = PROP_DEFAULT;
 
-        // check if vertex-skinning is required
-        if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
+            // check if vertex-skinning is required
+            if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
 
-        // check if tangents are available
-        if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)){ shader_flags |= PROP_TANGENT_SPACE; }
+            // check if tangents are available
+            if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)){ shader_flags |= PROP_TANGENT_SPACE; }
 
-        // select shader-stages from cache
-        auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
+            // select shader-stages from cache
+            auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
 
-        // fallback to default if not found
-        if(stage_it != m_g_buffer_shader_stages.end()){ drawable.pipeline_format.shader_stages = stage_it->second; }
-        else{ drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT]; }
+            // fallback to default if not found
+            if(stage_it != m_g_buffer_shader_stages.end()){ drawable.pipeline_format.shader_stages = stage_it->second; }
+            else{ drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT]; }
 
-        // set attachment count
-        drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
+            // set attachment count
+            drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
 
-        // add descriptor for a jitter-offset
-        drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = jitter_desc;
+            // add descriptor for a jitter-offset
+            drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = jitter_desc;
+        }
+        // stage drawables
+        m_g_renderer.stage_drawables(cull_result.drawables);
     }
-    // stage drawables
-    m_g_renderer.stage_drawables(cull_result.drawables);
 
     // material override
     m_g_renderer.disable_material = settings.disable_material;
@@ -428,7 +434,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER;
 
     auto &g_buffer = frame_asset.g_buffer;
-    auto cmd_buffer = m_g_renderer.render(g_buffer);
+    auto cmd_buffer = m_g_renderer.render(g_buffer, frame_asset.recycle_commands);
     g_buffer.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
 
     // depth-attachment

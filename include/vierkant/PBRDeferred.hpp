@@ -162,6 +162,7 @@ private:
     {
         //! contains the culled scene-drawables
         vierkant::cull_result_t cull_result;
+        bool recycle_commands = false;
         camera_params_t camera_params;
 
         vierkant::Semaphore timeline;
@@ -176,7 +177,7 @@ private:
         vierkant::BufferPtr cull_ubo, cull_result_buffer, cull_result_buffer_host;
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
-        vierkant::BufferPtr g_buffer_ubo;
+        vierkant::BufferPtr g_buffer_camera_ubo;
         vierkant::BufferPtr lighting_ubo;
         vierkant::BufferPtr composition_ubo;
 

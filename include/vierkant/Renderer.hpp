@@ -213,7 +213,8 @@ public:
      *
      * @return  handle to the recorded VkCommandBuffer.
      */
-    VkCommandBuffer render(const vierkant::Framebuffer &framebuffer);
+    VkCommandBuffer render(const vierkant::Framebuffer &framebuffer,
+                           bool recycle_commands = false);
 
     /**
      * @return  the current swapchain index.
@@ -276,6 +277,10 @@ private:
         // draw-indirect buffers
         vierkant::BufferPtr indirect_draw_buffer, indirect_culled;
         vierkant::BufferPtr indexed_indirect_draw_buffer, indexed_indirect_culled;
+
+        // global indices for rendering-commands
+        size_t indirect_draw_index = 0;
+        size_t indexed_indirect_draw_index = 0;
 
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;

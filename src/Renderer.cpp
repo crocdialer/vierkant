@@ -242,7 +242,8 @@ void Renderer::stage_drawables(std::vector<drawable_t> drawables)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
+VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
+                                 bool recycle_commands)
 {
     uint32_t current_index;
     {
@@ -252,6 +253,16 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
         m_render_assets[current_index].drawables = std::move(m_staged_drawables[current_index]);
     }
     auto &current_assets = m_render_assets[current_index];
+
+    if(recycle_commands)
+    {
+        if(cull_delegate)
+        {
+            cull_delegate(current_assets.indexed_indirect_draw_buffer, current_assets.indexed_indirect_culled,
+                          current_assets.indexed_indirect_draw_index);
+            return current_assets.command_buffer.handle();
+        }
+    }
     frame_assets_t next_assets = {};
 
     // keep uniform buffers
@@ -317,10 +328,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
 
     auto bindless_texture_layout = find_set_layout(bindless_texture_desc, current_assets, next_assets);
 
-    // global indices for rendering-commands
-    size_t indirect_draw_index = 0;
-    size_t indexed_indirect_draw_index = 0;
-
     // create/resize draw_indirect buffers
     resize_draw_indirect_buffers(next_assets, current_assets.drawables.size());
 
@@ -384,8 +391,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
             {
                 indirect_draw_asset_t new_draw = {};
-                new_draw.first_draw_index = indirect_draw_index;
-                new_draw.first_indexed_draw_index = indexed_indirect_draw_index;
+                new_draw.first_draw_index = next_assets.indirect_draw_index;
+                new_draw.first_indexed_draw_index = next_assets.indexed_indirect_draw_index;
                 new_draw.scissor = drawable->pipeline_format.scissor;
 
                 // predefined buffers
@@ -419,7 +426,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             {
                 auto draw_command =
                         static_cast<indexed_indirect_command_t *>(next_assets.indexed_indirect_draw_buffer->map()) +
-                        indexed_indirect_draw_index++;
+                        next_assets.indexed_indirect_draw_index++;
 
                 draw_command->first_index = drawable->base_index;
                 draw_command->index_count = drawable->num_indices;
@@ -440,7 +447,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
             else
             {
                 auto draw_command = static_cast<VkDrawIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
-                                    indirect_draw_index++;
+                        next_assets.indirect_draw_index++;
 
                 draw_command->vertexCount = drawable->num_vertices;
                 draw_command->instanceCount = 1;
@@ -456,7 +463,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer)
     if(cull_delegate)
     {
         cull_delegate(next_assets.indexed_indirect_draw_buffer, next_assets.indexed_indirect_culled,
-                      indexed_indirect_draw_index);
+                      next_assets.indexed_indirect_draw_index);
         if(next_assets.indexed_indirect_culled){ draw_buffer = next_assets.indexed_indirect_culled; }
     }
 
