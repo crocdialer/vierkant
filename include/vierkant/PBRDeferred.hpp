@@ -141,7 +141,9 @@ private:
     enum SemaphoreValue : uint64_t
     {
         CULLING = 1,
-        G_BUFFER,
+        G_BUFFER_LAST_VISIBLE,
+        DEPTH_PYRAMID,
+        G_BUFFER_ALL,
         LIGHTING,
         POST_FX,
         TONEMAP,
@@ -177,6 +179,7 @@ private:
         vierkant::BufferPtr cull_ubo, cull_result_buffer, cull_result_buffer_host;
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
+        vierkant::BufferPtr bone_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;
         vierkant::BufferPtr lighting_ubo;
         vierkant::BufferPtr composition_ubo;
@@ -254,11 +257,9 @@ private:
 
     using matrix_cache_t = std::unordered_map<matrix_key_t, Renderer::matrix_struct_t, matrix_key_hash_t>;
 
-    using bone_buffer_cache_t = std::unordered_map<vierkant::nodes::NodeConstPtr, vierkant::BufferPtr>;
-
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void update_matrix_history(vierkant::cull_result_t &cull_result);
+    void update_matrix_history(frame_assets_t &frame_asset);
 
     void resize_storage(frame_assets_t &frame_asset, const glm::uvec2 &resolution);
 
@@ -272,8 +273,6 @@ private:
                       const vierkant::ImagePtr &depth);
 
     static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
-
-    void update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer);
 
     void create_depth_pyramid(frame_assets_t &frame_asset);
 
@@ -327,7 +326,6 @@ private:
 
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;
-    bone_buffer_cache_t m_bone_buffer_cache;
 
     // keep track of frame-times
     std::chrono::steady_clock::time_point m_timestamp_current = std::chrono::steady_clock::now();

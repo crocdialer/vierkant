@@ -42,15 +42,8 @@ struct cull_params_t
 /**
  * @brief   Applies view-frustum culling for provided scene and camera.
  *
- * @param   scene               a provided scene.
- *
- * @param   cam                 a provided camera.
- *
- * @param   check_intersection  if intersections of bounding-volumes with the camera-frustum should be checked.
- *                              will not discard any scene-objects if false.
- *
- * @param   tags                a set of tags to filter for.
- *                              if not empty only objects containing at least one tag from this set will be selected.
+ * @param   scene       a provided scene.
+ * @param   cull_params a struct grouping all parameters
  *
  * @return  a cull_result_t struct.
  */

@@ -246,7 +246,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
         if(!n->mesh->node_animations.empty()){ static_scene = false; }
     }
 
-    bool need_culling = !frame_asset.cull_result.camera || meshes != frame_asset.cull_result.meshes;
+    bool need_culling = frame_asset.cull_result.camera != cam || meshes != frame_asset.cull_result.meshes;
     frame_asset.recycle_commands = static_scene && !need_culling;
 
     if(!frame_asset.recycle_commands)
@@ -267,7 +267,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     resize_storage(frame_asset, settings.resolution);
 
     // apply+update transform history
-    update_matrix_history(frame_asset.cull_result);
+    update_matrix_history(frame_asset);
 
     // create g-buffer
     auto &g_buffer = geometry_pass(frame_asset.cull_result);
@@ -303,54 +303,78 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     return ret;
 }
 
-void PBRDeferred::update_matrix_history(vierkant::cull_result_t &cull_result)
+void PBRDeferred::update_matrix_history(frame_assets_t &frame_asset)
 {
+    using bone_offset_cache_t = std::unordered_map<vierkant::nodes::NodeConstPtr, size_t>;
     matrix_cache_t new_entry_matrix_cache;
 
-    bone_buffer_cache_t new_bone_buffer_cache;
+    bone_offset_cache_t bone_buffer_cache;
+    std::vector<glm::mat4> all_bones_matrices;
 
-    for(const auto &mesh : cull_result.meshes)
+    size_t last_index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    auto &last_frame_asset = m_frame_assets[last_index];
+
+    for(const auto &mesh : frame_asset.cull_result.meshes)
     {
-        vierkant::BufferPtr buffer;
-        update_bone_uniform_buffer(mesh, buffer);
-
-        new_bone_buffer_cache[mesh->root_bone] = buffer;
-    }
-
-    // insert previous matrices from cache, if any
-    for(auto &drawable : cull_result.drawables)
-    {
-        // search previous matrices
-        matrix_key_t key = {drawable.mesh, drawable.entry_index};
-        auto it = m_entry_matrix_cache.find(key);
-        if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
-
-        // previous matrices
-        vierkant::descriptor_t desc_prev_matrices = {};
-        desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_prev_matrices;
-
-        // descriptors for bone buffers, if necessary
-        if(drawable.mesh && drawable.mesh->root_bone)
+        if(mesh && mesh->root_bone && mesh->animation_index < mesh->node_animations.size())
         {
-            vierkant::descriptor_t desc_bones = {};
-            desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-            desc_bones.buffers = {new_bone_buffer_cache[drawable.mesh->root_bone]};
-            drawable.descriptors[Renderer::BINDING_BONES] = desc_bones;
+            std::vector<glm::mat4> bones_matrices;
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, mesh->node_animations[mesh->animation_index],
+                                                     bones_matrices);
 
-            // search previous bone-buffer
-            auto prev_bones_it = m_bone_buffer_cache.find(drawable.mesh->root_bone);
-            if(prev_bones_it != m_bone_buffer_cache.end()){ desc_bones.buffers = {prev_bones_it->second}; }
-            drawable.descriptors[Renderer::BINDING_PREVIOUS_BONES] = desc_bones;
+            // keep track of offset
+            bone_buffer_cache[mesh->root_bone] = all_bones_matrices.size() * sizeof(glm::mat4);
+            all_bones_matrices.insert(all_bones_matrices.end(), bones_matrices.begin(), bones_matrices.end());
         }
-
-        // store current matrices
-        new_entry_matrix_cache[key] = drawable.matrices;
     }
-    m_entry_matrix_cache = std::move(new_entry_matrix_cache);
-    m_bone_buffer_cache = std::move(new_bone_buffer_cache);
+
+    if(!frame_asset.bone_buffer)
+    {
+        frame_asset.bone_buffer = vierkant::Buffer::create(m_device, all_bones_matrices,
+                                                           VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                           VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ frame_asset.bone_buffer->set_data(all_bones_matrices); }
+
+    if(!frame_asset.recycle_commands)
+    {
+        // insert previous matrices from cache, if any
+        for(auto &drawable : frame_asset.cull_result.drawables)
+        {
+            // search previous matrices
+            matrix_key_t key = {drawable.mesh, drawable.entry_index};
+            auto it = m_entry_matrix_cache.find(key);
+            if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
+
+            // previous matrices
+            vierkant::descriptor_t desc_prev_matrices = {};
+            desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+            drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_prev_matrices;
+
+            // descriptors for bone buffers, if necessary
+            if(drawable.mesh && drawable.mesh->root_bone)
+            {
+                vierkant::descriptor_t desc_bones = {};
+                desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+                desc_bones.buffers = {frame_asset.bone_buffer};
+                desc_bones.buffer_offsets = {bone_buffer_cache[drawable.mesh->root_bone]};
+                drawable.descriptors[Renderer::BINDING_BONES] = desc_bones;
+
+                if(last_frame_asset.bone_buffer && last_frame_asset.bone_buffer->num_bytes() ==
+                                                   frame_asset.bone_buffer->num_bytes())
+                {
+                    desc_bones.buffers = {last_frame_asset.bone_buffer};
+                }
+                drawable.descriptors[Renderer::BINDING_PREVIOUS_BONES] = desc_bones;
+            }
+
+            // store current matrices
+            new_entry_matrix_cache[key] = drawable.matrices;
+        }
+        m_entry_matrix_cache = std::move(new_entry_matrix_cache);
+    }
 }
 
 vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
@@ -382,10 +406,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     if(!frame_asset.recycle_commands)
     {
-        vierkant::descriptor_t jitter_desc = {};
-        jitter_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        jitter_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        jitter_desc.buffers = {frame_asset.g_buffer_camera_ubo};
+        vierkant::descriptor_t camera_desc = {};
+        camera_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        camera_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        camera_desc.buffers = {frame_asset.g_buffer_camera_ubo};
 
         // draw all geometry
         for(auto &drawable : cull_result.drawables)
@@ -409,7 +433,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
 
             // add descriptor for a jitter-offset
-            drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = jitter_desc;
+            drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = camera_desc;
         }
         // stage drawables
         m_g_renderer.stage_drawables(cull_result.drawables);
@@ -439,7 +463,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     g_buffer_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
     g_buffer_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
     g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
-    g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER;
+    g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
 
     auto &g_buffer = frame_asset.g_buffer;
     auto cmd_buffer = m_g_renderer.render(g_buffer, frame_asset.recycle_commands);
@@ -703,24 +727,6 @@ size_t PBRDeferred::matrix_key_hash_t::operator()(PBRDeferred::matrix_key_t cons
     crocore::hash_combine(h, key.mesh);
     crocore::hash_combine(h, key.entry_index);
     return h;
-}
-
-void PBRDeferred::update_bone_uniform_buffer(const vierkant::MeshConstPtr &mesh, vierkant::BufferPtr &out_buffer)
-{
-    if(mesh && mesh->root_bone && mesh->animation_index < mesh->node_animations.size())
-    {
-        std::vector<glm::mat4> bones_matrices;
-        vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, mesh->node_animations[mesh->animation_index],
-                                                 bones_matrices);
-
-        if(!out_buffer)
-        {
-            out_buffer = vierkant::Buffer::create(m_device, bones_matrices,
-                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
-        }
-        else{ out_buffer->set_data(bones_matrices); }
-    }
 }
 
 void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t &asset,
