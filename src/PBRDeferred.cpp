@@ -233,19 +233,19 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     // reference to current frame-assets
     auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
 
-//    vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
-//    scene->root()->accept(mesh_visitor);
-//    std::unordered_set<vierkant::MeshConstPtr> meshes;
-//    for(const auto &n : mesh_visitor.objects){ meshes.insert(n->mesh); }
-//
-//    if(meshes.empty() || meshes != frame_asset.cull_result.meshes)
+    vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
+    scene->root()->accept(mesh_visitor);
+    std::unordered_set<vierkant::MeshConstPtr> meshes;
+    for(const auto &n : mesh_visitor.objects){ meshes.insert(n->mesh); }
+
+    if(meshes.empty() || meshes != frame_asset.cull_result.meshes)
     {
         vierkant::cull_params_t cull_params = {};
         cull_params.scene = scene;
         cull_params.camera = cam;
         cull_params.tags = tags;
         cull_params.check_intersection = false;
-//        cull_params.world_space = true;
+        cull_params.world_space = true;
         frame_asset.cull_result = vierkant::cull(cull_params);
     }
 
@@ -360,7 +360,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     // update camera/jitter ubo
     frame_asset.camera_params = {};
-//    frame_asset.camera_params.view = cull_result.camera->view_matrix();
+    frame_asset.camera_params.view = cull_result.camera->view_matrix();
     frame_asset.camera_params.projection = cull_result.camera->projection_matrix();
     frame_asset.camera_params.sample_offset = jitter_offset;
     frame_asset.camera_params.near = cull_result.camera->near();

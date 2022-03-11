@@ -56,6 +56,6 @@ void main()
 
     vertex_out.color = a_color;
     vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
-    vertex_out.normal = normalize(m.normal * vec4(a_normal, 1.0)).xyz;
-    vertex_out.tangent = normalize(m.normal * vec4(a_tangent, 1.0)).xyz;
+    vertex_out.normal = normalize(mat3(camera.view) * (m.normal * vec4(a_normal, 1.0)).xyz);
+    vertex_out.tangent = normalize(mat3(camera.view) * (m.normal * vec4(a_tangent, 1.0)).xyz);
 }

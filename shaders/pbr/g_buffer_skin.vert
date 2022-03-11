@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 #include "../renderer/types.glsl"
+#include "../utils/camera.glsl"
 
 layout(push_constant) uniform PushConstants {
     render_context_t context;
@@ -29,7 +30,8 @@ layout(std140, binding = BINDING_PREVIOUS_BONES) uniform UBOPreviousBones
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
 {
-    vec2 u_jitter_offset;
+    camera_t camera;
+    camera_t last_camera;
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
@@ -63,12 +65,12 @@ void main()
         last_vertex += u_previous_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
     }
     vertex_out.color = a_color;
-    vertex_out.normal = normalize(m.normal * vec4(a_normal, 1.0)).xyz;
+    vertex_out.normal = normalize(mat3(camera.view) * (m.normal * vec4(a_normal, 1.0)).xyz);
 
-    vertex_out.current_position = m.projection * m.modelview * vec4(current_vertex.xyz, 1.0);
-    vertex_out.last_position = m_last.projection * m_last.modelview * vec4(last_vertex.xyz, 1.0);
+    vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.xyz, 1.0);
+    vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_vertex.xyz, 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
-    jittered_position.xy += 2.0 * u_jitter_offset * jittered_position.w;
+    jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
     gl_Position = jittered_position;
 }

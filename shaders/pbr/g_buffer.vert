@@ -54,5 +54,5 @@ void main()
     gl_Position = jittered_position;
 
     vertex_out.color = a_color;
-    vertex_out.normal = normalize(m.normal * vec4(a_normal, 1.0)).xyz;
+    vertex_out.normal = normalize(mat3(camera.view) * (m.normal * vec4(a_normal, 1.0)).xyz);
 }
