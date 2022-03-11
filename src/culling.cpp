@@ -21,12 +21,15 @@ class CullVisitor : public vierkant::Visitor
 {
 public:
 
-    CullVisitor(vierkant::CameraPtr cam, bool check_intersection) :
+    CullVisitor(vierkant::CameraPtr cam,
+                bool check_intersection,
+                bool world_space) :
             m_frustum(cam->frustum()),
             m_camera(std::move(cam)),
             m_check_intersection(check_intersection)
     {
-        m_transform_stack.push(m_camera->view_matrix());
+        if(!world_space){ m_transform_stack.push(m_camera->view_matrix()); }
+        else{ m_transform_stack.push(glm::mat4(1)); }
     };
 
     void visit(vierkant::Object3D &object) override
@@ -100,13 +103,12 @@ public:
     cull_result_t m_cull_result;
 };
 
-cull_result_t cull(const SceneConstPtr &scene, const CameraPtr &cam, bool check_intersection,
-                   const std::set<std::string> &tags)
+cull_result_t cull(const cull_params_t &cull_params)
 {
-    CullVisitor cull_visitor(cam, check_intersection);
-    scene->root()->accept(cull_visitor);
-    cull_visitor.m_cull_result.scene = scene;
-    cull_visitor.m_cull_result.camera = cam;
+    CullVisitor cull_visitor(cull_params.camera, cull_params.check_intersection, cull_params.world_space);
+    cull_params.scene->root()->accept(cull_visitor);
+    cull_visitor.m_cull_result.scene = cull_params.scene;
+    cull_visitor.m_cull_result.camera = cull_params.camera;
     return std::move(cull_visitor.m_cull_result);
 }
 

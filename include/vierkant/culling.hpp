@@ -30,6 +30,15 @@ struct cull_result_t
     vierkant::SceneConstPtr scene;
 };
 
+struct cull_params_t
+{
+    vierkant::SceneConstPtr scene;
+    CameraPtr camera;
+    bool check_intersection = true;
+    bool world_space = false;
+    std::set<std::string> tags;
+};
+
 /**
  * @brief   Applies view-frustum culling for provided scene and camera.
  *
@@ -45,9 +54,6 @@ struct cull_result_t
  *
  * @return  a cull_result_t struct.
  */
-cull_result_t cull(const vierkant::SceneConstPtr &scene,
-                   const CameraPtr &cam,
-                   bool check_intersection,
-                   const std::set<std::string> &tags);
+cull_result_t cull(const cull_params_t &cull_params);
 
 }

@@ -148,10 +148,23 @@ private:
         DONE = TONEMAP
     };
 
+    struct alignas(16) camera_params_t
+    {
+        glm::mat4 view = glm::mat4(1);
+        glm::mat4 projection = glm::mat4(1);
+
+        glm::vec2 sample_offset;
+        float near;
+        float far;
+    };
+
     struct frame_assets_t
     {
+        //! contains the culled scene-drawables
+        vierkant::cull_result_t cull_result;
+        camera_params_t camera_params;
+
         vierkant::Semaphore timeline;
-        glm::vec2 jitter_offset;
         vierkant::Framebuffer g_buffer;
 
         vierkant::ImagePtr depth_map;
@@ -176,13 +189,6 @@ private:
         std::array<ping_pong_t, 2> post_fx_ping_pongs;
 
         BloomUPtr bloom;
-    };
-
-    struct alignas(16) taa_ubo_t
-    {
-        float near;
-        float far;
-        glm::vec2 sample_offset;
     };
 
     struct alignas(16) environment_lighting_ubo_t

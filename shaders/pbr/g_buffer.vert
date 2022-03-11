@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 #include "../renderer/types.glsl"
+#include "../utils/camera.glsl"
 
 layout(push_constant) uniform PushConstants
 {
@@ -20,7 +21,8 @@ layout(std140, set = 0, binding = BINDING_PREVIOUS_MATRIX) readonly buffer Matri
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
 {
-    vec2 u_jitter_offset;
+    camera_t camera;
+    camera_t last_camera;
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
@@ -44,11 +46,11 @@ void main()
     matrix_struct_t m = u_matrices[object_index];
     matrix_struct_t m_last = u_previous_matrices[object_index];
 
-    vertex_out.current_position = m.projection * m.modelview * vec4(a_position, 1.0);
-    vertex_out.last_position = m_last.projection * m_last.modelview * vec4(a_position, 1.0);
+    vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(a_position, 1.0);
+    vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(a_position, 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
-    jittered_position.xy += 2.0 * u_jitter_offset * jittered_position.w;
+    jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
     gl_Position = jittered_position;
 
     vertex_out.color = a_color;

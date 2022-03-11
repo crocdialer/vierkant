@@ -7,6 +7,7 @@
 #include <vierkant/cubemap_utils.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/culling.hpp>
+#include <vierkant/Visitor.hpp>
 
 #include <vierkant/PBRDeferred.hpp>
 
@@ -140,7 +141,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         vierkant::descriptor_t desc_taa_ubo = {};
         desc_taa_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_taa_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_taa_ubo.buffers = {vierkant::Buffer::create(m_device, nullptr, sizeof(taa_ubo_t),
+        desc_taa_ubo.buffers = {vierkant::Buffer::create(m_device, nullptr, sizeof(camera_params_t),
                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
@@ -229,10 +230,24 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
 {
     m_timestamp_current = std::chrono::steady_clock::now();
 
-    auto cull_result = vierkant::cull(scene, cam, true, tags);
-
-    // resize internal framebuffers, if necessary
+    // reference to current frame-assets
     auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
+
+//    vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
+//    scene->root()->accept(mesh_visitor);
+//    std::unordered_set<vierkant::MeshConstPtr> meshes;
+//    for(const auto &n : mesh_visitor.objects){ meshes.insert(n->mesh); }
+//
+//    if(meshes.empty() || meshes != frame_asset.cull_result.meshes)
+    {
+        vierkant::cull_params_t cull_params = {};
+        cull_params.scene = scene;
+        cull_params.camera = cam;
+        cull_params.tags = tags;
+        cull_params.check_intersection = false;
+//        cull_params.world_space = true;
+        frame_asset.cull_result = vierkant::cull(cull_params);
+    }
 
     // timeline semaphore
     frame_asset.timeline.wait(SemaphoreValue::CULLING);
@@ -241,10 +256,10 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     resize_storage(frame_asset, settings.resolution);
 
     // apply+update transform history
-    update_matrix_history(cull_result);
+    update_matrix_history(frame_asset.cull_result);
 
     // create g-buffer
-    auto &g_buffer = geometry_pass(cull_result);
+    auto &g_buffer = geometry_pass(frame_asset.cull_result);
 
     auto albedo_map = g_buffer.color_attachment(G_BUFFER_ALBEDO);
 
@@ -254,7 +269,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     // lighting-pass
     if(m_conv_lambert && m_conv_ggx)
     {
-        auto &light_buffer = lighting_pass(cull_result);
+        auto &light_buffer = lighting_pass(frame_asset.cull_result);
         out_img = light_buffer.color_attachment(0);
     }
 
@@ -264,11 +279,11 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     draw_cull_result_t gpu_cull_result = {};
     if(frame_asset.cull_result_buffer_host)
     {
-        gpu_cull_result = *reinterpret_cast<draw_cull_result_t*>(frame_asset.cull_result_buffer_host->map());
+        gpu_cull_result = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
     }
 
     SceneRenderer::render_result_t ret = {};
-    ret.draw_count = cull_result.drawables.size();
+    ret.draw_count = frame_asset.cull_result.drawables.size();
     ret.num_frustum_culled = gpu_cull_result.num_frustum_culled;
     ret.num_occlusion_culled = gpu_cull_result.num_occlusion_culled;
     ret.num_distance_culled = gpu_cull_result.num_distance_culled;
@@ -340,10 +355,20 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             1.f / glm::vec2(frame_asset.g_buffer.extent().width, frame_asset.g_buffer.extent().height);
 
     glm::vec2 jitter_offset = halton_multiplier * pixel_step * (m_sample_offsets[m_sample_index] - glm::vec2(.5f));
-    frame_asset.jitter_offset = settings.use_taa ? jitter_offset : glm::vec2(0);
+    jitter_offset = settings.use_taa ? jitter_offset : glm::vec2(0);
     m_sample_index = (m_sample_index + 1) % m_sample_offsets.size();
 
-    frame_asset.g_buffer_ubo->set_data(&frame_asset.jitter_offset, sizeof(glm::vec2));
+    // update camera/jitter ubo
+    frame_asset.camera_params = {};
+//    frame_asset.camera_params.view = cull_result.camera->view_matrix();
+    frame_asset.camera_params.projection = cull_result.camera->projection_matrix();
+    frame_asset.camera_params.sample_offset = jitter_offset;
+    frame_asset.camera_params.near = cull_result.camera->near();
+    frame_asset.camera_params.far = cull_result.camera->far();
+
+    camera_params_t cameras[2] = {frame_asset.camera_params, last_frame_asset.camera_params};
+    frame_asset.g_buffer_ubo->set_data(&cameras, sizeof(cameras));
+
     vierkant::descriptor_t jitter_desc = {};
     jitter_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     jitter_desc.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
@@ -372,10 +397,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         // add descriptor for a jitter-offset
         drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = jitter_desc;
-
-        // stage drawable
-        m_g_renderer.stage_drawable(std::move(drawable));
     }
+    // stage drawables
+    m_g_renderer.stage_drawables(cull_result.drawables);
+
     // material override
     m_g_renderer.disable_material = settings.disable_material;
 
@@ -506,11 +531,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
         if(!drawable.descriptors[1].buffers.empty())
         {
-            taa_ubo_t taa_ubo = {};
-            taa_ubo.near = cam->near();
-            taa_ubo.far = cam->far();
-            taa_ubo.sample_offset = frame_assets.jitter_offset;
-            drawable.descriptors[1].buffers.front()->set_data(&taa_ubo, sizeof(taa_ubo_t));
+            drawable.descriptors[1].buffers.front()->set_data(&frame_assets.camera_params, sizeof(camera_params_t));
         }
         m_taa_renderer.stage_drawable(drawable);
         auto cmd = m_taa_renderer.render(frame_assets.taa_buffer);

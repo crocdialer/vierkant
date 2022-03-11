@@ -13,7 +13,7 @@ layout(binding = 0) uniform sampler2D u_sampler_2D[5];
 
 layout(std140, binding = 1) uniform taa_ubo
 {
-    taa_ubo_t u_settings;
+    camera_t u_settings;
 };
 
 layout(location = 0) in VertexData

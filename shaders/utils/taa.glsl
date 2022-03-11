@@ -1,11 +1,5 @@
 #include "color_ycc.glsl"
-
-struct taa_ubo_t
-{
-    float near;
-    float far;
-    vec2 sample_offset;
-};
+#include "camera.glsl"
 
 struct aabb_t
 {
@@ -103,7 +97,7 @@ vec4 taa(vec2 in_coord,
          sampler2D sampler_motion,
          sampler2D sampler_color_history,
          sampler2D sampler_depth_history,
-         taa_ubo_t taa_settings)
+         camera_t taa_settings)
 {
     vec2 coord = in_coord - taa_settings.sample_offset;
     vec2 texSize = textureSize(sampler_color, 0);

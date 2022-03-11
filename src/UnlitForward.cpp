@@ -13,7 +13,13 @@ SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Renderer &re
                                                           const vierkant::CameraPtr &cam,
                                                           const std::set<std::string> &tags)
 {
-    auto cull_result = vierkant::cull(scene, cam, true, tags);
+    vierkant::cull_params_t cull_params = {};
+    cull_params.scene = scene;
+    cull_params.camera = cam;
+    cull_params.tags = tags;
+    cull_params.check_intersection = true;
+
+    auto cull_result = vierkant::cull(cull_params);
 
     for(auto &drawable : cull_result.drawables)
     {
