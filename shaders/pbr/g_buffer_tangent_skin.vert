@@ -73,7 +73,7 @@ void main()
     vertex_out.tangent = normalize(mat3(camera.view) * (m.normal * vec4(a_tangent, 0)).xyz);
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.xyz, 1.0);
-    vertex_out.last_position = last_camera.projection * last_camera.view * vec4(last_vertex.xyz, 1.0);
+    vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_vertex.xyz, 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
     jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
