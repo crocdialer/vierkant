@@ -224,6 +224,41 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
     return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info));
 }
 
+void PBRDeferred::update_recycling(const SceneConstPtr &scene,
+                                   const CameraPtr &cam,
+                                   frame_assets_t &frame_asset)
+{
+    vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
+    scene->root()->accept(mesh_visitor);
+    std::unordered_set<vierkant::MeshConstPtr> meshes;
+
+    bool static_scene = true;
+    bool materials_unchanged = true;
+    bool transforms_unchanged = true;
+
+    for(const auto &n : mesh_visitor.objects)
+    {
+        meshes.insert(n->mesh);
+        if(!n->mesh->node_animations.empty()){ static_scene = false; }
+
+        auto transform_hash = std::hash<glm::mat4>()(n->transform());
+        if(frame_asset.mesh_transform_hashes[n->mesh] != transform_hash){ transforms_unchanged = false; }
+        frame_asset.mesh_transform_hashes[n->mesh] = transform_hash;
+    }
+
+    for(const auto &mesh : meshes)
+    {
+        for(const auto &mat : mesh->materials)
+        {
+            auto h = mat->hash();
+            if(frame_asset.material_hashes[mat] != h){ materials_unchanged = false; }
+            frame_asset.material_hashes[mat] = h;
+        }
+    }
+    bool need_culling = frame_asset.cull_result.camera != cam || meshes != frame_asset.cull_result.meshes;
+    frame_asset.recycle_commands = static_scene && transforms_unchanged && materials_unchanged && !need_culling;
+}
+
 SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
                                                          const SceneConstPtr &scene,
                                                          const CameraPtr &cam,
@@ -234,20 +269,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     // reference to current frame-assets
     auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
 
-    vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
-    scene->root()->accept(mesh_visitor);
-    std::unordered_set<vierkant::MeshConstPtr> meshes;
-
-    bool static_scene = true;
-
-    for(const auto &n : mesh_visitor.objects)
-    {
-        meshes.insert(n->mesh);
-        if(!n->mesh->node_animations.empty()){ static_scene = false; }
-    }
-
-    bool need_culling = frame_asset.cull_result.camera != cam || meshes != frame_asset.cull_result.meshes;
-    frame_asset.recycle_commands = static_scene && !need_culling;
+    update_recycling(scene, cam, frame_asset);
 
     if(!frame_asset.recycle_commands)
     {

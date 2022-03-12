@@ -164,6 +164,8 @@ private:
     {
         //! contains the culled scene-drawables
         vierkant::cull_result_t cull_result;
+        std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
+        std::unordered_map<vierkant::MeshConstPtr, size_t> mesh_transform_hashes;
         bool recycle_commands = false;
         camera_params_t camera_params;
 
@@ -258,6 +260,10 @@ private:
     using matrix_cache_t = std::unordered_map<matrix_key_t, Renderer::matrix_struct_t, matrix_key_hash_t>;
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
+
+    void update_recycling(const SceneConstPtr &scene,
+                          const CameraPtr &cam,
+                          frame_assets_t &frame_asset);
 
     void update_matrix_history(frame_assets_t &frame_asset);
 

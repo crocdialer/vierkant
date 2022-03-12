@@ -42,19 +42,13 @@ vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
 vec3 compute_enviroment_lighting(vec3 V, vec3 N, vec3 albedo, float roughness, float metalness,
                                  float ambient_occlusion)
 {
-//    vec3 v = normalize(position);
-    vec3 R = normalize(reflect(V, N));
-
-//    vec3 world_normal = mat3(ubo.camera_transform) * N;
-//    vec3 world_reflect = mat3(ubo.camera_transform) * R;
-
     vec3 irradiance = sample_diffuse(u_sampler_cube[ENV_DIFFUSE], N);
 
+    vec3 R = normalize(reflect(V, N));
     float spec_mip_lvl = roughness * float(ubo.num_mip_levels - 1);
-
     vec3 reflection = textureLod(u_sampler_cube[ENV_SPEC], R, spec_mip_lvl).rgb;
-    float NoV = clamp(dot(N, V), 0.0, 1.0);
 
+    float NoV = clamp(dot(N, V), 0.0, 1.0);
     vec2 brdf = texture(u_sampler_2D[BRDF_LUT], vec2(NoV, roughness)).rg;
 
     const vec3 dielectricF0 = vec3(0.04);

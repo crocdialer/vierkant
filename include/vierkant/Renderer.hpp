@@ -97,8 +97,9 @@ public:
         int32_t vertex_offset;
         uint32_t first_instance;
 
+        uint32_t visible;
         uint32_t object_index;
-        uint32_t padding[2];
+        uint32_t padding[1];
         glm::vec4 sphere_bounds;
     };
     //! define syntax for a culling-delegate

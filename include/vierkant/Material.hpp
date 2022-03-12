@@ -41,6 +41,8 @@ public:
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };
 
+    [[nodiscard]] std::size_t hash() const;
+
     std::string name;
 
     glm::vec4 color = glm::vec4(1);

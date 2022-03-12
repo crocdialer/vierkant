@@ -167,7 +167,7 @@ void FlyCamera::update(double time_delta)
             move_mask.x += state.analog_left().x;
             move_mask.z += state.analog_left().y;
             move_mask.y += state.trigger().y - state.trigger().x;
-            
+
             glm::vec2 diff = -state.analog_right() * static_cast<float>(time_delta);
 
             bool above_thresh = glm::length2(move_mask) > 0.f || glm::length2(state.analog_right()) > 0.01;
