@@ -26,7 +26,9 @@ struct IndexedIndirectCommand
     int  vertexOffset;
     uint firstInstance;
 
+    uint batch_index;
     uint object_index;
+    uint first_draw_index;
     bool visible;
     vec4 sphere_bounds;
 };
@@ -79,8 +81,14 @@ layout(binding = 3) writeonly buffer DrawBufferOut
     IndexedIndirectCommand out_draw_data[];
 };
 
+// output draw-counts
+layout(binding = 4) buffer DrawCount
+{
+    uint count[];
+};
+
 // output draw indirect buffer
-layout(binding = 4) buffer DrawResult
+layout(binding = 5) buffer DrawResult
 {
     draw_cull_result_t result;
 };

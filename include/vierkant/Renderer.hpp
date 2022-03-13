@@ -97,15 +97,37 @@ public:
         int32_t vertex_offset;
         uint32_t first_instance;
 
-        uint32_t visible;
+        uint32_t batch_index;
         uint32_t object_index;
-        uint32_t padding[1];
+        uint32_t first_draw_index;
+        uint32_t visible;
+        uint32_t padding[3];
         glm::vec4 sphere_bounds;
     };
+
+    struct indirect_draw_params_t
+    {
+        uint32_t num_draws = 0;
+
+//        std::vector<uint32_t> draw_counts;
+
+        //! host-visible arrays
+        vierkant::BufferPtr matrices;
+        vierkant::BufferPtr previous_matrices;
+        vierkant::BufferPtr materials;
+
+        //! host-visible array of indexed_indirect_command_t
+        vierkant::BufferPtr draws_in;
+
+        //! device array of indexed_indirect_command_t
+        vierkant::BufferPtr draws_out;
+
+        //! device array of uint32_t
+        vierkant::BufferPtr draws_counts_out;
+    };
+
     //! define syntax for a culling-delegate
-    using indirect_draw_cull_delegate_t = std::function<void(const vierkant::BufferPtr &draws_in,
-                                                             vierkant::BufferPtr &draws_out,
-                                                             uint32_t num_draws)>;
+    using indirect_draw_delegate_t = std::function<void(indirect_draw_params_t)>;
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
      */
@@ -162,7 +184,7 @@ public:
     static std::vector<drawable_t>
     create_drawables(const MeshConstPtr &mesh,
                      const glm::mat4 &model_view = glm::mat4(1),
-                     const std::function<bool(const Mesh::entry_t &entry)>& entry_filter = {});
+                     const std::function<bool(const Mesh::entry_t &entry)> &entry_filter = {});
 
     //! Viewport parameters currently used.
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
@@ -177,7 +199,7 @@ public:
     bool indirect_draw = true;
 
     //! optional cull-delegate
-    indirect_draw_cull_delegate_t cull_delegate;
+    indirect_draw_delegate_t draw_indirect_delegate;
 
     Renderer() = default;
 
@@ -277,7 +299,7 @@ private:
 
         // draw-indirect buffers
         vierkant::BufferPtr indirect_draw_buffer, indirect_culled;
-        vierkant::BufferPtr indexed_indirect_draw_buffer, indexed_indirect_culled;
+        vierkant::BufferPtr indexed_indirect_draw_buffer, indexed_indirect_culled, indexed_indirect_culled_count_buffer;
 
         // global indices for rendering-commands
         size_t indirect_draw_index = 0;

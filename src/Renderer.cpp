@@ -211,7 +211,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.scissor, rhs.scissor);
     std::swap(lhs.disable_material, rhs.disable_material);
     std::swap(lhs.indirect_draw, rhs.indirect_draw);
-    std::swap(lhs.cull_delegate, rhs.cull_delegate);
+    std::swap(lhs.draw_indirect_delegate, rhs.draw_indirect_delegate);
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_sample_count, rhs.m_sample_count);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
@@ -256,21 +256,31 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
     if(recycle_commands)
     {
-        if(cull_delegate)
+        if(draw_indirect_delegate)
         {
-            cull_delegate(current_assets.indexed_indirect_draw_buffer, current_assets.indexed_indirect_culled,
-                          current_assets.indexed_indirect_draw_index);
+            indirect_draw_params_t draw_params = {};
+            draw_params.num_draws = current_assets.indexed_indirect_draw_index;
+            draw_params.draws_in = current_assets.indexed_indirect_draw_buffer;
+            draw_params.draws_out = current_assets.indexed_indirect_culled;
+            draw_params.draws_counts_out = current_assets.indexed_indirect_culled_count_buffer;
+
+            draw_params.matrices = current_assets.matrix_buffer;
+            draw_params.previous_matrices = current_assets.matrix_history_buffer;
+            draw_params.materials = current_assets.material_buffer;
+            draw_indirect_delegate(draw_params);
             return current_assets.command_buffer.handle();
         }
     }
     frame_assets_t next_assets = {};
 
-    // keep uniform buffers
+    // keep storage buffers
     next_assets.matrix_buffer = std::move(current_assets.matrix_buffer);
+    next_assets.matrix_history_buffer = std::move(current_assets.matrix_history_buffer);
     next_assets.material_buffer = std::move(current_assets.material_buffer);
 
     struct indirect_draw_asset_t
     {
+        uint32_t batch_index = 0;
         uint32_t num_draws = 0;
         uint32_t first_draw_index = 0;
         uint32_t first_indexed_draw_index = 0;
@@ -391,6 +401,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
             {
                 indirect_draw_asset_t new_draw = {};
+                new_draw.batch_index = indirect_draws.size();
                 new_draw.first_draw_index = next_assets.indirect_draw_index;
                 new_draw.first_indexed_draw_index = next_assets.indexed_indirect_draw_index;
                 new_draw.scissor = drawable->pipeline_format.scissor;
@@ -434,7 +445,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->first_instance = indexed_drawable.object_index;
                 draw_command->instance_count = 1;
 
+                draw_command->batch_index = indirect_draw_asset.batch_index;
                 draw_command->object_index = indexed_drawable.object_index;
+                draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
+                draw_command->visible = true;
 
                 // bounding sphere xyz, radius
                 if(drawable->mesh && !drawable->mesh->entries.empty())
@@ -447,7 +461,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             else
             {
                 auto draw_command = static_cast<VkDrawIndirectCommand *>(next_assets.indirect_draw_buffer->map()) +
-                        next_assets.indirect_draw_index++;
+                                    next_assets.indirect_draw_index++;
 
                 draw_command->vertexCount = drawable->num_vertices;
                 draw_command->instanceCount = 1;
@@ -460,10 +474,19 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     // hook up GPU frustum/occlusion/distance culling here
     vierkant::BufferPtr draw_buffer = next_assets.indexed_indirect_draw_buffer;
 
-    if(cull_delegate)
+    if(draw_indirect_delegate)
     {
-        cull_delegate(next_assets.indexed_indirect_draw_buffer, next_assets.indexed_indirect_culled,
-                      next_assets.indexed_indirect_draw_index);
+        indirect_draw_params_t draw_params = {};
+        draw_params.num_draws = next_assets.indexed_indirect_draw_index;
+        draw_params.draws_in = next_assets.indexed_indirect_draw_buffer;
+        draw_params.draws_out = next_assets.indexed_indirect_culled;
+        draw_params.draws_counts_out = next_assets.indexed_indirect_culled_count_buffer;
+
+        draw_params.matrices = next_assets.matrix_buffer;
+        draw_params.previous_matrices = next_assets.matrix_history_buffer;
+        draw_params.materials = next_assets.material_buffer;
+
+        draw_indirect_delegate(draw_params);
         if(next_assets.indexed_indirect_culled){ draw_buffer = next_assets.indexed_indirect_culled; }
     }
 

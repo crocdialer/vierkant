@@ -466,18 +466,17 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     if(settings.frustum_culling || settings.occlusion_culling)
     {
-        m_g_renderer.cull_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
-                (const vierkant::BufferPtr &draws_in,
-                 vierkant::BufferPtr &draws_out,
-                 uint32_t num_draws)
+        m_g_renderer.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
+                (Renderer::indirect_draw_params_t params)
         {
-            digest_draw_command_buffer(frame_asset, cam, last_frame_asset.depth_pyramid, draws_in, draws_out,
-                                       num_draws);
+            digest_draw_command_buffer(frame_asset, cam, last_frame_asset.depth_pyramid, params.draws_in,
+                                       params.draws_out, params.draws_counts_out,
+                                       params.num_draws);
         };
     }
     else
     {
-        m_g_renderer.cull_delegate = {};
+        m_g_renderer.draw_indirect_delegate = {};
         frame_asset.timeline.signal(SemaphoreValue::CULLING);
     }
 
@@ -944,6 +943,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
                                              const vierkant::ImagePtr &depth_pyramid,
                                              const vierkant::BufferPtr &draws_in,
                                              vierkant::BufferPtr &draws_out,
+                                             vierkant::BufferPtr &draws_counts_out,
                                              uint32_t num_draws)
 {
     if(!draws_in || !draws_in->num_bytes() || !depth_pyramid)
@@ -986,6 +986,16 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
                                              VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
+    if(!draws_counts_out)
+    {
+        constexpr uint32_t max_batches = 4096;
+        draws_counts_out = vierkant::Buffer::create(m_device, nullptr,
+                                                    max_batches * sizeof(uint32_t),
+                                                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                    VMA_MEMORY_USAGE_GPU_ONLY);
+    }
     if(!frame_asset.cull_ubo)
     {
         frame_asset.cull_ubo = vierkant::Buffer::create(m_device, &draw_cull_data, sizeof(draw_cull_data),
@@ -1042,11 +1052,17 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     out_buffer_desc.buffers = {draws_out};
     computable.descriptors[3] = out_buffer_desc;
 
+    descriptor_t out_counts_buffer_desc = {};
+    out_counts_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    out_counts_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+    out_counts_buffer_desc.buffers = {draws_counts_out};
+    computable.descriptors[4] = out_counts_buffer_desc;
+
     descriptor_t out_result_desc = {};
     out_result_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     out_result_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     out_result_desc.buffers = {frame_asset.cull_result_buffer};
-    computable.descriptors[4] = out_result_desc;
+    computable.descriptors[5] = out_result_desc;
 
     // create / start a new command-buffer
     frame_asset.cull_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -1054,7 +1070,11 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
 
     // clear gpu-result-buffer with zeros
     vkCmdFillBuffer(frame_asset.cull_cmd_buffer.handle(), frame_asset.cull_result_buffer->handle(), 0,
-                    sizeof(draw_cull_result_t), 0);
+                    VK_WHOLE_SIZE, 0);
+
+    // clear count-buffer with zeros
+    vkCmdFillBuffer(frame_asset.cull_cmd_buffer.handle(), draws_counts_out->handle(), 0,
+                    VK_WHOLE_SIZE, 0);
 
     if(!frame_asset.cull_compute)
     {

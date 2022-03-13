@@ -287,6 +287,7 @@ private:
                                     const vierkant::ImagePtr &depth_pyramid,
                                     const vierkant::BufferPtr &draws_in,
                                     vierkant::BufferPtr &draws_out,
+                                    vierkant::BufferPtr &draws_counts_out,
                                     uint32_t num_draws);
 
     vierkant::DevicePtr m_device;
