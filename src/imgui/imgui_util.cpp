@@ -412,7 +412,7 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
     ImVec2 window_pos_pivot = ImVec2((corner & 1) ? 1.0f : 0.0f, (corner & 2) ? 1.0f : 0.0f);
 
     float min_width = is_minimized ? 100 : io.DisplaySize.x - 2 * DISTANCE;
-    float max_height = 2 * io.DisplaySize.y / 3.f ;
+    float max_height = 2 * io.DisplaySize.y / 3.f;
 
     ImGui::SetNextWindowSizeConstraints(ImVec2(min_width, 0),
                                         ImVec2(min_width, max_height));
@@ -1025,8 +1025,10 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
         auto z_val = transform[3].z;
 
         ImGuizmo::SetOrthographic(is_ortho);
-        auto proj = camera->projection_matrix();
-        proj[1][1] *= -1;
+
+        auto sz = ImGui::GetIO().DisplaySize;
+        auto proj = glm::perspectiveRH(camera->fov(), sz.x / sz.y, camera->near(),
+                                       camera->far());
         ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
                              ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(transform));
         if(is_ortho){ transform[3].z = z_val; }
