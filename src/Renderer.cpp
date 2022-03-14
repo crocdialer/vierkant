@@ -268,6 +268,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             draw_params.previous_matrices = current_assets.matrix_history_buffer;
             draw_params.materials = current_assets.material_buffer;
             draw_indirect_delegate(draw_params);
+
+            if(draw_params.draws_out){ current_assets.indexed_indirect_culled = draw_params.draws_out; }
+            if(draw_params.draws_counts_out){ current_assets.indexed_indirect_culled_count_buffer = draw_params.draws_counts_out;}
+
             return current_assets.command_buffer.handle();
         }
     }
@@ -477,7 +481,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
     // hook up GPU frustum/occlusion/distance culling here
     vierkant::BufferPtr draw_buffer = next_assets.indexed_indirect_draw_buffer;
-    vierkant::BufferPtr count_buffer;
+    vierkant::BufferPtr& count_buffer = next_assets.indexed_indirect_culled_count_buffer;
 
     if(draw_indirect_delegate)
     {
@@ -493,8 +497,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
         draw_indirect_delegate(draw_params);
 
-        if(draw_params.draws_out){ draw_buffer = draw_params.draws_out; }
-        if(draw_params.draws_counts_out){ count_buffer = draw_params.draws_counts_out; }
+        if(draw_params.draws_out)
+        {
+            next_assets.indexed_indirect_culled = draw_params.draws_out;
+            draw_buffer = draw_params.draws_out;
+        }
+        if(draw_params.draws_counts_out){ next_assets.indexed_indirect_culled_count_buffer = draw_params.draws_counts_out;}
     }
 
     // push constants
