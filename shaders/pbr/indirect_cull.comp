@@ -148,12 +148,14 @@ void main()
         }
     }
 
-    if(!visible){ draw.instanceCount = draw.indexCount = 0; }
-
-    atomicAdd(result.draw_count, 1);
-
-    out_draw_data[gid] = draw;
+//    if(!visible){ draw.instanceCount = draw.indexCount = 0; }
+//    atomicAdd(result.draw_count, 1);
+//    out_draw_data[gid] = draw;
 
     // count managment
-    atomicAdd(count[draw.batch_index], 1);
+    if(visible)
+    {
+        uint draw_cmd_offset = atomicAdd(count[draw.batch_index], 1);
+        out_draw_data[draw.first_draw_index + draw_cmd_offset] = draw;
+    }
 }
