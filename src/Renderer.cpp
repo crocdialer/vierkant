@@ -387,6 +387,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         pipeline_drawables[pipeline_format].push_back(indexed_drawable);
     }
 
+    // batch/pipeline index
+    uint32_t batch_index = 0;
+
     // fill up indirect draw buffers
     for(const auto &[pipe_fmt, indexed_drawables] : pipeline_drawables)
     {
@@ -401,7 +404,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
             {
                 indirect_draw_asset_t new_draw = {};
-                new_draw.batch_index = indirect_draws.size();
+                new_draw.batch_index = batch_index;
                 new_draw.first_draw_index = next_assets.indirect_draw_index;
                 new_draw.first_indexed_draw_index = next_assets.indexed_indirect_draw_index;
                 new_draw.scissor = drawable->pipeline_format.scissor;
@@ -469,10 +472,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->firstInstance = indexed_drawable.object_index;
             }
         }
+        batch_index++;
     }
 
     // hook up GPU frustum/occlusion/distance culling here
     vierkant::BufferPtr draw_buffer = next_assets.indexed_indirect_draw_buffer;
+    vierkant::BufferPtr count_buffer;
 
     if(draw_indirect_delegate)
     {
@@ -487,7 +492,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         draw_params.materials = next_assets.material_buffer;
 
         draw_indirect_delegate(draw_params);
-        if(next_assets.indexed_indirect_culled){ draw_buffer = next_assets.indexed_indirect_culled; }
+
+        if(draw_params.draws_out){ draw_buffer = draw_params.draws_out; }
+        if(draw_params.draws_counts_out){ count_buffer = draw_params.draws_counts_out; }
     }
 
     // push constants
@@ -552,11 +559,24 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 {
                     size_t indexed_indirect_cmd_stride = sizeof(indexed_indirect_command_t);
 
-                    vkCmdDrawIndexedIndirect(command_buffer.handle(),
-                                             draw_buffer->handle(),
-                                             indexed_indirect_cmd_stride * draw_asset.first_indexed_draw_index,
-                                             draw_asset.num_draws,
-                                             indexed_indirect_cmd_stride);
+                    if(count_buffer)
+                    {
+                        vkCmdDrawIndexedIndirectCount(command_buffer.handle(),
+                                                      draw_buffer->handle(),
+                                                      indexed_indirect_cmd_stride * draw_asset.first_indexed_draw_index,
+                                                      count_buffer->handle(),
+                                                      draw_asset.batch_index * sizeof(uint32_t),
+                                                      draw_asset.num_draws,
+                                                      indexed_indirect_cmd_stride);
+                    }
+                    else
+                    {
+                        vkCmdDrawIndexedIndirect(command_buffer.handle(),
+                                                 draw_buffer->handle(),
+                                                 indexed_indirect_cmd_stride * draw_asset.first_indexed_draw_index,
+                                                 draw_asset.num_draws,
+                                                 indexed_indirect_cmd_stride);
+                    }
                 }
                 else
                 {

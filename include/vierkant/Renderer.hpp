@@ -127,7 +127,7 @@ public:
     };
 
     //! define syntax for a culling-delegate
-    using indirect_draw_delegate_t = std::function<void(indirect_draw_params_t)>;
+    using indirect_draw_delegate_t = std::function<void(indirect_draw_params_t&)>;
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
      */

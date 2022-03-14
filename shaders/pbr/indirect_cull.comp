@@ -153,4 +153,7 @@ void main()
     atomicAdd(result.draw_count, 1);
 
     out_draw_data[gid] = draw;
+
+    // count managment
+    atomicAdd(count[draw.batch_index], 1);
 }

@@ -467,7 +467,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     if(settings.frustum_culling || settings.occlusion_culling)
     {
         m_g_renderer.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
-                (Renderer::indirect_draw_params_t params)
+                (Renderer::indirect_draw_params_t &params)
         {
             digest_draw_command_buffer(frame_asset, cam, last_frame_asset.depth_pyramid, params.draws_in,
                                        params.draws_out, params.draws_counts_out,
