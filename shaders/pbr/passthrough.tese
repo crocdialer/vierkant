@@ -72,6 +72,7 @@ void main(void)
     jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
     gl_Position = jittered_position;
 
+    out_object_index = in_object_index[0];
     vertex_out.tex_coord = (m.texture * vec4(vertex_out.tex_coord, 0, 1)).xy;
     vertex_out.normal = normalize(mat3(m.normal) * vertex_out.normal);
     vertex_out.tangent = normalize(mat3(m.normal) * vertex_out.tangent);

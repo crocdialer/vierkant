@@ -471,7 +471,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
 
             // optional wireframe rendering
-            drawable.pipeline_format.polygon_mode = settings.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+            drawable.pipeline_format.polygon_mode = frame_asset.settings.wireframe ? VK_POLYGON_MODE_LINE
+                                                                                   : VK_POLYGON_MODE_FILL;
 
             // add descriptor for a jitter-offset
             drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = camera_desc;
@@ -481,9 +482,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     }
 
     // material override
-    m_g_renderer.disable_material = settings.disable_material;
+    m_g_renderer.disable_material = frame_asset.settings.disable_material;
 
-    if(settings.frustum_culling || settings.occlusion_culling)
+    if(frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling)
     {
         m_g_renderer.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
                 (Renderer::indirect_draw_params_t &params)
@@ -512,7 +513,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // depth-attachment
     frame_asset.depth_map = g_buffer.depth_attachment();
 
-    if(settings.occlusion_culling)
+    if(frame_asset.settings.occlusion_culling)
     {
         // generate depth-pyramid
         create_depth_pyramid(frame_asset);
@@ -528,44 +529,44 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // |- TODO: draw light volumes with fancy stencil settings
 
     size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
-    auto &frame_assets = m_frame_assets[index];
+    auto &frame_asset = m_frame_assets[index];
 
     environment_lighting_ubo_t ubo = {};
     ubo.camera_transform = cull_result.camera->global_transform();
     ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
 
-    frame_assets.lighting_ubo->set_data(&ubo, sizeof(ubo));
+    frame_asset.lighting_ubo->set_data(&ubo, sizeof(ubo));
 
     // environment lighting-pass
     auto drawable = m_drawable_lighting_env;
-    drawable.descriptors[0].buffers = {frame_assets.lighting_ubo};
-    drawable.descriptors[1].images = {frame_assets.g_buffer.color_attachment(G_BUFFER_ALBEDO),
-                                      frame_assets.g_buffer.color_attachment(G_BUFFER_NORMAL),
-                                      frame_assets.g_buffer.color_attachment(G_BUFFER_EMISSION),
-                                      frame_assets.g_buffer.color_attachment(G_BUFFER_AO_ROUGH_METAL),
-                                      frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
-                                      frame_assets.g_buffer.depth_attachment(),
+    drawable.descriptors[0].buffers = {frame_asset.lighting_ubo};
+    drawable.descriptors[1].images = {frame_asset.g_buffer.color_attachment(G_BUFFER_ALBEDO),
+                                      frame_asset.g_buffer.color_attachment(G_BUFFER_NORMAL),
+                                      frame_asset.g_buffer.color_attachment(G_BUFFER_EMISSION),
+                                      frame_asset.g_buffer.color_attachment(G_BUFFER_AO_ROUGH_METAL),
+                                      frame_asset.g_buffer.color_attachment(G_BUFFER_MOTION),
+                                      frame_asset.g_buffer.depth_attachment(),
                                       m_brdf_lut};
     drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
 
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
-    auto cmd_buffer = m_light_renderer.render(frame_assets.lighting_buffer);
-    frame_assets.lighting_buffer.submit({cmd_buffer}, m_queue);
+    auto cmd_buffer = m_light_renderer.render(frame_asset.lighting_buffer);
+    frame_asset.lighting_buffer.submit({cmd_buffer}, m_queue);
 
     // skybox rendering
-    if(settings.draw_skybox)
+    if(frame_asset.settings.draw_skybox)
     {
         if(cull_result.scene->environment())
         {
             m_draw_context.draw_skybox(m_sky_renderer, cull_result.scene->environment(), cull_result.camera);
         }
     }
-    cmd_buffer = m_sky_renderer.render(frame_assets.sky_buffer);
-    frame_assets.sky_buffer.submit({cmd_buffer}, m_queue);
+    cmd_buffer = m_sky_renderer.render(frame_asset.sky_buffer);
+    frame_asset.sky_buffer.submit({cmd_buffer}, m_queue);
 
-    return frame_assets.sky_buffer;
+    return frame_asset.sky_buffer;
 }
 
 void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
@@ -574,17 +575,17 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
                                const vierkant::ImagePtr &depth)
 {
     size_t frame_index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
-    auto &frame_assets = m_frame_assets[frame_index];
+    auto &frame_asset = m_frame_assets[frame_index];
 
     size_t buffer_index = 0;
     vierkant::ImagePtr output_img = color;
 
     // get next set of pingpong assets, increment index
-    auto pingpong_render = [&frame_assets, &buffer_index, queue = m_queue](
+    auto pingpong_render = [&frame_asset, &buffer_index, queue = m_queue](
             Renderer::drawable_t &drawable) -> vierkant::ImagePtr
     {
-        auto &pingpong = frame_assets.post_fx_ping_pongs[buffer_index];
-        buffer_index = (buffer_index + 1) % frame_assets.post_fx_ping_pongs.size();
+        auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index];
+        buffer_index = (buffer_index + 1) % frame_asset.post_fx_ping_pongs.size();
         pingpong.renderer.stage_drawable(drawable);
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
         pingpong.framebuffer.submit({cmd_buf}, queue);
@@ -592,7 +593,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     };
 
     // TAA
-    if(settings.use_taa)
+    if(frame_asset.settings.use_taa)
     {
         size_t last_frame_index = (frame_index + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
 
@@ -603,50 +604,50 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto drawable = m_drawable_taa;
         drawable.descriptors[0].images = {output_img,
                                           depth,
-                                          frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION),
+                                          frame_asset.g_buffer.color_attachment(G_BUFFER_MOTION),
                                           history_color,
                                           history_depth};
 
         if(!drawable.descriptors[1].buffers.empty())
         {
-            drawable.descriptors[1].buffers.front()->set_data(&frame_assets.camera_params, sizeof(camera_params_t));
+            drawable.descriptors[1].buffers.front()->set_data(&frame_asset.camera_params, sizeof(camera_params_t));
         }
         m_taa_renderer.stage_drawable(drawable);
-        auto cmd = m_taa_renderer.render(frame_assets.taa_buffer);
-        frame_assets.taa_buffer.submit({cmd}, m_queue);
-        output_img = frame_assets.taa_buffer.color_attachment();
+        auto cmd = m_taa_renderer.render(frame_asset.taa_buffer);
+        frame_asset.taa_buffer.submit({cmd}, m_queue);
+        output_img = frame_asset.taa_buffer.color_attachment();
     }
 
     // tonemap / bloom
-    if(settings.tonemap)
+    if(frame_asset.settings.tonemap)
     {
         auto bloom_img = m_empty_img;
 
         // generate bloom image
-        if(settings.bloom){ bloom_img = frame_assets.bloom->apply(output_img, m_queue, {}); }
+        if(frame_asset.settings.bloom){ bloom_img = frame_asset.bloom->apply(output_img, m_queue, {}); }
 
         // motionblur
         auto motion_img = m_empty_img;
-        if(settings.motionblur){ motion_img = frame_assets.g_buffer.color_attachment(G_BUFFER_MOTION); }
+        if(frame_asset.settings.motionblur){ motion_img = frame_asset.g_buffer.color_attachment(G_BUFFER_MOTION); }
 
         composition_ubo_t comp_ubo = {};
-        comp_ubo.exposure = settings.exposure;
-        comp_ubo.gamma = settings.gamma;
+        comp_ubo.exposure = frame_asset.settings.exposure;
+        comp_ubo.gamma = frame_asset.settings.gamma;
 
         using duration_t = std::chrono::duration<float>;
         comp_ubo.time_delta = duration_t(m_timestamp_current - m_timestamp_last).count();
-        comp_ubo.motionblur_gain = settings.motionblur_gain;
+        comp_ubo.motionblur_gain = frame_asset.settings.motionblur_gain;
 
-        frame_assets.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
+        frame_asset.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
         m_drawable_bloom.descriptors[0].images = {output_img, bloom_img, motion_img};
-        m_drawable_bloom.descriptors[1].buffers = {frame_assets.composition_ubo};
+        m_drawable_bloom.descriptors[1].buffers = {frame_asset.composition_ubo};
 
         output_img = pingpong_render(m_drawable_bloom);
     }
 
     // fxaa
-    if(settings.use_fxaa)
+    if(frame_asset.settings.use_fxaa)
     {
         auto drawable = m_drawable_fxaa;
         drawable.descriptors[0].images = {output_img};
@@ -655,7 +656,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     }
 
     // depth of field
-    if(settings.dof.enabled)
+    if(frame_asset.settings.dof.enabled)
     {
         auto drawable = m_drawable_dof;
         drawable.descriptors[0].images = {output_img, depth};
@@ -665,8 +666,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
         if(!drawable.descriptors[1].buffers.empty())
         {
-            settings.dof.clipping = vierkant::clipping_distances(cam->projection_matrix());
-            drawable.descriptors[1].buffers.front()->set_data(&settings.dof, sizeof(vierkant::dof_settings_t));
+            frame_asset.settings.dof.clipping = vierkant::clipping_distances(cam->projection_matrix());
+            drawable.descriptors[1].buffers.front()->set_data(&frame_asset.settings.dof, sizeof(vierkant::dof_settings_t));
         }
         output_img = pingpong_render(drawable);
     }
@@ -974,9 +975,9 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.draw_count = num_draws;
     draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
-    draw_cull_data.occlusion_enabled = settings.occlusion_culling;
+    draw_cull_data.occlusion_enabled = frame_asset.settings.occlusion_culling;
     draw_cull_data.distance_cull = false;
-    draw_cull_data.culling_enabled = settings.frustum_culling;
+    draw_cull_data.culling_enabled = frame_asset.settings.frustum_culling;
 
     auto projection = cam->projection_matrix();
     draw_cull_data.P00 = projection[0][0];
