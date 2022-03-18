@@ -487,6 +487,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
     ImGui::Checkbox("frustum culling", &pbr_renderer->settings.frustum_culling);
     ImGui::Checkbox("occlusion culling", &pbr_renderer->settings.occlusion_culling);
+    ImGui::Checkbox("tesselation", &pbr_renderer->settings.tesselation);
     ImGui::Checkbox("wireframe", &pbr_renderer->settings.wireframe);
     ImGui::Checkbox("taa", &pbr_renderer->settings.use_taa);
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);

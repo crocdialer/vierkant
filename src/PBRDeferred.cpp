@@ -257,6 +257,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
     }
     bool need_culling = frame_asset.cull_result.camera != cam || meshes != frame_asset.cull_result.meshes;
     frame_asset.recycle_commands = static_scene && transforms_unchanged && materials_unchanged && !need_culling;
+
+    frame_asset.recycle_commands = frame_asset.recycle_commands && frame_asset.settings == settings;
+    frame_asset.settings = settings;
 }
 
 SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
@@ -446,12 +449,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 shader_flags |= PROP_TANGENT_SPACE;
 
-                shader_flags |= PROP_TESSELATION;
-                drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-                drawable.pipeline_format.num_patch_control_points = 3;
-                drawable.descriptors[Renderer::BINDING_MATRIX].stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-                drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX].stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-                camera_desc.stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+                if(frame_asset.settings.tesselation)
+                {
+                    shader_flags |= PROP_TESSELATION;
+                    drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+                    drawable.pipeline_format.num_patch_control_points = 3;
+                    drawable.descriptors[Renderer::BINDING_MATRIX].stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+                    drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX].stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+                    camera_desc.stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+                }
             }
 
             // select shader-stages from cache
@@ -1165,6 +1171,27 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
     culling_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
     culling_semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
     frame_asset.cull_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {culling_semaphore_submit_info});
+}
+
+bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)
+{
+    if(lhs.resolution != rhs.resolution){ return false; }
+    if(lhs.disable_material != rhs.disable_material){ return false; }
+    if(lhs.frustum_culling != rhs.frustum_culling){ return false; }
+    if(lhs.occlusion_culling != rhs.occlusion_culling){ return false; }
+    if(lhs.tesselation != rhs.tesselation){ return false; }
+    if(lhs.wireframe != rhs.wireframe){ return false; }
+    if(lhs.draw_skybox != rhs.draw_skybox){ return false; }
+    if(lhs.use_fxaa != rhs.use_fxaa){ return false; }
+    if(lhs.use_taa != rhs.use_taa){ return false; }
+    if(lhs.tonemap != rhs.tonemap){ return false; }
+    if(lhs.bloom != rhs.bloom){ return false; }
+    if(lhs.motionblur != rhs.motionblur){ return false; }
+    if(lhs.motionblur_gain != rhs.motionblur_gain){ return false; }
+    if(lhs.gamma != rhs.gamma){ return false; }
+    if(lhs.exposure != rhs.exposure){ return false; }
+    if(lhs.dof != rhs.dof){ return false; }
+    return true;
 }
 
 }// namespace vierkant

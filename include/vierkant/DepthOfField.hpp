@@ -46,4 +46,7 @@ struct alignas(16) dof_settings_t
     uint32_t debug_focus = false;
 };
 
+inline bool operator==(const dof_settings_t &lhs, const dof_settings_t &rhs){ return true; }
+inline bool operator!=(const dof_settings_t &lhs, const dof_settings_t &rhs){ return !(lhs == rhs); }
+
 }// namespace vierkant

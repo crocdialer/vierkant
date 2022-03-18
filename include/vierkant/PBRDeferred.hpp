@@ -36,6 +36,9 @@ public:
         //! occlusion-culling
         bool occlusion_culling = true;
 
+        //! use tesselation
+        bool tesselation = false;
+
         //! use wireframe rendering
         bool wireframe = false;
 
@@ -167,6 +170,7 @@ private:
     {
         //! contains the culled scene-drawables
         vierkant::cull_result_t cull_result;
+        settings_t settings;
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
         std::unordered_map<vierkant::MeshConstPtr, size_t> mesh_transform_hashes;
         bool recycle_commands = false;
@@ -342,6 +346,10 @@ private:
     std::chrono::steady_clock::time_point m_timestamp_current = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point m_timestamp_last = m_timestamp_current;
 };
+
+extern bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs);
+
+inline bool operator!=(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs){ return !(lhs == rhs); }
 
 }// namespace vierkant
 
