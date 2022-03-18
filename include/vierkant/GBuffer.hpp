@@ -40,6 +40,7 @@ enum GBufferPropertyFlagBits : uint32_t
     PROP_DEFAULT = 0x00,
     PROP_SKIN = 0x02,
     PROP_TANGENT_SPACE = 0x04,
+    PROP_TESSELATION = 0x08
 };
 
 using GBufferPropertyFlags = uint32_t;

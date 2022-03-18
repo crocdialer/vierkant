@@ -36,6 +36,9 @@ public:
         //! occlusion-culling
         bool occlusion_culling = true;
 
+        //! use wireframe rendering
+        bool wireframe = false;
+
         //! draw the skybox, if any
         bool draw_skybox = true;
 
@@ -239,6 +242,7 @@ private:
         uint32_t num_frustum_culled = 0;
         uint32_t num_occlusion_culled = 0;
         uint32_t num_distance_culled = 0;
+        uint32_t num_triangles = 0;
     };
 
     struct matrix_key_t

@@ -52,6 +52,12 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     inputAssembly.topology = format.primitive_topology;
     inputAssembly.primitiveRestartEnable = static_cast<VkBool32>(format.primitive_restart);
 
+    VkPipelineTessellationStateCreateInfo tessellation_state_create_info = {};
+    tessellation_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+    tessellation_state_create_info.patchControlPoints = format.num_patch_control_points;
+    bool use_tesselation = format.primitive_topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST &&
+                           format.shader_stages.count(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+
     if(!format.scissor.extent.width || !format.scissor.extent.height)
     {
         format.scissor.extent = {static_cast<uint32_t>(format.viewport.width),
@@ -159,7 +165,7 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     pipeline_info.pDepthStencilState = &depth_stencil;
     pipeline_info.pColorBlendState = &colorBlending;
     pipeline_info.pDynamicState = &dynamic_state_create_info;
-
+    pipeline_info.pTessellationState = use_tesselation ? &tessellation_state_create_info : nullptr;
     pipeline_info.layout = pipeline_layout;
     pipeline_info.renderPass = format.renderpass;
     pipeline_info.subpass = format.subpass;
@@ -248,7 +254,7 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::compute_pipeline_info_t
 
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCheck(vkCreateComputePipelines(device->handle(), VK_NULL_HANDLE, 1, &pipeline_create_info,
-                                           VK_NULL_HANDLE, &pipeline), "could not create compute pipeline");
+                                     VK_NULL_HANDLE, &pipeline), "could not create compute pipeline");
 
     return PipelinePtr(
             new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline));

@@ -130,9 +130,11 @@ Device::Device(const create_info_t &create_info) :
     // add some obligatory features here
     VkPhysicalDeviceFeatures device_features = create_info.device_features;
     device_features.geometryShader = true;
+    device_features.tessellationShader = true;
     device_features.samplerAnisotropy = true;
     device_features.sampleRateShading = true;
     device_features.independentBlend = true;
+    device_features.fillModeNonSolid = true;
     device_features.multiDrawIndirect = true;
 
     std::vector<const char *> extensions;

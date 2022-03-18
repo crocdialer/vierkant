@@ -247,6 +247,7 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
 
     if(primitive_topology != other.primitive_topology){ return false; }
     if(primitive_restart != other.primitive_restart){ return false; }
+    if(num_patch_control_points != other.num_patch_control_points){ return false; }
     if(front_face != other.front_face){ return false; }
     if(polygon_mode != other.polygon_mode){ return false; }
     if(cull_mode != other.cull_mode){ return false; }
@@ -395,6 +396,7 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     }
     hash_combine(h, fmt.primitive_topology);
     hash_combine(h, fmt.primitive_restart);
+    hash_combine(h, fmt.num_patch_control_points);
     hash_combine(h, fmt.front_face);
     hash_combine(h, fmt.polygon_mode);
     hash_combine(h, fmt.cull_mode);

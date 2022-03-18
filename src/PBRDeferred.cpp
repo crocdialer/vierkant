@@ -442,7 +442,17 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
 
             // check if tangents are available
-            if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)){ shader_flags |= PROP_TANGENT_SPACE; }
+            if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT))
+            {
+                shader_flags |= PROP_TANGENT_SPACE;
+
+                shader_flags |= PROP_TESSELATION;
+                drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+                drawable.pipeline_format.num_patch_control_points = 3;
+                drawable.descriptors[Renderer::BINDING_MATRIX].stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+                drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX].stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+                camera_desc.stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+            }
 
             // select shader-stages from cache
             auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
@@ -453,6 +463,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             // set attachment count
             drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
+
+            // optional wireframe rendering
+            drawable.pipeline_format.polygon_mode = settings.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 
             // add descriptor for a jitter-offset
             drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = camera_desc;
@@ -974,8 +987,6 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
 
     draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
 
-//    spdlog::trace("frustum: {}", glm::to_string(draw_cull_data.frustum));
-
     draw_cull_result_t result = {};
 
     if(!draws_out || draws_out->num_bytes() < draws_in->num_bytes())
@@ -1021,8 +1032,8 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
         auto &result_buf = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
         result = result_buf;
 
-        spdlog::trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {}",
-                      result.draw_count, result.num_frustum_culled, result.num_occlusion_culled);
+        spdlog::trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
+                      result.draw_count, result.num_frustum_culled, result.num_occlusion_culled, result.num_triangles);
     }
 //    result.draw_count = num_draws;
 
