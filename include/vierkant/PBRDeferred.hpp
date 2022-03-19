@@ -146,9 +146,9 @@ private:
 
     enum SemaphoreValue : uint64_t
     {
-        CULLING = 1,
-        G_BUFFER_LAST_VISIBLE,
+        G_BUFFER_LAST_VISIBLE = 1,
         DEPTH_PYRAMID,
+        CULLING,
         G_BUFFER_ALL,
         LIGHTING,
         POST_FX,
@@ -174,6 +174,7 @@ private:
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
         std::unordered_map<vierkant::MeshConstPtr, size_t> mesh_transform_hashes;
         bool recycle_commands = false;
+        Renderer::indirect_draw_params_t indirect_draw_params = {};
         camera_params_t camera_params;
 
         vierkant::Semaphore timeline;

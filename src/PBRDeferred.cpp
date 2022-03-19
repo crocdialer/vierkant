@@ -481,26 +481,48 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = camera_desc;
         }
         // stage drawables
-        m_g_renderer_pre.stage_drawables(cull_result.drawables);
+//        m_g_renderer_pre.stage_drawables(cull_result.drawables);
+        m_g_renderer_post.stage_drawables(cull_result.drawables);
     }
 
     // material override
     m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
+    // draw last visible objects
+    vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
+    g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
+    g_buffer_semaphore_submit_info_pre.signal_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
+    auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
+    frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
+
+    // depth-attachment
+    frame_asset.depth_map = frame_asset.g_buffer_pre.depth_attachment();
+
+    // generate depth-pyramid
+    if(frame_asset.settings.occlusion_culling){ create_depth_pyramid(frame_asset); }
+
     if(frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling)
     {
-        m_g_renderer_pre.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
+        // post-render will perform actual culling
+        m_g_renderer_post.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset]
                 (Renderer::indirect_draw_params_t &params)
         {
-            digest_draw_command_buffer(frame_asset, cam, last_frame_asset.depth_pyramid, params.draws_in,
+            digest_draw_command_buffer(frame_asset, cam, frame_asset.depth_pyramid, params.draws_in,
                                        params.draws_out, params.draws_counts_out,
                                        params.num_draws);
+        };
+
+        // pre-render will repeat all draws
+        m_g_renderer_pre.draw_indirect_delegate = [&frame_asset](Renderer::indirect_draw_params_t &params)
+        {
+            params = frame_asset.indirect_draw_params;
         };
     }
     else
     {
         m_g_renderer_pre.draw_indirect_delegate = {};
+        m_g_renderer_post.draw_indirect_delegate = {};
         frame_asset.timeline.signal(SemaphoreValue::CULLING);
     }
 
@@ -509,18 +531,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     g_buffer_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
     g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
     g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
-
-    auto cmd_buffer = m_g_renderer_pre.render(frame_asset.g_buffer_post, frame_asset.recycle_commands);
+    auto cmd_buffer = m_g_renderer_post.render(frame_asset.g_buffer_post, frame_asset.recycle_commands);
     frame_asset.g_buffer_post.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
-
-    // depth-attachment
-    frame_asset.depth_map = frame_asset.g_buffer_post.depth_attachment();
-
-    if(frame_asset.settings.occlusion_culling)
-    {
-        // generate depth-pyramid
-        create_depth_pyramid(frame_asset);
-    }
 
     return frame_asset.g_buffer_post;
 }
@@ -965,8 +977,12 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
                              1, &barrier);
     }
 
-    // TODO: signal timeline
-    frame_asset.depth_pyramid_cmd_buffer.submit(m_queue);
+    vierkant::semaphore_submit_info_t pyramid_semaphore_submit_info = {};
+    pyramid_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
+    pyramid_semaphore_submit_info.wait_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
+    pyramid_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    pyramid_semaphore_submit_info.signal_value = SemaphoreValue::DEPTH_PYRAMID;
+    frame_asset.depth_pyramid_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {pyramid_semaphore_submit_info});
 }
 
 void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
@@ -979,6 +995,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
 {
     if(!draws_in || !draws_in->num_bytes() || !depth_pyramid)
     {
+        frame_asset.timeline.wait(SemaphoreValue::DEPTH_PYRAMID);
         frame_asset.timeline.signal(SemaphoreValue::CULLING);
         return;
     }
@@ -1181,6 +1198,8 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
 
     vierkant::semaphore_submit_info_t culling_semaphore_submit_info = {};
     culling_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
+    culling_semaphore_submit_info.wait_value = SemaphoreValue::DEPTH_PYRAMID;
+    culling_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     culling_semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
     frame_asset.cull_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {culling_semaphore_submit_info});
 }
