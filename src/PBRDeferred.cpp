@@ -66,7 +66,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.viewport.width = static_cast<float>(create_info.size.width);
     render_create_info.viewport.height = static_cast<float>(create_info.size.height);
     render_create_info.pipeline_cache = m_pipeline_cache;
-    m_g_renderer = vierkant::Renderer(device, render_create_info);
+    m_g_renderer_pre = vierkant::Renderer(device, render_create_info);
+    m_g_renderer_post = vierkant::Renderer(device, render_create_info);
 
     // create renderer for lighting-pass
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
@@ -270,7 +271,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     m_timestamp_current = std::chrono::steady_clock::now();
 
     // reference to current frame-assets
-    auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
+    auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
 
     update_recycling(scene, cam, frame_asset);
 
@@ -336,7 +337,8 @@ void PBRDeferred::update_matrix_history(frame_assets_t &frame_asset)
     bone_offset_cache_t bone_buffer_cache;
     std::vector<glm::mat4> all_bones_matrices;
 
-    size_t last_index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    size_t last_index =
+            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
     auto &last_frame_asset = m_frame_assets[last_index];
 
     for(const auto &mesh : frame_asset.cull_result.meshes)
@@ -404,15 +406,16 @@ void PBRDeferred::update_matrix_history(frame_assets_t &frame_asset)
 
 vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 {
-    auto &frame_asset = m_frame_assets[m_g_renderer.current_index()];
+    auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
 
-    size_t last_index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    size_t last_index =
+            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
     auto &last_frame_asset = m_frame_assets[last_index];
 
     // jitter state
     constexpr float halton_multiplier = 1.f;
     const glm::vec2 pixel_step =
-            1.f / glm::vec2(frame_asset.g_buffer.extent().width, frame_asset.g_buffer.extent().height);
+            1.f / glm::vec2(frame_asset.g_buffer_post.extent().width, frame_asset.g_buffer_post.extent().height);
 
     glm::vec2 jitter_offset = halton_multiplier * pixel_step * (m_sample_offsets[m_sample_index] - glm::vec2(.5f));
     jitter_offset = settings.use_taa ? jitter_offset : glm::vec2(0);
@@ -478,15 +481,16 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = camera_desc;
         }
         // stage drawables
-        m_g_renderer.stage_drawables(cull_result.drawables);
+        m_g_renderer_pre.stage_drawables(cull_result.drawables);
     }
 
     // material override
-    m_g_renderer.disable_material = frame_asset.settings.disable_material;
+    m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
+    m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
     if(frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling)
     {
-        m_g_renderer.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
+        m_g_renderer_pre.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset, &last_frame_asset]
                 (Renderer::indirect_draw_params_t &params)
         {
             digest_draw_command_buffer(frame_asset, cam, last_frame_asset.depth_pyramid, params.draws_in,
@@ -496,7 +500,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     }
     else
     {
-        m_g_renderer.draw_indirect_delegate = {};
+        m_g_renderer_pre.draw_indirect_delegate = {};
         frame_asset.timeline.signal(SemaphoreValue::CULLING);
     }
 
@@ -506,12 +510,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
     g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
 
-    auto &g_buffer = frame_asset.g_buffer;
-    auto cmd_buffer = m_g_renderer.render(g_buffer, frame_asset.recycle_commands);
-    g_buffer.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
+    auto cmd_buffer = m_g_renderer_pre.render(frame_asset.g_buffer_post, frame_asset.recycle_commands);
+    frame_asset.g_buffer_post.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
 
     // depth-attachment
-    frame_asset.depth_map = g_buffer.depth_attachment();
+    frame_asset.depth_map = frame_asset.g_buffer_post.depth_attachment();
 
     if(frame_asset.settings.occlusion_culling)
     {
@@ -519,7 +522,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         create_depth_pyramid(frame_asset);
     }
 
-    return g_buffer;
+    return frame_asset.g_buffer_post;
 }
 
 vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_result)
@@ -528,7 +531,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // |- IBL, environment lighting-pass + emission
     // |- TODO: draw light volumes with fancy stencil settings
 
-    size_t index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    size_t index =
+            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
     auto &frame_asset = m_frame_assets[index];
 
     environment_lighting_ubo_t ubo = {};
@@ -541,12 +545,12 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // environment lighting-pass
     auto drawable = m_drawable_lighting_env;
     drawable.descriptors[0].buffers = {frame_asset.lighting_ubo};
-    drawable.descriptors[1].images = {frame_asset.g_buffer.color_attachment(G_BUFFER_ALBEDO),
-                                      frame_asset.g_buffer.color_attachment(G_BUFFER_NORMAL),
-                                      frame_asset.g_buffer.color_attachment(G_BUFFER_EMISSION),
-                                      frame_asset.g_buffer.color_attachment(G_BUFFER_AO_ROUGH_METAL),
-                                      frame_asset.g_buffer.color_attachment(G_BUFFER_MOTION),
-                                      frame_asset.g_buffer.depth_attachment(),
+    drawable.descriptors[1].images = {frame_asset.g_buffer_post.color_attachment(G_BUFFER_ALBEDO),
+                                      frame_asset.g_buffer_post.color_attachment(G_BUFFER_NORMAL),
+                                      frame_asset.g_buffer_post.color_attachment(G_BUFFER_EMISSION),
+                                      frame_asset.g_buffer_post.color_attachment(G_BUFFER_AO_ROUGH_METAL),
+                                      frame_asset.g_buffer_post.color_attachment(G_BUFFER_MOTION),
+                                      frame_asset.g_buffer_post.depth_attachment(),
                                       m_brdf_lut};
     drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
 
@@ -574,7 +578,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
                                const vierkant::ImagePtr &color,
                                const vierkant::ImagePtr &depth)
 {
-    size_t frame_index = (m_g_renderer.current_index() + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+    size_t frame_index =
+            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
     auto &frame_asset = m_frame_assets[frame_index];
 
     size_t buffer_index = 0;
@@ -595,16 +600,16 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     // TAA
     if(frame_asset.settings.use_taa)
     {
-        size_t last_frame_index = (frame_index + m_g_renderer.num_indices() - 1) % m_g_renderer.num_indices();
+        size_t last_frame_index = (frame_index + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
 
         // assign history
         auto history_color = m_frame_assets[last_frame_index].taa_buffer.color_attachment();
-        auto history_depth = m_frame_assets[last_frame_index].g_buffer.depth_attachment();
+        auto history_depth = m_frame_assets[last_frame_index].g_buffer_post.depth_attachment();
 
         auto drawable = m_drawable_taa;
         drawable.descriptors[0].images = {output_img,
                                           depth,
-                                          frame_asset.g_buffer.color_attachment(G_BUFFER_MOTION),
+                                          frame_asset.g_buffer_post.color_attachment(G_BUFFER_MOTION),
                                           history_color,
                                           history_depth};
 
@@ -628,7 +633,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
         // motionblur
         auto motion_img = m_empty_img;
-        if(frame_asset.settings.motionblur){ motion_img = frame_asset.g_buffer.color_attachment(G_BUFFER_MOTION); }
+        if(frame_asset.settings.motionblur){ motion_img = frame_asset.g_buffer_post.color_attachment(G_BUFFER_MOTION); }
 
         composition_ubo_t comp_ubo = {};
         comp_ubo.exposure = frame_asset.settings.exposure;
@@ -667,7 +672,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         if(!drawable.descriptors[1].buffers.empty())
         {
             frame_asset.settings.dof.clipping = vierkant::clipping_distances(cam->projection_matrix());
-            drawable.descriptors[1].buffers.front()->set_data(&frame_asset.settings.dof, sizeof(vierkant::dof_settings_t));
+            drawable.descriptors[1].buffers.front()->set_data(&frame_asset.settings.dof,
+                                                              sizeof(vierkant::dof_settings_t));
         }
         output_img = pingpong_render(drawable);
     }
@@ -745,8 +751,9 @@ void PBRDeferred::set_environment(const ImagePtr &cubemap)
 
 const vierkant::Framebuffer &PBRDeferred::g_buffer() const
 {
-    size_t last_index = (m_g_renderer.num_indices() + m_g_renderer.current_index() - 1) % m_g_renderer.num_indices();
-    return m_frame_assets[last_index].g_buffer;
+    size_t last_index =
+            (m_g_renderer_pre.num_indices() + m_g_renderer_pre.current_index() - 1) % m_g_renderer_pre.num_indices();
+    return m_frame_assets[last_index].g_buffer_post;
 }
 
 const vierkant::Framebuffer &PBRDeferred::lighting_buffer() const
@@ -780,18 +787,22 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     viewport.height = static_cast<float>(size.height);
     viewport.maxDepth = 1;
 
-    m_g_renderer.viewport = viewport;
+    m_g_renderer_pre.viewport = viewport;
+    m_g_renderer_post.viewport = viewport;
     m_light_renderer.viewport = viewport;
     m_sky_renderer.viewport = viewport;
     m_taa_renderer.viewport = viewport;
 
     // nothing to do
-    if(asset.g_buffer && asset.g_buffer.color_attachment()->extent() == size){ return; }
+    if(asset.g_buffer_post && asset.g_buffer_post.color_attachment()->extent() == size){ return; }
 
     vierkant::RenderPassPtr lighting_renderpass, sky_renderpass, post_fx_renderpass;
 
-    // G-buffer
-    asset.g_buffer = create_g_buffer(m_device, size);
+    // G-buffer (pre and post occlusion-culling)
+    asset.g_buffer_pre = create_g_buffer(m_device, size);
+    asset.g_buffer_post = vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(),
+                                                asset.g_buffer_pre.renderpass());
+    asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
     // init lighting framebuffer
     vierkant::Framebuffer::AttachmentMap lighting_attachments, sky_attachments;
@@ -806,7 +817,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
 
     // use depth from g_buffer
     sky_attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {
-            asset.g_buffer.depth_attachment()};
+            asset.g_buffer_post.depth_attachment()};
 
     lighting_renderpass = vierkant::Framebuffer::create_renderpass(m_device, lighting_attachments, true, false);
     sky_renderpass = vierkant::Framebuffer::create_renderpass(m_device, sky_attachments, false, false);

@@ -264,9 +264,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             draw_params.draws_out = current_assets.indexed_indirect_culled;
             draw_params.draws_counts_out = current_assets.indexed_indirect_culled_count_buffer;
 
-            draw_params.matrices = current_assets.matrix_buffer;
-            draw_params.previous_matrices = current_assets.matrix_history_buffer;
-            draw_params.materials = current_assets.material_buffer;
+            // invoke delegate
             draw_indirect_delegate(draw_params);
 
             if(draw_params.draws_out){ current_assets.indexed_indirect_culled = draw_params.draws_out; }
@@ -491,10 +489,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         draw_params.draws_out = next_assets.indexed_indirect_culled;
         draw_params.draws_counts_out = next_assets.indexed_indirect_culled_count_buffer;
 
-        draw_params.matrices = next_assets.matrix_buffer;
-        draw_params.previous_matrices = next_assets.matrix_history_buffer;
-        draw_params.materials = next_assets.material_buffer;
-
+        // invoke delegate
         draw_indirect_delegate(draw_params);
 
         if(draw_params.draws_out)

@@ -149,6 +149,9 @@ void main()
         }
     }
 
+    // record visiblity
+    draw.visible = visible;
+
     // count managment
     if(visible)
     {

@@ -107,12 +107,8 @@ public:
 
     struct indirect_draw_params_t
     {
+        //! number of array-elements in 'draws_in'
         uint32_t num_draws = 0;
-
-        //! host-visible arrays
-        vierkant::BufferPtr matrices;
-        vierkant::BufferPtr previous_matrices;
-        vierkant::BufferPtr materials;
 
         //! host-visible array of indexed_indirect_command_t
         vierkant::BufferPtr draws_in;

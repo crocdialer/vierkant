@@ -177,7 +177,7 @@ private:
         camera_params_t camera_params;
 
         vierkant::Semaphore timeline;
-        vierkant::Framebuffer g_buffer;
+        vierkant::Framebuffer g_buffer_pre, g_buffer_post;
 
         vierkant::ImagePtr depth_map;
 
@@ -316,7 +316,9 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::Renderer m_g_renderer, m_light_renderer, m_sky_renderer, m_taa_renderer;
+    vierkant::Renderer m_g_renderer_pre, m_g_renderer_post;
+
+    vierkant::Renderer m_light_renderer, m_sky_renderer, m_taa_renderer;
 
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;
