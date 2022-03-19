@@ -65,8 +65,8 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
                                                                 vierkant::shaders::pbr::g_buffer_tangent_skin_vert);
 
     auto pbr_tangent_tess_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_tess_vert);
-    auto tess_control = vierkant::create_shader_module(device, vierkant::shaders::pbr::passthrough_tesc);
-    auto tess_eval = vierkant::create_shader_module(device, vierkant::shaders::pbr::passthrough_tese);
+    auto tess_control = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tesc);
+    auto tess_eval = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tese);
 
     // fragment
     auto pbr_g_buffer_uber_frag =

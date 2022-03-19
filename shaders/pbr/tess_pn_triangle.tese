@@ -4,6 +4,7 @@
 #include "../renderer/types.glsl"
 #include "../utils/camera.glsl"
 
+// http://onrendering.blogspot.com/2011/12/tessellation-on-gpu-curved-pn-triangles.html
 // PN patch data
 struct PnPatch
 {
@@ -99,31 +100,31 @@ VertexData interpolate_vertex_pn()
     // save some computations
     uvwSquared *= 3.0;
 
-    // compute PN position
-    ret.current_position.xyz  = vertex_in[0].current_position.xyz * uvwCubed[2] + vertex_in[1].current_position.xyz * uvwCubed[0] + vertex_in[2].current_position.xyz * uvwCubed[1]
-                            + b210 * uvwSquared[2] * uvw[0]
-                            + b120 * uvwSquared[0] * uvw[2]
-                            + b201 * uvwSquared[2] * uvw[1]
-                            + b021 * uvwSquared[0] * uvw[1]
-                            + b102 * uvwSquared[1] * uvw[2]
-                            + b012 * uvwSquared[1] * uvw[0]
-                            + b111 * 6.0 * uvw[0] * uvw[1] * uvw[2];
+    vec3 offset =  b210 * uvwSquared[2] * uvw[0] +
+                   b120 * uvwSquared[0] * uvw[2] +
+                   b201 * uvwSquared[2] * uvw[1] +
+                   b021 * uvwSquared[0] * uvw[1] +
+                   b102 * uvwSquared[1] * uvw[2] +
+                   b012 * uvwSquared[1] * uvw[0] +
+                   b111 * 6.0 * uvw[0] * uvw[1] * uvw[2];
 
     // compute PN position
-    ret.last_position.xyz  = vertex_in[0].last_position.xyz * uvwCubed[2] + vertex_in[1].last_position.xyz * uvwCubed[0] + vertex_in[2].last_position.xyz * uvwCubed[1]
-                         + b210 * uvwSquared[2] * uvw[0]
-                         + b120 * uvwSquared[0] * uvw[2]
-                         + b201 * uvwSquared[2] * uvw[1]
-                         + b021 * uvwSquared[0] * uvw[1]
-                         + b102 * uvwSquared[1] * uvw[2]
-                         + b012 * uvwSquared[1] * uvw[0]
-                         + b111 * 6.0 * uvw[0] * uvw[1] * uvw[2];
+    ret.current_position.xyz = vertex_in[0].current_position.xyz * uvwCubed[2] +
+                               vertex_in[1].current_position.xyz * uvwCubed[0] +
+                               vertex_in[2].current_position.xyz * uvwCubed[1] +
+                               offset;
+
+    // compute PN position
+    ret.last_position.xyz = vertex_in[0].last_position.xyz * uvwCubed[2] +
+                            vertex_in[1].last_position.xyz * uvwCubed[0] +
+                            vertex_in[2].last_position.xyz * uvwCubed[1] +
+                            offset;
     return ret;
 }
 
 void main(void)
 {
-//    vertex_out = interpolate_vertex();
+//    vertex_out = interpolate_vertex(gl_TessCoord);
     vertex_out = interpolate_vertex_pn();
 
     // mvp transform and jittering

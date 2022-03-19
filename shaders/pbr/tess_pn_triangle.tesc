@@ -6,6 +6,7 @@
 
 layout (vertices = 3) out;
 
+// http://onrendering.blogspot.com/2011/12/tessellation-on-gpu-curved-pn-triangles.html
 // PN patch data
 struct PnPatch
 {
