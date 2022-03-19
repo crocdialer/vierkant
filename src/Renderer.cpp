@@ -256,7 +256,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
     if(recycle_commands)
     {
-        if(draw_indirect_delegate)
+        if(draw_indirect_delegate && current_assets.command_buffer)
         {
             indirect_draw_params_t draw_params = {};
             draw_params.num_draws = current_assets.indexed_indirect_draw_index;

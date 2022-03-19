@@ -21,7 +21,7 @@ class PBRDeferred : public vierkant::SceneRenderer
 {
 public:
 
-    //! group settings. not all settings are applicable in every implementation though, somewhat wip ...
+    //! group settings
     struct settings_t
     {
         //! internal resolution
@@ -297,6 +297,8 @@ private:
                                     const vierkant::BufferPtr &draws_in,
                                     vierkant::BufferPtr &draws_out,
                                     vierkant::BufferPtr &draws_counts_out,
+                                    vierkant::BufferPtr &draws_out_post,
+                                    vierkant::BufferPtr &draws_counts_out_post,
                                     uint32_t num_draws);
 
     vierkant::DevicePtr m_device;
