@@ -63,6 +63,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.depth_write = false;
         fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
         // descriptors
         vierkant::descriptor_t desc_texture = {};
@@ -372,6 +373,8 @@ void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &imag
         drawable.pipeline_format.depth_test = depth_test;
         drawable.descriptors[0].images = {image};
     }
+    drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
+    drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
 
     // stage image drawable
     renderer.stage_drawable(std::move(drawable));
