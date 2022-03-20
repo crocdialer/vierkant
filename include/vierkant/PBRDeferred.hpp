@@ -174,7 +174,7 @@ private:
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
         std::unordered_map<vierkant::MeshConstPtr, size_t> mesh_transform_hashes;
         bool recycle_commands = false;
-        Renderer::indirect_draw_params_t indirect_draw_params = {};
+        Renderer::indirect_draw_params_t indirect_draw_params_pre = {}, indirect_draw_params_post = {};
         camera_params_t camera_params;
 
         vierkant::Semaphore timeline;
@@ -184,7 +184,7 @@ private:
 
         vierkant::ImagePtr depth_pyramid;
         std::vector<vierkant::Compute> depth_pyramid_computes;
-        vierkant::CommandBuffer depth_pyramid_cmd_buffer, cull_cmd_buffer;
+        vierkant::CommandBuffer depth_pyramid_cmd_buffer, clear_cmd_buffer, cull_cmd_buffer;
         vierkant::Compute cull_compute;
         vierkant::BufferPtr cull_ubo, cull_result_buffer, cull_result_buffer_host;
 
@@ -300,6 +300,10 @@ private:
                                     vierkant::BufferPtr &draws_out_post,
                                     vierkant::BufferPtr &draws_counts_out_post,
                                     uint32_t num_draws);
+
+    void resize_indirect_draw_buffers(uint32_t num_draws,
+                                      Renderer::indirect_draw_params_t &params,
+                                      VkCommandBuffer clear_cmd_handle = VK_NULL_HANDLE);
 
     vierkant::DevicePtr m_device;
 
