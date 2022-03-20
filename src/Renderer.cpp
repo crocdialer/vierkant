@@ -492,6 +492,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         // invoke delegate
         draw_indirect_delegate(draw_params);
 
+        // read back draws_in
+        next_assets.indexed_indirect_draw_buffer = draw_params.draws_in;
+
         if(draw_params.draws_out)
         {
             next_assets.indexed_indirect_culled = draw_params.draws_out;

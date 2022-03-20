@@ -493,15 +493,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
     // draw last visible objects
-//    if(m_g_renderer_pre.draw_indirect_delegate)
-    {
-        vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
-        g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
-        g_buffer_semaphore_submit_info_pre.signal_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
-        auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
-        frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
-    }
-//    else{ frame_asset.timeline.signal(SemaphoreValue::G_BUFFER_LAST_VISIBLE); }
+    auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
+    vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
+    g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
+    g_buffer_semaphore_submit_info_pre.signal_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
+    frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
 
     // depth-attachment
     frame_asset.depth_map = frame_asset.g_buffer_pre.depth_attachment();
@@ -516,19 +512,21 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 (Renderer::indirect_draw_params_t &params)
         {
             digest_draw_command_buffer(frame_asset, cam, frame_asset.depth_pyramid,
-                                       params.draws_in,
+                                       frame_asset.indirect_draw_params.draws_in,
                                        frame_asset.indirect_draw_params.draws_out,
                                        frame_asset.indirect_draw_params.draws_counts_out,
                                        params.draws_out,
                                        params.draws_counts_out,
                                        params.num_draws);
 
-            frame_asset.indirect_draw_params.draws_in = params.draws_in;
+//            params.draws_in = frame_asset.indirect_draw_params.draws_in;
         };
 
         // pre-render will repeat all draws
         m_g_renderer_pre.draw_indirect_delegate = [&frame_asset](Renderer::indirect_draw_params_t &params)
         {
+            frame_asset.indirect_draw_params.draws_in = params.draws_in;
+
             params.draws_out = frame_asset.indirect_draw_params.draws_out;
             params.draws_counts_out = frame_asset.indirect_draw_params.draws_counts_out;
         };

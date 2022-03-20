@@ -68,7 +68,7 @@ layout(binding = 0) uniform sampler2D u_depth_pyramid;
 layout(std140, binding = 1) uniform culldata_ubo_t{ draw_cull_data_t cull_data; };
 
 // input draw indirect buffer
-layout(binding = 2) readonly buffer DrawBufferIn{ IndexedIndirectCommand in_draw_data[]; };
+layout(binding = 2) buffer DrawBufferIn{ IndexedIndirectCommand in_draw_data[]; };
 
 // output draw-indirect buffer -> visible
 layout(binding = 3) writeonly buffer DrawBufferOut{ IndexedIndirectCommand out_draw_data[]; };
@@ -147,14 +147,14 @@ void main()
         atomicAdd(result.num_triangles, draw.indexCount / 3);
 
         // became visible this frame -> not drawn in 1st-pass
-//        if(!draw.visible)
+        if(!in_draw_data[gid].visible)
         {
             uint draw_cmd_offset_post = atomicAdd(count_post[draw.batch_index], 1);
             out_draw_data_post[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }
 
         // record visiblity
-        draw.visible = visible;
+        in_draw_data[gid].visible = visible;
 
         uint draw_cmd_offset = atomicAdd(count[draw.batch_index], 1);
         out_draw_data[draw.first_draw_index + draw_cmd_offset] = draw;
