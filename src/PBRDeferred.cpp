@@ -492,17 +492,24 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
-    // draw last visible objects
-    frame_asset.clear_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    frame_asset.clear_cmd_buffer.begin();
-    resize_indirect_draw_buffers(cull_result.drawables.size(), frame_asset.indirect_draw_params_pre,
-                                 frame_asset.clear_cmd_buffer.handle());
-    frame_asset.clear_cmd_buffer.submit(m_queue);
-
-    // pre-render will repeat all draws
-    m_g_renderer_pre.draw_indirect_delegate = [&frame_asset](Renderer::indirect_draw_params_t &params)
+    // draw last visible objects, pre-render will repeat all previous draws
+    m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_params_t &params)
     {
-        frame_asset.indirect_draw_params_pre.draws_in = params.draws_in;
+        frame_asset.clear_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        frame_asset.clear_cmd_buffer.begin();
+        resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_pre,
+                                     frame_asset.clear_cmd_buffer.handle());
+
+        if(params.num_draws)
+        {
+            params.draws_in->copy_to(frame_asset.indirect_draw_params_pre.draws_in,
+                                     frame_asset.clear_cmd_buffer.handle());
+        }
+
+        frame_asset.clear_cmd_buffer.submit(m_queue);
+
+//        frame_asset.indirect_draw_params_pre.draws_in = params.draws_in;
+
         params.draws_out = frame_asset.indirect_draw_params_pre.draws_out;
         params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
     };
@@ -1010,6 +1017,14 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
                                                VkCommandBuffer clear_cmd_handle)
 {
     const size_t num_bytes = num_draws * sizeof(Renderer::indexed_indirect_command_t);
+
+    if(!params.draws_in || params.draws_in->num_bytes() < num_bytes)
+    {
+        params.draws_in = vierkant::Buffer::create(m_device, nullptr, num_bytes,
+                                                   VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                   VMA_MEMORY_USAGE_GPU_ONLY);
+    }
 
     if(!params.draws_out || params.draws_out->num_bytes() < num_bytes)
     {
