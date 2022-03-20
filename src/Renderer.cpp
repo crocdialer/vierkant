@@ -254,7 +254,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     }
     auto &current_assets = m_render_assets[current_index];
 
-    if(recycle_commands)
+    if(recycle_commands && current_assets.command_buffer)
     {
         if(draw_indirect_delegate && current_assets.command_buffer)
         {

@@ -483,6 +483,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         // stage drawables
         m_g_renderer_pre.stage_drawables(cull_result.drawables);
         m_g_renderer_post.stage_drawables(cull_result.drawables);
+
+        m_g_renderer_pre.draw_indirect_delegate = {};
+        m_g_renderer_post.draw_indirect_delegate = {};
     }
 
     // material override
@@ -490,11 +493,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
     // draw last visible objects
-    vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
-    g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
-    g_buffer_semaphore_submit_info_pre.signal_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
-    auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
-    frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
+//    if(m_g_renderer_pre.draw_indirect_delegate)
+    {
+        vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
+        g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
+        g_buffer_semaphore_submit_info_pre.signal_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
+        auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
+        frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
+    }
+//    else{ frame_asset.timeline.signal(SemaphoreValue::G_BUFFER_LAST_VISIBLE); }
 
     // depth-attachment
     frame_asset.depth_map = frame_asset.g_buffer_pre.depth_attachment();
@@ -508,16 +515,22 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         m_g_renderer_post.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset]
                 (Renderer::indirect_draw_params_t &params)
         {
-            digest_draw_command_buffer(frame_asset, cam, frame_asset.depth_pyramid, params.draws_in,
-                                       frame_asset.indirect_draw_params.draws_out, frame_asset.indirect_draw_params.draws_counts_out,
-                                       params.draws_out, params.draws_counts_out,
+            digest_draw_command_buffer(frame_asset, cam, frame_asset.depth_pyramid,
+                                       params.draws_in,
+                                       frame_asset.indirect_draw_params.draws_out,
+                                       frame_asset.indirect_draw_params.draws_counts_out,
+                                       params.draws_out,
+                                       params.draws_counts_out,
                                        params.num_draws);
+
+            frame_asset.indirect_draw_params.draws_in = params.draws_in;
         };
 
         // pre-render will repeat all draws
         m_g_renderer_pre.draw_indirect_delegate = [&frame_asset](Renderer::indirect_draw_params_t &params)
         {
-            params = frame_asset.indirect_draw_params;
+            params.draws_out = frame_asset.indirect_draw_params.draws_out;
+            params.draws_counts_out = frame_asset.indirect_draw_params.draws_counts_out;
         };
     }
     else
@@ -813,8 +826,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
 
     // G-buffer (pre and post occlusion-culling)
     asset.g_buffer_pre = create_g_buffer(m_device, size);
-    asset.g_buffer_post = vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(),
-                                                asset.g_buffer_pre.renderpass());
+
+    auto renderpass_no_clear_depth =
+            vierkant::Framebuffer::create_renderpass(m_device, asset.g_buffer_pre.attachments(), false, false);
+    asset.g_buffer_post = vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(), renderpass_no_clear_depth);
     asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
     // init lighting framebuffer
@@ -1027,7 +1042,8 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
 
     draw_cull_result_t result = {};
 
-    if(!draws_out || draws_out->num_bytes() < draws_in->num_bytes())
+    if(!draws_out || draws_out->num_bytes() < draws_in->num_bytes() ||
+       !draws_out_post || draws_out_post->num_bytes() < draws_in->num_bytes())
     {
         draws_out = vierkant::Buffer::create(m_device, nullptr,
                                              draws_in->num_bytes(),
@@ -1041,7 +1057,7 @@ void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
                                                   VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
-    if(!draws_counts_out)
+    if(!draws_counts_out || !draws_counts_out_post)
     {
         constexpr uint32_t max_batches = 4096;
         draws_counts_out = vierkant::Buffer::create(m_device, nullptr,
