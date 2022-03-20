@@ -287,7 +287,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     }
 
     // timeline semaphore
-    frame_asset.timeline.wait(SemaphoreValue::CULLING);
+    frame_asset.timeline.wait(SemaphoreValue::G_BUFFER_ALL);
     frame_asset.timeline = vierkant::Semaphore(m_device);
 
     resize_storage(frame_asset, settings.resolution);
