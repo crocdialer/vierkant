@@ -500,7 +500,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_pre,
                                      frame_asset.clear_cmd_buffer.handle());
 
-        if(params.num_draws)
+        if(params.num_draws && !frame_asset.recycle_commands)
         {
             params.draws_in->copy_to(frame_asset.indirect_draw_params_pre.draws_in,
                                      frame_asset.clear_cmd_buffer.handle());
@@ -542,6 +542,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                        frame_asset.indirect_draw_params_post.draws_out,
                                        frame_asset.indirect_draw_params_post.draws_counts_out,
                                        params.num_draws);
+
+            params = frame_asset.indirect_draw_params_post;
         };
     }
     else
