@@ -500,7 +500,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             next_assets.indexed_indirect_culled = draw_params.draws_out;
             draw_buffer = draw_params.draws_out;
         }
-        if(draw_params.draws_counts_out){ next_assets.indexed_indirect_culled_count_buffer = draw_params.draws_counts_out;}
+        if(draw_params.draws_counts_out){ count_buffer = draw_params.draws_counts_out;}
     }
 
     // push constants
@@ -791,7 +791,8 @@ void Renderer::resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_
         frame_asset.indexed_indirect_draw_buffer = vierkant::Buffer::create(m_device, nullptr,
                                                                             indexed_indirect_size,
                                                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
     else{ frame_asset.indexed_indirect_draw_buffer->set_data(nullptr, indexed_indirect_size); }
