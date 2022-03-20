@@ -358,4 +358,57 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     return ret;
 }
 
+vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue queue)
+{
+    const glm::vec2 size(512);
+
+    queue = queue ? queue : device->queue();
+
+    // framebuffer image-format
+    vierkant::Image::Format img_fmt = {};
+    img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    img_fmt.format = VK_FORMAT_R16G16_SFLOAT;
+
+    // create framebuffer
+    vierkant::Framebuffer::create_info_t fb_create_info = {};
+    fb_create_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
+    fb_create_info.color_attachment_format = img_fmt;
+
+    auto framebuffer = vierkant::Framebuffer(device, fb_create_info);
+
+    // render
+    vierkant::Renderer::create_info_t render_create_info = {};
+    render_create_info.num_frames_in_flight = 1;
+    render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
+    render_create_info.viewport.width = static_cast<float>(framebuffer.extent().width);
+    render_create_info.viewport.height = static_cast<float>(framebuffer.extent().height);
+    render_create_info.viewport.maxDepth = static_cast<float>(framebuffer.extent().depth);
+    auto renderer = vierkant::Renderer(device, render_create_info);
+
+    // create a drawable
+    vierkant::Renderer::drawable_t drawable = {};
+    drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
+            vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
+    drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+            vierkant::create_shader_module(device, vierkant::shaders::pbr::brdf_lut_frag);
+
+    drawable.num_vertices = 3;
+
+    drawable.pipeline_format.blend_state.blendEnable = false;
+    drawable.pipeline_format.depth_test = false;
+    drawable.pipeline_format.depth_write = false;
+    drawable.use_own_buffers = true;
+
+    // stage drawable
+    renderer.stage_drawable(drawable);
+
+    auto cmd_buf = renderer.render(framebuffer);
+    auto fence = framebuffer.submit({cmd_buf}, queue);
+
+    // mandatory to sync here
+    vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+    return framebuffer.color_attachment(0);
+}
+
 }// namespace vierkant

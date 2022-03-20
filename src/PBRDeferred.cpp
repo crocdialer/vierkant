@@ -63,8 +63,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     vierkant::Renderer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
     render_create_info.sample_count = create_info.sample_count;
-    render_create_info.viewport.width = static_cast<float>(create_info.size.width);
-    render_create_info.viewport.height = static_cast<float>(create_info.size.height);
+    render_create_info.viewport.width = static_cast<float>(create_info.settings.resolution.x);
+    render_create_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
     render_create_info.pipeline_cache = m_pipeline_cache;
     m_g_renderer_pre = vierkant::Renderer(device, render_create_info);
     m_g_renderer_post = vierkant::Renderer(device, render_create_info);
@@ -186,7 +186,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     settings = create_info.settings;
 
     // bake BRDF into a lookup-table for image-based_lighting
-    m_brdf_lut = create_BRDF_lut(device);
+    m_brdf_lut = create_info.brdf_lut ? create_info.brdf_lut : create_BRDF_lut(device, m_queue);
 
     // use provided convolutions
     m_conv_lambert = create_info.conv_lambert;
@@ -218,6 +218,11 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     auto cull_shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::indirect_cull_comp,
                                                             &m_cull_compute_local_size);
     m_cull_computable.pipeline_info.shader_stage = cull_shader_stage;
+}
+
+PBRDeferred::~PBRDeferred()
+{
+    for(auto &frame_asset : m_frame_assets){ frame_asset.timeline.wait(SemaphoreValue::DONE); }
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -297,7 +302,6 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
 
     // create g-buffer
     auto &g_buffer = geometry_pass(frame_asset.cull_result);
-
     auto albedo_map = g_buffer.color_attachment(G_BUFFER_ALBEDO);
 
     // default to color image
@@ -314,6 +318,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     post_fx_pass(renderer, cam, out_img, frame_asset.depth_map);
 
     draw_cull_result_t gpu_cull_result = {};
+
     if(frame_asset.cull_result_buffer_host)
     {
         gpu_cull_result = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
@@ -709,57 +714,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
     // draw final color+depth with provided renderer
     m_draw_context.draw_image_fullscreen(renderer, output_img, depth, true);
-}
-
-vierkant::ImagePtr PBRDeferred::create_BRDF_lut(const vierkant::DevicePtr &device)
-{
-    const glm::vec2 size(512);
-
-    // framebuffer image-format
-    vierkant::Image::Format img_fmt = {};
-    img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    img_fmt.format = VK_FORMAT_R16G16_SFLOAT;
-
-    // create framebuffer
-    vierkant::Framebuffer::create_info_t fb_create_info = {};
-    fb_create_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
-    fb_create_info.color_attachment_format = img_fmt;
-
-    auto framebuffer = vierkant::Framebuffer(device, fb_create_info);
-
-    // render
-    vierkant::Renderer::create_info_t render_create_info = {};
-    render_create_info.num_frames_in_flight = 1;
-    render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    render_create_info.viewport.width = static_cast<float>(framebuffer.extent().width);
-    render_create_info.viewport.height = static_cast<float>(framebuffer.extent().height);
-    render_create_info.viewport.maxDepth = static_cast<float>(framebuffer.extent().depth);
-    auto renderer = vierkant::Renderer(device, render_create_info);
-
-    // create a drawable
-    vierkant::Renderer::drawable_t drawable = {};
-    drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
-    drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::brdf_lut_frag);
-
-    drawable.num_vertices = 3;
-
-    drawable.pipeline_format.blend_state.blendEnable = false;
-    drawable.pipeline_format.depth_test = false;
-    drawable.pipeline_format.depth_write = false;
-    drawable.use_own_buffers = true;
-
-    // stage drawable
-    renderer.stage_drawable(drawable);
-
-    auto cmd_buf = renderer.render(framebuffer);
-    auto fence = framebuffer.submit({cmd_buf}, device->queue());
-
-    // mandatory to sync here
-    vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-
-    return framebuffer.color_attachment(0);
 }
 
 void PBRDeferred::set_environment(const ImagePtr &cubemap)

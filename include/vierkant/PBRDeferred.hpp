@@ -75,7 +75,6 @@ public:
 
     struct create_info_t
     {
-        VkExtent3D size = {};
         uint32_t num_frames_in_flight = 0;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
@@ -89,6 +88,8 @@ public:
 
         // convolved specular irradiance cube mipmaps
         vierkant::ImagePtr conv_ggx;
+
+        vierkant::ImagePtr brdf_lut;
     };
 
     static PBRDeferredPtr create(const vierkant::DevicePtr &device, const create_info_t &create_info);
@@ -96,6 +97,8 @@ public:
     PBRDeferred(const PBRDeferred &) = delete;
 
     PBRDeferred(PBRDeferred &&) = delete;
+
+    ~PBRDeferred() override;
 
     PBRDeferred &operator=(PBRDeferred other) = delete;
 
@@ -153,7 +156,7 @@ private:
         LIGHTING,
         POST_FX,
         TONEMAP,
-        DONE = TONEMAP
+        DONE = G_BUFFER_ALL// TODO: wip all semaphore-stages
     };
 
     struct alignas(16) camera_params_t
@@ -286,8 +289,6 @@ private:
                       const CameraPtr &cam,
                       const vierkant::ImagePtr &color,
                       const vierkant::ImagePtr &depth);
-
-    static vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device);
 
     void create_depth_pyramid(frame_assets_t &frame_asset);
 

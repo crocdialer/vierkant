@@ -66,4 +66,6 @@ vierkant::ImagePtr create_convolution_lambert(const vierkant::DevicePtr &device,
 vierkant::ImagePtr create_convolution_ggx(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
                                           uint32_t size, VkQueue queue);
 
+vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue queue);
+
 }// namespace vierkant
