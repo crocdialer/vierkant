@@ -492,7 +492,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
-    // draw last visible objects, pre-render will repeat all previous draws
+    // draw last visible objects
     m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_params_t &params)
     {
         frame_asset.clear_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -508,12 +508,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         frame_asset.clear_cmd_buffer.submit(m_queue);
 
-//        frame_asset.indirect_draw_params_pre.draws_in = params.draws_in;
-
         params.draws_out = frame_asset.indirect_draw_params_pre.draws_out;
         params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
     };
 
+    // pre-render will repeat all previous draw-calls
     auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
@@ -525,33 +524,24 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     frame_asset.depth_map = frame_asset.g_buffer_pre.depth_attachment();
 
     // generate depth-pyramid
-    if(frame_asset.settings.occlusion_culling){ create_depth_pyramid(frame_asset); }
+    create_depth_pyramid(frame_asset);
 
-    if(frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling)
+    // post-render will perform actual culling
+    m_g_renderer_post.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset]
+            (Renderer::indirect_draw_params_t &params)
     {
-        // post-render will perform actual culling
-        m_g_renderer_post.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset]
-                (Renderer::indirect_draw_params_t &params)
-        {
-            resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
+        resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
 
-            digest_draw_command_buffer(frame_asset, cam, frame_asset.depth_pyramid,
-                                       frame_asset.indirect_draw_params_pre.draws_in,
-                                       frame_asset.indirect_draw_params_pre.draws_out,
-                                       frame_asset.indirect_draw_params_pre.draws_counts_out,
-                                       frame_asset.indirect_draw_params_post.draws_out,
-                                       frame_asset.indirect_draw_params_post.draws_counts_out,
-                                       params.num_draws);
+        digest_draw_command_buffer(frame_asset, cam, frame_asset.depth_pyramid,
+                                   frame_asset.indirect_draw_params_pre.draws_in,
+                                   frame_asset.indirect_draw_params_pre.draws_out,
+                                   frame_asset.indirect_draw_params_pre.draws_counts_out,
+                                   frame_asset.indirect_draw_params_post.draws_out,
+                                   frame_asset.indirect_draw_params_post.draws_counts_out,
+                                   params.num_draws);
 
-            params = frame_asset.indirect_draw_params_post;
-        };
-    }
-    else
-    {
-        m_g_renderer_pre.draw_indirect_delegate = {};
-        m_g_renderer_post.draw_indirect_delegate = {};
-        frame_asset.timeline.signal(SemaphoreValue::CULLING);
-    }
+        params = frame_asset.indirect_draw_params_post;
+    };
 
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
     g_buffer_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
