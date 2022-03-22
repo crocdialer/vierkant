@@ -265,7 +265,6 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
     frame_asset.recycle_commands = static_scene && transforms_unchanged && materials_unchanged && !need_culling;
 
     frame_asset.recycle_commands = frame_asset.recycle_commands && frame_asset.settings == settings;
-    frame_asset.settings = settings;
 }
 
 SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
@@ -537,13 +536,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     {
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
 
-        digest_draw_command_buffer(frame_asset, cam, frame_asset.depth_pyramid,
-                                   frame_asset.indirect_draw_params_pre.draws_in,
-                                   frame_asset.indirect_draw_params_pre.draws_out,
-                                   frame_asset.indirect_draw_params_pre.draws_counts_out,
-                                   frame_asset.indirect_draw_params_post.draws_out,
-                                   frame_asset.indirect_draw_params_post.draws_counts_out,
-                                   params.num_draws);
+        cull_draw_commands(frame_asset,
+                           cam,
+                           frame_asset.depth_pyramid,
+                           frame_asset.indirect_draw_params_pre.draws_in,
+                           params.num_draws,
+                           frame_asset.indirect_draw_params_pre.draws_out,
+                           frame_asset.indirect_draw_params_pre.draws_counts_out,
+                           frame_asset.indirect_draw_params_post.draws_out,
+                           frame_asset.indirect_draw_params_post.draws_counts_out);
 
         params = frame_asset.indirect_draw_params_post;
     };
@@ -763,7 +764,9 @@ size_t PBRDeferred::matrix_key_hash_t::operator()(PBRDeferred::matrix_key_t cons
 void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t &asset,
                                            const glm::uvec2 &resolution)
 {
-    VkExtent3D size = {resolution.x, resolution.y, 1};
+    asset.settings.resolution = glm::max(resolution, glm::uvec2(16));
+
+    VkExtent3D size = {asset.settings.resolution.x, asset.settings.resolution.y, 1};
 
     VkViewport viewport = {};
     viewport.width = static_cast<float>(size.width);
@@ -778,6 +781,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
 
     // nothing to do
     if(asset.g_buffer_post && asset.g_buffer_post.color_attachment()->extent() == size){ return; }
+    asset.recycle_commands = false;
 
     vierkant::RenderPassPtr lighting_renderpass, sky_renderpass, post_fx_renderpass;
 
@@ -848,8 +852,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
 void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 {
     auto extent_pyramid_lvl0 = frame_asset.depth_map->extent();
-    extent_pyramid_lvl0.width = crocore::next_pow_2(extent_pyramid_lvl0.width / 2);
-    extent_pyramid_lvl0.height = crocore::next_pow_2(extent_pyramid_lvl0.height / 2);
+    extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
+    extent_pyramid_lvl0.height = crocore::next_pow_2(1 + extent_pyramid_lvl0.height / 2);
 
     // create/resize depth pyramid
     if(!frame_asset.depth_pyramid || frame_asset.depth_pyramid->extent() != extent_pyramid_lvl0)
@@ -1015,15 +1019,15 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
     params.num_draws = num_draws;
 }
 
-void PBRDeferred::digest_draw_command_buffer(frame_assets_t &frame_asset,
-                                             const vierkant::CameraPtr &cam,
-                                             const vierkant::ImagePtr &depth_pyramid,
-                                             const vierkant::BufferPtr &draws_in,
-                                             vierkant::BufferPtr &draws_out,
-                                             vierkant::BufferPtr &draws_counts_out,
-                                             vierkant::BufferPtr &draws_out_post,
-                                             vierkant::BufferPtr &draws_counts_out_post,
-                                             uint32_t num_draws)
+void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
+                                     const vierkant::CameraPtr &cam,
+                                     const vierkant::ImagePtr &depth_pyramid,
+                                     const vierkant::BufferPtr &draws_in,
+                                     uint32_t num_draws,
+                                     vierkant::BufferPtr &draws_out,
+                                     vierkant::BufferPtr &draws_counts_out,
+                                     vierkant::BufferPtr &draws_out_post,
+                                     vierkant::BufferPtr &draws_counts_out_post)
 {
     if(!draws_in || !draws_in->num_bytes() || !depth_pyramid)
     {
