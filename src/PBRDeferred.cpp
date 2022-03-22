@@ -265,6 +265,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
     frame_asset.recycle_commands = static_scene && transforms_unchanged && materials_unchanged && !need_culling;
 
     frame_asset.recycle_commands = frame_asset.recycle_commands && frame_asset.settings == settings;
+    frame_asset.settings = settings;
 }
 
 SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,

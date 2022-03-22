@@ -66,6 +66,14 @@ vierkant::ImagePtr create_convolution_lambert(const vierkant::DevicePtr &device,
 vierkant::ImagePtr create_convolution_ggx(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
                                           uint32_t size, VkQueue queue);
 
+/**
+ * @brief   create_BRDF_lut can be used to create a texture serving as lookup table for a glossy BRDF.
+ *          (NoV, roughness) -> (F, bias)
+ *
+ * @param   device  a provided vierkant::DevicePtr.
+ * @param   queue   a provided VkQueue.
+ * @return  a lookup-table containing a mapping of (NoV, roughness) -> (F, bias)
+ */
 vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue queue);
 
 }// namespace vierkant
