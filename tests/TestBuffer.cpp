@@ -6,8 +6,8 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void test_buffer(const vk::DevicePtr &device, const vk::VmaPoolPtr &pool_host = nullptr,
-                 const vk::VmaPoolPtr &pool_gpu = nullptr)
+void test_buffer(const vierkant::DevicePtr &device, const vierkant::VmaPoolPtr &pool_host = nullptr,
+                 const vierkant::VmaPoolPtr &pool_gpu = nullptr)
 {
     // 1 MB test-bytes
     size_t num_bytes = 1 << 20;
@@ -15,8 +15,8 @@ void test_buffer(const vk::DevicePtr &device, const vk::VmaPoolPtr &pool_host = 
     uint8_t dummy_vals[] = {23, 69, 99};
 
     // create an empty, host-visible buffer with empty usage-flags
-    auto host_buffer = vk::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                          VMA_MEMORY_USAGE_CPU_ONLY, pool_host);
+    auto host_buffer = vierkant::Buffer::create(device, nullptr, num_bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                VMA_MEMORY_USAGE_CPU_ONLY, pool_host);
 
     // check for correct size
     BOOST_CHECK(host_buffer->num_bytes() == num_bytes);
@@ -37,10 +37,10 @@ void test_buffer(const vk::DevicePtr &device, const vk::VmaPoolPtr &pool_host = 
     std::vector<uint8_t> dummy_data(num_bytes, dummy_vals[1]);
 
     // init a gpu only buffer with dummy data from a std::vector (will internally use a staging buffer for upload)
-    auto gpu_buffer = vk::Buffer::create(device, dummy_data,
-                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                         VMA_MEMORY_USAGE_GPU_ONLY, pool_gpu);
+    auto gpu_buffer = vierkant::Buffer::create(device, dummy_data,
+                                               VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                               VMA_MEMORY_USAGE_GPU_ONLY, pool_gpu);
     // check for correct size
     BOOST_CHECK(gpu_buffer->num_bytes() == dummy_data.size());
 
@@ -70,9 +70,9 @@ void test_buffer(const vk::DevicePtr &device, const vk::VmaPoolPtr &pool_host = 
     BOOST_CHECK(memcmp(host_buffer->map(), dummy_data.data(), dummy_data.size()) == 0);
 
     // create an empty buffer that does not allocate any memory initially
-    auto empty_buffer = vk::Buffer::create(device, nullptr, 0,
-                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                           VMA_MEMORY_USAGE_GPU_ONLY, pool_gpu);
+    auto empty_buffer = vierkant::Buffer::create(device, nullptr, 0,
+                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                 VMA_MEMORY_USAGE_GPU_ONLY, pool_gpu);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,22 +91,23 @@ BOOST_AUTO_TEST_CASE(TestBufferPool)
 {
     vulkan_test_context_t test_context;
 
-    auto pool = vk::Buffer::create_pool(test_context.device,
-                                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                        VMA_MEMORY_USAGE_GPU_ONLY);
+    auto pool = vierkant::Buffer::create_pool(test_context.device,
+                                              VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                              VMA_MEMORY_USAGE_GPU_ONLY);
     BOOST_CHECK(pool);
 
-    auto pool_buddy_host = vk::Buffer::create_pool(test_context.device,
-                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                   VMA_MEMORY_USAGE_CPU_ONLY, 1U << 23U, 32, 0,
-                                                   VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+    auto pool_buddy_host = vierkant::Buffer::create_pool(test_context.device,
+                                                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                         VMA_MEMORY_USAGE_CPU_ONLY, 1U << 23U, 32, 0,
+                                                         VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
     BOOST_CHECK(pool_buddy_host);
 
-    auto pool_buddy = vk::Buffer::create_pool(test_context.device,
-                                              VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                              VMA_MEMORY_USAGE_GPU_ONLY, 1U << 23U, 32, 0,
-                                              VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
+    auto pool_buddy = vierkant::Buffer::create_pool(test_context.device,
+                                                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                    VMA_MEMORY_USAGE_GPU_ONLY, 1U << 23U, 32, 0,
+                                                    VMA_POOL_CREATE_BUDDY_ALGORITHM_BIT);
     BOOST_CHECK(pool_buddy);
 
     // run buffer test case

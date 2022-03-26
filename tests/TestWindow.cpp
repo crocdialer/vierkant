@@ -11,7 +11,7 @@
 BOOST_AUTO_TEST_CASE(TestWindow)
 {
     // init instance with required extensions for glfw (VK_KHR_swapchain, VK_KHR_surface)
-    vierkant::Instance instance(true, vk::Window::required_extensions());
+    vierkant::Instance instance(true, vierkant::Window::required_extensions());
     bool trigger_size = false;
 
     const auto window_size = glm::ivec2(1280, 720);
@@ -21,7 +21,7 @@ BOOST_AUTO_TEST_CASE(TestWindow)
     window_info.size = window_size;
     window_info.title = "TestWindow";
     window_info.fullscreen = false;
-    auto window = vk::Window::create(window_info);
+    auto window = vierkant::Window::create(window_info);
 
     // check if a VkSurfaceKHR is ready for us
     BOOST_CHECK(window->surface());

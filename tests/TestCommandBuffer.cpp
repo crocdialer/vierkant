@@ -8,7 +8,7 @@
 
 BOOST_AUTO_TEST_CASE(TestCommandBuffer_Constructor)
 {
-    auto cmdBuf = vk::CommandBuffer();
+    auto cmdBuf = vierkant::CommandBuffer();
 
     // testing operator bool()
     BOOST_CHECK(!cmdBuf);
@@ -22,7 +22,7 @@ BOOST_AUTO_TEST_CASE(TestCommandBuffer_Constructor)
 BOOST_AUTO_TEST_CASE(TestCommandBuffer_Submission)
 {
     bool use_validation = true;
-    vk::Instance instance(use_validation, {});
+    vierkant::Instance instance(use_validation, {});
 
     BOOST_CHECK(instance);
     BOOST_CHECK(instance.use_validation_layers() == use_validation);
@@ -33,15 +33,15 @@ BOOST_AUTO_TEST_CASE(TestCommandBuffer_Submission)
 
     std::map<VkCommandPool, VkQueue> poolQueueMap =
             {
-                    {device->command_pool(),           device->queue(vk::Device::Queue::GRAPHICS)},
-                    {device->command_pool_transient(), device->queue(vk::Device::Queue::GRAPHICS)},
-                    {device->command_pool_transfer(),  device->queue(vk::Device::Queue::TRANSFER)}
+                    {device->command_pool(),           device->queue(vierkant::Device::Queue::GRAPHICS)},
+                    {device->command_pool_transient(), device->queue(vierkant::Device::Queue::GRAPHICS)},
+                    {device->command_pool_transfer(),  device->queue(vierkant::Device::Queue::TRANSFER)}
             };
 
     // create command buffers, sourced from different pools
     for(const auto &p : poolQueueMap)
     {
-        auto cmdBuf = vk::CommandBuffer(device, p.first);
+        auto cmdBuf = vierkant::CommandBuffer(device, p.first);
 
         // testing operator bool()
         BOOST_CHECK(cmdBuf);

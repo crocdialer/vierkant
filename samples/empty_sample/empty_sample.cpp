@@ -24,22 +24,22 @@ void HelloTriangleApplication::poll_events()
 
 void HelloTriangleApplication::create_context_and_window()
 {
-    m_instance = vk::Instance(g_enable_validation_layers, vk::Window::required_extensions());
+    m_instance = vierkant::Instance(g_enable_validation_layers, vierkant::Window::required_extensions());
 
     vierkant::Window::create_info_t window_info = {};
     window_info.instance = m_instance.handle();
     window_info.size = {WIDTH, HEIGHT};
     window_info.title = name();
     window_info.fullscreen = m_fullscreen;
-    m_window = vk::Window::create(window_info);
+    m_window = vierkant::Window::create(window_info);
 
     // create device
-    vk::Device::create_info_t device_info = {};
+    vierkant::Device::create_info_t device_info = {};
     device_info.instance = m_instance.handle();
     device_info.physical_device = m_instance.physical_devices().front();
     device_info.use_validation = m_instance.use_validation_layers();
     device_info.surface = m_window->surface();
-    m_device = vk::Device::create(device_info);
+    m_device = vierkant::Device::create(device_info);
 
     m_window->create_swapchain(m_device, m_use_msaa ? m_device->max_usable_samples() : VK_SAMPLE_COUNT_1_BIT, V_SYNC);
 
@@ -58,20 +58,20 @@ void HelloTriangleApplication::create_context_and_window()
     vierkant::key_delegate_t key_delegate = {};
     key_delegate.key_press = [this](const vierkant::KeyEvent &e)
     {
-        if(!(m_gui_context.capture_flags() & vk::gui::Context::WantCaptureKeyboard))
+        if(!(m_gui_context.capture_flags() & vierkant::gui::Context::WantCaptureKeyboard))
         {
-            if(e.code() == vk::Key::_ESCAPE){ set_running(false); }
+            if(e.code() == vierkant::Key::_ESCAPE){ set_running(false); }
         }
     };
     m_window->key_delegates["main"] = key_delegate;
 
     // create a gui and add a draw-delegate
-    vk::gui::Context::create_info_t gui_create_info = {};
+    vierkant::gui::Context::create_info_t gui_create_info = {};
     gui_create_info.ui_scale = 2.f;
-    m_gui_context = vk::gui::Context(m_device, gui_create_info);
+    m_gui_context = vierkant::gui::Context(m_device, gui_create_info);
     m_gui_context.delegates["application"] = [this]
     {
-        vk::gui::draw_application_ui(std::static_pointer_cast<Application>(shared_from_this()), m_window);
+        vierkant::gui::draw_application_ui(std::static_pointer_cast<Application>(shared_from_this()), m_window);
     };
 
     // attach gui input-delegates to window
@@ -79,7 +79,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_window->mouse_delegates["gui"] = m_gui_context.mouse_delegate();
 
     // camera
-    m_camera = vk::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 100.f);
+    m_camera = vierkant::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 100.f);
     m_camera->set_position(glm::vec3(0.f, 0.f, 2.f));
 }
 
@@ -101,7 +101,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
 
 void HelloTriangleApplication::load_model()
 {
-    auto geom = vk::Geometry::create();
+    auto geom = vierkant::Geometry::create();
     geom->positions = {glm::vec3(-0.5f, -0.5f, 0.f),
                        glm::vec3(0.5f, -0.5f, 0.f),
                        glm::vec3(0.f, 0.5f, 0.f)};
@@ -109,9 +109,9 @@ void HelloTriangleApplication::load_model()
                     glm::vec4(0.f, 1.f, 0.f, 1.f),
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};
     vierkant::Mesh::create_info_t mesh_create_info = {};
-    m_mesh = vk::Mesh::create_from_geometry(m_device, geom, mesh_create_info);
+    m_mesh = vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info);
 
-    m_drawable = vk::Renderer::create_drawables(m_mesh).front();
+    m_drawable = vierkant::Renderer::create_drawables(m_mesh).front();
     m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device,
                                                                               vierkant::ShaderType::UNLIT_COLOR);
 }

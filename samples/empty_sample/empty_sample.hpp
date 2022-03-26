@@ -29,7 +29,7 @@ class HelloTriangleApplication : public crocore::Application
 
 public:
 
-    explicit HelloTriangleApplication(int argc = 0, char *argv[] = nullptr) : crocore::Application(argc, argv) {};
+    explicit HelloTriangleApplication(int argc = 0, char *argv[] = nullptr) : crocore::Application(argc, argv){};
 
 private:
 
@@ -62,13 +62,13 @@ private:
     // window handle
     std::shared_ptr<vierkant::Window> m_window;
 
-    vk::PerspectiveCameraPtr m_camera;
+    vierkant::PerspectiveCameraPtr m_camera;
 
-    vk::MeshPtr m_mesh = vk::Mesh::create();
+    vierkant::MeshPtr m_mesh = vierkant::Mesh::create();
 
-    vk::Renderer::drawable_t m_drawable;
+    vierkant::Renderer::drawable_t m_drawable;
 
-    vk::Renderer m_renderer, m_gui_renderer;
+    vierkant::Renderer m_renderer, m_gui_renderer;
 
     vierkant::gui::Context m_gui_context;
 };

@@ -6,17 +6,17 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-using attachment_count_t = std::map<vk::Framebuffer::AttachmentType, uint32_t>;
+using attachment_count_t = std::map<vierkant::Framebuffer::AttachmentType, uint32_t>;
 
-bool check_attachment_count(const vk::Framebuffer::AttachmentMap &attachments,
-                            std::map<vk::Framebuffer::AttachmentType, uint32_t> &expected_count)
+bool check_attachment_count(const vierkant::Framebuffer::AttachmentMap &attachments,
+                            std::map<vierkant::Framebuffer::AttachmentType, uint32_t> &expected_count)
 {
-    if(attachments.count(vk::Framebuffer::AttachmentType::Color) !=
-       expected_count.count(vk::Framebuffer::AttachmentType::Color)){ return false; }
-    if(attachments.count(vk::Framebuffer::AttachmentType::Resolve) !=
-       expected_count.count(vk::Framebuffer::AttachmentType::Resolve)){ return false; }
-    if(attachments.count(vk::Framebuffer::AttachmentType::DepthStencil) !=
-       expected_count.count(vk::Framebuffer::AttachmentType::DepthStencil)){ return false; }
+    if(attachments.count(vierkant::Framebuffer::AttachmentType::Color) !=
+       expected_count.count(vierkant::Framebuffer::AttachmentType::Color)){ return false; }
+    if(attachments.count(vierkant::Framebuffer::AttachmentType::Resolve) !=
+       expected_count.count(vierkant::Framebuffer::AttachmentType::Resolve)){ return false; }
+    if(attachments.count(vierkant::Framebuffer::AttachmentType::DepthStencil) !=
+       expected_count.count(vierkant::Framebuffer::AttachmentType::DepthStencil)){ return false; }
 
     for(auto &pair : attachments)
     {
@@ -29,7 +29,7 @@ bool check_attachment_count(const vk::Framebuffer::AttachmentMap &attachments,
 
 BOOST_AUTO_TEST_CASE(TestFramebuffer_Constructor)
 {
-    vk::Framebuffer framebuffer;
+    vierkant::Framebuffer framebuffer;
     BOOST_CHECK(!framebuffer);
 }
 
@@ -45,7 +45,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColor)
     create_info.size = fb_size;
 
     // only 1 color attachment, no depth/stencil
-    auto framebuffer = vk::Framebuffer(test_context.device, create_info);
+    auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     BOOST_CHECK(framebuffer);
     BOOST_CHECK_EQUAL(framebuffer.extent().width, fb_size.width);
     BOOST_CHECK_EQUAL(framebuffer.extent().height, fb_size.height);
@@ -53,7 +53,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColor)
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(), 1);
 
     attachment_count_t expected_count;
-    expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::Color] = 1;
     auto res = check_attachment_count(framebuffer.attachments(), expected_count);
     BOOST_CHECK(res);
 
@@ -63,14 +63,14 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColor)
     framebuffer.clear_color = {0.f, 0.f, 0.f, 1.f};
     framebuffer.clear_depth_stencil = {1.f, 0};
 
-    vk::CommandBuffer cmd_buf(test_context.device, test_context.device->command_pool());
+    vierkant::CommandBuffer cmd_buf(test_context.device, test_context.device->command_pool());
     cmd_buf.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
     framebuffer.begin_renderpass(cmd_buf.handle());
     framebuffer.end_renderpass();
     cmd_buf.end();
 
     // reset Framebuffer object
-    framebuffer = vk::Framebuffer();
+    framebuffer = vierkant::Framebuffer();
     BOOST_CHECK(!framebuffer);
 
 }
@@ -85,14 +85,14 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepth)
     vierkant::Framebuffer::create_info_t create_info = {};
     create_info.size = fb_size;
     create_info.depth = true;
-    auto framebuffer = vk::Framebuffer(test_context.device, create_info);
+    auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     BOOST_CHECK(framebuffer);
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::Color), 1);
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::DepthStencil), 1);
 
     attachment_count_t expected_count;
-    expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
-    expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::Color] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::DepthStencil] = 1;
     auto res = check_attachment_count(framebuffer.attachments(), expected_count);
     BOOST_CHECK(res);
 }
@@ -114,8 +114,8 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil)
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::DepthStencil), 1);
 
     attachment_count_t expected_count;
-    expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
-    expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::Color] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::DepthStencil] = 1;
     auto res = check_attachment_count(framebuffer.attachments(), expected_count);
     BOOST_CHECK(res);
 }
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_MultiColorDepthStencil)
     create_info.num_color_attachments = 4;
     create_info.depth = true;
     create_info.stencil = true;
-    auto framebuffer = vk::Framebuffer(test_context.device, create_info);
+    auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     BOOST_CHECK(framebuffer);
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::Color), 4);
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::DepthStencil), 1);
@@ -164,9 +164,9 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_SingleColorDepthStencil_MSAA)
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::DepthStencil), 1);
 
     attachment_count_t expected_count;
-    expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
-    expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
-    expected_count[vk::Framebuffer::AttachmentType::Resolve] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::Color] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::DepthStencil] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::Resolve] = 1;
     auto res = check_attachment_count(framebuffer.attachments(), expected_count);
     BOOST_CHECK(res);
 }
@@ -181,42 +181,42 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_Manual_Attachments)
     // 1 color attachment (MSAA) | depth/stencil (MSAA) | resolve
 
     // color
-    vk::Image::Format color_fmt;
+    vierkant::Image::Format color_fmt;
     color_fmt.extent = fb_size;
     color_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     color_fmt.sample_count = test_context.device->max_usable_samples();
-    auto color_img = vk::Image::create(test_context.device, color_fmt);
+    auto color_img = vierkant::Image::create(test_context.device, color_fmt);
 
     // depth/stencil
-    vk::Image::Format depth_stencil_fmt;
+    vierkant::Image::Format depth_stencil_fmt;
     depth_stencil_fmt.extent = fb_size;
     depth_stencil_fmt.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
     depth_stencil_fmt.sample_count = test_context.device->max_usable_samples();
     depth_stencil_fmt.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
     depth_stencil_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-    auto depth_stencil_img = vk::Image::create(test_context.device, depth_stencil_fmt);
+    auto depth_stencil_img = vierkant::Image::create(test_context.device, depth_stencil_fmt);
 
-    vk::Image::Format resolve_fmt;
+    vierkant::Image::Format resolve_fmt;
     resolve_fmt.extent = fb_size;
     resolve_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     resolve_fmt.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    auto resolve_img = vk::Image::create(test_context.device, resolve_fmt);
+    auto resolve_img = vierkant::Image::create(test_context.device, resolve_fmt);
 
-    vk::Framebuffer::AttachmentMap attachments = {
-            {vk::Framebuffer::AttachmentType::Color,        {color_img}},
-            {vk::Framebuffer::AttachmentType::DepthStencil, {depth_stencil_img}},
-            {vk::Framebuffer::AttachmentType::Resolve,      {resolve_img}}
+    vierkant::Framebuffer::AttachmentMap attachments = {
+            {vierkant::Framebuffer::AttachmentType::Color,        {color_img}},
+            {vierkant::Framebuffer::AttachmentType::DepthStencil, {depth_stencil_img}},
+            {vierkant::Framebuffer::AttachmentType::Resolve,      {resolve_img}}
     };
 
-    auto framebuffer = vk::Framebuffer(test_context.device, attachments);
+    auto framebuffer = vierkant::Framebuffer(test_context.device, attachments);
     BOOST_CHECK(framebuffer);
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::Color), 1);
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::Resolve), 1);
     BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::Framebuffer::AttachmentType::DepthStencil), 1);
     attachment_count_t expected_count;
-    expected_count[vk::Framebuffer::AttachmentType::Color] = 1;
-    expected_count[vk::Framebuffer::AttachmentType::DepthStencil] = 1;
-    expected_count[vk::Framebuffer::AttachmentType::Resolve] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::Color] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::DepthStencil] = 1;
+    expected_count[vierkant::Framebuffer::AttachmentType::Resolve] = 1;
     auto res = check_attachment_count(framebuffer.attachments(), expected_count);
     BOOST_CHECK(res);
 }

@@ -90,7 +90,7 @@ struct graphics_pipeline_info_t
     bool primitive_restart = false;
 
     // used for patch-primitives / tesselation
-    uint32_t num_patch_control_points;
+    uint32_t num_patch_control_points = 0;
 
     VkFrontFace front_face = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     VkPolygonMode polygon_mode = VK_POLYGON_MODE_FILL;
