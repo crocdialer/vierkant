@@ -10,7 +10,7 @@ struct draw_cull_data_t
 
     vec2 pyramid_size;// depth pyramid size in texels
 
-    uint draw_count;
+    uint num_draws;
 
     bool culling_enabled;
     bool lod_enabled;
@@ -35,7 +35,7 @@ struct IndexedIndirectCommand
 
 struct draw_cull_result_t
 {
-    uint draw_count;
+    uint num_draws;
     uint num_frustum_culled;
     uint num_occlusion_culled;
     uint num_distance_culled;
@@ -90,7 +90,7 @@ layout(local_size_x = 256) in;
 void main()
 {
     uint gid = gl_GlobalInvocationID.x;
-    if(gid >= cull_data.draw_count){ return; }
+    if(gid >= cull_data.num_draws){ return; }
 
     // simple pass-through
     IndexedIndirectCommand draw = in_draw_data[gid];
@@ -143,7 +143,7 @@ void main()
     // count managment
     if(visible)
     {
-        atomicAdd(result.draw_count, 1);
+        atomicAdd(result.num_draws, 1);
         atomicAdd(result.num_triangles, draw.indexCount / 3);
 
         // became visible this frame -> not drawn in 1st-pass

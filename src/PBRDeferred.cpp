@@ -325,7 +325,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     }
 
     SceneRenderer::render_result_t ret = {};
-    ret.draw_count = frame_asset.cull_result.drawables.size();
+    ret.num_draws = frame_asset.cull_result.drawables.size();
     ret.num_frustum_culled = gpu_cull_result.num_frustum_culled;
     ret.num_occlusion_culled = gpu_cull_result.num_occlusion_culled;
     ret.num_distance_culled = gpu_cull_result.num_distance_culled;
@@ -1038,7 +1038,7 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
     }
 
     draw_cull_data_t draw_cull_data = {};
-    draw_cull_data.draw_count = num_draws;
+    draw_cull_data.num_draws = num_draws;
     draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
     draw_cull_data.occlusion_enabled = frame_asset.settings.occlusion_culling;
     draw_cull_data.distance_cull = false;
@@ -1168,7 +1168,7 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
     barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
     barrier.buffer = draws_out->handle();
     barrier.offset = 0;
-    barrier.size = std::min(draws_out->num_bytes(), num_draws * sizeof(Renderer::indexed_indirect_command_t));
+    barrier.size = VK_WHOLE_SIZE;
 
     // barrier before writing to indirect-draw-buffer
     vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
