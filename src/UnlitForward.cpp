@@ -43,10 +43,11 @@ SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Renderer &re
             else{ shader_type = vierkant::ShaderType::UNLIT_COLOR; }
         }
         drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(shader_type);
-
-        // stage drawable
-        renderer.stage_drawable(std::move(drawable));
     }
+
+    // stage drawable
+    renderer.stage_drawables(std::move(cull_result.drawables));
+
     render_result_t ret = {};
     ret.num_draws = cull_result.drawables.size();
     return ret;
@@ -61,11 +62,6 @@ UnlitForward::UnlitForward(const vierkant::DevicePtr &device) :
 UnlitForwardPtr UnlitForward::create(const vierkant::DevicePtr &device)
 {
     return vierkant::UnlitForwardPtr(new UnlitForward(device));
-}
-
-void UnlitForward::set_environment(const ImagePtr &cubemap)
-{
-
 }
 
 }

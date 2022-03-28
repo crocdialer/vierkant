@@ -42,13 +42,6 @@ public:
                                          const CameraPtr &cam,
                                          const std::set<std::string> &tags) = 0;
 
-    /**
-     * @brief   Set an environment-cubemap.
-     *
-     * @param   cubemap     an environment-cubemap.
-     */
-    virtual void set_environment(const vierkant::ImagePtr &cubemap) = 0;
-
     virtual ~SceneRenderer() = default;
 };
 

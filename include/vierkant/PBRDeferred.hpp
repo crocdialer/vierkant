@@ -90,6 +90,8 @@ public:
         vierkant::ImagePtr conv_ggx;
 
         vierkant::ImagePtr brdf_lut;
+
+        std::string logger_name;
     };
 
     static PBRDeferredPtr create(const vierkant::DevicePtr &device, const create_info_t &create_info);
@@ -116,15 +118,7 @@ public:
                                  const CameraPtr &cam,
                                  const std::set<std::string> &tags) override;
 
-    /**
-     * @brief   Set an environment-cubemap.
-     *
-     * @param   cubemap an environment-cubemap.
-     */
-    void set_environment(const vierkant::ImagePtr &cubemap) override;
-
-    void set_environment(const vierkant::ImagePtr &lambert,
-                         const vierkant::ImagePtr &ggx);
+    void set_environment(const vierkant::ImagePtr &lambert, const vierkant::ImagePtr &ggx);
 
     vierkant::ImagePtr environment_lambert() const{ return m_conv_lambert; };
 
@@ -355,6 +349,9 @@ private:
     // keep track of frame-times
     std::chrono::steady_clock::time_point m_timestamp_current = std::chrono::steady_clock::now();
     std::chrono::steady_clock::time_point m_timestamp_last = m_timestamp_current;
+
+    // a logger
+    std::shared_ptr<spdlog::logger> _logger;
 };
 
 extern bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs);

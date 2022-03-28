@@ -110,13 +110,6 @@ public:
                                  const std::set<std::string> &tags) override;
 
     /**
-     * @brief   Set an environment-cubemap.
-     *
-     * @param   cubemap an environment-cubemap.
-     */
-    void set_environment(const vierkant::ImagePtr &cubemap) override;
-
-    /**
      * @return the accumulator's current batch-index
      */
     size_t current_batch() const;

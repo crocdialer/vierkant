@@ -397,11 +397,6 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     }
 }
 
-void PBRPathTracer::set_environment(const ImagePtr &cubemap)
-{
-    m_environment = cubemap;
-}
-
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t &frame_asset,
                                                    const SceneConstPtr &scene,
                                                    const std::set<std::string> &tags)

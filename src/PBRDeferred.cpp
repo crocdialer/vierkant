@@ -32,6 +32,9 @@ float halton(uint32_t index, uint32_t base)
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) :
         m_device(device)
 {
+    _logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
+    _logger->debug("PBRDeferred initialized");
+
     m_queue = create_info.queue ? create_info.queue : device->queue();
 
     m_command_pool = vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
@@ -718,22 +721,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     m_draw_context.draw_image_fullscreen(renderer, output_img, depth, true);
 }
 
-void PBRDeferred::set_environment(const ImagePtr &cubemap)
-{
-    constexpr uint32_t lambert_size = 128;
-
-    if(cubemap)
-    {
-        VkQueue queue = m_device->queues(vierkant::Device::Queue::GRAPHICS)[0];
-
-        m_conv_lambert = vierkant::create_convolution_lambert(m_device, cubemap, lambert_size, queue);
-        m_conv_ggx = vierkant::create_convolution_ggx(m_device, cubemap, cubemap->width(), queue);
-
-        m_conv_lambert->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        m_conv_ggx->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-    }
-}
-
 const vierkant::Framebuffer &PBRDeferred::g_buffer() const
 {
     size_t last_index =
@@ -1086,7 +1073,7 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
         auto &result_buf = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
         result = result_buf;
 
-        spdlog::trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
+        _logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
                       result.draw_count, result.num_frustum_culled, result.num_occlusion_culled, result.num_triangles);
     }
 
