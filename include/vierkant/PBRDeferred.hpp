@@ -269,7 +269,7 @@ private:
 
     void update_recycling(const SceneConstPtr &scene,
                           const CameraPtr &cam,
-                          frame_assets_t &frame_asset);
+                          frame_assets_t &frame_asset) const;
 
     void update_matrix_history(frame_assets_t &frame_asset);
 

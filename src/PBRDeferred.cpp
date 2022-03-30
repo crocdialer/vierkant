@@ -235,7 +235,7 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene,
                                    const CameraPtr &cam,
-                                   frame_assets_t &frame_asset)
+                                   frame_assets_t &frame_asset) const
 {
     vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
     scene->root()->accept(mesh_visitor);

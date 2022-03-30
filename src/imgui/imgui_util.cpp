@@ -856,10 +856,15 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
             {
                 std::stringstream ss;
                 ss << "positions: " << std::to_string(e.num_vertices) << "\n";
-                ss << "faces: " << std::to_string(e.num_indices / 3) << "\n";
-                ss << "material index: " << std::to_string(e.material_index);
-
+                ss << "faces: " << std::to_string(e.num_indices / 3);
                 ImGui::Text("%s", ss.str().c_str());
+
+                int material_index = static_cast<int>(e.material_index);
+                if(ImGui::InputInt("material-index", &material_index))
+                {
+                    e.material_index = std::min<uint32_t>(material_index, mesh->materials.size() - 1);
+                }
+
                 ImGui::Separator();
 
                 // material ui
