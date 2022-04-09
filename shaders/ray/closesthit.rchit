@@ -153,7 +153,7 @@ void main()
     }
 
     // flip the normal so it points against the ray direction:
-    payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
+    payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, v.normal);
 
     // max emission from material/map
     if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
