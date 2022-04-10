@@ -44,6 +44,7 @@ constexpr char KHR_materials_volume[] = "KHR_materials_volume";
 constexpr char KHR_materials_ior[] = "KHR_materials_ior";
 constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
 constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
+constexpr char KHR_materials_iridescence[] = "KHR_materials_iridescence";
 
 // KHR_materials_specular
 constexpr char ext_specular_factor[] = "specularFactor";
@@ -70,6 +71,14 @@ constexpr char ext_sheen_color_factor[] = "sheenColorFactor";
 constexpr char ext_sheen_color_texture[] = "sheenColorTexture";
 constexpr char ext_sheen_roughness_factor[] = "sheenRoughnessFactor";
 constexpr char ext_sheen_roughness_texture[] = "sheenRoughnessTexture";
+
+// KHR_materials_iridescence
+constexpr char ext_iridescence_factor[] = "iridescenceFactor";
+constexpr char ext_iridescence_texture[] = "iridescenceTexture";
+constexpr char ext_iridescence_ior[] = "iridescenceIOR";
+constexpr char ext_iridescence_thickness_min[] = "iridescenceThicknessMinimum";
+constexpr char ext_iridescence_thickness_max[] = "iridescenceThicknessMaximum";
+constexpr char ext_iridescence_thickness_texture[] = "iridescenceThicknessTexture";
 
 struct node_t
 {
@@ -145,7 +154,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
             const auto *ptr = reinterpret_cast<const uint32_t *>(data);
             geometry->indices = {ptr, ptr + index_accessor.count};
         }
-        else{ LOG_ERROR << "unsupported index-type: " << index_accessor.componentType; }
+        else{ spdlog::error("unsupported index-type: {}", index_accessor.componentType); }
     }
 
     for(const auto &[attrib, accessor_idx] : primitive.attributes)
@@ -313,6 +322,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
 
     for(const auto&[ext, value] : tiny_mat.extensions)
     {
+        spdlog::debug("ext-properties: {}", value.Keys());
+
         if(ext == KHR_materials_specular)
         {
             if(value.Has(ext_specular_factor))
@@ -430,6 +441,39 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
                 ret.img_sheen_roughness = image_cache.at(model.textures[tex_index].source);
             }
         }
+        else if(ext == KHR_materials_iridescence)
+        {
+            if(value.Has(ext_iridescence_factor))
+            {
+                ret.iridescence_factor = static_cast<float>(value.Get(ext_iridescence_factor).GetNumberAsDouble());
+            }
+            if(value.Has(ext_iridescence_texture))
+            {
+                const auto &iridescence_texture_value = value.Get(ext_iridescence_texture);
+                int tex_index = iridescence_texture_value.Get("index").GetNumberAsInt();
+                ret.img_iridescence = image_cache.at(model.textures[tex_index].source);
+            }
+            if(value.Has(ext_iridescence_ior))
+            {
+                ret.iridescence_ior = static_cast<float>(value.Get(ext_iridescence_ior).GetNumberAsDouble());
+            }
+            if(value.Has(ext_iridescence_thickness_min))
+            {
+                ret.iridescence_thickness_min_max.x = static_cast<float>(value.Get(
+                        ext_iridescence_thickness_min).GetNumberAsDouble());
+            }
+            if(value.Has(ext_iridescence_thickness_max))
+            {
+                ret.iridescence_thickness_min_max.y = static_cast<float>(value.Get(
+                        ext_iridescence_thickness_max).GetNumberAsDouble());
+            }
+            if(value.Has(ext_iridescence_thickness_texture))
+            {
+                const auto &iridescence_thickness_texture_value = value.Get(ext_iridescence_thickness_texture);
+                int tex_index = iridescence_thickness_texture_value.Get("index").GetNumberAsInt();
+                ret.img_iridescence_thickness = image_cache.at(model.textures[tex_index].source);
+            }
+        }
     }
     return ret;
 }
@@ -504,7 +548,7 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                                                         const tinygltf::Model &model,
                                                         const node_map_t &node_map)
 {
-    LOG_DEBUG << "animation: " << tiny_animation.name;
+    spdlog::debug("animation: {}", tiny_animation.name);
 
     vierkant::nodes::node_animation_t animation;
     animation.name = tiny_animation.name;
@@ -631,14 +675,11 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     std::transform(ext_str.begin(), ext_str.end(), ext_str.begin(), ::tolower);
     if(ext_str == ".gltf"){ ret = loader.LoadASCIIFromFile(&model, &err, &warn, path); }
     else if(ext_str == ".glb"){ ret = loader.LoadBinaryFromFile(&model, &err, &warn, path); }
-    if(!warn.empty()){ LOG_WARNING << warn; }
-    if(!err.empty()){ LOG_ERROR << err; }
+    if(!warn.empty()){ spdlog::warn(warn); }
+    if(!err.empty()){ spdlog::error(err); }
     if(!ret){ return {}; }
 
-    for(const auto &ext : model.extensionsUsed)
-    {
-        LOG_DEBUG << "model using extension: " << ext;
-    }
+    for(const auto &ext : model.extensionsUsed){ spdlog::debug("model using extension: {}", ext); }
 
     const tinygltf::Scene &scene = model.scenes[model.defaultScene >= 0 ? model.defaultScene : 0];
 
@@ -652,7 +693,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     for(const auto &t : model.textures)
     {
-        LOG_TRACE << "loading image: " << t.name;
+        spdlog::trace("loading image: {}", t.name);
 //        auto &sampler = model.samplers[t.sampler];
 //        sampler.magFilter
 //        sampler.minFilter
@@ -685,7 +726,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     node_map_t node_map;
 
     // cache geometries (index_accessor, attributes) -> geometry
-    using geometry_key = std::tuple<int, const std::map<std::string, int>&>;
+    using geometry_key = std::tuple<int, const std::map<std::string, int> &>;
     std::map<geometry_key, vierkant::GeometryPtr> geometry_cache;
 
     while(!node_queue.empty())

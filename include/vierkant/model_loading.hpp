@@ -54,6 +54,13 @@ struct material_t
     glm::vec3 sheen_color = glm::vec3(0.f);
     float sheen_roughness = 0.f;
 
+    // iridescence
+    float iridescence_factor = 0.f;
+    float iridescence_ior = 1.3f;
+
+    // iridescence thin-film layer given in nanometers (nm)
+    glm::vec2 iridescence_thickness_min_max = {100.f, 400.f};
+
     crocore::ImagePtr img_diffuse;
     crocore::ImagePtr img_emission;
 
@@ -70,6 +77,9 @@ struct material_t
 
     crocore::ImagePtr img_specular;
     crocore::ImagePtr img_specular_color;
+
+    crocore::ImagePtr img_iridescence;
+    crocore::ImagePtr img_iridescence_thickness;
 };
 
 /**
