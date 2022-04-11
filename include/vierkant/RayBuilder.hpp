@@ -60,6 +60,13 @@ public:
 
         glm::vec4 sheen_color = glm::vec4(0.f);
 
+        float iridescence_strength = 0.f;
+
+        float iridescence_ior = 1.3f;
+
+        // range of thin-film thickness in nanometers (nm)
+        glm::vec2 iridescence_thickness_range = {100.f, 400.f};
+
         uint32_t texture_index = 0;
 
         uint32_t normalmap_index = 0;

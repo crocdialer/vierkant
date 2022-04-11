@@ -21,7 +21,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     g_buffer_attachments[G_BUFFER_ALBEDO] = vierkant::Image::create(device, color_format);
     g_buffer_attachments[G_BUFFER_AO_ROUGH_METAL] = vierkant::Image::create(device, color_format);
 
-    // normals
+    // emission
     Image::Format emission_format = {};
     emission_format.extent = extent;
     emission_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;

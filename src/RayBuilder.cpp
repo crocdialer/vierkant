@@ -390,6 +390,10 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             material.blend_mode = static_cast<uint32_t>(mesh_material->blend_mode);
             material.alpha_cutoff = mesh_material->alpha_cutoff;
 
+            material.iridescence_strength = mesh_material->iridescence_factor;
+            material.iridescence_ior = mesh_material->iridescence_ior;
+            material.iridescence_thickness_range = mesh_material->iridescence_thickness_range;
+
             for(auto &[type_flag, tex] : mesh_material->textures)
             {
                 material.texture_type_flags |= type_flag;

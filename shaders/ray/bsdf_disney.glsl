@@ -47,6 +47,26 @@ vec3 EvalDielectricReflection(vec3 albedo, float roughness, float eta, vec3 V, v
     return albedo * F * D * G;
 }
 
+vec3 EvalDielectricReflectionIridescence(vec3 albedo, vec3 Cspec0, float roughness, float eta, vec3 V, vec3 N, vec3 L, vec3 H,
+                                         float ir_thickness, float ir_ior, inout float pdf)
+{
+    pdf = 0.0;
+    if (dot(N, L) <= 0.0)
+    return vec3(0.0);
+
+    float VoH = dot(V, H);
+    float F = DielectricFresnel(VoH, eta);
+
+    float D = GTR2(dot(N, H), roughness);
+
+    pdf = D * dot(N, H) * F / (4.0 * abs(dot(V, H)));
+
+    float G = SmithGGX(abs(dot(N, L)), roughness) * SmithGGX(abs(dot(N, V)), roughness);
+
+    vec3 irF = iridescent_fresnel(1.0, ir_ior, Cspec0, ir_thickness, VoH);
+
+    return albedo * irF * D * G;
+}
 
 vec3 EvalDielectricRefraction(vec3 albedo, float roughness, float eta, vec3 V, vec3 N, vec3 L, vec3 H, inout float pdf)
 {
@@ -76,6 +96,27 @@ vec3 EvalSpecular(float roughness, in vec3 Cspec0, vec3 V, vec3 N, vec3 L, vec3 
 
     float FH = SchlickFresnel(dot(L, H));
     vec3 F = mix(Cspec0, vec3(1.0), FH);
+    float G = SmithGGX(abs(dot(N, L)), roughness) * SmithGGX(abs(dot(N, V)), roughness);
+
+    return F * D * G;
+}
+
+vec3 EvalSpecularIridescence(float roughness, in vec3 Cspec0, vec3 V, vec3 N, vec3 L, vec3 H,
+                             float ir_thickness, float ir_ior, inout float pdf)
+{
+    pdf = 0.0;
+    if (dot(N, L) <= 0.0)
+    return vec3(0.0);
+
+    float VoH = dot(V, H);
+
+    float D = GTR2(dot(N, H), roughness);
+    pdf = D * dot(N, H) / (4.0 * VoH);
+
+//    float FH = SchlickFresnel(dot(L, H));
+//    vec3 F = mix(Cspec0, vec3(1.0), FH);
+    vec3 F = iridescent_fresnel(1.0, ir_ior, Cspec0, ir_thickness, VoH);
+
     float G = SmithGGX(abs(dot(N, L)), roughness) * SmithGGX(abs(dot(N, V)), roughness);
 
     return F * D * G;
@@ -167,7 +208,19 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         if (Xi.y < F)
         {
             ret.direction = normalize(R);
-            ret.F = EvalDielectricReflection(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);
+
+            if(rnd(rng_state) < material.iridescence_strength)
+            {
+                ret.F = EvalDielectricReflectionIridescence(material.color.rgb, spec_color, material.roughness, eta, V, N,
+                                                            ret.direction, H, material.iridescence_thickness_range.y,
+                                                            material.iridescence_ior, ret.pdf);
+                ret.pdf *= material.iridescence_strength;
+            }
+            else
+            {
+                ret.F = EvalDielectricReflection(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);
+                ret.pdf *= 1.0 - material.iridescence_strength;
+            }
         }
         else // Transmission
         {
@@ -206,8 +259,18 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
 
                 ret.direction = normalize(reflect(-V, H));
 
-                ret.F = EvalSpecular(material.roughness, spec_color, V, N, ret.direction, H, ret.pdf);
-                ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio);
+                if(rnd(rng_state) < material.iridescence_strength)
+                {
+                    ret.F = EvalSpecularIridescence(material.roughness, spec_color, V, N, ret.direction, H,
+                                                    material.iridescence_thickness_range.y, material.iridescence_ior,
+                                                    ret.pdf);
+                    ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * material.iridescence_strength;
+                }
+                else
+                {
+                    ret.F = EvalSpecular(material.roughness, spec_color, V, N, ret.direction, H, ret.pdf);
+                    ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - material.iridescence_strength);
+                }
             }
             else // Sample clearcoat lobe
             {

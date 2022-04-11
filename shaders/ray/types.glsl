@@ -64,6 +64,10 @@ struct material_t
     float sheen_roughness;
     vec4 sheen_color;
 
+    float iridescence_strength;
+    float iridescence_ior;
+    vec2 iridescence_thickness_range;
+
     uint texture_index;
     uint normalmap_index;
     uint emission_index;

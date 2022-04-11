@@ -161,6 +161,14 @@ float DielectricFresnel(float cos_theta_i, float eta)
 // iridescence fresnel ////////
 // see: https://github.com/ux3d/glTF/tree/extensions/KHR_materials_iridescence/extensions/2.0/Khronos/KHR_materials_iridescence#theory-documentation-and-implementations
 
+vec3 iridescent_fresnel_mix(vec3 iridescence_fresnel, vec3 base, vec3 specular_brdf)
+{
+    // Get maximum component value of iridescence fresnel color
+    float iridescence_fresnel_max = max(max(iridescence_fresnel.r, iridescence_fresnel.g), iridescence_fresnel.b);
+
+    return (1 - iridescence_fresnel_max) * base + iridescence_fresnel * specular_brdf;
+}
+
 // Assume air interface for top
 vec3 Fresnel0ToIor(vec3 F0)
 {

@@ -766,7 +766,7 @@ void draw_material_ui(const MaterialPtr &material)
     // occlusion
     ImGui::SliderFloat("occlusion", &material->occlusion, 0.f, 1.f);
 
-    // occlusion-occlusion / roughness / metalness
+    // ambient-occlusion / roughness / metalness
     draw_texture(vierkant::Material::TextureType::Ao_rough_metal, "occlusion / roughness / metalness");
 
     ImGui::Separator();
@@ -811,6 +811,11 @@ void draw_material_ui(const MaterialPtr &material)
 
     // index of refraction - ior
     ImGui::InputFloat("ior", &material->ior);
+
+    // iridescence
+    ImGui::SliderFloat("iridescence", &material->iridescence_factor, 0.f, 1.f);
+    ImGui::InputFloat("iridescence-ior", &material->iridescence_ior);
+    ImGui::InputFloat2("iridescence thickness", &material->iridescence_thickness_range.x);
 }
 
 void draw_mesh_ui(const vierkant::MeshNodePtr &node)
