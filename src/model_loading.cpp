@@ -149,7 +149,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
 
         material->name = mesh_assets.materials[i].name;
         material->color = mesh_assets.materials[i].base_color;
-        material->emission = glm::vec4(mesh_assets.materials[i].emission, 1.f);
+        material->emission = glm::vec4(mesh_assets.materials[i].emission, mesh_assets.materials[i].emissive_strength);
         material->roughness = mesh_assets.materials[i].roughness;
         material->metalness = mesh_assets.materials[i].metalness;
         material->blend_mode = mesh_assets.materials[i].blend_mode;
@@ -161,12 +161,24 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
         material->attenuation_distance = mesh_assets.materials[i].attenuation_distance;
         material->ior = mesh_assets.materials[i].ior;
 
+        material->sheen_color = mesh_assets.materials[i].sheen_color;
+        material->sheen_roughness = mesh_assets.materials[i].sheen_roughness;
+
+        material->sheen_color = mesh_assets.materials[i].sheen_color;
+        material->sheen_roughness = mesh_assets.materials[i].sheen_roughness;
+
+        material->iridescence_factor = mesh_assets.materials[i].iridescence_factor;
+        material->iridescence_ior = mesh_assets.materials[i].iridescence_ior;
+        material->iridescence_thickness_range = mesh_assets.materials[i].iridescence_thickness_range;
+
         auto color_img = mesh_assets.materials[i].img_diffuse;
         auto emmission_img = mesh_assets.materials[i].img_emission;
         auto normal_img = mesh_assets.materials[i].img_normals;
         auto ao_rough_metal_img = mesh_assets.materials[i].img_ao_roughness_metal;
         auto thickness_img = mesh_assets.materials[i].img_thickness;
         auto transmission_img = mesh_assets.materials[i].img_transmission;
+        auto sheen_img = mesh_assets.materials[i].img_sheen_color;
+        auto iridescence_img = mesh_assets.materials[i].img_iridescence;
 
         if(color_img){ material->textures[vierkant::Material::Color] = texture_cache[color_img]; }
         if(emmission_img){ material->textures[vierkant::Material::Emission] = texture_cache[emmission_img]; }
@@ -178,6 +190,8 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
         }
         if(transmission_img){ material->textures[vierkant::Material::Transmission] = texture_cache[transmission_img]; }
         if(thickness_img){ material->textures[vierkant::Material::Thickness] = texture_cache[thickness_img]; }
+        if(sheen_img){ material->textures[vierkant::Material::SheenColor] = texture_cache[sheen_img]; }
+        if(iridescence_img){ material->textures[vierkant::Material::Iridescence] = texture_cache[iridescence_img]; }
     }
 
     // submit transfer and sync

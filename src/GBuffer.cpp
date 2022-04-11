@@ -13,14 +13,20 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
 {
     std::vector<vierkant::ImagePtr> g_buffer_attachments(G_BUFFER_SIZE);
 
-    // albedo / emission / ao_rough_metal
+    // albedo / ao_rough_metal
     Image::Format color_format = {};
     color_format.extent = extent;
     color_format.format = VK_FORMAT_R8G8B8A8_UNORM;
     color_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     g_buffer_attachments[G_BUFFER_ALBEDO] = vierkant::Image::create(device, color_format);
-    g_buffer_attachments[G_BUFFER_EMISSION] = vierkant::Image::create(device, color_format);
     g_buffer_attachments[G_BUFFER_AO_ROUGH_METAL] = vierkant::Image::create(device, color_format);
+
+    // normals
+    Image::Format emission_format = {};
+    emission_format.extent = extent;
+    emission_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    emission_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    g_buffer_attachments[G_BUFFER_EMISSION] = vierkant::Image::create(device, emission_format);
 
     // normals
     Image::Format normal_format = {};

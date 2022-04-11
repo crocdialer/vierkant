@@ -26,17 +26,19 @@ public:
 
     enum TextureType : uint32_t
     {
-        Color = 0x01,
-        Normal = 0x02,
-        Ao_rough_metal = 0x04,
-        Emission = 0x08,
-        Displacement = 0x10,
-        Thickness = 0x20,
-        Transmission = 0x40,
-        Clearcoat = 0x80,
+        Color = 0x001,
+        Normal = 0x002,
+        Ao_rough_metal = 0x004,
+        Emission = 0x008,
+        Displacement = 0x010,
+        Thickness = 0x020,
+        Transmission = 0x040,
+        Clearcoat = 0x080,
         SheenColor = 0x100,
         SheenRoughness = 0x200,
-        Environment = 0x400
+        Iridescence = 0x400,
+        IridescenceStrength = 0x800,
+        Environment = 0x1000
     };
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };
@@ -76,6 +78,13 @@ public:
     glm::vec3 sheen_color = glm::vec3(0.f);
 
     float sheen_roughness = 0.f;
+
+    // iridescence
+    float iridescence_factor = 0.f;
+    float iridescence_ior = 1.3f;
+
+    // iridescence thin-film layer given in nanometers (nm)
+    glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
     bool depth_test = true;
 

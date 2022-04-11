@@ -19,6 +19,7 @@ struct material_t
 
     glm::vec4 base_color;
     glm::vec3 emission;
+    float emissive_strength = 1.f;
 
     float roughness = 1.f;
     float metalness = 1.f;
@@ -59,7 +60,7 @@ struct material_t
     float iridescence_ior = 1.3f;
 
     // iridescence thin-film layer given in nanometers (nm)
-    glm::vec2 iridescence_thickness_min_max = {100.f, 400.f};
+    glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
     crocore::ImagePtr img_diffuse;
     crocore::ImagePtr img_emission;
@@ -78,8 +79,8 @@ struct material_t
     crocore::ImagePtr img_specular;
     crocore::ImagePtr img_specular_color;
 
+    // iridescence intensity/thickness stored in RG-channels
     crocore::ImagePtr img_iridescence;
-    crocore::ImagePtr img_iridescence_thickness;
 };
 
 /**

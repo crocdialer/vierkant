@@ -29,6 +29,9 @@ std::size_t Material::hash() const
     hash_combine(h, clearcoat_roughness_factor);
     hash_combine(h, sheen_color);
     hash_combine(h, sheen_roughness);
+    hash_combine(h, iridescence_factor);
+    hash_combine(h, iridescence_ior);
+    hash_combine(h, iridescence_thickness_range);
     hash_combine(h, depth_test);
     hash_combine(h, depth_write);
     hash_combine(h, cull_mode);

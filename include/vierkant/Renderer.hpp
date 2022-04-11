@@ -69,6 +69,15 @@ public:
 
         float alpha_cutoff = 0.5f;
 
+        float iridescence_strength = 0.f;
+
+        float iridescence_ior = 1.3f;
+
+        uint32_t padding[1];
+
+        // range of thin-film thickness in nanometers (nm)
+        glm::vec2 iridescence_thickness_range = {100.f, 400.f};
+
         uint32_t base_texture_index = 0;
 
         uint32_t texture_type_flags = 0;

@@ -748,7 +748,8 @@ void draw_material_ui(const MaterialPtr &material)
     draw_texture(vierkant::Material::TextureType::Color, "base color");
 
     // emissive color
-    ImGui::ColorEdit4("emission color", glm::value_ptr(material->emission));
+    ImGui::ColorEdit3("emission color", glm::value_ptr(material->emission));
+    ImGui::InputFloat("emissive strength", &material->emission.w);
     draw_texture(vierkant::Material::TextureType::Emission, "emission");
 
     // normalmap

@@ -75,9 +75,9 @@ void main()
         if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
         {
             uint offset = tex_offset(EMMISSION, material.texture_type_flags);
-            out_emission = texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord);
-            out_emission.a *= material.emission.a;
+            out_emission.rgb = texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord).rgb;
         }
+        out_emission.rgb *= out_emission.a;
     }
 
     vec3 normal = vertex_in.normal;

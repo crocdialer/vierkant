@@ -38,6 +38,7 @@ constexpr char interpolation_step[] = "STEP";
 constexpr char interpolation_cubic_spline[] = "CUBICSPLINE";
 
 // extensions
+constexpr char KHR_materials_emissive_strength[] = "KHR_materials_emissive_strength";
 constexpr char KHR_materials_specular[] = "KHR_materials_specular";
 constexpr char KHR_materials_transmission[] = "KHR_materials_transmission";
 constexpr char KHR_materials_volume[] = "KHR_materials_volume";
@@ -45,6 +46,9 @@ constexpr char KHR_materials_ior[] = "KHR_materials_ior";
 constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
 constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
 constexpr char KHR_materials_iridescence[] = "KHR_materials_iridescence";
+
+// KHR_materials_emissive_strength
+constexpr char ext_emissive_strength[] = "emissiveStrength";
 
 // KHR_materials_specular
 constexpr char ext_specular_factor[] = "specularFactor";
@@ -324,7 +328,12 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     {
         spdlog::debug("ext-properties: {}", value.Keys());
 
-        if(ext == KHR_materials_specular)
+        if(ext == KHR_materials_emissive_strength)
+        {
+            const auto &emissive_strength_value = value.Get(ext_emissive_strength);
+            ret.emissive_strength = static_cast<float>(emissive_strength_value.GetNumberAsDouble());
+        }
+        else if(ext == KHR_materials_specular)
         {
             if(value.Has(ext_specular_factor))
             {
@@ -459,19 +468,20 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             }
             if(value.Has(ext_iridescence_thickness_min))
             {
-                ret.iridescence_thickness_min_max.x = static_cast<float>(value.Get(
+                ret.iridescence_thickness_range.x = static_cast<float>(value.Get(
                         ext_iridescence_thickness_min).GetNumberAsDouble());
             }
             if(value.Has(ext_iridescence_thickness_max))
             {
-                ret.iridescence_thickness_min_max.y = static_cast<float>(value.Get(
+                ret.iridescence_thickness_range.y = static_cast<float>(value.Get(
                         ext_iridescence_thickness_max).GetNumberAsDouble());
             }
             if(value.Has(ext_iridescence_thickness_texture))
             {
                 const auto &iridescence_thickness_texture_value = value.Get(ext_iridescence_thickness_texture);
                 int tex_index = iridescence_thickness_texture_value.Get("index").GetNumberAsInt();
-                ret.img_iridescence_thickness = image_cache.at(model.textures[tex_index].source);
+                auto img_iridescence_thickness = image_cache.at(model.textures[tex_index].source);
+                assert(!ret.img_iridescence || img_iridescence_thickness == ret.img_iridescence);
             }
         }
     }
