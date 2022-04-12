@@ -94,6 +94,9 @@ public:
 
     std::map<TextureType, vierkant::ImagePtr> textures;
 
+    // optional texture-transform (todo: per image)
+    glm::mat4 texture_transform = glm::mat4(1);
+
 private:
     Material() = default;
 };

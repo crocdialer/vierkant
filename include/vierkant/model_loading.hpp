@@ -62,6 +62,9 @@ struct material_t
     // iridescence thin-film layer given in nanometers (nm)
     glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
+    // optional texture-transform (todo: per image)
+    glm::mat4 texture_transform = glm::mat4(1);
+
     crocore::ImagePtr img_diffuse;
     crocore::ImagePtr img_emission;
 

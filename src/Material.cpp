@@ -41,6 +41,8 @@ std::size_t Material::hash() const
         hash_combine(h, type);
         hash_combine(h, tex);
     }
+
+    hash_combine(h, texture_transform);
     return h;
 }
 

@@ -192,6 +192,8 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
         if(thickness_img){ material->textures[vierkant::Material::Thickness] = texture_cache[thickness_img]; }
         if(sheen_img){ material->textures[vierkant::Material::SheenColor] = texture_cache[sheen_img]; }
         if(iridescence_img){ material->textures[vierkant::Material::Iridescence] = texture_cache[iridescence_img]; }
+
+        material->texture_transform = mesh_assets.materials[i].texture_transform;
     }
 
     // submit transfer and sync

@@ -162,13 +162,8 @@ glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
             scale = glm::dvec2(scale_value.Get(0).GetNumberAsDouble(),
                                scale_value.Get(1).GetNumberAsDouble());
         }
-        if(value.Has(ext_texture_tex_coord))
-        {
-            spdlog::debug("hit: {}", ext_texture_tex_coord);
-        }
-
         ret = glm::translate(glm::mat4(1), glm::vec3(offset, 0.f)) *
-              glm::rotate(glm::mat4(1), rotation, glm::vec3(0.f, 0.f, 1.f)) *
+              glm::rotate(glm::mat4(1), rotation, glm::vec3(0.f, 0.f, -1.f)) *
               glm::scale(glm::mat4(1), glm::vec3(scale, 1.f));
     }
     return ret;
@@ -310,6 +305,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     if(tiny_mat.pbrMetallicRoughness.baseColorTexture.index >= 0)
     {
         ret.img_diffuse = image_cache.at(model.textures[tiny_mat.pbrMetallicRoughness.baseColorTexture.index].source);
+        ret.texture_transform = texture_transform(tiny_mat.pbrMetallicRoughness.baseColorTexture);
     }
 
     // ao / rough / metal
@@ -752,8 +748,8 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     for(const auto &t : model.textures)
     {
-        spdlog::trace("loading image: {}", t.name);
 //        auto &sampler = model.samplers[t.sampler];
+//        spdlog::debug("loading image '{}' with sampler '{}'", t.name, sampler.name);
 //        sampler.magFilter
 //        sampler.minFilter
 //        sampler.wrapS
