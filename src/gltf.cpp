@@ -326,7 +326,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
 
     for(const auto&[ext, value] : tiny_mat.extensions)
     {
-        spdlog::debug("ext-properties: {}", value.Keys());
+        spdlog::trace("ext-properties: {}", value.Keys());
 
         if(ext == KHR_materials_emissive_strength)
         {
@@ -689,7 +689,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     if(!err.empty()){ spdlog::error(err); }
     if(!ret){ return {}; }
 
-    for(const auto &ext : model.extensionsUsed){ spdlog::debug("model using extension: {}", ext); }
+    spdlog::debug("model using extensions: {}", model.extensionsUsed);
 
     const tinygltf::Scene &scene = model.scenes[model.defaultScene >= 0 ? model.defaultScene : 0];
 

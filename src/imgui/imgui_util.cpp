@@ -812,10 +812,24 @@ void draw_material_ui(const MaterialPtr &material)
     // index of refraction - ior
     ImGui::InputFloat("ior", &material->ior);
 
+    // sheen
+    ImGui::Separator();
+    ImGui::Text("sheen");
+    ImGui::ColorEdit3("sheen color", glm::value_ptr(material->sheen_color));
+    ImGui::SliderFloat("sheen roughness", &material->sheen_roughness, 0.f, 1.f);
+
     // iridescence
+    ImGui::Separator();
+    ImGui::Text("iridescence");
     ImGui::SliderFloat("iridescence", &material->iridescence_factor, 0.f, 1.f);
     ImGui::InputFloat("iridescence-ior", &material->iridescence_ior);
-    ImGui::InputFloat2("iridescence thickness", &material->iridescence_thickness_range.x);
+    ImGui::InputFloat2("iridescence thickness", glm::value_ptr(material->iridescence_thickness_range));
+
+    // clearcoat
+    ImGui::Separator();
+    ImGui::Text("clearcoat");
+    ImGui::SliderFloat("clearcoat factor", &material->clearcoat_factor, 0.f, 1.f);
+    ImGui::SliderFloat("clearcoat roughness", &material->clearcoat_roughness_factor, 0.f, 1.f);
 }
 
 void draw_mesh_ui(const vierkant::MeshNodePtr &node)
