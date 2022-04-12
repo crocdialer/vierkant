@@ -46,6 +46,7 @@ constexpr char KHR_materials_ior[] = "KHR_materials_ior";
 constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
 constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
 constexpr char KHR_materials_iridescence[] = "KHR_materials_iridescence";
+constexpr char KHR_texture_transform[] = "KHR_texture_transform";
 
 // KHR_materials_emissive_strength
 constexpr char ext_emissive_strength[] = "emissiveStrength";
@@ -83,6 +84,12 @@ constexpr char ext_iridescence_ior[] = "iridescenceIOR";
 constexpr char ext_iridescence_thickness_min[] = "iridescenceThicknessMinimum";
 constexpr char ext_iridescence_thickness_max[] = "iridescenceThicknessMaximum";
 constexpr char ext_iridescence_thickness_texture[] = "iridescenceThicknessTexture";
+
+// KHR_texture_transform
+constexpr char ext_texture_offset[] = "offset";
+constexpr char ext_texture_rotation[] = "rotation";
+constexpr char ext_texture_scale[] = "scale";
+constexpr char ext_texture_tex_coord[] = "texCoord";
 
 struct node_t
 {
@@ -122,6 +129,49 @@ glm::mat4 node_transform(const tinygltf::Node &tiny_node)
                               tiny_node.rotation[2]);
     }
     return glm::translate(glm::dmat4(1), translation) * glm::mat4_cast(rotation) * glm::scale(glm::dmat4(1), scale);
+}
+
+glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
+{
+    glm::mat4 ret(1);
+    auto ext_transform_it = texture_info.extensions.find(KHR_texture_transform);
+
+    if(ext_transform_it != texture_info.extensions.end())
+    {
+        // extract offset, rotation, scale
+        const auto &value = ext_transform_it->second;
+
+        glm::vec2 offset = {0.f, 0.f};
+        float rotation = 0.f;
+        glm::vec2 scale = {1.f, 1.f};
+
+        if(value.Has(ext_texture_offset))
+        {
+            const auto &offset_value = value.Get(ext_texture_offset);
+            offset = glm::dvec2(offset_value.Get(0).GetNumberAsDouble(),
+                                offset_value.Get(1).GetNumberAsDouble());
+        }
+        if(value.Has(ext_texture_rotation))
+        {
+            const auto &rotation_value = value.Get(ext_texture_rotation);
+            rotation = static_cast<float>(rotation_value.GetNumberAsDouble());
+        }
+        if(value.Has(ext_texture_scale))
+        {
+            const auto &scale_value = value.Get(ext_texture_scale);
+            scale = glm::dvec2(scale_value.Get(0).GetNumberAsDouble(),
+                               scale_value.Get(1).GetNumberAsDouble());
+        }
+        if(value.Has(ext_texture_tex_coord))
+        {
+            spdlog::debug("hit: {}", ext_texture_tex_coord);
+        }
+
+        ret = glm::translate(glm::mat4(1), glm::vec3(offset, 0.f)) *
+              glm::rotate(glm::mat4(1), rotation, glm::vec3(0.f, 0.f, 1.f)) *
+              glm::scale(glm::mat4(1), glm::vec3(scale, 1.f));
+    }
+    return ret;
 }
 
 vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, const tinygltf::Model &model)
@@ -255,7 +305,6 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     ret.metalness = static_cast<float>(tiny_mat.pbrMetallicRoughness.metallicFactor);
     ret.roughness = static_cast<float>(tiny_mat.pbrMetallicRoughness.roughnessFactor);
     ret.twosided = tiny_mat.doubleSided;
-
 
     // albedo
     if(tiny_mat.pbrMetallicRoughness.baseColorTexture.index >= 0)
