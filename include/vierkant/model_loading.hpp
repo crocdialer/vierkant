@@ -86,16 +86,38 @@ struct material_t
     crocore::ImagePtr img_iridescence;
 };
 
+enum LightType : uint32_t
+{
+    Point = 0,
+    Spot,
+    Directional
+};
+
+struct lightsource_t
+{
+    glm::vec3 position;
+    LightType type = LightType::Point;
+    glm::vec3 color = glm::vec3(1);
+    float intensity = 1.f;
+    glm::vec3 direction = glm::vec3(0.f, 0.f, -1.f);
+    float range = 0;
+    float inner_cone_angle = 0.f;
+    float outer_cone_angle = glm::quarter_pi<float>();
+};
+
 /**
  * @brief   mesh_assets_t groups assets imported from a model-file.
  */
 struct mesh_assets_t
 {
     //! submesh entries
-    std::vector <vierkant::Mesh::entry_create_info_t> entry_create_infos;
+    std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
 
     //! common materials for all submeshes
-    std::vector <material_t> materials;
+    std::vector<material_t> materials;
+
+    //! optional lights defined in model-file
+    std::vector<lightsource_t> lights;
 
     //! node-hierarchy for submeshes
     vierkant::nodes::NodePtr root_node;
@@ -104,7 +126,7 @@ struct mesh_assets_t
     vierkant::nodes::NodePtr root_bone;
 
     //! optional array of animations defined for nodes
-    std::vector <vierkant::nodes::node_animation_t> node_animations;
+    std::vector<vierkant::nodes::node_animation_t> node_animations;
 };
 
 /**

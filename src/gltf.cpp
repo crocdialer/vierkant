@@ -47,6 +47,7 @@ constexpr char KHR_materials_clearcoat[] = "KHR_materials_clearcoat";
 constexpr char KHR_materials_sheen[] = "KHR_materials_sheen";
 constexpr char KHR_materials_iridescence[] = "KHR_materials_iridescence";
 constexpr char KHR_texture_transform[] = "KHR_texture_transform";
+constexpr char KHR_lights_punctual[] = "KHR_lights_punctual";
 
 // KHR_materials_emissive_strength
 constexpr char ext_emissive_strength[] = "emissiveStrength";
@@ -90,6 +91,12 @@ constexpr char ext_texture_offset[] = "offset";
 constexpr char ext_texture_rotation[] = "rotation";
 constexpr char ext_texture_scale[] = "scale";
 constexpr char ext_texture_tex_coord[] = "texCoord";
+
+// KHR_lights_punctual
+constexpr char ext_light[] = "light";
+constexpr char ext_light_point[] = "point";
+constexpr char ext_light_spot[] = "spot";
+constexpr char ext_light_directional[] = "directional";
 
 struct node_t
 {
@@ -526,7 +533,21 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
                 const auto &iridescence_thickness_texture_value = value.Get(ext_iridescence_thickness_texture);
                 int tex_index = iridescence_thickness_texture_value.Get("index").GetNumberAsInt();
                 auto img_iridescence_thickness = image_cache.at(model.textures[tex_index].source);
-                assert(!ret.img_iridescence || img_iridescence_thickness == ret.img_iridescence);
+
+                if(!ret.img_iridescence)
+                {
+                    ret.img_iridescence = img_iridescence_thickness;
+
+                    if(auto img = std::dynamic_pointer_cast<crocore::Image_<uint8_t>>(ret.img_iridescence))
+                    {
+                        auto ptr = img->at(0, 0);
+                        auto end = ptr + img->num_bytes();
+                        uint32_t c = img->num_components();
+
+                        // iridescence-factor -> 1.0
+                        for(; ptr < end; ptr += c){ ptr[0] = 255; }
+                    }
+                }//} || img_iridescence_thickness == ret.img_iridescence);
             }
         }
     }
@@ -771,6 +792,23 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache));
     }
 
+    // create lights
+    for(const auto &tiny_light : model.lights)
+    {
+        lightsource_t l = {};
+
+        if(tiny_light.type == ext_light_spot){ l.type = LightType::Spot; }
+        else if(tiny_light.type == ext_light_directional){ l.type = LightType::Directional; }
+
+        l.color = {tiny_light.color[0], tiny_light.color[1], tiny_light.color[2]};
+        l.intensity = static_cast<float>(tiny_light.intensity);
+        l.range = static_cast<float>(tiny_light.range);
+        l.inner_cone_angle = static_cast<float>(tiny_light.spot.innerConeAngle);
+        l.outer_cone_angle = static_cast<float>(tiny_light.spot.outerConeAngle);
+
+        out_assets.lights.push_back(l);
+    }
+
     std::deque<node_t> node_queue;
 
     for(int node_index : scene.nodes)
@@ -845,6 +883,19 @@ mesh_assets_t gltf(const std::filesystem::path &path)
             }// for all primitives
         }// mesh
 
+        if(tiny_node.extensions.count(KHR_lights_punctual))
+        {
+            const auto &value = tiny_node.extensions.at(KHR_lights_punctual);
+            size_t light_index = value.Get(ext_light).GetNumberAsInt();
+
+            if(light_index < out_assets.lights.size())
+            {
+                auto &l = out_assets.lights[light_index];
+                l.position = world_transform[3].xyz();
+                l.direction = world_transform[2].xyz();
+            }
+        }
+
         if(!node_map.count(current_index))
         {
             // cache node
@@ -861,8 +912,6 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         }
     }
 
-//    size_t num_geoms = geometry_cache.size(), num_entries = out_assets.entry_create_infos.size();
-
     // animations
     for(const auto &tiny_animation : model.animations)
     {
@@ -870,7 +919,6 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
         out_assets.node_animations.push_back(std::move(node_animation));
     }
-
     return out_assets;
 }
 

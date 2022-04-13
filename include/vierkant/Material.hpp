@@ -37,8 +37,7 @@ public:
         SheenColor = 0x100,
         SheenRoughness = 0x200,
         Iridescence = 0x400,
-        IridescenceStrength = 0x800,
-        Environment = 0x1000
+        Environment = 0x800
     };
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };

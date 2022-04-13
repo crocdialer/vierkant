@@ -24,8 +24,7 @@ struct matrix_struct_t
 #define TEXTURE_TYPE_SHEEN_COLOR 0x100
 #define TEXTURE_TYPE_SHEEN_ROUGHNESS 0x200
 #define TEXTURE_TYPE_IRIDESCENCE = 0x400
-#define TEXTURE_TYPE_IRIDESCENCE_STRENGTH = 0x800
-#define TEXTURE_TYPE_ENVIRONMENT 0x1000
+#define TEXTURE_TYPE_ENVIRONMENT 0x800
 
 //! material parameters
 struct material_struct_t
@@ -37,7 +36,7 @@ struct material_struct_t
     float ambient;
     uint blend_mode;
     float alpha_cutoff;
-    float iridescence_strength;
+    float iridescence_factor;
     float iridescence_ior;
     vec2 iridescence_thickness_range;
     uint base_texture_index;
@@ -49,14 +48,12 @@ struct lightsource_t
 {
     vec3 position;
     uint type;
-    vec4 diffuse;
-    vec4 ambient;
-    vec3 direction;
+    vec3 color;
     float intensity;
-    float radius;
-    float spotCosCutoff;
-    float spotExponent;
-    float quadraticAttenuation;
+    vec3 direction;
+    float range;
+    float spot_angle_scale;
+    float spot_angle_offset;
 };
 
 //! some render-context passed as push-constant
