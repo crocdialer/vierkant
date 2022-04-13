@@ -51,6 +51,9 @@ public:
         //! apply anti-aliasing using TAA
         bool use_taa = true;
 
+        //! factor multiplied with environment-light
+        float environment_factor = 1.f;
+
         //! use tonemapping
         bool tonemap = true;
 
@@ -188,7 +191,8 @@ private:
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
         vierkant::BufferPtr bone_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;
-        vierkant::BufferPtr lighting_ubo;
+        vierkant::BufferPtr lighting_param_ubo;
+        vierkant::BufferPtr lights_ubo;
         vierkant::BufferPtr composition_ubo;
 
         //! ping-pong post-fx framebuffers
@@ -206,8 +210,9 @@ private:
     {
         glm::mat4 camera_transform = glm::mat4(1);
         glm::mat4 inverse_projection = glm::mat4(1);
-        int num_mip_levels = 0;
-        float env_light_strength = 1.f;
+        uint32_t num_mip_levels = 0;
+        float environment_factor = 1.f;
+        uint32_t num_lights = 0;
     };
 
     struct alignas(16) composition_ubo_t

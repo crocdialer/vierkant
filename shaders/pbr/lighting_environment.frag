@@ -3,8 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../renderer/types.glsl"
-#include "../renderer/bsdf_common.glsl"
-#include "../utils/color_ycc.glsl"
+#include "../renderer/lights_punctual.glsl"
 
 #define ONE_OVER_PI 0.31830988618379067153776752674503
 
@@ -16,8 +15,9 @@ layout(std140, binding = 0) uniform ubo_t
 {
     mat4 camera_transform;
     mat4 inverse_projection;
-    int num_mip_levels;
-    float env_light_strength;
+    uint num_mip_levels;
+    float environment_factor;
+    uint num_lights;
 } ubo;
 
 #define ALBEDO 0
@@ -33,6 +33,8 @@ layout(binding = 1) uniform sampler2D u_sampler_2D[7];
 #define ENV_DIFFUSE 0
 #define ENV_SPEC 1
 layout(binding = 2) uniform samplerCube u_sampler_cube[2];
+
+layout(binding = 3) readonly buffer LightsBuffer{ lightsource_t lights[]; };
 
 vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
 {
@@ -81,10 +83,10 @@ void main()
     // reconstruct position from depth
     vec3 clip_pos = vec3(gl_FragCoord.xy / context.size, depth);
     vec4 viewspace_pos = ubo.inverse_projection * vec4(2.0 * clip_pos.xy - 1, clip_pos.z, 1);
-    vec3 position = viewspace_pos.xyz / viewspace_pos.w;
+    vec3 position = (ubo.camera_transform * (viewspace_pos / viewspace_pos.w)).xyz;
 
-    // inverse view
-    vec3 V = normalize(mat3(ubo.camera_transform) * position);
+    // view
+    vec3 V = normalize(position - ubo.camera_transform[3].xyz);
 
     // sample g-buffer
     vec4 albedo = texture(u_sampler_2D[ALBEDO], vertex_in.tex_coord);
@@ -93,6 +95,20 @@ void main()
     vec3 emission = texture(u_sampler_2D[EMISSION], vertex_in.tex_coord).rgb;
 
     vec3 env_color = compute_enviroment_lighting(V, normal, albedo.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r);
-    env_color += emission;
-    out_color = vec4(env_color, 1.0);
+
+    vec3 punctial_light_color = vec3(0);
+//    lightsource_t l;
+//    l.type = LIGHT_TYPE_DIRECTIONAL;
+//    l.position = vec3(0);
+//    l.direction = vec3(0, 0, -1.0);
+//    l.color = vec3(1);
+//    l.intensity = 2.0;
+//    l.range = 10000.0;
+
+    for(uint i = 0; i < ubo.num_lights; ++i)
+    {
+        punctial_light_color += shade(lights[i], V, normal, position, albedo,
+                                      ao_rough_metal.g, ao_rough_metal.b, 1.0);
+    }
+    out_color = vec4(punctial_light_color + env_color * ubo.environment_factor + emission, 1.0);
 }

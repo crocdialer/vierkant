@@ -8,7 +8,7 @@
 #include <vierkant/shaders.hpp>
 #include <vierkant/culling.hpp>
 #include <vierkant/Visitor.hpp>
-
+#include <vierkant/punctual_light.hpp>
 #include <vierkant/PBRDeferred.hpp>
 
 namespace vierkant
@@ -54,8 +54,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                              VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                              VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        asset.lighting_ubo = vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
-                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        asset.lighting_param_ubo = vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
+                                                            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                            VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        asset.lights_ubo = vierkant::Buffer::create(device, nullptr, sizeof(vierkant::lightsource_ubo_t),
+                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -110,9 +115,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         desc_cubes.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_cubes.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+        vierkant::descriptor_t desc_lights = {};
+        desc_lights.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_lights.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
         m_drawable_lighting_env.descriptors[0] = desc_ubo;
         m_drawable_lighting_env.descriptors[1] = desc_texture;
         m_drawable_lighting_env.descriptors[2] = desc_cubes;
+        m_drawable_lighting_env.descriptors[3] = desc_lights;
         m_drawable_lighting_env.num_vertices = 3;
         m_drawable_lighting_env.pipeline_format = fmt;
         m_drawable_lighting_env.use_own_buffers = true;
@@ -578,12 +588,21 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     ubo.camera_transform = cull_result.camera->global_transform();
     ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
+    ubo.environment_factor = frame_asset.settings.environment_factor;
+    ubo.num_lights = 1;
+    frame_asset.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
 
-    frame_asset.lighting_ubo->set_data(&ubo, sizeof(ubo));
+    // test lightsource
+    vierkant::lightsource_t l = {};
+    l.type = vierkant::LightType::Directional;
+    l.intensity = 2.f;
+
+    std::vector<lightsource_ubo_t> lights_ubo; //= {vierkant::convert_light(l)};
+    frame_asset.lights_ubo->set_data(lights_ubo);
 
     // environment lighting-pass
     auto drawable = m_drawable_lighting_env;
-    drawable.descriptors[0].buffers = {frame_asset.lighting_ubo};
+    drawable.descriptors[0].buffers = {frame_asset.lighting_param_ubo};
     drawable.descriptors[1].images = {frame_asset.g_buffer_post.color_attachment(G_BUFFER_ALBEDO),
                                       frame_asset.g_buffer_post.color_attachment(G_BUFFER_NORMAL),
                                       frame_asset.g_buffer_post.color_attachment(G_BUFFER_EMISSION),
@@ -592,6 +611,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                                       frame_asset.g_buffer_post.depth_attachment(),
                                       m_brdf_lut};
     drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
+    drawable.descriptors[3].buffers = {frame_asset.lights_ubo};
 
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
@@ -1074,7 +1094,7 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
         result = result_buf;
 
         _logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
-                      result.draw_count, result.num_frustum_culled, result.num_occlusion_culled, result.num_triangles);
+                       result.draw_count, result.num_frustum_culled, result.num_occlusion_culled, result.num_triangles);
     }
 
     vierkant::Compute::computable_t computable = m_cull_computable;

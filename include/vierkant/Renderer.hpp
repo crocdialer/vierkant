@@ -83,18 +83,6 @@ public:
         uint32_t texture_type_flags = 0;
     };
 
-    struct alignas(16) lightsource_t
-    {
-        glm::vec3 position;
-        uint32_t type;
-        glm::vec3 color;
-        float intensity;
-        glm::vec3 direction;
-        float range;
-        float spot_angle_scale;
-        float spot_angle_offset;
-    };
-
     struct alignas(16) indexed_indirect_command_t
     {
         //! matches VkDrawIndexedIndirectCommand

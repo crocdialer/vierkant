@@ -8,6 +8,7 @@
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Material.hpp>
+#include <vierkant/punctual_light.hpp>
 #include <vierkant/bc7.hpp>
 
 namespace vierkant::model
@@ -84,25 +85,6 @@ struct material_t
 
     // iridescence intensity/thickness stored in RG-channels
     crocore::ImagePtr img_iridescence;
-};
-
-enum LightType : uint32_t
-{
-    Point = 0,
-    Spot,
-    Directional
-};
-
-struct lightsource_t
-{
-    glm::vec3 position;
-    LightType type = LightType::Point;
-    glm::vec3 color = glm::vec3(1);
-    float intensity = 1.f;
-    glm::vec3 direction = glm::vec3(0.f, 0.f, -1.f);
-    float range = 0;
-    float inner_cone_angle = 0.f;
-    float outer_cone_angle = glm::quarter_pi<float>();
 };
 
 /**

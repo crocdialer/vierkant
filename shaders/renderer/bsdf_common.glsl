@@ -311,6 +311,21 @@ float SmithGGX(float NDotv, float alphaG)
     return 1.0 / (NDotv + sqrt(a + b - a * b));
 }
 
+float GeometrySchlickGGX(float NdotV, float roughness)
+{
+    float r = (roughness + 1.0);
+    float k = (r * r) / 8.0;
+    float num = NdotV;
+    float denom = NdotV * (1.0 - k) + k;
+    return num / denom;
+}
+float GeometrySmith(float NdotV, float NdotL, float roughness)
+{
+    float ggx2  = GeometrySchlickGGX(NdotV, roughness);
+    float ggx1  = GeometrySchlickGGX(NdotL, roughness);
+    return ggx1 * ggx2;
+}
+
 /*
  * Power heuristic often reduces variance even further for multiple importance sampling
  * Chapter 13.10.1 of pbrbook
@@ -325,47 +340,3 @@ vec3 transmittance(vec3 attenuation_color, float attenuation_distance, float dis
 {
     return exp(log(attenuation_color) / attenuation_distance * distance);
 }
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//vec4 shade(in lightsource_t light, in vec3 normal, in vec3 eyeVec, in vec4 base_color,
-//           float roughness, float metalness, float shade_factor)
-//{
-//    vec3 lightDir = light.type > 0 ? (light.position - eyeVec) : -light.direction;
-//    vec3 L = normalize(lightDir);
-//    vec3 E = normalize(-eyeVec);
-//    vec3 H = normalize(L + E);
-//
-//    float nDotL = max(0.f, dot(normal, L));
-//    float nDotH = max(0.f, dot(normal, H));
-//    float nDotV = max(0.f, dot(normal, E));
-//    float lDotH = max(0.f, dot(L, H));
-//    float att = shade_factor;
-//
-//    if(light.type > 0)
-//    {
-//        // distance^2
-//        float dist2 = dot(lightDir, lightDir);
-//        float v = dist2 / (light.radius * light.radius);
-//        v = clamp(1.f - v * v, 0.f, 1.f);
-//        att *= v * v / (1.f + dist2 * light.quadraticAttenuation);
-//
-//        if(light.type > 1)
-//        {
-//            float spot_effect = dot(normalize(light.direction), -L);
-//            att *= spot_effect < light.spotCosCutoff ? 0 : 1;
-//            spot_effect = pow(spot_effect, light.spotExponent);
-//            att *= spot_effect;
-//        }
-//    }
-//
-//    // brdf term
-//    const vec3 dielectricF0 = vec3(0.04);
-//    vec3 f0 = mix(dielectricF0, base_color.rgb, metalness);
-//    vec3 F = F_schlick(f0, lDotH);
-//    float D = D_GGX(nDotH, roughness);
-//    float Vis = Vis_schlick(nDotL, nDotV, roughness);
-//    vec3 Ir = light.diffuse.rgb * light.intensity;
-//    vec3 diffuse = BRDF_Lambertian(base_color.rgb, metalness);
-//    vec3 specular = F * D * Vis;
-//    return vec4((diffuse + specular) * nDotL * Ir * att, 1.0);
-//}

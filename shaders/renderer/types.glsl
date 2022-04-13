@@ -43,19 +43,6 @@ struct material_struct_t
     uint texture_type_flags;
 };
 
-//! definition of a directional- or point-light
-struct lightsource_t
-{
-    vec3 position;
-    uint type;
-    vec3 color;
-    float intensity;
-    vec3 direction;
-    float range;
-    float spot_angle_scale;
-    float spot_angle_offset;
-};
-
 //! some render-context passed as push-constant
 struct render_context_t
 {
