@@ -556,6 +556,7 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
     ImGui::Checkbox("tonemap", &path_tracer->settings.tonemap);
     ImGui::Checkbox("bloom", &path_tracer->settings.bloom);
+    ImGui::SliderFloat("environment_factor", &path_tracer->settings.environment_factor, 0.f, 5.f);
 
     // exposure
     ImGui::SliderFloat("exposure", &path_tracer->settings.exposure, 0.f, 10.f);

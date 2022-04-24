@@ -4,7 +4,12 @@
 
 #include "ray_common.glsl"
 
-layout(binding = 11) uniform samplerCube u_sampler_cube;
+layout(std140, binding = 11) uniform ubo_t
+{
+    float environment_factor;
+} ubo;
+
+layout(binding = 12) uniform samplerCube u_sampler_cube;
 
 layout(location = 0) rayPayloadInEXT payload_t payload;
 
@@ -18,5 +23,6 @@ void main()
     // stop path tracing loop from rgen shader
     payload.stop = true;
 
-    payload.radiance += payload.beta * textureLod(u_sampler_cube, gl_WorldRayDirectionEXT, lod).rgb;
+    payload.radiance += ubo.environment_factor * payload.beta *
+                        textureLod(u_sampler_cube, gl_WorldRayDirectionEXT, lod).rgb;
 }

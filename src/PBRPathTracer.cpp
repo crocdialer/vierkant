@@ -75,6 +75,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
                                                                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        frame_asset.ray_miss_ubo = vierkant::Buffer::create(device, &settings.environment_factor, sizeof(float),
+                                                            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                                            VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
 
     auto raygen = vierkant::create_shader_module(m_device, vierkant::shaders::ray::raygen_rgen);
@@ -145,6 +149,9 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     // sync and reset semaphore
     frame_asset.semaphore.wait(SemaphoreValue::RENDER_DONE);
     frame_asset.semaphore = vierkant::Semaphore(m_device);
+
+    // copy settings for next frame
+    frame_asset.settings = settings;
 
     // resize storage-assets if necessary
     resize_storage(frame_asset, settings.resolution);
@@ -387,13 +394,22 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     desc_ao_rough_metal_maps.images = frame_asset.acceleration_asset.ao_rough_metal_maps;
     frame_asset.tracable.descriptors[10] = desc_ao_rough_metal_maps;
 
+    // comman ubo for miss-shaders
+    vierkant::descriptor_t desc_ray_miss_ubo = {};
+    desc_ray_miss_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
+    desc_ray_miss_ubo.buffers = {frame_asset.ray_miss_ubo};
+    frame_asset.tracable.descriptors[11] = desc_ray_miss_ubo;
+
+    frame_asset.ray_miss_ubo->set_data(&frame_asset.settings.environment_factor, sizeof(float));
+
     if(m_environment)
     {
         vierkant::descriptor_t desc_environment = {};
         desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
         desc_environment.images = {m_environment};
-        frame_asset.tracable.descriptors[11] = desc_environment;
+        frame_asset.tracable.descriptors[12] = desc_environment;
     }
 }
 

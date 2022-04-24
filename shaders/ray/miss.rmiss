@@ -7,6 +7,11 @@
 
 layout(location = 0) rayPayloadInEXT payload_t payload;
 
+layout(std140, binding = 11) uniform ubo_t
+{
+    float environment_factor;
+} ubo;
+
 float sdCross3(in vec3 p, vec3 sz)
 {
     return min(min(sdBox(p, sz), sdBox(p, sz.zyx)), sdBox(p, sz.xzy));
@@ -78,7 +83,7 @@ vec3 sky_color(vec3 direction)
     // sun angular diameter
     const float sun_angle =  0.524167 *  PI / 180.0;
     const vec3 sun_color = vec3(1.0, 0.5, 0.1);
-    col += cos(sun_angle) < sun ? 40 * sun_color : vec3(0);
+    col += cos(sun_angle) < sun ? 60 * sun_color : vec3(0);
 
     return col;
 }
@@ -96,7 +101,6 @@ void main()
 
     vec3 col = d < 10.0 ? mix(sky_color(reflect(payload.ray.direction, n)), n / 2.0 + .5 + vec3(0.04), 0.99) :
                                   sky_color(payload.ray.direction);
-//    col += payload.beta * n / 2.0 + .5;
 
-    payload.radiance += payload.beta * col;//sky_color(payload.ray.direction);
+    payload.radiance += ubo.environment_factor * payload.beta * col;//sky_color(payload.ray.direction);
 }
