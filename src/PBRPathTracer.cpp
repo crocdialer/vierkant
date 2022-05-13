@@ -76,7 +76,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                                                                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                                VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        frame_asset.ray_miss_ubo = vierkant::Buffer::create(device, &settings.environment_factor, sizeof(float),
+        frame_asset.ray_miss_ubo = vierkant::Buffer::create(device, &frame_asset.settings.environment_factor,
+                                                            sizeof(float),
                                                             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                             VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
@@ -154,10 +155,10 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     frame_asset.settings = settings;
 
     // resize storage-assets if necessary
-    resize_storage(frame_asset, settings.resolution);
+    resize_storage(frame_asset, frame_asset.settings.resolution);
 
     // max num batches reached, bail out
-    if(!settings.max_num_batches || m_batch_index < settings.max_num_batches)
+    if(!frame_asset.settings.max_num_batches || m_batch_index < frame_asset.settings.max_num_batches)
     {
         // create/update/compact bottom-lvl acceleration-structures
         update_acceleration_structures(frame_asset, scene, tags);
@@ -166,7 +167,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
         path_trace_pass(frame_asset, cam);
 
         // increase batch index
-        m_batch_index = std::min<size_t>(m_batch_index + 1, settings.max_num_batches);
+        m_batch_index = std::min<size_t>(m_batch_index + 1, frame_asset.settings.max_num_batches);
     }
     else{ frame_asset.semaphore.signal(SemaphoreValue::RAYTRACING); }
 
@@ -199,9 +200,9 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     using namespace std::chrono;
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.batch_index = m_batch_index;
-    push_constants.num_samples = settings.num_samples;
-    push_constants.max_trace_depth = settings.max_trace_depth;
-    push_constants.disable_material = settings.disable_material;
+    push_constants.num_samples = frame_asset.settings.num_samples;
+    push_constants.max_trace_depth = frame_asset.settings.max_trace_depth;
+    push_constants.disable_material = frame_asset.settings.disable_material;
     push_constants.random_seed = m_random_engine();
 
     frame_asset.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -242,7 +243,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_denoise.begin();
 
-    if(settings.denoising)
+    if(frame_asset.settings.denoising)
     {
         // transition storage image
         frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
@@ -282,7 +283,7 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
     bloom_submit.signal_value = SemaphoreValue::COMPOSITION;
 
     // bloom
-    if(settings.tonemap)
+    if(frame_asset.settings.tonemap)
     {
         // generate bloom image
         auto bloom_img = m_empty_img;
@@ -290,12 +291,12 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
         // motion shortcut
         auto motion_img = m_empty_img;
 
-        if(settings.bloom){ bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_submit}); }
+        if(frame_asset.settings.bloom){ bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_submit}); }
         else{ vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, {bloom_submit}); }
 
         composition_ubo_t comp_ubo = {};
-        comp_ubo.exposure = settings.exposure;
-        comp_ubo.gamma = settings.gamma;
+        comp_ubo.exposure = frame_asset.settings.exposure;
+        comp_ubo.gamma = frame_asset.settings.gamma;
         frame_asset.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
         frame_asset.out_drawable = m_drawable_bloom;
@@ -333,8 +334,8 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
     camera_ubo.view_inverse = glm::inverse(cam->view_matrix());
     camera_ubo.fov = glm::radians(cam->fov());
-    camera_ubo.aperture = settings.depth_of_field ? settings.aperture : 0.f;
-    camera_ubo.focal_distance = settings.focal_distance;
+    camera_ubo.aperture = frame_asset.settings.depth_of_field ? settings.aperture : 0.f;
+    camera_ubo.focal_distance = frame_asset.settings.focal_distance;
 
     vierkant::descriptor_t desc_matrices = {};
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -419,7 +420,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 {
     // set environment
     m_environment = scene->environment();
-    bool use_environment = m_environment && settings.draw_skybox;
+    bool use_environment = m_environment && frame_asset.settings.draw_skybox;
     frame_asset.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
 
     // TODO: culling, no culling, which volume to use!?
@@ -433,7 +434,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     // run compaction on structures from previous frame
     for(auto &[mesh, result] : previous_builds)
     {
-        if(settings.compaction && result.compacted_assets.empty())
+        if(frame_asset.settings.compaction && result.compacted_assets.empty())
         {
             // run compaction
             m_ray_builder.compact(result);

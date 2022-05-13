@@ -32,8 +32,8 @@ float halton(uint32_t index, uint32_t base)
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) :
         m_device(device)
 {
-    _logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
-    _logger->debug("PBRDeferred initialized");
+    m_logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
+    m_logger->debug("PBRDeferred initialized");
 
     m_queue = create_info.queue ? create_info.queue : device->queue();
 
@@ -46,7 +46,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
-    for(auto &asset : m_frame_assets)
+    for(auto &asset: m_frame_assets)
     {
         resize_storage(asset, create_info.settings.resolution);
 
@@ -235,7 +235,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
 PBRDeferred::~PBRDeferred()
 {
-    for(auto &frame_asset : m_frame_assets){ frame_asset.timeline.wait(SemaphoreValue::DONE); }
+    for(auto &frame_asset: m_frame_assets){ frame_asset.timeline.wait(SemaphoreValue::DONE); }
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -255,7 +255,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
     bool materials_unchanged = true;
     bool transforms_unchanged = true;
 
-    for(const auto &n : mesh_visitor.objects)
+    for(const auto &n: mesh_visitor.objects)
     {
         meshes.insert(n->mesh);
         if(!n->mesh->node_animations.empty()){ static_scene = false; }
@@ -265,9 +265,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
         frame_asset.mesh_transform_hashes[n->mesh] = transform_hash;
     }
 
-    for(const auto &mesh : meshes)
+    for(const auto &mesh: meshes)
     {
-        for(const auto &mat : mesh->materials)
+        for(const auto &mat: mesh->materials)
         {
             auto h = mat->hash();
             if(frame_asset.material_hashes[mat] != h){ materials_unchanged = false; }
@@ -359,7 +359,7 @@ void PBRDeferred::update_matrix_history(frame_assets_t &frame_asset)
             (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
     auto &last_frame_asset = m_frame_assets[last_index];
 
-    for(const auto &mesh : frame_asset.cull_result.meshes)
+    for(const auto &mesh: frame_asset.cull_result.meshes)
     {
         if(mesh && mesh->root_bone && mesh->animation_index < mesh->node_animations.size())
         {
@@ -384,7 +384,7 @@ void PBRDeferred::update_matrix_history(frame_assets_t &frame_asset)
     if(!frame_asset.recycle_commands)
     {
         // insert previous matrices from cache, if any
-        for(auto &drawable : frame_asset.cull_result.drawables)
+        for(auto &drawable: frame_asset.cull_result.drawables)
         {
             // search previous matrices
             matrix_key_t key = {drawable.mesh, drawable.entry_index};
@@ -458,7 +458,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         camera_desc.buffers = {frame_asset.g_buffer_camera_ubo};
 
         // draw all geometry
-        for(auto &drawable : cull_result.drawables)
+        for(auto &drawable: cull_result.drawables)
         {
             uint32_t shader_flags = PROP_DEFAULT;
 
@@ -592,10 +592,10 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     ubo.num_lights = 1;
     frame_asset.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
 
-    // test lightsource
-    vierkant::lightsource_t l = {};
-    l.type = vierkant::LightType::Directional;
-    l.intensity = 2.f;
+//    // test lightsource
+//    vierkant::lightsource_t l = {};
+//    l.type = vierkant::LightType::Directional;
+//    l.intensity = 2.f;
 
     std::vector<lightsource_ubo_t> lights_ubo; //= {vierkant::convert_light(l)};
     frame_asset.lights_ubo->set_data(lights_ubo);
@@ -772,6 +772,7 @@ size_t PBRDeferred::matrix_key_hash_t::operator()(PBRDeferred::matrix_key_t cons
 void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t &asset,
                                            const glm::uvec2 &resolution)
 {
+    glm::uvec2 previous_size = {asset.g_buffer_post.extent().width, asset.g_buffer_post.extent().height};
     asset.settings.resolution = glm::max(resolution, glm::uvec2(16));
 
     VkExtent3D size = {asset.settings.resolution.x, asset.settings.resolution.y, 1};
@@ -789,8 +790,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
 
     // nothing to do
     if(asset.g_buffer_post && asset.g_buffer_post.color_attachment()->extent() == size){ return; }
-    asset.recycle_commands = false;
 
+    m_logger->debug("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
+                    resolution.y);
+    asset.recycle_commands = false;
     vierkant::RenderPassPtr lighting_renderpass, sky_renderpass, post_fx_renderpass;
 
     // G-buffer (pre and post occlusion-culling)
@@ -841,7 +844,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     post_render_info.pipeline_cache = m_pipeline_cache;
 
     // create post_fx ping pong buffers and renderers
-    for(auto &post_fx_ping_pong : asset.post_fx_ping_pongs)
+    for(auto &post_fx_ping_pong: asset.post_fx_ping_pongs)
     {
         post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info, post_fx_renderpass);
         post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
@@ -1093,8 +1096,9 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
         auto &result_buf = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
         result = result_buf;
 
-        _logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
-                       result.draw_count, result.num_frustum_culled, result.num_occlusion_culled, result.num_triangles);
+        m_logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
+                        result.draw_count, result.num_frustum_culled, result.num_occlusion_culled,
+                        result.num_triangles);
     }
 
     vierkant::Compute::computable_t computable = m_cull_computable;

@@ -23,7 +23,6 @@ vec3 shade(in lightsource_t light, in vec3 V, in vec3 normal, in vec3 position, 
 {
     vec3 light_dir = light.type == LIGHT_TYPE_DIRECTIONAL ? -light.direction : (light.position - position);
     vec3 L = normalize(light_dir);
-//    vec3 V = normalize(-position);
     vec3 H = normalize(L + V);
 
     float nDotL = max(0.f, dot(normal, L));

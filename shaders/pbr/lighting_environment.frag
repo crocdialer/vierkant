@@ -3,7 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../renderer/types.glsl"
-#include "../renderer/lights_punctual.glsl"
+#include "../renderer/punctual_light.glsl"
 
 #define ONE_OVER_PI 0.31830988618379067153776752674503
 

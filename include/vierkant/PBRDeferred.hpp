@@ -356,7 +356,7 @@ private:
     std::chrono::steady_clock::time_point m_timestamp_last = m_timestamp_current;
 
     // a logger
-    std::shared_ptr<spdlog::logger> _logger;
+    std::shared_ptr<spdlog::logger> m_logger;
 };
 
 extern bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs);
