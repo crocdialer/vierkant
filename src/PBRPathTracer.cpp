@@ -68,7 +68,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
-    for(auto &frame_asset : m_frame_assets)
+    for(auto &frame_asset: m_frame_assets)
     {
         frame_asset.denoise_computable = denoise_computable;
 
@@ -178,10 +178,12 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     post_fx_pass(frame_asset);
 
     // stage final output
+    frame_asset.out_drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
+    frame_asset.out_drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
     renderer.stage_drawable(frame_asset.out_drawable);
 
     render_result_t ret;
-    for(const auto &[mesh, assets] : frame_asset.bottom_lvl_assets){ ret.num_draws += assets.size(); }
+    for(const auto &[mesh, assets]: frame_asset.bottom_lvl_assets){ ret.num_draws += assets.size(); }
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
@@ -432,7 +434,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     auto previous_builds = std::move(frame_asset.build_results);
 
     // run compaction on structures from previous frame
-    for(auto &[mesh, result] : previous_builds)
+    for(auto &[mesh, result]: previous_builds)
     {
         if(frame_asset.settings.compaction && result.compacted_assets.empty())
         {
@@ -460,7 +462,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
         if(search_it != m_acceleration_assets.end())
         {
-            for(auto &asset : search_it->second){ asset->transform = node->global_transform(); }
+            for(auto &asset: search_it->second){ asset->transform = node->global_transform(); }
         }
         else
         {
@@ -472,7 +474,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         }
     }
 
-    for(auto &[mesh, result] : frame_asset.build_results)
+    for(auto &[mesh, result]: frame_asset.build_results)
     {
         vierkant::semaphore_submit_info_t wait_info = {};
         wait_info.semaphore = result.semaphore.handle();
@@ -507,6 +509,7 @@ void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2
 
     if(!m_storage_images.radiance || m_storage_images.radiance->extent() != size)
     {
+
         // create storage images
         vierkant::Image::Format storage_format = {};
         storage_format.extent = size;
@@ -525,6 +528,10 @@ void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2
 
     if(!frame_asset.denoise_image || frame_asset.denoise_image->extent() != size)
     {
+        glm::uvec2 previous_size = {frame_asset.tracable.extent.width, frame_asset.tracable.extent.height};
+        spdlog::debug("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
+                      resolution.y);
+
         frame_asset.tracable.extent = size;
 
         // not really needed, idk. maybe prepare for shadow-rays
