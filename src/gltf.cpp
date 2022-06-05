@@ -800,7 +800,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         if(tiny_light.type == ext_light_spot){ l.type = LightType::Spot; }
         else if(tiny_light.type == ext_light_directional){ l.type = LightType::Directional; }
 
-        l.color = {tiny_light.color[0], tiny_light.color[1], tiny_light.color[2]};
+        if(tiny_light.color.size() == 3){ l.color = {tiny_light.color[0], tiny_light.color[1], tiny_light.color[2]}; }
         l.intensity = static_cast<float>(tiny_light.intensity);
         l.range = static_cast<float>(tiny_light.range);
         l.inner_cone_angle = static_cast<float>(tiny_light.spot.innerConeAngle);
