@@ -51,7 +51,7 @@ void HelloTriangleApplication::create_context_and_window()
         create_graphics_pipeline();
         m_camera->set_aspect(m_window->aspect_ratio());
     };
-    window_delegate.close_fn = [this](){ set_running(false); };
+    window_delegate.close_fn = [this](){ running = false; };
     m_window->window_delegates[name()] = window_delegate;
 
     // create a KeyDelegate
@@ -60,7 +60,7 @@ void HelloTriangleApplication::create_context_and_window()
     {
         if(!(m_gui_context.capture_flags() & vierkant::gui::Context::WantCaptureKeyboard))
         {
-            if(e.code() == vierkant::Key::_ESCAPE){ set_running(false); }
+            if(e.code() == vierkant::Key::_ESCAPE){ running = false; }
         }
     };
     m_window->key_delegates["main"] = key_delegate;
