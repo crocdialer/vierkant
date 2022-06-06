@@ -199,10 +199,13 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
     vec3 H = frame * sample_GGX(Xi, material.roughness);
     if (dot(V, H) < 0.0){ H = -H; }
 
+    vec3 H_vndf = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
+    if (dot(V, H_vndf) < 0.0){ H_vndf = -H_vndf; }
+
     if (rnd(rng_state) < trans_weight)
     {
-        vec3 R = reflect(-V, H);
-        float F = DielectricFresnel(abs(dot(R, H)), eta);
+        vec3 R = reflect(-V, H_vndf);
+        float F = DielectricFresnel(abs(dot(R, H_vndf)), eta);
 
         // Reflection/Total internal reflection
         if (Xi.y < F)
@@ -212,20 +215,18 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
             if(rnd(rng_state) < material.iridescence_strength)
             {
                 ret.F = EvalDielectricReflectionIridescence(material.color.rgb, spec_color, material.roughness, eta, V, N,
-                                                            ret.direction, H, material.iridescence_thickness_range.y,
+                                                            ret.direction, H_vndf, material.iridescence_thickness_range.y,
                                                             material.iridescence_ior, ret.pdf);
                 ret.pdf *= material.iridescence_strength;
             }
             else
             {
-                ret.F = EvalDielectricReflection(material.color.rgb, material.roughness, eta, V, N, ret.direction, H, ret.pdf);
+                ret.F = EvalDielectricReflection(material.color.rgb, material.roughness, eta, V, N, ret.direction, H_vndf, ret.pdf);
                 ret.pdf *= 1.0 - material.iridescence_strength;
             }
         }
         else // Transmission
         {
-//            H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
-//            if (dot(V, H) < 0.0){ H = -H; }
             float trans_roughness = min(material.roughness, .4);
             ret.direction = normalize(refract(-V, H, eta));
             ret.F = EvalDielectricRefraction(material.color.rgb, trans_roughness, eta, V, N, ret.direction, H, ret.pdf);
@@ -254,21 +255,18 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
             // Sample primary specular lobe
             if (rnd(rng_state) < primarySpecRatio)
             {
-//                H = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
-//                if (dot(V, H) < 0.0){ H = -H; }
-
-                ret.direction = normalize(reflect(-V, H));
+                ret.direction = normalize(reflect(-V, H_vndf));
 
                 if(rnd(rng_state) < material.iridescence_strength)
                 {
-                    ret.F = EvalSpecularIridescence(material.roughness, spec_color, V, N, ret.direction, H,
+                    ret.F = EvalSpecularIridescence(material.roughness, spec_color, V, N, ret.direction, H_vndf,
                                                     material.iridescence_thickness_range.y, material.iridescence_ior,
                                                     ret.pdf);
                     ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * material.iridescence_strength;
                 }
                 else
                 {
-                    ret.F = EvalSpecular(material.roughness, spec_color, V, N, ret.direction, H, ret.pdf);
+                    ret.F = EvalSpecular(material.roughness, spec_color, V, N, ret.direction, H_vndf, ret.pdf);
                     ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - material.iridescence_strength);
                 }
             }

@@ -253,16 +253,20 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
 
     bool static_scene = true;
     bool materials_unchanged = true;
-    bool transforms_unchanged = true;
+    bool scene_unchanged = true;
+
+    size_t scene_hash = 0;
 
     for(const auto &n: mesh_visitor.objects)
     {
         meshes.insert(n->mesh);
         if(!n->mesh->node_animations.empty()){ static_scene = false; }
-
-        auto transform_hash = std::hash<glm::mat4>()(n->transform());
-        if(frame_asset.mesh_transform_hashes[n->mesh] != transform_hash){ transforms_unchanged = false; }
-        frame_asset.mesh_transform_hashes[n->mesh] = transform_hash;
+        crocore::hash_combine(scene_hash, n->transform());
+    }
+    if(scene_hash != frame_asset.scene_hash)
+    {
+        scene_unchanged = false;
+        frame_asset.scene_hash = scene_hash;
     }
 
     for(const auto &mesh: meshes)
@@ -275,7 +279,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
         }
     }
     bool need_culling = frame_asset.cull_result.camera != cam || meshes != frame_asset.cull_result.meshes;
-    frame_asset.recycle_commands = static_scene && transforms_unchanged && materials_unchanged && !need_culling;
+    frame_asset.recycle_commands = static_scene && scene_unchanged && materials_unchanged && !need_culling;
 
     frame_asset.recycle_commands = frame_asset.recycle_commands && frame_asset.settings == settings;
     frame_asset.settings = settings;
@@ -305,7 +309,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     }
 
     // timeline semaphore
-    frame_asset.timeline.wait(SemaphoreValue::G_BUFFER_ALL);
+    frame_asset.timeline.wait(SemaphoreValue::DONE);
     frame_asset.timeline = vierkant::Semaphore(m_device);
 
     resize_storage(frame_asset, settings.resolution);
@@ -624,10 +628,10 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         if(cull_result.scene->environment())
         {
             m_draw_context.draw_skybox(m_sky_renderer, cull_result.scene->environment(), cull_result.camera);
+            cmd_buffer = m_sky_renderer.render(frame_asset.sky_buffer);
+            frame_asset.sky_buffer.submit({cmd_buffer}, m_queue);
         }
     }
-    cmd_buffer = m_sky_renderer.render(frame_asset.sky_buffer);
-    frame_asset.sky_buffer.submit({cmd_buffer}, m_queue);
 
     return frame_asset.sky_buffer;
 }

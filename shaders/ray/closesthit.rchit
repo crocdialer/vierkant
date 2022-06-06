@@ -218,7 +218,6 @@ void main()
     payload.beta = clamp(payload.beta, 0.0, 2 * PI);
     payload.inside_media = bsdf_sample.transmission ? !payload.inside_media : payload.inside_media;
 
-//    if (dot(payload.normal, payload.ray.direction) < 0.0)
     payload.absorption = payload.inside_media ?
                          -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS) : vec3(0);
 }

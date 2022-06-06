@@ -172,7 +172,7 @@ private:
         vierkant::cull_result_t cull_result;
         settings_t settings;
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
-        std::unordered_map<vierkant::MeshConstPtr, size_t> mesh_transform_hashes;
+        size_t scene_hash = 0;
         bool recycle_commands = false;
         Renderer::indirect_draw_params_t indirect_draw_params_pre = {}, indirect_draw_params_post = {};
         camera_params_t camera_params;
