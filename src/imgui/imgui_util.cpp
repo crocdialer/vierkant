@@ -232,7 +232,7 @@ void draw_component_ui(const ComponentConstPtr &the_component)
 {
     ImGui::Begin(the_component->name().c_str());
 
-    for(auto &p : the_component->get_property_list())
+    for(auto &p: the_component->get_property_list())
     {
         // skip non-tweakable properties
         if(!p->tweakable()){ continue; }
@@ -363,14 +363,18 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     {
         create_swapchain(window->swapchain().sample_count(), v_sync);
     }
-
+    if(!v_sync)
+    {
+        auto target_fps = static_cast<float>(app->target_fps);
+        if(ImGui::InputFloat("target_fps", &target_fps)){ app->target_fps = target_fps; }
+    }
     ImGui::Spacing();
 
     auto clear_color = window->swapchain().framebuffers().front().clear_color;
 
     if(ImGui::ColorEdit4("clear color", clear_color.float32))
     {
-        for(auto &framebuffer : window->swapchain().framebuffers()){ framebuffer.clear_color = clear_color; }
+        for(auto &framebuffer: window->swapchain().framebuffers()){ framebuffer.clear_color = clear_color; }
     }
 
     VkSampleCountFlagBits const msaa_levels[] = {VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT,
@@ -378,7 +382,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     const char *msaa_items[] = {"None", "MSAA 2x", "MSAA 4x", "MSAA 8x"};
     int msaa_index = 0;
 
-    for(auto lvl : msaa_levels)
+    for(auto lvl: msaa_levels)
     {
         if(msaa_current == lvl){ break; }
         msaa_index++;
@@ -461,7 +465,7 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     const float w = ImGui::GetContentRegionAvail().x;
     const ImVec2 uv_0(0, 0), uv_1(1, 1);
 
-    for(const auto &tex : images)
+    for(const auto &tex: images)
     {
         if(tex)
         {
@@ -669,7 +673,7 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
 
         if(is_open)
         {
-            for(auto &c : obj->children())
+            for(auto &c: obj->children())
             {
                 auto clicked_obj = draw_scenegraph_ui_helper(c, selection);
                 if(!ret){ ret = clicked_obj; }
@@ -714,7 +718,7 @@ void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &c
 
         ImGui::Separator();
 
-        if(selection){ for(auto &obj : *selection){ draw_object_ui(obj, camera); }}
+        if(selection){ for(auto &obj: *selection){ draw_object_ui(obj, camera); }}
     }
 
     // end window
@@ -781,7 +785,7 @@ void draw_material_ui(const MaterialPtr &material)
                                                    Material::BlendMode::Mask};
     int blend_mode_index = 0;
 
-    for(auto blend_mode : blend_modes)
+    for(auto blend_mode: blend_modes)
     {
         if(material->blend_mode == blend_mode){ break; }
         blend_mode_index++;
@@ -842,7 +846,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
 
     size_t num_vertices = 0, num_faces = 0;
 
-    for(auto &e : mesh->entries)
+    for(auto &e: mesh->entries)
     {
         num_vertices += e.num_vertices;
         num_faces += e.num_indices / 3;
@@ -860,7 +864,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
         size_t index = 0;
         std::hash<vierkant::MeshPtr> hash;
 
-        for(auto &e : mesh->entries)
+        for(auto &e: mesh->entries)
         {
             int mesh_id = hash(mesh);
 
@@ -929,7 +933,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
         int animation_index = mesh->animation_index;
 
         std::vector<const char *> animation_items;
-        for(auto &anim : mesh->node_animations){ animation_items.push_back(anim.name.c_str()); }
+        for(auto &anim: mesh->node_animations){ animation_items.push_back(anim.name.c_str()); }
 
         if(ImGui::Combo("name", &animation_index, animation_items.data(), animation_items.size()))
         {
@@ -949,7 +953,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
                                                              InterpolationMode::CubicSpline};
         int mode_index = 0;
 
-        for(auto mode : interpolation_modes)
+        for(auto mode: interpolation_modes)
         {
             if(animation.interpolation_mode == mode){ break; }
             mode_index++;
