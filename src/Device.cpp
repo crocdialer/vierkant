@@ -32,7 +32,7 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
-const std::vector<const char *> g_validation_layers = {"VK_LAYER_LUNARG_standard_validation"};
+const std::vector<const char *> g_validation_layers = {"VK_LAYER_KHRONOS_validation"};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -181,6 +181,10 @@ Device::Device(const create_info_t &create_info) :
     device_features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     device_features_11.pNext = &device_features_12;
 
+//    VkPhysicalDeviceVulkan13Features device_features_13 = {};
+//    device_features_13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+//    device_features_12.pNext = &device_features_13;
+
     //-------------------------------------- raytracing features -------------------------------------------------------
 
     // query optional features required for raytracing-pipelines
@@ -292,6 +296,7 @@ Device::Device(const create_info_t &create_info) :
 
     // optionally enable DEVICE_ADDRESS_BIT
     if(device_features_12.bufferDeviceAddress){ allocator_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; }
+
 
     vmaCreateAllocator(&allocator_info, &m_vk_mem_allocator);
 

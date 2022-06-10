@@ -113,6 +113,75 @@ void submit(const vierkant::DevicePtr &device,
     }
 }
 
+//void submit(const vierkant::DevicePtr &device,
+//            VkQueue queue,
+//            const std::vector<VkCommandBuffer> &command_buffers,
+//            bool wait_fence,
+//            VkFence fence,
+//            const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
+//{
+//    if(device && queue)
+//    {
+//        vierkant::FencePtr local_fence;
+//        if(fence){ vkResetFences(device->handle(), 1, &fence); }
+//
+//        std::vector<VkCommandBufferSubmitInfo> command_submit_infos(command_buffers.size());
+//        for(uint32_t i = 0; i < command_buffers.size(); ++i)
+//        {
+//            auto &cmd_info = command_submit_infos[i];
+//            cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
+//            cmd_info.commandBuffer = command_buffers[i];
+//            cmd_info.deviceMask = 0;
+//        }
+//
+//        VkSubmitInfo2 submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
+//        submit_info.commandBufferInfoCount = command_submit_infos.size();
+//        submit_info.pCommandBufferInfos = command_submit_infos.data();
+//
+//        if(semaphore_infos.empty()){ vkQueueSubmit2(queue, 1, &submit_info, fence); }
+//        else
+//        {
+//            // submit with synchronization-infos
+//            std::vector<VkSemaphoreSubmitInfo> wait_semaphores;
+//            std::vector<VkSemaphoreSubmitInfo> signal_semaphores;
+//
+//            for(const auto &semaphore_info: semaphore_infos)
+//            {
+//                if(semaphore_info.semaphore)
+//                {
+//                    VkSemaphoreSubmitInfo semaphore_submit_info = {VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
+//                    semaphore_submit_info.semaphore = semaphore_info.semaphore;
+//
+//                    if(semaphore_info.wait_stage && semaphore_info.wait_value)
+//                    {
+//                        semaphore_submit_info.stageMask = semaphore_info.wait_stage;
+//                        semaphore_submit_info.value = semaphore_info.wait_value;
+//                        wait_semaphores.push_back(semaphore_submit_info);
+//                    }
+//                    if(semaphore_info.signal_value)
+//                    {
+//                        semaphore_submit_info.value = semaphore_info.signal_value;
+//                        signal_semaphores.push_back(semaphore_submit_info);
+//                    }
+//                }
+//            }
+//
+//            if(wait_fence && !fence)
+//            {
+//                local_fence = vierkant::create_fence(device);
+//                fence = local_fence.get();
+//            }
+//
+//            vkQueueSubmit2(queue, 1, &submit_info, fence);
+//        }
+//
+//        if(wait_fence && fence)
+//        {
+//            vkWaitForFences(device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+//        }
+//    }
+//}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 CommandPoolPtr create_command_pool(const vierkant::DevicePtr &device, vierkant::Device::Queue queue_type,

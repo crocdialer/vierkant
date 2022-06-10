@@ -366,7 +366,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     if(!v_sync)
     {
         auto target_fps = static_cast<float>(app->target_fps);
-        if(ImGui::InputFloat("target_fps", &target_fps)){ app->target_fps = target_fps; }
+        if(ImGui::SliderFloat("target_fps", &target_fps, 0.f, 1000.f)){ app->target_fps = target_fps; }
     }
     ImGui::Spacing();
 

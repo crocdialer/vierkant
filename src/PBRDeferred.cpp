@@ -261,6 +261,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
     {
         meshes.insert(n->mesh);
         if(!n->mesh->node_animations.empty()){ static_scene = false; }
+        crocore::hash_combine(scene_hash, n);
         crocore::hash_combine(scene_hash, n->transform());
     }
     if(scene_hash != frame_asset.scene_hash)
@@ -296,6 +297,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
 
     update_recycling(scene, cam, frame_asset);
+
+    // TODO: optimization is not always playing nice
+//    frame_asset.recycle_commands = false;
 
     if(!frame_asset.recycle_commands)
     {

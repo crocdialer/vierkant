@@ -202,6 +202,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
     vec3 H_vndf = frame * sample_GGX_VNDF(Xi, V * frame, vec2(material.roughness));
     if (dot(V, H_vndf) < 0.0){ H_vndf = -H_vndf; }
 
+    // transmission
     if (rnd(rng_state) < trans_weight)
     {
         vec3 R = reflect(-V, H_vndf);
@@ -236,8 +237,10 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         ret.F *= trans_weight;
         ret.pdf *= trans_weight;
     }
+    // reflection
     else
     {
+        // reflection - diffuse
         if (rnd(rng_state) < diffuseRatio)
         {
             ret.direction = frame * sample_cosine(Xi);
@@ -248,15 +251,17 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
                                 material.sheen_color.rgb, V, N, ret.direction, H, ret.pdf);
             ret.pdf *= diffuseRatio;
         }
-        else // Specular
+        // reflection - specular
+        else
         {
             float primarySpecRatio = 1.0 / (1.0 + material.clearcoat);
 
-            // Sample primary specular lobe
+            // reflection - specular (primary)
             if (rnd(rng_state) < primarySpecRatio)
             {
                 ret.direction = normalize(reflect(-V, H_vndf));
 
+                // reflection - specular (primary) -> iridescence
                 if(rnd(rng_state) < material.iridescence_strength)
                 {
                     ret.F = EvalSpecularIridescence(material.roughness, spec_color, V, N, ret.direction, H_vndf,
@@ -264,13 +269,15 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
                                                     ret.pdf);
                     ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * material.iridescence_strength;
                 }
+                // reflection - specular (primary) -> regular
                 else
                 {
                     ret.F = EvalSpecular(material.roughness, spec_color, V, N, ret.direction, H_vndf, ret.pdf);
                     ret.pdf *= primarySpecRatio * (1.0 - diffuseRatio) * (1.0 - material.iridescence_strength);
                 }
             }
-            else // Sample clearcoat lobe
+            // reflection - specular (clearcoat)
+            else
             {
                 H = frame * sample_GTR1(Xi, mix(0.1, 0.001, material.clearcoat));
                 if (dot(V, H) < 0.0){ H = -H; }
