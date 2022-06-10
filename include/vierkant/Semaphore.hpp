@@ -18,10 +18,13 @@ struct semaphore_submit_info_t
     uint64_t wait_value = 0;
 
     //! the stage to wait at
-    VkPipelineStageFlags wait_stage = 0;
+    VkPipelineStageFlags2 wait_stage = VK_PIPELINE_STAGE_2_NONE;
 
     //! signal value
     uint64_t signal_value = 0;
+
+    //! the stage to signal from
+    VkPipelineStageFlags2 signal_stage = VK_PIPELINE_STAGE_2_NONE;
 };
 
 /**

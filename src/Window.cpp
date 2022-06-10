@@ -351,12 +351,13 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
 
     semaphore_submit_info_t image_available = {};
     image_available.semaphore = sync_objects.image_available;
-    image_available.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    image_available.wait_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     semaphore_infos.push_back(image_available);
 
     semaphore_submit_info_t render_finished = {};
     render_finished.semaphore = sync_objects.render_finished;
     render_finished.signal_value = 1;
+    render_finished.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     semaphore_infos.push_back(render_finished);
 
     // execute all commands, submit primary commandbuffer

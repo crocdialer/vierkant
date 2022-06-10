@@ -85,7 +85,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
 
     std::vector<vierkant::semaphore_submit_info_t> wait_infos, signal_infos;
 
-    for(const auto &info : semaphore_infos)
+    for(const auto &info: semaphore_infos)
     {
         if(info.semaphore)
         {
@@ -108,6 +108,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
     vierkant::semaphore_submit_info_t thresh_done = {};
     thresh_done.semaphore = m_semaphore.handle();
     thresh_done.signal_value = SemaphoreValue::THRESH_DONE;
+    thresh_done.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     // threshold
     auto thresh_submit_infos = wait_infos;
@@ -121,9 +122,10 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
     // blur
     vierkant::semaphore_submit_info_t blur_info = {};
     blur_info.semaphore = m_semaphore.handle();
-    blur_info.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    blur_info.wait_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     blur_info.wait_value = SemaphoreValue::THRESH_DONE;
     blur_info.signal_value = SemaphoreValue::BLUR_DONE;
+    thresh_done.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     auto blur_submit_infos = signal_infos;
     blur_submit_infos.push_back(blur_info);

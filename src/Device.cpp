@@ -70,7 +70,7 @@ std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysi
     vkGetPhysicalDeviceQueueFamilyProperties(device, &num_queue_families, queue_families.data());
 
     int i = 0;
-    for(const auto &queueFamily : queue_families)
+    for(const auto &queueFamily: queue_families)
     {
         if(queueFamily.queueCount > 0)
         {
@@ -138,7 +138,7 @@ Device::Device(const create_info_t &create_info) :
     device_features.multiDrawIndirect = true;
 
     std::vector<const char *> extensions;
-    for(const auto &ext : create_info.extensions){ extensions.push_back(ext); }
+    for(const auto &ext: create_info.extensions){ extensions.push_back(ext); }
     if(create_info.surface){ extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
 
     m_queue_indices = find_queue_families(m_physical_device, create_info.surface);
@@ -156,7 +156,7 @@ Device::Device(const create_info_t &create_info) :
     // helper to pass priorities
     std::vector<std::vector<float>> queue_priorities;
 
-    for(int queue_family : unique_queue_families)
+    for(int queue_family: unique_queue_families)
     {
         if(queue_family >= 0)
         {
@@ -181,9 +181,12 @@ Device::Device(const create_info_t &create_info) :
     device_features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
     device_features_11.pNext = &device_features_12;
 
-//    VkPhysicalDeviceVulkan13Features device_features_13 = {};
-//    device_features_13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-//    device_features_12.pNext = &device_features_13;
+    // query Vulkan 1.3 features
+    VkPhysicalDeviceVulkan13Features device_features_13 = {};
+    device_features_13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    device_features_12.pNext = &device_features_13;
+
+    void **last_pNext = &device_features_13.pNext;
 
     //-------------------------------------- raytracing features -------------------------------------------------------
 
@@ -199,13 +202,10 @@ Device::Device(const create_info_t &create_info) :
 
     if(create_info.use_raytracing)
     {
-        // create a pNext-chain connecting the extension-structures
-        device_features_12.pNext = &acceleration_structure_features;
+        // append to pNext-chain
+        *last_pNext = &acceleration_structure_features;
         acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
         ray_tracing_pipeline_features.pNext = &ray_query_features;
-
-        // chain the passed pNext
-        ray_query_features.pNext = create_info.create_device_pNext;
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -220,10 +220,8 @@ Device::Device(const create_info_t &create_info) :
                                   ray_tracing_pipeline_features.rayTracingPipeline &&
                                   ray_query_features.rayQuery;
 
-    if(!ray_features_available)
-    {
-        device_features_12.pNext = create_info.create_device_pNext;
-    }
+    if(ray_features_available){ last_pNext = &ray_query_features.pNext; }
+    *last_pNext = create_info.create_device_pNext;
 
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
 
@@ -263,7 +261,7 @@ Device::Device(const create_info_t &create_info) :
         }
     };
     Queue queue_types[] = {Queue::GRAPHICS, Queue::TRANSFER, Queue::COMPUTE, Queue::PRESENT};
-    for(auto q : queue_types){ get_all_queues(q); }
+    for(auto q: queue_types){ get_all_queues(q); }
 
     // command pools
     VkCommandPoolCreateInfo pool_info = {};
