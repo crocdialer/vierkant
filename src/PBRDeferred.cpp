@@ -74,7 +74,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.viewport.width = static_cast<float>(create_info.settings.resolution.x);
     render_create_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
     render_create_info.pipeline_cache = m_pipeline_cache;
-    render_create_info.indirect_draw = false;
+    render_create_info.indirect_draw = true;
     m_g_renderer_pre = vierkant::Renderer(device, render_create_info);
     m_g_renderer_post = vierkant::Renderer(device, render_create_info);
 
@@ -518,6 +518,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // material override
     m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
+
+    bool use_indrect_draw = cull_result.drawables.size() >= settings.draw_indrect_object_thresh;
+    m_g_renderer_pre.indirect_draw = use_indrect_draw;
+    m_g_renderer_post.indirect_draw = use_indrect_draw;
 
     // draw last visible objects
     m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_params_t &params)
