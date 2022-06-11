@@ -186,7 +186,7 @@ public:
     bool disable_material = false;
 
     //! option to use indirect drawing
-    bool indirect_draw = true;
+    bool indirect_draw = false;
 
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;
@@ -296,7 +296,7 @@ private:
         size_t indexed_indirect_draw_index = 0;
 
         std::vector<drawable_t> drawables;
-        vierkant::CommandBuffer command_buffer;
+        vierkant::CommandBuffer command_buffer, command_buffer_back;
     };
 
     //! update the combined uniform buffers

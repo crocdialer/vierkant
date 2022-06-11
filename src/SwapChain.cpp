@@ -47,7 +47,7 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
         return {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
     }
 
-    for(const auto &fmt : the_formats)
+    for(const auto &fmt: the_formats)
     {
         if(fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR){ return fmt; }
     }
@@ -57,7 +57,7 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
 VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &the_modes, bool use_vsync)
 {
     VkPresentModeKHR best_mode = VK_PRESENT_MODE_FIFO_KHR;
-    for(const auto &m : the_modes){ if(!use_vsync && m == VK_PRESENT_MODE_IMMEDIATE_KHR){ best_mode = m; }}
+    for(const auto &m: the_modes){ if(!use_vsync && m == VK_PRESENT_MODE_IMMEDIATE_KHR){ best_mode = m; }}
     return best_mode;
 }
 
@@ -184,10 +184,22 @@ SwapChain::~SwapChain()
         vkDestroySwapchainKHR(m_device->handle(), m_swap_chain, nullptr);
         m_swap_chain = VK_NULL_HANDLE;
 
-        for(auto &so : m_sync_objects)
+        std::vector<VkFence> fences;
+
+        for(auto &so: m_sync_objects)
         {
             vkDestroySemaphore(m_device->handle(), so.render_finished, nullptr);
             vkDestroySemaphore(m_device->handle(), so.image_available, nullptr);
+
+            fences.push_back(so.fence);
+        }
+
+        vkWaitForFences(m_device->handle(), fences.size(), fences.data(), VK_TRUE,
+                        std::numeric_limits<uint64_t>::max());
+
+        for(auto &fence: fences)
+        {
+            vkDestroyFence(m_device->handle(), fence, nullptr);
         }
     }
 }
@@ -202,14 +214,25 @@ SwapChain &SwapChain::operator=(SwapChain other)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SwapChain::aquire_next_image(uint32_t *image_index, uint64_t timeout)
+SwapChain::acquire_image_result_t SwapChain::acquire_next_image(uint64_t timeout)
 {
-    VkResult result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain,
-                                            timeout,
-                                            sync_objects().image_available,
-                                            VK_NULL_HANDLE, &m_swapchain_image_index);
-    if(image_index){ *image_index = m_swapchain_image_index; }
-    return result == VK_SUCCESS;
+    acquire_image_result_t ret = {};
+
+    ret.image_available = m_sync_objects[m_current_frame_index].image_available;
+    ret.render_finished = m_sync_objects[m_current_frame_index].render_finished;
+    ret.image_fence = m_sync_objects[m_current_frame_index].fence;
+
+    vkWaitForFences(m_device->handle(), 1, &ret.image_fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vkResetFences(m_device->handle(), 1, &ret.image_fence);
+
+    ret.result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain,
+                                       timeout,
+                                       ret.image_available,
+                                       ret.image_fence, &m_swapchain_image_index);
+    ret.image_index = m_swapchain_image_index;
+
+    m_last_acquired_image = ret;
+    return ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -219,10 +242,10 @@ VkResult SwapChain::present()
     VkPresentInfoKHR present_info = {};
     present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     present_info.waitSemaphoreCount = 1;
-    present_info.pWaitSemaphores = &sync_objects().render_finished;
+    present_info.pWaitSemaphores = &m_last_acquired_image.render_finished;
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &m_swap_chain;
-    present_info.pImageIndices = &m_swapchain_image_index;
+    present_info.pImageIndices = &m_last_acquired_image.image_index;
     present_info.pResults = nullptr; // Optional
 
     // swap buffers
@@ -331,6 +354,11 @@ void SwapChain::create_sync_objects()
             throw std::runtime_error("failed to create sync object");
         }
 
+        VkFenceCreateInfo fence_create_info = {};
+        fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_create_info.pNext = nullptr;
+        fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        vkCreateFence(m_device->handle(), &fence_create_info, nullptr, &m_sync_objects[i].fence);
     }
 }
 

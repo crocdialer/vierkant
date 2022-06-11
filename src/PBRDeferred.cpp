@@ -74,12 +74,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.viewport.width = static_cast<float>(create_info.settings.resolution.x);
     render_create_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
     render_create_info.pipeline_cache = m_pipeline_cache;
+    render_create_info.indirect_draw = true;
     m_g_renderer_pre = vierkant::Renderer(device, render_create_info);
     m_g_renderer_post = vierkant::Renderer(device, render_create_info);
 
     // create renderer for lighting-pass
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
     render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
+    render_create_info.indirect_draw = false;
     m_light_renderer = vierkant::Renderer(device, render_create_info);
     m_sky_renderer = vierkant::Renderer(device, render_create_info);
     m_taa_renderer = vierkant::Renderer(device, render_create_info);
@@ -261,7 +263,6 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
     {
         meshes.insert(n->mesh);
         if(!n->mesh->node_animations.empty()){ static_scene = false; }
-        crocore::hash_combine(scene_hash, n);
         crocore::hash_combine(scene_hash, n->transform());
     }
     if(scene_hash != frame_asset.scene_hash)

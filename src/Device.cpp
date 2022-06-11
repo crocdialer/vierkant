@@ -32,7 +32,7 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
-const std::vector<const char *> g_validation_layers = {"VK_LAYER_KHRONOS_validation"};
+const std::vector<const char *> g_validation_layers = {"VK_LAYER_KHRONOS_validation", "VK_LAYER_KHRONOS_synchronization2"};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

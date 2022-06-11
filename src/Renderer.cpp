@@ -33,7 +33,7 @@ struct texture_index_hash_t
     {
         size_t h = 0;
         crocore::hash_combine(h, key.mesh);
-        for(const auto &tex : key.textures){ crocore::hash_combine(h, tex); }
+        for(const auto &tex: key.textures){ crocore::hash_combine(h, tex); }
         return h;
     }
 };
@@ -118,7 +118,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-            for(auto &[type_flag, tex] : material->textures)
+            for(auto &[type_flag, tex]: material->textures)
             {
                 if(tex)
                 {
@@ -158,10 +158,12 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    for(auto &render_asset : m_render_assets)
+    for(auto &render_asset: m_render_assets)
     {
         render_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get(),
                                                               VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+        render_asset.command_buffer_back = vierkant::CommandBuffer(m_device, m_command_pool.get(),
+                                                                   VK_COMMAND_BUFFER_LEVEL_SECONDARY);
     }
 
     if(create_info.descriptor_pool){ m_descriptor_pool = create_info.descriptor_pool; }
@@ -269,7 +271,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             draw_indirect_delegate(draw_params);
 
             if(draw_params.draws_out){ current_assets.indexed_indirect_culled = draw_params.draws_out; }
-            if(draw_params.draws_counts_out){ current_assets.indexed_indirect_culled_count_buffer = draw_params.draws_counts_out;}
+            if(draw_params.draws_counts_out){ current_assets.indexed_indirect_culled_count_buffer = draw_params.draws_counts_out; }
 
             return current_assets.command_buffer.handle();
         }
@@ -308,7 +310,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     texture_index_map_t texture_base_index_map;
 
     // swoop all texture-indices
-    for(const auto &drawable : current_assets.drawables)
+    for(const auto &drawable: current_assets.drawables)
     {
         auto it = drawable.descriptors.find(BINDING_TEXTURES);
         if(it == drawable.descriptors.end() || it->second.images.empty()){ continue; }
@@ -322,7 +324,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         {
             texture_base_index_map[key] = textures.size();
 
-            for(const auto &tex : drawable_textures)
+            for(const auto &tex: drawable_textures)
             {
                 texture_index_map[tex] = textures.size();
                 textures.push_back(tex);
@@ -344,7 +346,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     // create/resize draw_indirect buffers
     resize_draw_indirect_buffers(next_assets, current_assets.drawables.size());
 
-    for(auto &drawable : current_assets.drawables)
+    for(auto &drawable: current_assets.drawables)
     {
         // adjust baseTextureIndex
         drawable.material.base_texture_index = texture_base_index_map[create_mesh_key(drawable)];
@@ -394,12 +396,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     uint32_t batch_index = 0;
 
     // fill up indirect draw buffers
-    for(const auto &[pipe_fmt, indexed_drawables] : pipeline_drawables)
+    for(const auto &[pipe_fmt, indexed_drawables]: pipeline_drawables)
     {
         auto &indirect_draws = pipelines[pipe_fmt];
 
         // gather indirect drawing commands into buffers
-        for(auto &indexed_drawable : indexed_drawables)
+        for(auto &indexed_drawable: indexed_drawables)
         {
             auto &drawable = indexed_drawable.drawable;
 
@@ -480,9 +482,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
     // hook up GPU frustum/occlusion/distance culling here
     vierkant::BufferPtr draw_buffer = next_assets.indexed_indirect_draw_buffer;
-    vierkant::BufferPtr& count_buffer = next_assets.indexed_indirect_culled_count_buffer;
+    vierkant::BufferPtr &count_buffer = next_assets.indexed_indirect_culled_count_buffer;
 
-    if(draw_indirect_delegate)
+    if(indirect_draw && draw_indirect_delegate)
     {
         indirect_draw_params_t draw_params = {};
         draw_params.num_draws = next_assets.indexed_indirect_draw_index;
@@ -501,7 +503,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             next_assets.indexed_indirect_culled = draw_params.draws_out;
             draw_buffer = draw_params.draws_out;
         }
-        if(draw_params.draws_counts_out){ count_buffer = draw_params.draws_counts_out;}
+        if(draw_params.draws_counts_out){ count_buffer = draw_params.draws_counts_out; }
     }
 
     // push constants
@@ -515,13 +517,16 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     inheritance.framebuffer = framebuffer.handle();
     inheritance.renderPass = framebuffer.renderpass().get();
 
-    // fetch and start commandbuffer
-    next_assets.command_buffer = std::move(current_assets.command_buffer);
+    // fetch/swizzle and start commandbuffer
+    next_assets.command_buffer = std::move(current_assets.command_buffer_back);
+    next_assets.command_buffer_back = std::move(current_assets.command_buffer);
+//    next_assets.command_buffer = std::move(current_assets.command_buffer);
+
     auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
     // grouped by pipelines
-    for(auto &[pipe_fmt, indirect_draws] : pipelines)
+    for(auto &[pipe_fmt, indirect_draws]: pipelines)
     {
         // select/create pipeline
         auto pipeline = m_pipeline_cache->pipeline(pipe_fmt);
@@ -540,7 +545,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
         }
 
-        for(auto &[mesh, draw_asset] : indirect_draws)
+        for(auto &[mesh, draw_asset]: indirect_draws)
         {
             if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
 
@@ -645,7 +650,7 @@ void Renderer::reset()
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_current_index = 0;
     m_staged_drawables.clear();
-    for(auto &frame_asset : m_render_assets){ frame_asset = {}; }
+    for(auto &frame_asset: m_render_assets){ frame_asset = {}; }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -693,10 +698,10 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     bool variable_count = false;
 
     // clean descriptor-map to enable sharing
-    for(auto &[binding, descriptor] : descriptors)
+    for(auto &[binding, descriptor]: descriptors)
     {
-        for(auto &img : descriptor.images){ img.reset(); }
-        for(auto &buf : descriptor.buffers){ buf.reset(); }
+        for(auto &img: descriptor.images){ img.reset(); }
+        for(auto &buf: descriptor.buffers){ buf.reset(); }
 
         variable_count = variable_count || descriptor.variable_count;
     }
@@ -785,7 +790,7 @@ DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh,
 void Renderer::resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_t num_drawables)
 {
     // reserve space for indirect drawing-commands
-    size_t indexed_indirect_size = num_drawables * sizeof(indexed_indirect_command_t);
+    size_t indexed_indirect_size = std::max(num_drawables, 512u) * sizeof(indexed_indirect_command_t);
 
     if(!frame_asset.indexed_indirect_draw_buffer)
     {
@@ -827,7 +832,7 @@ size_t Renderer::descriptor_set_key_hash_t::operator()(const Renderer::descripto
     size_t h = 0;
     crocore::hash_combine(h, key.mesh);
 
-    for(const auto &pair : key.descriptors)
+    for(const auto &pair: key.descriptors)
     {
         crocore::hash_combine(h, pair.first);
         crocore::hash_combine(h, pair.second);

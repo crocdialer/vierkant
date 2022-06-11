@@ -318,19 +318,18 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
 {
     if(!m_swap_chain){ return; }
 
-    auto sync_objects = m_swap_chain.sync_objects();
-    uint32_t image_index;
-
-    if(!m_swap_chain.aquire_next_image(&image_index))
-    {
-        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
-        return;
-    }
-
-    auto &framebuffer = swapchain().framebuffers()[image_index];
+    auto acquire_result = m_swap_chain.acquire_next_image();
+    auto &framebuffer = swapchain().framebuffers()[acquire_result.image_index];
 
     // wait for prior frame to finish
     framebuffer.wait_fence();
+
+    if(acquire_result.result != VK_SUCCESS)
+    {
+        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
+        spdlog::warn("acquire_next_image failed");
+        return;
+    }
 
     std::vector<VkCommandBuffer> commandbuffers;
 
@@ -350,14 +349,14 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     }
 
     semaphore_submit_info_t image_available = {};
-    image_available.semaphore = sync_objects.image_available;
+    image_available.semaphore = acquire_result.image_available;
     image_available.wait_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     semaphore_infos.push_back(image_available);
 
     semaphore_submit_info_t render_finished = {};
-    render_finished.semaphore = sync_objects.render_finished;
+    render_finished.semaphore = acquire_result.render_finished;
     render_finished.signal_value = 1;
-    render_finished.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    render_finished.signal_stage = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
     semaphore_infos.push_back(render_finished);
 
     // execute all commands, submit primary commandbuffer
@@ -366,9 +365,11 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();
 
-    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    if(result != VK_SUCCESS /*result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR*/)
     {
-        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
+        spdlog::warn("m_swap_chain.present(): result != VK_SUCCESS", result);
+
+//        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
     }
 }
 

@@ -7,7 +7,7 @@
 namespace vierkant
 {
 
-constexpr uint32_t g_max_bindless_resources = 1024;
+constexpr uint32_t g_max_bindless_resources = 512;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

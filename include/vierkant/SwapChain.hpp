@@ -17,14 +17,13 @@ public:
 
     static constexpr uint32_t max_frames_in_flight = 3;
 
-    /**
-     * @brief   sync_objects_t is a helper struct to bundle synchronization data for the SwapChain
-     */
-    struct sync_objects_t
+    struct acquire_image_result_t
     {
+        uint32_t image_index = 0;
+        VkResult result = VK_ERROR_UNKNOWN;
         VkSemaphore image_available = VK_NULL_HANDLE;
-
         VkSemaphore render_finished = VK_NULL_HANDLE;
+        VkFence image_fence = VK_NULL_HANDLE;
     };
 
     SwapChain() = default;
@@ -37,8 +36,10 @@ public:
      * @param   num_samples     an optional VkSampleCountFlagBits value to request multisampling
      * @param   use_vsync       flag to request vertical synchronisation (cap fps to refresh rate)
      */
-    SwapChain(DevicePtr device, VkSurfaceKHR surface,
-              VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT, bool use_vsync = true);
+    SwapChain(DevicePtr device,
+              VkSurfaceKHR surface,
+              VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
+              bool use_vsync = true);
 
     SwapChain(SwapChain &&other) noexcept;
 
@@ -49,14 +50,12 @@ public:
     SwapChain &operator=(SwapChain other);
 
     /**
-     * @brief       Aquire the next image from the SwapChain
+     * @brief       Acquire the next image from the SwapChain
      *
-     * @param[out]  image_index pointer to write out the aquired image's index.
-     * @param       timeout     optinal timeout in ms
-     * @return      true if the call to vkAcquireNextImageKHR was successful
+     * @param       timeout     optional timeout in nanoseconds
+     * @return      a acquire_image_result_t struct, grouping all return-params.
      */
-    bool aquire_next_image(uint32_t *image_index,
-                           uint64_t timeout = std::numeric_limits<uint64_t>::max());
+    acquire_image_result_t acquire_next_image(uint64_t timeout = std::numeric_limits<uint64_t>::max());
 
     /**
      * @brief   submit the current SwapChain-image to the presentation queue and update frame-indices
@@ -109,16 +108,21 @@ public:
      */
     [[nodiscard]] uint32_t image_index() const{ return m_swapchain_image_index; }
 
-    /**
-     * @return  a reference to the current sync_objects_t
-     */
-    [[nodiscard]] const sync_objects_t &sync_objects() const{ return m_sync_objects[m_current_frame_index]; };
-
     friend void swap(SwapChain &lhs, SwapChain &rhs);
 
     inline explicit operator bool() const{ return static_cast<bool>(m_swap_chain); };
 
 private:
+
+    /**
+     * @brief   sync_objects_t is a helper struct to bundle synchronization data for the SwapChain
+     */
+    struct sync_objects_t
+    {
+        VkSemaphore image_available = VK_NULL_HANDLE;
+        VkSemaphore render_finished = VK_NULL_HANDLE;
+        VkFence fence = VK_NULL_HANDLE;
+    };
 
     void create_framebuffers();
 
@@ -143,6 +147,8 @@ private:
     VkExtent2D m_extent = {};
 
     std::vector<sync_objects_t> m_sync_objects;
+
+    acquire_image_result_t m_last_acquired_image = {};
 
     uint32_t m_current_frame_index = 0;
 
