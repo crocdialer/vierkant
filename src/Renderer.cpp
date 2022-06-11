@@ -162,8 +162,6 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
     {
         render_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get(),
                                                               VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-        render_asset.command_buffer_back = vierkant::CommandBuffer(m_device, m_command_pool.get(),
-                                                                   VK_COMMAND_BUFFER_LEVEL_SECONDARY);
     }
 
     if(create_info.descriptor_pool){ m_descriptor_pool = create_info.descriptor_pool; }
@@ -517,10 +515,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     inheritance.framebuffer = framebuffer.handle();
     inheritance.renderPass = framebuffer.renderpass().get();
 
-    // fetch/swizzle and start commandbuffer
-    next_assets.command_buffer = std::move(current_assets.command_buffer_back);
-    next_assets.command_buffer_back = std::move(current_assets.command_buffer);
-//    next_assets.command_buffer = std::move(current_assets.command_buffer);
+    // fetch and start commandbuffer
+    next_assets.command_buffer = std::move(current_assets.command_buffer);
 
     auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
@@ -545,9 +541,15 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             vkCmdSetViewport(command_buffer.handle(), 0, 1, &viewport);
         }
 
+        vierkant::MeshConstPtr current_mesh;
+
         for(auto &[mesh, draw_asset]: indirect_draws)
         {
-            if(mesh){ mesh->bind_buffers(command_buffer.handle()); }
+            if(mesh && current_mesh != mesh)
+            {
+                mesh->bind_buffers(command_buffer.handle());
+                current_mesh = mesh;
+            }
 
             // bind descriptor sets (uniforms, samplers)
             vkCmdBindDescriptorSets(command_buffer.handle(), VK_PIPELINE_BIND_POINT_GRAPHICS,

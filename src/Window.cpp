@@ -365,11 +365,9 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();
 
-    if(result != VK_SUCCESS /*result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR*/)
+    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
-        spdlog::warn("m_swap_chain.present(): result != VK_SUCCESS", result);
-
-//        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
+        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
     }
 }
 

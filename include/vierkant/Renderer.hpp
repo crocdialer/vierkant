@@ -296,7 +296,7 @@ private:
         size_t indexed_indirect_draw_index = 0;
 
         std::vector<drawable_t> drawables;
-        vierkant::CommandBuffer command_buffer, command_buffer_back;
+        vierkant::CommandBuffer command_buffer;
     };
 
     //! update the combined uniform buffers

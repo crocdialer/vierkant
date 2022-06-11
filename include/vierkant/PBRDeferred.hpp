@@ -153,7 +153,7 @@ private:
         LIGHTING,
         POST_FX,
         TONEMAP,
-        DONE = G_BUFFER_ALL// TODO: wip all semaphore-stages
+        DONE = G_BUFFER_LAST_VISIBLE// TODO: wip all semaphore-stages
     };
 
     struct alignas(16) camera_params_t

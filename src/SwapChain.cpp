@@ -220,15 +220,15 @@ SwapChain::acquire_image_result_t SwapChain::acquire_next_image(uint64_t timeout
 
     ret.image_available = m_sync_objects[m_current_frame_index].image_available;
     ret.render_finished = m_sync_objects[m_current_frame_index].render_finished;
-    ret.image_fence = m_sync_objects[m_current_frame_index].fence;
 
-    vkWaitForFences(m_device->handle(), 1, &ret.image_fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-    vkResetFences(m_device->handle(), 1, &ret.image_fence);
+//    ret.image_fence = m_sync_objects[m_current_frame_index].fence;
+//    vkWaitForFences(m_device->handle(), 1, &ret.image_fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+//    vkResetFences(m_device->handle(), 1, &ret.image_fence);
 
     ret.result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain,
                                        timeout,
                                        ret.image_available,
-                                       ret.image_fence, &m_swapchain_image_index);
+                                       VK_NULL_HANDLE, &m_swapchain_image_index);
     ret.image_index = m_swapchain_image_index;
 
     m_last_acquired_image = ret;

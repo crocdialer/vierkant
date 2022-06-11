@@ -74,7 +74,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.viewport.width = static_cast<float>(create_info.settings.resolution.x);
     render_create_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
     render_create_info.pipeline_cache = m_pipeline_cache;
-    render_create_info.indirect_draw = true;
+    render_create_info.indirect_draw = false;
     m_g_renderer_pre = vierkant::Renderer(device, render_create_info);
     m_g_renderer_post = vierkant::Renderer(device, render_create_info);
 
@@ -550,35 +550,38 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // depth-attachment
     frame_asset.depth_map = frame_asset.g_buffer_pre.depth_attachment();
 
-    // generate depth-pyramid
-    create_depth_pyramid(frame_asset);
-
-    // post-render will perform actual culling
-    m_g_renderer_post.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset]
-            (Renderer::indirect_draw_params_t &params)
+    if(m_g_renderer_post.indirect_draw)
     {
-        resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
+        // generate depth-pyramid
+        create_depth_pyramid(frame_asset);
 
-        cull_draw_commands(frame_asset,
-                           cam,
-                           frame_asset.depth_pyramid,
-                           frame_asset.indirect_draw_params_pre.draws_in,
-                           params.num_draws,
-                           frame_asset.indirect_draw_params_pre.draws_out,
-                           frame_asset.indirect_draw_params_pre.draws_counts_out,
-                           frame_asset.indirect_draw_params_post.draws_out,
-                           frame_asset.indirect_draw_params_post.draws_counts_out);
+        // post-render will perform actual culling
+        m_g_renderer_post.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset]
+                (Renderer::indirect_draw_params_t &params)
+        {
+            resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
 
-        params = frame_asset.indirect_draw_params_post;
-    };
+            cull_draw_commands(frame_asset,
+                               cam,
+                               frame_asset.depth_pyramid,
+                               frame_asset.indirect_draw_params_pre.draws_in,
+                               params.num_draws,
+                               frame_asset.indirect_draw_params_pre.draws_out,
+                               frame_asset.indirect_draw_params_pre.draws_counts_out,
+                               frame_asset.indirect_draw_params_post.draws_out,
+                               frame_asset.indirect_draw_params_post.draws_counts_out);
 
-    vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
-    g_buffer_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
-    g_buffer_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
-    g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
-    g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
-    auto cmd_buffer = m_g_renderer_post.render(frame_asset.g_buffer_post, frame_asset.recycle_commands);
-    frame_asset.g_buffer_post.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
+            params = frame_asset.indirect_draw_params_post;
+        };
+
+        vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
+        g_buffer_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
+        g_buffer_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+        g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
+        g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
+        auto cmd_buffer = m_g_renderer_post.render(frame_asset.g_buffer_post, frame_asset.recycle_commands);
+        frame_asset.g_buffer_post.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
+    }
 
     return frame_asset.g_buffer_post;
 }
