@@ -237,7 +237,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
 PBRDeferred::~PBRDeferred()
 {
-    for(auto &frame_asset: m_frame_assets){ frame_asset.timeline.wait(SemaphoreValue::DONE); }
+    for(auto &frame_asset: m_frame_assets){ frame_asset.timeline.wait(frame_asset.semaphore_value_done); }
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -314,7 +314,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     }
 
     // timeline semaphore
-    frame_asset.timeline.wait(SemaphoreValue::DONE);
+    frame_asset.timeline.wait(frame_asset.semaphore_value_done);
     frame_asset.timeline = vierkant::Semaphore(m_device);
 
     resize_storage(frame_asset, settings.resolution);
@@ -351,6 +351,12 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     ret.num_frustum_culled = gpu_cull_result.num_frustum_culled;
     ret.num_occlusion_culled = gpu_cull_result.num_occlusion_culled;
     ret.num_distance_culled = gpu_cull_result.num_distance_culled;
+
+    vierkant::semaphore_submit_info_t semaphore_submit_info = {};
+    semaphore_submit_info.semaphore = frame_asset.timeline.handle();
+    semaphore_submit_info.wait_value = frame_asset.semaphore_value_done;
+    semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    ret.semaphore_infos = {semaphore_submit_info};
 
     m_timestamp_last = m_timestamp_current;
     return ret;
@@ -553,7 +559,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
-    g_buffer_semaphore_submit_info_pre.signal_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
+    g_buffer_semaphore_submit_info_pre.signal_value = use_indrect_draw ? SemaphoreValue::G_BUFFER_LAST_VISIBLE
+                                                                       : SemaphoreValue::G_BUFFER_ALL;
     frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue,
                                     {g_buffer_semaphore_submit_info_pre});
 
@@ -668,13 +675,14 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
     // get next set of pingpong assets, increment index
     auto pingpong_render = [&frame_asset, &buffer_index, queue = m_queue](
-            Renderer::drawable_t &drawable) -> vierkant::ImagePtr
+            Renderer::drawable_t &drawable,
+            const std::vector<vierkant::semaphore_submit_info_t> &semaphore_submit_infos = {}) -> vierkant::ImagePtr
     {
         auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index];
         buffer_index = (buffer_index + 1) % frame_asset.post_fx_ping_pongs.size();
         pingpong.renderer.stage_drawable(drawable);
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-        pingpong.framebuffer.submit({cmd_buf}, queue);
+        pingpong.framebuffer.submit({cmd_buf}, queue, semaphore_submit_infos);
         return pingpong.framebuffer.color_attachment(0);
     };
 
@@ -699,6 +707,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
             drawable.descriptors[1].buffers.front()->set_data(&frame_asset.camera_params, sizeof(camera_params_t));
         }
         m_taa_renderer.stage_drawable(drawable);
+
         auto cmd = m_taa_renderer.render(frame_asset.taa_buffer);
         frame_asset.taa_buffer.submit({cmd}, m_queue);
         output_img = frame_asset.taa_buffer.color_attachment();
@@ -729,7 +738,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         m_drawable_bloom.descriptors[0].images = {output_img, bloom_img, motion_img};
         m_drawable_bloom.descriptors[1].buffers = {frame_asset.composition_ubo};
 
-        output_img = pingpong_render(m_drawable_bloom);
+        vierkant::semaphore_submit_info_t tonemap_semaphore_info = {};
+        tonemap_semaphore_info.semaphore = frame_asset.timeline.handle();
+        tonemap_semaphore_info.signal_value = SemaphoreValue::TONEMAP;
+        output_img = pingpong_render(m_drawable_bloom, {tonemap_semaphore_info});
+        frame_asset.semaphore_value_done = SemaphoreValue::TONEMAP;
     }
 
     // fxaa
@@ -756,7 +769,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
             drawable.descriptors[1].buffers.front()->set_data(&frame_asset.settings.dof,
                                                               sizeof(vierkant::dof_settings_t));
         }
-        output_img = pingpong_render(drawable);
+        vierkant::semaphore_submit_info_t dof_semaphore_info = {};
+        dof_semaphore_info.semaphore = frame_asset.timeline.handle();
+        dof_semaphore_info.signal_value = SemaphoreValue::DEFOCUS_BLUR;
+        frame_asset.semaphore_value_done = SemaphoreValue::DEFOCUS_BLUR;
+        output_img = pingpong_render(drawable, {dof_semaphore_info});
     }
 
     // draw final color+depth with provided renderer
@@ -990,7 +1007,7 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
     vierkant::semaphore_submit_info_t pyramid_semaphore_submit_info = {};
     pyramid_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
     pyramid_semaphore_submit_info.wait_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
-    pyramid_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    pyramid_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     pyramid_semaphore_submit_info.signal_value = SemaphoreValue::DEPTH_PYRAMID;
     frame_asset.depth_pyramid_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {pyramid_semaphore_submit_info});
 }
@@ -1032,21 +1049,20 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
         {
             vkCmdFillBuffer(clear_cmd_handle, params.draws_counts_out->handle(), 0, VK_WHOLE_SIZE, 0);
 
-            VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
-            barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+            VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
             barrier.buffer = params.draws_counts_out->handle();
             barrier.offset = 0;
             barrier.size = VK_WHOLE_SIZE;
+            barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+            barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
 
-            // memory barrier for draw-indirect buffer
-            vkCmdPipelineBarrier(clear_cmd_handle,
-                                 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-                                 0,
-                                 0, nullptr,
-                                 1, &barrier,
-                                 0, nullptr);
+            VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+            dependency_info.bufferMemoryBarrierCount = 1;
+            dependency_info.pBufferMemoryBarriers = &barrier;
+            vkCmdPipelineBarrier2(clear_cmd_handle, &dependency_info);
         }
     }
     params.num_draws = num_draws;

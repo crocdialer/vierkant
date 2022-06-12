@@ -41,9 +41,9 @@ public:
      * @brief   Retrieve a graphics-pipeline from the cache. Will create and cache a new pipeline, if necessary.
      *
      * @param   format  a graphics_pipeline_info_t describing the requested pipeline
-     * @return  a const ref to a shared vierkant::Pipeline
+     * @return  a shared vierkant::Pipeline
      */
-    const PipelinePtr &pipeline(const graphics_pipeline_info_t &format)
+    PipelinePtr pipeline(const graphics_pipeline_info_t &format)
     {
         return retrieve_pipeline(format, m_graphics_pipelines, m_graphics_pipeline_mutex);
     }
@@ -52,9 +52,9 @@ public:
      * @brief   Retrieve a raytracing-pipeline from the cache. Will create and cache a new pipeline, if necessary.
      *
      * @param   format  a raytracing_pipeline_info_t describing the requested pipeline
-     * @return  a const ref to a shared vierkant::Pipeline
+     * @return  a shared vierkant::Pipeline
      */
-    const PipelinePtr &pipeline(const raytracing_pipeline_info_t &format)
+    PipelinePtr pipeline(const raytracing_pipeline_info_t &format)
     {
         return retrieve_pipeline(format, m_ray_pipelines, m_ray_pipeline_mutex);
     }
@@ -65,7 +65,7 @@ public:
      * @param   format  a compute_pipeline_info_t describing the requested pipeline
      * @return  a const ref to a shared vierkant::Pipeline
      */
-    const PipelinePtr &pipeline(const compute_pipeline_info_t &format)
+    PipelinePtr pipeline(const compute_pipeline_info_t &format)
     {
         return retrieve_pipeline(format, m_compute_pipelines, m_compute_pipeline_mutex);
     }
@@ -95,8 +95,14 @@ public:
             std::unique_lock<std::shared_mutex> lock(m_graphics_pipeline_mutex);
             m_graphics_pipelines.clear();
         }
-        std::unique_lock<std::shared_mutex> ray_lock(m_ray_pipeline_mutex);
-        m_ray_pipelines.clear();
+        {
+            std::unique_lock<std::shared_mutex> ray_lock(m_ray_pipeline_mutex);
+            m_ray_pipelines.clear();
+        }
+        {
+            std::unique_lock<std::shared_mutex> compute_lock(m_compute_pipeline_mutex);
+            m_compute_pipelines.clear();
+        }
     }
 
 private:

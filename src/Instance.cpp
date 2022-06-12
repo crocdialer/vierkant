@@ -235,17 +235,6 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     m_physical_devices.resize(num_devices);
     vkEnumeratePhysicalDevices(m_handle, &num_devices, m_physical_devices.data());
 
-    for(const auto &device : m_physical_devices)
-    {
-        VkPhysicalDeviceProperties device_props = {};
-        vkGetPhysicalDeviceProperties(device, &device_props);
-        auto version_major = VK_VERSION_MAJOR(device_props.apiVersion);
-        auto version_minor = VK_VERSION_MINOR(device_props.apiVersion);
-        auto version_patch = VK_VERSION_PATCH(device_props.apiVersion);
-        spdlog::info("device: {}", device_props.deviceName);
-        spdlog::info("API-version: {}.{} (patch: {})", version_major, version_minor, version_patch);
-    }
-
     // attach logger for debug-output
     set_debug_fn([](const char *msg, VkDebugReportFlagsEXT flags)
                  {

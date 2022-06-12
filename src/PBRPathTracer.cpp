@@ -190,7 +190,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
     semaphore_submit_info.semaphore = frame_asset.semaphore.handle();
     semaphore_submit_info.wait_value = SemaphoreValue::COMPOSITION;
-    semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     ret.semaphore_infos = {semaphore_submit_info};
     return ret;
 }

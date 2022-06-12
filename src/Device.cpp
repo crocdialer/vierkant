@@ -32,7 +32,8 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
 
-const std::vector<const char *> g_validation_layers = {"VK_LAYER_KHRONOS_validation", "VK_LAYER_KHRONOS_synchronization2"};
+const std::vector<const char *> g_validation_layers = {"VK_LAYER_KHRONOS_validation",
+                                                       "VK_LAYER_KHRONOS_synchronization2"};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -126,6 +127,21 @@ Device::Device(const create_info_t &create_info) :
     // query physical device properties
     m_physical_device_properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
     vkGetPhysicalDeviceProperties2(create_info.physical_device, &m_physical_device_properties);
+
+    auto version_major = VK_API_VERSION_MAJOR(m_physical_device_properties.properties.apiVersion);
+    auto version_minor = VK_API_VERSION_MINOR(m_physical_device_properties.properties.apiVersion);
+    auto version_patch = VK_API_VERSION_PATCH(m_physical_device_properties.properties.apiVersion);
+
+    spdlog::info("device: {}", m_physical_device_properties.properties.deviceName);
+    spdlog::info("Vulkan API-version: {}.{}.{}", version_major, version_minor, version_patch);
+
+    // nvidia
+    if(m_physical_device_properties.properties.vendorID == 0x10de)
+    {
+        auto versionraw = m_physical_device_properties.properties.driverVersion;
+        spdlog::info("driver-version: {}.{}.{}.{}", (versionraw >> 22) & 0x3ff, (versionraw >> 14) & 0x0ff,
+                     (versionraw >> 6) & 0x0ff, (versionraw) & 0x003f);
+    }
 
     // add some obligatory features here
     VkPhysicalDeviceFeatures device_features = create_info.device_features;

@@ -154,9 +154,9 @@ private:
         CULLING,
         G_BUFFER_ALL,
         LIGHTING,
-        POST_FX,
+        TAA,
         TONEMAP,
-        DONE = G_BUFFER_LAST_VISIBLE// TODO: wip all semaphore-stages
+        DEFOCUS_BLUR
     };
 
     struct alignas(16) camera_params_t
@@ -177,6 +177,7 @@ private:
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
         size_t scene_hash = 0;
         bool recycle_commands = false;
+        SemaphoreValue semaphore_value_done = SemaphoreValue::G_BUFFER_ALL;
         Renderer::indirect_draw_params_t indirect_draw_params_pre = {}, indirect_draw_params_post = {};
         camera_params_t camera_params;
 
