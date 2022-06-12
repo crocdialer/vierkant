@@ -600,6 +600,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_asset.g_buffer_post.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
     }
 
+    frame_asset.semaphore_value_done = SemaphoreValue::G_BUFFER_ALL;
     return frame_asset.g_buffer_post;
 }
 
@@ -642,10 +643,12 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
     drawable.descriptors[3].buffers = {frame_asset.lights_ubo};
 
+    std::vector<VkCommandBuffer> primary_cmd_buffers;
+
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
     auto cmd_buffer = m_light_renderer.render(frame_asset.lighting_buffer);
-    frame_asset.lighting_buffer.submit({cmd_buffer}, m_queue);
+    primary_cmd_buffers.push_back(frame_asset.lighting_buffer.record_commandbuffer({cmd_buffer}));
 
     // skybox rendering
     if(frame_asset.settings.draw_skybox)
@@ -654,10 +657,17 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         {
             m_draw_context.draw_skybox(m_sky_renderer, cull_result.scene->environment(), cull_result.camera);
             cmd_buffer = m_sky_renderer.render(frame_asset.sky_buffer);
-            frame_asset.sky_buffer.submit({cmd_buffer}, m_queue);
+            primary_cmd_buffers.push_back(frame_asset.sky_buffer.record_commandbuffer({cmd_buffer}));
         }
     }
+    frame_asset.semaphore_value_done = SemaphoreValue::LIGHTING;
 
+    vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
+    lighting_semaphore_info.semaphore = frame_asset.timeline.handle();
+    lighting_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    lighting_semaphore_info.wait_value = SemaphoreValue::G_BUFFER_ALL;
+    lighting_semaphore_info.signal_value = SemaphoreValue::LIGHTING;
+    vierkant::submit(m_device, m_queue, primary_cmd_buffers, false, VK_NULL_HANDLE, {lighting_semaphore_info});
     return frame_asset.sky_buffer;
 }
 
@@ -709,7 +719,12 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         m_taa_renderer.stage_drawable(drawable);
 
         auto cmd = m_taa_renderer.render(frame_asset.taa_buffer);
-        frame_asset.taa_buffer.submit({cmd}, m_queue);
+
+        vierkant::semaphore_submit_info_t taa_semaphore_info = {};
+        taa_semaphore_info.semaphore = frame_asset.timeline.handle();
+        taa_semaphore_info.signal_value = SemaphoreValue::TAA;
+        frame_asset.taa_buffer.submit({cmd}, m_queue, {taa_semaphore_info});
+        frame_asset.semaphore_value_done = SemaphoreValue::TAA;
         output_img = frame_asset.taa_buffer.color_attachment();
     }
 
@@ -1211,48 +1226,41 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
 
     computable.extent = {vierkant::group_count(num_draws, m_cull_compute_local_size.x), 1, 1};
 
-    VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER};
+    VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.srcAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    barrier.dstAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
     barrier.buffer = draws_out->handle();
     barrier.offset = 0;
     barrier.size = VK_WHOLE_SIZE;
 
+    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    dependency_info.bufferMemoryBarrierCount = 1;
+    dependency_info.pBufferMemoryBarriers = &barrier;
+
     // barrier before writing to indirect-draw-buffer
-    vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
-                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-                         0,
-                         0, nullptr,
-                         1, &barrier,
-                         0, nullptr);
+    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
 
     // dispatch cull-compute
     frame_asset.cull_compute.dispatch({computable}, frame_asset.cull_cmd_buffer.handle());
 
     // swap access
-    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
 
     // memory barrier for draw-indirect buffer
-    vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
-                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT,
-                         0,
-                         0, nullptr,
-                         1, &barrier,
-                         0, nullptr);
+    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
 
     // memory barrier before copying cull-result buffer
     barrier.buffer = frame_asset.cull_result_buffer->handle();
     barrier.size = VK_WHOLE_SIZE;
-    barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-    vkCmdPipelineBarrier(frame_asset.cull_cmd_buffer.handle(),
-                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         0,
-                         0, nullptr,
-                         1, &barrier,
-                         0, nullptr);
+    barrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
 
     // copy result into host-visible buffer
     frame_asset.cull_result_buffer->copy_to(frame_asset.cull_result_buffer_host, frame_asset.cull_cmd_buffer.handle());
@@ -1260,7 +1268,7 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
     vierkant::semaphore_submit_info_t culling_semaphore_submit_info = {};
     culling_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
     culling_semaphore_submit_info.wait_value = SemaphoreValue::DEPTH_PYRAMID;
-    culling_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    culling_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     culling_semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
     frame_asset.cull_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {culling_semaphore_submit_info});
 }
