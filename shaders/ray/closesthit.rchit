@@ -136,8 +136,6 @@ void main()
     // propagate ray-cone
     payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
-    //    bool tangent_valid = any(greaterThan(abs(v.tangent), vec3(0.0)));
-
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
         // normalize after checking for validity

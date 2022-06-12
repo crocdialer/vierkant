@@ -459,6 +459,13 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     camera_params_t cameras[2] = {frame_asset.camera_params, last_frame_asset.camera_params};
     frame_asset.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
 
+    // decide on indirect rendering-path
+    bool use_indrect_draw = cull_result.drawables.size() >= settings.draw_indrect_object_thresh;
+    if(use_indrect_draw && (!m_g_renderer_pre.indirect_draw || !m_g_renderer_post.indirect_draw))
+    {
+        frame_asset.recycle_commands = false;
+    }
+
     if(!frame_asset.recycle_commands)
     {
         vierkant::descriptor_t camera_desc = {};
@@ -509,7 +516,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         // stage drawables
         m_g_renderer_pre.stage_drawables(cull_result.drawables);
-        m_g_renderer_post.stage_drawables(cull_result.drawables);
+        if(use_indrect_draw){ m_g_renderer_post.stage_drawables(cull_result.drawables); }
 
         m_g_renderer_pre.draw_indirect_delegate = {};
         m_g_renderer_post.draw_indirect_delegate = {};
@@ -519,7 +526,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
-    bool use_indrect_draw = cull_result.drawables.size() >= settings.draw_indrect_object_thresh;
     m_g_renderer_pre.indirect_draw = use_indrect_draw;
     m_g_renderer_post.indirect_draw = use_indrect_draw;
 
@@ -554,7 +560,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // depth-attachment
     frame_asset.depth_map = frame_asset.g_buffer_pre.depth_attachment();
 
-    if(m_g_renderer_post.indirect_draw)
+    if(use_indrect_draw)
     {
         // generate depth-pyramid
         create_depth_pyramid(frame_asset);
