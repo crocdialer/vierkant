@@ -697,15 +697,11 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
                                                  frame_assets_t &current,
                                                  frame_assets_t &next)
 {
-    bool variable_count = false;
-
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor]: descriptors)
     {
         for(auto &img: descriptor.images){ img.reset(); }
         for(auto &buf: descriptor.buffers){ buf.reset(); }
-
-        variable_count = variable_count || descriptor.variable_count;
     }
 
     // retrieve set-layout
@@ -722,7 +718,7 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     // not found -> create and insert descriptor-set layout
     if(set_it == next.descriptor_set_layouts.end())
     {
-        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors, variable_count);
+        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
         set_it = next.descriptor_set_layouts.insert(
                 std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }

@@ -38,10 +38,15 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device,
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
-                                                    const descriptor_map_t &descriptors,
-                                                    bool variable_count)
+                                                    const descriptor_map_t &descriptors)
 {
+    constexpr VkDescriptorBindingFlags default_flags = VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT |
+                                                       VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+    constexpr VkDescriptorBindingFlags bindless_flags = default_flags | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+                                                        VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
+
     std::vector<VkDescriptorSetLayoutBinding> bindings;
+    std::vector<VkDescriptorBindingFlags> flags_array;
 
     for(const auto &[binding, desc] : descriptors)
     {
@@ -50,23 +55,14 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
         layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.images.size()));
         layout_binding.descriptorCount = std::max<uint32_t>(layout_binding.descriptorCount,
                                                             static_cast<uint32_t>(desc.buffers.size()));
-        layout_binding.descriptorCount = variable_count ? g_max_bindless_resources : layout_binding.descriptorCount;
-
+        layout_binding.descriptorCount = desc.variable_count ? g_max_bindless_resources
+                                                             : layout_binding.descriptorCount;
         layout_binding.descriptorType = desc.type;
         layout_binding.pImmutableSamplers = nullptr;
         layout_binding.stageFlags = desc.stage_flags;
         bindings.push_back(layout_binding);
+        flags_array.push_back(desc.variable_count ? bindless_flags : default_flags);
     }
-
-    VkDescriptorBindingFlags bindless_flags = VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT |
-                                              VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-
-    if(variable_count)
-    {
-        bindless_flags |=
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT;
-    }
-    std::vector<VkDescriptorBindingFlags> flags_array(bindings.size(), bindless_flags);
 
     VkDescriptorSetLayoutBindingFlagsCreateInfo extended_info = {};
     extended_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
@@ -126,18 +122,10 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
+void update_descriptor_set(const vierkant::DevicePtr &device,
+                           const DescriptorSetPtr &descriptor_set,
                            const descriptor_map_t &descriptors)
 {
-    size_t num_writes = 0;
-    for(const auto &[binding, descriptor] : descriptors)
-    {
-        size_t count = 1;
-        count = std::max<size_t>(count, descriptor.images.size());
-        count = std::max<size_t>(count, descriptor.buffers.size());
-        num_writes += count;
-    }
-
     std::vector<VkWriteDescriptorSet> descriptor_writes;
 
     // keep buffer_infos for vkUpdateDescriptorSets
@@ -153,7 +141,6 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
         VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
     };
     std::vector<acceleration_write_asset_t> acceleration_write_assets;
-    acceleration_write_assets.reserve(num_writes);
 
     for(const auto &[binding, desc] : descriptors)
     {
@@ -270,7 +257,7 @@ DescriptorSetLayoutPtr find_set_layout(const vierkant::DevicePtr &device,
     // not found -> create and insert descriptor-set layout
     if(set_it == layout_map.end())
     {
-        auto new_set = vierkant::create_descriptor_set_layout(device, descriptors, false);
+        auto new_set = vierkant::create_descriptor_set_layout(device, descriptors);
         set_it = layout_map.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }
     return set_it->second;

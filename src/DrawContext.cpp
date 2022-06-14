@@ -112,8 +112,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_text.pipeline_format = std::move(pipeline_fmt);
 
         m_drawable_text.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device,
-                                                                                       m_drawable_text.descriptors,
-                                                                                       false);
+                                                                                       m_drawable_text.descriptors);
         m_drawable_text.pipeline_format.descriptor_set_layouts = {m_drawable_text.descriptor_set_layout.get()};
     }
 

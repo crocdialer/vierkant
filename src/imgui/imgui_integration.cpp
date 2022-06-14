@@ -405,7 +405,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
 
-    drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors, false);
+    drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
     drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
     return true;
 }
