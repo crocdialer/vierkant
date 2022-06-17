@@ -29,7 +29,7 @@ class HelloTriangleApplication : public crocore::Application
 
 public:
 
-    explicit HelloTriangleApplication(int argc = 0, char *argv[] = nullptr) : crocore::Application(argc, argv){};
+    explicit HelloTriangleApplication(const crocore::Application::create_info_t &create_info) : crocore::Application(create_info){};
 
 private:
 
@@ -75,6 +75,9 @@ private:
 
 int main(int argc, char *argv[])
 {
-    auto app = std::make_shared<HelloTriangleApplication>(argc, argv);
+    crocore::Application::create_info_t create_info = {};
+    create_info.arguments = {argv, argv + argc};
+    create_info.num_background_threads = 1;
+    auto app = std::make_shared<HelloTriangleApplication>(create_info);
     return app->run();
 }
