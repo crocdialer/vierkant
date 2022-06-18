@@ -264,7 +264,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
                                                                  frame_asset.cmd_denoise.handle());
     }
 
-    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
                                                  frame_asset.cmd_denoise.handle());
 
     vierkant::semaphore_submit_info_t semaphore_info = {};

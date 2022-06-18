@@ -84,14 +84,14 @@ BOOST_AUTO_TEST_CASE(TestImage)
         BOOST_CHECK_EQUAL(memcmp(hostBuf->map(), testData.get(), numBytes), 0);
 
         // transition back to shader readable layout
-        img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
 
         // use external CommandBuffer to group commands
         vierkant::CommandBuffer cmdBuf(test_context.device, test_context.device->command_pool_transient());
         cmdBuf.begin();
         img->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, cmdBuf.handle());
         img_mip->copy_to(hostBuf, cmdBuf.handle());
-        img->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmdBuf.handle());
+        img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmdBuf.handle());
 
         // submit CommandBuffer, create and wait VkFence internally
         cmdBuf.submit(test_context.device->queue(vierkant::Device::Queue::GRAPHICS), true);

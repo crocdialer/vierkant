@@ -108,7 +108,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
     {
         VkAttachmentReference2 color_attachment_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
         color_attachment_ref.attachment = i;
-        color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color_attachment_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         color_attachment_ref.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         color_refs.push_back(color_attachment_ref);
         attachment_index++;
@@ -117,7 +117,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
         {
             VkAttachmentReference2 color_attachment_resolve_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
             color_attachment_resolve_ref.attachment = i + num_color_images;
-            color_attachment_resolve_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            color_attachment_resolve_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             color_attachment_resolve_ref.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             resolve_refs.push_back(color_attachment_resolve_ref);
             attachment_index++;
@@ -127,7 +127,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
     {
         VkAttachmentReference2 depth_attachment_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
         depth_attachment_ref.attachment = attachment_index;
-        depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depth_attachment_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         depth_attachment_ref.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         depth_stencil_refs = {depth_attachment_ref};
     }
