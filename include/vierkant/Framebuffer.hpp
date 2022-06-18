@@ -66,7 +66,7 @@ public:
     static
     RenderPassPtr create_renderpass(const vierkant::DevicePtr &device, const AttachmentMap &attachments,
                                     bool clear_color, bool clear_depth,
-                                    const std::vector<VkSubpassDependency> &subpass_dependencies = {});
+                                    const std::vector<VkSubpassDependency2> &subpass_dependencies = {});
 
     /**
      * @brief   Construct a new Framebuffer. Will create all Image-attachments,

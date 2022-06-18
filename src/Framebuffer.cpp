@@ -29,7 +29,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
                                const Framebuffer::AttachmentMap &attachments,
                                bool clear_color,
                                bool clear_depth,
-                               const std::vector<VkSubpassDependency> &subpass_dependencies)
+                               const std::vector<VkSubpassDependency2> &subpass_dependencies)
 {
     VkRenderPass renderpass = VK_NULL_HANDLE;
 
@@ -44,10 +44,8 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
     bool has_depth_stencil = check_attachment(AttachmentType::DepthStencil, attachments);
     bool has_resolve = check_attachment(AttachmentType::Resolve, attachments);
 
-    // TODO: sanity check number of attachments (>= 0 color, <= 1 depth/stencil, resolve==color or 0 !?)
-
     // create RenderPass according to AttachmentMap
-    std::vector<VkAttachmentDescription> attachment_descriptions;
+    std::vector<VkAttachmentDescription2> attachment_descriptions;
 
     for(const auto &[type, images] : attachments)
     {
@@ -55,8 +53,6 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
         VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         VkAttachmentLoadOp stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         VkAttachmentStoreOp stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-
-//        bool is_depth_attachment = false;
 
         switch(type)
         {
@@ -71,7 +67,6 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
                 break;
 
             case AttachmentType::DepthStencil:
-//                is_depth_attachment = true;
                 loadOp = clear_depth ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                 storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 
@@ -86,12 +81,9 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
                 break;
         }
 
-//        auto final_layout = is_depth_attachment ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-//                                                : VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
         for(const auto &img : images)
         {
-            VkAttachmentDescription description = {};
+            VkAttachmentDescription2 description = {VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2};
             description.format = img->format().format;
             description.samples = img->format().sample_count;
             description.loadOp = loadOp;
@@ -105,7 +97,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
     }
 
     uint32_t attachment_index = 0, num_color_images = 0;
-    std::vector<VkAttachmentReference> color_refs, depth_stencil_refs, resolve_refs;
+    std::vector<VkAttachmentReference2> color_refs, depth_stencil_refs, resolve_refs;
 
     auto color_it = attachments.find(AttachmentType::Color);
 
@@ -114,30 +106,33 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
 
     for(uint32_t i = 0; i < num_color_images; ++i)
     {
-        VkAttachmentReference color_attachment_ref = {};
+        VkAttachmentReference2 color_attachment_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
         color_attachment_ref.attachment = i;
         color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        color_attachment_ref.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         color_refs.push_back(color_attachment_ref);
         attachment_index++;
 
         if(has_resolve)
         {
-            VkAttachmentReference color_attachment_resolve_ref = {};
+            VkAttachmentReference2 color_attachment_resolve_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
             color_attachment_resolve_ref.attachment = i + num_color_images;
             color_attachment_resolve_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            color_attachment_resolve_ref.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
             resolve_refs.push_back(color_attachment_resolve_ref);
             attachment_index++;
         }
     }
     if(has_depth_stencil)
     {
-        VkAttachmentReference depth_attachment_ref = {};
+        VkAttachmentReference2 depth_attachment_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
         depth_attachment_ref.attachment = attachment_index;
         depth_attachment_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        depth_attachment_ref.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         depth_stencil_refs = {depth_attachment_ref};
     }
 
-    VkSubpassDescription subpass = {};
+    VkSubpassDescription2 subpass = {VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = static_cast<uint32_t>(color_refs.size());
     subpass.pColorAttachments = color_refs.data();
@@ -145,8 +140,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
                                                                  : depth_stencil_refs.data();
     subpass.pResolveAttachments = resolve_refs.empty() ? nullptr : resolve_refs.data();
 
-    VkRenderPassCreateInfo render_pass_info = {};
-    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    VkRenderPassCreateInfo2 render_pass_info = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2};
     render_pass_info.attachmentCount = static_cast<uint32_t>(attachment_descriptions.size());
     render_pass_info.pAttachments = attachment_descriptions.data();
     render_pass_info.subpassCount = 1;
@@ -154,7 +148,7 @@ Framebuffer::create_renderpass(const vierkant::DevicePtr &device,
     render_pass_info.dependencyCount = static_cast<uint32_t>(subpass_dependencies.size());
     render_pass_info.pDependencies = subpass_dependencies.data();
 
-    vkCheck(vkCreateRenderPass(device->handle(), &render_pass_info, nullptr, &renderpass),
+    vkCheck(vkCreateRenderPass2(device->handle(), &render_pass_info, nullptr, &renderpass),
             "failed to create render pass!");
 
     return RenderPassPtr(renderpass, [device](VkRenderPass p)
