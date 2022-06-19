@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(WaitBeforeSignal)
     vierkant::semaphore_submit_info_t waitBeforeSignalInfo = {};
     waitBeforeSignalInfo.semaphore = semaphore.handle();
     waitBeforeSignalInfo.wait_value = signal1;
-    waitBeforeSignalInfo.wait_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+    waitBeforeSignalInfo.wait_stage = VK_PIPELINE_STAGE_2_NONE_KHR;
     waitBeforeSignalInfo.signal_value = signal2;
 
     // signal value on gpu, same semaphore
@@ -96,9 +96,4 @@ BOOST_AUTO_TEST_CASE(WaitBeforeSignal)
 
     semaphore.wait(signal2);
     BOOST_CHECK_EQUAL(semaphore.value(), signal2);
-
-    // appeared ~2021/11 with new validation layers.
-    // Cannot call vkDestroySemaphore on VkSemaphore 0xf443490000000006[] that is currently in use by a command buffer.
-    vkQueueWaitIdle(queue1);
-    vkQueueWaitIdle(queue2);
 }

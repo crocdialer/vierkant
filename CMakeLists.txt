@@ -66,6 +66,10 @@ set(LIBS ${LIBS} glm)
 # tinygltf, suppress warnings from 3rd party header
 include_directories(BEFORE SYSTEM "submodules/tinygltf")
 
+# zeux/meshoptimizer
+add_subdirectory(submodules/meshoptimizer EXCLUDE_FROM_ALL)
+set(LIBS ${LIBS} meshoptimizer)
+
 ## Vulkan
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})

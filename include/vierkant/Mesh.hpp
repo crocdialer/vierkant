@@ -87,6 +87,7 @@ public:
         VkCommandBuffer command_buffer = VK_NULL_HANDLE;
         vierkant::BufferPtr staging_buffer = nullptr;
         VkBufferUsageFlags buffer_usage_flags = 0;
+        bool optimize_vertex_cache = false;
     };
 
     struct entry_create_info_t

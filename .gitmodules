@@ -18,3 +18,7 @@
 	path = submodules/spdlog
 	url = git@github.com:gabime/spdlog.git
 	shallow = true
+[submodule "submodules/meshoptimizer"]
+	path = submodules/meshoptimizer
+	url = git@github.com:zeux/meshoptimizer.git
+	shallow = true
