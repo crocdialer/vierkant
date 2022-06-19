@@ -34,11 +34,13 @@ VkFormat vk_format(const crocore::ImagePtr &img)
 vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
                             const vierkant::model::mesh_assets_t &mesh_assets,
                             bool compress_textures,
+                            bool optimize_vertex_cache,
                             VkQueue load_queue,
                             VkBufferUsageFlags buffer_flags)
 {
     vierkant::Mesh::create_info_t mesh_create_info = {};
     mesh_create_info.buffer_usage_flags = buffer_flags;
+    mesh_create_info.optimize_vertex_cache = optimize_vertex_cache;
     auto mesh = vierkant::Mesh::create_with_entries(device, mesh_assets.entry_create_infos, mesh_create_info);
 
     std::vector<vierkant::BufferPtr> staging_buffers;

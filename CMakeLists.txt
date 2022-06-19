@@ -24,7 +24,7 @@ else ()
     remove_definitions(-DNDEBUG)
 endif ()
 
-option(BUILD_SHARED_LIBS "Build Shared Libraries" ON)
+option(BUILD_SHARED_LIBS "Build Shared Libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
 option(BUILD_EXAMPLES "Build Examples" ON)
 
