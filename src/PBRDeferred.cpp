@@ -972,7 +972,7 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
     frame_asset.depth_pyramid->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
                                                  frame_asset.depth_pyramid_cmd_buffer.handle());
 
-    VkImageMemoryBarrier barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER};
+    VkImageMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
     barrier.image = frame_asset.depth_pyramid->image();
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -981,8 +981,15 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
     barrier.subresourceRange.layerCount = 1;
     barrier.subresourceRange.levelCount = 1;
     barrier.oldLayout = barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+
+    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    dependency_info.imageMemoryBarrierCount = 1;
+    dependency_info.pImageMemoryBarriers = &barrier;
 
     frame_asset.depth_pyramid_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.depth_pyramid_cmd_buffer.begin();
@@ -1011,12 +1018,7 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
                                                              frame_asset.depth_pyramid_cmd_buffer.handle());
 
         barrier.subresourceRange.baseMipLevel = lvl - 1;
-        vkCmdPipelineBarrier(frame_asset.depth_pyramid_cmd_buffer.handle(),
-                             VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                             VK_DEPENDENCY_BY_REGION_BIT,
-                             0, nullptr,
-                             0, nullptr,
-                             1, &barrier);
+        vkCmdPipelineBarrier2(frame_asset.depth_pyramid_cmd_buffer.handle(), &dependency_info);
     }
 
     vierkant::semaphore_submit_info_t pyramid_semaphore_submit_info = {};
