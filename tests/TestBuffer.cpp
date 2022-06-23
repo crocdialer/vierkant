@@ -99,15 +99,13 @@ BOOST_AUTO_TEST_CASE(TestBufferPool)
     auto pool_buddy_host = vierkant::Buffer::create_pool(test_context.device,
                                                          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                         VMA_MEMORY_USAGE_CPU_ONLY, 1U << 23U, 32, 0,
-                                                         VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT);
+                                                         VMA_MEMORY_USAGE_CPU_ONLY);
     BOOST_CHECK(pool_buddy_host);
 
     auto pool_buddy = vierkant::Buffer::create_pool(test_context.device,
                                                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
                                                     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                    VMA_MEMORY_USAGE_GPU_ONLY, 1U << 23U, 32, 0,
-                                                    VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT);
+                                                    VMA_MEMORY_USAGE_GPU_ONLY);
     BOOST_CHECK(pool_buddy);
 
     // run buffer test case
