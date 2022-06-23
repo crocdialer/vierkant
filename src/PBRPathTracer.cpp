@@ -30,17 +30,16 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    vierkant::VmaPoolPtr pool;
-//    // memorypool with 512MB blocks
-//    constexpr size_t block_size = 1U << 29U;
-//    constexpr size_t min_num_blocks = 1, max_num_blocks = 0;
-//    auto pool = vierkant::Buffer::create_pool(m_device,
-//                                              VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-//                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-//                                              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
-//                                              VMA_MEMORY_USAGE_GPU_ONLY,
-//                                              block_size, min_num_blocks, max_num_blocks,
-//                                              VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT);
+    // memorypool
+    VmaPoolCreateInfo pool_create_info = {};
+    pool_create_info.minAllocationAlignment = 128;
+
+    auto pool = vierkant::Buffer::create_pool(m_device,
+                                              VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+                                              VMA_MEMORY_USAGE_GPU_ONLY,
+                                              pool_create_info);
 
     // create our raytracing-thingies
     vierkant::RayTracer::create_info_t ray_tracer_create_info = {};

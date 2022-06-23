@@ -172,6 +172,8 @@ private:
 
     vierkant::DevicePtr m_device;
 
+    VkPhysicalDeviceAccelerationStructurePropertiesKHR m_properties = {};
+
     VkQueue m_queue = VK_NULL_HANDLE;
 
     vierkant::VmaPoolPtr m_memory_pool = nullptr;

@@ -299,9 +299,6 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
 
     update_recycling(scene, cam, frame_asset);
 
-    // TODO: optimization is not always playing nice
-//    frame_asset.recycle_commands = false;
-
     if(!frame_asset.recycle_commands)
     {
         vierkant::cull_params_t cull_params = {};
@@ -1277,23 +1274,7 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)
 {
-    if(lhs.resolution != rhs.resolution){ return false; }
-    if(lhs.disable_material != rhs.disable_material){ return false; }
-    if(lhs.frustum_culling != rhs.frustum_culling){ return false; }
-    if(lhs.occlusion_culling != rhs.occlusion_culling){ return false; }
-    if(lhs.tesselation != rhs.tesselation){ return false; }
-    if(lhs.wireframe != rhs.wireframe){ return false; }
-    if(lhs.draw_skybox != rhs.draw_skybox){ return false; }
-    if(lhs.use_fxaa != rhs.use_fxaa){ return false; }
-    if(lhs.use_taa != rhs.use_taa){ return false; }
-    if(lhs.tonemap != rhs.tonemap){ return false; }
-    if(lhs.bloom != rhs.bloom){ return false; }
-    if(lhs.motionblur != rhs.motionblur){ return false; }
-    if(lhs.motionblur_gain != rhs.motionblur_gain){ return false; }
-    if(lhs.gamma != rhs.gamma){ return false; }
-    if(lhs.exposure != rhs.exposure){ return false; }
-    if(lhs.dof != rhs.dof){ return false; }
-    return true;
+    return memcmp(&lhs, &rhs, sizeof(PBRDeferred::settings_t)) == 0;
 }
 
 }// namespace vierkant

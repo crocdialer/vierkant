@@ -32,9 +32,10 @@ void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommand
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VmaPoolPtr Buffer::create_pool(const DevicePtr& device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
-                               VkDeviceSize block_size, size_t min_block_count, size_t max_block_count,
-                               VmaPoolCreateFlags vma_flags)
+VmaPoolPtr Buffer::create_pool(const DevicePtr& device,
+                               VkBufferUsageFlags usage_flags,
+                               VmaMemoryUsage mem_usage,
+                               VmaPoolCreateInfo pool_create_info)
 {
     VkBufferCreateInfo dummy_buf_create_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     dummy_buf_create_info.usage = usage_flags;
@@ -46,12 +47,7 @@ VmaPoolPtr Buffer::create_pool(const DevicePtr& device, VkBufferUsageFlags usage
     vmaFindMemoryTypeIndexForBufferInfo(device->vk_mem_allocator(), &dummy_buf_create_info, &dummy_alloc_create_info,
                                         &memTypeIndex);
 
-    VmaPoolCreateInfo pool_create_info = {};
     pool_create_info.memoryTypeIndex = memTypeIndex;
-    pool_create_info.blockSize = block_size;
-    pool_create_info.minBlockCount = min_block_count;
-    pool_create_info.maxBlockCount = max_block_count;
-    pool_create_info.flags = vma_flags;
 
     // create pool
     VmaPool pool;

@@ -21,6 +21,13 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
         m_queue(queue),
         m_memory_pool(std::move(pool))
 {
+    m_properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
+
+    VkPhysicalDeviceProperties2 device_properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    device_properties.pNext = &m_properties;
+    vkGetPhysicalDeviceProperties2(device->physical_device(), &device_properties);
+
+
     // fallback to first device queue
     m_queue = queue ? queue : m_device->queue();
 

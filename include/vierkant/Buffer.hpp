@@ -19,18 +19,14 @@ public:
     /**
      * @brief   Create a memory pool, that can be used to allocate Buffers from.
      *
-     * @param   device          handle for the vierkant::Device to create the pool with
-     * @param   usage_flags     the usage-flags for Buffers allocated from this pool
-     * @param   mem_usage       the intended memory usage
-     * @param   block_size      optional parameter for fixed block-sizes in bytes.
-     * @param   min_block_count optional parameter for minimum number of allocated blocks
-     * @param   max_block_count optional parameter for maximum number of allocated blocks
-     * @param   vma_flags       the VmaPoolCreateFlags. can be used to change the memory-pool's allocation strategy
+     * @param   device              handle for the vierkant::Device to create the pool with
+     * @param   usage_flags         the usage-flags for Buffers allocated from this pool
+     * @param   mem_usage           the intended memory usage
+     * @param   pool_create_info    parameters for pool-creation
      * @return  the newly created VmaPoolPtr
      */
     static VmaPoolPtr create_pool(const DevicePtr &device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
-                                  VkDeviceSize block_size = 0, size_t min_block_count = 0, size_t max_block_count = 0,
-                                  VmaPoolCreateFlags vma_flags = 0);
+                                  VmaPoolCreateInfo pool_create_info = {});
 
     static BufferPtr create(DevicePtr device, const void *data, size_t num_bytes,
                             VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
