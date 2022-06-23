@@ -35,7 +35,6 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
-layout(location = ATTRIB_COLOR) in vec4 a_color;
 layout(location = ATTRIB_NORMAL) in vec3 a_normal;
 layout(location = ATTRIB_BONE_INDICES) in uvec4 a_bone_ids;
 layout(location = ATTRIB_BONE_WEIGHTS) in vec4 a_bone_weights;
@@ -43,9 +42,7 @@ layout(location = ATTRIB_BONE_WEIGHTS) in vec4 a_bone_weights;
 layout(location = 0) flat out uint object_index;
 layout(location = 1) out VertexData
 {
-    vec4 color;
     vec3 normal;
-
     vec4 current_position;
     vec4 last_position;
 } vertex_out;
@@ -64,7 +61,6 @@ void main()
         current_vertex += u_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
         last_vertex += u_previous_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
     }
-    vertex_out.color = a_color;
     vertex_out.normal = normalize((m.normal * vec4(a_normal, 0)).xyz);
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.xyz, 1.0);

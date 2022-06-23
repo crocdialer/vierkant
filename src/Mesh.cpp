@@ -141,7 +141,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         auto num_vertices = g->positions.size();
 
         if(g->positions.empty()){ return false; }
-        if(!g->colors.empty() && g->colors.size() != num_vertices){ return false; }
+//        if(!g->colors.empty() && g->colors.size() != num_vertices){ return false; }
         if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
         if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
         if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
@@ -149,7 +149,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
 
         add_attrib(ATTRIB_POSITION, g->positions, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
-        add_attrib(ATTRIB_COLOR, g->colors, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
+//        add_attrib(ATTRIB_COLOR, g->colors, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
         add_attrib(ATTRIB_TEX_COORD, g->tex_coords, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
         add_attrib(ATTRIB_NORMAL, g->normals, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
         add_attrib(ATTRIB_TANGENT, g->tangents, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);

@@ -22,7 +22,6 @@ struct PnPatch
 
 struct VertexData
 {
-    vec4 color;
     vec2 tex_coord;
     vec3 normal;
     vec3 tangent;
@@ -62,7 +61,6 @@ layout(location = 1) out VertexData vertex_out;
 VertexData interpolate_vertex(vec3 coord)
 {
     VertexData ret;
-    ret.color = coord.x * vertex_in[0].color + coord.y * vertex_in[1].color + coord.z * vertex_in[2].color;
     ret.tex_coord = coord.x * vertex_in[0].tex_coord + coord.y * vertex_in[1].tex_coord + coord.z * vertex_in[2].tex_coord;
     ret.normal = coord.x * vertex_in[0].normal + coord.y * vertex_in[1].normal + coord.z * vertex_in[2].normal;
     ret.tangent = coord.x * vertex_in[0].tangent + coord.y * vertex_in[1].tangent + coord.z * vertex_in[2].tangent;

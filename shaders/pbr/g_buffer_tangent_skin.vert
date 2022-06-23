@@ -35,7 +35,6 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
-layout(location = ATTRIB_COLOR) in vec4 a_color;
 layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;
 layout(location = ATTRIB_NORMAL) in vec3 a_normal;
 layout(location = ATTRIB_TANGENT) in vec3 a_tangent;
@@ -45,7 +44,6 @@ layout(location = ATTRIB_BONE_WEIGHTS) in vec4 a_bone_weights;
 layout(location = 0) flat out uint object_index;
 layout(location = 1) out VertexData
 {
-    vec4 color;
     vec2 tex_coord;
     vec3 normal;
     vec3 tangent;
@@ -67,7 +65,7 @@ void main()
         current_vertex += u_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
         last_vertex += u_previous_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
     }
-    vertex_out.color = a_color;
+
     vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
     vertex_out.normal = normalize((m.normal * vec4(a_normal, 0)).xyz);
     vertex_out.tangent = normalize((m.normal * vec4(a_tangent, 0)).xyz);

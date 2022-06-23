@@ -24,7 +24,6 @@ struct PnPatch
 
 struct VertexData
 {
-    vec4 color;
     vec2 tex_coord;
     vec3 normal;
     vec3 tangent;

@@ -24,7 +24,6 @@ layout(set = 1, binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[];
 layout(location = 0) flat in uint object_index;
 layout(location = 1) in VertexData
 {
-    vec4 color;
     vec2 tex_coord;
     vec3 normal;
     vec3 tangent;
@@ -58,17 +57,16 @@ void main()
 
     if(!context.disable_material)
     {
-        vec4 tex_color = vertex_in.color;
+        out_color = material.color;
 
         if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
         {
             uint offset = tex_offset(ALBEDO, material.texture_type_flags);
-            tex_color *= texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord);
+            out_color *= texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord);
         }
 
         // apply alpha-cutoff
-        if(material.blend_mode == BLEND_MODE_MASK && tex_color.a < material.alpha_cutoff){ discard; }
-        out_color = material.color * tex_color;
+        if(material.blend_mode == BLEND_MODE_MASK && out_color.a < material.alpha_cutoff){ discard; }
 
         out_emission = material.emission;
 

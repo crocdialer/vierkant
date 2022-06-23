@@ -31,7 +31,6 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
-layout(location = ATTRIB_COLOR) in vec4 a_color;
 layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;
 layout(location = ATTRIB_NORMAL) in vec3 a_normal;
 layout(location = ATTRIB_TANGENT) in vec3 a_tangent;
@@ -39,7 +38,6 @@ layout(location = ATTRIB_TANGENT) in vec3 a_tangent;
 layout(location = 0) flat out uint object_index;
 layout(location = 1) out VertexData
 {
-    vec4 color;
     vec2 tex_coord;
     vec3 normal;
     vec3 tangent;
@@ -60,7 +58,6 @@ void main()
     jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
     gl_Position = jittered_position;
 
-    vertex_out.color = a_color;
     vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
     vertex_out.normal = normalize(mat3(m.normal) * a_normal);
     vertex_out.tangent = normalize(mat3(m.normal) * a_tangent);

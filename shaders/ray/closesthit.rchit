@@ -91,7 +91,6 @@ vec4 sample_texture_lod(sampler2D tex, vec2 tex_coord, float NoV, float cone_wid
     lambda += 0.5 * log2(sz.x * sz.y);
     lambda -= log2(NoV);
     return textureLod(tex, tex_coord, lambda);
-//    return texture(tex, tex_coord);
 }
 
 Vertex interpolate_vertex(Triangle t)
@@ -101,7 +100,6 @@ Vertex interpolate_vertex(Triangle t)
     // interpolated vertex
     Vertex out_vert;
     out_vert.position = t.v0.position * barycentric.x + t.v1.position * barycentric.y + t.v2.position * barycentric.z;
-    out_vert.color = t.v0.color * barycentric.x + t.v1.color * barycentric.y + t.v2.color * barycentric.z;
     out_vert.tex_coord = t.v0.tex_coord * barycentric.x + t.v1.tex_coord * barycentric.y + t.v2.tex_coord * barycentric.z;
     out_vert.normal = t.v0.normal * barycentric.x + t.v1.normal * barycentric.y + t.v2.normal * barycentric.z;
     out_vert.tangent = t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z;
