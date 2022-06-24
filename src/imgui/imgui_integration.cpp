@@ -123,6 +123,8 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
     tex_coord_attrib.format = vierkant::format<glm::vec2>();
     mesh->vertex_attribs[vierkant::Mesh::ATTRIB_TEX_COORD] = tex_coord_attrib;
 
+    mesh->vertex_buffer = vertex_buffer;
+
     // index buffer
     mesh->index_buffer = index_buffer;
     mesh->index_type = index_type<ImDrawIdx>();

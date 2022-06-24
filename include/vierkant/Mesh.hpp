@@ -88,6 +88,7 @@ public:
         vierkant::BufferPtr staging_buffer = nullptr;
         VkBufferUsageFlags buffer_usage_flags = 0;
         bool optimize_vertex_cache = false;
+        bool use_vertex_colors = true;
     };
 
     struct entry_create_info_t
@@ -176,6 +177,9 @@ public:
     // node animations
     vierkant::nodes::NodePtr root_node, root_bone;
     std::vector<vierkant::nodes::node_animation_t> node_animations;
+
+    // vertex buffer
+    vierkant::BufferPtr vertex_buffer;
 
     // index buffer
     vierkant::BufferPtr index_buffer;

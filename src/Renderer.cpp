@@ -92,13 +92,23 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.vertex_offset = entry.vertex_offset;
         drawable.num_vertices = entry.num_vertices;
 
-        drawable.pipeline_format.binding_descriptions = binding_descriptions;
-        drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
+//        if(!mesh->vertex_buffer)
+        {
+            drawable.pipeline_format.binding_descriptions = binding_descriptions;
+            drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
+        }
+
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
         drawable.pipeline_format.depth_test = material->depth_test;
         drawable.pipeline_format.depth_write = material->depth_write;
         drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
+
+        // descriptors
+        vierkant::descriptor_t desc_vertices = {};
+        desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        drawable.descriptors[BINDING_VERTICES] = desc_vertices;
 
         // descriptors
         vierkant::descriptor_t desc_matrices = {};
@@ -415,6 +425,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 // predefined buffers
                 if(!drawable->use_own_buffers)
                 {
+                    if(drawable->descriptors.count(BINDING_VERTICES))
+                    {
+                        drawable->descriptors[BINDING_VERTICES].buffers = {drawable->mesh->vertex_buffer};
+                    }
                     drawable->descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
                     drawable->descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
 

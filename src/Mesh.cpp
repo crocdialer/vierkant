@@ -132,8 +132,13 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     size_t vertex_stride = 0, num_bytes = 0, num_attribs = 0;
 
     // sanity check array sizes
-    auto check_and_insert = [add_attrib, &vertex_stride, &num_bytes, &num_attribs](const GeometryConstPtr &g,
-                                                                                   std::vector<vertex_data_t> &vertex_data) -> bool
+    auto check_and_insert = [
+            add_attrib,
+            use_vertex_colors = create_info.use_vertex_colors,
+            &vertex_stride,
+            &num_bytes,
+            &num_attribs](const GeometryConstPtr &g,
+                          std::vector<vertex_data_t> &vertex_data) -> bool
     {
         vertex_stride = 0;
         size_t offset = 0;
@@ -141,20 +146,26 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         auto num_vertices = g->positions.size();
 
         if(g->positions.empty()){ return false; }
-//        if(!g->colors.empty() && g->colors.size() != num_vertices){ return false; }
+        if(use_vertex_colors && !g->colors.empty() && g->colors.size() != num_vertices){ return false; }
         if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
         if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
         if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
         if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices){ return false; }
         if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
 
+        if(use_vertex_colors)
+        {
+            add_attrib(ATTRIB_COLOR, g->colors, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
+        }
+
         add_attrib(ATTRIB_POSITION, g->positions, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
-//        add_attrib(ATTRIB_COLOR, g->colors, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
         add_attrib(ATTRIB_TEX_COORD, g->tex_coords, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
         add_attrib(ATTRIB_NORMAL, g->normals, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
         add_attrib(ATTRIB_TANGENT, g->tangents, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
-        add_attrib(ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
-        add_attrib(ATTRIB_BONE_WEIGHTS, g->bone_weights, vertex_data, offset, vertex_stride, num_bytes, num_geom_attribs);
+        add_attrib(ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, vertex_stride, num_bytes,
+                   num_geom_attribs);
+        add_attrib(ATTRIB_BONE_WEIGHTS, g->bone_weights, vertex_data, offset, vertex_stride, num_bytes,
+                   num_geom_attribs);
 
         if(num_attribs && num_geom_attribs != num_attribs){ return false; }
         num_attribs = num_geom_attribs;
@@ -212,10 +223,12 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     else{ staging_buffer->set_data(nullptr, num_bytes); }
 
     // create vertexbuffer
-    auto vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes,
-                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                  create_info.buffer_usage_flags,
-                                                  VMA_MEMORY_USAGE_GPU_ONLY);
+    mesh->vertex_buffer = vierkant::Buffer::create(device, nullptr, num_bytes,
+                                                   VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                                   create_info.buffer_usage_flags,
+                                                   VMA_MEMORY_USAGE_GPU_ONLY);
     auto staging_data = (uint8_t *) staging_buffer->map();
 
 
@@ -226,7 +239,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         vierkant::vertex_attrib_t attrib;
         attrib.offset = v.offset;
         attrib.stride = static_cast<uint32_t>(vertex_stride);
-        attrib.buffer = vertex_buffer;
+        attrib.buffer = mesh->vertex_buffer;
         attrib.buffer_offset = 0;
         attrib.format = v.format;
         mesh->vertex_attribs[v.attrib_location] = attrib;
@@ -262,7 +275,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     }
 
     // copy combined vertex data to device-buffer
-    staging_buffer->copy_to(vertex_buffer, create_info.command_buffer);
+    staging_buffer->copy_to(mesh->vertex_buffer, create_info.command_buffer);
 
     // keep track of used material-indices
     std::set<uint32_t> material_index_set;

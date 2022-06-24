@@ -1,12 +1,23 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_scalar_block_layout : enable
+
 #include "../renderer/types.glsl"
 
-layout(location = ATTRIB_POSITION) in vec3 a_position;
-layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;
-layout(location = ATTRIB_NORMAL) in vec3 a_normal;
-layout(location = ATTRIB_TANGENT) in vec3 a_tangent;
+//! Vertex defines the layout for a vertex-struct
+struct Vertex
+{
+    vec3 position;
+    vec2 tex_coord;
+    vec3 normal;
+    vec3 tangent;
+};
+
+layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
+{
+    Vertex vertices[];
+};
 
 layout(location = 0) flat out uint object_index;
 layout(location = 1) out VertexData
@@ -20,14 +31,16 @@ layout(location = 1) out VertexData
 
 void main()
 {
+    Vertex v = vertices[gl_VertexIndex];
+
     object_index = gl_InstanceIndex;
 
-    vertex_out.current_position = vec4(a_position, 1.0);
-    vertex_out.last_position = vec4(a_position, 1.0);
+    vertex_out.current_position = vec4(v.position, 1.0);
+    vertex_out.last_position = vec4(v.position, 1.0);
 
     gl_Position = vertex_out.current_position;
 
-    vertex_out.tex_coord = a_tex_coord;
-    vertex_out.normal = a_normal;
-    vertex_out.tangent = a_tangent;
+    vertex_out.tex_coord = v.tex_coord;
+    vertex_out.normal = v.normal;
+    vertex_out.tangent = v.tangent;
 }

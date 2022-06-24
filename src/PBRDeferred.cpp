@@ -500,6 +500,14 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 }
             }
 
+            // NOTE: migrating away from vertex-attributes, but for skins still required
+            if(!drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_BONE_INDICES))
+            {
+                // attribute/binding descriptions obsolete here
+                drawable.pipeline_format.attribute_descriptions.clear();
+                drawable.pipeline_format.binding_descriptions.clear();
+            }
+
             // select shader-stages from cache
             auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
 

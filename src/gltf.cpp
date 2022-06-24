@@ -279,6 +279,8 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
     geometry->colors.resize(geometry->positions.size(), glm::vec4(1.f));
     geometry->tex_coords.resize(geometry->positions.size(), glm::vec2(0.f));
 
+    if(geometry->normals.empty()){ geometry->compute_vertex_normals(); }
+
     if(geometry->tangents.empty() && !geometry->normals.empty() && !geometry->tex_coords.empty())
     {
         geometry->compute_tangents();

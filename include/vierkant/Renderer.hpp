@@ -35,13 +35,14 @@ public:
 
     enum DescriptorBinding
     {
-        BINDING_MATRIX = 0,
-        BINDING_PREVIOUS_MATRIX = 1,
-        BINDING_MATERIAL = 2,
-        BINDING_TEXTURES = 3,
-        BINDING_BONES = 4,
-        BINDING_PREVIOUS_BONES = 5,
-        BINDING_JITTER_OFFSET = 6,
+        BINDING_VERTICES = 0,
+        BINDING_MATRIX = 1,
+        BINDING_PREVIOUS_MATRIX = 2,
+        BINDING_MATERIAL = 3,
+        BINDING_TEXTURES = 4,
+        BINDING_BONES = 5,
+        BINDING_PREVIOUS_BONES = 6,
+        BINDING_JITTER_OFFSET = 7,
         BINDING_MAX_RANGE
     };
 
