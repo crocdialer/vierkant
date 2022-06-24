@@ -24,7 +24,7 @@ void MeshNode::accept(Visitor &visitor)
 vierkant::AABB MeshNode::aabb() const
 {
     vierkant::AABB aabb;
-    for(const auto &entry : mesh->entries){ aabb += entry.boundingbox.transform(entry.transform); }
+    for(const auto &entry : mesh->entries){ aabb += entry.bounding_box.transform(entry.transform); }
     return aabb;
 }
 

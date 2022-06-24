@@ -22,6 +22,21 @@ ray_intersection intersect(const Plane &plane, const Ray &ray)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+vierkant::Sphere compute_bounding_sphere(const std::vector<glm::vec3> &vertices)
+{
+    Sphere ret;
+    ret.center = compute_centroid(vertices);
+
+    for(const glm::vec3 &vertex : vertices)
+    {
+        ret.radius = std::max(ret.radius, glm::length2(ret.center - vertex));
+    }
+    if(ret.radius > 0.f){ret.radius = std::sqrt(ret.radius); }
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices)
 {
     AABB ret;

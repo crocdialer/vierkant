@@ -473,9 +473,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 // bounding sphere xyz, radius
                 if(drawable->mesh && !drawable->mesh->entries.empty())
                 {
-                    auto aabb = drawable->mesh->entries[drawable->entry_index].boundingbox.transform(
+                    auto bounding_sphere = drawable->mesh->entries[drawable->entry_index].bounding_sphere.transform(
                             drawable->matrices.modelview);
-                    draw_command->sphere_bounds = glm::vec4(aabb.center(), glm::length(aabb.half_extents()));
+                    draw_command->sphere_bounds = glm::vec4(bounding_sphere.center, bounding_sphere.radius);
                 }
             }
             else

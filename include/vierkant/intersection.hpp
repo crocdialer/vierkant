@@ -122,9 +122,28 @@ uint32_t intersect(const Frustum &frustum, const AABB &aabb);
 
 inline uint32_t intersect(const AABB &aabb, const Frustum &frustum){ return intersect(frustum, aabb); }
 
+/**
+ * @brief   compute_bounding_sphere can be used to compute a bounding sphere for an array of points.
+ *
+ * @param   vertices    array of 3d-points
+ * @return  a bounding-sphere with its origin at the center of mass for provided points
+ */
+vierkant::Sphere compute_bounding_sphere(const std::vector<glm::vec3> &vertices);
 
+/**
+ * @brief   compute_aabb can be used to compute an axis-aligned bounding box for an array of points.
+ *
+ * @param   vertices    array of 3d-points
+ * @return  an aabb for provided points
+ */
 vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices);
 
+/**
+ * @brief   compute_centroid can be used to compute the center of mass for an array of points.
+ *
+ * @param   vertices    array of 3d-points
+ * @return  the centroid / center of mass for provided points
+ */
 glm::vec3 compute_centroid(const std::vector<glm::vec3> &vertices);
 
 struct Ray
@@ -219,8 +238,10 @@ struct Triangle
 struct Sphere
 {
 
-    glm::vec3 center;
-    float radius;
+    glm::vec3 center = {};
+    float radius = 0.f;
+
+    Sphere() = default;
 
     Sphere(const glm::vec3 &c, float r) :
             center(c),

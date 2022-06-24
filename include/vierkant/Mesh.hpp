@@ -69,17 +69,34 @@ public:
     {
         std::string name;
         glm::mat4 transform = glm::mat4(1);
-        vierkant::AABB boundingbox;
+        vierkant::AABB bounding_box;
+        vierkant::Sphere bounding_sphere;
         uint32_t node_index = 0;
 
         int32_t vertex_offset = 0;
         uint32_t num_vertices = 0;
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
+        int32_t meshlet_offset = 0;
+        uint32_t num_meshlets = 0;
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         bool enabled = true;
+    };
+
+    struct meshlet_t
+    {
+        //! offsets within meshlet_vertices and meshlet_triangles
+        uint32_t vertex_offset = 0;
+        uint32_t triangle_offset = 0;
+
+        //! number of vertices and triangles used in the meshlet
+        uint32_t vertex_count = 0;
+        uint32_t triangle_count = 0;
+
+        //! bounding sphere, useful for frustum and occlusion cluster-culling
+        vierkant::Sphere bounding_sphere;
     };
 
     struct create_info_t
@@ -88,6 +105,7 @@ public:
         vierkant::BufferPtr staging_buffer = nullptr;
         VkBufferUsageFlags buffer_usage_flags = 0;
         bool optimize_vertex_cache = false;
+        bool generate_meshlets = false;
         bool use_vertex_colors = true;
     };
 
@@ -113,7 +131,7 @@ public:
     static vierkant::MeshPtr
     create_from_geometry(const vierkant::DevicePtr &device,
                          const GeometryPtr &geometry,
-                         const create_info_t& create_info);
+                         const create_info_t &create_info);
 
     /**
      * @brief   Create a vierkant::MeshPtr with provided information about entries.
@@ -126,7 +144,7 @@ public:
     static vierkant::MeshPtr
     create_with_entries(const vierkant::DevicePtr &device,
                         const std::vector<entry_create_info_t> &entry_create_infos,
-                        const create_info_t& create_info);
+                        const create_info_t &create_info);
 
     Mesh(const Mesh &) = delete;
 
@@ -185,6 +203,15 @@ public:
     vierkant::BufferPtr index_buffer;
     VkDeviceSize index_buffer_offset = 0;
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
+
+    //! total amount of meshlets in buffer
+    std::vector<meshlet_t> meshlets;
+
+    //! indices into vertex-buffer
+    vierkant::BufferPtr meshlet_vertices;
+
+    //! micro-indices into meshlet_vertices
+    vierkant::BufferPtr meshlet_triangles;
 
 private:
 

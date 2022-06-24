@@ -4,6 +4,7 @@
 
 #include <map>
 #include <set>
+
 #include <crocore/utils.hpp>
 #include <meshoptimizer.h>
 #include <vierkant/Mesh.hpp>
@@ -67,13 +68,26 @@ template<>
 VkFormat format<glm::uvec4>(){ return VK_FORMAT_R32G32B32A32_UINT; }
 
 template<>
-VkFormat format<glm::vec<2, uint16_t>>(){ return VK_FORMAT_R16G16_UINT; }
+VkFormat format<glm::vec < 2, uint16_t>>
+()
+{
+return
+VK_FORMAT_R16G16_UINT;
+}
 
 template<>
-VkFormat format<glm::vec<3, uint16_t>>(){ return VK_FORMAT_R16G16B16_UINT; }
+VkFormat format<glm::vec < 3, uint16_t>>
+(){
+return
+VK_FORMAT_R16G16B16_UINT;
+}
 
 template<>
-VkFormat format<glm::vec<4, uint16_t>>(){ return VK_FORMAT_R16G16B16A16_UINT; }
+VkFormat format<glm::vec < 4, uint16_t>>
+(){
+return
+VK_FORMAT_R16G16B16A16_UINT;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -180,6 +194,8 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     {
         size_t vertex_offset = 0;
         size_t index_offset = 0;
+        size_t meshlet_offset = 0;
+        size_t num_meshlets = 0;
     };
     std::map<vierkant::GeometryConstPtr, geometry_offset_t> geom_offsets;
     size_t current_base_vertex = 0, current_base_index = 0;
@@ -188,7 +204,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     std::vector<vierkant::index_t> indices;
 
     // insert all geometries
-    for(auto &ci : entry_create_infos)
+    for(auto &ci: entry_create_infos)
     {
         auto geom_it = geom_offsets.find(ci.geometry);
 
@@ -263,7 +279,9 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     // done with things, optimize here
     if(create_info.optimize_vertex_cache)
     {
-        for(const auto &[geom, offsets] : geom_offsets)
+        spdlog::stopwatch sw;
+
+        for(const auto &[geom, offsets]: geom_offsets)
         {
             auto index_data = indices.data() + offsets.index_offset;
             auto vertices = staging_data + offsets.vertex_offset * vertex_stride;
@@ -271,6 +289,71 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
             meshopt_optimizeVertexCache(index_data, index_data, geom->indices.size(), geom->positions.size());
             meshopt_optimizeVertexFetch(vertices, index_data, geom->indices.size(), vertices, geom->positions.size(),
                                         vertex_stride);
+        }
+
+        spdlog::debug("optimize_vertex_cache: {} ({} mesh(es) - {} triangles)",
+                      std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), geom_offsets.size(),
+                      indices.size() / 3);
+    }
+
+    // meshlet generation
+    if(create_info.generate_meshlets)
+    {
+        const size_t max_vertices = 64;
+        const size_t max_triangles = 124;
+        const float cone_weight = 0.0f;
+
+//        std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+//        std::vector<uint32_t> meshlet_vertices(max_meshlets * max_vertices);
+//        std::vector<uint8_t> meshlet_triangles(max_meshlets * max_triangles * 3);
+
+        uint32_t meshlet_offset = 0;
+
+        // corresponds to mesh.entries
+        for(auto &[geom, offsets]: geom_offsets)
+        {
+            auto index_data = indices.data() + offsets.index_offset;
+            auto vertices = staging_data + offsets.vertex_offset * vertex_stride;
+
+            // determine size
+            size_t max_meshlets = meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles);
+            std::vector<meshopt_Meshlet> meshlets(max_meshlets);
+            std::vector<uint32_t> meshlet_vertices(max_meshlets * max_vertices);
+            std::vector<uint8_t> meshlet_triangles(max_meshlets * max_triangles * 3);
+
+            // generate mehslets
+            size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(),
+                                                         meshlet_triangles.data(), index_data, geom->indices.size(),
+                                                         reinterpret_cast<const float *>(vertices),
+                                                         geom->positions.size(),
+                                                         vertex_stride, max_vertices, max_triangles, cone_weight);
+            // pruning
+            const meshopt_Meshlet& last = meshlets[meshlet_count - 1];
+            meshlet_vertices.resize(last.vertex_offset + last.vertex_count);
+            meshlet_triangles.resize(last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3));
+            meshlets.resize(meshlet_count);
+
+            std::vector<Mesh::meshlet_t> out_meshlets(meshlet_count);
+
+            // generate bounds, combine data in our API output-meshlets
+            for(uint32_t i = 0; i < meshlet_count; ++i)
+            {
+                const auto &m = meshlets[i];
+                auto bounds = meshopt_computeMeshletBounds(&meshlet_vertices[m.vertex_offset],
+                                                         &meshlet_triangles[m.triangle_offset],
+                                                         m.triangle_count,
+                                                         reinterpret_cast<const float *>(vertices),
+                                                         geom->positions.size(), vertex_stride);
+                out_meshlets[i].vertex_offset = m.vertex_offset;
+                out_meshlets[i].vertex_count = m.vertex_count;
+                out_meshlets[i].triangle_offset = m.triangle_offset;
+                out_meshlets[i].triangle_count = m.triangle_count;
+                out_meshlets[i].bounding_sphere = {*reinterpret_cast<glm::vec3*>(bounds.center), bounds.radius};
+            }
+
+            offsets.meshlet_offset = meshlet_offset;
+            offsets.num_meshlets = meshlet_count;
+            meshlet_offset += meshlet_count;
         }
     }
 
@@ -280,11 +363,11 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     // keep track of used material-indices
     std::set<uint32_t> material_index_set;
 
-    for(const auto &entry_info : entry_create_infos)
+    for(const auto &entry_info: entry_create_infos)
     {
         const auto &geom = entry_info.geometry;
 
-        auto [base_vertex, base_index] = geom_offsets[geom];
+        auto[base_vertex, base_index, meshlet_offset, num_meshlets] = geom_offsets[geom];
 
         vierkant::Mesh::entry_t entry = {};
         entry.name = entry_info.name;
@@ -293,6 +376,8 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         entry.num_vertices = geom->positions.size();
         entry.base_index = base_index;
         entry.num_indices = geom->indices.size();
+        entry.meshlet_offset = meshlet_offset;
+        entry.num_meshlets = num_meshlets;
 
         // use provided transforms for sub-meshes, if any
         entry.transform = entry_info.transform;
@@ -304,8 +389,9 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         entry.material_index = entry_info.material_index;
         material_index_set.insert(entry_info.material_index);
 
-        // combine with aabb
-        entry.boundingbox = vierkant::compute_aabb(geom->positions);
+        // compute bounds
+        entry.bounding_box = vierkant::compute_aabb(geom->positions);
+        entry.bounding_sphere = vierkant::compute_bounding_sphere(geom->positions);
 
         // insert new entry
         mesh->entries.push_back(entry);
@@ -320,7 +406,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     }
 
     mesh->materials.resize(material_index_set.size());
-    for(auto &m : mesh->materials){ m = vierkant::Material::create(); }
+    for(auto &m: mesh->materials){ m = vierkant::Material::create(); }
 
     return mesh;
 }
@@ -340,7 +426,7 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
 {
     buffer_binding_set_t buf_tuples;
 
-    for(auto &pair : vertex_attribs)
+    for(auto &pair: vertex_attribs)
     {
         auto &att = pair.second;
         buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
@@ -349,7 +435,7 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
     std::vector<VkBuffer> buf_handles;
     std::vector<VkDeviceSize> offsets;
 
-    for(const auto &[buffer, buffer_offset, stride, input_rate] : buf_tuples)
+    for(const auto &[buffer, buffer_offset, stride, input_rate]: buf_tuples)
     {
         buf_handles.push_back(buffer->handle());
         offsets.push_back(buffer_offset);
@@ -392,7 +478,7 @@ void Mesh::update_entry_transforms()
                                                  node_animations[animation_index],
                                                  node_matrices);
 
-        for(auto &entry : entries){ entry.transform = node_matrices[entry.node_index]; }
+        for(auto &entry: entries){ entry.transform = node_matrices[entry.node_index]; }
     }
 }
 
