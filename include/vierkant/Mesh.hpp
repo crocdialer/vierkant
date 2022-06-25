@@ -77,7 +77,7 @@ public:
         uint32_t num_vertices = 0;
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
-        int32_t meshlet_offset = 0;
+        uint32_t meshlet_offset = 0;
         uint32_t num_meshlets = 0;
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -85,7 +85,7 @@ public:
         bool enabled = true;
     };
 
-    struct meshlet_t
+    struct alignas(16) meshlet_t
     {
         //! offsets within meshlet_vertices and meshlet_triangles
         uint32_t vertex_offset = 0;
@@ -204,8 +204,8 @@ public:
     VkDeviceSize index_buffer_offset = 0;
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
 
-    //! total amount of meshlets in buffer
-    std::vector<meshlet_t> meshlets;
+    //! meshlet-buffer
+    vierkant::BufferPtr meshlets;
 
     //! indices into vertex-buffer
     vierkant::BufferPtr meshlet_vertices;

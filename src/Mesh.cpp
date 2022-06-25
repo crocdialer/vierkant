@@ -276,7 +276,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         }
     }
 
-    // done with things, optimize here
+    // optional vertex/cache/fetch optimization here
     if(create_info.optimize_vertex_cache)
     {
         spdlog::stopwatch sw;
@@ -296,44 +296,59 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
                       indices.size() / 3);
     }
 
-    // meshlet generation
+    // optional meshlet generation
     if(create_info.generate_meshlets)
     {
-        const size_t max_vertices = 64;
-        const size_t max_triangles = 124;
-        const float cone_weight = 0.0f;
+        // TODO: matches NV_mesh_shader, break out as parameters
+        constexpr size_t max_vertices = 64;
+        constexpr size_t max_triangles = 124;
+        constexpr float cone_weight = 0.0f;
 
-//        std::vector<meshopt_Meshlet> meshlets(max_meshlets);
-//        std::vector<uint32_t> meshlet_vertices(max_meshlets * max_vertices);
-//        std::vector<uint8_t> meshlet_triangles(max_meshlets * max_triangles * 3);
+        spdlog::stopwatch sw;
+
+        std::vector<Mesh::meshlet_t> all_meshlets;
+        std::vector<uint32_t> all_meshlet_vertices;
+        std::vector<uint8_t> all_meshlet_triangles;
 
         uint32_t meshlet_offset = 0;
 
         // corresponds to mesh.entries
         for(auto &[geom, offsets]: geom_offsets)
         {
+            spdlog::stopwatch single_timer;
+
             auto index_data = indices.data() + offsets.index_offset;
             auto vertices = staging_data + offsets.vertex_offset * vertex_stride;
 
             // determine size
-            size_t max_meshlets = meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles);
+            size_t max_meshlets = meshopt_buildMeshletsBound(geom->indices.size(), max_vertices, max_triangles);
             std::vector<meshopt_Meshlet> meshlets(max_meshlets);
             std::vector<uint32_t> meshlet_vertices(max_meshlets * max_vertices);
             std::vector<uint8_t> meshlet_triangles(max_meshlets * max_triangles * 3);
 
-            // generate mehslets
+            // generate meshlets (optimize for locality)
             size_t meshlet_count = meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(),
                                                          meshlet_triangles.data(), index_data, geom->indices.size(),
                                                          reinterpret_cast<const float *>(vertices),
                                                          geom->positions.size(),
                                                          vertex_stride, max_vertices, max_triangles, cone_weight);
+
+            spdlog::trace("generate_meshlet: {} ({} triangles -> {} meshlets)",
+                          std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()),
+                                  geom->indices.size() / 3, meshlets.size());
+
+//            size_t meshlet_count = meshopt_buildMeshletsScan(meshlets.data(), meshlet_vertices.data(),
+//                                                             meshlet_triangles.data(), index_data, geom->indices.size(),
+//                                                             geom->positions.size(),
+//                                                             max_vertices, max_triangles);
+
             // pruning
             const meshopt_Meshlet& last = meshlets[meshlet_count - 1];
-            meshlet_vertices.resize(last.vertex_offset + last.vertex_count);
-            meshlet_triangles.resize(last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3));
-            meshlets.resize(meshlet_count);
 
-            std::vector<Mesh::meshlet_t> out_meshlets(meshlet_count);
+            size_t vertex_count = last.vertex_offset + last.vertex_count;
+            size_t triangle_count = last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3);
+
+            all_meshlets.reserve(all_meshlets.size() + meshlet_count);
 
             // generate bounds, combine data in our API output-meshlets
             for(uint32_t i = 0; i < meshlet_count; ++i)
@@ -344,16 +359,41 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
                                                          m.triangle_count,
                                                          reinterpret_cast<const float *>(vertices),
                                                          geom->positions.size(), vertex_stride);
-                out_meshlets[i].vertex_offset = m.vertex_offset;
-                out_meshlets[i].vertex_count = m.vertex_count;
-                out_meshlets[i].triangle_offset = m.triangle_offset;
-                out_meshlets[i].triangle_count = m.triangle_count;
-                out_meshlets[i].bounding_sphere = {*reinterpret_cast<glm::vec3*>(bounds.center), bounds.radius};
+                vierkant::Mesh::meshlet_t out_meshlet = {};
+                out_meshlet.vertex_offset = m.vertex_offset;
+                out_meshlet.vertex_count = m.vertex_count;
+                out_meshlet.triangle_offset = m.triangle_offset;
+                out_meshlet.triangle_count = m.triangle_count;
+                out_meshlet.bounding_sphere = {*reinterpret_cast<glm::vec3*>(bounds.center), bounds.radius};
+
+                all_meshlets.push_back(out_meshlet);
             }
 
             offsets.meshlet_offset = meshlet_offset;
             offsets.num_meshlets = meshlet_count;
             meshlet_offset += meshlet_count;
+
+            // insert entry-meshlet data
+            all_meshlet_vertices.insert(all_meshlet_vertices.end(), meshlet_vertices.begin(),
+                                        meshlet_vertices.begin() + int(vertex_count));
+            all_meshlet_triangles.insert(all_meshlet_triangles.end(), meshlet_triangles.begin(),
+                                         meshlet_triangles.begin() + int(triangle_count));
+        }
+
+        if(!all_meshlets.empty())
+        {
+            spdlog::debug("generate_meshlets: {} ({} mesh(es) - {} triangles - {} meshlets)",
+                          std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), geom_offsets.size(),
+                          indices.size() / 3, all_meshlets.size());
+
+            auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
+
+            mesh->meshlets = vierkant::Buffer::create(device, all_meshlets, buffer_flags,
+                                                      VMA_MEMORY_USAGE_GPU_ONLY);
+            mesh->meshlet_vertices = vierkant::Buffer::create(device, all_meshlet_vertices, buffer_flags,
+                                                              VMA_MEMORY_USAGE_GPU_ONLY);
+            mesh->meshlet_triangles = vierkant::Buffer::create(device, all_meshlet_triangles, buffer_flags,
+                                                               VMA_MEMORY_USAGE_GPU_ONLY);
         }
     }
 
@@ -372,11 +412,11 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         vierkant::Mesh::entry_t entry = {};
         entry.name = entry_info.name;
         entry.primitive_type = geom->topology;
-        entry.vertex_offset = base_vertex;
+        entry.vertex_offset = static_cast<int32_t>(base_vertex);
         entry.num_vertices = geom->positions.size();
         entry.base_index = base_index;
         entry.num_indices = geom->indices.size();
-        entry.meshlet_offset = meshlet_offset;
+        entry.meshlet_offset = static_cast<uint32_t>(meshlet_offset);
         entry.num_meshlets = num_meshlets;
 
         // use provided transforms for sub-meshes, if any
