@@ -4,8 +4,18 @@ namespace vierkant {
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE)
+void copy_to_helper(const DevicePtr &device,
+                    Buffer *src,
+                    Buffer *dst,
+                    VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE,
+                    size_t src_offset = 0,
+                    size_t dst_offset = 0,
+                    size_t num_bytes = 0)
 {
+    if(!num_bytes){ num_bytes = src->num_bytes(); }
+
+    assert(src_offset + num_bytes <= src->num_bytes());
+
     CommandBuffer local_cmd_buf;
 
     if(!cmdBufferHandle)
@@ -15,12 +25,12 @@ void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommand
         cmdBufferHandle = local_cmd_buf.handle();
     }
     // assure dst buffer has correct size, no-op if already the case
-    dst->set_data(nullptr, src->num_bytes());
+    dst->set_data(nullptr, dst_offset + num_bytes);
 
     VkBufferCopy copy_region = {};
-    copy_region.srcOffset = 0; // Optional
-    copy_region.dstOffset = 0; // Optional
-    copy_region.size = src->num_bytes();
+    copy_region.srcOffset = src_offset;
+    copy_region.dstOffset = dst_offset;
+    copy_region.size = num_bytes;
     vkCmdCopyBuffer(cmdBufferHandle, src->handle(), dst->handle(), 1, &copy_region);
 
     if(local_cmd_buf)
@@ -198,9 +208,13 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Buffer::copy_to(const BufferPtr& dst, VkCommandBuffer cmdBufferHandle)
+void Buffer::copy_to(const BufferPtr& dst,
+                     VkCommandBuffer cmdBufferHandle,
+                     size_t src_offset,
+                     size_t dst_offset,
+                     size_t num_bytes)
 {
-    copy_to_helper(m_device, this, dst.get(), cmdBufferHandle);
+    copy_to_helper(m_device, this, dst.get(), cmdBufferHandle, src_offset, dst_offset, num_bytes);
 }
 
 }//namespace vulkan

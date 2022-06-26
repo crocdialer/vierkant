@@ -221,6 +221,9 @@ private:
 //! mesh_buffer_bundle_t is a helper-struct to group buffer-data and other information.
 struct mesh_buffer_bundle_t
 {
+    //! vertex-stride in bytes
+    uint32_t vertex_stride = 0;
+
     //! vertex attributes present in vertex-buffer
     vertex_attrib_map_t vertex_attribs;
 

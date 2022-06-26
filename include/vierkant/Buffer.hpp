@@ -110,7 +110,11 @@ public:
      * @param   dst     the destination buffer for the copy operation
      * @param   cmd_buf optional pointer to an existing CommandBuffer to be used for the copy operation
      */
-    void copy_to(const BufferPtr &dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE);
+    void copy_to(const BufferPtr &dst,
+                 VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE,
+                 size_t src_offset = 0,
+                 size_t dst_offset = 0,
+                 size_t num_bytes = 0);
 
     /**
      * @return  the vierkant::DevicePtr used to create the buffer.

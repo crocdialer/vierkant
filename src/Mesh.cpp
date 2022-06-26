@@ -116,12 +116,13 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
                                                            create_info.generate_meshlets,
                                                            create_info.use_vertex_colors);
 
-    auto num_array_bytes = [](const auto &array) -> size_t
+    constexpr auto num_array_bytes = [](const auto &array) -> size_t
     {
         using elem_t = typename std::decay<decltype(array)>::type::value_type;
         return array.size() * sizeof(elem_t);
     };
     size_t num_staging_bytes = 0;
+    size_t staging_offset = 0;
     num_staging_bytes += num_array_bytes(buffers.vertex_buffer);
     num_staging_bytes += num_array_bytes(buffers.index_buffer);
     num_staging_bytes += num_array_bytes(buffers.meshlets);
@@ -133,22 +134,42 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     // combine buffers into staging buffer
     if(!staging_buffer)
     {
-        staging_buffer = vierkant::Buffer::create(device, buffers.vertex_buffer,
+        staging_buffer = vierkant::Buffer::create(device, nullptr, num_staging_bytes,
                                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                   VMA_MEMORY_USAGE_CPU_ONLY);
     }
-    else{ staging_buffer->set_data(buffers.vertex_buffer); }
+    else{ staging_buffer->set_data(nullptr, num_staging_bytes); }
+
+    auto staging_copy = [num_array_bytes,
+            staging_buffer,
+            &staging_offset,
+            command_buffer = create_info.command_buffer,
+            device](const auto &array, vierkant::BufferPtr &outbuffer, VkBufferUsageFlags flags)
+    {
+        flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+        size_t num_buffer_bytes = num_array_bytes(array);
+
+        // copy array into staging-buffer
+        auto staging_data = static_cast<uint8_t *>(staging_buffer->map()) + staging_offset;
+        memcpy(staging_data, array.data(), num_buffer_bytes);
+
+        if(!outbuffer)
+        {
+            outbuffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, flags, VMA_MEMORY_USAGE_GPU_ONLY);
+        }
+        else{ outbuffer->set_data(nullptr, num_buffer_bytes); }
+
+        // issue copy from stagin-buffer to GPU-buffer
+        staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_buffer_bytes);
+        staging_offset += num_buffer_bytes;
+    };
 
     // create vertexbuffer
-    auto vertex_buffer = vierkant::Buffer::create(device, nullptr, buffers.vertex_buffer.size(),
-                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                  create_info.buffer_usage_flags,
-                                                  VMA_MEMORY_USAGE_GPU_ONLY);
-
-    // copy combined vertex data to device-buffer
-    staging_buffer->copy_to(vertex_buffer, create_info.command_buffer);
+    vierkant::BufferPtr vertex_buffer;
+    staging_copy(buffers.vertex_buffer, vertex_buffer, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                       create_info.buffer_usage_flags);
 
     auto mesh = vierkant::Mesh::create();
     mesh->vertex_buffer = vertex_buffer;
@@ -159,21 +180,16 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     if(!buffers.meshlets.empty())
     {
         auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
-
-        mesh->meshlets = vierkant::Buffer::create(device, buffers.meshlets, buffer_flags,
-                                                  VMA_MEMORY_USAGE_GPU_ONLY);
-        mesh->meshlet_vertices = vierkant::Buffer::create(device, buffers.meshlet_vertices, buffer_flags,
-                                                          VMA_MEMORY_USAGE_GPU_ONLY);
-        mesh->meshlet_triangles = vierkant::Buffer::create(device, buffers.meshlet_triangles, buffer_flags,
-                                                           VMA_MEMORY_USAGE_GPU_ONLY);
+        staging_copy(buffers.meshlets, mesh->meshlets, buffer_flags);
+        staging_copy(buffers.meshlet_vertices, mesh->meshlet_vertices, buffer_flags);
+        staging_copy(buffers.meshlet_triangles, mesh->meshlet_triangles, buffer_flags);
     }
 
     // use indices
     if(!buffers.index_buffer.empty())
     {
-        mesh->index_buffer = vierkant::Buffer::create(device, buffers.index_buffer,
-                                                      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | create_info.buffer_usage_flags,
-                                                      VMA_MEMORY_USAGE_GPU_ONLY);
+        staging_copy(buffers.index_buffer, mesh->index_buffer,
+                     VK_BUFFER_USAGE_INDEX_BUFFER_BIT | create_info.buffer_usage_flags);
     }
 
     mesh->materials.resize(buffers.num_materials);
@@ -380,6 +396,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     }
 
     ret.vertex_buffer.resize(num_vertex_bytes);
+    ret.vertex_stride = vertex_stride;
 
     for(uint32_t i = 0; i < num_attribs; ++i)
     {
