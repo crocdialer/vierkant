@@ -164,6 +164,7 @@ public:
         bool indirect_draw = true;
         vierkant::CommandPoolPtr command_pool = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
+        uint32_t random_seed = 0;
     };
 
     /**
@@ -259,6 +260,9 @@ private:
         //! current time since start in seconds
         float time;
 
+        //! seed for shader-based rng
+        uint32_t random_seed = 0;
+
         //! optional flag to disable colors from materials
         int disable_material = 0;
     };
@@ -339,6 +343,8 @@ private:
     VkPushConstantRange m_push_constant_range = {};
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
+
+    std::default_random_engine m_random_engine;
 };
 
 }//namespace vierkant

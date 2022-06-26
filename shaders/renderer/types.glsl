@@ -48,6 +48,7 @@ struct render_context_t
 {
     vec2 size;
     float time;
+    uint random_seed;
     bool disable_material;
 };
 

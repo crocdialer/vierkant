@@ -264,6 +264,11 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
         meshes.insert(n->mesh);
         if(!n->mesh->node_animations.empty()){ static_scene = false; }
         crocore::hash_combine(scene_hash, n->transform());
+
+        for(const auto &entry : n->mesh->entries)
+        {
+            crocore::hash_combine(scene_hash, entry.enabled);
+        }
     }
     if(scene_hash != frame_asset.scene_hash)
     {
@@ -298,6 +303,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
 
     update_recycling(scene, cam, frame_asset);
+//    frame_asset.recycle_commands = false;
 
     if(!frame_asset.recycle_commands)
     {
@@ -517,6 +523,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             // set attachment count
             drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
+
+            // disable blending
+            drawable.pipeline_format.blend_state.blendEnable = false;
+            drawable.pipeline_format.depth_test = true;
+            drawable.pipeline_format.depth_write = true;
 
             // optional wireframe rendering
             drawable.pipeline_format.polygon_mode = frame_asset.settings.wireframe ? VK_POLYGON_MODE_LINE

@@ -68,7 +68,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
 
         const auto &material = mesh->materials[entry.material_index];
 
-        // aquire ref for mesh-drawable
+        // acquire ref for mesh-drawable
         Renderer::drawable_t drawable = {};
         drawable.mesh = mesh;
         drawable.entry_index = i;
@@ -148,7 +148,8 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
-        m_device(std::move(device))
+        m_device(std::move(device)),
+        m_random_engine(create_info.random_seed)
 {
     if(!create_info.num_frames_in_flight)
     {
@@ -522,6 +523,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     push_constants_t push_constants = {};
     push_constants.size = {viewport.width, viewport.height};
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
+    push_constants.random_seed = m_random_engine();
     push_constants.disable_material = disable_material;
 
     VkCommandBufferInheritanceInfo inheritance = {};

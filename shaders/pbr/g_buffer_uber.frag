@@ -5,6 +5,9 @@
 
 #include "../renderer/types.glsl"
 
+// rnd(state)
+#include "../utils/random.glsl"
+
 #define ALBEDO 0
 #define NORMAL 1
 #define AO_ROUGH_METAL 2
@@ -37,11 +40,13 @@ layout(location = 2) out vec4 out_emission;
 layout(location = 3) out vec4 out_ao_rough_metal;
 layout(location = 4) out vec2 out_motion;
 
+//! return a texture's index by counting all set flagbits
 uint tex_offset(uint type, uint flags)
 {
     uint ret = 0;
+    uint msb = findMSB(type);
 
-    for(uint i = 0; i < type; ++i)
+    for(uint i = 0; i < msb; ++i)
     {
         if((flags & (TEXTURE_TYPE_COLOR << i)) > 0){ ret++; }
     }
@@ -50,6 +55,8 @@ uint tex_offset(uint type, uint flags)
 
 void main()
 {
+    uint rng_state = tea(context.random_seed, uint(context.size.x * gl_FragCoord.y + gl_FragCoord.x));
+
     material_struct_t material = materials[object_index];
 
     out_color = vec4(1);
@@ -61,18 +68,22 @@ void main()
 
         if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
         {
-            uint offset = tex_offset(ALBEDO, material.texture_type_flags);
+            uint offset = tex_offset(TEXTURE_TYPE_COLOR, material.texture_type_flags);
             out_color *= texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord);
         }
 
         // apply alpha-cutoff
         if(material.blend_mode == BLEND_MODE_MASK && out_color.a < material.alpha_cutoff){ discard; }
 
+        // apply stochastic dithering
+        if(material.blend_mode == BLEND_MODE_BLEND && rnd(rng_state) < out_color.a){ discard; }
+        out_color.a = 1.0;
+
         out_emission = material.emission;
 
         if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
         {
-            uint offset = tex_offset(EMMISSION, material.texture_type_flags);
+            uint offset = tex_offset(TEXTURE_TYPE_EMISSION, material.texture_type_flags);
             out_emission.rgb = texture(u_sampler_2D[material.base_texture_index + offset], vertex_in.tex_coord).rgb;
         }
         out_emission.rgb *= out_emission.a;
@@ -82,7 +93,7 @@ void main()
 
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
-        uint offset = tex_offset(NORMAL, material.texture_type_flags);
+        uint offset = tex_offset(TEXTURE_TYPE_NORMAL, material.texture_type_flags);
         normal = normalize(2.0 * (texture(u_sampler_2D[material.base_texture_index + offset],
         vertex_in.tex_coord.xy).xyz - vec3(0.5)));
 
@@ -99,7 +110,7 @@ void main()
 
     if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)
     {
-        uint offset = tex_offset(AO_ROUGH_METAL, material.texture_type_flags);
+        uint offset = tex_offset(TEXTURE_TYPE_AO_ROUGH_METAL, material.texture_type_flags);
         out_ao_rough_metal = vec4(texture(u_sampler_2D[material.base_texture_index + offset],
                                           vertex_in.tex_coord).xyz, 1.0);
     }

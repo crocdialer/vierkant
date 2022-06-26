@@ -218,4 +218,47 @@ private:
     Mesh() = default;
 };
 
+//! mesh_buffer_bundle_t is a helper-struct to group buffer-data and other information.
+struct mesh_buffer_bundle_t
+{
+    //! vertex attributes present in vertex-buffer
+    vertex_attrib_map_t vertex_attribs;
+
+    //! entries for sub-meshes/buffers
+    std::vector<Mesh::entry_t> entries;
+
+    //! total number of materials referenced by entries
+    uint32_t num_materials = 0;
+
+    //! combined array of vertices (vertex-footprint varies hence encoded as raw-bytes)
+    std::vector<uint8_t> vertex_buffer;
+
+    //! combined array of indices
+    std::vector<index_t> index_buffer;
+
+    //! combined meshlet-buffer
+    std::vector<Mesh::meshlet_t> meshlets;
+
+    //! indices into vertex-buffer, referenced my meshlets
+    std::vector<index_t> meshlet_vertices;
+
+    //! micro-indices into meshlet_vertices, referenced my meshlets
+    std::vector<uint8_t> meshlet_triangles;
+};
+
+/**
+ * @brief   create_combined_buffers 'can' be used to create combined and interleaved vertex/index/meshlet-buffers
+ *          for a list of geometries. helpful during GPU-mesh/buffer creation.
+ *
+ * @param   entry_create_infos      an array of entry_create_info_t structs.
+ * @param   optimize_vertex_cache   flag indicating if the vertex/index-order should be optimized
+ * @param   generate_meshlets       flag indicating if meshlet/cluster information shall be generated.
+ * @param   use_vertex_colors       flag indicating if oldschoold vertex-colors shall be respected.
+ * @return  a intermediate mesh_buffer_bundle_t.
+ */
+mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
+                                             bool optimize_vertex_cache,
+                                             bool generate_meshlets,
+                                             bool use_vertex_colors);
+
 }//namespace vierkant
