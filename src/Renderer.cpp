@@ -460,11 +460,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                         static_cast<indexed_indirect_command_t *>(next_assets.indexed_indirect_draw_buffer->map()) +
                         next_assets.indexed_indirect_draw_index++;
 
-                draw_command->first_index = drawable->base_index;
-                draw_command->index_count = drawable->num_indices;
-                draw_command->vertex_offset = drawable->vertex_offset;
-                draw_command->first_instance = indexed_drawable.object_index;
-                draw_command->instance_count = 1;
+                draw_command->vk_draw.firstIndex = drawable->base_index;
+                draw_command->vk_draw.indexCount = drawable->num_indices;
+                draw_command->vk_draw.vertexOffset = drawable->vertex_offset;
+                draw_command->vk_draw.firstInstance = indexed_drawable.object_index;
+                draw_command->vk_draw.instanceCount = 1;
 
                 draw_command->batch_index = indirect_draw_asset.batch_index;
                 draw_command->object_index = indexed_drawable.object_index;
@@ -629,9 +629,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                                 static_cast<indexed_indirect_command_t *>(next_assets.indexed_indirect_draw_buffer->map()) +
                                 draw_asset.first_indexed_draw_index + i;
 
-                        vkCmdDrawIndexed(command_buffer.handle(), cmd->index_count, cmd->instance_count,
-                                         cmd->first_index,
-                                         cmd->vertex_offset, cmd->first_instance);
+                        vkCmdDrawIndexed(command_buffer.handle(), cmd->vk_draw.indexCount, cmd->vk_draw.instanceCount,
+                                         cmd->vk_draw.firstIndex,
+                                         cmd->vk_draw.vertexOffset, cmd->vk_draw.firstInstance);
                     }
                 }
                 else

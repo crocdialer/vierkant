@@ -86,12 +86,7 @@ public:
 
     struct alignas(16) indexed_indirect_command_t
     {
-        //! matches VkDrawIndexedIndirectCommand
-        uint32_t index_count;
-        uint32_t instance_count;
-        uint32_t first_index;
-        int32_t vertex_offset;
-        uint32_t first_instance;
+        VkDrawIndexedIndirectCommand vk_draw;
 
         uint32_t batch_index;
         uint32_t object_index;
