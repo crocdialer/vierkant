@@ -259,13 +259,21 @@ void Mesh::update_entry_transforms()
 {
     if(!root_bone && animation_index < node_animations.size())
     {
+        const auto &animation = node_animations[animation_index];
+
         // entry animation transforms
         std::vector<glm::mat4> node_matrices;
-        vierkant::nodes::build_node_matrices_bfs(root_node,
-                                                 node_animations[animation_index],
-                                                 node_matrices);
+        vierkant::nodes::build_node_matrices_bfs(root_node, animation, node_matrices);
 
-        for(auto &entry: entries){ entry.transform = node_matrices[entry.node_index]; }
+        // morph-target weights
+        std::vector<std::vector<float>> node_morph_weights;
+        vierkant::nodes::build_morph_weights_bfs(root_node, animation, node_morph_weights);
+
+        for(auto &entry: entries)
+        {
+            entry.transform = node_matrices[entry.node_index];
+            entry.morph_weights = node_morph_weights[entry.node_index];
+        }
     }
 }
 

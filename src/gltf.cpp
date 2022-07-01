@@ -176,7 +176,9 @@ glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
     return ret;
 }
 
-vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, const tinygltf::Model &model)
+vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
+                                      const tinygltf::Model &model,
+                                      const std::map<std::string, int> &attributes)
 {
     auto geometry = vierkant::Geometry::create();
 
@@ -213,7 +215,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
         else{ spdlog::error("unsupported index-type: {}", index_accessor.componentType); }
     }
 
-    for(const auto &[attrib, accessor_idx] : primitive.attributes)
+    for(const auto &[attrib, accessor_idx] : attributes)
     {
         tinygltf::Accessor accessor = model.accessors[accessor_idx];
         const auto &buffer_view = model.bufferViews[accessor.bufferView];
@@ -733,7 +735,18 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
             }
             else if(channel.target_path == animation_target_weights)
             {
+                assert(accessor.type == TINYGLTF_TYPE_SCALAR);
+                assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
+                auto ptr = reinterpret_cast<const float*>(data);
+                const uint32_t num_weights = accessor.count / input_times.size();
 
+                for(float t : input_times)
+                {
+                    vierkant::animation_value_t<std::vector<float>> animation_value = {};
+                    animation_value.value = {ptr, ptr + num_weights};
+                    animation_keys.morph_weights.insert({t, animation_value});
+                    ptr += num_elems * num_weights;
+                }
             }
         }
     }
@@ -757,7 +770,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     if(!err.empty()){ spdlog::error(err); }
     if(!ret){ return {}; }
 
-    spdlog::debug("model using extensions: {}", model.extensionsUsed);
+    if(!model.extensionsUsed.empty()){ spdlog::debug("model using extensions: {}", model.extensionsUsed); }
 
     const tinygltf::Scene &scene = model.scenes[model.defaultScene >= 0 ? model.defaultScene : 0];
 
@@ -824,6 +837,21 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     using geometry_key = std::tuple<int, const std::map<std::string, int> &>;
     std::map<geometry_key, vierkant::GeometryPtr> geometry_cache;
 
+    auto get_geometry = [&geometry_cache, &model](const tinygltf::Primitive &primitive,
+                                                  const std::map<std::string, int> &attributes)
+    {
+        vierkant::GeometryPtr geometry;
+        geometry_key geom_key = {primitive.indices, attributes};
+        auto it = geometry_cache.find(geom_key);
+        if(it != geometry_cache.end()){ geometry = it->second; }
+        else
+        {
+            geometry = create_geometry(primitive, model, attributes);
+            geometry_cache[geom_key] = geometry;
+        }
+        return geometry;
+    };
+
     while(!node_queue.empty())
     {
         auto[current_index, world_transform, parent_node] = node_queue.front();
@@ -857,20 +885,18 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
             for(const auto &primitive : mesh.primitives)
             {
-                vierkant::GeometryPtr geometry;
-
-                geometry_key geom_key = {primitive.indices, primitive.attributes};
-                auto it = geometry_cache.find(geom_key);
-                if(it != geometry_cache.end()){ geometry = it->second; }
-                else
+                std::vector<vierkant::GeometryPtr> morph_targets;
+                for(const auto &morph_target : primitive.targets)
                 {
-                    geometry = create_geometry(primitive, model);
-                    geometry_cache[geom_key] = geometry;
+                    auto morph_geom = get_geometry(primitive, morph_target);
+                    morph_targets.push_back(morph_geom);
                 }
+                if(!morph_targets.empty()){ spdlog::debug("morph-targets: {}", morph_targets.size()); }
 
                 vierkant::Mesh::entry_create_info_t create_info = {};
                 create_info.name = current_node->name;
-                create_info.geometry = geometry;
+                create_info.geometry = get_geometry(primitive, primitive.attributes);
+//                if(!morph_targets.empty()){ create_info.geometry = morph_targets.back(); }
                 create_info.transform = world_transform;
                 create_info.node_index = out_assets.entry_create_infos.size();
 

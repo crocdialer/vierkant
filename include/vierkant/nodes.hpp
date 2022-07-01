@@ -29,6 +29,9 @@ struct node_t
 //! define a bone_animation type
 using node_animation_t = vierkant::animation_t<NodeConstPtr>;
 
+void bfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)> &fn);
+void dfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)> &fn);
+
 /**
  * @brief   Return the total number of nodes.
  *
@@ -63,5 +66,9 @@ void build_node_matrices(const NodeConstPtr &root, const node_animation_t &anima
 void build_node_matrices_bfs(const NodeConstPtr &root,
                              const node_animation_t &animation,
                              std::vector<glm::mat4> &matrices);
+
+void build_morph_weights_bfs(const NodeConstPtr &root,
+                             const node_animation_t &animation,
+                             std::vector<std::vector<float>> &morph_weights);
 
 }// namespace vierkant::bones

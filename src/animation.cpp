@@ -176,4 +176,59 @@ void create_animation_transform(const animation_keys_t &keys,
     if(has_keys){ out_transform = translation * rotation * scale_matrix; }
 }
 
+std::vector<float> create_morph_weights(const animation_keys_t &keys,
+                                        float time,
+                                        InterpolationMode interpolation_mode)
+{
+    std::vector<float> out_weights;
+
+    if(!keys.morph_weights.empty())
+    {
+        // find a key with equal or greater time
+        auto it_rhs = keys.morph_weights.lower_bound(time);
+
+        // lhs iterator (might be invalid)
+        auto it_lhs = it_rhs;
+        it_lhs--;
+
+        if(it_rhs == keys.morph_weights.begin())
+        {
+            // time is before first key
+            out_weights = it_rhs->second.value;
+        }
+        else if(it_rhs == keys.morph_weights.end())
+        {
+            // time is past last key
+            out_weights = it_lhs->second.value;
+        }
+        else
+        {
+            // interpolate two surrounding keys
+            auto &[start_time, start_value] = *it_lhs;
+            auto &[end_time, end_value] = *it_rhs;
+            float frac = std::max((time - start_time) / (end_time - start_time), 0.0f);
+
+            out_weights.resize(start_value.value.size(), 0.f);
+
+
+            for(uint32_t i = 0; i < out_weights.size(); ++i)
+            {
+                switch(interpolation_mode)
+                {
+                    case InterpolationMode::Step:
+                        frac = 0.f;
+
+                    case InterpolationMode::Linear:
+                        out_weights[i] = glm::mix(start_value.value[i], end_value.value[i], frac);
+                        break;
+                    case InterpolationMode::CubicSpline:
+                        break;
+                }
+
+            }
+        }
+    }
+    return out_weights;
+}
+
 }

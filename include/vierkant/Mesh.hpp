@@ -81,6 +81,7 @@ public:
         uint32_t num_meshlets = 0;
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        std::vector<float> morph_weights;
 
         bool enabled = true;
     };
@@ -203,6 +204,9 @@ public:
     vierkant::BufferPtr index_buffer;
     VkDeviceSize index_buffer_offset = 0;
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
+
+    //! morph-targets
+    std::vector<vierkant::BufferPtr> morph_target_buffers;
 
     //! meshlet-buffer
     vierkant::BufferPtr meshlets;
