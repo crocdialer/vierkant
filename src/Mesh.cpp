@@ -272,7 +272,7 @@ void Mesh::update_entry_transforms()
         for(auto &entry: entries)
         {
             entry.transform = node_matrices[entry.node_index];
-            entry.morph_weights = node_morph_weights[entry.node_index];
+            if(entry.node_index < node_morph_weights.size()){ entry.morph_weights = node_morph_weights[entry.node_index]; }
         }
     }
 }

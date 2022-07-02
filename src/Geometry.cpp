@@ -140,9 +140,9 @@ void Geometry::compute_tangents()
     {
         tangents.clear();
         tangents.resize(positions.size(), glm::vec3(0));
-        tangents_tmp.resize(positions.size(), glm::vec3(0));
-        bitangents_tmp.resize(positions.size(), glm::vec3(0));
     }
+    tangents_tmp.resize(positions.size(), glm::vec3(0));
+    bitangents_tmp.resize(positions.size(), glm::vec3(0));
 
     for(size_t i = 0; i < indices.size(); i += 3)
     {
