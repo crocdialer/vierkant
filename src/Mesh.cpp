@@ -8,6 +8,7 @@
 #include <crocore/utils.hpp>
 #include <meshoptimizer.h>
 #include <vierkant/Mesh.hpp>
+#include <vierkant/vertex_splicer.hpp>
 
 namespace vierkant
 {
@@ -287,173 +288,41 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 {
     mesh_buffer_bundle_t ret = {};
 
-    struct vertex_data_t
-    {
-        uint32_t attrib_location;
-        const uint8_t *data;
-        size_t offset;
-        size_t elem_size;
-        size_t num_elems;
-        VkFormat format;
-    };
-    std::vector<vertex_data_t> vertex_data;
+    vertex_splicer splicer;
+    splicer.use_vertex_colors = use_vertex_colors;
 
-    auto add_attrib = [](uint32_t location,
-                         const auto &array, std::vector<vertex_data_t> &vertex_data,
-                         size_t &offset,
-                         size_t &stride,
-                         size_t &num_bytes, size_t &num_attribs)
-    {
-        if(!array.empty())
-        {
-            using elem_t = typename std::decay<decltype(array)>::type::value_type;
-            size_t elem_size = sizeof(elem_t);
-            vertex_data.push_back({location,
-                                   (uint8_t *) array.data(),
-                                   offset,
-                                   static_cast<uint32_t>(elem_size),
-                                   array.size(),
-                                   vierkant::format<elem_t>()});
-            offset += elem_size;
-            stride += elem_size;
-            num_bytes += array.size() * elem_size;
-            num_attribs++;
-        }
-    };
-
-    size_t vertex_stride = 0, num_vertex_bytes = 0, num_attribs = 0;
-
-    // sanity check array sizes
-    auto check_and_insert = [
-            add_attrib,
-            use_vertex_colors,
-            &vertex_stride,
-            &num_vertex_bytes,
-            &num_attribs](const GeometryConstPtr &g,
-                          std::vector<vertex_data_t> &vertex_data) -> bool
-    {
-        vertex_stride = 0;
-        size_t offset = 0;
-        size_t num_geom_attribs = 0;
-        auto num_vertices = g->positions.size();
-
-        if(g->positions.empty()){ return false; }
-        if(use_vertex_colors && !g->colors.empty() && g->colors.size() != num_vertices){ return false; }
-        if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
-        if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
-        if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
-        if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices){ return false; }
-        if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
-
-        if(use_vertex_colors)
-        {
-            add_attrib(Mesh::ATTRIB_COLOR, g->colors, vertex_data, offset, vertex_stride, num_vertex_bytes,
-                       num_geom_attribs);
-        }
-
-        add_attrib(Mesh::ATTRIB_POSITION, g->positions, vertex_data, offset, vertex_stride, num_vertex_bytes,
-                   num_geom_attribs);
-        add_attrib(Mesh::ATTRIB_TEX_COORD, g->tex_coords, vertex_data, offset, vertex_stride, num_vertex_bytes,
-                   num_geom_attribs);
-        add_attrib(Mesh::ATTRIB_NORMAL, g->normals, vertex_data, offset, vertex_stride, num_vertex_bytes,
-                   num_geom_attribs);
-        add_attrib(Mesh::ATTRIB_TANGENT, g->tangents, vertex_data, offset, vertex_stride, num_vertex_bytes,
-                   num_geom_attribs);
-        add_attrib(Mesh::ATTRIB_BONE_INDICES, g->bone_indices, vertex_data, offset, vertex_stride, num_vertex_bytes,
-                   num_geom_attribs);
-        add_attrib(Mesh::ATTRIB_BONE_WEIGHTS, g->bone_weights, vertex_data, offset, vertex_stride, num_vertex_bytes,
-                   num_geom_attribs);
-
-        if(num_attribs && num_geom_attribs != num_attribs){ return false; }
-        num_attribs = num_geom_attribs;
-
-        return true;
-    };
-
-    std::vector<size_t> vertex_offsets;
-
-    // store base vertex/index
-    struct geometry_offset_t
-    {
-        size_t vertex_offset = 0;
-        size_t index_offset = 0;
-        size_t meshlet_offset = 0;
-        size_t num_meshlets = 0;
-    };
-    std::map<vierkant::GeometryConstPtr, geometry_offset_t> geom_offsets;
-    size_t current_base_vertex = 0, current_base_index = 0;
-
-    // insert all geometries
     for(auto &ci: entry_create_infos)
     {
-        auto geom_it = geom_offsets.find(ci.geometry);
 
-        if(geom_it == geom_offsets.end())
+        if(!splicer.insert(ci.geometry))
         {
-            vertex_offsets.push_back(num_vertex_bytes);
-
-            if(!check_and_insert(ci.geometry, vertex_data))
-            {
-                spdlog::warn("create_mesh_from_geometry: array sizes do not match");
-                return {};
-            }
-
-            ret.index_buffer.insert(ret.index_buffer.end(), ci.geometry->indices.begin(), ci.geometry->indices.end());
-
-            geom_offsets[ci.geometry] = {current_base_vertex, current_base_index};
-            current_base_vertex += ci.geometry->positions.size();
-            current_base_index += ci.geometry->indices.size();
+            spdlog::warn("create_mesh_from_geometry: array sizes do not match");
+            return {};
         }
     }
 
-    ret.vertex_buffer.resize(num_vertex_bytes);
-    ret.vertex_stride = vertex_stride;
-
-    for(uint32_t i = 0; i < num_attribs; ++i)
-    {
-        const auto &v = vertex_data[i];
-
-        vierkant::vertex_attrib_t attrib;
-        attrib.offset = v.offset;
-        attrib.stride = static_cast<uint32_t>(vertex_stride);
-        attrib.buffer = nullptr;
-        attrib.buffer_offset = 0;
-        attrib.format = v.format;
-        ret.vertex_attribs[v.attrib_location] = attrib;
-    }
-
-    for(uint32_t o = 0; o < vertex_offsets.size(); ++o)
-    {
-        auto buf_data = ret.vertex_buffer.data() + vertex_offsets[o];
-
-        for(uint32_t i = o * num_attribs; i < (o + 1) * num_attribs; ++i)
-        {
-            const auto &v = vertex_data[i];
-
-            for(uint32_t j = 0; j < v.num_elems; ++j)
-            {
-                memcpy(buf_data + v.offset + j * vertex_stride, v.data + j * v.elem_size, v.elem_size);
-            }
-        }
-    }
+    ret.vertex_buffer = splicer.create_vertex_buffer();
+    ret.index_buffer = splicer.index_buffer;
+    ret.vertex_stride = splicer.vertex_stride;
+    ret.vertex_attribs = splicer.create_vertex_attribs();
 
     // optional vertex/cache/fetch optimization here
     if(optimize_vertex_cache)
     {
         spdlog::stopwatch sw;
 
-        for(const auto &[geom, offsets]: geom_offsets)
+        for(const auto &[geom, offsets]: splicer.geom_offsets)
         {
             auto index_data = ret.index_buffer.data() + offsets.index_offset;
-            auto vertices = ret.vertex_buffer.data() + offsets.vertex_offset * vertex_stride;
+            auto vertices = ret.vertex_buffer.data() + offsets.vertex_offset * splicer.vertex_stride;
 
             meshopt_optimizeVertexCache(index_data, index_data, geom->indices.size(), geom->positions.size());
             meshopt_optimizeVertexFetch(vertices, index_data, geom->indices.size(), vertices, geom->positions.size(),
-                                        vertex_stride);
+                                        splicer.vertex_stride);
         }
 
         spdlog::debug("optimize_vertex_cache: {} ({} mesh(es) - {} triangles)",
-                      std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), geom_offsets.size(),
+                      std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.geom_offsets.size(),
                       ret.index_buffer.size() / 3);
     }
 
@@ -470,12 +339,12 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         uint32_t meshlet_offset = 0;
 
         // corresponds to mesh.entries
-        for(auto &[geom, offsets]: geom_offsets)
+        for(auto &[geom, offsets]: splicer.geom_offsets)
         {
             spdlog::stopwatch single_timer;
 
             auto index_data = ret.index_buffer.data() + offsets.index_offset;
-            auto vertices = ret.vertex_buffer.data() + offsets.vertex_offset * vertex_stride;
+            auto vertices = ret.vertex_buffer.data() + offsets.vertex_offset * splicer.vertex_stride;
 
             // determine size
             size_t max_meshlets = meshopt_buildMeshletsBound(geom->indices.size(), max_vertices, max_triangles);
@@ -488,7 +357,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                                                          meshlet_triangles.data(), index_data, geom->indices.size(),
                                                          reinterpret_cast<const float *>(vertices),
                                                          geom->positions.size(),
-                                                         vertex_stride, max_vertices, max_triangles, cone_weight);
+                                                         splicer.vertex_stride, max_vertices, max_triangles, cone_weight);
 
             spdlog::trace("generate_meshlet: {} ({} triangles -> {} meshlets)",
                           std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()),
@@ -515,7 +384,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                                                            &meshlet_triangles[m.triangle_offset],
                                                            m.triangle_count,
                                                            reinterpret_cast<const float *>(vertices),
-                                                           geom->positions.size(), vertex_stride);
+                                                           geom->positions.size(), splicer.vertex_stride);
                 vierkant::Mesh::meshlet_t out_meshlet = {};
                 out_meshlet.vertex_offset = m.vertex_offset;
                 out_meshlet.vertex_count = m.vertex_count;
@@ -540,7 +409,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         if(!ret.meshlets.empty())
         {
             spdlog::debug("generate_meshlets: {} ({} mesh(es) - {} triangles - {} meshlets)",
-                          std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), geom_offsets.size(),
+                          std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.geom_offsets.size(),
                           ret.index_buffer.size() / 3, ret.meshlets.size());
         }
     }
@@ -552,7 +421,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     {
         const auto &geom = entry_info.geometry;
 
-        auto[base_vertex, base_index, meshlet_offset, num_meshlets] = geom_offsets[geom];
+        auto[base_vertex, base_index, meshlet_offset, num_meshlets] = splicer.geom_offsets[geom];
 
         vierkant::Mesh::entry_t entry = {};
         entry.name = entry_info.name;

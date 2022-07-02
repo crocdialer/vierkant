@@ -881,71 +881,20 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
             for(const auto &primitive : mesh.primitives)
             {
-                auto geometry = get_geometry(primitive, primitive.attributes);
-
-                std::vector<vierkant::GeometryPtr> morph_geoms;
-                for(const auto &morph_target : primitive.targets)
-                {
-                    auto morph_geom = get_geometry(primitive, morph_target, true);
-                    morph_geoms.push_back(morph_geom);
-                }
-
-                if(!morph_geoms.empty())
-                {
-                    spdlog::debug("morph-targets: {}", morph_geoms.size());
-                    assert(morph_weights.size() == morph_geoms.size());
-
-                    auto apply_delta = [](auto &dst, const auto &src, float morph_factor)
-                    {
-                        if(dst.size() == src.size())
-                        {
-                            for(uint32_t i = 0; i < dst.size(); ++i)
-                            {
-                                dst[i] += morph_factor * src[i];
-                            }
-                        }else{ dst = src; }
-                    };
-
-                    uint32_t morphIdx = 0;
-
-                    for(auto &morph_geom : morph_geoms)
-                    {
-                        auto morph_factor = 1.f;//static_cast<float>(morph_weights[morphIdx++]);
-
-                        // apply deltas from morph-target to original geometry
-                        apply_delta(morph_geom->positions, geometry->positions, morph_factor);
-                        apply_delta(morph_geom->normals, geometry->normals, morph_factor);
-                        apply_delta(morph_geom->tex_coords, geometry->tex_coords, morph_factor);
-
-                        morph_geom->indices = geometry->indices;
-                        morph_geom->compute_tangents();
-
-                        vierkant::Mesh::entry_create_info_t create_info = {};
-                        create_info.name = "morph " + std::to_string(morphIdx++);
-                        create_info.geometry = morph_geom;
-                        create_info.transform = world_transform;
-                        create_info.node_index = current_node->index;
-
-                        if(primitive.material >= 0 && static_cast<size_t>(primitive.material) < model.materials.size())
-                        {
-                            create_info.material_index = primitive.material;
-                        }
-
-                        // pushback new entry
-                        out_assets.entry_create_infos.push_back(std::move(create_info));
-                    }
-//                    geometry->compute_tangents();
-                }
-
                 vierkant::Mesh::entry_create_info_t create_info = {};
                 create_info.name = current_node->name;
-                create_info.geometry = geometry;
+                create_info.geometry = get_geometry(primitive, primitive.attributes);
                 create_info.transform = world_transform;
                 create_info.node_index = current_node->index;
 
                 if(primitive.material >= 0 && static_cast<size_t>(primitive.material) < model.materials.size())
                 {
                     create_info.material_index = primitive.material;
+                }
+
+                for(const auto &morph_target : primitive.targets)
+                {
+                    create_info.morph_targets.push_back(get_geometry(primitive, morph_target, true));
                 }
 
                 // pushback new entry

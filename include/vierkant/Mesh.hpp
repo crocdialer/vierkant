@@ -114,6 +114,7 @@ public:
     {
         std::string name;
         GeometryPtr geometry = nullptr;
+        std::vector<GeometryPtr> morph_targets;
         glm::mat4 transform = glm::mat4(1);
         uint32_t node_index = 0;
         uint32_t material_index = 0;
