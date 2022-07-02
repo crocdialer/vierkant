@@ -314,11 +314,17 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         for(const auto &[geom, offsets]: splicer.geom_offsets)
         {
             auto index_data = ret.index_buffer.data() + offsets.index_offset;
-            auto vertices = ret.vertex_buffer.data() + offsets.vertex_offset * splicer.vertex_stride;
+            size_t index_count = geom->indices.size();
 
-            meshopt_optimizeVertexCache(index_data, index_data, geom->indices.size(), geom->positions.size());
-            meshopt_optimizeVertexFetch(vertices, index_data, geom->indices.size(), vertices, geom->positions.size(),
-                                        splicer.vertex_stride);
+            auto vertices = ret.vertex_buffer.data() + offsets.vertex_offset * splicer.vertex_stride;
+            size_t vertex_count = geom->positions.size();
+
+            meshopt_optimizeVertexCache(index_data, index_data, index_count, vertex_count);
+
+            std::vector<uint32_t> vertex_remap(vertex_count);
+            meshopt_optimizeVertexFetchRemap(vertex_remap.data(), index_data, index_count, vertex_count);
+            meshopt_remapVertexBuffer(vertices, vertices, vertex_count, splicer.vertex_stride, vertex_remap.data());
+            meshopt_remapIndexBuffer(index_data, index_data, index_count, vertex_remap.data());
         }
 
         spdlog::debug("optimize_vertex_cache: {} ({} mesh(es) - {} triangles)",
