@@ -291,14 +291,24 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     vertex_splicer splicer;
     splicer.use_vertex_colors = use_vertex_colors;
 
+    std::map<vierkant::GeometryConstPtr, std::vector<uint8_t>> morph_vertex_buffers;
+
     for(auto &ci: entry_create_infos)
     {
-
         if(!splicer.insert(ci.geometry))
         {
             spdlog::warn("create_mesh_from_geometry: array sizes do not match");
             return {};
         }
+
+        vertex_splicer morph_splice;
+
+        for(auto &morph_geom: ci.morph_targets)
+        {
+            morph_splice.insert(morph_geom);
+        }
+
+        morph_vertex_buffers[ci.geometry] = morph_splice.create_vertex_buffer();
     }
 
     ret.vertex_buffer = splicer.create_vertex_buffer();
@@ -311,7 +321,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     {
         spdlog::stopwatch sw;
 
-        for(const auto &[geom, offsets]: splicer.geom_offsets)
+        for(const auto &[geom, offsets]: splicer.offsets)
         {
             auto index_data = ret.index_buffer.data() + offsets.index_offset;
             size_t index_count = geom->indices.size();
@@ -328,7 +338,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         }
 
         spdlog::debug("optimize_vertex_cache: {} ({} mesh(es) - {} triangles)",
-                      std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.geom_offsets.size(),
+                      std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.offsets.size(),
                       ret.index_buffer.size() / 3);
     }
 
@@ -345,7 +355,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         uint32_t meshlet_offset = 0;
 
         // corresponds to mesh.entries
-        for(auto &[geom, offsets]: splicer.geom_offsets)
+        for(auto &[geom, offsets]: splicer.offsets)
         {
             spdlog::stopwatch single_timer;
 
@@ -415,7 +425,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         if(!ret.meshlets.empty())
         {
             spdlog::debug("generate_meshlets: {} ({} mesh(es) - {} triangles - {} meshlets)",
-                          std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.geom_offsets.size(),
+                          std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.offsets.size(),
                           ret.index_buffer.size() / 3, ret.meshlets.size());
         }
     }
@@ -427,7 +437,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     {
         const auto &geom = entry_info.geometry;
 
-        auto[base_vertex, base_index, meshlet_offset, num_meshlets] = splicer.geom_offsets[geom];
+        auto[base_vertex, base_index, meshlet_offset, num_meshlets] = splicer.offsets[geom];
 
         vierkant::Mesh::entry_t entry = {};
         entry.name = entry_info.name;
