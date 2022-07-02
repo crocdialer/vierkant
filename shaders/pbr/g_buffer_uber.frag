@@ -76,7 +76,7 @@ void main()
         if(material.blend_mode == BLEND_MODE_MASK && out_color.a < material.alpha_cutoff){ discard; }
 
         // apply stochastic dithering
-        if(material.blend_mode == BLEND_MODE_BLEND && rnd(rng_state) < out_color.a){ discard; }
+        if(material.blend_mode == BLEND_MODE_BLEND && rnd(rng_state) >= out_color.a){ discard; }
         out_color.a = 1.0;
 
         out_emission = material.emission;
