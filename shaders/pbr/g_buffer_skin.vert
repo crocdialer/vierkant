@@ -49,7 +49,7 @@ layout(location = 1) out VertexData
 
 void main()
 {
-    object_index = gl_InstanceIndex;//gl_BaseInstance + gl_InstanceIndex
+    object_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex
     matrix_struct_t m = u_matrices[object_index];
     matrix_struct_t m_last = u_previous_matrices[object_index];
 

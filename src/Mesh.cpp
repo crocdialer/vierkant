@@ -291,30 +291,36 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     vertex_splicer splicer;
     splicer.use_vertex_colors = use_vertex_colors;
 
-    std::map<vierkant::GeometryConstPtr, std::vector<uint8_t>> morph_vertex_buffers;
+//    std::map<vierkant::GeometryConstPtr, vertex_splicer> morph_splicers;
+    vertex_splicer morph_splice;
+    uint32_t num_morph_targets = 0;
 
     for(auto &ci: entry_create_infos)
     {
         if(!splicer.insert(ci.geometry))
         {
-            spdlog::warn("create_mesh_from_geometry: array sizes do not match");
+            spdlog::warn("create_combined_buffers: array sizes do not match");
             return {};
         }
 
-        vertex_splicer morph_splice;
+        if(num_morph_targets && num_morph_targets != ci.morph_targets.size())
+        {
+            spdlog::warn("create_combined_buffers: morph-target counts do not match");
+        }
+        num_morph_targets = ci.morph_targets.size();
 
         for(auto &morph_geom: ci.morph_targets)
         {
             morph_splice.insert(morph_geom);
         }
-
-        morph_vertex_buffers[ci.geometry] = morph_splice.create_vertex_buffer();
     }
 
     ret.vertex_buffer = splicer.create_vertex_buffer();
     ret.index_buffer = splicer.index_buffer;
     ret.vertex_stride = splicer.vertex_stride;
     ret.vertex_attribs = splicer.create_vertex_attribs();
+    ret.num_morph_targets = num_morph_targets;
+    ret.morph_buffer = morph_splice.create_vertex_buffer();
 
     // optional vertex/cache/fetch optimization here
     if(optimize_vertex_cache)
@@ -335,6 +341,11 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             meshopt_optimizeVertexFetchRemap(vertex_remap.data(), index_data, index_count, vertex_count);
             meshopt_remapVertexBuffer(vertices, vertices, vertex_count, splicer.vertex_stride, vertex_remap.data());
             meshopt_remapIndexBuffer(index_data, index_data, index_count, vertex_remap.data());
+
+//            for(const auto &[morph_geom, morph_offsets]: morph_splicers[geom].offsets)
+//            {
+//
+//            }
         }
 
         spdlog::debug("optimize_vertex_cache: {} ({} mesh(es) - {} triangles)",

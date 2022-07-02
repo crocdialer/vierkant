@@ -89,10 +89,8 @@ public:
         VkDrawIndexedIndirectCommand vk_draw;
 
         uint32_t batch_index;
-        uint32_t object_index;
         uint32_t first_draw_index;
         uint32_t visible;
-        uint32_t padding[3];
         glm::vec4 sphere_bounds;
     };
 

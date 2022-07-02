@@ -877,8 +877,6 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 out_assets.root_bone = create_bone_hierarchy_bfs(skin, model, node_map);
             }
 
-            const auto &morph_weights = mesh.weights;
-
             for(const auto &primitive : mesh.primitives)
             {
                 vierkant::Mesh::entry_create_info_t create_info = {};
@@ -886,6 +884,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 create_info.geometry = get_geometry(primitive, primitive.attributes);
                 create_info.transform = world_transform;
                 create_info.node_index = current_node->index;
+                create_info.morph_weights = {mesh.weights.begin(), mesh.weights.end()};
 
                 if(primitive.material >= 0 && static_cast<size_t>(primitive.material) < model.materials.size())
                 {

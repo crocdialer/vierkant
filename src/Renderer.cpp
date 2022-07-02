@@ -467,7 +467,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->vk_draw.instanceCount = 1;
 
                 draw_command->batch_index = indirect_draw_asset.batch_index;
-                draw_command->object_index = indexed_drawable.object_index;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->visible = true;
 

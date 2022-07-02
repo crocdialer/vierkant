@@ -114,10 +114,11 @@ public:
     {
         std::string name;
         GeometryPtr geometry = nullptr;
-        std::vector<GeometryPtr> morph_targets;
         glm::mat4 transform = glm::mat4(1);
         uint32_t node_index = 0;
         uint32_t material_index = 0;
+        std::vector<GeometryPtr> morph_targets;
+        std::vector<float> morph_weights;
     };
 
     static MeshPtr create();
@@ -243,6 +244,10 @@ struct mesh_buffer_bundle_t
 
     //! combined array of indices
     std::vector<index_t> index_buffer;
+
+    //! combined array of vertex-displacements (vertex-displacement-footprint varies hence encoded as raw-bytes)
+    std::vector<uint8_t> morph_buffer;
+    uint32_t num_morph_targets = 0;
 
     //! combined meshlet-buffer
     std::vector<Mesh::meshlet_t> meshlets;

@@ -33,7 +33,7 @@ void main()
 {
     Vertex v = vertices[gl_VertexIndex];
 
-    object_index = gl_InstanceIndex;
+    object_index = gl_BaseInstance;
 
     vertex_out.current_position = vec4(v.position, 1.0);
     vertex_out.last_position = vec4(v.position, 1.0);

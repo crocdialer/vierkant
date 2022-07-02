@@ -27,7 +27,6 @@ struct IndexedIndirectCommand
     uint firstInstance;
 
     uint batch_index;
-    uint object_index;
     uint first_draw_index;
     bool visible;
     vec4 sphere_bounds;
