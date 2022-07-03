@@ -21,9 +21,9 @@ public:
     //! store base vertex/index
     struct geometry_offset_t
     {
-        size_t vertex_offset = 0;
-        size_t index_offset = 0;
-        size_t meshlet_offset = 0;
+        size_t base_vertex = 0;
+        size_t base_index = 0;
+        size_t base_meshlet = 0;
         size_t num_meshlets = 0;
     };
 

@@ -300,9 +300,15 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     vertex_splicer splicer;
     splicer.use_vertex_colors = use_vertex_colors;
 
-//    std::map<vierkant::GeometryConstPtr, vertex_splicer> morph_splicers;
     vertex_splicer morph_splice;
     uint32_t num_morph_targets = 0;
+
+    struct morph_offset_t
+    {
+        size_t base_morph_target = 0;
+        size_t num_morph_targets = 0;
+    };
+    std::map<vierkant::GeometryConstPtr, morph_offset_t> morph_offset_map;
 
     for(auto &ci: entry_create_infos)
     {
@@ -316,10 +322,15 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         {
             spdlog::warn("create_combined_buffers: morph-target counts do not match");
         }
-        num_morph_targets = ci.morph_targets.size();
+
+        auto &morph_offsets = morph_offset_map[ci.geometry];
+        morph_offsets.base_morph_target = num_morph_targets;
+        morph_offsets.num_morph_targets = ci.morph_targets.size();
+        num_morph_targets += ci.morph_targets.size();
 
         for(auto &morph_geom: ci.morph_targets)
         {
+            assert(ci.geometry->positions.size() == morph_geom->positions.size());
             morph_splice.insert(morph_geom);
         }
     }
@@ -338,10 +349,10 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
         for(const auto &[geom, offsets]: splicer.offsets)
         {
-            auto index_data = ret.index_buffer.data() + offsets.index_offset;
+            auto index_data = ret.index_buffer.data() + offsets.base_index;
             size_t index_count = geom->indices.size();
 
-            auto vertices = ret.vertex_buffer.data() + offsets.vertex_offset * splicer.vertex_stride;
+            auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * splicer.vertex_stride;
             size_t vertex_count = geom->positions.size();
 
             meshopt_optimizeVertexCache(index_data, index_data, index_count, vertex_count);
@@ -351,7 +362,15 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             meshopt_remapVertexBuffer(vertices, vertices, vertex_count, splicer.vertex_stride, vertex_remap.data());
             meshopt_remapIndexBuffer(index_data, index_data, index_count, vertex_remap.data());
 
-            // TODO: remap all morph-target-vertices
+            // remap all morph-target-vertices
+            auto &morph_offsets = morph_offset_map[geom];
+
+            for(uint32_t i = 0; i < morph_offsets.num_morph_targets; ++i)
+            {
+                auto morph_vertices = ret.morph_buffer.data() + (morph_offsets.base_morph_target + i) * morph_splice.vertex_stride;
+                meshopt_remapVertexBuffer(morph_vertices, morph_vertices, vertex_count, morph_splice.vertex_stride,
+                                          vertex_remap.data());
+            }
         }
 
         spdlog::debug("optimize_vertex_cache: {} ({} mesh(es) - {} triangles)",
@@ -376,8 +395,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         {
             spdlog::stopwatch single_timer;
 
-            auto index_data = ret.index_buffer.data() + offsets.index_offset;
-            auto vertices = ret.vertex_buffer.data() + offsets.vertex_offset * splicer.vertex_stride;
+            auto index_data = ret.index_buffer.data() + offsets.base_index;
+            auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * splicer.vertex_stride;
 
             // determine size
             size_t max_meshlets = meshopt_buildMeshletsBound(geom->indices.size(), max_vertices, max_triangles);
@@ -390,7 +409,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                                                          meshlet_triangles.data(), index_data, geom->indices.size(),
                                                          reinterpret_cast<const float *>(vertices),
                                                          geom->positions.size(),
-                                                         splicer.vertex_stride, max_vertices, max_triangles, cone_weight);
+                                                         splicer.vertex_stride, max_vertices, max_triangles,
+                                                         cone_weight);
 
             spdlog::trace("generate_meshlet: {} ({} triangles -> {} meshlets)",
                           std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()),
@@ -428,7 +448,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 ret.meshlets.push_back(out_meshlet);
             }
 
-            offsets.meshlet_offset = meshlet_offset;
+            offsets.base_meshlet = meshlet_offset;
             offsets.num_meshlets = meshlet_count;
             meshlet_offset += meshlet_count;
 

@@ -15,11 +15,7 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
     {
         size_t current_offset = m_num_bytes;
 
-        if(!check_and_insert(geometry))
-        {
-            spdlog::warn("vertex_splicer: array sizes do not match");
-            return false;
-        }
+        if(!check_and_insert(geometry)){ return false; }
         m_vertex_offsets.push_back(current_offset);
         index_buffer.insert(index_buffer.end(), geometry->indices.begin(), geometry->indices.end());
 
