@@ -43,6 +43,7 @@ public:
         BINDING_BONES = 5,
         BINDING_PREVIOUS_BONES = 6,
         BINDING_JITTER_OFFSET = 7,
+        BINDING_MORPH_TARGETS = 8,
         BINDING_MAX_RANGE
     };
 

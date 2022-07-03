@@ -856,7 +856,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         // create vierkant::node
         auto current_node = std::make_shared<vierkant::nodes::node_t>();
         current_node->name = tiny_node.name;
-        current_node->index = out_assets.entry_create_infos.size();
+        current_node->index = current_index;
         current_node->parent = parent_node;
         current_node->transform = node_transform(tiny_node);
 

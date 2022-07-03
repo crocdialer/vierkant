@@ -208,7 +208,7 @@ public:
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;
 
     //! morph-targets
-    std::vector<vierkant::BufferPtr> morph_target_buffers;
+    vierkant::BufferPtr morph_buffer;
 
     //! meshlet-buffer
     vierkant::BufferPtr meshlets;

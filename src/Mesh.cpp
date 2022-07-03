@@ -126,6 +126,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     size_t staging_offset = 0;
     num_staging_bytes += num_array_bytes(buffers.vertex_buffer);
     num_staging_bytes += num_array_bytes(buffers.index_buffer);
+    num_staging_bytes += num_array_bytes(buffers.morph_buffer);
     num_staging_bytes += num_array_bytes(buffers.meshlets);
     num_staging_bytes += num_array_bytes(buffers.meshlet_vertices);
     num_staging_bytes += num_array_bytes(buffers.meshlet_triangles);
@@ -149,21 +150,23 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     {
         flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-        size_t num_buffer_bytes = num_array_bytes(array);
+        size_t num_bytes = num_array_bytes(array);
+
+        assert(staging_buffer->num_bytes() - num_bytes >= staging_offset);
 
         // copy array into staging-buffer
         auto staging_data = static_cast<uint8_t *>(staging_buffer->map()) + staging_offset;
-        memcpy(staging_data, array.data(), num_buffer_bytes);
+        memcpy(staging_data, array.data(), num_bytes);
 
         if(!outbuffer)
         {
-            outbuffer = vierkant::Buffer::create(device, nullptr, num_buffer_bytes, flags, VMA_MEMORY_USAGE_GPU_ONLY);
+            outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes, flags, VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else{ outbuffer->set_data(nullptr, num_buffer_bytes); }
+        else{ outbuffer->set_data(nullptr, num_bytes); }
 
         // issue copy from stagin-buffer to GPU-buffer
-        staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_buffer_bytes);
-        staging_offset += num_buffer_bytes;
+        staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
+        staging_offset += num_bytes;
     };
 
     // create vertexbuffer
@@ -177,6 +180,12 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
     mesh->vertex_attribs = std::move(buffers.vertex_attribs);
     mesh->entries = std::move(buffers.entries);
     for(auto &[location, vertex_attrib]: mesh->vertex_attribs){ vertex_attrib.buffer = vertex_buffer; }
+
+    if(!buffers.morph_buffer.empty())
+    {
+        auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
+        staging_copy(buffers.morph_buffer, mesh->morph_buffer, buffer_flags);
+    }
 
     if(!buffers.meshlets.empty())
     {
@@ -342,10 +351,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             meshopt_remapVertexBuffer(vertices, vertices, vertex_count, splicer.vertex_stride, vertex_remap.data());
             meshopt_remapIndexBuffer(index_data, index_data, index_count, vertex_remap.data());
 
-//            for(const auto &[morph_geom, morph_offsets]: morph_splicers[geom].offsets)
-//            {
-//
-//            }
+            // TODO: remap all morph-target-vertices
         }
 
         spdlog::debug("optimize_vertex_cache: {} ({} mesh(es) - {} triangles)",
@@ -473,6 +479,9 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         // compute bounds
         entry.bounding_box = vierkant::compute_aabb(geom->positions);
         entry.bounding_sphere = vierkant::compute_bounding_sphere(geom->positions);
+
+        // morph weights
+        entry.morph_weights = entry_info.morph_weights;
 
         // insert new entry
         ret.entries.push_back(entry);
