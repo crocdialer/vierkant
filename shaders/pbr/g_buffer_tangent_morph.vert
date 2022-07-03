@@ -31,7 +31,7 @@ layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
     Vertex vertices[];
 };
 
-layout(std140, binding = BINDING_MORPH_TARGETS) readonly buffer MorphVertices
+layout(std140, binding = BINDING_MORPH_TARGETS, scalar) readonly buffer MorphVertices
 {
     Vertex morph_vertices[];
 };

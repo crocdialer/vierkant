@@ -343,7 +343,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     ret.morph_buffer = morph_splice.create_vertex_buffer();
 
     // optional vertex/cache/fetch optimization here
-    if(optimize_vertex_cache)
+    if(optimize_vertex_cache && ret.morph_buffer.empty())
     {
         spdlog::stopwatch sw;
 

@@ -14,7 +14,6 @@ struct Vertex
     vec3 position;
     vec2 tex_coord;
     vec3 normal;
-//    vec3 tangent;
 };
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
