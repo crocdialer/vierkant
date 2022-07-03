@@ -44,6 +44,7 @@ public:
         BINDING_PREVIOUS_BONES = 6,
         BINDING_JITTER_OFFSET = 7,
         BINDING_MORPH_TARGETS = 8,
+        BINDING_MORPH_PARAMS = 9,
         BINDING_MAX_RANGE
     };
 
@@ -144,6 +145,9 @@ public:
 
         int32_t vertex_offset = 0;
         uint32_t num_vertices = 0;
+
+        uint32_t morph_vertex_offset = 0;
+        std::vector<float> morph_weights;
 
         bool use_own_buffers = false;
     };

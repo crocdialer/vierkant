@@ -91,6 +91,8 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.num_indices = entry.num_indices;
         drawable.vertex_offset = entry.vertex_offset;
         drawable.num_vertices = entry.num_vertices;
+        drawable.morph_vertex_offset = entry.morph_vertex_offset;
+        drawable.morph_weights = entry.morph_weights;
 
 //        if(!mesh->vertex_buffer)
         {

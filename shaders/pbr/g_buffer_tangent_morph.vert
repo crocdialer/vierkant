@@ -14,12 +14,26 @@ struct Vertex
     vec3 position;
     vec2 tex_coord;
     vec3 normal;
-//    vec3 tangent;
+    vec3 tangent;
+};
+
+//! morph_params_t contains information to access a morph-target buffer
+struct morph_params_t
+{
+    uint morph_count;
+    uint base_vertex;
+    uint vertex_count;
+    float weights[61];
 };
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
     Vertex vertices[];
+};
+
+layout(std140, binding = BINDING_MORPH_TARGETS) readonly buffer MorphVertices
+{
+    Vertex morph_vertices[];
 };
 
 layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
@@ -36,6 +50,11 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
 {
     camera_t camera;
     camera_t last_camera;
+};
+
+layout(set = 0, binding = BINDING_MORPH_PARAMS, scalar) readonly buffer MorphParams
+{
+    morph_params_t morph_params;
 };
 
 layout(push_constant) uniform PushConstants
@@ -57,6 +76,14 @@ void main()
 {
     Vertex v = vertices[gl_VertexIndex];
 
+    // apply morph-targets
+    for(uint i = 0; i < morph_params.morph_count; ++i)
+    {
+        uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + (gl_VertexIndex - gl_BaseVertex);
+        v.position += morph_vertices[morph_index].position * morph_params.weights[i];
+        v.normal += morph_vertices[morph_index].normal * morph_params.weights[i];
+    }
+
     object_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex
     matrix_struct_t m = u_matrices[object_index];
     matrix_struct_t m_last = u_previous_matrices[object_index];
@@ -70,4 +97,5 @@ void main()
 
     vertex_out.tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
     vertex_out.normal = normalize(mat3(m.normal) * v.normal);
+    vertex_out.tangent = normalize(mat3(m.normal) * v.tangent);
 }

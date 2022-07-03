@@ -66,11 +66,14 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
     // vertex
     auto pbr_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_vert);
     auto pbr_skin_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_skin_vert);
+    auto pbr_tangent_morph_vert = vierkant::create_shader_module(device,
+                                                                 vierkant::shaders::pbr::g_buffer_tangent_morph_vert);
     auto pbr_tangent_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_vert);
     auto pbr_tangent_skin_vert = vierkant::create_shader_module(device,
                                                                 vierkant::shaders::pbr::g_buffer_tangent_skin_vert);
 
-    auto pbr_tangent_tess_vert = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_tess_vert);
+    auto pbr_tangent_tess_vert = vierkant::create_shader_module(device,
+                                                                vierkant::shaders::pbr::g_buffer_tangent_tess_vert);
     auto tess_control = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tesc);
     auto tess_eval = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tese);
 
@@ -86,6 +89,11 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
     auto &stages_skin = ret[PROP_SKIN];
     stages_skin[VK_SHADER_STAGE_VERTEX_BIT] = pbr_skin_vert;
     stages_skin[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
+
+    // morph
+    auto &stages_morph = ret[PROP_TANGENT_SPACE | PROP_MORPH_TARGET];
+    stages_morph[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_morph_vert;
+    stages_morph[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
 
     //  normals
     auto &stages_albedo_normal = ret[PROP_TANGENT_SPACE];

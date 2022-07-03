@@ -514,6 +514,41 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 drawable.pipeline_format.binding_descriptions.clear();
             }
 
+            // check if morph-targets are available
+            if(drawable.mesh->morph_buffer)
+            {
+                shader_flags |= PROP_MORPH_TARGET;
+
+                //! morph_params_t contains information to access a morph-target buffer
+                struct alignas(16) morph_params_t
+                {
+                    uint32_t morph_count = 0;
+                    uint32_t base_vertex = 0;
+                    uint32_t vertex_count = 0;
+                    float weights[61] = {};
+                } morph_params;
+
+                morph_params.base_vertex = drawable.morph_vertex_offset;
+                morph_params.vertex_count = drawable.num_vertices;
+                morph_params.morph_count = drawable.morph_weights.size();
+                memcpy(morph_params.weights, drawable.morph_weights.data(), morph_params.morph_count * sizeof(float));
+
+                // add descriptors for morph- buffer_params
+                vierkant::descriptor_t desc_morph_buffer = {};
+                desc_morph_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+                desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
+                drawable.descriptors[Renderer::BINDING_MORPH_TARGETS] = desc_morph_buffer;
+
+                vierkant::descriptor_t desc_morph_params = {};
+                desc_morph_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_morph_params.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+                desc_morph_params.buffers = {vierkant::Buffer::create(m_device, &morph_params, sizeof(morph_params_t),
+                                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                                      VMA_MEMORY_USAGE_CPU_TO_GPU)};
+                drawable.descriptors[Renderer::BINDING_MORPH_PARAMS] = desc_morph_params;
+            }
+
             // select shader-stages from cache
             auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
 

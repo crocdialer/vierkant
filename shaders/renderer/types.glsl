@@ -70,3 +70,5 @@ struct render_context_t
 #define BINDING_BONES 5
 #define BINDING_PREVIOUS_BONES 6
 #define BINDING_JITTER_OFFSET 7
+#define BINDING_MORPH_TARGETS 8
+#define BINDING_MORPH_PARAMS 9

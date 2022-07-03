@@ -77,10 +77,11 @@ public:
         uint32_t num_vertices = 0;
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
-        uint32_t meshlet_offset = 0;
+        uint32_t base_meshlet = 0;
         uint32_t num_meshlets = 0;
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+        uint32_t morph_vertex_offset = 0;
         std::vector<float> morph_weights;
 
         bool enabled = true;

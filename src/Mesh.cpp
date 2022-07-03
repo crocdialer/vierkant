@@ -483,7 +483,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         entry.num_vertices = geom->positions.size();
         entry.base_index = base_index;
         entry.num_indices = geom->indices.size();
-        entry.meshlet_offset = static_cast<uint32_t>(meshlet_offset);
+        entry.base_meshlet = static_cast<uint32_t>(meshlet_offset);
         entry.num_meshlets = num_meshlets;
 
         // use provided transforms for sub-meshes, if any
@@ -501,7 +501,9 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         entry.bounding_sphere = vierkant::compute_bounding_sphere(geom->positions);
 
         // morph weights
+        const auto &morph_offsets = morph_offset_map[geom];
         entry.morph_weights = entry_info.morph_weights;
+        entry.morph_vertex_offset = morph_offsets.base_morph_target;
 
         // insert new entry
         ret.entries.push_back(entry);

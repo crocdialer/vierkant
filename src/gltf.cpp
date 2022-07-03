@@ -279,10 +279,12 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
             geometry->indices.resize(geometry->positions.size());
             std::iota(geometry->indices.begin(), geometry->indices.end(), 0);
         }
-        geometry->tex_coords.resize(geometry->positions.size(), glm::vec2(0.f));
         if(geometry->normals.empty()){ geometry->compute_vertex_normals(); }
         if(geometry->tangents.empty() && !geometry->tex_coords.empty()){ geometry->compute_tangents(); }
     }
+    geometry->tangents.resize(geometry->positions.size(), glm::vec3(0.f));
+    geometry->tex_coords.resize(geometry->positions.size(), glm::vec2(0.f));
+
     return geometry;
 }
 
