@@ -32,30 +32,14 @@ option(BUILD_EXAMPLES "Build Examples" ON)
 if (NOT BUILD_SHARED_LIBS)
     set(CMAKE_CXX_FLAGS ${CXX_DEFAULT_FLAGS})
     set(LIB_TYPE STATIC)
-    set(Boost_USE_STATIC_LIBS ON)
 else()
     set(CMAKE_CXX_FLAGS "${CXX_DEFAULT_FLAGS} -fPIC")
     set(LIB_TYPE SHARED)
-    set(Boost_USE_STATIC_LIBS OFF)
 endif (NOT BUILD_SHARED_LIBS)
 
 ## cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake_modules ${CMAKE_MODULE_PATH})
 include(vierkant_utils)
-
-##### BOOST
-set(BOOST_COMPONENTS system)
-if (BUILD_TESTS)
-    ENABLE_TESTING()
-    set(BOOST_COMPONENTS ${BOOST_COMPONENTS} unit_test_framework)
-    if (BUILD_SHARED_LIBS)
-        add_definitions(-DBOOST_TEST_DYN_LINK)
-    endif (BUILD_SHARED_LIBS)
-endif (BUILD_TESTS)
-find_package(Boost REQUIRED COMPONENTS ${BOOST_COMPONENTS})
-include_directories(${Boost_INCLUDE_DIRS})
-set(LIBS ${LIBS} ${Boost_LIBRARIES})
-#####
 
 add_subdirectory(submodules/spdlog EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} spdlog)
@@ -102,27 +86,6 @@ add_custom_command(OUTPUT ${SHADERS_CPP}
         COMMENT "recompiling shaders -> SPIRV -> shaders.hpp/cpp")
 
 add_custom_target("shaders" DEPENDS ${SHADERS_CPP})
-
-option(USE_ASSIMP OFF)
-
-#### assimp
-if (USE_ASSIMP)
-    find_package(ASSIMP REQUIRED)
-    include_directories(${ASSIMP_INCLUDE_DIRS})
-    SET(LIBS ${LIBS} ${ASSIMP_LIBRARIES})
-    add_definitions(-DUSE_ASSIMP)
-else (USE_ASSIMP)
-    remove_definitions(-DUSE_ASSIMP)
-endif (USE_ASSIMP)
-
-### assimp
-#option(ASSIMP_BUILD_ASSIMP_TOOLS OFF)
-#option(ASSIMP_BUILD_SAMPLES OFF)
-#option(ASSIMP_BUILD_TESTS OFF)
-#option(ASSIMP_INSTALL OFF)
-#add_subdirectory("assimp")
-#include_directories(assimp/include)
-#set(LIBS ${LIBS} assimp)
 
 # vierkant
 add_subdirectory("src")
