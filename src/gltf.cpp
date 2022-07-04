@@ -741,6 +741,18 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 {
                     vierkant::animation_value_t<std::vector<float>> animation_value = {};
                     animation_value.value = {ptr, ptr + num_weights};
+
+                    if(is_cubic_spline)
+                    {
+                        animation_value.in_tangent = {ptr, ptr + num_weights};
+                        animation_value.value = {ptr + num_weights, ptr + 2 * num_weights};
+                        animation_value.out_tangent = {ptr + 2 * num_weights, ptr + 3 * num_weights};
+                    }
+                    else
+                    {
+                        animation_value.in_tangent.resize(animation_value.value.size(), 0.f);
+                        animation_value.out_tangent.resize(animation_value.value.size(), 0.f);
+                    }
                     animation_keys.morph_weights.insert({t, animation_value});
                     ptr += num_elems * num_weights;
                 }

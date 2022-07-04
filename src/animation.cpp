@@ -8,6 +8,25 @@
 namespace vierkant
 {
 
+template<typename T>
+T hermite(T const &v1,
+          T const &t1,
+          T const &v2,
+          T const &t2,
+          T const &s
+)
+{
+    T s2 = s * s;
+    T s3 = s2 * s;
+
+    T f1 = T(2) * s3 - T(3) * s2 + T(1);
+    T f2 = T(-2) * s3 + T(3) * s2;
+    T f3 = s3 - T(2) * s2 + s;
+    T f4 = s3 - s2;
+
+    return f1 * v1 + f2 * v2 + f3 * t1 + f4 * t2;
+}
+
 void create_animation_transform(const animation_keys_t &keys,
                                 float time,
                                 InterpolationMode interpolation_mode,
@@ -222,6 +241,10 @@ std::vector<float> create_morph_weights(const animation_keys_t &keys,
                         out_weights[i] = glm::mix(start_value.value[i], end_value.value[i], frac);
                         break;
                     case InterpolationMode::CubicSpline:
+                        out_weights[i] = vierkant::hermite(start_value.value[i],
+                                                           start_value.out_tangent[i],
+                                                           end_value.value[i],
+                                                           end_value.in_tangent[i], frac);
                         break;
                 }
 
