@@ -302,10 +302,11 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
     vertex_splicer morph_splice;
     uint32_t num_morph_targets = 0;
+    uint32_t num_morph_vertices = 0;
 
     struct morph_offset_t
     {
-        size_t base_morph_target = 0;
+        size_t base_vertex = 0;
         size_t num_morph_targets = 0;
     };
     std::map<vierkant::GeometryConstPtr, morph_offset_t> morph_offset_map;
@@ -324,7 +325,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         }
 
         auto &morph_offsets = morph_offset_map[ci.geometry];
-        morph_offsets.base_morph_target = num_morph_targets;
+        morph_offsets.base_vertex = num_morph_vertices;
         morph_offsets.num_morph_targets = ci.morph_targets.size();
         num_morph_targets += ci.morph_targets.size();
 
@@ -332,6 +333,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         {
             assert(ci.geometry->positions.size() == morph_geom->positions.size());
             morph_splice.insert(morph_geom);
+            num_morph_vertices += morph_geom->positions.size();
         }
     }
 
@@ -343,7 +345,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     ret.morph_buffer = morph_splice.create_vertex_buffer();
 
     // optional vertex/cache/fetch optimization here
-    if(optimize_vertex_cache && ret.morph_buffer.empty())
+    if(optimize_vertex_cache)
     {
         spdlog::stopwatch sw;
 
@@ -367,7 +369,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
             for(uint32_t i = 0; i < morph_offsets.num_morph_targets; ++i)
             {
-                auto morph_vertices = ret.morph_buffer.data() + (morph_offsets.base_morph_target + i) * morph_splice.vertex_stride;
+                auto morph_vertices = ret.morph_buffer.data() +
+                                      (morph_offsets.base_vertex + i * vertex_count) * morph_splice.vertex_stride;
                 meshopt_remapVertexBuffer(morph_vertices, morph_vertices, vertex_count, morph_splice.vertex_stride,
                                           vertex_remap.data());
             }
@@ -503,7 +506,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         // morph weights
         const auto &morph_offsets = morph_offset_map[geom];
         entry.morph_weights = entry_info.morph_weights;
-        entry.morph_vertex_offset = morph_offsets.base_morph_target;
+        entry.morph_vertex_offset = morph_offsets.base_vertex;
 
         // insert new entry
         ret.entries.push_back(entry);

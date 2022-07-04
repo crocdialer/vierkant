@@ -282,8 +282,11 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
         if(geometry->normals.empty()){ geometry->compute_vertex_normals(); }
         if(geometry->tangents.empty() && !geometry->tex_coords.empty()){ geometry->compute_tangents(); }
     }
-    geometry->tangents.resize(geometry->positions.size(), glm::vec3(0.f));
+
+    // last resort is to fill with zeros here
     geometry->tex_coords.resize(geometry->positions.size(), glm::vec2(0.f));
+    geometry->normals.resize(geometry->positions.size(), glm::vec3(0.f));
+    geometry->tangents.resize(geometry->positions.size(), glm::vec3(0.f));
 
     return geometry;
 }
