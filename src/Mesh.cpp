@@ -304,12 +304,14 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     uint32_t num_morph_targets = 0;
     uint32_t num_morph_vertices = 0;
 
-    struct morph_offset_t
+    struct extra_offset_t
     {
-        size_t base_vertex = 0;
+        size_t morph_base_vertex = 0;
         size_t num_morph_targets = 0;
+        size_t base_meshlet = 0;
+        size_t num_meshlets = 0;
     };
-    std::map<vierkant::GeometryConstPtr, morph_offset_t> morph_offset_map;
+    std::map<vierkant::GeometryConstPtr, extra_offset_t> extra_offset_map;
 
     for(auto &ci: entry_create_infos)
     {
@@ -324,8 +326,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             spdlog::warn("create_combined_buffers: morph-target counts do not match");
         }
 
-        auto &morph_offsets = morph_offset_map[ci.geometry];
-        morph_offsets.base_vertex = num_morph_vertices;
+        auto &morph_offsets = extra_offset_map[ci.geometry];
+        morph_offsets.morph_base_vertex = num_morph_vertices;
         morph_offsets.num_morph_targets = ci.morph_targets.size();
         num_morph_targets += ci.morph_targets.size();
 
@@ -365,12 +367,12 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             meshopt_remapIndexBuffer(index_data, index_data, index_count, vertex_remap.data());
 
             // remap all morph-target-vertices
-            auto &morph_offsets = morph_offset_map[geom];
+            auto &extra_offsets = extra_offset_map[geom];
 
-            for(uint32_t i = 0; i < morph_offsets.num_morph_targets; ++i)
+            for(uint32_t i = 0; i < extra_offsets.num_morph_targets; ++i)
             {
                 auto morph_vertices = ret.morph_buffer.data() +
-                                      (morph_offsets.base_vertex + i * vertex_count) * morph_splice.vertex_stride;
+                                      (extra_offsets.morph_base_vertex + i * vertex_count) * morph_splice.vertex_stride;
                 meshopt_remapVertexBuffer(morph_vertices, morph_vertices, vertex_count, morph_splice.vertex_stride,
                                           vertex_remap.data());
             }
@@ -451,8 +453,9 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 ret.meshlets.push_back(out_meshlet);
             }
 
-            offsets.base_meshlet = meshlet_offset;
-            offsets.num_meshlets = meshlet_count;
+            auto &extra_offsets = extra_offset_map[geom];
+            extra_offsets.base_meshlet = meshlet_offset;
+            extra_offsets.num_meshlets = meshlet_count;
             meshlet_offset += meshlet_count;
 
             // insert entry-meshlet data
@@ -476,18 +479,18 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     for(const auto &entry_info: entry_create_infos)
     {
         const auto &geom = entry_info.geometry;
-
-        auto[base_vertex, base_index, meshlet_offset, num_meshlets] = splicer.offsets[geom];
+        const auto &offsets = splicer.offsets[geom];
+        const auto &extra_offsets = extra_offset_map[geom];
 
         vierkant::Mesh::entry_t entry = {};
         entry.name = entry_info.name;
         entry.primitive_type = geom->topology;
-        entry.vertex_offset = static_cast<int32_t>(base_vertex);
+        entry.vertex_offset = static_cast<int32_t>(offsets.base_vertex);
         entry.num_vertices = geom->positions.size();
-        entry.base_index = base_index;
+        entry.base_index = offsets.base_index;
         entry.num_indices = geom->indices.size();
-        entry.base_meshlet = static_cast<uint32_t>(meshlet_offset);
-        entry.num_meshlets = num_meshlets;
+        entry.base_meshlet = static_cast<uint32_t>(extra_offsets.base_meshlet);
+        entry.num_meshlets = extra_offsets.num_meshlets;
 
         // use provided transforms for sub-meshes, if any
         entry.transform = entry_info.transform;
@@ -504,9 +507,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         entry.bounding_sphere = vierkant::compute_bounding_sphere(geom->positions);
 
         // morph weights
-        const auto &morph_offsets = morph_offset_map[geom];
         entry.morph_weights = entry_info.morph_weights;
-        entry.morph_vertex_offset = morph_offsets.base_vertex;
+        entry.morph_vertex_offset = extra_offsets.morph_base_vertex;
 
         // insert new entry
         ret.entries.push_back(entry);

@@ -23,8 +23,6 @@ public:
     {
         size_t base_vertex = 0;
         size_t base_index = 0;
-        size_t base_meshlet = 0;
-        size_t num_meshlets = 0;
     };
 
     /**
