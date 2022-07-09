@@ -79,7 +79,7 @@ private:
         if(!array.empty())
         {
             using elem_t = typename std::decay<decltype(array)>::type::value_type;
-            size_t elem_size = sizeof(elem_t);
+            constexpr size_t elem_size = sizeof(elem_t);
             vertex_data.push_back({location,
                                    (uint8_t *) array.data(),
                                    offset,

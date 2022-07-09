@@ -10,7 +10,6 @@
 
 vec3 slerp(vec3 x, vec3 y, float a)
 {
-
     // get cosine of angle between vectors (-1 -> 1)
     float cos_alpha = dot(x, y);
 
@@ -22,7 +21,7 @@ vec3 slerp(vec3 x, vec3 y, float a)
     // get sine of angle between vectors (0 -> 1)
     float sin_alpha = sin(alpha);
 
-    // this breaks down when SinAlpha = 0, i.e. Alpha = 0 or pi
+    // this breaks down when sin_alpha = 0, i.e. alpha = 0 or pi
     float t1 = sin((1.0 - a) * alpha) / sin_alpha;
     float t2 = sin(a * alpha) / sin_alpha;
 
@@ -103,7 +102,7 @@ void main()
     {
         uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + (gl_VertexIndex - gl_BaseVertex);
         v.position += morph_vertices[morph_index].position * morph_params.weights[i];
-        v.normal += morph_vertices[morph_index].normal * morph_params.weights[i];
+        v.normal = slerp(v.normal, v.normal + morph_vertices[morph_index].normal, morph_params.weights[i]);
     }
     v.normal = normalize(v.normal);
 
