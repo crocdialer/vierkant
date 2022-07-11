@@ -75,16 +75,14 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::vector<const char *> g_device_extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-//! check if all required extensions are available
-bool check_device_extension_support(VkPhysicalDevice device)
+bool check_device_extension_support(VkPhysicalDevice device, const std::vector<const char *> &extensions)
 {
     uint32_t num_extensions;
     vkEnumerateDeviceExtensionProperties(device, nullptr, &num_extensions, nullptr);
     std::vector<VkExtensionProperties> extensions_available(num_extensions);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &num_extensions, extensions_available.data());
-    std::set<std::string> extensions_required(g_device_extensions.begin(), g_device_extensions.end());
+    std::set<std::string> extensions_required(extensions.begin(), extensions.end());
     for(const auto &extension : extensions_available){ extensions_required.erase(extension.extensionName); }
     return extensions_required.empty();
 }
@@ -125,9 +123,9 @@ VkFormat find_supported_format(VkPhysicalDevice the_device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkFormat find_depth_format(VkPhysicalDevice the_device)
+VkFormat find_depth_format(VkPhysicalDevice device)
 {
-    return find_supported_format(the_device,
+    return find_supported_format(device,
                                  {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT},
                                  VK_IMAGE_TILING_OPTIMAL,
                                  VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);

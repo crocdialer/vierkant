@@ -15,7 +15,22 @@
 namespace vierkant
 {
 
-VkFormat find_depth_format(VkPhysicalDevice the_device);
+/**
+ * @brief   find a matching depth-format for a provided device.
+ *
+ * @param   device  a provided device.
+ * @return  a matching depth-format
+ */
+VkFormat find_depth_format(VkPhysicalDevice device);
+
+/**
+ * @brief   check_device_extension_support can be used to check if a list of device-extensions is supported.
+ *
+ * @param   device      a provided device.
+ * @param   extensions  a provided list of extension-strings
+ * @return  true, if all provided extensions are supported
+ */
+bool check_device_extension_support(VkPhysicalDevice device, const std::vector<const char *> &extensions);
 
 /**
  * @brief   Helper function to check if the provided VkResult equals VK_SUCCESS.

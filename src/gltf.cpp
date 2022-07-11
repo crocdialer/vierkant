@@ -216,7 +216,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
         else{ spdlog::error("unsupported index-type: {}", index_accessor.componentType); }
     }
 
-    for(const auto &[attrib, accessor_idx] : attributes)
+    for(const auto &[attrib, accessor_idx]: attributes)
     {
         tinygltf::Accessor accessor = model.accessors[accessor_idx];
         const auto &buffer_view = model.bufferViews[accessor.bufferView];
@@ -377,7 +377,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
         for(; dst < end; dst += ret.img_ao_roughness_metal->num_components()){ dst[ao_offset] = 255; }
     }
 
-    for(const auto&[ext, value] : tiny_mat.extensions)
+    for(const auto&[ext, value]: tiny_mat.extensions)
     {
         spdlog::trace("ext-properties: {}", value.Keys());
 
@@ -612,7 +612,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
             if(!root_bone){ root_bone = bone_node; }
             if(parent_node){ parent_node->children.push_back(bone_node); }
 
-            for(auto child_index : skeleton_node.children)
+            for(auto child_index: skeleton_node.children)
             {
                 node_queue.push_back({static_cast<size_t>(child_index), world_transform, bone_node});
             }
@@ -630,7 +630,7 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
     vierkant::nodes::node_animation_t animation;
     animation.name = tiny_animation.name;
 
-    for(const auto &channel : tiny_animation.channels)
+    for(const auto &channel: tiny_animation.channels)
     {
         auto it = node_map.find(channel.target_node);
 
@@ -686,7 +686,7 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
                 auto ptr = reinterpret_cast<const glm::vec3 *>(data);
 
-                for(float t : input_times)
+                for(float t: input_times)
                 {
                     vierkant::animation_value_t<glm::vec3> animation_value = {ptr[0]};
                     if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
@@ -701,7 +701,7 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
                 auto ptr = reinterpret_cast<const float *>(data);
 
-                for(float t : input_times)
+                for(float t: input_times)
                 {
                     auto q0 = glm::quat(ptr[3], ptr[0], ptr[1], ptr[2]);
                     vierkant::animation_value_t<glm::quat> animation_value = {q0};
@@ -722,7 +722,7 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
                 auto ptr = reinterpret_cast<const glm::vec3 *>(data);
 
-                for(float t : input_times)
+                for(float t: input_times)
                 {
                     vierkant::animation_value_t<glm::vec3> animation_value = {ptr[0]};
                     if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
@@ -734,10 +734,10 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
             {
                 assert(accessor.type == TINYGLTF_TYPE_SCALAR);
                 assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
-                auto ptr = reinterpret_cast<const float*>(data);
+                auto ptr = reinterpret_cast<const float *>(data);
                 const uint32_t num_weights = accessor.count / input_times.size();
 
-                for(float t : input_times)
+                for(float t: input_times)
                 {
                     vierkant::animation_value_t<std::vector<float>> animation_value = {};
                     animation_value.value = {ptr, ptr + num_weights};
@@ -791,7 +791,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     // create images
     std::map<uint32_t, crocore::ImagePtr> image_cache;
 
-    for(const auto &t : model.textures)
+    for(const auto &t: model.textures)
     {
 //        auto &sampler = model.samplers[t.sampler];
 //        spdlog::debug("loading image '{}' with sampler '{}'", t.name, sampler.name);
@@ -811,13 +811,13 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     }
 
     // create materials
-    for(const auto &tiny_mat : model.materials)
+    for(const auto &tiny_mat: model.materials)
     {
         out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache));
     }
 
     // create lights
-    for(const auto &tiny_light : model.lights)
+    for(const auto &tiny_light: model.lights)
     {
         lightsource_t l = {};
 
@@ -835,7 +835,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     std::deque<node_t> node_queue;
 
-    for(int node_index : scene.nodes)
+    for(int node_index: scene.nodes)
     {
         node_queue.push_back({static_cast<size_t>(node_index), glm::mat4(1), out_assets.root_node});
     }
@@ -848,7 +848,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     auto get_geometry = [&geometry_cache, &model](const tinygltf::Primitive &primitive,
                                                   const std::map<std::string,
-                                                  int> &attributes,
+                                                          int> &attributes,
                                                   bool morph_target = false)
     {
         vierkant::GeometryPtr geometry;
@@ -894,7 +894,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 out_assets.root_bone = create_bone_hierarchy_bfs(skin, model, node_map);
             }
 
-            for(const auto &primitive : mesh.primitives)
+            for(const auto &primitive: mesh.primitives)
             {
                 vierkant::Mesh::entry_create_info_t create_info = {};
                 create_info.name = current_node->name;
@@ -908,7 +908,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                     create_info.material_index = primitive.material;
                 }
 
-                for(const auto &morph_target : primitive.targets)
+                for(const auto &morph_target: primitive.targets)
                 {
                     create_info.morph_targets.push_back(get_geometry(primitive, morph_target, true));
                 }
@@ -938,7 +938,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
             node_map[current_index] = current_node;
         }
 
-        for(auto child_index : tiny_node.children)
+        for(auto child_index: tiny_node.children)
         {
             if(child_index >= 0 && static_cast<size_t>(child_index) < model.nodes.size())
             {
@@ -949,7 +949,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     }
 
     // animations
-    for(const auto &tiny_animation : model.animations)
+    for(const auto &tiny_animation: model.animations)
     {
         auto node_animation = create_node_animation(tiny_animation, model, node_map);
 

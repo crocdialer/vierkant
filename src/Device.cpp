@@ -27,7 +27,7 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query
     vkCheck(vkCreateQueryPool(device->handle(), &pool_create_info, nullptr, &handle),
             "could not create VkQueryPool");
     vkResetQueryPool(device->handle(), handle, 0, query_count);
-    return QueryPoolPtr(handle, [device](VkQueryPool p){ vkDestroyQueryPool(device->handle(), p, nullptr); });
+    return {handle, [device](VkQueryPool p){ vkDestroyQueryPool(device->handle(), p, nullptr); }};
 }
 
 ////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
@@ -77,7 +77,7 @@ std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysi
             if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
             {
                 indices[Device::Queue::GRAPHICS].index = i;
-                VkBool32 present_support = static_cast<VkBool32>(false);
+                auto present_support = static_cast<VkBool32>(false);
                 if(surface){ vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support); }
 
                 if(present_support)
@@ -159,6 +159,11 @@ Device::Device(const create_info_t &create_info) :
     std::vector<const char *> extensions;
     for(const auto &ext: create_info.extensions){ extensions.push_back(ext); }
     if(create_info.surface){ extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
+
+    if(!vierkant::check_device_extension_support(create_info.physical_device, extensions))
+    {
+        spdlog::critical("unsupported extension(s): {}", extensions);
+    }
 
     m_queue_indices = find_queue_families(m_physical_device, create_info.surface);
 
