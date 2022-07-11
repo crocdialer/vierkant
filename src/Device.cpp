@@ -131,16 +131,20 @@ Device::Device(const create_info_t &create_info) :
     auto version_minor = VK_API_VERSION_MINOR(m_physical_device_properties.properties.apiVersion);
     auto version_patch = VK_API_VERSION_PATCH(m_physical_device_properties.properties.apiVersion);
 
-    spdlog::info("device: {}", m_physical_device_properties.properties.deviceName);
-    spdlog::info("Vulkan API-version: {}.{}.{}", version_major, version_minor, version_patch);
+    std::string driver_info = "unknown";
 
     // nvidia
     if(m_physical_device_properties.properties.vendorID == 0x10de)
     {
-        auto versionraw = m_physical_device_properties.properties.driverVersion;
-        spdlog::info("driver-version: {}.{}.{}.{}", (versionraw >> 22) & 0x3ff, (versionraw >> 14) & 0x0ff,
-                     (versionraw >> 6) & 0x0ff, (versionraw) & 0x003f);
+        uint32_t versionraw = m_physical_device_properties.properties.driverVersion;
+        uint32_t nvidia_driver_major = (versionraw >> 22) & 0x3ff;
+        uint32_t nvidia_driver_minor = (versionraw >> 14) & 0x0ff;
+        uint32_t nvidia_driver_patch = (versionraw >> 6) & 0x0ff;
+        driver_info = fmt::format("{}.{}.{:02}", nvidia_driver_major, nvidia_driver_minor, nvidia_driver_patch);
     }
+
+    spdlog::info("Vulkan {}.{}.{} - {} (driver: {})", version_major, version_minor, version_patch,
+                 m_physical_device_properties.properties.deviceName, driver_info);
 
     // add some obligatory features here
     VkPhysicalDeviceFeatures device_features = create_info.device_features;
