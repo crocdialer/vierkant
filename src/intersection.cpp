@@ -78,7 +78,7 @@ vierkant::Sphere compute_bounding_sphere(const std::vector<glm::vec3> &vertices)
 
             float k = 0.5f + (ret.radius / d) / 2;
 
-            ret.center = glm::mix(ret.center, p, k);
+            ret.center = glm::mix(p, ret.center, k);
             ret.radius = (ret.radius + d) / 2;
         }
     }
