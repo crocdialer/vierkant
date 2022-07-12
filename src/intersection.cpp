@@ -24,14 +24,64 @@ ray_intersection intersect(const Plane &plane, const Ray &ray)
 
 vierkant::Sphere compute_bounding_sphere(const std::vector<glm::vec3> &vertices)
 {
-    Sphere ret;
-    ret.center = compute_centroid(vertices);
+    // find extremum points along all 3 axes; for each axis we get a pair of points with min/max coordinates
+    size_t pmin[3] = {0, 0, 0};
+    size_t pmax[3] = {0, 0, 0};
 
-    for(const glm::vec3 &vertex : vertices)
+    for (size_t i = 0; i < vertices.size(); ++i)
     {
-        ret.radius = std::max(ret.radius, glm::length2(ret.center - vertex));
+        const auto &p = vertices[i];
+
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            pmin[axis] = (p[axis] < vertices[pmin[axis]][axis]) ? i : pmin[axis];
+            pmax[axis] = (p[axis] > vertices[pmax[axis]][axis]) ? i : pmax[axis];
+        }
     }
-    if(ret.radius > 0.f){ret.radius = std::sqrt(ret.radius); }
+
+    // find the pair of points with largest distance
+    float paxisd2 = 0;
+    int paxis = 0;
+
+    for (int axis = 0; axis < 3; ++axis)
+    {
+        const auto &p1 = vertices[pmin[axis]];
+        const auto &p2 = vertices[pmax[axis]];
+
+        glm::vec3 delta = p2 - p1;
+        float d2 = glm::length2(delta);
+
+        if (d2 > paxisd2)
+        {
+            paxisd2 = d2;
+            paxis = axis;
+        }
+    }
+
+    // use the longest segment as the initial sphere diameter
+    const auto &p1 = vertices[pmin[paxis]];
+    const auto &p2 = vertices[pmax[paxis]];
+
+    Sphere ret;
+    ret.center = (p1 + p2) / 2.f;
+    ret.radius = sqrtf(paxisd2) / 2;
+
+    // iteratively adjust the sphere up until all points fit
+    for (const auto &p : vertices)
+    {
+        float d2 = glm::length2(p - ret.center);
+
+        if (d2 > ret.radius * ret.radius)
+        {
+            float d = sqrtf(d2);
+            assert(d > 0);
+
+            float k = 0.5f + (ret.radius / d) / 2;
+
+            ret.center = glm::mix(ret.center, p, k);
+            ret.radius = (ret.radius + d) / 2;
+        }
+    }
     return ret;
 }
 
