@@ -24,6 +24,9 @@ ray_intersection intersect(const Plane &plane, const Ray &ray)
 
 vierkant::Sphere compute_bounding_sphere(const std::vector<glm::vec3> &vertices)
 {
+    Sphere ret;
+
+#if 1
     // find extremum points along all 3 axes; for each axis we get a pair of points with min/max coordinates
     size_t pmin[3] = {0, 0, 0};
     size_t pmax[3] = {0, 0, 0};
@@ -47,9 +50,7 @@ vierkant::Sphere compute_bounding_sphere(const std::vector<glm::vec3> &vertices)
     {
         const auto &p1 = vertices[pmin[axis]];
         const auto &p2 = vertices[pmax[axis]];
-
-        glm::vec3 delta = p2 - p1;
-        float d2 = glm::length2(delta);
+        float d2 = glm::length2(p2 - p1);
 
         if (d2 > paxisd2)
         {
@@ -62,9 +63,8 @@ vierkant::Sphere compute_bounding_sphere(const std::vector<glm::vec3> &vertices)
     const auto &p1 = vertices[pmin[paxis]];
     const auto &p2 = vertices[pmax[paxis]];
 
-    Sphere ret;
     ret.center = (p1 + p2) / 2.f;
-    ret.radius = sqrtf(paxisd2) / 2;
+    ret.radius = sqrtf(paxisd2) / 2.f;
 
     // iteratively adjust the sphere up until all points fit
     for (const auto &p : vertices)
@@ -82,6 +82,15 @@ vierkant::Sphere compute_bounding_sphere(const std::vector<glm::vec3> &vertices)
             ret.radius = (ret.radius + d) / 2;
         }
     }
+#else
+    ret.center = compute_centroid(vertices);
+
+    for(const glm::vec3 &vertex : vertices)
+    {
+        ret.radius = std::max(ret.radius, glm::length2(ret.center - vertex));
+    }
+    if(ret.radius > 0.f){ret.radius = std::sqrt(ret.radius); }
+#endif
     return ret;
 }
 

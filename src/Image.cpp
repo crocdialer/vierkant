@@ -58,7 +58,6 @@ VkDeviceSize num_bytes(VkIndexType index_type)
 
 void transition_image_layout(VkCommandBuffer command_buffer,
                              VkImage image,
-                             VkFormat format,
                              VkImageLayout old_layout,
                              VkImageLayout new_layout,
                              uint32_t num_layers,
@@ -216,7 +215,7 @@ VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format &form
     vmaCreatePool(device->vk_mem_allocator(), &pool_create_info, &pool);
 
     // return self-destructing VmaPoolPtr
-    return VmaPoolPtr(pool, [device](VmaPool p){ vmaDestroyPool(device->vk_mem_allocator(), p); });
+    return {pool, [device](VmaPool p){ vmaDestroyPool(device->vk_mem_allocator(), p); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -422,11 +421,8 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
         {
             transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, m_format.initial_cmd_buffer);
         }
-        else if(img_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
-        {
-            transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, m_format.initial_cmd_buffer);
-        }
-        else if(img_usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+        else if(img_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT ||
+                img_usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
         {
             transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, m_format.initial_cmd_buffer);
         }
@@ -447,7 +443,7 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
             localCommandBuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
             cmd_buffer = localCommandBuffer.handle();
         }
-        transition_image_layout(cmd_buffer, m_image.get(), m_format.format, m_image_layout, new_layout,
+        transition_image_layout(cmd_buffer, m_image.get(), m_image_layout, new_layout,
                                 m_format.num_layers, m_num_mip_levels, m_format.aspect);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
@@ -484,7 +480,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
             extent.depth = std::max<uint32_t>(extent.depth >> level, 1);
         }
 
-        VkBufferImageCopy region = {};
+        VkBufferImageCopy2 region = {VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2};
         region.bufferOffset = 0;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
@@ -494,7 +490,14 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
         region.imageSubresource.layerCount = 1;
         region.imageOffset = offset;
         region.imageExtent = extent;
-        vkCmdCopyBufferToImage(cmd_buffer_handle, src->handle(), m_image.get(), m_image_layout, 1, &region);
+
+        VkCopyBufferToImageInfo2 copy_info = {VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2};
+        copy_info.regionCount = 1;
+        copy_info.pRegions = &region;
+        copy_info.srcBuffer = src->handle();
+        copy_info.dstImage = m_image.get();
+        copy_info.dstImageLayout = m_image_layout;
+        vkCmdCopyBufferToImage2(cmd_buffer_handle, &copy_info);
 
         // generate new mipmaps after copying
         if(m_format.use_mipmap && m_format.autogenerate_mipmaps){ generate_mipmaps(cmd_buffer_handle); }
@@ -529,7 +532,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
 
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
 
-        VkBufferImageCopy region = {};
+        VkBufferImageCopy2 region = {VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2};
         region.bufferOffset = 0;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
@@ -539,7 +542,14 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
         region.imageSubresource.layerCount = 1;
         region.imageOffset = offset;
         region.imageExtent = extent;
-        vkCmdCopyImageToBuffer(command_buffer, m_image.get(), m_image_layout, dst->handle(), 1, &region);
+
+        VkCopyImageToBufferInfo2 copy_info = {VK_STRUCTURE_TYPE_COPY_IMAGE_TO_BUFFER_INFO_2};
+        copy_info.regionCount = 1;
+        copy_info.pRegions = &region;
+        copy_info.srcImage = m_image.get();
+        copy_info.srcImageLayout = m_image_layout;
+        copy_info.dstBuffer = dst->handle();
+        vkCmdCopyImageToBuffer2(command_buffer, &copy_info);
 
         if(local_command_buffer)
         {
@@ -567,8 +577,8 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
 
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
 
-        // copy src-image -> dst0image
-        VkImageCopy region = {};
+        // copy src-image -> dst-image
+        VkImageCopy2 region = {VK_STRUCTURE_TYPE_IMAGE_COPY_2};
         region.extent = extent;
         region.dstOffset = region.srcOffset = offset;
         region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -581,6 +591,14 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
         region.dstSubresource.layerCount = m_format.num_layers;
         region.dstSubresource.mipLevel = 0;
 
+        VkCopyImageInfo2 copy_info = {VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2};
+        copy_info.regionCount = 1;
+        copy_info.pRegions = &region;
+        copy_info.srcImage = m_image.get();
+        copy_info.srcImageLayout = m_image_layout;
+        copy_info.dstImage = dst->image();
+        copy_info.dstImageLayout = dst->image_layout();
+
         // transition src-layout
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
 
@@ -588,7 +606,7 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
         dst->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_buffer);
 
         // actual copy command
-        vkCmdCopyImage(command_buffer, m_image.get(), m_image_layout, dst->image(), dst->image_layout(), 1, &region);
+        vkCmdCopyImage2(command_buffer, &copy_info);
 
         if(local_command_buffer)
         {
@@ -644,8 +662,8 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
     dependency_info.imageMemoryBarrierCount = 1;
     dependency_info.pImageMemoryBarriers = &barrier;
 
-    int32_t mip_width = width();
-    int32_t mip_height = height();
+    auto mip_width = static_cast<int32_t>(width());
+    auto mip_height = static_cast<int32_t>(height());
 
     for(uint32_t i = 1; i < m_num_mip_levels; i++)
     {
@@ -659,25 +677,29 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
         vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 
-        VkImageBlit blit = {};
-        blit.srcOffsets[0] = {0, 0, 0};
-        blit.srcOffsets[1] = {mip_width, mip_height, 1};
-        blit.srcSubresource.aspectMask = m_format.aspect;
-        blit.srcSubresource.mipLevel = i - 1;
-        blit.srcSubresource.baseArrayLayer = 0;
-        blit.srcSubresource.layerCount = m_format.num_layers;
-        blit.dstOffsets[0] = {0, 0, 0};
-        blit.dstOffsets[1] = {std::max(mip_width / 2, 1), std::max(mip_height / 2, 1), 1};
-        blit.dstSubresource.aspectMask = m_format.aspect;
-        blit.dstSubresource.mipLevel = i;
-        blit.dstSubresource.baseArrayLayer = 0;
-        blit.dstSubresource.layerCount = m_format.num_layers;
+        VkImageBlit2 blit_region = {VK_STRUCTURE_TYPE_IMAGE_BLIT_2};
+        blit_region.srcOffsets[0] = {0, 0, 0};
+        blit_region.srcOffsets[1] = {mip_width, mip_height, 1};
+        blit_region.srcSubresource.aspectMask = m_format.aspect;
+        blit_region.srcSubresource.mipLevel = i - 1;
+        blit_region.srcSubresource.baseArrayLayer = 0;
+        blit_region.srcSubresource.layerCount = m_format.num_layers;
+        blit_region.dstOffsets[0] = {0, 0, 0};
+        blit_region.dstOffsets[1] = {std::max(mip_width / 2, 1), std::max(mip_height / 2, 1), 1};
+        blit_region.dstSubresource.aspectMask = m_format.aspect;
+        blit_region.dstSubresource.mipLevel = i;
+        blit_region.dstSubresource.baseArrayLayer = 0;
+        blit_region.dstSubresource.layerCount = m_format.num_layers;
 
-        vkCmdBlitImage(command_buffer,
-                       m_image.get(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                       m_image.get(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                       1, &blit,
-                       blit_filter);
+        VkBlitImageInfo2 blit_info = {VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2};
+        blit_info.regionCount = 1;
+        blit_info.pRegions = &blit_region;
+        blit_info.srcImage = m_image.get();
+        blit_info.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        blit_info.dstImage = m_image.get();
+        blit_info.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        blit_info.filter = blit_filter;
+        vkCmdBlitImage2(command_buffer, &blit_info);
 
         barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
         barrier.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;

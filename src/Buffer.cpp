@@ -7,7 +7,7 @@ namespace vierkant {
 void copy_to_helper(const DevicePtr &device,
                     Buffer *src,
                     Buffer *dst,
-                    VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE,
+                    VkCommandBuffer cmd_handle = VK_NULL_HANDLE,
                     size_t src_offset = 0,
                     size_t dst_offset = 0,
                     size_t num_bytes = 0)
@@ -18,20 +18,26 @@ void copy_to_helper(const DevicePtr &device,
 
     CommandBuffer local_cmd_buf;
 
-    if(!cmdBufferHandle)
+    if(!cmd_handle)
     {
         local_cmd_buf = CommandBuffer(device, device->command_pool_transfer());
         local_cmd_buf.begin();
-        cmdBufferHandle = local_cmd_buf.handle();
+        cmd_handle = local_cmd_buf.handle();
     }
     // assure dst buffer has correct size, no-op if already the case
     dst->set_data(nullptr, dst_offset + num_bytes);
 
-    VkBufferCopy copy_region = {};
+    VkBufferCopy2 copy_region = {VK_STRUCTURE_TYPE_BUFFER_COPY_2};
+    copy_region.size = num_bytes;
     copy_region.srcOffset = src_offset;
     copy_region.dstOffset = dst_offset;
-    copy_region.size = num_bytes;
-    vkCmdCopyBuffer(cmdBufferHandle, src->handle(), dst->handle(), 1, &copy_region);
+
+    VkCopyBufferInfo2 copy_info2 = {VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2};
+    copy_info2.srcBuffer = src->handle();
+    copy_info2.dstBuffer = dst->handle();
+    copy_info2.regionCount = 1;
+    copy_info2.pRegions = &copy_region;
+    vkCmdCopyBuffer2(cmd_handle, &copy_info2);
 
     if(local_cmd_buf)
     {
