@@ -6,7 +6,7 @@
 
 #define VMA_IMPLEMENTATION
 
-#include <vierkant/vk_mem_alloc.h>
+#include <vk_mem_alloc.h>
 
 #include <vierkant/Device.hpp>
 
@@ -230,6 +230,22 @@ Device::Device(const create_info_t &create_info) :
         *last_pNext = &acceleration_structure_features;
         acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
         ray_tracing_pipeline_features.pNext = &ray_query_features;
+        last_pNext = &ray_query_features.pNext;
+    }
+
+    //------------------------------------ mesh-shader feature ---------------------------------------------------------
+    VkPhysicalDeviceMeshShaderFeaturesNV mesh_shader_features = {};
+    mesh_shader_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV;
+    *last_pNext = &mesh_shader_features;
+    last_pNext = &mesh_shader_features.pNext;
+
+    VkPhysicalDeviceMeshShaderPropertiesNV mesh_shader_properties = {};
+    mesh_shader_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV;
+
+    {
+        VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        props.pNext = &mesh_shader_properties;
+        vkGetPhysicalDeviceProperties2(create_info.physical_device, &props);
     }
 
     //------------------------------------------------------------------------------------------------------------------
@@ -244,7 +260,9 @@ Device::Device(const create_info_t &create_info) :
                                   ray_tracing_pipeline_features.rayTracingPipeline &&
                                   ray_query_features.rayQuery;
 
+    bool mesh_shader_available = mesh_shader_features.meshShader && mesh_shader_features.taskShader;
     if(ray_features_available){ last_pNext = &ray_query_features.pNext; }
+    if(mesh_shader_available){ last_pNext = &mesh_shader_features.pNext; }
     *last_pNext = create_info.create_device_pNext;
 
     VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};

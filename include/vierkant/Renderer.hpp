@@ -160,6 +160,7 @@ public:
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
         bool indirect_draw = true;
+        bool enable_mesh_shader = true;
         vierkant::CommandPoolPtr command_pool = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
         uint32_t random_seed = 0;
@@ -302,6 +303,8 @@ private:
         vierkant::CommandBuffer command_buffer;
     };
 
+    void set_function_pointers();
+
     //! update the combined uniform buffers
     void update_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
@@ -343,6 +346,21 @@ private:
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 
     std::default_random_engine m_random_engine;
+
+//    //! device function-pointers (avoid loader-indirections)
+//    PFN_vkCmdPushConstants vkCmdPushConstants = nullptr;
+//    PFN_vkCmdSetViewport vkCmdSetViewport = nullptr;
+//    PFN_vkCmdBindDescriptorSets vkCmdBindDescriptorSets = nullptr;
+//    PFN_vkCmdDraw vkCmdDraw = nullptr;
+//    PFN_vkCmdDrawIndexed vkCmdDrawIndexed = nullptr;
+//    PFN_vkCmdDrawIndirect vkCmdDrawIndirect = nullptr;
+//    PFN_vkCmdDrawIndexedIndirect vkCmdDrawIndexedIndirect = nullptr;
+//    PFN_vkCmdDrawIndexedIndirectCount vkCmdDrawIndexedIndirectCount = nullptr;
+//
+//    //! function pointers for optional mesh-shader support
+//    PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasksNV = nullptr;
+//    PFN_vkCmdDrawMeshTasksIndirectNV vkCmdDrawMeshTasksIndirectNV = nullptr;
+//    PFN_vkCmdDrawMeshTasksIndirectCountNV vkCmdDrawMeshTasksIndirectCountNV = nullptr;
 };
 
 }//namespace vierkant

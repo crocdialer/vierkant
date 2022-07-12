@@ -5,7 +5,7 @@
 #pragma once
 
 #include <map>
-#include <vierkant/vk_mem_alloc.h>
+#include <vk_mem_alloc.h>
 #include <vierkant/Instance.hpp>
 
 namespace vierkant

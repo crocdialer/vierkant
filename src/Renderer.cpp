@@ -158,6 +158,9 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
         throw std::runtime_error("could not create vierkant::Renderer");
     }
 
+    // additional/optimized function pointers
+    set_function_pointers();
+
     viewport = create_info.viewport;
     scissor = create_info.scissor;
     indirect_draw = create_info.indirect_draw;
@@ -236,6 +239,18 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_current_index, rhs.m_current_index);
     std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
     std::swap(lhs.m_start_time, rhs.m_start_time);
+
+//    std::swap(lhs.vkCmdPushConstants, rhs.vkCmdPushConstants);
+//    std::swap(lhs.vkCmdSetViewport, rhs.vkCmdSetViewport);
+//    std::swap(lhs.vkCmdBindDescriptorSets, rhs.vkCmdBindDescriptorSets);
+//    std::swap(lhs.vkCmdDraw, rhs.vkCmdDraw);
+//    std::swap(lhs.vkCmdDrawIndexed, rhs.vkCmdDrawIndexed);
+//    std::swap(lhs.vkCmdDrawIndirect, rhs.vkCmdDrawIndirect);
+//    std::swap(lhs.vkCmdDrawIndexedIndirect, rhs.vkCmdDrawIndexedIndirect);
+//    std::swap(lhs.vkCmdDrawIndexedIndirectCount, rhs.vkCmdDrawIndexedIndirectCount);
+//    std::swap(lhs.vkCmdDrawMeshTasksNV, rhs.vkCmdDrawMeshTasksNV);
+//    std::swap(lhs.vkCmdDrawMeshTasksIndirectNV, rhs.vkCmdDrawMeshTasksIndirectNV);
+//    std::swap(lhs.vkCmdDrawMeshTasksIndirectCountNV, rhs.vkCmdDrawMeshTasksIndirectCountNV);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -583,6 +598,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 vkCmdSetScissor(command_buffer.handle(), 0, 1, &draw_asset.scissor);
             }
 
+//            if(mesh && mesh->meshlets)
+//            {
+//                vkCmdDrawMeshTasksIndirectCountNV(command_buffer.handle(),)
+//            }
+
             if(indirect_draw)
             {
                 // issue (indexed) drawing command
@@ -670,6 +690,36 @@ void Renderer::reset()
     m_current_index = 0;
     m_staged_drawables.clear();
     for(auto &frame_asset: m_render_assets){ frame_asset = {}; }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Renderer::set_function_pointers()
+{
+//    vkCmdPushConstants = reinterpret_cast<PFN_vkCmdPushConstants>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdPushConstants"));
+//    vkCmdSetViewport = reinterpret_cast<PFN_vkCmdSetViewport>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdSetViewport"));
+//    vkCmdBindDescriptorSets = reinterpret_cast<PFN_vkCmdBindDescriptorSets>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdBindDescriptorSets"));
+//
+//    vkCmdDraw = reinterpret_cast<PFN_vkCmdDraw>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdDraw"));
+//    vkCmdDrawIndexed = reinterpret_cast<PFN_vkCmdDrawIndexed>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdDrawIndexed"));
+//    vkCmdDrawIndirect = reinterpret_cast<PFN_vkCmdDrawIndirect>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdDrawIndirect"));
+//    vkCmdDrawIndexedIndirect = reinterpret_cast<PFN_vkCmdDrawIndexedIndirect>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdDrawIndexedIndirect"));
+//    vkCmdDrawIndexedIndirectCount = reinterpret_cast<PFN_vkCmdDrawIndexedIndirectCount>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdDrawIndexedIndirectCount"));
+//
+//    vkCmdDrawMeshTasksNV = reinterpret_cast<PFN_vkCmdDrawMeshTasksNV>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdDrawMeshTasksNV"));
+//    vkCmdDrawMeshTasksIndirectNV = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectNV>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdDrawMeshTasksIndirectNV"));
+//    vkCmdDrawMeshTasksIndirectCountNV = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectCountNV>(vkGetDeviceProcAddr(
+//            m_device->handle(), "vkCmdDrawMeshTasksIndirectCountNV"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
