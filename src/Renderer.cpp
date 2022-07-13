@@ -597,12 +597,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 // set dynamic scissor
                 vkCmdSetScissor(command_buffer.handle(), 0, 1, &draw_asset.scissor);
             }
-
-//            if(mesh && mesh->meshlets)
-//            {
-//                vkCmdDrawMeshTasksIndirectCountNV(command_buffer.handle(),)
-//            }
-
+            
             if(indirect_draw)
             {
                 // issue (indexed) drawing command

@@ -575,7 +575,11 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
             command_buffer = local_command_buffer.handle();
         }
 
+        // transition src-layout
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
+
+        // transition dst-layout
+        dst->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_buffer);
 
         // copy src-image -> dst-image
         VkImageCopy2 region = {VK_STRUCTURE_TYPE_IMAGE_COPY_2};
@@ -598,12 +602,6 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
         copy_info.srcImageLayout = m_image_layout;
         copy_info.dstImage = dst->image();
         copy_info.dstImageLayout = dst->image_layout();
-
-        // transition src-layout
-        transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
-
-        // transition dst-layout
-        dst->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_buffer);
 
         // actual copy command
         vkCmdCopyImage2(command_buffer, &copy_info);
@@ -673,7 +671,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
         barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
         barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        barrier.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_BLIT_BIT;
 
         vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 
@@ -705,7 +703,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
         barrier.newLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
         barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
         barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT | VK_PIPELINE_STAGE_2_BLIT_BIT;
         barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
 
         vkCmdPipelineBarrier2(command_buffer, &dependency_info);
