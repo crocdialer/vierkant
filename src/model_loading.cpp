@@ -234,7 +234,7 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
         level_buffers[lvl] = vierkant::Buffer::create(device, compression_result.levels[lvl],
                                                       VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                       VMA_MEMORY_USAGE_CPU_ONLY);
-        compressed_img->copy_from(level_buffers[lvl], command_buffer.handle(), {}, {}, 0, lvl);
+        compressed_img->copy_from(level_buffers[lvl], command_buffer.handle(), 0, {}, {}, 0, lvl);
     }
     compressed_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, command_buffer.handle());
 

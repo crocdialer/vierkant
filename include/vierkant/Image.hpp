@@ -190,15 +190,17 @@ public:
     /**
      * @brief   copy contents from a buffer to this image
      *
-     * @param   src     the source buffer to copy data from
-     * @param   offset  the offset used for the copy operation
-     * @param   extent  the extent of the memory region to copy
-     * @param   layer   the target layer in the image to copy the data into
-     * @param   level   the target mip-level to copy the data into
+     * @param   src         the source buffer to copy data from
+     * @param   buf_offset  the source-offset in bytes inside the src-buffer
+     * @param   img_offset  the offset used for the copy operation
+     * @param   extent      the extent of the memory region to copy
+     * @param   layer       the target layer in the image to copy the data into
+     * @param   level       the target mip-level to copy the data into
      */
     void copy_from(const BufferPtr &src,
                    VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE,
-                   VkOffset3D offset = {0, 0, 0},
+                   size_t buf_offset = 0,
+                   VkOffset3D img_offset = {0, 0, 0},
                    VkExtent3D extent = {0, 0, 0},
                    uint32_t layer = 0,
                    uint32_t level = 0);
@@ -206,15 +208,17 @@ public:
     /**
      * @brief   copy contents from this image to a buffer
      *
-     * @param   dst     the destination buffer to copy data to
-     * @param   offset  the offset used for the copy operation
-     * @param   extent  the extent of the memory region to copy
-     * @param   layer   the target layer in the image to copy the data from
-     * @param   level   the target mip-level to copy the data into
+     * @param   dst         the destination buffer to copy data to
+     * @param   buf_offset  the destination-offset in bytes inside the target buffer
+     * @param   img_offset  the image-offset used for the copy operation
+     * @param   extent      the extent of the memory region to copy
+     * @param   layer       the target layer in the image to copy the data from
+     * @param   level       the target mip-level to copy the data from
      */
     void copy_to(const BufferPtr &dst,
                  VkCommandBuffer command_buffer = VK_NULL_HANDLE,
-                 VkOffset3D offset = {0, 0, 0},
+                 size_t buf_offset = 0,
+                 VkOffset3D img_offset = {0, 0, 0},
                  VkExtent3D extent = {0, 0, 0},
                  uint32_t layer = 0,
                  uint32_t level = 0);
@@ -222,13 +226,15 @@ public:
     /**
      * @brief   copy contents from this image to another image
      *
-     * @param   dst     the destination image to copy data to
-     * @param   offset  the offset used for the copy operation
-     * @param   extent  the extent of the memory region to copy
+     * @param   dst         the destination image to copy data to
+     * @param   src_offset  the source-offset used for the copy operation
+     * @param   dst_offset  the desitnation-offset used for the copy operation
+     * @param   extent      the extent of the memory region to copy
      */
     void copy_to(const ImagePtr &dst,
                  VkCommandBuffer command_buffer = VK_NULL_HANDLE,
-                 VkOffset3D offset = {0, 0, 0},
+                 VkOffset3D src_offset = {0, 0, 0},
+                 VkOffset3D dst_offset = {0, 0, 0},
                  VkExtent3D extent = {0, 0, 0});
 
     /**

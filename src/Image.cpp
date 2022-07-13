@@ -457,8 +457,13 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
-                      VkOffset3D offset, VkExtent3D extent, uint32_t layer, uint32_t level)
+void Image::copy_from(const BufferPtr &src,
+                      VkCommandBuffer cmd_buffer_handle,
+                      size_t buf_offset,
+                      VkOffset3D img_offset,
+                      VkExtent3D extent,
+                      uint32_t layer,
+                      uint32_t level)
 {
     if(src)
     {
@@ -481,14 +486,14 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
         }
 
         VkBufferImageCopy2 region = {VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2};
-        region.bufferOffset = 0;
+        region.bufferOffset = buf_offset;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
         region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         region.imageSubresource.mipLevel = level;
         region.imageSubresource.baseArrayLayer = layer;
         region.imageSubresource.layerCount = 1;
-        region.imageOffset = offset;
+        region.imageOffset = img_offset;
         region.imageExtent = extent;
 
         VkCopyBufferToImageInfo2 copy_info = {VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2};
@@ -511,8 +516,13 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffset3D offset, VkExtent3D extent,
-                    uint32_t layer, uint32_t level)
+void Image::copy_to(const BufferPtr &dst,
+                    VkCommandBuffer command_buffer,
+                    size_t buf_offset,
+                    VkOffset3D img_offset,
+                    VkExtent3D extent,
+                    uint32_t layer,
+                    uint32_t level)
 {
     if(dst)
     {
@@ -533,14 +543,14 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
 
         VkBufferImageCopy2 region = {VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2};
-        region.bufferOffset = 0;
+        region.bufferOffset = buf_offset;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
         region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         region.imageSubresource.mipLevel = level;
         region.imageSubresource.baseArrayLayer = layer;
         region.imageSubresource.layerCount = 1;
-        region.imageOffset = offset;
+        region.imageOffset = img_offset;
         region.imageExtent = extent;
 
         VkCopyImageToBufferInfo2 copy_info = {VK_STRUCTURE_TYPE_COPY_IMAGE_TO_BUFFER_INFO_2};
@@ -560,7 +570,11 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, VkOffs
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffset3D offset, VkExtent3D extent)
+void Image::copy_to(const ImagePtr &dst,
+                    VkCommandBuffer command_buffer,
+                    VkOffset3D src_offset,
+                    VkOffset3D dst_offset,
+                    VkExtent3D extent)
 {
     if(dst)
     {
@@ -584,7 +598,8 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
         // copy src-image -> dst-image
         VkImageCopy2 region = {VK_STRUCTURE_TYPE_IMAGE_COPY_2};
         region.extent = extent;
-        region.dstOffset = region.srcOffset = offset;
+        region.srcOffset = src_offset;
+        region.dstOffset = dst_offset;
         region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         region.srcSubresource.baseArrayLayer = 0;
         region.srcSubresource.layerCount = m_format.num_layers;
