@@ -1,0 +1,111 @@
+#version 460
+#extension GL_NV_mesh_shader : require
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_shader_8bit_storage: require
+//#extension GL_EXT_shader_16bit_storage: require
+
+#include "../renderer/types.glsl"
+#include "../utils/camera.glsl"
+
+//! ugly nv-specific warp-value
+#define LOCAL_SIZE 32
+
+layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
+layout(triangles, max_vertices = 64, max_primitives = 124) out;
+
+//! Vertex defines the layout for a vertex-struct
+struct Vertex
+{
+    vec3 position;
+    vec2 tex_coord;
+    vec3 normal;
+    vec3 tangent;
+};
+
+layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
+{
+    Vertex vertices[];
+};
+
+layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
+{
+    meshlet_t meshlets[];
+};
+
+layout(set = 0, binding = BINDING_MESHLET_VERTICES) readonly buffer MeshletVertexBuffer
+{
+    uint meshlet_vertices[];
+};
+
+layout(set = 0, binding = BINDING_MESHLET_TRIANGLES) readonly buffer MeshletTriangleBuffer
+{
+    uint8_t meshlet_triangles[];
+};
+
+layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
+{
+    matrix_struct_t u_matrices[];
+};
+
+layout(std140, set = 0, binding = BINDING_PREVIOUS_MATRIX) readonly buffer MatrixBufferPrevious
+{
+    matrix_struct_t u_previous_matrices[];
+};
+
+layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
+{
+    camera_t camera;
+    camera_t last_camera;
+};
+
+layout(push_constant) uniform PushConstants
+{
+    render_context_t context;
+};
+
+layout(location = 0) flat out uint object_index_out[];
+layout(location = 1) out VertexData
+{
+    vec2 tex_coord;
+    vec3 normal;
+    vec3 tangent;
+    vec4 current_position;
+    vec4 last_position;
+} vertex_out[];
+
+void main()
+{
+    uint ti = gl_LocalInvocationID.x;
+    uint mi = gl_WorkGroupID.x;
+
+    const uint object_index = 0;//gl_BaseInstance;
+    matrix_struct_t m = u_matrices[object_index];
+    matrix_struct_t m_last = u_previous_matrices[object_index];
+
+    for(uint i = ti; i < meshlets[mi].vertex_count; i += LOCAL_SIZE)
+    {
+        uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
+        Vertex v = vertices[vi];
+
+        vertex_out[i].current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
+        vertex_out[i].last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);
+
+        vec4 jittered_position = vertex_out[i].current_position;
+        jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
+        gl_MeshVerticesNV[i].gl_Position = jittered_position;
+
+        object_index_out[i] = object_index;
+        vertex_out[i].tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
+        vertex_out[i].normal = normalize(mat3(m.normal) * v.normal);
+        vertex_out[i].tangent = normalize(mat3(m.normal) * v.tangent);
+    }
+
+    uint num_meshlet_indices = meshlets[mi].triangle_count * 3;
+
+    for(uint i = ti; i < num_meshlet_indices; i += LOCAL_SIZE)
+    {
+        gl_PrimitiveIndicesNV[i] = uint(meshlet_triangles[meshlets[mi].triangle_offset + i]);
+    }
+    if (ti == 0){ gl_PrimitiveCountNV = meshlets[mi].triangle_count; }
+}
