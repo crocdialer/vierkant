@@ -107,6 +107,7 @@ Vertex interpolate_vertex(Triangle t)
     // bring surfel into worldspace
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
     out_vert.position = (entry.modelview * vec4(out_vert.position, 1.0)).xyz;
+    out_vert.tex_coord = (entry.texture_matrix * vec4(out_vert.tex_coord, 0.f, 1.0)).xy;
     out_vert.normal = normalize((entry.normal_matrix * vec4(out_vert.normal, 1.0)).xyz);
     out_vert.tangent = normalize((entry.normal_matrix * vec4(out_vert.tangent, 1.0)).xyz);
 

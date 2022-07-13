@@ -374,6 +374,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             RayBuilder::entry_t top_level_entry = {};
             top_level_entry.modelview = modelview;
             top_level_entry.normal_matrix = glm::inverseTranspose(modelview);
+            top_level_entry.texture_matrix = mesh_material->texture_transform;
             top_level_entry.buffer_index = mesh_index;
             top_level_entry.material_index = materials.size();
             top_level_entry.vertex_offset = mesh_entry.vertex_offset;
