@@ -94,12 +94,6 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.morph_vertex_offset = entry.morph_vertex_offset;
         drawable.morph_weights = entry.morph_weights;
 
-//        if(!mesh->vertex_buffer)
-        {
-            drawable.pipeline_format.binding_descriptions = binding_descriptions;
-            drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
-        }
-
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
         drawable.pipeline_format.depth_test = material->depth_test;
@@ -107,21 +101,41 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
 
         // descriptors
-        vierkant::descriptor_t desc_vertices = {};
+        auto &desc_vertices = drawable.descriptors[BINDING_VERTICES];
         desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[BINDING_VERTICES] = desc_vertices;
 
         // descriptors
-        vierkant::descriptor_t desc_matrices = {};
+        auto &desc_matrices = drawable.descriptors[BINDING_MATRIX];
         desc_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[BINDING_MATRIX] = desc_matrices;
 
-        vierkant::descriptor_t desc_material = {};
+        auto &desc_material = drawable.descriptors[BINDING_MATERIAL];
         desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[BINDING_MATERIAL] = desc_material;
+
+        if(drawable.mesh->meshlets && drawable.mesh->meshlet_vertices && drawable.mesh->meshlet_triangles)
+        {
+            auto &desc_meshlets = drawable.descriptors[BINDING_MESHLETS];
+            desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_meshlets.stage_flags = VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlets.buffers = {mesh->meshlets};
+
+            auto &desc_meshlet_vertices = drawable.descriptors[BINDING_MESHLET_VERTICES];
+            desc_meshlet_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_meshlet_vertices.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlet_vertices.buffers = {mesh->meshlet_vertices};
+
+            auto &desc_meshlet_triangles = drawable.descriptors[BINDING_MESHLET_TRIANGLES];
+            desc_meshlet_triangles.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlet_triangles.buffers = {mesh->meshlet_triangles};
+        }
+        else
+        {
+            drawable.pipeline_format.binding_descriptions = binding_descriptions;
+            drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
+        }
 
         // textures
         if(!material->textures.empty())
@@ -577,7 +591,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
         for(auto &[mesh, draw_asset]: indirect_draws)
         {
-            if(mesh && current_mesh != mesh)
+            if(mesh && current_mesh != mesh /*&& !mesh->meshlets*/)
             {
                 mesh->bind_buffers(command_buffer.handle());
                 current_mesh = mesh;
@@ -597,7 +611,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 // set dynamic scissor
                 vkCmdSetScissor(command_buffer.handle(), 0, 1, &draw_asset.scissor);
             }
-            
+
             if(indirect_draw)
             {
                 // issue (indexed) drawing command

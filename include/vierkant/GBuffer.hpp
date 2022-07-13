@@ -38,10 +38,11 @@ vierkant::Framebuffer create_g_buffer(const DevicePtr &device,
 enum GBufferPropertyFlagBits : uint32_t
 {
     PROP_DEFAULT = 0x00,
-    PROP_SKIN = 0x02,
-    PROP_TANGENT_SPACE = 0x04,
-    PROP_TESSELATION = 0x08,
-    PROP_MORPH_TARGET = 0x10
+    PROP_SKIN = 0x01,
+    PROP_TANGENT_SPACE = 0x02,
+    PROP_TESSELATION = 0x04,
+    PROP_MORPH_TARGET = 0x08,
+    PROP_MESHLETS = 0x10
 };
 
 using GBufferPropertyFlags = uint32_t;

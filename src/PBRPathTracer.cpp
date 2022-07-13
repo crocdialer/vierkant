@@ -318,18 +318,16 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     frame_asset.tracable.descriptors.clear();
 
     // descriptors
-    vierkant::descriptor_t desc_acceleration_structure = {};
+    auto &desc_acceleration_structure = frame_asset.tracable.descriptors[0];
     desc_acceleration_structure.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     desc_acceleration_structure.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_acceleration_structure.acceleration_structure = frame_asset.acceleration_asset.structure;
-    frame_asset.tracable.descriptors[0] = desc_acceleration_structure;
 
-    vierkant::descriptor_t desc_storage_images = {};
+    auto &desc_storage_images = frame_asset.tracable.descriptors[1];
     desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals,
                                   m_storage_images.positions, m_storage_images.accumulated_radiance};
-    frame_asset.tracable.descriptors[1] = desc_storage_images;
 
     // provide inverse modelview and projection matrices
     camera_ubo_t camera_ubo = {};
@@ -339,80 +337,69 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     camera_ubo.aperture = frame_asset.settings.depth_of_field ? settings.aperture : 0.f;
     camera_ubo.focal_distance = frame_asset.settings.focal_distance;
 
-    vierkant::descriptor_t desc_matrices = {};
+    vierkant::descriptor_t &desc_matrices = frame_asset.tracable.descriptors[2];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_matrices.buffers = {vierkant::Buffer::create(m_device, &camera_ubo, sizeof(camera_ubo),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_CPU_TO_GPU)};
-    frame_asset.tracable.descriptors[2] = desc_matrices;
 
-    vierkant::descriptor_t desc_vertex_buffers = {};
+    vierkant::descriptor_t &desc_vertex_buffers = frame_asset.tracable.descriptors[3];
     desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_vertex_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_vertex_buffers.buffers = frame_asset.acceleration_asset.vertex_buffers;
     desc_vertex_buffers.buffer_offsets = frame_asset.acceleration_asset.vertex_buffer_offsets;
-    frame_asset.tracable.descriptors[3] = desc_vertex_buffers;
 
-    vierkant::descriptor_t desc_index_buffers = {};
+    vierkant::descriptor_t &desc_index_buffers = frame_asset.tracable.descriptors[4];
     desc_index_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_index_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_index_buffers.buffers = frame_asset.acceleration_asset.index_buffers;
     desc_index_buffers.buffer_offsets = frame_asset.acceleration_asset.index_buffer_offsets;
-    frame_asset.tracable.descriptors[4] = desc_index_buffers;
 
-    vierkant::descriptor_t desc_entries = {};
+    vierkant::descriptor_t &desc_entries = frame_asset.tracable.descriptors[5];
     desc_entries.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_entries.buffers = {frame_asset.acceleration_asset.entry_buffer};
-    frame_asset.tracable.descriptors[5] = desc_entries;
 
-    vierkant::descriptor_t desc_materials = {};
+    vierkant::descriptor_t &desc_materials = frame_asset.tracable.descriptors[6];
     desc_materials.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_materials.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_materials.buffers = {frame_asset.acceleration_asset.material_buffer};
-    frame_asset.tracable.descriptors[6] = desc_materials;
 
-    vierkant::descriptor_t desc_textures = {};
+    vierkant::descriptor_t &desc_textures = frame_asset.tracable.descriptors[7];
     desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_textures.images = frame_asset.acceleration_asset.textures;
-    frame_asset.tracable.descriptors[7] = desc_textures;
 
-    vierkant::descriptor_t desc_normalmaps = {};
+    vierkant::descriptor_t &desc_normalmaps = frame_asset.tracable.descriptors[8];
     desc_normalmaps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_normalmaps.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_normalmaps.images = frame_asset.acceleration_asset.normalmaps;
-    frame_asset.tracable.descriptors[8] = desc_normalmaps;
 
-    vierkant::descriptor_t desc_emissions = {};
+    vierkant::descriptor_t &desc_emissions = frame_asset.tracable.descriptors[9];
     desc_emissions.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_emissions.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_emissions.images = frame_asset.acceleration_asset.emissions;
-    frame_asset.tracable.descriptors[9] = desc_emissions;
 
-    vierkant::descriptor_t desc_ao_rough_metal_maps = {};
+    vierkant::descriptor_t &desc_ao_rough_metal_maps = frame_asset.tracable.descriptors[10];
     desc_ao_rough_metal_maps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_ao_rough_metal_maps.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_ao_rough_metal_maps.images = frame_asset.acceleration_asset.ao_rough_metal_maps;
-    frame_asset.tracable.descriptors[10] = desc_ao_rough_metal_maps;
 
     // comman ubo for miss-shaders
-    vierkant::descriptor_t desc_ray_miss_ubo = {};
+    vierkant::descriptor_t &desc_ray_miss_ubo = frame_asset.tracable.descriptors[11];
     desc_ray_miss_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
     desc_ray_miss_ubo.buffers = {frame_asset.ray_miss_ubo};
-    frame_asset.tracable.descriptors[11] = desc_ray_miss_ubo;
 
     frame_asset.ray_miss_ubo->set_data(&frame_asset.settings.environment_factor, sizeof(float));
 
     if(m_environment)
     {
-        vierkant::descriptor_t desc_environment = {};
+        vierkant::descriptor_t &desc_environment = frame_asset.tracable.descriptors[12];
         desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
         desc_environment.images = {m_environment};
-        frame_asset.tracable.descriptors[12] = desc_environment;
     }
 }
 

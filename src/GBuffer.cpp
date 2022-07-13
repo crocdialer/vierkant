@@ -77,6 +77,8 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
     auto tess_control = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tesc);
     auto tess_eval = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tese);
 
+    auto pbr_tangent_mesh = vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_mesh);
+
     // fragment
     auto pbr_g_buffer_uber_frag =
             vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_uber_frag);
@@ -112,6 +114,10 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
     stages_albedo_normal_tess[VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT] = tess_eval;
     stages_albedo_normal_tess[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
 
+    // meshlet pipelines
+    auto &stages_mesh = ret[PROP_TANGENT_SPACE | PROP_MESHLETS];
+    stages_mesh[VK_SHADER_STAGE_MESH_BIT_NV] = pbr_tangent_mesh;
+    stages_mesh[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
     return ret;
 }
 
