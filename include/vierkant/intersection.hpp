@@ -237,7 +237,6 @@ struct Triangle
 
 struct Sphere
 {
-
     glm::vec3 center = {};
     float radius = 0.f;
 
@@ -271,6 +270,25 @@ struct Sphere
             return REJECT;
         }
         return INSIDE;
+    }
+};
+
+/**
+ * @brief   Cone defines a normal-cone, useful for backface culling.
+ */
+struct Cone
+{
+    //! cone-axis
+    glm::vec3 axis = {0.f, 0.f, -1.f};
+
+    //! cos(angle/2)
+    float cutoff = 0.f;
+
+    [[nodiscard]] inline Cone transform(const glm::mat4 &t) const
+    {
+        Cone ret = *this;
+        ret.axis = glm::mat3(t) * ret.axis;
+        return ret;
     }
 };
 

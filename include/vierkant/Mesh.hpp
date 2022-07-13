@@ -97,8 +97,11 @@ public:
         uint32_t vertex_count = 0;
         uint32_t triangle_count = 0;
 
-        //! bounding sphere, useful for frustum and occlusion cluster-culling
+        //! bounding sphere, useful for frustum and occlusion culling
         vierkant::Sphere bounding_sphere;
+
+        //! normal cone, useful for backface culling
+        vierkant::Cone normal_cone;
     };
 
     struct create_info_t

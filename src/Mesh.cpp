@@ -449,6 +449,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 out_meshlet.triangle_offset = m.triangle_offset;
                 out_meshlet.triangle_count = m.triangle_count;
                 out_meshlet.bounding_sphere = {*reinterpret_cast<glm::vec3 *>(bounds.center), bounds.radius};
+                out_meshlet.normal_cone = {*reinterpret_cast<glm::vec3 *>(bounds.cone_axis), bounds.cone_cutoff};
 
                 ret.meshlets.push_back(out_meshlet);
             }

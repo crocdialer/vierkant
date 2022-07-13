@@ -63,12 +63,35 @@ struct render_context_t
 
 //! descriptorset-bindings in vierkant::Renderer
 #define BINDING_VERTICES 0
-#define BINDING_MATRIX 1
-#define BINDING_PREVIOUS_MATRIX 2
-#define BINDING_MATERIAL 3
-#define BINDING_TEXTURES 4
-#define BINDING_BONES 5
-#define BINDING_PREVIOUS_BONES 6
-#define BINDING_JITTER_OFFSET 7
-#define BINDING_MORPH_TARGETS 8
-#define BINDING_MORPH_PARAMS 9
+#define BINDING_INDICES 1
+#define BINDING_MATRIX 2
+#define BINDING_PREVIOUS_MATRIX 3
+#define BINDING_MATERIAL 4
+#define BINDING_TEXTURES 5
+#define BINDING_BONES 6
+#define BINDING_PREVIOUS_BONES 7
+#define BINDING_JITTER_OFFSET 8
+#define BINDING_MORPH_TARGETS 9
+#define BINDING_MORPH_PARAMS 10
+#define BINDING_PREVIOUS_MORPH_PARAMS 11
+#define BINDING_MESHLETS 12
+#define BINDING_MESHLET_VERTICES 13
+#define BINDING_MESHLET_TRIANGLES 14
+
+//! meshlet parameters
+struct meshlet_t
+{
+    //! offsets within meshlet_vertices and meshlet_triangles
+    uint vertex_offset;
+    uint triangle_offset;
+
+    //! number of vertices and triangles used in the meshlet
+    uint vertex_count;
+    uint triangle_count;
+
+    //! bounding sphere (center, radius), useful for frustum and occlusion culling
+    vec4 bounding_sphere;
+
+    //! normal cone (axis, cutoff), useful for backface culling
+    vec4 normal_cone;
+};
