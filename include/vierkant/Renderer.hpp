@@ -7,7 +7,6 @@
 #include <mutex>
 #include "crocore/Area.hpp"
 
-#include "vierkant/Event.hpp"
 #include "vierkant/Mesh.hpp"
 #include "vierkant/descriptor.hpp"
 #include "vierkant/Framebuffer.hpp"

@@ -1087,15 +1087,15 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
 {
     const size_t num_bytes = num_draws * sizeof(Renderer::indexed_indirect_command_t);
 
-    if(!params.stage || params.stage->num_bytes() < num_bytes)
-    {
-        params.stage = vierkant::Buffer::create(m_device, nullptr, num_bytes,
-                                                   VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                VMA_MEMORY_USAGE_GPU_ONLY);
-    }
-
+//    if(!params.stage || params.stage->num_bytes() < num_bytes)
+//    {
+//        params.stage = vierkant::Buffer::create(m_device, nullptr, num_bytes,
+//                                                   VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+//                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+//                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+//                                                VMA_MEMORY_USAGE_GPU_ONLY);
+//    }
+//
     if(!params.draws || params.draws->num_bytes() < num_bytes)
     {
         params.draws = vierkant::Buffer::create(m_device, nullptr, num_bytes,
