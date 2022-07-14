@@ -393,8 +393,6 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
         spdlog::stopwatch sw;
 
-        uint32_t meshlet_offset = 0;
-
         // corresponds to mesh.entries
         for(auto &[geom, offsets]: splicer.offsets)
         {
@@ -421,11 +419,6 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                           std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()),
                           geom->indices.size() / 3, meshlets.size());
 
-//            size_t meshlet_count = meshopt_buildMeshletsScan(meshlets.data(), meshlet_vertices.data(),
-//                                                             meshlet_triangles.data(), index_data, geom->indices.size(),
-//                                                             geom->positions.size(),
-//                                                             max_vertices, max_triangles);
-
             // pruning
             const meshopt_Meshlet &last = meshlets[meshlet_count - 1];
 
@@ -433,6 +426,13 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             size_t triangle_count = last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3);
 
             ret.meshlets.reserve(ret.meshlets.size() + meshlet_count);
+
+            auto &extra_offsets = extra_offset_map[geom];
+            extra_offsets.base_meshlet = ret.meshlets.size();
+            extra_offsets.num_meshlets = meshlet_count;
+
+            size_t meshlet_vertex_offset = ret.meshlet_vertices.size();
+            size_t meshlet_triangle_offset = ret.meshlet_triangles.size();
 
             // generate bounds, combine data in our API output-meshlets
             for(uint32_t i = 0; i < meshlet_count; ++i)
@@ -444,9 +444,9 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                                                            reinterpret_cast<const float *>(vertices),
                                                            geom->positions.size(), splicer.vertex_stride);
                 vierkant::Mesh::meshlet_t out_meshlet = {};
-                out_meshlet.vertex_offset = m.vertex_offset;
+                out_meshlet.vertex_offset = meshlet_vertex_offset + m.vertex_offset;
                 out_meshlet.vertex_count = m.vertex_count;
-                out_meshlet.triangle_offset = m.triangle_offset;
+                out_meshlet.triangle_offset = meshlet_triangle_offset + m.triangle_offset;
                 out_meshlet.triangle_count = m.triangle_count;
                 out_meshlet.bounding_sphere = {*reinterpret_cast<glm::vec3 *>(bounds.center), bounds.radius};
                 out_meshlet.normal_cone = {*reinterpret_cast<glm::vec3 *>(bounds.cone_axis), bounds.cone_cutoff};
@@ -454,16 +454,11 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 ret.meshlets.push_back(out_meshlet);
             }
 
-            auto &extra_offsets = extra_offset_map[geom];
-            extra_offsets.base_meshlet = meshlet_offset;
-            extra_offsets.num_meshlets = meshlet_count;
-            meshlet_offset += meshlet_count;
-
             // insert entry-meshlet data
             ret.meshlet_vertices.insert(ret.meshlet_vertices.end(), meshlet_vertices.begin(),
                                         meshlet_vertices.begin() + int(vertex_count));
             ret.meshlet_triangles.insert(ret.meshlet_triangles.end(), meshlet_triangles.begin(),
-                                         meshlet_triangles.begin() + int(triangle_count));
+                                         meshlet_triangles.begin() + 3 * int(triangle_count));
         }
 
         if(!ret.meshlets.empty())

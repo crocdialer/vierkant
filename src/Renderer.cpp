@@ -502,7 +502,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
                 //! VkDrawMeshTasksIndirectCommandNV
                 draw_command->vk_mesh_draw.taskCount = drawable->num_meshlets;
-                draw_command->vk_mesh_draw.firstTask = drawable->base_meshlet;
+                draw_command->vk_mesh_draw.firstTask = 0;//drawable->base_meshlet;
 
                 draw_command->object_index = indexed_drawable.object_index;
                 draw_command->base_meshlet = drawable->base_meshlet;
