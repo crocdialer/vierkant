@@ -2,6 +2,8 @@
 
 #extension GL_GOOGLE_include_directive : require
 
+#include "../renderer/types.glsl"
+
 struct draw_cull_data_t
 {
     mat4 view;
@@ -16,27 +18,6 @@ struct draw_cull_data_t
     bool lod_enabled;
     bool occlusion_enabled;
     bool distance_cull;
-};
-
-struct IndexedIndirectCommand
-{
-    //! VkDrawIndexedIndirectCommand
-    uint indexCount;
-    uint instanceCount;
-    uint firstIndex;
-    int  vertexOffset;
-    uint firstInstance;
-
-    //! VkDrawMeshTasksIndirectCommandNV
-    uint taskCount;
-    uint firstTask;
-
-    uint object_index;
-    bool visible;
-    uint base_meshlet;
-    uint count_buffer_offset;
-    uint first_draw_index;
-    vec4 sphere_bounds;
 };
 
 struct draw_cull_result_t
@@ -74,16 +55,16 @@ layout(binding = 0) uniform sampler2D u_depth_pyramid;
 layout(std140, binding = 1) uniform culldata_ubo_t{ draw_cull_data_t cull_data; };
 
 // input draw indirect buffer
-layout(binding = 2) buffer DrawBufferIn{ IndexedIndirectCommand in_draw_data[]; };
+layout(binding = 2) buffer DrawBufferIn{ indexed_indirect_command_t in_draw_data[]; };
 
 // output draw-indirect buffer -> visible
-layout(binding = 3) writeonly buffer DrawBufferOut{ IndexedIndirectCommand out_draw_data[]; };
+layout(binding = 3) writeonly buffer DrawBufferOut{ indexed_indirect_command_t out_draw_data[]; };
 
 // output draw-counts -> visible
 layout(binding = 4) buffer DrawCount{ uint count[]; };
 
 // output draw indirect buffer
-layout(binding = 5) writeonly buffer DrawBufferOutPost{ IndexedIndirectCommand out_draw_data_post[]; };
+layout(binding = 5) writeonly buffer DrawBufferOutPost{ indexed_indirect_command_t out_draw_data_post[]; };
 
 // output draw-counts
 layout(binding = 6) buffer DrawCountPost{ uint count_post[]; };
@@ -99,7 +80,7 @@ void main()
     if(gid >= cull_data.num_draws){ return; }
 
     // simple pass-through
-    IndexedIndirectCommand draw = in_draw_data[gid];
+    indexed_indirect_command_t draw = in_draw_data[gid];
 
     bool visible = true;
 

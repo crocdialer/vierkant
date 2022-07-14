@@ -79,6 +79,28 @@ struct render_context_t
 #define BINDING_MESHLET_VERTICES 14
 #define BINDING_MESHLET_TRIANGLES 15
 
+//! combined indirect-draw struct
+struct indexed_indirect_command_t
+{
+    //! VkDrawIndexedIndirectCommand
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int  vertexOffset;
+    uint firstInstance;
+
+    //! VkDrawMeshTasksIndirectCommandNV
+    uint taskCount;
+    uint firstTask;
+
+    uint object_index;
+    bool visible;
+    uint base_meshlet;
+    uint count_buffer_offset;
+    uint first_draw_index;
+    vec4 sphere_bounds;
+};
+
 //! meshlet parameters
 struct meshlet_t
 {

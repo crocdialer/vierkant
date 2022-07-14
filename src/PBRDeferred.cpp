@@ -70,6 +70,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     // create renderer for g-buffer-pass
     vierkant::Renderer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
+    render_create_info.queue = create_info.queue;
     render_create_info.sample_count = create_info.sample_count;
     render_create_info.viewport.width = static_cast<float>(create_info.settings.resolution.x);
     render_create_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
@@ -469,7 +470,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     frame_asset.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
 
     // decide on indirect rendering-path
-    bool use_indrect_draw = cull_result.drawables.size() >= settings.draw_indrect_object_thresh;
+    bool use_indrect_draw = cull_result.drawables.size() >= settings.draw_indirect_object_thresh;
     if(use_indrect_draw && (!m_g_renderer_pre.indirect_draw || !m_g_renderer_post.indirect_draw))
     {
         frame_asset.recycle_commands = false;
@@ -596,13 +597,13 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         if(params.num_draws && !frame_asset.recycle_commands)
         {
-            params.draws_in->copy_to(frame_asset.indirect_draw_params_pre.draws_in,
-                                     frame_asset.clear_cmd_buffer.handle());
+            params.stage->copy_to(frame_asset.indirect_draw_params_pre.stage,
+                                  frame_asset.clear_cmd_buffer.handle());
         }
 
         frame_asset.clear_cmd_buffer.submit(m_queue);
 
-        params.draws_out = frame_asset.indirect_draw_params_pre.draws_out;
+        params.draws = frame_asset.indirect_draw_params_pre.draws;
         params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
     };
 
@@ -632,11 +633,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             cull_draw_commands(frame_asset,
                                cam,
                                frame_asset.depth_pyramid,
-                               frame_asset.indirect_draw_params_pre.draws_in,
+                               frame_asset.indirect_draw_params_pre.stage,
                                params.num_draws,
-                               frame_asset.indirect_draw_params_pre.draws_out,
+                               frame_asset.indirect_draw_params_pre.draws,
                                frame_asset.indirect_draw_params_pre.draws_counts_out,
-                               frame_asset.indirect_draw_params_post.draws_out,
+                               frame_asset.indirect_draw_params_post.draws,
                                frame_asset.indirect_draw_params_post.draws_counts_out);
 
             params = frame_asset.indirect_draw_params_post;
@@ -1086,21 +1087,21 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
 {
     const size_t num_bytes = num_draws * sizeof(Renderer::indexed_indirect_command_t);
 
-    if(!params.draws_in || params.draws_in->num_bytes() < num_bytes)
+    if(!params.stage || params.stage->num_bytes() < num_bytes)
     {
-        params.draws_in = vierkant::Buffer::create(m_device, nullptr, num_bytes,
+        params.stage = vierkant::Buffer::create(m_device, nullptr, num_bytes,
                                                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                   VMA_MEMORY_USAGE_GPU_ONLY);
+                                                VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
-    if(!params.draws_out || params.draws_out->num_bytes() < num_bytes)
+    if(!params.draws || params.draws->num_bytes() < num_bytes)
     {
-        params.draws_out = vierkant::Buffer::create(m_device, nullptr, num_bytes,
+        params.draws = vierkant::Buffer::create(m_device, nullptr, num_bytes,
                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                    VMA_MEMORY_USAGE_GPU_ONLY);
+                                                VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
     if(!params.draws_counts_out)
@@ -1209,53 +1210,45 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
 
     vierkant::Compute::computable_t computable = m_cull_computable;
 
-    descriptor_t depth_pyramid_desc = {};
+    descriptor_t &depth_pyramid_desc = computable.descriptors[0];
     depth_pyramid_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     depth_pyramid_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     depth_pyramid_desc.images = {depth_pyramid};
-    computable.descriptors[0] = depth_pyramid_desc;
 
-    descriptor_t draw_cull_data_desc = {};
+    descriptor_t &draw_cull_data_desc = computable.descriptors[1];
     draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     draw_cull_data_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     draw_cull_data_desc.buffers = {frame_asset.cull_ubo};
-    computable.descriptors[1] = draw_cull_data_desc;
 
-    descriptor_t in_buffer_desc = {};
+    descriptor_t &in_buffer_desc = computable.descriptors[2];
     in_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     in_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     in_buffer_desc.buffers = {draws_in};
-    computable.descriptors[2] = in_buffer_desc;
 
-    descriptor_t out_buffer_desc = {};
+    descriptor_t &out_buffer_desc = computable.descriptors[3];
     out_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     out_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     out_buffer_desc.buffers = {draws_out};
-    computable.descriptors[3] = out_buffer_desc;
 
-    descriptor_t out_counts_buffer_desc = {};
+    descriptor_t &out_counts_buffer_desc = computable.descriptors[4];
     out_counts_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     out_counts_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     out_counts_buffer_desc.buffers = {draws_counts_out};
-    computable.descriptors[4] = out_counts_buffer_desc;
 
-    descriptor_t out_buffer_post_desc = {};
+    descriptor_t &out_buffer_post_desc = computable.descriptors[5];
     out_buffer_post_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     out_buffer_post_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     out_buffer_post_desc.buffers = {draws_out_post};
-    computable.descriptors[5] = out_buffer_post_desc;
 
-    descriptor_t out_counts_buffer_post_desc = {};
+    descriptor_t &out_counts_buffer_post_desc = computable.descriptors[6];
     out_counts_buffer_post_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     out_counts_buffer_post_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     out_counts_buffer_post_desc.buffers = {draws_counts_out_post};
-    computable.descriptors[6] = out_counts_buffer_post_desc;
 
-    descriptor_t out_result_desc = {};
+    descriptor_t &out_result_desc = computable.descriptors[7];
     out_result_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     out_result_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     out_result_desc.buffers = {frame_asset.cull_result_buffer};
-    computable.descriptors[7] = out_result_desc;
 
     // create / start a new command-buffer
     frame_asset.cull_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());

@@ -7,6 +7,7 @@
 #include <mutex>
 #include "crocore/Area.hpp"
 
+#include "vierkant/Event.hpp"
 #include "vierkant/Mesh.hpp"
 #include "vierkant/descriptor.hpp"
 #include "vierkant/Framebuffer.hpp"
@@ -112,10 +113,10 @@ public:
         uint32_t num_draws = 0;
 
         //! host-visible array of indexed_indirect_command_t
-        vierkant::BufferPtr draws_in;
+        vierkant::BufferPtr stage;
 
         //! device array of indexed_indirect_command_t
-        vierkant::BufferPtr draws_out;
+        vierkant::BufferPtr draws;
 
         //! device array of uint32_t
         vierkant::BufferPtr draws_counts_out;
@@ -176,6 +177,7 @@ public:
         bool enable_mesh_shader = true;
         vierkant::CommandPoolPtr command_pool = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
+        VkQueue queue = VK_NULL_HANDLE;
         uint32_t random_seed = 0;
     };
 
@@ -307,6 +309,7 @@ private:
         // draw-indirect buffers
         indirect_draw_bundle_t indirect_bundle;
         indirect_draw_bundle_t indirect_indexed_bundle;
+        vierkant::CommandBuffer stage_buffer;
 
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
@@ -318,7 +321,8 @@ private:
     void update_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
     //! update the combined uniform buffers
-    void resize_draw_indirect_buffers(frame_assets_t &frame_asset, uint32_t num_drawables);
+    void resize_draw_indirect_buffers(uint32_t num_drawables,
+                                      frame_assets_t &frame_asset);
 
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
@@ -337,6 +341,8 @@ private:
     VkSampleCountFlagBits m_sample_count = VK_SAMPLE_COUNT_1_BIT;
 
     vierkant::PipelineCachePtr m_pipeline_cache;
+
+    VkQueue m_queue = VK_NULL_HANDLE;
 
     vierkant::CommandPoolPtr m_command_pool;
 

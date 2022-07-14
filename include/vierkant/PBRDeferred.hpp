@@ -73,7 +73,7 @@ public:
         float exposure = 2.0;
 
         //! number of objects threshold for indirect drawing (using gpu-driven frustum/occlusion culling)
-        uint32_t draw_indrect_object_thresh = 128;
+        uint32_t draw_indirect_object_thresh = 1;
 
         //! desired depth-of-field settings, disabled by default
         vierkant::dof_settings_t dof = {};
