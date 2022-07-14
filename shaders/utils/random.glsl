@@ -19,6 +19,17 @@ uint tea(uint val0, uint val1)
     return v0;
 }
 
+uint hash(uint a)
+{
+    a = (a+0x7ed55d16) + (a<<12);
+    a = (a^0xc761c23c) ^ (a>>19);
+    a = (a+0x165667b1) + (a<<5);
+    a = (a+0xd3a2646c) ^ (a<<9);
+    a = (a+0xfd7046c5) + (a<<3);
+    a = (a^0xb55a4f09) ^ (a>>16);
+    return a;
+}
+
 ////! random number generation using pcg32i_random_t, using inc = 1. Our random state is a uint.
 //uint rng_step(uint rng_state)
 //{

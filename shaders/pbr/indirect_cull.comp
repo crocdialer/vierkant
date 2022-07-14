@@ -20,15 +20,22 @@ struct draw_cull_data_t
 
 struct IndexedIndirectCommand
 {
+    //! VkDrawIndexedIndirectCommand
     uint indexCount;
     uint instanceCount;
     uint firstIndex;
     int  vertexOffset;
     uint firstInstance;
 
-    uint batch_index;
-    uint first_draw_index;
+    //! VkDrawMeshTasksIndirectCommandNV
+    uint taskCount;
+    uint firstTask;
+
+    uint object_index;
     bool visible;
+    uint base_meshlet;
+    uint count_buffer_offset;
+    uint first_draw_index;
     vec4 sphere_bounds;
 };
 
@@ -84,7 +91,7 @@ layout(binding = 6) buffer DrawCountPost{ uint count_post[]; };
 // output draw indirect buffer
 layout(binding = 7) buffer DrawResult{ draw_cull_result_t result; };
 
-layout(local_size_x = 256) in;
+layout(local_size_x = 64) in;
 
 void main()
 {
@@ -148,11 +155,11 @@ void main()
         // became visible this frame -> not drawn in 1st-pass
         if(!in_draw_data[gid].visible)
         {
-            uint draw_cmd_offset_post = atomicAdd(count_post[draw.batch_index], 1);
+            uint draw_cmd_offset_post = atomicAdd(count_post[draw.count_buffer_offset], 1);
             out_draw_data_post[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }
 
-        uint draw_cmd_offset = atomicAdd(count[draw.batch_index], 1);
+        uint draw_cmd_offset = atomicAdd(count[draw.count_buffer_offset], 1);
         out_draw_data[draw.first_draw_index + draw_cmd_offset] = draw;
     }
 

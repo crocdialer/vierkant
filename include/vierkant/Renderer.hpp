@@ -37,19 +37,20 @@ public:
     {
         BINDING_VERTICES = 0,
         BINDING_INDICES = 1,
-        BINDING_MATRIX = 2,
-        BINDING_PREVIOUS_MATRIX = 3,
-        BINDING_MATERIAL = 4,
-        BINDING_TEXTURES = 5,
-        BINDING_BONES = 6,
-        BINDING_PREVIOUS_BONES = 7,
-        BINDING_JITTER_OFFSET = 8,
-        BINDING_MORPH_TARGETS = 9,
-        BINDING_MORPH_PARAMS = 10,
-        BINDING_PREVIOUS_MORPH_PARAMS = 11,
-        BINDING_MESHLETS = 12,
-        BINDING_MESHLET_VERTICES = 13,
-        BINDING_MESHLET_TRIANGLES = 14,
+        BINDING_DRAW_COMMANDS = 2,
+        BINDING_MATRIX = 3,
+        BINDING_PREVIOUS_MATRIX = 4,
+        BINDING_MATERIAL = 5,
+        BINDING_TEXTURES = 6,
+        BINDING_BONES = 7,
+        BINDING_PREVIOUS_BONES = 8,
+        BINDING_JITTER_OFFSET = 9,
+        BINDING_MORPH_TARGETS = 10,
+        BINDING_MORPH_PARAMS = 11,
+        BINDING_PREVIOUS_MORPH_PARAMS = 12,
+        BINDING_MESHLETS = 13,
+        BINDING_MESHLET_VERTICES = 14,
+        BINDING_MESHLET_TRIANGLES = 15,
         BINDING_MAX_RANGE
     };
 
@@ -93,11 +94,15 @@ public:
 
     struct alignas(16) indexed_indirect_command_t
     {
-        VkDrawIndexedIndirectCommand vk_draw;
+        VkDrawIndexedIndirectCommand vk_draw;// size: 5
 
-        uint32_t batch_index;
-        uint32_t first_draw_index;
+        VkDrawMeshTasksIndirectCommandNV vk_mesh_draw;// size: 2
+
+        uint32_t object_index;
         uint32_t visible;
+        uint32_t base_meshlet;
+        uint32_t count_buffer_offset;
+        uint32_t first_draw_index;
         glm::vec4 sphere_bounds;
     };
 
@@ -153,6 +158,9 @@ public:
 
         uint32_t morph_vertex_offset = 0;
         std::vector<float> morph_weights;
+
+        uint32_t base_meshlet = 0;
+        uint32_t num_meshlets = 0;
 
         bool use_own_buffers = false;
     };

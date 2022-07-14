@@ -93,17 +93,14 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.num_vertices = entry.num_vertices;
         drawable.morph_vertex_offset = entry.morph_vertex_offset;
         drawable.morph_weights = entry.morph_weights;
+        drawable.base_meshlet = entry.base_meshlet;
+        drawable.num_meshlets = entry.num_meshlets;
 
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
         drawable.pipeline_format.depth_test = material->depth_test;
         drawable.pipeline_format.depth_write = material->depth_write;
         drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
-
-        // descriptors
-        auto &desc_vertices = drawable.descriptors[BINDING_VERTICES];
-        desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
 
         // descriptors
         auto &desc_matrices = drawable.descriptors[BINDING_MATRIX];
@@ -113,6 +110,14 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         auto &desc_material = drawable.descriptors[BINDING_MATERIAL];
         desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        if(drawable.mesh->vertex_buffer)
+        {
+            auto &desc_vertices = drawable.descriptors[BINDING_VERTICES];
+            desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+            desc_vertices.buffers = {drawable.mesh->vertex_buffer};
+        }
 
         if(drawable.mesh->meshlets && drawable.mesh->meshlet_vertices && drawable.mesh->meshlet_triangles)
         {
@@ -325,7 +330,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
     struct indirect_draw_asset_t
     {
-        uint32_t batch_index = 0;
+        uint32_t count_buffer_offset = 0;
         uint32_t num_draws = 0;
         uint32_t first_draw_index = 0;
         uint32_t first_indexed_draw_index = 0;
@@ -433,7 +438,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     }
 
     // batch/pipeline index
-    uint32_t batch_index = 0;
+    uint32_t count_buffer_offset = 0;
 
     // fill up indirect draw buffers
     for(const auto &[pipe_fmt, indexed_drawables]: pipeline_drawables)
@@ -449,7 +454,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
             {
                 indirect_draw_asset_t new_draw = {};
-                new_draw.batch_index = batch_index;
+                new_draw.count_buffer_offset = count_buffer_offset++;
                 new_draw.first_draw_index = next_assets.indirect_draw_index;
                 new_draw.first_indexed_draw_index = next_assets.indexed_indirect_draw_index;
                 new_draw.scissor = drawable->pipeline_format.scissor;
@@ -457,10 +462,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 // predefined buffers
                 if(!drawable->use_own_buffers)
                 {
-                    if(drawable->descriptors.count(BINDING_VERTICES))
-                    {
-                        drawable->descriptors[BINDING_VERTICES].buffers = {drawable->mesh->vertex_buffer};
-                    }
                     drawable->descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
                     drawable->descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
 
@@ -491,15 +492,22 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                         static_cast<indexed_indirect_command_t *>(next_assets.indexed_indirect_draw_buffer->map()) +
                         next_assets.indexed_indirect_draw_index++;
 
+                //! VkDrawIndexedIndirectCommand
                 draw_command->vk_draw.firstIndex = drawable->base_index;
                 draw_command->vk_draw.indexCount = drawable->num_indices;
                 draw_command->vk_draw.vertexOffset = drawable->vertex_offset;
                 draw_command->vk_draw.firstInstance = indexed_drawable.object_index;
                 draw_command->vk_draw.instanceCount = 1;
 
-                draw_command->batch_index = indirect_draw_asset.batch_index;
+                draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->visible = true;
+
+                //! VkDrawMeshTasksIndirectCommandNV
+                draw_command->vk_mesh_draw.taskCount = drawable->num_meshlets;
+                draw_command->vk_mesh_draw.firstTask = 0;
+
+                draw_command->base_meshlet = drawable->base_meshlet;
 
                 // bounding sphere xyz, radius
                 if(drawable->mesh && !drawable->mesh->entries.empty())
@@ -520,7 +528,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->firstInstance = indexed_drawable.object_index;
             }
         }
-        batch_index++;
     }
 
     // hook up GPU frustum/occlusion/distance culling here
@@ -614,18 +621,22 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
             if(indirect_draw)
             {
-                // issue (indexed) drawing command
-                if(mesh && mesh->index_buffer)
-                {
-                    size_t indexed_indirect_cmd_stride = sizeof(indexed_indirect_command_t);
+                constexpr size_t indexed_indirect_cmd_stride = sizeof(indexed_indirect_command_t);
 
+                if(mesh && mesh->meshlets)
+                {
+
+                }
+                else if(mesh && mesh->index_buffer)
+                {
+                    // issue (indexed) drawing command
                     if(count_buffer)
                     {
                         vkCmdDrawIndexedIndirectCount(command_buffer.handle(),
                                                       draw_buffer->handle(),
                                                       indexed_indirect_cmd_stride * draw_asset.first_indexed_draw_index,
                                                       count_buffer->handle(),
-                                                      draw_asset.batch_index * sizeof(uint32_t),
+                                                      draw_asset.count_buffer_offset * sizeof(uint32_t),
                                                       draw_asset.num_draws,
                                                       indexed_indirect_cmd_stride);
                     }
@@ -640,7 +651,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 }
                 else
                 {
-                    size_t indirect_cmd_stride = sizeof(VkDrawIndirectCommand);
+                    constexpr size_t indirect_cmd_stride = sizeof(VkDrawIndirectCommand);
 
                     vkCmdDrawIndirect(command_buffer.handle(),
                                       next_assets.indirect_draw_buffer->handle(),
