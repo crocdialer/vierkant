@@ -587,7 +587,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_post.indirect_draw = use_indrect_draw;
 
     // draw last visible objects
-    m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_params_t &params)
+    m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_bundle_t &params)
     {
         frame_asset.clear_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.clear_cmd_buffer.begin();
@@ -625,7 +625,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         // post-render will perform actual culling
         m_g_renderer_post.draw_indirect_delegate = [this, cam = cull_result.camera, &frame_asset]
-                (Renderer::indirect_draw_params_t &params)
+                (Renderer::indirect_draw_bundle_t &params)
         {
             resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
 
@@ -1081,7 +1081,7 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 }
 
 void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
-                                               Renderer::indirect_draw_params_t &params,
+                                               Renderer::indirect_draw_bundle_t &params,
                                                VkCommandBuffer clear_cmd_handle)
 {
     const size_t num_bytes = num_draws * sizeof(Renderer::indexed_indirect_command_t);

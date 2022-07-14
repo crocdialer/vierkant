@@ -164,7 +164,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
         }
         else{ outbuffer->set_data(nullptr, num_bytes); }
 
-        // issue copy from stagin-buffer to GPU-buffer
+        // issue copy from staging-buffer to GPU-buffer
         staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
         staging_offset += num_bytes;
     };

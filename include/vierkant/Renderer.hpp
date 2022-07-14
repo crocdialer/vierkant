@@ -106,7 +106,7 @@ public:
         glm::vec4 sphere_bounds;
     };
 
-    struct indirect_draw_params_t
+    struct indirect_draw_bundle_t
     {
         //! number of array-elements in 'draws_in'
         uint32_t num_draws = 0;
@@ -122,7 +122,7 @@ public:
     };
 
     //! define syntax for a culling-delegate
-    using indirect_draw_delegate_t = std::function<void(indirect_draw_params_t&)>;
+    using indirect_draw_delegate_t = std::function<void(indirect_draw_bundle_t&)>;
 
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
@@ -305,12 +305,8 @@ private:
         vierkant::BufferPtr material_buffer;
 
         // draw-indirect buffers
-        vierkant::BufferPtr indirect_draw_buffer, indirect_culled;
-        vierkant::BufferPtr indexed_indirect_draw_buffer, indexed_indirect_culled, indexed_indirect_culled_count_buffer;
-
-        // global indices for rendering-commands
-        size_t indirect_draw_index = 0;
-        size_t indexed_indirect_draw_index = 0;
+        indirect_draw_bundle_t indirect_bundle;
+        indirect_draw_bundle_t indirect_indexed_bundle;
 
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
@@ -360,20 +356,10 @@ private:
 
     std::default_random_engine m_random_engine;
 
-//    //! device function-pointers (avoid loader-indirections)
-//    PFN_vkCmdPushConstants vkCmdPushConstants = nullptr;
-//    PFN_vkCmdSetViewport vkCmdSetViewport = nullptr;
-//    PFN_vkCmdBindDescriptorSets vkCmdBindDescriptorSets = nullptr;
-//    PFN_vkCmdDraw vkCmdDraw = nullptr;
-//    PFN_vkCmdDrawIndexed vkCmdDrawIndexed = nullptr;
-//    PFN_vkCmdDrawIndirect vkCmdDrawIndirect = nullptr;
-//    PFN_vkCmdDrawIndexedIndirect vkCmdDrawIndexedIndirect = nullptr;
-//    PFN_vkCmdDrawIndexedIndirectCount vkCmdDrawIndexedIndirectCount = nullptr;
-//
-//    //! function pointers for optional mesh-shader support
-//    PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasksNV = nullptr;
-//    PFN_vkCmdDrawMeshTasksIndirectNV vkCmdDrawMeshTasksIndirectNV = nullptr;
-//    PFN_vkCmdDrawMeshTasksIndirectCountNV vkCmdDrawMeshTasksIndirectCountNV = nullptr;
+    //! function pointers for optional mesh-shader support
+    PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasksNV = nullptr;
+    PFN_vkCmdDrawMeshTasksIndirectNV vkCmdDrawMeshTasksIndirectNV = nullptr;
+    PFN_vkCmdDrawMeshTasksIndirectCountNV vkCmdDrawMeshTasksIndirectCountNV = nullptr;
 };
 
 }//namespace vierkant

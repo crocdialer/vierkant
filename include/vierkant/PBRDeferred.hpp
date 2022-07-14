@@ -178,7 +178,7 @@ private:
         size_t scene_hash = 0;
         bool recycle_commands = false;
         SemaphoreValue semaphore_value_done = SemaphoreValue::G_BUFFER_ALL;
-        Renderer::indirect_draw_params_t indirect_draw_params_pre = {}, indirect_draw_params_post = {};
+        Renderer::indirect_draw_bundle_t indirect_draw_params_pre = {}, indirect_draw_params_post = {};
         camera_params_t camera_params;
 
         vierkant::Semaphore timeline;
@@ -306,7 +306,7 @@ private:
                             vierkant::BufferPtr &draws_counts_out_post);
 
     void resize_indirect_draw_buffers(uint32_t num_draws,
-                                      Renderer::indirect_draw_params_t &params,
+                                      Renderer::indirect_draw_bundle_t &params,
                                       VkCommandBuffer clear_cmd_handle = VK_NULL_HANDLE);
 
     vierkant::DevicePtr m_device;
