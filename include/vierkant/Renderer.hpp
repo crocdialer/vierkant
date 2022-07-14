@@ -112,10 +112,10 @@ public:
         uint32_t num_draws = 0;
 
         //! host-visible array of indexed_indirect_command_t
-        vierkant::BufferPtr stage;
+        vierkant::BufferPtr draws_in;
 
         //! device array of indexed_indirect_command_t
-        vierkant::BufferPtr draws;
+        vierkant::BufferPtr draws_out;
 
         //! device array of uint32_t
         vierkant::BufferPtr draws_counts_out;

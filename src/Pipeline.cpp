@@ -15,7 +15,7 @@ shader_stage_create_infos(const ShaderMap_T &shader_stages,
 {
     std::vector<VkPipelineShaderStageCreateInfo> ret;
 
-    for(const auto &[stage, shader_module] : shader_stages)
+    for(const auto &[stage, shader_module]: shader_stages)
     {
         VkPipelineShaderStageCreateInfo stage_info = {};
         stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -31,9 +31,10 @@ shader_stage_create_infos(const ShaderMap_T &shader_stages,
 PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
 {
     // no vertex shader -> fail
-    if(!format.shader_stages.count(VK_SHADER_STAGE_VERTEX_BIT))
+    if(!format.shader_stages.count(VK_SHADER_STAGE_VERTEX_BIT) &&
+       !format.shader_stages.count(VK_SHADER_STAGE_MESH_BIT_NV))
     {
-        throw std::runtime_error("pipeline creation failed: no vertex shader stage provided");
+        throw std::runtime_error("pipeline creation failed: no vertex/mesh shader stage provided");
     }
 
     // our shader stages

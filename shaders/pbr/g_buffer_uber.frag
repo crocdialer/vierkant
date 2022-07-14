@@ -89,6 +89,10 @@ void main()
         out_emission.rgb *= out_emission.a;
     }
 
+//    // debug object-ids
+//    uint obj_hash = hash(object_index);
+//    out_color.rgb *= vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+
     vec3 normal = vertex_in.normal;
 
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)

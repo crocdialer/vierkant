@@ -411,10 +411,9 @@ void PBRDeferred::update_matrix_history(frame_assets_t &frame_asset)
             if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
 
             // previous matrices
-            vierkant::descriptor_t desc_prev_matrices = {};
+            vierkant::descriptor_t &desc_prev_matrices = drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX];
             desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-            drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX] = desc_prev_matrices;
+            desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
 
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)
@@ -515,6 +514,12 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 drawable.pipeline_format.binding_descriptions.clear();
             }
 
+            if(drawable.mesh->meshlets)
+            {
+                shader_flags |= PROP_MESHLETS;
+                camera_desc.stage_flags = VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+            }
+
             // check if morph-targets are available
             if(drawable.mesh->morph_buffer)
             {
@@ -535,19 +540,17 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 memcpy(morph_params.weights, drawable.morph_weights.data(), morph_params.morph_count * sizeof(float));
 
                 // add descriptors for morph- buffer_params
-                vierkant::descriptor_t desc_morph_buffer = {};
+                vierkant::descriptor_t &desc_morph_buffer = drawable.descriptors[Renderer::BINDING_MORPH_TARGETS];
                 desc_morph_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
                 desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
-                drawable.descriptors[Renderer::BINDING_MORPH_TARGETS] = desc_morph_buffer;
 
-                vierkant::descriptor_t desc_morph_params = {};
+                vierkant::descriptor_t &desc_morph_params = drawable.descriptors[Renderer::BINDING_MORPH_PARAMS];
                 desc_morph_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_morph_params.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
                 desc_morph_params.buffers = {vierkant::Buffer::create(m_device, &morph_params, sizeof(morph_params_t),
                                                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                       VMA_MEMORY_USAGE_CPU_TO_GPU)};
-                drawable.descriptors[Renderer::BINDING_MORPH_PARAMS] = desc_morph_params;
             }
 
             // select shader-stages from cache
@@ -597,13 +600,13 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         if(params.num_draws && !frame_asset.recycle_commands)
         {
-            params.stage->copy_to(frame_asset.indirect_draw_params_pre.stage,
-                                  frame_asset.clear_cmd_buffer.handle());
+            params.draws_in->copy_to(frame_asset.indirect_draw_params_pre.draws_in,
+                                     frame_asset.clear_cmd_buffer.handle());
         }
 
         frame_asset.clear_cmd_buffer.submit(m_queue);
 
-        params.draws = frame_asset.indirect_draw_params_pre.draws;
+        params.draws_out = frame_asset.indirect_draw_params_pre.draws_out;
         params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
     };
 
@@ -633,11 +636,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             cull_draw_commands(frame_asset,
                                cam,
                                frame_asset.depth_pyramid,
-                               frame_asset.indirect_draw_params_pre.stage,
+                               frame_asset.indirect_draw_params_pre.draws_in,
                                params.num_draws,
-                               frame_asset.indirect_draw_params_pre.draws,
+                               frame_asset.indirect_draw_params_pre.draws_out,
                                frame_asset.indirect_draw_params_pre.draws_counts_out,
-                               frame_asset.indirect_draw_params_post.draws,
+                               frame_asset.indirect_draw_params_post.draws_out,
                                frame_asset.indirect_draw_params_post.draws_counts_out);
 
             params = frame_asset.indirect_draw_params_post;
@@ -1087,21 +1090,21 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
 {
     const size_t num_bytes = num_draws * sizeof(Renderer::indexed_indirect_command_t);
 
-//    if(!params.stage || params.stage->num_bytes() < num_bytes)
-//    {
-//        params.stage = vierkant::Buffer::create(m_device, nullptr, num_bytes,
-//                                                   VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-//                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-//                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-//                                                VMA_MEMORY_USAGE_GPU_ONLY);
-//    }
-//
-    if(!params.draws || params.draws->num_bytes() < num_bytes)
+    if(!params.draws_in || params.draws_in->num_bytes() < num_bytes)
     {
-        params.draws = vierkant::Buffer::create(m_device, nullptr, num_bytes,
+        params.draws_in = vierkant::Buffer::create(m_device, nullptr, num_bytes,
+                                                   VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                   VMA_MEMORY_USAGE_GPU_ONLY);
+    }
+
+    if(!params.draws_out || params.draws_out->num_bytes() < num_bytes)
+    {
+        params.draws_out = vierkant::Buffer::create(m_device, nullptr, num_bytes,
                                                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                VMA_MEMORY_USAGE_GPU_ONLY);
+                                                    VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
     if(!params.draws_counts_out)
