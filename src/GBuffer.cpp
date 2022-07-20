@@ -42,9 +42,9 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     motion_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     g_buffer_attachments[G_BUFFER_MOTION] = vierkant::Image::create(device, motion_format);
 
-    vierkant::Framebuffer::AttachmentMap attachments;
+    vierkant::attachment_map_t attachments;
 
-    attachments[Framebuffer::AttachmentType::Color] = g_buffer_attachments;
+    attachments[AttachmentType::Color] = g_buffer_attachments;
 
     // precision int24 vs float32 !?
     Image::Format depth_attachment_format = {};
@@ -52,7 +52,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     depth_attachment_format.format = VK_FORMAT_D32_SFLOAT;
     depth_attachment_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
     depth_attachment_format.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    attachments[Framebuffer::AttachmentType::DepthStencil] = {vierkant::Image::create(device, depth_attachment_format)};
+    attachments[AttachmentType::DepthStencil] = {vierkant::Image::create(device, depth_attachment_format)};
 
     auto ret = vierkant::Framebuffer(device, attachments, renderpass);
     ret.clear_color = {{0.f, 0.f, 0.f, 0.f}};

@@ -14,6 +14,31 @@ namespace vierkant
 
 using RenderPassPtr = std::shared_ptr<VkRenderPass_T>;
 
+/**
+     * @brief   Enum to differentiate Image-Attachments
+     */
+enum class AttachmentType
+{
+    Color, Resolve, DepthStencil
+};
+
+using attachment_map_t = std::map<AttachmentType, std::vector<vierkant::ImagePtr>>;
+
+/**
+ * @brief                           Utility function to create a shared RenderPass.
+ *
+ * @param   device                  handle for the vierkant::Device to create the RenderPass with
+ * @param   attachments             an attachment_map_t to derive the RenderPass from
+ * @param   subpass_dependencies    optional array of VkSubpassDependency objects
+ *
+ * @return  the newly created RenderpassPtr
+ */
+RenderPassPtr create_renderpass(const vierkant::DevicePtr &device,
+                                const attachment_map_t &attachments,
+                                bool clear_color,
+                                bool clear_depth,
+                                const std::vector<VkSubpassDependency2> &subpass_dependencies = {});
+
 class Framebuffer
 {
 public:
@@ -33,17 +58,8 @@ public:
         Image::Format depth_attachment_format;
         vierkant::CommandPoolPtr command_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
+        RenderPassPtr renderpass = nullptr;
     };
-
-    /**
-     * @brief   Enum to differentiate Image-Attachments
-     */
-    enum class AttachmentType
-    {
-        Color, Resolve, DepthStencil
-    };
-
-    using AttachmentMap = std::map<AttachmentType, std::vector<vierkant::ImagePtr>>;
 
     /**
      * @brief   Utility to create an AttachmentMap.
@@ -52,21 +68,8 @@ public:
      * @param   fmt
      * @return  a newly created AttachmentMap.
      */
-    static AttachmentMap create_attachments(const vierkant::DevicePtr &device, create_info_t fmt);
-
-    /**
-     * @brief                           Utility function to create a shared RenderPass.
-     *
-     * @param   device                  handle for the vierkant::Device to create the RenderPass with
-     * @param   attachments             an AttachmentMap to derive the RenderPass from
-     * @param   subpass_dependencies    optional array of VkSubpassDependency objects
-     *
-     * @return  the newly created RenderpassPtr
-     */
-    static
-    RenderPassPtr create_renderpass(const vierkant::DevicePtr &device, const AttachmentMap &attachments,
-                                    bool clear_color, bool clear_depth,
-                                    const std::vector<VkSubpassDependency2> &subpass_dependencies = {});
+    static attachment_map_t create_attachments(const vierkant::DevicePtr &device,
+                                               create_info_t fmt);
 
     /**
      * @brief   Construct a new Framebuffer. Will create all Image-attachments,
@@ -76,7 +79,8 @@ public:
      * @param   size        the desired size for the Framebuffer in pixels
      * @param   format      an optional Framebuffer::Format object
      */
-    Framebuffer(DevicePtr device, create_info_t format, RenderPassPtr renderpass = nullptr);
+    Framebuffer(DevicePtr device,
+                create_info_t format);
 
     /**
      *
@@ -84,7 +88,9 @@ public:
      * @param   attachments     a Framebuffer::AttachmentMap holding the desired Image-attachments
      * @param   renderpass      an optional, shared RenderPass object to be used with the Framebuffer
      */
-    Framebuffer(DevicePtr device, AttachmentMap attachments, RenderPassPtr renderpass = nullptr);
+    Framebuffer(DevicePtr device,
+                attachment_map_t attachments,
+                RenderPassPtr renderpass = nullptr);
 
     Framebuffer() = default;
 
@@ -95,19 +101,6 @@ public:
     ~Framebuffer();
 
     Framebuffer &operator=(Framebuffer the_other);
-
-    /**
-     * @brief   Begin a RenderPass using this Framebuffer
-     * @param   commandbuffer     the VkCommandBuffer handle to record into
-     * @param   subpass_contents
-     */
-    void begin_renderpass(VkCommandBuffer commandbuffer,
-                          VkSubpassContents subpass_contents = VK_SUBPASS_CONTENTS_INLINE) const;
-
-    /**
-     * @brief   End an currently active RenderPass. Does nothing, if there is no active RenderPass
-     */
-    void end_renderpass() const;
 
     /**
      * @brief   Execute a provided array of secondary VkCommandBuffers within a Renderpass for this Framebuffer.
@@ -127,7 +120,7 @@ public:
      */
     VkFence submit(const std::vector<VkCommandBuffer> &commandbuffers,
                    VkQueue queue,
-                   const std::vector<vierkant::semaphore_submit_info_t>& semaphore_infos = {});
+                   const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos = {});
 
     /**
      * @brief   wait for a prior frame to finish.
@@ -149,7 +142,7 @@ public:
     /**
      * @return  const-ref to a map, holding the Image-Attachments
      */
-    const AttachmentMap &attachments() const{ return m_attachments; };
+    const attachment_map_t &attachments() const{ return m_attachments; };
 
     /**
      * @return  the color-attachment for this index or nullptr if not found.
@@ -191,11 +184,32 @@ public:
 
 private:
 
+    void init(attachment_map_t attachments, RenderPassPtr renderpass);
+
+    /**
+     * @brief   Begin a render-pass using this Framebuffer
+     * @param   commandbuffer     the VkCommandBuffer handle to record into
+     * @param   subpass_contents
+     */
+    void begin_renderpass(VkCommandBuffer commandbuffer,
+                          VkSubpassContents subpass_contents = VK_SUBPASS_CONTENTS_INLINE) const;
+
+    /**
+     * @brief   End an currently active render-pass. Does nothing, if there is no active render-pass
+     */
+    void end_renderpass() const;
+
+    /**
+     * @brief   Begin a dynamic render-pass using this Framebuffer
+     * @param   commandbuffer     the VkCommandBuffer handle to record into
+     */
+    void begin_rendering(VkCommandBuffer commandbuffer) const;
+
     DevicePtr m_device;
 
     VkExtent3D m_extent = {};
 
-    AttachmentMap m_attachments;
+    attachment_map_t m_attachments;
 
     VkFramebuffer m_framebuffer = VK_NULL_HANDLE;
 
@@ -210,8 +224,6 @@ private:
     RenderPassPtr m_renderpass;
 
     Framebuffer::create_info_t m_format;
-
-    void init(AttachmentMap attachments, RenderPassPtr renderpass);
 };
 
 }// namespace vierkant

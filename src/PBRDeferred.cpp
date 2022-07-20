@@ -266,7 +266,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene,
         if(!n->mesh->node_animations.empty()){ static_scene = false; }
         crocore::hash_combine(scene_hash, n->transform());
 
-        for(const auto &entry : n->mesh->entries)
+        for(const auto &entry: n->mesh->entries)
         {
             crocore::hash_combine(scene_hash, entry.enabled);
         }
@@ -909,27 +909,27 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     asset.g_buffer_pre = create_g_buffer(m_device, size);
 
     auto renderpass_no_clear_depth =
-            vierkant::Framebuffer::create_renderpass(m_device, asset.g_buffer_pre.attachments(), false, false);
+            vierkant::create_renderpass(m_device, asset.g_buffer_pre.attachments(), false, false);
     asset.g_buffer_post = vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(), renderpass_no_clear_depth);
     asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
     // init lighting framebuffer
-    vierkant::Framebuffer::AttachmentMap lighting_attachments, sky_attachments;
+    vierkant::attachment_map_t lighting_attachments, sky_attachments;
     vierkant::Image::Format img_attachment_16f = {};
     img_attachment_16f.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     img_attachment_16f.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     img_attachment_16f.extent = size;
-    lighting_attachments[vierkant::Framebuffer::AttachmentType::Color] = {
+    lighting_attachments[vierkant::AttachmentType::Color] = {
             vierkant::Image::create(m_device, img_attachment_16f)};
 
     sky_attachments = lighting_attachments;
 
     // use depth from g_buffer
-    sky_attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {
+    sky_attachments[vierkant::AttachmentType::DepthStencil] = {
             asset.g_buffer_post.depth_attachment()};
 
-    lighting_renderpass = vierkant::Framebuffer::create_renderpass(m_device, lighting_attachments, true, false);
-    sky_renderpass = vierkant::Framebuffer::create_renderpass(m_device, sky_attachments, false, false);
+    lighting_renderpass = vierkant::create_renderpass(m_device, lighting_attachments, true, false);
+    sky_renderpass = vierkant::create_renderpass(m_device, sky_attachments, false, false);
     asset.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments, lighting_renderpass);
 
     asset.sky_buffer = vierkant::Framebuffer(m_device, sky_attachments, sky_renderpass);
@@ -944,6 +944,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     post_fx_buffer_info.color_attachment_format.usage =
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    post_fx_buffer_info.renderpass = post_fx_renderpass;
 
     // create renderer for g-buffer-pass
     vierkant::Renderer::create_info_t post_render_info = {};
@@ -955,7 +956,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     // create post_fx ping pong buffers and renderers
     for(auto &post_fx_ping_pong: asset.post_fx_ping_pongs)
     {
-        post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info, post_fx_renderpass);
+        post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
         post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
         post_fx_ping_pong.renderer = vierkant::Renderer(m_device, post_render_info);
     }

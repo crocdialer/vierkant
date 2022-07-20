@@ -45,17 +45,17 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     m_renderer = vierkant::Renderer(device, post_render_info);
 
     // init framebuffers
-    vierkant::Framebuffer::AttachmentMap fb_attachments_ping, fb_attachments_pong;
+    vierkant::attachment_map_t fb_attachments_ping, fb_attachments_pong;
     vierkant::Image::Format fmt = {};
     fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     fmt.format = create_info.color_format;
     fmt.extent = create_info.size;
 
-    fb_attachments_ping[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
-    fb_attachments_pong[vierkant::Framebuffer::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
+    fb_attachments_ping[vierkant::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
+    fb_attachments_pong[vierkant::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
 
     vierkant::RenderPassPtr renderpass;
-    renderpass = vierkant::Framebuffer::create_renderpass(device, fb_attachments_ping, true, false);
+    renderpass = vierkant::create_renderpass(device, fb_attachments_ping, true, false);
 
     m_framebuffers.resize(2 * create_info.num_iterations);
 
@@ -189,7 +189,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
 
     std::vector<vierkant::semaphore_submit_info_t> wait_infos, signal_infos;
 
-    for(const auto &info : semaphore_infos)
+    for(const auto &info: semaphore_infos)
     {
         if(info.semaphore)
         {

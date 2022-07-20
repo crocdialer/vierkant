@@ -308,10 +308,10 @@ void SwapChain::create_framebuffers()
     depth_fmt.aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
     auto depth_image = Image::create(m_device, depth_fmt);
 
-    vierkant::Framebuffer::AttachmentMap attachments;
-    attachments[vierkant::Framebuffer::AttachmentType::Color] = {color_image};
-    attachments[vierkant::Framebuffer::AttachmentType::DepthStencil] = {depth_image};
-    if(resolve){ attachments[vierkant::Framebuffer::AttachmentType::Resolve] = {m_images.front()}; }
+    vierkant::attachment_map_t attachments;
+    attachments[vierkant::AttachmentType::Color] = {color_image};
+    attachments[vierkant::AttachmentType::DepthStencil] = {depth_image};
+    if(resolve){ attachments[vierkant::AttachmentType::Resolve] = {m_images.front()}; }
 
     // subpass is dependant on swapchain image
     VkSubpassDependency2 dependency = {VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2};
@@ -322,14 +322,14 @@ void SwapChain::create_framebuffers()
     dependency.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
 
-    auto renderpass = vierkant::Framebuffer::create_renderpass(m_device, attachments, true, true, {dependency});
+    auto renderpass = vierkant::create_renderpass(m_device, attachments, true, true, {dependency});
 
     m_framebuffers.resize(m_images.size());
 
     for(size_t i = 0; i < m_images.size(); i++)
     {
-        if(resolve){ attachments[vierkant::Framebuffer::AttachmentType::Resolve] = {m_images[i]}; }
-        else{ attachments[vierkant::Framebuffer::AttachmentType::Color] = {m_images[i]}; }
+        if(resolve){ attachments[vierkant::AttachmentType::Resolve] = {m_images[i]}; }
+        else{ attachments[vierkant::AttachmentType::Color] = {m_images[i]}; }
         m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, renderpass);
     }
 }
