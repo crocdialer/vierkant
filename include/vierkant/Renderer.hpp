@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <optional>
 #include <mutex>
 #include "crocore/Area.hpp"
 
