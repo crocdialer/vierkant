@@ -99,12 +99,12 @@ public:
 
         VkDrawMeshTasksIndirectCommandNV vk_mesh_draw;// size: 2
 
-        uint32_t object_index;
-        uint32_t visible;
-        uint32_t base_meshlet;
-        uint32_t count_buffer_offset;
-        uint32_t first_draw_index;
-        glm::vec4 sphere_bounds;
+        uint32_t object_index = 0;
+        uint32_t visible = false;
+        uint32_t base_meshlet = 0;
+        uint32_t count_buffer_offset = 0;
+        uint32_t first_draw_index = 0;
+        glm::vec4 sphere_bounds = {};
     };
 
     struct indirect_draw_bundle_t

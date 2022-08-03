@@ -160,7 +160,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
                     drawable.material.texture_type_flags |= type_flag;
                     desc_texture.images.push_back(tex);
                 }
-            };
+            }
             drawable.descriptors[BINDING_TEXTURES] = desc_texture;
         }
 
@@ -490,6 +490,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                         next_assets.indirect_indexed_bundle.num_draws++;
 
                 //! VkDrawIndexedIndirectCommand
+                *draw_command = {};
                 draw_command->vk_draw.firstIndex = drawable->base_index;
                 draw_command->vk_draw.indexCount = drawable->num_indices;
                 draw_command->vk_draw.vertexOffset = drawable->vertex_offset;
@@ -498,14 +499,18 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
+                draw_command->object_index = indexed_drawable.object_index;
                 draw_command->visible = true;
 
-                //! VkDrawMeshTasksIndirectCommandNV
-                draw_command->vk_mesh_draw.taskCount = drawable->num_meshlets;
-                draw_command->vk_mesh_draw.firstTask = 0;//drawable->base_meshlet;
 
-                draw_command->object_index = indexed_drawable.object_index;
-                draw_command->base_meshlet = drawable->base_meshlet;
+                if(drawable->mesh->meshlets)
+                {
+                    draw_command->base_meshlet = drawable->base_meshlet;
+
+                    //! VkDrawMeshTasksIndirectCommandNV
+                    draw_command->vk_mesh_draw.taskCount = drawable->num_meshlets;
+                    draw_command->vk_mesh_draw.firstTask = 0;//drawable->base_meshlet;
+                }
 
                 // bounding sphere xyz, radius
                 if(drawable->mesh && !drawable->mesh->entries.empty())
@@ -646,6 +651,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     {
                         if(mesh->meshlets)
                         {
+                            auto cmd =
+                                    static_cast<indexed_indirect_command_t *>(draw_buffer_indexed->map()) +
+                                    draw_asset.first_indexed_draw_index;
+
                             vkCmdDrawMeshTasksIndirectNV(command_buffer.handle(),
                                                          draw_buffer_indexed->handle(),
                                                          indexed_indirect_cmd_stride *

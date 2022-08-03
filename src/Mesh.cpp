@@ -423,7 +423,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             const meshopt_Meshlet &last = meshlets[meshlet_count - 1];
 
             size_t vertex_count = last.vertex_offset + last.vertex_count;
-            size_t triangle_count = last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3);
+            size_t triangle_offset = last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3);
 
             ret.meshlets.reserve(ret.meshlets.size() + meshlet_count);
 
@@ -448,6 +448,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 out_meshlet.vertex_count = m.vertex_count;
                 out_meshlet.triangle_offset = meshlet_triangle_offset + m.triangle_offset;
                 out_meshlet.triangle_count = m.triangle_count;
+
                 out_meshlet.bounding_sphere = {*reinterpret_cast<glm::vec3 *>(bounds.center), bounds.radius};
                 out_meshlet.normal_cone = {*reinterpret_cast<glm::vec3 *>(bounds.cone_axis), bounds.cone_cutoff};
 
@@ -458,7 +459,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             ret.meshlet_vertices.insert(ret.meshlet_vertices.end(), meshlet_vertices.begin(),
                                         meshlet_vertices.begin() + int(vertex_count));
             ret.meshlet_triangles.insert(ret.meshlet_triangles.end(), meshlet_triangles.begin(),
-                                         meshlet_triangles.begin() + 3 * int(triangle_count));
+                                         meshlet_triangles.begin() + int(triangle_offset));
         }
 
         if(!ret.meshlets.empty())

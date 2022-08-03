@@ -469,8 +469,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     frame_asset.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
 
     // decide on indirect rendering-path
-    bool use_indrect_draw = cull_result.drawables.size() >= settings.draw_indirect_object_thresh;
-    if(use_indrect_draw && (!m_g_renderer_pre.indirect_draw || !m_g_renderer_post.indirect_draw))
+    constexpr bool use_indirect_draw = true;//cull_result.drawables.size() >= settings.draw_indirect_object_thresh;
+    bool use_gpu_culling = use_indirect_draw && (frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling);
+
+    if(use_gpu_culling && (!m_g_renderer_pre.indirect_draw || !m_g_renderer_post.indirect_draw))
     {
         frame_asset.recycle_commands = false;
     }
@@ -577,7 +579,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         // stage drawables
         m_g_renderer_pre.stage_drawables(cull_result.drawables);
-        if(use_indrect_draw){ m_g_renderer_post.stage_drawables(cull_result.drawables); }
+        if(use_gpu_culling){ m_g_renderer_post.stage_drawables(cull_result.drawables); }
 
         m_g_renderer_pre.draw_indirect_delegate = {};
         m_g_renderer_post.draw_indirect_delegate = {};
@@ -587,11 +589,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
-    m_g_renderer_pre.indirect_draw = use_indrect_draw;
-    m_g_renderer_post.indirect_draw = use_indrect_draw;
+    m_g_renderer_pre.indirect_draw = use_indirect_draw;
+    m_g_renderer_post.indirect_draw = use_indirect_draw;
 
     // draw last visible objects
-    m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_bundle_t &params)
+    m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset, use_gpu_culling](Renderer::indirect_draw_bundle_t &params)
     {
         frame_asset.clear_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.clear_cmd_buffer.begin();
@@ -606,15 +608,22 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         frame_asset.clear_cmd_buffer.submit(m_queue);
 
-        params.draws_out = frame_asset.indirect_draw_params_pre.draws_out;
-        params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
+        if(use_gpu_culling)
+        {
+            params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
+            params.draws_out = frame_asset.indirect_draw_params_pre.draws_out;
+        }
+        else
+        {
+            params.draws_out = frame_asset.indirect_draw_params_pre.draws_in;
+        }
     };
 
     // pre-render will repeat all previous draw-calls
     auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
-    g_buffer_semaphore_submit_info_pre.signal_value = use_indrect_draw ? SemaphoreValue::G_BUFFER_LAST_VISIBLE
+    g_buffer_semaphore_submit_info_pre.signal_value = use_gpu_culling ? SemaphoreValue::G_BUFFER_LAST_VISIBLE
                                                                        : SemaphoreValue::G_BUFFER_ALL;
     frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue,
                                     {g_buffer_semaphore_submit_info_pre});
@@ -622,7 +631,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // depth-attachment
     frame_asset.depth_map = frame_asset.g_buffer_pre.depth_attachment();
 
-    if(use_indrect_draw)
+    if(use_gpu_culling)
     {
         // generate depth-pyramid
         create_depth_pyramid(frame_asset);

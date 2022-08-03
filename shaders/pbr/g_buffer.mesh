@@ -4,12 +4,12 @@
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_shader_8bit_storage: require
 //#extension GL_EXT_shader_16bit_storage: require
-#extension GL_ARB_shader_draw_parameters: require
+//#extension GL_ARB_shader_draw_parameters: require
 
 #include "../renderer/types.glsl"
 #include "../utils/camera.glsl"
 
-//! ugly nv-specific warp-value
+//! nv-specific warp-value (use 64 for AMD)
 #define LOCAL_SIZE 32
 
 layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
@@ -83,7 +83,13 @@ layout(location = 1) out VertexData
 void main()
 {
     uint ti = gl_LocalInvocationID.x;
-    uint mi = draws[gl_DrawID].base_meshlet + gl_WorkGroupID.x;
+
+    // WTF -> gl_WorkGroupID.x seems to start at index 1, but 0 was expected
+    uint mi = draws[gl_DrawID].base_meshlet + max(gl_WorkGroupID.x - 1, 0);
+
+    //    if (ti == 0)
+    gl_PrimitiveCountNV = meshlets[mi].triangle_count;
+
     const uint object_index = draws[gl_DrawID].object_index;
 
     matrix_struct_t m = u_matrices[object_index];
@@ -108,13 +114,9 @@ void main()
     }
 
     uint num_meshlet_indices = meshlets[mi].triangle_count * 3;
-//    uint index_group_count = (num_meshlet_indices + 3) / 4;
 
-    //    for(uint i = ti; i < index_group_count; i += LOCAL_SIZE)
     for(uint i = ti; i < num_meshlet_indices; i += LOCAL_SIZE)
     {
-        //        writePackedPrimitiveIndices4x8NV(i * 4, meshlet_triangles[meshlets[mi].triangle_offset + i]);
         gl_PrimitiveIndicesNV[i] = uint(meshlet_triangles[meshlets[mi].triangle_offset + i]);
     }
-    if (ti == 0){ gl_PrimitiveCountNV = meshlets[mi].triangle_count; }
 }
