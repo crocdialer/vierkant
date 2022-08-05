@@ -72,8 +72,11 @@ public:
         //! exposure setting for tone-mapping
         float exposure = 2.0;
 
-        //! number of objects threshold for indirect drawing (using gpu-driven frustum/occlusion culling)
-        uint32_t draw_indirect_object_thresh = 1;
+        //! indirect drawing (required for gpu-driven 'object' frustum/occlusion culling)
+        bool indirect_draw = true;
+
+        //! meshlet-based drawing (required for gpu-driven 'cluster' frustum/occlusion culling)
+        bool use_meshlet_pipeline = true;
 
         //! desired depth-of-field settings, disabled by default
         vierkant::dof_settings_t dof = {};

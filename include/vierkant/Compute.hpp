@@ -15,7 +15,7 @@ namespace vierkant
 
 static inline uint32_t group_count(uint32_t thread_count, uint32_t local_size)
 {
-    return (thread_count + local_size - 1) / local_size;
+    return local_size ? (thread_count + local_size - 1) / local_size : 0;
 }
 
 /**

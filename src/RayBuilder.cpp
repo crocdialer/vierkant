@@ -72,7 +72,7 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
     // vertex skinned meshes need to update their AABBs
     if(mesh->root_bone){ flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR; }
 
-    // TODO: generate skinned vertex-buffer via compute-op
+    // TODO: generate skin/morph vertex-buffer via compute-op
 
     const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
     VkDeviceAddress vertex_base_address = vertex_attrib.buffer->device_address() + vertex_attrib.offset;

@@ -98,7 +98,7 @@ void main()
     for(uint i = ti; i < meshlets[mi].vertex_count; i += LOCAL_SIZE)
     {
         uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
-        Vertex v = vertices[vi];
+        Vertex v = vertices[vi]; // vi + draws[gl_DrawID].vertexOffset
 
         vertex_out[i].current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
         vertex_out[i].last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);

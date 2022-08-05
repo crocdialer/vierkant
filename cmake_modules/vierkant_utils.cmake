@@ -52,6 +52,7 @@ endfunction(GET_SHADER_SOURCES)
 
 function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR SPIRV_OUT_DIR SOURCE_OUT_DIR)
 
+    set(SPIRV_TARGET_ENV vulkan1.2)
     set(TOP_NAMESPACE "vierkant::shaders")
 
     # remove existing spirv files
@@ -110,7 +111,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR SPIRV_OUT_DIR 
 
             execute_process(
                     COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OUT_DIR}/shaders/"
-                    COMMAND ${GLSL_VALIDATOR} --target-env vulkan1.2 ${GLSL} -o ${SPIRV}
+                    COMMAND ${GLSL_VALIDATOR} --target-env ${SPIRV_TARGET_ENV} ${GLSL} -o ${SPIRV}
                     OUTPUT_VARIABLE glslangvalidator_std_out
                     ERROR_VARIABLE glslangvalidator_std_err
                     RESULT_VARIABLE ret

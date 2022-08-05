@@ -272,7 +272,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
     draw_data->ScaleClipRects(io.DisplayFramebufferScale);
 
     // provide enough frameslots
-    m_imgui_assets.frame_assets.resize(renderer.num_indices());
+    m_imgui_assets.frame_assets.resize(renderer.num_concurrent_frames());
     auto &mesh_assets = m_imgui_assets.frame_assets[renderer.current_index()];
 
     // provide enough mesh_assets (1 vertex/index buffer per window)

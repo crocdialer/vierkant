@@ -76,6 +76,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
     render_create_info.pipeline_cache = m_pipeline_cache;
     render_create_info.indirect_draw = true;
+    render_create_info.enable_mesh_shader = true;
     m_g_renderer_pre = vierkant::Renderer(device, render_create_info);
     m_g_renderer_post = vierkant::Renderer(device, render_create_info);
 
@@ -375,7 +376,8 @@ void PBRDeferred::update_matrix_history(frame_assets_t &frame_asset)
     std::vector<glm::mat4> all_bones_matrices;
 
     size_t last_index =
-            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
+            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
+                        m_g_renderer_pre.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
     for(const auto &mesh: frame_asset.cull_result.meshes)
@@ -445,7 +447,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
 
     size_t last_index =
-            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
+            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
+                        m_g_renderer_pre.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
     // jitter state
@@ -469,8 +472,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     frame_asset.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
 
     // decide on indirect rendering-path
-    constexpr bool use_indirect_draw = true;//cull_result.drawables.size() >= settings.draw_indirect_object_thresh;
-    bool use_gpu_culling = use_indirect_draw && (frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling);
+    bool use_gpu_culling = frame_asset.settings.indirect_draw &&
+                           (frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling);
 
     if(use_gpu_culling && (!m_g_renderer_pre.indirect_draw || !m_g_renderer_post.indirect_draw))
     {
@@ -589,8 +592,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
     m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
 
-    m_g_renderer_pre.indirect_draw = use_indirect_draw;
-    m_g_renderer_post.indirect_draw = use_indirect_draw;
+    m_g_renderer_pre.indirect_draw = frame_asset.settings.indirect_draw;
+    m_g_renderer_post.indirect_draw = frame_asset.settings.indirect_draw;
 
     // draw last visible objects
     m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset, use_gpu_culling](Renderer::indirect_draw_bundle_t &params)
@@ -620,6 +623,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     };
 
     // pre-render will repeat all previous draw-calls
+    spdlog::trace("g-buffer 1st-pass: {:.03}", m_g_renderer_pre.last_frame_ms());
+
     auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
@@ -660,6 +665,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         g_buffer_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
         g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
         g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
+
+        spdlog::trace("g-buffer 2nd-pass: {:.03}", m_g_renderer_post.last_frame_ms());
         auto cmd_buffer = m_g_renderer_post.render(frame_asset.g_buffer_post, frame_asset.recycle_commands);
         frame_asset.g_buffer_post.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
     }
@@ -675,7 +682,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // |- TODO: draw light volumes with fancy stencil settings
 
     size_t index =
-            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
+            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
+                   m_g_renderer_pre.num_concurrent_frames();
     auto &frame_asset = m_frame_assets[index];
 
     environment_lighting_ubo_t ubo = {};
@@ -741,7 +749,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
                                const vierkant::ImagePtr &depth)
 {
     size_t frame_index =
-            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
+            (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
+                         m_g_renderer_pre.num_concurrent_frames();
     auto &frame_asset = m_frame_assets[frame_index];
 
     size_t buffer_index = 0;
@@ -763,7 +772,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     // TAA
     if(frame_asset.settings.use_taa)
     {
-        size_t last_frame_index = (frame_index + m_g_renderer_pre.num_indices() - 1) % m_g_renderer_pre.num_indices();
+        size_t last_frame_index = (frame_index + m_g_renderer_pre.num_concurrent_frames() - 1) % m_g_renderer_pre.num_concurrent_frames();
 
         // assign history
         auto history_color = m_frame_assets[last_frame_index].taa_buffer.color_attachment();
@@ -862,14 +871,16 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 const vierkant::Framebuffer &PBRDeferred::g_buffer() const
 {
     size_t last_index =
-            (m_g_renderer_pre.num_indices() + m_g_renderer_pre.current_index() - 1) % m_g_renderer_pre.num_indices();
+            (m_g_renderer_pre.num_concurrent_frames() + m_g_renderer_pre.current_index() - 1) %
+                        m_g_renderer_pre.num_concurrent_frames();
     return m_frame_assets[last_index].g_buffer_post;
 }
 
 const vierkant::Framebuffer &PBRDeferred::lighting_buffer() const
 {
     size_t last_index =
-            (m_light_renderer.num_indices() + m_light_renderer.current_index() - 1) % m_light_renderer.num_indices();
+            (m_light_renderer.num_concurrent_frames() + m_light_renderer.current_index() - 1) %
+                        m_light_renderer.num_concurrent_frames();
     return m_frame_assets[last_index].lighting_buffer;
 }
 

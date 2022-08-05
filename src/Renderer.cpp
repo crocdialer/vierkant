@@ -14,6 +14,9 @@ using std::chrono::steady_clock;
 using std::chrono::duration_cast;
 using duration_t = std::chrono::duration<float>;
 
+//! number of gpu-queries (currently only start-/end-timestamps)
+constexpr uint32_t query_count = 2;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct texture_index_key_t
@@ -140,7 +143,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
             desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
             desc_meshlet_triangles.buffers = {mesh->meshlet_triangles};
         }
-        else
+//        else
         {
             drawable.pipeline_format.binding_descriptions = binding_descriptions;
             drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
@@ -181,8 +184,9 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
         throw std::runtime_error("could not create vierkant::Renderer");
     }
 
-    // additional/optimized function pointers
+    // NV_mesh_shading function pointers
     set_function_pointers();
+    mesh_shader = create_info.enable_mesh_shader && vkCmdDrawMeshTasksNV;
 
     viewport = create_info.viewport;
     scissor = create_info.scissor;
@@ -190,7 +194,7 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
     m_sample_count = create_info.sample_count;
 
     m_staged_drawables.resize(create_info.num_frames_in_flight);
-    m_render_assets.resize(create_info.num_frames_in_flight);
+    m_frame_assets.resize(create_info.num_frames_in_flight);
 
     m_queue = create_info.queue ? create_info.queue : m_device->queue();
 
@@ -199,13 +203,11 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    for(auto &render_asset: m_render_assets)
+    for(auto &render_asset: m_frame_assets)
     {
         render_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get(),
                                                               VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-
-        render_asset.stage_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get(),
-                                                            VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+        render_asset.query_pool = vierkant::create_query_pool(m_device, query_count, VK_QUERY_TYPE_TIMESTAMP);
     }
 
     if(create_info.descriptor_pool){ m_descriptor_pool = create_info.descriptor_pool; }
@@ -264,11 +266,12 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_command_pool, rhs.m_command_pool);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(lhs.m_staged_drawables, rhs.m_staged_drawables);
-    std::swap(lhs.m_render_assets, rhs.m_render_assets);
+    std::swap(lhs.m_frame_assets, rhs.m_frame_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
     std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
     std::swap(lhs.m_start_time, rhs.m_start_time);
 
+    std::swap(lhs.mesh_shader, rhs.mesh_shader);
     std::swap(lhs.vkCmdDrawMeshTasksNV, rhs.vkCmdDrawMeshTasksNV);
     std::swap(lhs.vkCmdDrawMeshTasksIndirectNV, rhs.vkCmdDrawMeshTasksIndirectNV);
     std::swap(lhs.vkCmdDrawMeshTasksIndirectCountNV, rhs.vkCmdDrawMeshTasksIndirectCountNV);
@@ -300,9 +303,26 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
         current_index = m_current_index;
         m_current_index = (m_current_index + 1) % m_staged_drawables.size();
-        m_render_assets[current_index].drawables = std::move(m_staged_drawables[current_index]);
+        m_frame_assets[current_index].drawables = std::move(m_staged_drawables[current_index]);
     }
-    auto &current_assets = m_render_assets[current_index];
+    auto &current_assets = m_frame_assets[current_index];
+
+    // retrieve last frame-timestamps for this index
+    uint64_t timestamps[query_count] = {};
+
+    auto query_result = vkGetQueryPoolResults(m_device->handle(), current_assets.query_pool.get(), 0, query_count,
+                                              sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+
+    if(query_result == VK_SUCCESS)
+    {
+        // calculate last gpu-frametime
+        auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[1] - timestamps[0]) *
+                                                                       m_device->properties().limits.timestampPeriod));
+        current_assets.frame_time = std::chrono::duration_cast<frame_millisecond_t>(frame_ns);
+    }
+
+    // reset query-pool
+    vkResetQueryPool(m_device->handle(), current_assets.query_pool.get(), 0, query_count);
 
     if(recycle_commands && current_assets.command_buffer)
     {
@@ -533,10 +553,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         }
     }
 
-    // fetch commandbuffers
-    next_assets.command_buffer = std::move(current_assets.command_buffer);
-    next_assets.stage_buffer = std::move(current_assets.stage_buffer);
-
     vierkant::BufferPtr draw_buffer, draw_buffer_indexed;
 
     // hook up GPU frustum/occlusion/distance culling here
@@ -565,8 +581,15 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     inheritance.framebuffer = framebuffer.handle();
     inheritance.renderPass = framebuffer.renderpass().get();
 
+    // move commandbuffer & query-pool
+    next_assets.command_buffer = std::move(current_assets.command_buffer);
+    next_assets.query_pool = std::move(current_assets.query_pool);
+
     auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
+
+    // record start-timestamp
+    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, next_assets.query_pool.get(), 0);
 
     // grouped by pipelines
     for(auto &[pipe_fmt, indirect_draws]: pipelines)
@@ -592,10 +615,13 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
         for(auto &[mesh, draw_asset]: indirect_draws)
         {
+            // feature enabled/available, mesh exists and contains a meshlet-buffer
+            bool use_meshlets = vkCmdDrawMeshTasksNV && mesh_shader && mesh && mesh->meshlets;
+
             if(mesh && current_mesh != mesh)
             {
                 current_mesh = mesh;
-                if(!mesh->meshlets){ mesh->bind_buffers(command_buffer.handle()); }
+                if(!use_meshlets){ mesh->bind_buffers(command_buffer.handle()); }
             }
 
             // bind descriptor sets (uniforms, samplers)
@@ -624,7 +650,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     // issue (indexed) drawing command
                     if(draw_params.draws_counts_out)
                     {
-                        if(mesh->meshlets)
+                        if(use_meshlets)
                         {
                             vkCmdDrawMeshTasksIndirectCountNV(command_buffer.handle(),
                                                               draw_buffer_indexed->handle(),
@@ -649,12 +675,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     }
                     else
                     {
-                        if(mesh->meshlets)
+                        if(use_meshlets)
                         {
-                            auto cmd =
-                                    static_cast<indexed_indirect_command_t *>(draw_buffer_indexed->map()) +
-                                    draw_asset.first_indexed_draw_index;
-
                             vkCmdDrawMeshTasksIndirectNV(command_buffer.handle(),
                                                          draw_buffer_indexed->handle(),
                                                          indexed_indirect_cmd_stride *
@@ -717,6 +739,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         }
     }
 
+    // record end-timestamp
+    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, next_assets.query_pool.get(), 1);
+
     // keep the stuff in use
     current_assets = std::move(next_assets);
 
@@ -732,7 +757,7 @@ void Renderer::reset()
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_current_index = 0;
     m_staged_drawables.clear();
-    for(auto &frame_asset: m_render_assets){ frame_asset = {}; }
+    for(auto &frame_asset: m_frame_assets){ frame_asset = {}; }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -109,7 +109,7 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
 //                    {
 ////                            if(e.primitive_type && e.primitive_type != GL_TRIANGLES){ continue; }
 //
-//                        for(uint32_t i = 0; i < e.num_indices; i += 3)
+//                        for(uint32_t i = 0; i < e.num_concurrent_frames; i += 3)
 //                        {
 //                            vierkant::Triangle t(positions[indices[i + e.base_index] + e.base_vertex],
 //                                                 positions[indices[i + e.base_index + 1] + e.base_vertex],

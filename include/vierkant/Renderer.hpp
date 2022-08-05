@@ -19,6 +19,8 @@
 namespace vierkant
 {
 
+using frame_millisecond_t = std::chrono::duration<double, std::milli>;
+
 /**
  * @brief   Renderer can be used to run arbitrary rasterization/graphics pipelines.
  *
@@ -174,7 +176,7 @@ public:
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
         bool indirect_draw = true;
-        bool enable_mesh_shader = true;
+        bool enable_mesh_shader = false;
         vierkant::CommandPoolPtr command_pool = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
@@ -203,6 +205,9 @@ public:
 
     //! option to use indirect drawing
     bool indirect_draw = false;
+
+    //! option to use a meshlet-based pipeline
+    bool mesh_shader = false;
 
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;
@@ -246,14 +251,19 @@ public:
                            bool recycle_commands = false);
 
     /**
-     * @return  the current swapchain index.
+     * @return  the current frame-index.
      */
     [[nodiscard]] uint32_t current_index() const{ return m_current_index; }
 
     /**
-     * @return  the number of swapchain indices.
+     * @return  the number of concurrent (in-flight) frames.
      */
-    [[nodiscard]] uint32_t num_indices() const{ return m_render_assets.size(); }
+    [[nodiscard]] uint32_t num_concurrent_frames() const{ return m_frame_assets.size(); }
+
+    /**
+     * @return  last measured frame's millisecond-duration
+     */
+    [[nodiscard]] frame_millisecond_t last_frame_ms() const { return m_frame_assets[m_current_index].frame_time; }
 
     /**
      * @brief   Release all cached rendering assets.
@@ -309,10 +319,13 @@ private:
         // draw-indirect buffers
         indirect_draw_bundle_t indirect_bundle;
         indirect_draw_bundle_t indirect_indexed_bundle;
-        vierkant::CommandBuffer stage_buffer;
 
         std::vector<drawable_t> drawables;
         vierkant::CommandBuffer command_buffer;
+
+        // used for gpu timestamps
+        vierkant::QueryPoolPtr query_pool;
+        frame_millisecond_t frame_time;
     };
 
     void set_function_pointers();
@@ -350,7 +363,7 @@ private:
 
     std::vector<std::vector<drawable_t>> m_staged_drawables;
 
-    std::vector<frame_assets_t> m_render_assets;
+    std::vector<frame_assets_t> m_frame_assets;
 
     std::mutex m_staging_mutex;
 
