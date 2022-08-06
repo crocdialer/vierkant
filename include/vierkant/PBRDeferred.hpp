@@ -159,7 +159,8 @@ private:
         LIGHTING,
         TAA,
         TONEMAP,
-        DEFOCUS_BLUR
+        DEFOCUS_BLUR,
+        MAX_VALUE
     };
 
     struct alignas(16) camera_params_t
@@ -172,7 +173,7 @@ private:
         float far;
     };
 
-    struct frame_assets_t
+    struct frame_asset_t
     {
         //! contains the culled scene-drawables
         vierkant::cull_result_t cull_result;
@@ -201,6 +202,10 @@ private:
         vierkant::BufferPtr lighting_param_ubo;
         vierkant::BufferPtr lights_ubo;
         vierkant::BufferPtr composition_ubo;
+
+        // used for gpu timestamps
+        vierkant::QueryPoolPtr query_pool;
+        std::map<SemaphoreValue, double_millisecond_t> timings;
 
         //! ping-pong post-fx framebuffers
         struct ping_pong_t
@@ -279,13 +284,14 @@ private:
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
+    void performance_query(frame_asset_t &frame_asset);
+
     void update_recycling(const SceneConstPtr &scene,
-                          const CameraPtr &cam,
-                          frame_assets_t &frame_asset) const;
+                          const CameraPtr &cam, frame_asset_t &frame_asset) const;
 
-    void update_matrix_history(frame_assets_t &frame_asset);
+    void update_matrix_history(frame_asset_t &frame_asset);
 
-    void resize_storage(frame_assets_t &frame_asset, const glm::uvec2 &resolution);
+    void resize_storage(frame_asset_t &frame_asset, const glm::uvec2 &resolution);
 
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
@@ -296,9 +302,9 @@ private:
                       const vierkant::ImagePtr &color,
                       const vierkant::ImagePtr &depth);
 
-    void create_depth_pyramid(frame_assets_t &frame_asset);
+    void create_depth_pyramid(frame_asset_t &frame_asset);
 
-    void cull_draw_commands(frame_assets_t &frame_asset,
+    void cull_draw_commands(frame_asset_t &frame_asset,
                             const vierkant::CameraPtr &cam,
                             const vierkant::ImagePtr &depth_pyramid,
                             const vierkant::BufferPtr &draws_in,
@@ -326,7 +332,7 @@ private:
 
     size_t m_sample_index = 0;
 
-    std::vector<frame_assets_t> m_frame_assets;
+    std::vector<frame_asset_t> m_frame_assets;
 
     vierkant::DrawContext m_draw_context;
 

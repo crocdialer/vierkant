@@ -318,7 +318,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         // calculate last gpu-frametime
         auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[1] - timestamps[0]) *
                                                                        m_device->properties().limits.timestampPeriod));
-        current_assets.frame_time = std::chrono::duration_cast<frame_millisecond_t>(frame_ns);
+        current_assets.frame_time = std::chrono::duration_cast<double_millisecond_t>(frame_ns);
     }
 
     // reset query-pool

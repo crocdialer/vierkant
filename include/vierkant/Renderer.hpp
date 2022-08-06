@@ -19,7 +19,7 @@
 namespace vierkant
 {
 
-using frame_millisecond_t = std::chrono::duration<double, std::milli>;
+using double_millisecond_t = std::chrono::duration<double, std::milli>;
 
 /**
  * @brief   Renderer can be used to run arbitrary rasterization/graphics pipelines.
@@ -263,7 +263,7 @@ public:
     /**
      * @return  last measured frame's millisecond-duration
      */
-    [[nodiscard]] frame_millisecond_t last_frame_ms() const { return m_frame_assets[m_current_index].frame_time; }
+    [[nodiscard]] double_millisecond_t last_frame_ms() const { return m_frame_assets[m_current_index].frame_time; }
 
     /**
      * @brief   Release all cached rendering assets.
@@ -325,7 +325,7 @@ private:
 
         // used for gpu timestamps
         vierkant::QueryPoolPtr query_pool;
-        frame_millisecond_t frame_time;
+        double_millisecond_t frame_time;
     };
 
     void set_function_pointers();

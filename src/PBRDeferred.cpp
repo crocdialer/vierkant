@@ -65,6 +65,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
                                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        asset.query_pool = vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
     }
 
     // create renderer for g-buffer-pass
@@ -248,8 +250,7 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 }
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene,
-                                   const CameraPtr &cam,
-                                   frame_assets_t &frame_asset) const
+                                   const CameraPtr &cam, frame_asset_t &frame_asset) const
 {
     vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
     scene->root()->accept(mesh_visitor);
@@ -303,6 +304,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
 
     // reference to current frame-assets
     auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
+
+    // retrieve last performance-query, start new
+    performance_query(frame_asset);
 
     update_recycling(scene, cam, frame_asset);
 //    frame_asset.recycle_commands = false;
@@ -367,7 +371,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer,
     return ret;
 }
 
-void PBRDeferred::update_matrix_history(frame_assets_t &frame_asset)
+void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 {
     using bone_offset_cache_t = std::unordered_map<vierkant::nodes::NodeConstPtr, size_t>;
     matrix_cache_t new_entry_matrix_cache;
@@ -600,6 +604,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     {
         frame_asset.clear_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.clear_cmd_buffer.begin();
+
+        // base/first timestamp
+        vkCmdWriteTimestamp2(frame_asset.clear_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                             frame_asset.query_pool.get(), 0);
+
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_pre,
                                      frame_asset.clear_cmd_buffer.handle());
 
@@ -623,7 +632,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     };
 
     // pre-render will repeat all previous draw-calls
-    spdlog::trace("g-buffer 1st-pass: {:.03}", m_g_renderer_pre.last_frame_ms());
+    frame_asset.timings[G_BUFFER_LAST_VISIBLE] = m_g_renderer_pre.last_frame_ms();
 
     auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
@@ -666,7 +675,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
         g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
 
-        spdlog::trace("g-buffer 2nd-pass: {:.03}", m_g_renderer_post.last_frame_ms());
+        frame_asset.timings[G_BUFFER_ALL] = m_g_renderer_post.last_frame_ms();
         auto cmd_buffer = m_g_renderer_post.render(frame_asset.g_buffer_post, frame_asset.recycle_commands);
         frame_asset.g_buffer_post.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
     }
@@ -898,7 +907,7 @@ size_t PBRDeferred::matrix_key_hash_t::operator()(PBRDeferred::matrix_key_t cons
     return h;
 }
 
-void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t &asset,
+void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t &asset,
                                            const glm::uvec2 &resolution)
 {
     glm::uvec2 previous_size = {asset.g_buffer_post.extent().width, asset.g_buffer_post.extent().height};
@@ -990,7 +999,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_assets_t
     asset.bloom = Bloom::create(m_device, bloom_info);
 }
 
-void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
+void PBRDeferred::create_depth_pyramid(frame_asset_t &frame_asset)
 {
     auto extent_pyramid_lvl0 = frame_asset.depth_map->extent();
     extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
@@ -1044,10 +1053,6 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
         frame_asset.depth_pyramid_computes.emplace_back(m_device, compute_info);
     }
 
-    // transition all mips to general layout for writing
-    frame_asset.depth_pyramid->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
-                                                 frame_asset.depth_pyramid_cmd_buffer.handle());
-
     VkImageMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
     barrier.image = frame_asset.depth_pyramid->image();
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -1069,6 +1074,14 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
 
     frame_asset.depth_pyramid_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.depth_pyramid_cmd_buffer.begin();
+
+    // pre depth-pyramid timestamp
+    vkCmdWriteTimestamp2(frame_asset.depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::G_BUFFER_LAST_VISIBLE);
+
+    // transition all mips to general layout for writing
+    frame_asset.depth_pyramid->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
+                                                 frame_asset.depth_pyramid_cmd_buffer.handle());
 
     for(uint32_t lvl = 1; lvl < pyramid_views.size(); ++lvl)
     {
@@ -1096,6 +1109,10 @@ void PBRDeferred::create_depth_pyramid(frame_assets_t &frame_asset)
         barrier.subresourceRange.baseMipLevel = lvl - 1;
         vkCmdPipelineBarrier2(frame_asset.depth_pyramid_cmd_buffer.handle(), &dependency_info);
     }
+
+    // depth-pyramid timestamp
+    vkCmdWriteTimestamp2(frame_asset.depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::DEPTH_PYRAMID);
 
     vierkant::semaphore_submit_info_t pyramid_semaphore_submit_info = {};
     pyramid_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
@@ -1161,7 +1178,7 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
     params.num_draws = num_draws;
 }
 
-void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
+void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
                                      const vierkant::CameraPtr &cam,
                                      const vierkant::ImagePtr &depth_pyramid,
                                      const vierkant::BufferPtr &draws_in,
@@ -1335,6 +1352,10 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
     // copy result into host-visible buffer
     frame_asset.cull_result_buffer->copy_to(frame_asset.cull_result_buffer_host, frame_asset.cull_cmd_buffer.handle());
 
+    // culling done timestamp
+    vkCmdWriteTimestamp2(frame_asset.cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::CULLING);
+
     vierkant::semaphore_submit_info_t culling_semaphore_submit_info = {};
     culling_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
     culling_semaphore_submit_info.wait_value = SemaphoreValue::DEPTH_PYRAMID;
@@ -1342,9 +1363,43 @@ void PBRDeferred::cull_draw_commands(frame_assets_t &frame_asset,
     culling_semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
     frame_asset.cull_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {culling_semaphore_submit_info});
 }
+void PBRDeferred::performance_query(frame_asset_t &frame_asset)
+{
+    constexpr size_t query_count = SemaphoreValue::CULLING + 1;
+
+    uint64_t timestamps[query_count] = {};
+    auto query_result =
+            vkGetQueryPoolResults(m_device->handle(), frame_asset.query_pool.get(), 0, query_count, sizeof(timestamps),
+                                  timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+
+    auto timestamp_period = m_device->properties().limits.timestampPeriod;
+
+    auto millis = [&](SemaphoreValue val) -> double_millisecond_t
+    {
+        auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[val] - timestamps[val - 1]) *
+                                                                       timestamp_period));
+        return std::chrono::duration_cast<double_millisecond_t>(frame_ns);
+    };
+
+    if(query_result == VK_SUCCESS)
+    {
+        for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= SemaphoreValue::CULLING; ++i)
+        {
+            auto val = SemaphoreValue(i);
+            frame_asset.timings[val] = millis(val);
+        }
+    }
+
+    m_logger->trace("timings: {}", frame_asset.timings);
+
+    // reset query-pool
+    vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, query_count);
+    frame_asset.timings.clear();
+}
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)
 {
+    // TODO: maybe too wonky
     return memcmp(&lhs, &rhs, sizeof(PBRDeferred::settings_t)) == 0;
 }
 
