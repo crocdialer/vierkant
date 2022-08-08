@@ -79,11 +79,12 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     if(ImGui::Checkbox("vsync", &v_sync))
     {
         create_swapchain(window->swapchain().sample_count(), v_sync);
+        app->loop_throttling = !v_sync;
     }
     if(!v_sync)
     {
-        auto target_fps = static_cast<float>(app->target_fps);
-        if(ImGui::SliderFloat("target_fps", &target_fps, 0.f, 1000.f)){ app->target_fps = target_fps; }
+        auto target_fps = static_cast<float>(app->target_loop_frequency);
+        if(ImGui::SliderFloat("target_loop_frequency", &target_fps, 0.f, 1000.f)){ app->target_loop_frequency = target_fps; }
     }
     ImGui::Spacing();
 

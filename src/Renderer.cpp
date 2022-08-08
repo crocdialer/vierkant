@@ -186,7 +186,7 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
 
     // NV_mesh_shading function pointers
     set_function_pointers();
-    mesh_shader = create_info.enable_mesh_shader && vkCmdDrawMeshTasksNV;
+    use_mesh_shader = create_info.enable_mesh_shader && vkCmdDrawMeshTasksNV;
 
     viewport = create_info.viewport;
     scissor = create_info.scissor;
@@ -271,7 +271,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_push_constant_range, rhs.m_push_constant_range);
     std::swap(lhs.m_start_time, rhs.m_start_time);
 
-    std::swap(lhs.mesh_shader, rhs.mesh_shader);
+    std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
     std::swap(lhs.vkCmdDrawMeshTasksNV, rhs.vkCmdDrawMeshTasksNV);
     std::swap(lhs.vkCmdDrawMeshTasksIndirectNV, rhs.vkCmdDrawMeshTasksIndirectNV);
     std::swap(lhs.vkCmdDrawMeshTasksIndirectCountNV, rhs.vkCmdDrawMeshTasksIndirectCountNV);
@@ -616,7 +616,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         for(auto &[mesh, draw_asset]: indirect_draws)
         {
             // feature enabled/available, mesh exists and contains a meshlet-buffer
-            bool use_meshlets = vkCmdDrawMeshTasksNV && mesh_shader && mesh && mesh->meshlets;
+            bool use_meshlets = vkCmdDrawMeshTasksNV && use_mesh_shader && mesh && mesh->meshlets;
 
             if(mesh && current_mesh != mesh)
             {
@@ -645,6 +645,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
                 if(mesh && mesh->index_buffer)
                 {
+                    constexpr uint32_t mesh_draw_cmd_offset = offsetof(indexed_indirect_command_t, vk_mesh_draw);
                     const indirect_draw_bundle_t &draw_params = next_assets.indirect_indexed_bundle;
 
                     // issue (indexed) drawing command
@@ -654,7 +655,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                         {
                             vkCmdDrawMeshTasksIndirectCountNV(command_buffer.handle(),
                                                               draw_buffer_indexed->handle(),
-                                                              indexed_indirect_cmd_stride *
+                                                              mesh_draw_cmd_offset + indexed_indirect_cmd_stride *
                                                               draw_asset.first_indexed_draw_index,
                                                               draw_params.draws_counts_out->handle(),
                                                               draw_asset.count_buffer_offset * sizeof(uint32_t),
@@ -679,7 +680,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                         {
                             vkCmdDrawMeshTasksIndirectNV(command_buffer.handle(),
                                                          draw_buffer_indexed->handle(),
-                                                         indexed_indirect_cmd_stride *
+                                                         mesh_draw_cmd_offset + indexed_indirect_cmd_stride *
                                                          draw_asset.first_indexed_draw_index,
                                                          draw_asset.num_draws,
                                                          indexed_indirect_cmd_stride);
@@ -707,7 +708,19 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             }
             else
             {
-                if(mesh && mesh->index_buffer)
+                if(use_meshlets)
+                {
+                    for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
+                    {
+                        auto cmd =
+                                static_cast<indexed_indirect_command_t *>(next_assets.indirect_indexed_bundle.draws_in->map()) +
+                                draw_asset.first_indexed_draw_index + i;
+
+                        vkCmdDrawMeshTasksNV(command_buffer.handle(), cmd->vk_mesh_draw.taskCount,
+                                             cmd->vk_mesh_draw.firstTask);
+                    }
+                }
+                else if(mesh && mesh->index_buffer)
                 {
                     for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
                     {

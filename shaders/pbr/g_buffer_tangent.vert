@@ -2,11 +2,17 @@
 
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_scalar_block_layout : enable
+
 //#extension GL_EXT_shader_8bit_storage: require
 //#extension GL_EXT_shader_16bit_storage: require
 
 //#extension GL_EXT_shader_explicit_arithmetic_types: require
 //#extension GL_EXT_shader_explicit_arithmetic_types_int8: require
+
+#extension GL_EXT_shader_explicit_arithmetic_types_int64: require
+#extension GL_EXT_buffer_reference2: require
+
+//#define sizeof(Type) (uint64_t(Type(uint64_t(0)) + 1))
 
 #include "../renderer/types.glsl"
 #include "../utils/camera.glsl"
@@ -19,6 +25,12 @@ struct Vertex
     vec3 normal;
     vec3 tangent;
 };
+
+//
+//layout(buffer_reference, scalar/*, buffer_reference_alignment = 16*/) readonly buffer VertexPointer
+//{
+//    Vertex v;
+//};
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
@@ -58,7 +70,12 @@ layout(location = 1) out VertexData
 
 void main()
 {
-    Vertex v = vertices[gl_VertexIndex];//gl_DrawID/gl_BaseInstance + gl_InstanceIndex
+    const Vertex v = vertices[gl_VertexIndex];//gl_DrawID/gl_BaseInstance + gl_InstanceIndex
+
+//    uint64_t fake_address = 0;
+//    VertexPointer vertex_ptr = VertexPointer(fake_address);
+//    // WTF writable?
+//    vertex_ptr[17].v.position = vec3(0);
 
     object_index = gl_BaseInstance;
     matrix_struct_t m = matrices[object_index];

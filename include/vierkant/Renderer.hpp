@@ -207,7 +207,7 @@ public:
     bool indirect_draw = false;
 
     //! option to use a meshlet-based pipeline
-    bool mesh_shader = false;
+    bool use_mesh_shader = false;
 
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;

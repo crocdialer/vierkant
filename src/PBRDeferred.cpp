@@ -523,7 +523,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 drawable.pipeline_format.binding_descriptions.clear();
             }
 
-            if(drawable.mesh->meshlets)
+            if(drawable.mesh->meshlets && frame_asset.settings.use_meshlet_pipeline)
             {
                 shader_flags |= PROP_MESHLETS;
                 camera_desc.stage_flags = VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;

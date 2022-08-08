@@ -85,7 +85,7 @@ void main()
     uint ti = gl_LocalInvocationID.x;
 
     // WTF -> gl_WorkGroupID.x seems to start at index 1, but 0 was expected
-    uint mi = draws[gl_DrawID].base_meshlet + max(gl_WorkGroupID.x - 1, 0);
+    uint mi = draws[gl_DrawID].base_meshlet + gl_WorkGroupID.x;
 
     //    if (ti == 0)
     gl_PrimitiveCountNV = meshlets[mi].triangle_count;
