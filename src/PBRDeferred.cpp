@@ -14,7 +14,7 @@
 namespace vierkant
 {
 
-float halton(uint32_t index, uint32_t base)
+inline float halton(uint32_t index, uint32_t base)
 {
     float f = 1;
     float r = 0;
@@ -599,6 +599,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_pre.indirect_draw = frame_asset.settings.indirect_draw;
     m_g_renderer_post.indirect_draw = frame_asset.settings.indirect_draw;
 
+    m_g_renderer_pre.use_mesh_shader = frame_asset.settings.use_meshlet_pipeline;
+    m_g_renderer_post.use_mesh_shader = frame_asset.settings.use_meshlet_pipeline;
+
     // draw last visible objects
     m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset, use_gpu_culling](Renderer::indirect_draw_bundle_t &params)
     {
@@ -612,10 +615,27 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_pre,
                                      frame_asset.clear_cmd_buffer.handle());
 
+        frame_asset.indirect_draw_params_pre.draws_out = params.draws_out;
+
         if(params.num_draws && !frame_asset.recycle_commands)
         {
             params.draws_in->copy_to(frame_asset.indirect_draw_params_pre.draws_in,
                                      frame_asset.clear_cmd_buffer.handle());
+
+            VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+            barrier.buffer = frame_asset.indirect_draw_params_pre.draws_in->handle();
+            barrier.offset = 0;
+            barrier.size = params.draws_in->num_bytes();
+            barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+            barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+
+            VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+            dependency_info.bufferMemoryBarrierCount = 1;
+            dependency_info.pBufferMemoryBarriers = &barrier;
+            vkCmdPipelineBarrier2(frame_asset.clear_cmd_buffer.handle(), &dependency_info);
         }
 
         frame_asset.clear_cmd_buffer.submit(m_queue);
@@ -623,7 +643,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         if(use_gpu_culling)
         {
             params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
-            params.draws_out = frame_asset.indirect_draw_params_pre.draws_out;
+//            params.draws_out = frame_asset.indirect_draw_params_pre.draws_out;
         }
         else
         {
@@ -655,6 +675,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 (Renderer::indirect_draw_bundle_t &params)
         {
             resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
+
+            // draws_out should have bee pre-created by Renderer
+            frame_asset.indirect_draw_params_post.draws_out = params.draws_out;
 
             cull_draw_commands(frame_asset,
                                cam,
@@ -1137,14 +1160,6 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
                                                    VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
-    if(!params.draws_out || params.draws_out->num_bytes() < num_bytes)
-    {
-        params.draws_out = vierkant::Buffer::create(m_device, nullptr, num_bytes,
-                                                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                    VMA_MEMORY_USAGE_GPU_ONLY);
-    }
-
     if(!params.draws_counts_out)
     {
         constexpr uint32_t max_batches = 4096;
@@ -1154,26 +1169,6 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws,
                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                            VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                            VMA_MEMORY_USAGE_GPU_ONLY);
-
-        if(clear_cmd_handle)
-        {
-            vkCmdFillBuffer(clear_cmd_handle, params.draws_counts_out->handle(), 0, VK_WHOLE_SIZE, 0);
-
-            VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
-            barrier.buffer = params.draws_counts_out->handle();
-            barrier.offset = 0;
-            barrier.size = VK_WHOLE_SIZE;
-            barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
-            barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-
-            VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-            dependency_info.bufferMemoryBarrierCount = 1;
-            dependency_info.pBufferMemoryBarriers = &barrier;
-            vkCmdPipelineBarrier2(clear_cmd_handle, &dependency_info);
-        }
     }
     params.num_draws = num_draws;
 }
@@ -1363,6 +1358,7 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     culling_semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
     frame_asset.cull_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {culling_semaphore_submit_info});
 }
+
 void PBRDeferred::performance_query(frame_asset_t &frame_asset)
 {
     constexpr size_t query_count = SemaphoreValue::CULLING + 1;

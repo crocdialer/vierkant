@@ -1,13 +1,14 @@
 # vierkant
 
 ![Preview](https://crocdialer.com/wp-content/uploads/2021/09/whisky_dragon.jpg)
-- vierkant is a Vulkan 1.2 based rendering library written in C++17.
+- vierkant is a Vulkan 1.3 based rendering library written in C++17.
 - ![example workflow](https://github.com/crocdialer/vierkant/actions/workflows/cmake_build.yml/badge.svg)
 
 rendering backends
 -
-- deferred rasterizer
-- pathtracer (Disney-bsdf) using VK_KHR_ray* extensions
+- gpu-driven rasterizer 
+- optional support for meshlet-based pipelines (using VK_NV_mesh_shader)
+- pathtracer using VK_KHR_ray* extensions, useful for comparing against a groundtruth
 
 HDR
 -
@@ -32,4 +33,3 @@ submodules:
 - https://github.com/syoyo/tinygltf
 - https://github.com/ocornut/imgui
 - https://github.com/zeux/meshoptimizer
-- vulkan 1.2 + support for VK_KHR_ray*
