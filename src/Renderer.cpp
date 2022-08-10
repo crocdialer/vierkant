@@ -311,7 +311,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     uint64_t timestamps[query_count] = {};
 
     auto query_result = vkGetQueryPoolResults(m_device->handle(), current_assets.query_pool.get(), 0, query_count,
-                                              sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+                                              sizeof(timestamps), timestamps, sizeof(uint64_t),
+                                              VK_QUERY_RESULT_64_BIT);
 
     if(query_result == VK_SUCCESS)
     {
@@ -319,10 +320,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[1] - timestamps[0]) *
                                                                        m_device->properties().limits.timestampPeriod));
         current_assets.frame_time = std::chrono::duration_cast<double_millisecond_t>(frame_ns);
+
+        // reset query-pool
+        vkResetQueryPool(m_device->handle(), current_assets.query_pool.get(), 0, query_count);
     }
 
-    // reset query-pool
-    vkResetQueryPool(m_device->handle(), current_assets.query_pool.get(), 0, query_count);
 
     if(recycle_commands && current_assets.command_buffer)
     {
@@ -520,7 +522,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->object_index = indexed_drawable.object_index;
-                draw_command->visible = true;
+                draw_command->visible = false;
 
 
                 if(drawable->mesh->meshlets)
@@ -561,12 +563,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     {
         // invoke delegate
         draw_indirect_delegate(next_assets.indirect_indexed_bundle);
-
-        if(draw_buffer_indexed != next_assets.indirect_indexed_bundle.draws_out)
-        {
-            // tmp: work on control flow
-            spdlog::warn("indirect-draw-buffer not matching");
-        }
     }
     else
     {

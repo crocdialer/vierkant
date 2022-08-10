@@ -315,8 +315,7 @@ private:
                             vierkant::BufferPtr &draws_counts_out_post);
 
     void resize_indirect_draw_buffers(uint32_t num_draws,
-                                      Renderer::indirect_draw_bundle_t &params,
-                                      VkCommandBuffer clear_cmd_handle = VK_NULL_HANDLE);
+                                      Renderer::indirect_draw_bundle_t &params);
 
     vierkant::DevicePtr m_device;
 
