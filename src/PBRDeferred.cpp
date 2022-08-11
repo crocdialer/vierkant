@@ -408,7 +408,8 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             // previous matrices
             vierkant::descriptor_t &desc_prev_matrices = drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX];
             desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_prev_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_prev_matrices.stage_flags =
+                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
 
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)

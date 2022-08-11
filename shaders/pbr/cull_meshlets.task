@@ -1,0 +1,48 @@
+#version 460
+#extension GL_NV_mesh_shader : require
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_shader_8bit_storage: require
+
+#include "../renderer/types.glsl"
+//#include "../utils/camera.glsl"
+
+//! nv-specific warp-value (use 64 for AMD)
+#define LOCAL_SIZE 32
+
+layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
+{
+    indexed_indirect_command_t draws[];
+};
+
+//layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
+//{
+//    meshlet_t meshlets[];
+//};
+//
+//layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
+//{
+//    matrix_struct_t u_matrices[];
+//};
+
+out taskNV TaskBuffer
+{
+    uint meshlet_indices[LOCAL_SIZE];
+    uint object_index;
+    uint vertex_offset;
+};
+
+layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
+
+void main()
+{
+    uint ti = gl_LocalInvocationID.x;
+    uint mi = draws[gl_DrawID].base_meshlet + gl_WorkGroupID.x * LOCAL_SIZE + ti;
+    object_index = draws[gl_DrawID].object_index;
+    vertex_offset = draws[gl_DrawID].vertexOffset;
+
+    // TODO: culling
+
+    meshlet_indices[ti] = mi;
+    if (ti == 0){ gl_TaskCountNV = LOCAL_SIZE; };
+}

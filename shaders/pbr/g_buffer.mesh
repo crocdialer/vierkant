@@ -27,11 +27,6 @@ layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
     Vertex vertices[];
 };
 
-layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
-{
-    indexed_indirect_command_t draws[];
-};
-
 layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
 {
     meshlet_t meshlets[];
@@ -68,6 +63,13 @@ layout(push_constant) uniform PushConstants
     render_context_t context;
 };
 
+in taskNV TaskBuffer
+{
+    uint meshlet_indices[LOCAL_SIZE];
+    uint object_index;
+    uint vertex_offset;
+};
+
 layout(location = 0) flat out uint object_index_out[];
 layout(location = 1) out VertexData
 {
@@ -81,20 +83,17 @@ layout(location = 1) out VertexData
 void main()
 {
     uint ti = gl_LocalInvocationID.x;
-    uint mi = draws[gl_DrawID].base_meshlet + gl_WorkGroupID.x;
+    uint mi = meshlet_indices[gl_WorkGroupID.x];
 
-    //    if (ti == 0)
-    gl_PrimitiveCountNV = meshlets[mi].triangle_count;
-
-    const uint object_index = draws[gl_DrawID].object_index;
+    if(ti == 0){ gl_PrimitiveCountNV = meshlets[mi].triangle_count; }
 
     matrix_struct_t m = u_matrices[object_index];
     matrix_struct_t m_last = u_previous_matrices[object_index];
 
     for(uint i = ti; i < meshlets[mi].vertex_count; i += LOCAL_SIZE)
     {
-        uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
-        Vertex v = vertices[vi + draws[gl_DrawID].vertexOffset];
+        uint vi = vertex_offset + meshlet_vertices[meshlets[mi].vertex_offset + i];
+        const Vertex v = vertices[vi];
 
         vertex_out[i].current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
         vertex_out[i].last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);

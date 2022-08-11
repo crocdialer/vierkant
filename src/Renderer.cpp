@@ -108,7 +108,8 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         // descriptors
         auto &desc_matrices = drawable.descriptors[BINDING_MATRIX];
         desc_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+        desc_matrices.stage_flags =
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
 
         auto &desc_material = drawable.descriptors[BINDING_MATERIAL];
         desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -530,7 +531,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     draw_command->base_meshlet = drawable->base_meshlet;
 
                     //! VkDrawMeshTasksIndirectCommandNV
-                    draw_command->vk_mesh_draw.taskCount = drawable->num_meshlets;
+                    constexpr uint32_t work_group_size = 32;
+                    draw_command->vk_mesh_draw.taskCount = (work_group_size + drawable->num_meshlets - 1) / work_group_size;
                     draw_command->vk_mesh_draw.firstTask = 0;//drawable->base_meshlet;
                 }
 
