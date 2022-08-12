@@ -96,6 +96,7 @@ struct indexed_indirect_command_t
     uint object_index;
     bool visible;
     uint base_meshlet;
+    uint num_meshlets;
     uint count_buffer_offset;
     uint first_draw_index;
     vec4 sphere_bounds;

@@ -438,7 +438,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             ret.meshlet_triangles.insert(ret.meshlet_triangles.end(), meshlet_triangles.begin(),
                                          meshlet_triangles.begin() + int(triangle_offset));
 
-//            ret.meshlets.reserve(ret.meshlets.size() + meshlet_count);
+            ret.meshlets.reserve(ret.meshlets.size() + meshlet_count);
 
             // generate bounds, combine data in our API output-meshlets
             for(uint32_t i = 0; i < meshlet_count; ++i)

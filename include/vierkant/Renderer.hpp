@@ -104,8 +104,10 @@ public:
         uint32_t object_index = 0;
         uint32_t visible = false;
         uint32_t base_meshlet = 0;
+        uint32_t num_meshlets = 0;
         uint32_t count_buffer_offset = 0;
         uint32_t first_draw_index = 0;
+        int padding[3];
         glm::vec4 sphere_bounds = {};
     };
 

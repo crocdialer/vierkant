@@ -528,9 +528,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->visible = false;
 
 
-//                if(drawable->mesh->meshlets)
+                if(drawable->mesh->meshlets)
                 {
                     draw_command->base_meshlet = drawable->base_meshlet;
+                    draw_command->num_meshlets = drawable->num_meshlets;
 
                     //! VkDrawMeshTasksIndirectCommandNV
                     draw_command->vk_mesh_draw.taskCount =

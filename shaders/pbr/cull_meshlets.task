@@ -49,6 +49,9 @@ void main()
 {
     uint ti = gl_LocalInvocationID.x;
     uint mi = draws[gl_DrawID].base_meshlet + gl_WorkGroupID.x * LOCAL_SIZE + ti;
+
+    if(gl_WorkGroupID.x * LOCAL_SIZE + ti >=  draws[gl_DrawID].num_meshlets){ return; }
+
     object_index = draws[gl_DrawID].object_index;
     vertex_offset = draws[gl_DrawID].vertexOffset;
 
