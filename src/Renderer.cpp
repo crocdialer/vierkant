@@ -188,6 +188,7 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
     // NV_mesh_shading function pointers
     set_function_pointers();
     use_mesh_shader = create_info.enable_mesh_shader && vkCmdDrawMeshTasksNV;
+    m_mesh_task_count = create_info.mesh_task_count;
 
     viewport = create_info.viewport;
     scissor = create_info.scissor;
@@ -273,6 +274,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.m_start_time, rhs.m_start_time);
 
     std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
+    std::swap(lhs.m_mesh_task_count, rhs.m_mesh_task_count);
     std::swap(lhs.vkCmdDrawMeshTasksNV, rhs.vkCmdDrawMeshTasksNV);
     std::swap(lhs.vkCmdDrawMeshTasksIndirectNV, rhs.vkCmdDrawMeshTasksIndirectNV);
     std::swap(lhs.vkCmdDrawMeshTasksIndirectCountNV, rhs.vkCmdDrawMeshTasksIndirectCountNV);
@@ -526,13 +528,13 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->visible = false;
 
 
-                if(drawable->mesh->meshlets)
+//                if(drawable->mesh->meshlets)
                 {
                     draw_command->base_meshlet = drawable->base_meshlet;
 
                     //! VkDrawMeshTasksIndirectCommandNV
-                    constexpr uint32_t work_group_size = 32;
-                    draw_command->vk_mesh_draw.taskCount = (work_group_size + drawable->num_meshlets - 1) / work_group_size;
+                    draw_command->vk_mesh_draw.taskCount =
+                            (m_mesh_task_count + drawable->num_meshlets - 1) / m_mesh_task_count;
                     draw_command->vk_mesh_draw.firstTask = 0;//drawable->base_meshlet;
                 }
 

@@ -177,6 +177,7 @@ public:
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
         bool indirect_draw = true;
         bool enable_mesh_shader = false;
+        uint32_t mesh_task_count = 32;
         vierkant::CommandPoolPtr command_pool = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
@@ -374,6 +375,8 @@ private:
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 
     std::default_random_engine m_random_engine;
+
+    uint32_t m_mesh_task_count = 32;
 
     //! function pointers for optional mesh-shader support
     PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasksNV = nullptr;

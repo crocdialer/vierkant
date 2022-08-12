@@ -1,11 +1,10 @@
 #version 460
 #extension GL_NV_mesh_shader : require
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_scalar_block_layout : require
-#extension GL_EXT_shader_8bit_storage: require
+#extension GL_KHR_shader_subgroup_ballot: require
 
 #include "../renderer/types.glsl"
-//#include "../utils/camera.glsl"
+#include "../utils/camera.glsl"
 
 //! nv-specific warp-value (use 64 for AMD)
 #define LOCAL_SIZE 32
@@ -15,15 +14,21 @@ layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
     indexed_indirect_command_t draws[];
 };
 
-//layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
-//{
-//    meshlet_t meshlets[];
-//};
-//
-//layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
-//{
-//    matrix_struct_t u_matrices[];
-//};
+layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
+{
+    meshlet_t meshlets[];
+};
+
+layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
+{
+    matrix_struct_t matrices[];
+};
+
+layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
+{
+    camera_t camera;
+    camera_t last_camera;
+};
 
 out taskNV TaskBuffer
 {
@@ -34,6 +39,12 @@ out taskNV TaskBuffer
 
 layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
 
+bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
+{
+//    return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
+    return false;
+}
+
 void main()
 {
     uint ti = gl_LocalInvocationID.x;
@@ -41,8 +52,22 @@ void main()
     object_index = draws[gl_DrawID].object_index;
     vertex_offset = draws[gl_DrawID].vertexOffset;
 
-    // TODO: culling
+    // transform bounding volume and normal-cone
+    mat3 m = mat3(matrices[object_index].normal);
+    vec3 cone_axis = m * meshlets[mi].cone_axis;
+    float cone_cutoff = meshlets[mi].cone_cutoff;
+    vec3 center = (camera.view * matrices[object_index].modelview * vec4(meshlets[mi].bounding_sphere.xyz, 1.0)).xyz;
+    float radius = meshlets[mi].bounding_sphere.w * length(matrices[object_index].modelview[0].xyz);
 
-    meshlet_indices[ti] = mi;
-    if (ti == 0){ gl_TaskCountNV = LOCAL_SIZE; };
+    // culling
+    bool accept = !cone_cull(center, radius, cone_axis, cone_cutoff, -camera.view[3].xyz);
+
+    // determine indices/count via ballot
+    uvec4 ballot = subgroupBallot(accept);
+    uint index = subgroupBallotExclusiveBitCount(ballot);
+    uint count = subgroupBallotBitCount(ballot);
+
+    // write result
+    if (accept){ meshlet_indices[index] = mi; }
+    if (ti == 0){ gl_TaskCountNV = count; }
 }

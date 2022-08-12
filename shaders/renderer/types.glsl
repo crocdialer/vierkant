@@ -116,5 +116,6 @@ struct meshlet_t
     vec4 bounding_sphere;
 
     //! normal cone (axis, cutoff), useful for backface culling
-    vec4 normal_cone;
+    vec3 cone_axis;
+    float cone_cutoff;
 };

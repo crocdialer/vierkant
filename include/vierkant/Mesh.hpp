@@ -65,6 +65,27 @@ public:
         ATTRIB_MAX
     };
 
+    struct create_info_t
+    {
+        VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+        vierkant::BufferPtr staging_buffer = nullptr;
+        VkBufferUsageFlags buffer_usage_flags = 0;
+        bool optimize_vertex_cache = false;
+        bool generate_meshlets = false;
+        bool use_vertex_colors = true;
+    };
+
+    struct entry_create_info_t
+    {
+        std::string name;
+        GeometryPtr geometry = nullptr;
+        glm::mat4 transform = glm::mat4(1);
+        uint32_t node_index = 0;
+        uint32_t material_index = 0;
+        std::vector<GeometryPtr> morph_targets;
+        std::vector<float> morph_weights;
+    };
+
     struct entry_t
     {
         std::string name;
@@ -102,27 +123,6 @@ public:
 
         //! normal cone, useful for backface culling
         vierkant::Cone normal_cone;
-    };
-
-    struct create_info_t
-    {
-        VkCommandBuffer command_buffer = VK_NULL_HANDLE;
-        vierkant::BufferPtr staging_buffer = nullptr;
-        VkBufferUsageFlags buffer_usage_flags = 0;
-        bool optimize_vertex_cache = false;
-        bool generate_meshlets = false;
-        bool use_vertex_colors = true;
-    };
-
-    struct entry_create_info_t
-    {
-        std::string name;
-        GeometryPtr geometry = nullptr;
-        glm::mat4 transform = glm::mat4(1);
-        uint32_t node_index = 0;
-        uint32_t material_index = 0;
-        std::vector<GeometryPtr> morph_targets;
-        std::vector<float> morph_weights;
     };
 
     static MeshPtr create();
