@@ -67,7 +67,6 @@ in taskNV TaskBuffer
 {
     uint meshlet_indices[LOCAL_SIZE];
     uint object_index;
-    uint vertex_offset;
 };
 
 layout(location = 0) flat out uint object_index_out[];
@@ -92,7 +91,7 @@ void main()
 
     for(uint i = ti; i < meshlets[mi].vertex_count; i += LOCAL_SIZE)
     {
-        uint vi = vertex_offset + meshlet_vertices[meshlets[mi].vertex_offset + i];
+        uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
         const Vertex v = vertices[vi];
 
         vertex_out[i].current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);

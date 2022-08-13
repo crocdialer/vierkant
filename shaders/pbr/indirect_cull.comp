@@ -84,8 +84,8 @@ void main()
 
     bool visible = true;
 
-    vec3 center = (cull_data.view * vec4(draw.sphere_bounds.xyz, 1.0)).xyz;
-    float radius = draw.sphere_bounds.w;
+    vec3 center = (cull_data.view * vec4(draw.sphere_center, 1.0)).xyz;
+    float radius = draw.sphere_radius;
 
     if(cull_data.culling_enabled)
     {

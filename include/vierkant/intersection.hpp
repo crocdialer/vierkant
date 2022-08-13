@@ -252,8 +252,8 @@ struct Sphere
     inline Sphere &transform(const glm::mat4 &t)
     {
         center = (t * glm::vec4(center, 1.0f)).xyz();
-        float max_scale = std::max(std::max(t[0][0], t[1][1]), t[2][2]);
-        radius *= max_scale;
+        float max_len2 = std::max(std::max(glm::length2(t[0]), glm::length2(t[1])), glm::length2(t[2]));
+        radius *= std::sqrt(max_len2);
         return *this;
     }
 

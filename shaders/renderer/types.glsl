@@ -99,7 +99,8 @@ struct indexed_indirect_command_t
     uint num_meshlets;
     uint count_buffer_offset;
     uint first_draw_index;
-    vec4 sphere_bounds;
+    vec3 sphere_center;
+    float sphere_radius;
 };
 
 //! meshlet parameters
@@ -114,7 +115,8 @@ struct meshlet_t
     uint triangle_count;
 
     //! bounding sphere (center, radius), useful for frustum and occlusion culling
-    vec4 bounding_sphere;
+    vec3 sphere_center;
+    float sphere_radius;
 
     //! normal cone (axis, cutoff), useful for backface culling
     vec3 cone_axis;

@@ -127,7 +127,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         {
             auto &desc_draws = drawable.descriptors[BINDING_DRAW_COMMANDS];
             desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_draws.stage_flags = VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_draws.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
 
             auto &desc_meshlets = drawable.descriptors[BINDING_MESHLETS];
             desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -454,6 +454,16 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         pipeline_drawables[pipeline_format].push_back(indexed_drawable);
     }
 
+    vierkant::BufferPtr draw_buffer = next_assets.indirect_bundle.draws_in;
+    vierkant::BufferPtr draw_buffer_indexed = next_assets.indirect_indexed_bundle.draws_in;
+
+    // hook up GPU frustum/occlusion/distance culling here
+    if(indirect_draw && draw_indirect_delegate)
+    {
+        draw_buffer = next_assets.indirect_bundle.draws_out;
+        draw_buffer_indexed = next_assets.indirect_indexed_bundle.draws_out;
+    }
+
     // batch/pipeline index
     uint32_t count_buffer_offset = 0;
 
@@ -487,9 +497,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                         drawable->descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
                     }
 
-                    if(drawable->descriptors.count(BINDING_DRAW_COMMANDS) && next_assets.indirect_indexed_bundle.draws_out)
+                    if(drawable->descriptors.count(BINDING_DRAW_COMMANDS) && draw_buffer_indexed)
                     {
-                        drawable->descriptors[BINDING_DRAW_COMMANDS].buffers = {next_assets.indirect_indexed_bundle.draws_out};
+                        drawable->descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
                     }
                 }
 
@@ -525,8 +535,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->object_index = indexed_drawable.object_index;
-                draw_command->visible = false;
-
+                draw_command->visible = true;
 
                 if(drawable->mesh->meshlets)
                 {
@@ -544,7 +553,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 {
                     auto bounding_sphere = drawable->mesh->entries[drawable->entry_index].bounding_sphere.transform(
                             drawable->matrices.modelview);
-                    draw_command->sphere_bounds = glm::vec4(bounding_sphere.center, bounding_sphere.radius);
+                    draw_command->sphere_center = bounding_sphere.center;
+                    draw_command->sphere_radius = bounding_sphere.radius;
                 }
             }
             else
@@ -560,19 +570,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         }
     }
 
-    vierkant::BufferPtr draw_buffer = next_assets.indirect_bundle.draws_out;
-    vierkant::BufferPtr draw_buffer_indexed = next_assets.indirect_indexed_bundle.draws_out;
-
     // hook up GPU frustum/occlusion/distance culling here
     if(indirect_draw && draw_indirect_delegate)
     {
         // invoke delegate
         draw_indirect_delegate(next_assets.indirect_indexed_bundle);
-    }
-    else
-    {
-        draw_buffer = next_assets.indirect_bundle.draws_in;
-        draw_buffer_indexed = next_assets.indirect_indexed_bundle.draws_in;
     }
 
     // push constants
@@ -595,7 +597,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
     // record start-timestamp
-    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, next_assets.query_pool.get(), 0);
+    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, next_assets.query_pool.get(),
+                         0);
 
     // grouped by pipelines
     for(auto &[pipe_fmt, indirect_draws]: pipelines)

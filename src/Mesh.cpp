@@ -431,13 +431,6 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             size_t vertex_count = last.vertex_offset + last.vertex_count;
             size_t triangle_offset = last.triangle_offset + ((last.triangle_count * 3 + 3) & ~3);
 
-            //            for(uint32_t i = 0; i < vertex_count; ++i) { meshlet_vertices[i] += offsets.base_vertex; }
-
-            ret.meshlet_vertices.insert(ret.meshlet_vertices.end(), meshlet_vertices.begin(),
-                                        meshlet_vertices.begin() + int(vertex_count));
-            ret.meshlet_triangles.insert(ret.meshlet_triangles.end(), meshlet_triangles.begin(),
-                                         meshlet_triangles.begin() + int(triangle_offset));
-
             ret.meshlets.reserve(ret.meshlets.size() + meshlet_count);
 
             // generate bounds, combine data in our API output-meshlets
@@ -460,6 +453,14 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
                 ret.meshlets.push_back(out_meshlet);
             }
+
+            // add entry vertex-offset
+            for(uint32_t i = 0; i < vertex_count; ++i) { meshlet_vertices[i] += offsets.base_vertex; }
+
+            ret.meshlet_vertices.insert(ret.meshlet_vertices.end(), meshlet_vertices.begin(),
+                                        meshlet_vertices.begin() + int(vertex_count));
+            ret.meshlet_triangles.insert(ret.meshlet_triangles.end(), meshlet_triangles.begin(),
+                                         meshlet_triangles.begin() + int(triangle_offset));
         }
 
         if(!ret.meshlets.empty())

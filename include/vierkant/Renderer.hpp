@@ -108,7 +108,8 @@ public:
         uint32_t count_buffer_offset = 0;
         uint32_t first_draw_index = 0;
         int padding[3];
-        glm::vec4 sphere_bounds = {};
+        glm::vec3 sphere_center;
+        float sphere_radius;
     };
 
     struct indirect_draw_bundle_t

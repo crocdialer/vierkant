@@ -34,36 +34,41 @@ out taskNV TaskBuffer
 {
     uint meshlet_indices[LOCAL_SIZE];
     uint object_index;
-    uint vertex_offset;
 };
 
 layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
 {
-//    return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
-    return false;
+    return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
 }
+
+#define CULLING 1
 
 void main()
 {
-    uint ti = gl_LocalInvocationID.x;
-    uint mi = draws[gl_DrawID].base_meshlet + gl_WorkGroupID.x * LOCAL_SIZE + ti;
+    uint gid = gl_GlobalInvocationID.x;
+    if(gid >= draws[gl_DrawID].num_meshlets)
+    {
+        gl_TaskCountNV = 0;
+        return;
+    }
 
-    if(gl_WorkGroupID.x * LOCAL_SIZE + ti >=  draws[gl_DrawID].num_meshlets){ return; }
+    uint ti = gl_LocalInvocationID.x;
+    uint mi = draws[gl_DrawID].base_meshlet + gid;
 
     object_index = draws[gl_DrawID].object_index;
-    vertex_offset = draws[gl_DrawID].vertexOffset;
 
+#if CULLING
     // transform bounding volume and normal-cone
-    mat3 m = mat3(matrices[object_index].normal);
-    vec3 cone_axis = m * meshlets[mi].cone_axis;
+    mat3 m = mat3(camera.view * matrices[object_index].modelview);
+    vec3 cone_axis = normalize(m * meshlets[mi].cone_axis);
     float cone_cutoff = meshlets[mi].cone_cutoff;
-    vec3 center = (camera.view * matrices[object_index].modelview * vec4(meshlets[mi].bounding_sphere.xyz, 1.0)).xyz;
-    float radius = meshlets[mi].bounding_sphere.w * length(matrices[object_index].modelview[0].xyz);
+    vec3 center = (camera.view * matrices[object_index].modelview * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
+    float radius = meshlets[mi].sphere_radius * length(matrices[object_index].modelview[0].xyz);
 
     // culling
-    bool accept = !cone_cull(center, radius, cone_axis, cone_cutoff, -camera.view[3].xyz);
+    bool accept = !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
 
     // determine indices/count via ballot
     uvec4 ballot = subgroupBallot(accept);
@@ -73,4 +78,9 @@ void main()
     // write result
     if (accept){ meshlet_indices[index] = mi; }
     if (ti == 0){ gl_TaskCountNV = count; }
+
+#else
+    meshlet_indices[index] = mi;
+    if (ti == 0){ gl_TaskCountNV = LOCAL_SIZE; }
+#endif
 }

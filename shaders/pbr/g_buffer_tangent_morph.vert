@@ -47,6 +47,11 @@ struct morph_params_t
     float weights[61];
 };
 
+layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
+{
+    indexed_indirect_command_t draws[];
+};
+
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
     Vertex vertices[];
@@ -106,7 +111,7 @@ void main()
     }
     v.normal = normalize(v.normal);
 
-    object_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex
+    object_index = gl_BaseInstance;//draws[gl_DrawID].object_index;
     matrix_struct_t m = u_matrices[object_index];
     matrix_struct_t m_last = u_previous_matrices[object_index];
 
