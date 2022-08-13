@@ -50,6 +50,7 @@ struct render_context_t
     float time;
     uint random_seed;
     bool disable_material;
+    uint base_draw_index;
 };
 
 //! attribute locations in vierkant::Mesh

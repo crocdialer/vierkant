@@ -30,6 +30,11 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
     camera_t last_camera;
 };
 
+layout(push_constant) uniform PushConstants
+{
+    render_context_t context;
+};
+
 out taskNV TaskBuffer
 {
     uint meshlet_indices[LOCAL_SIZE];
@@ -48,16 +53,18 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
 void main()
 {
     uint gid = gl_GlobalInvocationID.x;
-    if(gid >= draws[gl_DrawID].num_meshlets)
+    const indexed_indirect_command_t draw = draws[context.base_draw_index + gl_DrawID];
+
+    if(gid >= draw.num_meshlets)
     {
         gl_TaskCountNV = 0;
         return;
     }
 
     uint ti = gl_LocalInvocationID.x;
-    uint mi = draws[gl_DrawID].base_meshlet + gid;
+    uint mi = draw.base_meshlet + gid;
 
-    object_index = draws[gl_DrawID].object_index;
+    object_index = draw.object_index;
 
 #if CULLING
     // transform bounding volume and normal-cone
@@ -80,7 +87,7 @@ void main()
     if (ti == 0){ gl_TaskCountNV = count; }
 
 #else
-    meshlet_indices[index] = mi;
+    meshlet_indices[ti] = mi;
     if (ti == 0){ gl_TaskCountNV = LOCAL_SIZE; }
 #endif
 }

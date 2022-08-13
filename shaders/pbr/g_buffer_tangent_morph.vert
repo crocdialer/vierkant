@@ -100,18 +100,19 @@ layout(location = 1) out VertexData
 
 void main()
 {
+    const indexed_indirect_command_t draw = draws[context.base_draw_index + gl_DrawID];
     Vertex v = vertices[gl_VertexIndex];
 
     // apply morph-targets
     for(uint i = 0; i < morph_params.morph_count; ++i)
     {
-        uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + (gl_VertexIndex - gl_BaseVertex);
+        uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + (gl_VertexIndex - draw.vertexOffset);
         v.position += morph_vertices[morph_index].position * morph_params.weights[i];
         v.normal = slerp(v.normal, v.normal + morph_vertices[morph_index].normal, morph_params.weights[i]);
     }
     v.normal = normalize(v.normal);
 
-    object_index = gl_BaseInstance;//draws[gl_DrawID].object_index;
+    object_index = draw.object_index;
     matrix_struct_t m = u_matrices[object_index];
     matrix_struct_t m_last = u_previous_matrices[object_index];
 

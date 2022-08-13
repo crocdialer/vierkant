@@ -609,9 +609,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         // bind pipeline
         pipeline->bind(command_buffer.handle());
 
-        vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
-                           sizeof(push_constants_t), &push_constants);
-
         bool dynamic_scissor = crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
 
         if(crocore::contains(pipe_fmt.dynamic_states, VK_DYNAMIC_STATE_VIEWPORT))
@@ -624,6 +621,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
         for(auto &[mesh, draw_asset]: indirect_draws)
         {
+            push_constants.base_draw_index = draw_asset.first_indexed_draw_index;
+            vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
+                              sizeof(push_constants_t), &push_constants);
+
             // feature enabled/available, mesh exists and contains a meshlet-buffer
             bool use_meshlets = vkCmdDrawMeshTasksNV && use_mesh_shader && mesh && mesh->meshlets;
 

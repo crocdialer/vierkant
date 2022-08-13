@@ -468,11 +468,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     bool use_gpu_culling = frame_asset.settings.indirect_draw &&
                            (frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling);
 
-    if(use_gpu_culling && (!m_g_renderer_pre.indirect_draw || !m_g_renderer_post.indirect_draw))
-    {
-        frame_asset.recycle_commands = false;
-    }
-
     if(!frame_asset.recycle_commands)
     {
         vierkant::descriptor_t camera_desc = {};
