@@ -300,7 +300,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     performance_query(frame_asset);
 
     update_recycling(scene, cam, frame_asset);
-    //    frame_asset.recycle_commands = false;
+//    frame_asset.recycle_commands = false;
 
     if(!frame_asset.recycle_commands)
     {
@@ -576,9 +576,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         // stage drawables
         m_g_renderer_pre.stage_drawables(cull_result.drawables);
         if(use_gpu_culling) { m_g_renderer_post.stage_drawables(cull_result.drawables); }
-
-//        m_g_renderer_pre.draw_indirect_delegate = {};
-//        m_g_renderer_post.draw_indirect_delegate = {};
     }
 
     // material override
@@ -1115,7 +1112,7 @@ void PBRDeferred::create_depth_pyramid(frame_asset_t &frame_asset)
 void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params)
 {
     // reserve space for indirect drawing-commands
-    const size_t num_bytes = std::max(num_draws * sizeof(Renderer::indexed_indirect_command_t), 1ul << 24);
+    const size_t num_bytes = std::max(num_draws * sizeof(Renderer::indexed_indirect_command_t), 1ul << 20);
 
     if(!params.draws_in || params.draws_in->num_bytes() < num_bytes)
     {
@@ -1138,12 +1135,17 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::ind
     params.num_draws = num_draws;
 }
 
-void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset, const vierkant::CameraPtr &cam,
-                                     const vierkant::ImagePtr &depth_pyramid, const vierkant::BufferPtr &draws_in,
-                                     uint32_t num_draws, vierkant::BufferPtr &draws_out,
-                                     vierkant::BufferPtr &draws_counts_out, vierkant::BufferPtr &draws_out_post,
+void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
+                                     const vierkant::CameraPtr &cam,
+                                     const vierkant::ImagePtr &depth_pyramid,
+                                     const vierkant::BufferPtr &draws_in,
+                                     uint32_t num_draws,
+                                     vierkant::BufferPtr &draws_out,
+                                     vierkant::BufferPtr &draws_counts_out,
+                                     vierkant::BufferPtr &draws_out_post,
                                      vierkant::BufferPtr &draws_counts_out_post)
 {
+    // TODO: check if necessary
     if(!draws_in || !draws_in->num_bytes() || !depth_pyramid)
     {
         frame_asset.timeline.wait(SemaphoreValue::DEPTH_PYRAMID);
@@ -1270,17 +1272,21 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset, const vierkant:
 
     VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.srcAccessMask = VK_ACCESS_2_MEMORY_READ_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-    barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
+    barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     barrier.buffer = draws_out->handle();
     barrier.offset = 0;
     barrier.size = VK_WHOLE_SIZE;
 
+    std::vector<VkBufferMemoryBarrier2> draw_buffer_barriers(3, barrier);
+    draw_buffer_barriers[1].buffer = draws_counts_out->handle();
+    draw_buffer_barriers[2].buffer = draws_counts_out_post->handle();
+
     VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-    dependency_info.bufferMemoryBarrierCount = 1;
-    dependency_info.pBufferMemoryBarriers = &barrier;
+    dependency_info.bufferMemoryBarrierCount = draw_buffer_barriers.size();
+    dependency_info.pBufferMemoryBarriers = draw_buffer_barriers.data();
 
     // barrier before writing to indirect-draw-buffer
     vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
@@ -1289,8 +1295,11 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset, const vierkant:
     frame_asset.cull_compute.dispatch({computable}, frame_asset.cull_cmd_buffer.handle());
 
     // swap access
-    barrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+    for(auto &b : draw_buffer_barriers)
+    {
+        std::swap(b.srcStageMask, b.dstStageMask);
+        std::swap(b.srcAccessMask, b.dstAccessMask);
+    }
 
     // memory barrier for draw-indirect buffer
     vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
@@ -1298,10 +1307,13 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset, const vierkant:
     // memory barrier before copying cull-result buffer
     barrier.buffer = frame_asset.cull_result_buffer->handle();
     barrier.size = VK_WHOLE_SIZE;
-    barrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
     barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
     barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+
+    dependency_info.bufferMemoryBarrierCount = 1;
+    dependency_info.pBufferMemoryBarriers = &barrier;
     vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
 
     // copy result into host-visible buffer
