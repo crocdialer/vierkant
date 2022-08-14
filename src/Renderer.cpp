@@ -344,6 +344,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     next_assets.matrix_buffer = std::move(current_assets.matrix_buffer);
     next_assets.matrix_history_buffer = std::move(current_assets.matrix_history_buffer);
     next_assets.material_buffer = std::move(current_assets.material_buffer);
+//    next_assets.indirect_bundle = std::move(current_assets.indirect_bundle);
+//    next_assets.indirect_indexed_bundle = std::move(current_assets.indirect_indexed_bundle);
 
     struct indirect_draw_asset_t
     {
@@ -535,7 +537,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->object_index = indexed_drawable.object_index;
-                draw_command->visible = true;
+                draw_command->visible = false;
 
                 if(drawable->mesh->meshlets)
                 {
@@ -545,7 +547,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     //! VkDrawMeshTasksIndirectCommandNV
                     draw_command->vk_mesh_draw.taskCount =
                             (m_mesh_task_count + drawable->num_meshlets - 1) / m_mesh_task_count;
-                    draw_command->vk_mesh_draw.firstTask = 0;//drawable->base_meshlet;
+                    draw_command->vk_mesh_draw.firstTask = 0;
                 }
 
                 // bounding sphere xyz, radius

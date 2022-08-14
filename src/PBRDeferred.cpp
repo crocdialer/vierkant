@@ -599,7 +599,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                              frame_asset.query_pool.get(), 0);
 
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_pre);
-
         frame_asset.indirect_draw_params_pre.draws_out = params.draws_out;
 
         if(params.num_draws && !frame_asset.recycle_commands)
@@ -611,18 +610,31 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
             barrier.buffer = drawbuffer->handle();
             barrier.offset = 0;
-            barrier.size = params.draws_in->num_bytes();
+            barrier.size = VK_WHOLE_SIZE;
             barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
             barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
 
+            std::vector<VkBufferMemoryBarrier2> barriers(1, barrier);
+
+            if(use_gpu_culling && !params.draws_counts_out)
+            {
+                params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
+                vkCmdFillBuffer(frame_asset.clear_cmd_buffer.handle(),
+                                frame_asset.indirect_draw_params_pre.draws_counts_out->handle(), 0, VK_WHOLE_SIZE, 0);
+
+                barrier.buffer = frame_asset.indirect_draw_params_pre.draws_counts_out->handle();
+                barriers.push_back(barrier);
+            }
+
             VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-            dependency_info.bufferMemoryBarrierCount = 1;
-            dependency_info.pBufferMemoryBarriers = &barrier;
+            dependency_info.bufferMemoryBarrierCount = barriers.size();
+            dependency_info.pBufferMemoryBarriers = barriers.data();
             vkCmdPipelineBarrier2(frame_asset.clear_cmd_buffer.handle(), &dependency_info);
         }
+//        params = frame_asset.indirect_draw_params_pre;
         frame_asset.clear_cmd_buffer.submit(m_queue);
     };
 
@@ -1280,9 +1292,10 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     barrier.offset = 0;
     barrier.size = VK_WHOLE_SIZE;
 
-    std::vector<VkBufferMemoryBarrier2> draw_buffer_barriers(3, barrier);
+    std::vector<VkBufferMemoryBarrier2> draw_buffer_barriers(4, barrier);
     draw_buffer_barriers[1].buffer = draws_counts_out->handle();
     draw_buffer_barriers[2].buffer = draws_counts_out_post->handle();
+    draw_buffer_barriers[3].buffer = draws_out_post->handle();
 
     VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
     dependency_info.bufferMemoryBarrierCount = draw_buffer_barriers.size();
