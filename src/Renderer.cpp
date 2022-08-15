@@ -964,22 +964,22 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
         if(!frame_asset.indirect_indexed_bundle.draws_out ||
            frame_asset.indirect_indexed_bundle.draws_out->num_bytes() < num_bytes_indexed)
         {
-            frame_asset.indirect_indexed_bundle.draws_out =
-                    vierkant::Buffer::create(m_device, nullptr, num_bytes_indexed,
-                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                             VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                             VMA_MEMORY_USAGE_GPU_ONLY);
+            frame_asset.indirect_indexed_bundle.draws_out = vierkant::Buffer::create(
+                    m_device, nullptr, num_bytes_indexed,
+                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VMA_MEMORY_USAGE_GPU_ONLY);
         }
         else { frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed); }
 
         if(!frame_asset.indirect_bundle.draws_out ||
            frame_asset.indirect_bundle.draws_out->num_bytes() < num_bytes)
         {
-            frame_asset.indirect_bundle.draws_out =
-                    vierkant::Buffer::create(m_device, nullptr, num_bytes,
-                                             VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                             VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                             VMA_MEMORY_USAGE_GPU_ONLY);
+            frame_asset.indirect_bundle.draws_out = vierkant::Buffer::create(
+                    m_device, nullptr, num_bytes,
+                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VMA_MEMORY_USAGE_GPU_ONLY);
         }
         else { frame_asset.indirect_bundle.draws_out->set_data(nullptr, num_bytes); }
     }

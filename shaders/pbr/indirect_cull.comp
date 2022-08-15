@@ -1,8 +1,23 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64: require
+#extension GL_EXT_buffer_reference2: require
 
 #include "../renderer/types.glsl"
+
+struct draw_cull_result_t
+{
+    uint num_draws;
+    uint num_frustum_culled;
+    uint num_occlusion_culled;
+    uint num_distance_culled;
+    uint num_triangles;
+};
+
+layout(buffer_reference, std430) buffer DrawBufferPtr{ indexed_indirect_command_t v[]; };
+layout(buffer_reference, std430) buffer DrawCountBufferPtr{ uint v[]; };
+layout(buffer_reference, std430) buffer DrawResultPtr{ draw_cull_result_t v; };
 
 struct draw_cull_data_t
 {
@@ -18,15 +33,14 @@ struct draw_cull_data_t
     bool lod_enabled;
     bool occlusion_enabled;
     bool distance_cull;
-};
 
-struct draw_cull_result_t
-{
-    uint num_draws;
-    uint num_frustum_culled;
-    uint num_occlusion_culled;
-    uint num_distance_culled;
-    uint num_triangles;
+    // buffer references
+    DrawBufferPtr draws_in;
+    DrawBufferPtr draws_out_pre;
+    DrawBufferPtr draws_out_post;
+    DrawCountBufferPtr draw_count_pre;
+    DrawCountBufferPtr draw_count_post;
+    DrawResultPtr draw_result;
 };
 
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
@@ -54,25 +68,7 @@ layout(binding = 0) uniform sampler2D u_depth_pyramid;
 
 layout(std140, binding = 1) uniform culldata_ubo_t{ draw_cull_data_t cull_data; };
 
-// input draw indirect buffer
-layout(binding = 2) buffer DrawBufferIn{ indexed_indirect_command_t in_draw_data[]; };
-
-// output draw-indirect buffer -> visible
-layout(binding = 3) writeonly buffer DrawBufferOut{ indexed_indirect_command_t out_draw_data[]; };
-
-// output draw-counts -> visible
-layout(binding = 4) buffer DrawCount{ uint count[]; };
-
-// output draw indirect buffer
-layout(binding = 5) writeonly buffer DrawBufferOutPost{ indexed_indirect_command_t out_draw_data_post[]; };
-
-// output draw-counts
-layout(binding = 6) buffer DrawCountPost{ uint count_post[]; };
-
-// output draw indirect buffer
-layout(binding = 7) buffer DrawResult{ draw_cull_result_t result; };
-
-layout(local_size_x = 64) in;
+layout(local_size_x = 32) in;
 
 void main()
 {
@@ -80,7 +76,7 @@ void main()
     if(gid >= cull_data.num_draws){ return; }
 
     // simple pass-through
-    indexed_indirect_command_t draw = in_draw_data[gid];
+    indexed_indirect_command_t draw = cull_data.draws_in.v[gid];
 
     bool visible = true;
 
@@ -93,13 +89,13 @@ void main()
         visible = visible && center.z * cull_data.frustum[1] - abs(center.x) * cull_data.frustum[0] > -radius;
         visible = visible && center.z * cull_data.frustum[3] - abs(center.y) * cull_data.frustum[2] > -radius;
 
-        if(!visible){ atomicAdd(result.num_frustum_culled, 1); }
+        if(!visible){ atomicAdd(cull_data.draw_result.v.num_frustum_culled, 1); }
     }
 
     if(visible && cull_data.distance_cull)
     {
         visible = visible && (-center.z - radius) <= cull_data.zfar;
-        if(!visible){ atomicAdd(result.num_distance_culled, 1); }
+        if(!visible){ atomicAdd(cull_data.draw_result.v.num_distance_culled, 1); }
     }
 
     if(visible && cull_data.occlusion_enabled)
@@ -123,27 +119,27 @@ void main()
             float depth_sphere = cull_data.znear / (center.z - radius);
 
             visible = visible && (depth_sphere >= depth);
-            if(!visible){ atomicAdd(result.num_occlusion_culled, 1); }
+            if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
         }
     }
 
     // count managment
     if(visible)
     {
-        atomicAdd(result.num_draws, 1);
-        atomicAdd(result.num_triangles, draw.indexCount / 3);
+        atomicAdd(cull_data.draw_result.v.num_draws, 1);
+        atomicAdd(cull_data.draw_result.v.num_triangles, draw.indexCount / 3);
 
         // became visible this frame -> not drawn in 1st-pass
-        if(!in_draw_data[gid].visible)
+        if(!cull_data.draws_in.v[gid].visible)
         {
-            uint draw_cmd_offset_post = atomicAdd(count_post[draw.count_buffer_offset], 1);
-            out_draw_data_post[draw.first_draw_index + draw_cmd_offset_post] = draw;
+            uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
+            cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }
 
-        uint draw_cmd_offset = atomicAdd(count[draw.count_buffer_offset], 1);
-        out_draw_data[draw.first_draw_index + draw_cmd_offset] = draw;
+        uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
+        cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
     }
 
     // record visiblity
-    in_draw_data[gid].visible = visible;
+    cull_data.draws_in.v[gid].visible = visible;
 }

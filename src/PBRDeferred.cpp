@@ -64,6 +64,21 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         asset.query_pool = vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
+
+        draw_cull_result_t result = {};
+
+        asset.cull_ubo = vierkant::Buffer::create(m_device, nullptr, sizeof(draw_cull_data_t),
+                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+        asset.cull_result_buffer = vierkant::Buffer::create(
+                m_device, &result, sizeof(draw_cull_result_t),
+                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY);
+
+        asset.cull_result_buffer_host = vierkant::Buffer::create(
+                m_device, &result, sizeof(draw_cull_result_t),
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
     }
 
     // create renderer for g-buffer-pass
@@ -1128,21 +1143,21 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::ind
 
     if(!params.draws_in || params.draws_in->num_bytes() < num_bytes)
     {
-        params.draws_in =
-                vierkant::Buffer::create(m_device, nullptr, num_bytes,
-                                         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                         VMA_MEMORY_USAGE_GPU_ONLY);
+        params.draws_in = vierkant::Buffer::create(
+                m_device, nullptr, num_bytes,
+                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
     if(!params.draws_counts_out)
     {
         constexpr uint32_t max_batches = 4096;
-        params.draws_counts_out =
-                vierkant::Buffer::create(m_device, nullptr, max_batches * sizeof(uint32_t),
-                                         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                         VMA_MEMORY_USAGE_GPU_ONLY);
+        params.draws_counts_out = vierkant::Buffer::create(
+                m_device, nullptr, max_batches * sizeof(uint32_t),
+                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY);
     }
     params.num_draws = num_draws;
 }
@@ -1157,20 +1172,20 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
                                      vierkant::BufferPtr &draws_out_post,
                                      vierkant::BufferPtr &draws_counts_out_post)
 {
-//    // TODO: check if necessary
-//    if(!draws_in || !draws_in->num_bytes() || !depth_pyramid)
-//    {
-//        frame_asset.timeline.wait(SemaphoreValue::DEPTH_PYRAMID);
-//        frame_asset.timeline.signal(SemaphoreValue::CULLING);
-//        return;
-//    }
-
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.num_draws = num_draws;
     draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
     draw_cull_data.occlusion_enabled = frame_asset.settings.occlusion_culling;
     draw_cull_data.distance_cull = false;
     draw_cull_data.culling_enabled = frame_asset.settings.frustum_culling;
+
+    // buffer references
+    draw_cull_data.draws_in = draws_in->device_address();
+    draw_cull_data.draws_out_pre = draws_out->device_address();
+    draw_cull_data.draws_out_post = draws_out_post->device_address();
+    draw_cull_data.draw_count_pre = draws_counts_out->device_address();
+    draw_cull_data.draw_count_post = draws_counts_out_post->device_address();
+    draw_cull_data.draw_result = frame_asset.cull_result_buffer->device_address();
 
     auto projection = cam->projection_matrix();
     draw_cull_data.P00 = projection[0][0];
@@ -1187,36 +1202,14 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
 
     draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
 
-    draw_cull_result_t result = {};
+    frame_asset.cull_ubo->set_data(&draw_cull_data, sizeof(draw_cull_data));
 
-    if(!frame_asset.cull_ubo)
-    {
-        frame_asset.cull_ubo =
-                vierkant::Buffer::create(m_device, &draw_cull_data, sizeof(draw_cull_data),
-                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    // read results from host-buffer
+    auto &result_buf = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
+    draw_cull_result_t result = result_buf;
 
-        frame_asset.cull_result_buffer =
-                vierkant::Buffer::create(m_device, &result, sizeof(draw_cull_result_t),
-                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                         VMA_MEMORY_USAGE_GPU_ONLY);
-
-        frame_asset.cull_result_buffer_host = vierkant::Buffer::create(
-                m_device, &result, sizeof(draw_cull_result_t),
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-    }
-    else
-    {
-        frame_asset.cull_ubo->set_data(&draw_cull_data, sizeof(draw_cull_data));
-
-        // read results from host-buffer
-        auto &result_buf = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
-        result = result_buf;
-
-        m_logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
-                        result.draw_count, result.num_frustum_culled, result.num_occlusion_culled,
-                        result.num_triangles);
-    }
+    m_logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
+                    result.draw_count, result.num_frustum_culled, result.num_occlusion_culled, result.num_triangles);
 
     vierkant::Compute::computable_t computable = m_cull_computable;
 
@@ -1229,36 +1222,6 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     draw_cull_data_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     draw_cull_data_desc.buffers = {frame_asset.cull_ubo};
-
-    descriptor_t &in_buffer_desc = computable.descriptors[2];
-    in_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    in_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    in_buffer_desc.buffers = {draws_in};
-
-    descriptor_t &out_buffer_desc = computable.descriptors[3];
-    out_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    out_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    out_buffer_desc.buffers = {draws_out};
-
-    descriptor_t &out_counts_buffer_desc = computable.descriptors[4];
-    out_counts_buffer_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    out_counts_buffer_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    out_counts_buffer_desc.buffers = {draws_counts_out};
-
-    descriptor_t &out_buffer_post_desc = computable.descriptors[5];
-    out_buffer_post_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    out_buffer_post_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    out_buffer_post_desc.buffers = {draws_out_post};
-
-    descriptor_t &out_counts_buffer_post_desc = computable.descriptors[6];
-    out_counts_buffer_post_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    out_counts_buffer_post_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    out_counts_buffer_post_desc.buffers = {draws_counts_out_post};
-
-    descriptor_t &out_result_desc = computable.descriptors[7];
-    out_result_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    out_result_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    out_result_desc.buffers = {frame_asset.cull_result_buffer};
 
     // create / start a new command-buffer
     frame_asset.cull_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());

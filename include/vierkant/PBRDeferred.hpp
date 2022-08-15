@@ -253,6 +253,15 @@ private:
         VkBool32 lod_enabled = false;
         VkBool32 occlusion_enabled = false;
         VkBool32 distance_cull = false;
+        int padding[1];
+
+        // buffer references
+        uint64_t draws_in;
+        uint64_t draws_out_pre;
+        uint64_t draws_out_post;
+        uint64_t draw_count_pre;
+        uint64_t draw_count_post;
+        uint64_t draw_result;
     };
 
     struct alignas(16) draw_cull_result_t
