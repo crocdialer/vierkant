@@ -245,7 +245,8 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                                 }))->total_ms;
 
                 ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
-                ImPlot::SetupAxesLimits(0, static_cast<double>(100), 0, max_ms, ImPlotCond_Always);
+                ImPlot::SetupAxesLimits(0, static_cast<double>(pbr_renderer->settings.timing_history_size), 0, max_ms,
+                                        ImPlotCond_Always);
 
                 ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
                 auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
@@ -261,6 +262,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             ImGui::BulletText("culling: %.3f ms", last.culling_ms);
             ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);
             ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
+            ImGui::BulletText("taa: %.3f ms", last.taa_ms);
             ImGui::TreePop();
         }
 

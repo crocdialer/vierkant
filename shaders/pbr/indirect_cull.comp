@@ -5,6 +5,7 @@
 #extension GL_EXT_buffer_reference2: require
 
 #include "../renderer/types.glsl"
+#include "../utils/camera.glsl"
 
 struct draw_cull_result_t
 {
@@ -87,8 +88,7 @@ void main()
     if(cull_data.frustum_cull)
     {
         // the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-        visible = visible && center.z * cull_data.frustum[1] - abs(center.x) * cull_data.frustum[0] > -radius;
-        visible = visible && center.z * cull_data.frustum[3] - abs(center.y) * cull_data.frustum[2] > -radius;
+        visible = visible && !frustum_cull(center, radius, cull_data.frustum);
 
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_frustum_culled, 1); }
     }

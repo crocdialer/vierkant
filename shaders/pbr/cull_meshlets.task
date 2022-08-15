@@ -74,8 +74,11 @@ void main()
     vec3 center = (camera.view * matrices[object_index].modelview * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
     float radius = meshlets[mi].sphere_radius * length(matrices[object_index].modelview[0].xyz);
 
-    // culling
+    // backface-culling
     bool accept = !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
+
+    // frustum-culling
+    accept = accept && !frustum_cull(center, radius, camera.frustum);
 
     // determine indices/count via ballot
     uvec4 ballot = subgroupBallot(accept);

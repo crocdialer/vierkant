@@ -80,6 +80,9 @@ public:
         //! meshlet-based drawing (required for gpu-driven 'cluster' frustum/occlusion culling)
         bool use_meshlet_pipeline = true;
 
+        //! max number stored timing-values
+        uint32_t timing_history_size = 500;
+
         //! desired depth-of-field settings, disabled by default
         vierkant::dof_settings_t dof = {};
     };
@@ -192,6 +195,9 @@ private:
         glm::vec2 sample_offset;
         float near;
         float far;
+
+        // left/right/top/bottom frustum planes
+        glm::vec4 frustum;
     };
 
     struct frame_asset_t

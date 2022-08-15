@@ -473,6 +473,13 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     frame_asset.camera_params.near = cull_result.camera->near();
     frame_asset.camera_params.far = cull_result.camera->far();
 
+    glm::mat4 projectionT = transpose(cull_result.camera->projection_matrix());
+    glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
+    frustumX /= glm::length(frustumX.xyz());
+    glm::vec4 frustumY = projectionT[3] + projectionT[1];// y + w < 0
+    frustumY /= glm::length(frustumY.xyz());
+    frame_asset.camera_params.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
+
     camera_params_t cameras[2] = {frame_asset.camera_params, last_frame_asset.camera_params};
     frame_asset.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
 
@@ -1347,7 +1354,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     frame_asset.timings_result = timings_result;
 
     m_timings.push_back(timings_result);
-    while(m_timings.size() > 100){ m_timings.pop_front(); }
+    while(m_timings.size() > frame_asset.settings.timing_history_size){ m_timings.pop_front(); }
 
     //    m_logger->trace("timings_map: {}", frame_asset.timings_map);
     m_logger->trace("total_ms: {} ms", frame_asset.timings_result.total_ms);
