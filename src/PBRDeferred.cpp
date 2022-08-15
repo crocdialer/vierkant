@@ -672,7 +672,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                frame_asset.indirect_draw_params_post.draws_out,
                                frame_asset.indirect_draw_params_post.draws_counts_out);
 
-            params = frame_asset.indirect_draw_params_post;
+            params.draws_counts_out = frame_asset.indirect_draw_params_post.draws_counts_out;
         };
 
         vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
@@ -1157,13 +1157,13 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
                                      vierkant::BufferPtr &draws_out_post,
                                      vierkant::BufferPtr &draws_counts_out_post)
 {
-    // TODO: check if necessary
-    if(!draws_in || !draws_in->num_bytes() || !depth_pyramid)
-    {
-        frame_asset.timeline.wait(SemaphoreValue::DEPTH_PYRAMID);
-        frame_asset.timeline.signal(SemaphoreValue::CULLING);
-        return;
-    }
+//    // TODO: check if necessary
+//    if(!draws_in || !draws_in->num_bytes() || !depth_pyramid)
+//    {
+//        frame_asset.timeline.wait(SemaphoreValue::DEPTH_PYRAMID);
+//        frame_asset.timeline.signal(SemaphoreValue::CULLING);
+//        return;
+//    }
 
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.num_draws = num_draws;
