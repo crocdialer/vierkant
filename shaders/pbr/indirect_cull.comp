@@ -29,10 +29,11 @@ struct draw_cull_data_t
 
     uint num_draws;
 
-    bool culling_enabled;
-    bool lod_enabled;
-    bool occlusion_enabled;
+    bool frustum_cull;
+    bool occlusion_cull;
     bool distance_cull;
+    bool backface_cull;
+    bool lod_enabled;
 
     // buffer references
     DrawBufferPtr draws_in;
@@ -83,7 +84,7 @@ void main()
     vec3 center = (cull_data.view * vec4(draw.sphere_center, 1.0)).xyz;
     float radius = draw.sphere_radius;
 
-    if(cull_data.culling_enabled)
+    if(cull_data.frustum_cull)
     {
         // the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
         visible = visible && center.z * cull_data.frustum[1] - abs(center.x) * cull_data.frustum[0] > -radius;
@@ -98,7 +99,7 @@ void main()
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_distance_culled, 1); }
     }
 
-    if(visible && cull_data.occlusion_enabled)
+    if(visible && cull_data.occlusion_cull)
     {
         // 2D-screenspace AABB for a 3D-boundingsphere
         vec4 aabb;

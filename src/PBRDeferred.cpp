@@ -306,13 +306,12 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scene,
                                                          const CameraPtr &cam, const std::set<std::string> &tags)
 {
-    m_timestamp_current = std::chrono::steady_clock::now();
-
     // reference to current frame-assets
     auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
+    frame_asset.timestamp = std::chrono::steady_clock::now();
 
     // retrieve last performance-query, start new
-    performance_query(frame_asset);
+    update_timing(frame_asset);
 
     update_recycling(scene, cam, frame_asset);
 //    frame_asset.recycle_commands = false;
@@ -372,8 +371,6 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     semaphore_submit_info.wait_value = frame_asset.semaphore_value_done;
     semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     ret.semaphore_infos = {semaphore_submit_info};
-
-    m_timestamp_last = m_timestamp_current;
     return ret;
 }
 
@@ -654,7 +651,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     };
 
     // pre-render will repeat all previous draw-calls
-    frame_asset.timings[G_BUFFER_LAST_VISIBLE] = m_g_renderer_pre.last_frame_ms();
+    frame_asset.timings_map[G_BUFFER_LAST_VISIBLE] = m_g_renderer_pre.last_frame_ms();
 
     auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
@@ -696,7 +693,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
         g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
 
-        frame_asset.timings[G_BUFFER_ALL] = m_g_renderer_post.last_frame_ms();
+        frame_asset.timings_map[G_BUFFER_ALL] = m_g_renderer_post.last_frame_ms();
         auto cmd_buffer = m_g_renderer_post.render(frame_asset.g_buffer_post, frame_asset.recycle_commands);
         frame_asset.g_buffer_post.submit({cmd_buffer}, m_queue, {g_buffer_semaphore_submit_info});
     }
@@ -714,6 +711,9 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     size_t index = (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
                    m_g_renderer_pre.num_concurrent_frames();
     auto &frame_asset = m_frame_assets[index];
+
+    frame_asset.timings_map[SemaphoreValue::LIGHTING] =
+            m_light_renderer.last_frame_ms() + m_sky_renderer.last_frame_ms();
 
     environment_lighting_ubo_t ubo = {};
     ubo.camera_transform = cull_result.camera->global_transform();
@@ -777,6 +777,9 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 {
     size_t frame_index = (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
                          m_g_renderer_pre.num_concurrent_frames();
+    size_t last_frame_index =
+            (frame_index + m_g_renderer_pre.num_concurrent_frames() - 1) % m_g_renderer_pre.num_concurrent_frames();
+
     auto &frame_asset = m_frame_assets[frame_index];
 
     size_t buffer_index = 0;
@@ -798,9 +801,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
     // TAA
     if(frame_asset.settings.use_taa)
     {
-        size_t last_frame_index =
-                (frame_index + m_g_renderer_pre.num_concurrent_frames() - 1) % m_g_renderer_pre.num_concurrent_frames();
-
         // assign history
         auto history_color = m_frame_assets[last_frame_index].taa_buffer.color_attachment();
         auto history_depth = m_frame_assets[last_frame_index].g_buffer_post.depth_attachment();
@@ -816,6 +816,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         }
         m_taa_renderer.stage_drawable(drawable);
 
+        frame_asset.timings_map[SemaphoreValue::TAA] = m_taa_renderer.last_frame_ms();
         auto cmd = m_taa_renderer.render(frame_asset.taa_buffer);
 
         vierkant::semaphore_submit_info_t taa_semaphore_info = {};
@@ -846,7 +847,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         comp_ubo.gamma = frame_asset.settings.gamma;
 
         using duration_t = std::chrono::duration<float>;
-        comp_ubo.time_delta = duration_t(m_timestamp_current - m_timestamp_last).count();
+        comp_ubo.time_delta = duration_t(frame_asset.timestamp - m_frame_assets[last_frame_index].timestamp).count();
         comp_ubo.motionblur_gain = frame_asset.settings.motionblur_gain;
 
         frame_asset.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
@@ -1043,20 +1044,17 @@ void PBRDeferred::create_depth_pyramid(frame_asset_t &frame_asset)
 
     vierkant::Compute::computable_t computable = m_depth_pyramid_computable;
 
-    descriptor_t input_sampler_desc = {};
+    descriptor_t &input_sampler_desc = computable.descriptors[0];
     input_sampler_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     input_sampler_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    computable.descriptors[0] = input_sampler_desc;
 
-    descriptor_t output_image_desc = {};
+    descriptor_t &output_image_desc = computable.descriptors[1];
     output_image_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     output_image_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    computable.descriptors[1] = output_image_desc;
 
-    descriptor_t ubo_desc = {};
+    descriptor_t &ubo_desc = computable.descriptors[2];
     ubo_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     ubo_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    computable.descriptors[2] = ubo_desc;
 
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = m_pipeline_cache;
@@ -1069,8 +1067,7 @@ void PBRDeferred::create_depth_pyramid(frame_asset_t &frame_asset)
 
     VkImageMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
     barrier.image = frame_asset.depth_pyramid->image();
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
@@ -1175,9 +1172,9 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.num_draws = num_draws;
     draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
-    draw_cull_data.occlusion_enabled = frame_asset.settings.occlusion_culling;
+    draw_cull_data.occlusion_cull = frame_asset.settings.occlusion_culling;
     draw_cull_data.distance_cull = false;
-    draw_cull_data.culling_enabled = frame_asset.settings.frustum_culling;
+    draw_cull_data.frustum_cull = frame_asset.settings.frustum_culling;
 
     // buffer references
     draw_cull_data.draws_in = draws_in->device_address();
@@ -1307,8 +1304,11 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     frame_asset.cull_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {culling_semaphore_submit_info});
 }
 
-void PBRDeferred::performance_query(frame_asset_t &frame_asset)
+void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 {
+    timings_t &timings_result = frame_asset.timings_result;
+    timings_result.timestamp = frame_asset.timestamp;
+
     constexpr size_t query_count = SemaphoreValue::CULLING + 1;
 
     uint64_t timestamps[query_count] = {};
@@ -1328,15 +1328,33 @@ void PBRDeferred::performance_query(frame_asset_t &frame_asset)
         for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= SemaphoreValue::CULLING; ++i)
         {
             auto val = SemaphoreValue(i);
-            frame_asset.timings[val] = millis(val);
+            frame_asset.timings_map[val] = millis(val);
         }
     }
 
-    m_logger->trace("timings: {}", frame_asset.timings);
+    timings_result.g_buffer_pre_ms = frame_asset.timings_map[SemaphoreValue::G_BUFFER_LAST_VISIBLE].count();
+    timings_result.depth_pyramid_ms = frame_asset.timings_map[SemaphoreValue::DEPTH_PYRAMID].count();
+    timings_result.culling_ms = frame_asset.timings_map[SemaphoreValue::CULLING].count();
+    timings_result.g_buffer_post_ms = frame_asset.timings_map[SemaphoreValue::G_BUFFER_ALL].count();
+    timings_result.lighting_ms = frame_asset.timings_map[SemaphoreValue::LIGHTING].count();
+    timings_result.taa_ms = frame_asset.timings_map[SemaphoreValue::TAA].count();
+    timings_result.tonemap_bloom_ms = frame_asset.timings_map[SemaphoreValue::TONEMAP].count();
+
+    timings_result.total_ms = timings_result.g_buffer_pre_ms + timings_result.depth_pyramid_ms +
+                              timings_result.culling_ms + timings_result.g_buffer_post_ms + timings_result.lighting_ms +
+                              timings_result.taa_ms + timings_result.tonemap_bloom_ms;
+
+    frame_asset.timings_result = timings_result;
+
+    m_timings.push_back(timings_result);
+    while(m_timings.size() > 100){ m_timings.pop_front(); }
+
+    //    m_logger->trace("timings_map: {}", frame_asset.timings_map);
+    m_logger->trace("total_ms: {} ms", frame_asset.timings_result.total_ms);
 
     // reset query-pool
     vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, query_count);
-    frame_asset.timings.clear();
+    frame_asset.timings_map.clear();
 }
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)

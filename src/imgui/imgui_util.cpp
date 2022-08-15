@@ -233,6 +233,37 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     {
         auto extent = pbr_renderer->lighting_buffer().extent();
 
+        if(ImGui::TreeNode("timings"))
+        {
+            auto timings = pbr_renderer->timings();
+
+            if(ImPlot::BeginPlot("##pbr_timings"))
+            {
+                std::vector<PBRDeferred::timings_t> values(timings.begin(), timings.end());
+                double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                                    return lhs.total_ms < rhs.total_ms;
+                                }))->total_ms;
+
+                ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
+                ImPlot::SetupAxesLimits(0, static_cast<double>(100), 0, max_ms, ImPlotCond_Always);
+
+                ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
+                auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
+                                                       offsetof(PBRDeferred::timings_t, total_ms));
+                ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0, 1, 0, 0,
+                                   sizeof(PBRDeferred::timings_t));
+                ImPlot::PopStyleVar();
+                ImPlot::EndPlot();
+            }
+            const auto &last = timings.back();
+            ImGui::BulletText("g_buffer_pre: %.3f ms", last.g_buffer_pre_ms);
+            ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
+            ImGui::BulletText("culling: %.3f ms", last.culling_ms);
+            ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);
+            ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
+            ImGui::TreePop();
+        }
+
         if(ImGui::TreeNode("g-buffer", "g-buffer (%d)", vierkant::G_BUFFER_SIZE))
         {
             std::vector<vierkant::ImagePtr> images(vierkant::G_BUFFER_SIZE);

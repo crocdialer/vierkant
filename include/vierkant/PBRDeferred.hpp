@@ -3,6 +3,8 @@
 //
 #pragma once
 
+#include <deque>
+
 #include <vierkant/Compute.hpp>
 #include <vierkant/GBuffer.hpp>
 #include "vierkant/culling.hpp"
@@ -82,6 +84,20 @@ public:
         vierkant::dof_settings_t dof = {};
     };
 
+    struct timings_t
+    {
+        std::chrono::steady_clock::time_point timestamp;
+
+        double g_buffer_pre_ms = 0.0;
+        double depth_pyramid_ms = 0.0;
+        double culling_ms = 0.0;
+        double g_buffer_post_ms = 0.0;
+        double lighting_ms = 0.0;
+        double taa_ms = 0.0;
+        double tonemap_bloom_ms = 0.0;
+        double total_ms = 0.0;
+    };
+
     struct create_info_t
     {
         uint32_t num_frames_in_flight = 0;
@@ -145,6 +161,11 @@ public:
      */
     const vierkant::Framebuffer &lighting_buffer() const;
 
+    /**
+     * @return a queue of structs containing timing-results for past frames
+     */
+    const std::deque<timings_t>&timings() const { return m_timings; }
+
     //! settings struct
     settings_t settings;
 
@@ -175,6 +196,8 @@ private:
 
     struct frame_asset_t
     {
+        std::chrono::steady_clock::time_point timestamp;
+
         //! contains the culled scene-drawables
         vierkant::cull_result_t cull_result;
         settings_t settings;
@@ -205,7 +228,8 @@ private:
 
         // used for gpu timestamps
         vierkant::QueryPoolPtr query_pool;
-        std::map<SemaphoreValue, double_millisecond_t> timings;
+        std::map<SemaphoreValue, double_millisecond_t> timings_map;
+        timings_t timings_result;
 
         //! ping-pong post-fx framebuffers
         struct ping_pong_t
@@ -249,11 +273,11 @@ private:
 
         uint32_t num_draws = 0;
 
-        VkBool32 culling_enabled = false;
-        VkBool32 lod_enabled = false;
-        VkBool32 occlusion_enabled = false;
+        VkBool32 frustum_cull = false;
+        VkBool32 occlusion_cull = false;
         VkBool32 distance_cull = false;
-        int padding[1];
+        VkBool32 backface_cull = false;
+        VkBool32 lod_enabled = false;
 
         // buffer references
         uint64_t draws_in;
@@ -293,7 +317,7 @@ private:
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void performance_query(frame_asset_t &frame_asset);
+    void update_timing(frame_asset_t &frame_asset);
 
     void update_recycling(const SceneConstPtr &scene,
                           const CameraPtr &cam, frame_asset_t &frame_asset) const;
@@ -372,12 +396,10 @@ private:
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;
 
-    // keep track of frame-times
-    std::chrono::steady_clock::time_point m_timestamp_current = std::chrono::steady_clock::now();
-    std::chrono::steady_clock::time_point m_timestamp_last = m_timestamp_current;
-
     // a logger
     std::shared_ptr<spdlog::logger> m_logger;
+
+    std::deque<timings_t> m_timings;
 };
 
 extern bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs);
