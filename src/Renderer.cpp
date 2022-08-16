@@ -347,6 +347,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     next_assets.indirect_bundle = std::move(current_assets.indirect_bundle);
     next_assets.indirect_indexed_bundle = std::move(current_assets.indirect_indexed_bundle);
     next_assets.indirect_bundle.num_draws = next_assets.indirect_indexed_bundle.num_draws = 0;
+    next_assets.frame_time = current_assets.frame_time;
 
     struct indirect_draw_asset_t
     {

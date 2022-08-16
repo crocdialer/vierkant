@@ -71,6 +71,7 @@ public:
         vierkant::BufferPtr staging_buffer = nullptr;
         VkBufferUsageFlags buffer_usage_flags = 0;
         bool optimize_vertex_cache = false;
+        bool generate_lods = false;
         bool generate_meshlets = false;
         bool use_vertex_colors = true;
     };
@@ -96,10 +97,13 @@ public:
 
         int32_t vertex_offset = 0;
         uint32_t num_vertices = 0;
+
+        // subject to LOD
         uint32_t base_index = 0;
         uint32_t num_indices = 0;
         uint32_t base_meshlet = 0;
         uint32_t num_meshlets = 0;
+
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         uint32_t morph_vertex_offset = 0;
@@ -269,12 +273,14 @@ struct mesh_buffer_bundle_t
  *
  * @param   entry_create_infos      an array of entry_create_info_t structs.
  * @param   optimize_vertex_cache   flag indicating if the vertex/index-order should be optimized
+ * @param   generate_lods           flag indicating if a cascade of simplified meshes (LODs) shall be generated.
  * @param   generate_meshlets       flag indicating if meshlet/cluster information shall be generated.
  * @param   use_vertex_colors       flag indicating if oldschoold vertex-colors shall be respected.
  * @return  a intermediate mesh_buffer_bundle_t.
  */
 mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
                                              bool optimize_vertex_cache,
+                                             bool generate_lods,
                                              bool generate_meshlets,
                                              bool use_vertex_colors);
 

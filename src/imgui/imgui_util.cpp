@@ -240,6 +240,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             if(ImPlot::BeginPlot("##pbr_timings"))
             {
                 std::vector<PBRDeferred::timings_t> values(timings.begin(), timings.end());
+
                 double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
                                     return lhs.total_ms < rhs.total_ms;
                                 }))->total_ms;
@@ -247,12 +248,13 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                 ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
                 ImPlot::SetupAxesLimits(0, static_cast<double>(pbr_renderer->settings.timing_history_size), 0, max_ms,
                                         ImPlotCond_Always);
-
                 ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
+
                 auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
                                                        offsetof(PBRDeferred::timings_t, total_ms));
                 ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0, 1, 0, 0,
                                    sizeof(PBRDeferred::timings_t));
+
                 ImPlot::PopStyleVar();
                 ImPlot::EndPlot();
             }

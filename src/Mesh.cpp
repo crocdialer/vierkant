@@ -114,6 +114,7 @@ Mesh::create_with_entries(const vierkant::DevicePtr &device,
 
     mesh_buffer_bundle_t buffers = create_combined_buffers(entry_create_infos,
                                                            create_info.optimize_vertex_cache,
+                                                           create_info.generate_lods,
                                                            create_info.generate_meshlets,
                                                            create_info.use_vertex_colors);
 
@@ -292,6 +293,7 @@ void Mesh::update_entry_transforms()
 
 mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
                                              bool optimize_vertex_cache,
+                                             bool generate_lods,
                                              bool generate_meshlets,
                                              bool use_vertex_colors)
 {
@@ -381,6 +383,50 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         spdlog::debug("optimize_vertex_cache: {} ({} mesh(es) - {} triangles)",
                       std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.offsets.size(),
                       ret.index_buffer.size() / 3);
+    }
+
+    // generate LOD meshes here
+    if(generate_lods)
+    {
+        uint32_t max_num_lods = 8;
+
+        // corresponds to mesh.entries
+        for(auto &[geom, offsets]: splicer.offsets)
+        {
+            spdlog::stopwatch single_timer;
+
+            auto index_data = ret.index_buffer.data() + offsets.base_index;
+            auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * splicer.vertex_stride;
+
+            std::vector<index_t> lod_indices = {index_data, index_data + geom->indices.size()};
+            size_t num_indices = geom->indices.size();
+
+            std::vector<std::vector<index_t>> lods;
+
+            for(uint32_t i = 0; i < max_num_lods; ++i)
+            {
+                // shrink num_indices to ~75%
+                size_t target_index_count = 3 * num_indices / 4;
+                constexpr float target_error = 1e-02;
+                constexpr uint32_t options = 0;
+                float result_error = 0.f;
+                num_indices = meshopt_simplify(lod_indices.data(), lod_indices.data(), lod_indices.size(),
+                                               reinterpret_cast<const float *>(vertices), geom->positions.size(),
+                                               splicer.vertex_stride, target_index_count, target_error, options,
+                                               &result_error);
+
+                // not getting any simpler
+                if(lod_indices.size() == num_indices){ break; }
+
+                lod_indices.resize(num_indices);
+
+                // store lod_indices
+                lods.push_back(lod_indices);
+            }
+
+            spdlog::debug("generate_lods: {} lods - {}", lods.size(),
+                          std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()));
+        }
     }
 
     // optional meshlet generation

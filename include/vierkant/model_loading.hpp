@@ -125,6 +125,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
                             const vierkant::model::mesh_assets_t &mesh_assets,
                             bool compress_textures,
                             bool optimize_vertex_cache,
+                            bool generate_lods,
                             bool generate_meshlets,
                             VkQueue load_queue,
                             VkBufferUsageFlags buffer_flags);

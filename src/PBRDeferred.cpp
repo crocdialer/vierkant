@@ -653,7 +653,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             dependency_info.pBufferMemoryBarriers = barriers.data();
             vkCmdPipelineBarrier2(frame_asset.clear_cmd_buffer.handle(), &dependency_info);
         }
-//        params = frame_asset.indirect_draw_params_pre;
         frame_asset.clear_cmd_buffer.submit(m_queue);
     };
 
