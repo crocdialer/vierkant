@@ -87,6 +87,14 @@ public:
         std::vector<float> morph_weights;
     };
 
+    struct lod_t
+    {
+        uint32_t base_index = 0;
+        uint32_t num_indices = 0;
+        uint32_t base_meshlet = 0;
+        uint32_t num_meshlets = 0;
+    };
+
     struct entry_t
     {
         std::string name;
@@ -98,11 +106,7 @@ public:
         int32_t vertex_offset = 0;
         uint32_t num_vertices = 0;
 
-        // subject to LOD
-        uint32_t base_index = 0;
-        uint32_t num_indices = 0;
-        uint32_t base_meshlet = 0;
-        uint32_t num_meshlets = 0;
+        std::vector<lod_t> lods;
 
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;

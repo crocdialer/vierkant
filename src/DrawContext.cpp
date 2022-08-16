@@ -23,7 +23,8 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         plane->tangents.clear();
 
         auto mesh = Mesh::create_from_geometry(m_device, plane, {});
-        auto entry = mesh->entries.front();
+        const auto &entry = mesh->entries.front();
+        const auto &lod = entry.lods.front();
 
         graphics_pipeline_info_t fmt = {};
         fmt.blend_state.blendEnable = true;
@@ -51,7 +52,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_image.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
 
         m_drawable_image.mesh = mesh;
-        m_drawable_image.num_indices = entry.num_indices;
+        m_drawable_image.num_indices = lod.num_indices;
         m_drawable_image.pipeline_format = fmt;
     }
 
@@ -234,7 +235,8 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
                             const glm::vec2 &pos, const glm::vec4 &color)
 {
     auto mesh = font->create_mesh(text, color);
-    auto entry = mesh->entries.front();
+    const auto &entry = mesh->entries.front();
+    const auto &lod_0 = entry.lods.front();
 
     if(m_drawable_text.pipeline_format.attribute_descriptions.empty())
     {
@@ -248,7 +250,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
                                                 1.0f);
     drawable.matrices.modelview[3] = glm::vec4(pos.x, pos.y, 0, 1);
     drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {font->glyph_texture()};
-    drawable.num_indices = entry.num_indices;
+    drawable.num_indices = lod_0.num_indices;
     drawable.num_vertices = entry.num_vertices;
     renderer.stage_drawable(std::move(drawable));
 }

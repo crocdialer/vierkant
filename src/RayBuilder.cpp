@@ -104,6 +104,7 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
     for(uint32_t i = 0; i < num_entries; ++i)
     {
         const auto &entry = mesh->entries[i];
+        const auto &lod = entry.lods.front();
 
         const auto &material = mesh->materials[entry.material_index];
 
@@ -116,7 +117,7 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
         VkAccelerationStructureGeometryTrianglesDataKHR triangles = {};
         triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
         triangles.indexType = mesh->index_type;
-        triangles.indexData.deviceAddress = index_base_address + entry.base_index * sizeof(index_t);
+        triangles.indexData.deviceAddress = index_base_address + lod.base_index * sizeof(index_t);
         triangles.vertexFormat = vertex_attrib.format;
         triangles.vertexData.deviceAddress = vertex_base_address + entry.vertex_offset * vertex_attrib.stride;
         triangles.vertexStride = vertex_attrib.stride;
@@ -133,7 +134,7 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm
         auto &offset = offsets[i];
         offset.firstVertex = 0;
         offset.primitiveOffset = 0;
-        offset.primitiveCount = entry.num_indices / 3;
+        offset.primitiveCount = lod.num_indices / 3;
 
         auto &build_info = build_infos[i];
         build_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -345,6 +346,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
         for(uint i = 0; i < acceleration_assets.size(); ++i)
         {
             const auto &mesh_entry = mesh->entries[i];
+            const auto &lod = mesh_entry.lods.front();
             const auto &mesh_material = mesh->materials[mesh_entry.material_index];
 
             const auto &asset = acceleration_assets[i];
@@ -378,7 +380,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             top_level_entry.buffer_index = mesh_index;
             top_level_entry.material_index = materials.size();
             top_level_entry.vertex_offset = mesh_entry.vertex_offset;
-            top_level_entry.base_index = mesh_entry.base_index;
+            top_level_entry.base_index = lod.base_index;
             entries.push_back(top_level_entry);
 
             RayBuilder::material_struct_t material = {};

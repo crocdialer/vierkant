@@ -310,8 +310,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     {
         size_t morph_base_vertex = 0;
         size_t num_morph_targets = 0;
-        size_t base_meshlet = 0;
-        size_t num_meshlets = 0;
+
+        std::vector<vierkant::Mesh::lod_t> lods;
     };
     std::map<vierkant::GeometryConstPtr, extra_offset_t> extra_offset_map;
 
@@ -328,7 +328,14 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             spdlog::warn("create_combined_buffers: morph-target counts do not match");
         }
 
-        auto &morph_offsets = extra_offset_map[ci.geometry];
+        auto &extra_offsets = extra_offset_map[ci.geometry];
+
+        Mesh::lod_t lod_0 = {};
+        lod_0.base_index = splicer.offsets[ci.geometry].base_index;
+        lod_0.num_indices = ci.geometry->indices.size();
+        extra_offsets.lods.push_back(lod_0);
+
+        auto &morph_offsets = extra_offsets;
         morph_offsets.morph_base_vertex = num_morph_vertices;
         morph_offsets.num_morph_targets = ci.morph_targets.size();
         num_morph_targets += ci.morph_targets.size();
@@ -398,33 +405,49 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             auto index_data = ret.index_buffer.data() + offsets.base_index;
             auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * splicer.vertex_stride;
 
+            auto &extra_offsets = extra_offset_map[geom];
+
             std::vector<index_t> lod_indices = {index_data, index_data + geom->indices.size()};
             size_t num_indices = geom->indices.size();
 
-            std::vector<std::vector<index_t>> lods;
-
             for(uint32_t i = 0; i < max_num_lods; ++i)
             {
-                // shrink num_indices to ~75%
-                size_t target_index_count = 3 * num_indices / 4;
-                constexpr float target_error = 1e-02;
+                // shrink num_indices to 60%
+                constexpr float shrink_factor = .66f;
+                constexpr float max_mismatch = .1f;
+                constexpr float target_error = 1e-03;
                 constexpr uint32_t options = 0;
                 float result_error = 0.f;
+                float result_factor = 1.f;
+
+                auto target_index_count = static_cast<size_t>(static_cast<float>(num_indices) * shrink_factor);
                 num_indices = meshopt_simplify(lod_indices.data(), lod_indices.data(), lod_indices.size(),
                                                reinterpret_cast<const float *>(vertices), geom->positions.size(),
                                                splicer.vertex_stride, target_index_count, target_error, options,
                                                &result_error);
 
+                result_factor = static_cast<float>(num_indices) / static_cast<float>(lod_indices.size());
+
+                spdlog::debug("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
+                              "target/actual error: {} / {}",
+                              i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
+
                 // not getting any simpler
-                if(lod_indices.size() == num_indices){ break; }
+                if(result_factor - shrink_factor > max_mismatch){ break; }
 
                 lod_indices.resize(num_indices);
 
                 // store lod_indices
-                lods.push_back(lod_indices);
+                Mesh::lod_t lod = {};
+                lod.base_index = ret.index_buffer.size();
+                lod.num_indices = num_indices;
+                extra_offsets.lods.push_back(lod);
+
+                // insert at end of index-buffer
+                ret.index_buffer.insert(ret.index_buffer.end(), lod_indices.begin(), lod_indices.end());
             }
 
-            spdlog::debug("generate_lods: {} lods - {}", lods.size(),
+            spdlog::debug("generate_lods: {} lods - {}", extra_offsets.lods.size(),
                           std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()));
         }
     }
@@ -466,8 +489,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                           geom->indices.size() / 3, meshlets.size());
 
             auto &extra_offsets = extra_offset_map[geom];
-            extra_offsets.base_meshlet = ret.meshlets.size();
-            extra_offsets.num_meshlets = meshlet_count;
+            extra_offsets.lods[0].base_meshlet = ret.meshlets.size();
+            extra_offsets.lods[0].num_meshlets = meshlet_count;
 
             size_t meshlet_vertex_offset = ret.meshlet_vertices.size();
             size_t meshlet_triangle_offset = ret.meshlet_triangles.size();
@@ -531,10 +554,9 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         entry.primitive_type = geom->topology;
         entry.vertex_offset = static_cast<int32_t>(offsets.base_vertex);
         entry.num_vertices = geom->positions.size();
-        entry.base_index = offsets.base_index;
-        entry.num_indices = geom->indices.size();
-        entry.base_meshlet = static_cast<uint32_t>(extra_offsets.base_meshlet);
-        entry.num_meshlets = extra_offsets.num_meshlets;
+
+        // all LOD base/meshlet indices
+        entry.lods = extra_offsets.lods;
 
         // use provided transforms for sub-meshes, if any
         entry.transform = entry_info.transform;

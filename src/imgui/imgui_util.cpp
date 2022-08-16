@@ -601,10 +601,10 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
 
     size_t num_vertices = 0, num_faces = 0;
 
-    for(auto &e: mesh->entries)
+    for(const auto &e: mesh->entries)
     {
         num_vertices += e.num_vertices;
-        num_faces += e.num_indices / 3;
+        num_faces += e.lods.empty() ? 0 : e.lods[0].num_indices / 3;
     }
     ImGui::Separator();
     ImGui::BulletText("%d positions", num_vertices);
@@ -637,7 +637,8 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
             {
                 std::stringstream ss;
                 ss << "positions: " << std::to_string(e.num_vertices) << "\n";
-                ss << "faces: " << std::to_string(e.num_indices / 3);
+                ss << "faces: " << std::to_string(e.lods.empty() ? 0 : e.lods[0].num_indices / 3);
+                ss << "lods: " << std::to_string(e.lods.size());
                 ImGui::Text("%s", ss.str().c_str());
 
                 int material_index = static_cast<int>(e.material_index);

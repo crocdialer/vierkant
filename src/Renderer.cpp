@@ -63,6 +63,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
     for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
         const auto &entry = mesh->entries[i];
+        const auto &lod_0 = mesh->entries[i].lods.front();
 
         // filter disabled entries, sanity check material-index
         if(!entry_filter && !entry.enabled){ continue; }
@@ -90,14 +91,14 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.material.blend_mode = static_cast<uint32_t>(material->blend_mode);
         drawable.material.alpha_cutoff = material->alpha_cutoff;
 
-        drawable.base_index = entry.base_index;
-        drawable.num_indices = entry.num_indices;
+        drawable.base_index = lod_0.base_index;
+        drawable.num_indices = lod_0.num_indices;
         drawable.vertex_offset = entry.vertex_offset;
         drawable.num_vertices = entry.num_vertices;
         drawable.morph_vertex_offset = entry.morph_vertex_offset;
         drawable.morph_weights = entry.morph_weights;
-        drawable.base_meshlet = entry.base_meshlet;
-        drawable.num_meshlets = entry.num_meshlets;
+        drawable.base_meshlet = lod_0.base_meshlet;
+        drawable.num_meshlets = lod_0.num_meshlets;
 
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
