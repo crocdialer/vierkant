@@ -422,7 +422,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     // generate LOD meshes here
     if(generate_lods)
     {
-        uint32_t max_num_lods = 8;
+        uint32_t max_num_lods = 7;
 
         // corresponds to mesh.entries
         for(auto &[geom, offsets]: splicer.offsets)
@@ -437,12 +437,14 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             std::vector<index_t> lod_indices = {index_data, index_data + geom->indices.size()};
             size_t num_indices = geom->indices.size();
 
+            size_t min_num = num_indices, max_num = num_indices;
+
             for(uint32_t i = 0; i < max_num_lods; ++i)
             {
                 // shrink num_indices to 60%
-                constexpr float shrink_factor = .66f;
+                constexpr float shrink_factor = .6f;
                 constexpr float max_mismatch = .1f;
-                constexpr float target_error = 1e-02;
+                constexpr float target_error = 0.05f;
                 constexpr uint32_t options = 0;
                 float result_error = 0.f;
                 float result_factor = 1.f;
@@ -455,13 +457,14 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
                 result_factor = static_cast<float>(num_indices) / static_cast<float>(lod_indices.size());
 
-                spdlog::debug("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
+                spdlog::trace("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
                               "target/actual error: {} / {}",
                               i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
 
                 // not getting any simpler
                 if(result_factor - shrink_factor > max_mismatch) { break; }
 
+                min_num = num_indices;
                 lod_indices.resize(num_indices);
 
                 // store lod_indices
@@ -474,7 +477,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 ret.index_buffer.insert(ret.index_buffer.end(), lod_indices.begin(), lod_indices.end());
             }
 
-            spdlog::debug("generated: {} levels-of-detail - {}", extra_offsets.lods.size(),
+            spdlog::debug("generated: {} levels-of-detail ({} -> {} triangles) - {}", extra_offsets.lods.size(),
+                          max_num / 3, min_num / 3,
                           std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()));
         }
     }
@@ -497,9 +501,9 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             auto &extra_offsets = extra_offset_map[geom];
 
             // all LODs
-            for(uint32_t i = 0; i < extra_offsets.lods.size(); ++i)
+            for(uint32_t lod_idx = 0; lod_idx < extra_offsets.lods.size(); ++lod_idx)
             {
-                auto &lod = extra_offsets.lods[i];
+                auto &lod = extra_offsets.lods[lod_idx];
 
                 auto index_data = ret.index_buffer.data() + lod.base_index;
                 auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * splicer.vertex_stride;
@@ -516,7 +520,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                         reinterpret_cast<const float *>(vertices), geom->positions.size(), splicer.vertex_stride,
                         max_vertices, max_triangles, cone_weight);
 
-                spdlog::trace("generate_meshlets (lod-lvl: {}): {} ({} triangles -> {} meshlets)", i,
+                spdlog::trace("generate_meshlets (lod-lvl: {}): {} ({} triangles -> {} meshlets)", lod_idx,
                               std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()),
                               lod.num_indices / 3, meshlet_count);
 

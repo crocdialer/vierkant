@@ -95,14 +95,26 @@ public:
         uint32_t texture_type_flags = 0;
     };
 
+    struct alignas(16) mesh_entry_t
+    {
+        glm::vec3 center;
+        float radius;
+
+        uint32_t vertex_offset;
+        uint32_t vertex_count;
+
+        uint32_t lod_count;
+        vierkant::Mesh::lod_t lods[8];
+    };
+
     struct alignas(16) indexed_indirect_command_t
     {
         VkDrawIndexedIndirectCommand vk_draw;// size: 5
 
         VkDrawMeshTasksIndirectCommandNV vk_mesh_draw;// size: 2
 
-        uint32_t object_index = 0;
         uint32_t visible = false;
+        uint32_t object_index = 0;
         uint32_t base_meshlet = 0;
         uint32_t num_meshlets = 0;
         uint32_t count_buffer_offset = 0;

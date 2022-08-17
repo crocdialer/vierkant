@@ -89,8 +89,6 @@ public:
 
     struct timings_t
     {
-        std::chrono::steady_clock::time_point timestamp;
-
         double g_buffer_pre_ms = 0.0;
         double depth_pyramid_ms = 0.0;
         double culling_ms = 0.0;
@@ -99,6 +97,22 @@ public:
         double taa_ms = 0.0;
         double tonemap_bloom_ms = 0.0;
         double total_ms = 0.0;
+    };
+
+    struct draw_cull_result_t
+    {
+        uint32_t draw_count = 0;
+        uint32_t num_frustum_culled = 0;
+        uint32_t num_occlusion_culled = 0;
+        uint32_t num_distance_culled = 0;
+        uint32_t num_triangles = 0;
+    };
+
+    struct statistics_t
+    {
+        std::chrono::steady_clock::time_point timestamp;
+        timings_t timings;
+        draw_cull_result_t draw_cull_result;
     };
 
     struct create_info_t
@@ -165,9 +179,9 @@ public:
     const vierkant::Framebuffer &lighting_buffer() const;
 
     /**
-     * @return a queue of structs containing timing-results for past frames
+     * @return a queue of structs containing drawcall- and timing-results for past frames
      */
-    const std::deque<timings_t>&timings() const { return m_timings; }
+    const std::deque<statistics_t>& statistics() const { return m_statistics; }
 
     //! settings struct
     settings_t settings;
@@ -232,10 +246,10 @@ private:
         vierkant::BufferPtr lights_ubo;
         vierkant::BufferPtr composition_ubo;
 
-        // used for gpu timestamps
+        // gpu timings/statistics
         vierkant::QueryPoolPtr query_pool;
         std::map<SemaphoreValue, double_millisecond_t> timings_map;
-        timings_t timings_result;
+        statistics_t stats;
 
         //! ping-pong post-fx framebuffers
         struct ping_pong_t
@@ -292,15 +306,6 @@ private:
         uint64_t draw_count_pre;
         uint64_t draw_count_post;
         uint64_t draw_result;
-    };
-
-    struct alignas(16) draw_cull_result_t
-    {
-        uint32_t draw_count = 0;
-        uint32_t num_frustum_culled = 0;
-        uint32_t num_occlusion_culled = 0;
-        uint32_t num_distance_culled = 0;
-        uint32_t num_triangles = 0;
     };
 
     struct matrix_key_t
@@ -405,7 +410,7 @@ private:
     // a logger
     std::shared_ptr<spdlog::logger> m_logger;
 
-    std::deque<timings_t> m_timings;
+    std::deque<statistics_t> m_statistics;
 };
 
 extern bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs);

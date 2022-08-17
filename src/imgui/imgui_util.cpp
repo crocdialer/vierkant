@@ -233,17 +233,25 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     {
         auto extent = pbr_renderer->lighting_buffer().extent();
 
-        if(ImGui::TreeNode("timings"))
+        if(ImGui::TreeNode("statistics"))
         {
-            auto timings = pbr_renderer->timings();
+            auto stats = pbr_renderer->statistics();
+
+            const auto &draw_result = stats.back().draw_cull_result;
+            ImGui::BulletText("drawcount: %d", draw_result.draw_count);
+            ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
+            ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
+            ImGui::BulletText("num_occlusion_culled: %d", draw_result.num_occlusion_culled);
+            ImGui::Separator();
+            ImGui::Spacing();
 
             if(ImPlot::BeginPlot("##pbr_timings"))
             {
-                std::vector<PBRDeferred::timings_t> values(timings.begin(), timings.end());
+                std::vector<PBRDeferred::statistics_t> values(stats.begin(), stats.end());
 
                 double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
-                                    return lhs.total_ms < rhs.total_ms;
-                                }))->total_ms;
+                                    return lhs.timings.total_ms < rhs.timings.total_ms;
+                                }))->timings.total_ms;
 
                 ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
                 ImPlot::SetupAxesLimits(0, static_cast<double>(pbr_renderer->settings.timing_history_size), 0, max_ms,
@@ -251,6 +259,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                 ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
 
                 auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
+                                                       offsetof(PBRDeferred::statistics_t, timings) +
                                                        offsetof(PBRDeferred::timings_t, total_ms));
                 ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0, 1, 0, 0,
                                    sizeof(PBRDeferred::timings_t));
@@ -258,7 +267,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                 ImPlot::PopStyleVar();
                 ImPlot::EndPlot();
             }
-            const auto &last = timings.back();
+            const auto &last = stats.back().timings;
             ImGui::BulletText("g_buffer_pre: %.3f ms", last.g_buffer_pre_ms);
             ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
             ImGui::BulletText("culling: %.3f ms", last.culling_ms);

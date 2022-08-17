@@ -94,8 +94,8 @@ struct indexed_indirect_command_t
     uint taskCount;
     uint firstTask;
 
-    uint object_index;
     bool visible;
+    uint object_index;
     uint base_meshlet;
     uint num_meshlets;
     uint count_buffer_offset;

@@ -804,6 +804,9 @@ void Renderer::set_function_pointers()
 
 void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer::frame_assets_t &frame_asset)
 {
+    std::vector<mesh_entry_t> mesh_entries;
+    std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
+
     // joined drawable buffers
     std::vector<matrix_struct_t> matrix_data(drawables.size());
     std::vector<matrix_struct_t> matrix_history_data(drawables.size());
@@ -811,6 +814,24 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
 
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
+        if(drawables[i].mesh && !drawables[i].mesh->entries.empty())
+        {
+            auto mesh_entry_it = mesh_entry_map.find({drawables[i].mesh, drawables[i].entry_index});
+            if(mesh_entry_it == mesh_entry_map.end())
+            {
+                mesh_entry_map[{drawables[i].mesh, drawables[i].entry_index}] = mesh_entries.size();
+                const auto &e = drawables[i].mesh->entries[drawables[i].entry_index];
+                mesh_entry_t mesh_entry = {};
+                mesh_entry.vertex_offset = e.vertex_offset;
+                mesh_entry.vertex_count = e.num_vertices;
+                mesh_entry.lod_count = e.lods.size();
+                memcpy(mesh_entry.lods, e.lods.data(),
+                       std::min(sizeof(mesh_entry.lods), e.lods.size() * sizeof(Mesh::lod_t)));
+                mesh_entry.center = e.bounding_sphere.center;
+                mesh_entry.radius = e.bounding_sphere.radius;
+                mesh_entries.push_back(mesh_entry);
+            }
+        }
         matrix_data[i] = drawables[i].matrices;
         material_data[i] = drawables[i].material;
 

@@ -355,9 +355,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
 
     draw_cull_result_t gpu_cull_result = {};
 
-    if(frame_asset.cull_result_buffer_host)
+//    if(frame_asset.cull_result_buffer_host)
     {
-        gpu_cull_result = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
+        gpu_cull_result = frame_asset.stats.draw_cull_result;
     }
 
     SceneRenderer::render_result_t ret = {};
@@ -1208,11 +1208,11 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     frame_asset.cull_ubo->set_data(&draw_cull_data, sizeof(draw_cull_data));
 
     // read results from host-buffer
-    auto &result_buf = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
-    draw_cull_result_t result = result_buf;
+    frame_asset.stats.draw_cull_result = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
 
-    m_logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
-                    result.draw_count, result.num_frustum_culled, result.num_occlusion_culled, result.num_triangles);
+//    m_logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
+//                    frame_asset.draw_cull_result.draw_count, frame_asset.draw_cull_result.num_frustum_culled,
+//                    frame_asset.draw_cull_result.num_occlusion_culled, frame_asset.draw_cull_result.num_triangles);
 
     vierkant::Compute::computable_t computable = m_cull_computable;
 
@@ -1312,8 +1312,8 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
 
 void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 {
-    timings_t &timings_result = frame_asset.timings_result;
-    timings_result.timestamp = frame_asset.timestamp;
+    timings_t &timings_result = frame_asset.stats.timings;
+    frame_asset.stats.timestamp = frame_asset.timestamp;
 
     constexpr size_t query_count = SemaphoreValue::CULLING + 1;
 
@@ -1350,13 +1350,10 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
                               timings_result.culling_ms + timings_result.g_buffer_post_ms + timings_result.lighting_ms +
                               timings_result.taa_ms + timings_result.tonemap_bloom_ms;
 
-    frame_asset.timings_result = timings_result;
+    frame_asset.stats.timings = timings_result;
 
-    m_timings.push_back(timings_result);
-    while(m_timings.size() > frame_asset.settings.timing_history_size){ m_timings.pop_front(); }
-
-    //    m_logger->trace("timings_map: {}", frame_asset.timings_map);
-    m_logger->trace("total_ms: {} ms", frame_asset.timings_result.total_ms);
+    m_statistics.push_back(frame_asset.stats);
+    while(m_statistics.size() > frame_asset.settings.timing_history_size){ m_statistics.pop_front(); }
 
     // reset query-pool
     vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, query_count);
