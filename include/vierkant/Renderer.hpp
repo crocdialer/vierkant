@@ -41,19 +41,18 @@ public:
         BINDING_VERTICES = 0,
         BINDING_INDICES = 1,
         BINDING_DRAW_COMMANDS = 2,
-        BINDING_MATRIX = 3,
-        BINDING_PREVIOUS_MATRIX = 4,
-        BINDING_MATERIAL = 5,
-        BINDING_TEXTURES = 6,
-        BINDING_BONES = 7,
-        BINDING_PREVIOUS_BONES = 8,
-        BINDING_JITTER_OFFSET = 9,
-        BINDING_MORPH_TARGETS = 10,
-        BINDING_MORPH_PARAMS = 11,
-        BINDING_PREVIOUS_MORPH_PARAMS = 12,
-        BINDING_MESHLETS = 13,
-        BINDING_MESHLET_VERTICES = 14,
-        BINDING_MESHLET_TRIANGLES = 15,
+        BINDING_MESH_DRAWS = 3,
+        BINDING_MATERIAL = 4,
+        BINDING_TEXTURES = 5,
+        BINDING_BONES = 6,
+        BINDING_PREVIOUS_BONES = 7,
+        BINDING_JITTER_OFFSET = 8,
+        BINDING_MORPH_TARGETS = 9,
+        BINDING_MORPH_PARAMS = 10,
+        BINDING_PREVIOUS_MORPH_PARAMS = 11,
+        BINDING_MESHLETS = 12,
+        BINDING_MESHLET_VERTICES = 13,
+        BINDING_MESHLET_TRIANGLES = 14,
         BINDING_MAX_RANGE
     };
 
@@ -63,6 +62,14 @@ public:
         glm::mat4 projection = glm::mat4(1);
         glm::mat4 normal = glm::mat4(1);
         glm::mat4 texture = glm::mat4(1);
+    };
+
+    struct alignas(16) mesh_draw_t
+    {
+        matrix_struct_t current_matrices = {};
+        matrix_struct_t last_matrices = {};
+        uint32_t mesh_index = 0;
+        uint32_t material_index = 0;
     };
 
     struct alignas(16) material_struct_t
@@ -331,8 +338,8 @@ private:
         descriptor_set_map_t descriptor_sets;
 
         // SSBOs containing everything
-        vierkant::BufferPtr matrix_buffer;
-        vierkant::BufferPtr matrix_history_buffer;
+        vierkant::BufferPtr mesh_draw_buffer;
+        vierkant::BufferPtr mesh_lod_buffer;
         vierkant::BufferPtr material_buffer;
 
         // draw-indirect buffers

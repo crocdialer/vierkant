@@ -11,7 +11,7 @@
 
 layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 {
-    indexed_indirect_command_t draws[];
+    indexed_indirect_command_t draw_commands[];
 };
 
 layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
@@ -19,9 +19,9 @@ layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
     meshlet_t meshlets[];
 };
 
-layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
+layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
-    matrix_struct_t matrices[];
+    mesh_draw_t draws[];
 };
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
@@ -53,26 +53,26 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
 void main()
 {
     uint gid = gl_GlobalInvocationID.x;
-    const indexed_indirect_command_t draw = draws[context.base_draw_index + gl_DrawID];
+    const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
 
-    if(gid >= draw.num_meshlets)
+    if(gid >= draw_command.num_meshlets)
     {
         gl_TaskCountNV = 0;
         return;
     }
 
     uint ti = gl_LocalInvocationID.x;
-    uint mi = draw.base_meshlet + gid;
+    uint mi = draw_command.base_meshlet + gid;
 
-    object_index = draw.object_index;
+    object_index = draw_command.object_index;
 
 #if CULLING
     // transform bounding volume and normal-cone
-    mat3 m = mat3(camera.view * matrices[object_index].modelview);
-    vec3 cone_axis = normalize(m * meshlets[mi].cone_axis);
+    mat4 m = camera.view * draws[object_index].current_matrices.modelview;
+    vec3 cone_axis = normalize(mat3(m) * meshlets[mi].cone_axis);
     float cone_cutoff = meshlets[mi].cone_cutoff;
-    vec3 center = (camera.view * matrices[object_index].modelview * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
-    float radius = meshlets[mi].sphere_radius * length(matrices[object_index].modelview[0].xyz);
+    vec3 center = (m * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
+    float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
 
     // backface-culling
     bool accept = !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));

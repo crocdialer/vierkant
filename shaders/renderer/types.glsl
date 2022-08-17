@@ -7,6 +7,34 @@ struct matrix_struct_t
     mat4 texture;
 };
 
+struct mesh_draw_t
+{
+    matrix_struct_t current_matrices;
+    matrix_struct_t last_matrices;
+    uint mesh_index;
+    uint material_index;
+};
+
+struct lod_t
+{
+    uint base_index;
+    uint num_indices;
+    uint base_meshlet;
+    uint num_meshlets;
+};
+
+struct mesh_entry_t
+{
+    vec3 center;
+    float radius;
+
+    uint vertex_offset;
+    uint vertex_count;
+
+    uint lod_count;
+    lod_t lods[8];
+};
+
 //! blendmode definitions
 #define BLEND_MODE_OPAQUE 0
 #define BLEND_MODE_BLEND 1
@@ -66,19 +94,18 @@ struct render_context_t
 #define BINDING_VERTICES 0
 #define BINDING_INDICES 1
 #define BINDING_DRAW_COMMANDS 2
-#define BINDING_MATRIX 3
-#define BINDING_PREVIOUS_MATRIX 4
-#define BINDING_MATERIAL 5
-#define BINDING_TEXTURES 6
-#define BINDING_BONES 7
-#define BINDING_PREVIOUS_BONES 8
-#define BINDING_JITTER_OFFSET 9
-#define BINDING_MORPH_TARGETS 10
-#define BINDING_MORPH_PARAMS 11
-#define BINDING_PREVIOUS_MORPH_PARAMS 12
-#define BINDING_MESHLETS 13
-#define BINDING_MESHLET_VERTICES 14
-#define BINDING_MESHLET_TRIANGLES 15
+#define BINDING_MESH_DRAWS 3
+#define BINDING_MATERIAL 4
+#define BINDING_TEXTURES 5
+#define BINDING_BONES 6
+#define BINDING_PREVIOUS_BONES 7
+#define BINDING_JITTER_OFFSET 8
+#define BINDING_MORPH_TARGETS 9
+#define BINDING_MORPH_PARAMS 10
+#define BINDING_PREVIOUS_MORPH_PARAMS 11
+#define BINDING_MESHLETS 12
+#define BINDING_MESHLET_VERTICES 13
+#define BINDING_MESHLET_TRIANGLES 14
 
 //! combined indirect-draw struct
 struct indexed_indirect_command_t

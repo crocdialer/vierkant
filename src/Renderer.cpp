@@ -107,7 +107,7 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
         drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
 
         // descriptors
-        auto &desc_matrices = drawable.descriptors[BINDING_MATRIX];
+        auto &desc_matrices = drawable.descriptors[BINDING_MESH_DRAWS];
         desc_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrices.stage_flags =
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
@@ -342,8 +342,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     frame_assets_t next_assets = {};
 
     // keep storage buffers
-    next_assets.matrix_buffer = std::move(current_assets.matrix_buffer);
-    next_assets.matrix_history_buffer = std::move(current_assets.matrix_history_buffer);
+    next_assets.mesh_draw_buffer = std::move(current_assets.mesh_draw_buffer);
+    next_assets.mesh_lod_buffer = std::move(current_assets.mesh_lod_buffer);
     next_assets.material_buffer = std::move(current_assets.material_buffer);
     next_assets.indirect_bundle = std::move(current_assets.indirect_bundle);
     next_assets.indirect_indexed_bundle = std::move(current_assets.indirect_indexed_bundle);
@@ -494,13 +494,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 // predefined buffers
                 if(!drawable->use_own_buffers)
                 {
-                    drawable->descriptors[BINDING_MATRIX].buffers = {next_assets.matrix_buffer};
+                    drawable->descriptors[BINDING_MESH_DRAWS].buffers = {next_assets.mesh_draw_buffer};
                     drawable->descriptors[BINDING_MATERIAL].buffers = {next_assets.material_buffer};
-
-                    if(drawable->descriptors.count(BINDING_PREVIOUS_MATRIX) && next_assets.matrix_history_buffer)
-                    {
-                        drawable->descriptors[BINDING_PREVIOUS_MATRIX].buffers = {next_assets.matrix_history_buffer};
-                    }
 
                     if(drawable->descriptors.count(BINDING_DRAW_COMMANDS) && draw_buffer_indexed)
                     {
@@ -808,18 +803,22 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
     std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
 
     // joined drawable buffers
-    std::vector<matrix_struct_t> matrix_data(drawables.size());
-    std::vector<matrix_struct_t> matrix_history_data(drawables.size());
+//    std::vector<matrix_struct_t> matrix_data(drawables.size());
+//    std::vector<matrix_struct_t> matrix_history_data(drawables.size());
+    std::vector<mesh_draw_t> mesh_draws(drawables.size());
     std::vector<material_struct_t> material_data(drawables.size());
 
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
+        uint32_t mesh_index = 0;
+
         if(drawables[i].mesh && !drawables[i].mesh->entries.empty())
         {
             auto mesh_entry_it = mesh_entry_map.find({drawables[i].mesh, drawables[i].entry_index});
             if(mesh_entry_it == mesh_entry_map.end())
             {
-                mesh_entry_map[{drawables[i].mesh, drawables[i].entry_index}] = mesh_entries.size();
+                mesh_index = mesh_entries.size();
+                mesh_entry_map[{drawables[i].mesh, drawables[i].entry_index}] = mesh_index;
                 const auto &e = drawables[i].mesh->entries[drawables[i].entry_index];
                 mesh_entry_t mesh_entry = {};
                 mesh_entry.vertex_offset = e.vertex_offset;
@@ -831,12 +830,15 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
             }
+            else{ mesh_index = mesh_entry_it->second; }
         }
-        matrix_data[i] = drawables[i].matrices;
+        mesh_draws[i].current_matrices = drawables[i].matrices;
+        mesh_draws[i].mesh_index = mesh_index;
+        mesh_draws[i].material_index = i;// yeah, not optimal
         material_data[i] = drawables[i].material;
 
-        if(drawables[i].last_matrices){ matrix_history_data[i] = *drawables[i].last_matrices; }
-        else{ matrix_history_data[i] = drawables[i].matrices; }
+        if(drawables[i].last_matrices){ mesh_draws[i].last_matrices = *drawables[i].last_matrices; }
+        else{ mesh_draws[i].last_matrices = drawables[i].matrices; }
     }
 
     auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer)
@@ -845,16 +847,17 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         if(!out_buffer)
         {
             out_buffer = vierkant::Buffer::create(device, array,
-                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
         }
         else{ out_buffer->set_data(array); }
     };
 
     // create/upload joined buffers
-    copy_to_buffer(matrix_data, frame_asset.matrix_buffer);
     copy_to_buffer(material_data, frame_asset.material_buffer);
-    copy_to_buffer(matrix_history_data, frame_asset.matrix_history_buffer);
+    copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
+//    copy_to_buffer(matrix_data, frame_asset.matrix_buffer);
+//    copy_to_buffer(matrix_history_data, frame_asset.matrix_history_buffer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

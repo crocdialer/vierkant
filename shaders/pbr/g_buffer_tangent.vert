@@ -20,14 +20,9 @@ layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
     Vertex vertices[];
 };
 
-layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
+layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
-    matrix_struct_t matrices[];
-};
-
-layout(std140, set = 0, binding = BINDING_PREVIOUS_MATRIX) readonly buffer MatrixBufferPrevious
-{
-    matrix_struct_t previous_matrices[];
+    mesh_draw_t draws[];
 };
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
@@ -56,8 +51,8 @@ void main()
     const Vertex v = vertices[gl_VertexIndex];
 
     object_index = gl_BaseInstance;
-    matrix_struct_t m = matrices[object_index];
-    matrix_struct_t m_last = previous_matrices[object_index];
+    matrix_struct_t m = draws[object_index].current_matrices;
+    matrix_struct_t m_last = draws[object_index].last_matrices;
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);

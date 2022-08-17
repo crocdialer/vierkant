@@ -35,14 +35,9 @@ layout(push_constant) uniform PushConstants {
     render_context_t context;
 };
 
-layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
+layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
-    matrix_struct_t u_matrices[];
-};
-
-layout(std140, set = 0, binding = BINDING_PREVIOUS_MATRIX) readonly buffer MatrixBufferPrevious
-{
-    matrix_struct_t u_previous_matrices[];
+    mesh_draw_t draws[];
 };
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
@@ -127,8 +122,8 @@ void main(void)
 
     // mvp transform and jittering
     uint object_index = in_object_index[0];
-    matrix_struct_t m = u_matrices[object_index];
-    matrix_struct_t m_last = u_previous_matrices[object_index];
+    matrix_struct_t m = draws[object_index].current_matrices;
+    matrix_struct_t m_last = draws[object_index].last_matrices;
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vertex_out.current_position;
     vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vertex_out.last_position;

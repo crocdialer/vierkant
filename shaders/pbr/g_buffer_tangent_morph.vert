@@ -49,7 +49,7 @@ struct morph_params_t
 
 layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 {
-    indexed_indirect_command_t draws[];
+    indexed_indirect_command_t draw_commands[];
 };
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
@@ -62,14 +62,9 @@ layout(std140, binding = BINDING_MORPH_TARGETS, scalar) readonly buffer MorphVer
     Vertex morph_vertices[];
 };
 
-layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
+layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
-    matrix_struct_t u_matrices[];
-};
-
-layout(std140, set = 0, binding = BINDING_PREVIOUS_MATRIX) readonly buffer MatrixBufferPrevious
-{
-    matrix_struct_t u_previous_matrices[];
+    mesh_draw_t draws[];
 };
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
@@ -100,21 +95,21 @@ layout(location = 1) out VertexData
 
 void main()
 {
-    const indexed_indirect_command_t draw = draws[context.base_draw_index + gl_DrawID];
+    const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
     Vertex v = vertices[gl_VertexIndex];
 
     // apply morph-targets
     for(uint i = 0; i < morph_params.morph_count; ++i)
     {
-        uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + (gl_VertexIndex - draw.vertexOffset);
+        uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + (gl_VertexIndex - draw_command.vertexOffset);
         v.position += morph_vertices[morph_index].position * morph_params.weights[i];
         v.normal = slerp(v.normal, v.normal + morph_vertices[morph_index].normal, morph_params.weights[i]);
     }
     v.normal = normalize(v.normal);
 
-    object_index = draw.object_index;
-    matrix_struct_t m = u_matrices[object_index];
-    matrix_struct_t m_last = u_previous_matrices[object_index];
+    object_index = draw_command.object_index;
+    matrix_struct_t m = draws[object_index].current_matrices;
+    matrix_struct_t m_last = draws[object_index].last_matrices;
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);

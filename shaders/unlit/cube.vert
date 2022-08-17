@@ -7,9 +7,9 @@ layout(push_constant) uniform PushConstants {
     render_context_t context;
 };
 
-layout(std140, set = 0, binding = BINDING_MATRIX) readonly buffer MatrixBuffer
+layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
-    matrix_struct_t matrices[];
+    mesh_draw_t draws[];
 };
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
@@ -23,7 +23,7 @@ layout(location = 1) out VertexData
 void main()
 {
     object_index = gl_InstanceIndex;
-    matrix_struct_t m = matrices[object_index];
+    matrix_struct_t m = draws[object_index].current_matrices;
     vertex_out.eye_vec = a_position.xyz;
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
 }

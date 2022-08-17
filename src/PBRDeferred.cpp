@@ -417,12 +417,6 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             auto it = m_entry_matrix_cache.find(key);
             if(it != m_entry_matrix_cache.end()) { drawable.last_matrices = it->second; }
 
-            // previous matrices
-            vierkant::descriptor_t &desc_prev_matrices = drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX];
-            desc_prev_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_prev_matrices.stage_flags =
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
-
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)
             {
@@ -512,9 +506,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                     shader_flags |= PROP_TESSELATION;
                     drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
                     drawable.pipeline_format.num_patch_control_points = 3;
-                    drawable.descriptors[Renderer::BINDING_MATRIX].stage_flags =
-                            VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-                    drawable.descriptors[Renderer::BINDING_PREVIOUS_MATRIX].stage_flags =
+                    drawable.descriptors[Renderer::BINDING_MESH_DRAWS].stage_flags =
                             VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
                     camera_desc.stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
                 }
