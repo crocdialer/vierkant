@@ -1199,17 +1199,13 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     frustumY /= glm::length(frustumY.xyz());
 
     draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
-    draw_cull_data.lod_base = 10.f;
+    draw_cull_data.lod_base = 15.f;
     draw_cull_data.lod_step = 1.5f;
 
     frame_asset.cull_ubo->set_data(&draw_cull_data, sizeof(draw_cull_data));
 
     // read results from host-buffer
     frame_asset.stats.draw_cull_result = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
-
-//    m_logger->trace("num_draws: {} -- frustum-culled: {} -- occlusion-culled: {} -- num_triangles: {}",
-//                    frame_asset.draw_cull_result.draw_count, frame_asset.draw_cull_result.num_frustum_culled,
-//                    frame_asset.draw_cull_result.num_occlusion_culled, frame_asset.draw_cull_result.num_triangles);
 
     vierkant::Compute::computable_t computable = m_cull_computable;
 
