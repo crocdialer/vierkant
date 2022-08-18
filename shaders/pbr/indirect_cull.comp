@@ -28,6 +28,9 @@ struct draw_cull_data_t
     float P00, P11, znear, zfar;// symmetric projection parameters
     vec4 frustum;// data for left/right/top/bottom frustum planes
 
+    float lod_base;
+    float lod_step;
+
     vec2 pyramid_size;// depth pyramid size in texels
 
     uint num_draws;
@@ -134,8 +137,14 @@ void main()
     // lod managment
     if(visible && cull_data.lod_enabled)
     {
-        // select worst lod for testing
-        lod_t lod = mesh_entry.lods[mesh_entry.lod_count - 1];
+        // lod distance i = base * pow(step, i)
+        // i = log2(distance / base) / log2(step)
+        float lod_index_f = log2(length(center) / cull_data.lod_base) / log2(cull_data.lod_step);
+        uint lod_index = min(uint(max(lod_index_f + 1, 0)), mesh_entry.lod_count - 1);
+        
+        // select lod
+        lod_index = mesh_entry.lod_count - 1;
+        lod_t lod = mesh_entry.lods[lod_index];
 
         draw.vertexOffset = int(mesh_entry.vertex_offset);
         draw.indexCount = lod.num_indices;

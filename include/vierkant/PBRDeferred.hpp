@@ -291,6 +291,9 @@ private:
         float P00, P11, znear, zfar; // symmetric projection parameters
         glm::vec4 frustum; // data for left/right/top/bottom frustum planes
 
+        float lod_base;
+        float lod_step;
+
         // depth pyramid size in texels
         glm::vec2 pyramid_size = glm::vec2(0);
 

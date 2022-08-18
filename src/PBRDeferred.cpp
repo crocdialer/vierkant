@@ -353,18 +353,11 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     // dof, bloom, anti-aliasing
     post_fx_pass(renderer, cam, out_img, frame_asset.depth_map);
 
-    draw_cull_result_t gpu_cull_result = {};
-
-//    if(frame_asset.cull_result_buffer_host)
-    {
-        gpu_cull_result = frame_asset.stats.draw_cull_result;
-    }
-
     SceneRenderer::render_result_t ret = {};
     ret.num_draws = frame_asset.cull_result.drawables.size();
-    ret.num_frustum_culled = gpu_cull_result.num_frustum_culled;
-    ret.num_occlusion_culled = gpu_cull_result.num_occlusion_culled;
-    ret.num_distance_culled = gpu_cull_result.num_distance_culled;
+    ret.num_frustum_culled = frame_asset.stats.draw_cull_result.num_frustum_culled;
+    ret.num_occlusion_culled = frame_asset.stats.draw_cull_result.num_occlusion_culled;
+    ret.num_distance_culled = frame_asset.stats.draw_cull_result.num_distance_culled;
 
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
     semaphore_submit_info.semaphore = frame_asset.timeline.handle();
@@ -1206,6 +1199,8 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     frustumY /= glm::length(frustumY.xyz());
 
     draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
+    draw_cull_data.lod_base = 10.f;
+    draw_cull_data.lod_step = 1.5f;
 
     frame_asset.cull_ubo->set_data(&draw_cull_data, sizeof(draw_cull_data));
 
