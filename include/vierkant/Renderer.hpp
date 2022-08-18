@@ -114,11 +114,11 @@ public:
         vierkant::Mesh::lod_t lods[8];
     };
 
-    struct alignas(16) indexed_indirect_command_t
+    struct indexed_indirect_command_t
     {
-        VkDrawIndexedIndirectCommand vk_draw;// size: 5
+        VkDrawIndexedIndirectCommand vk_draw = {};// size: 5
 
-        VkDrawMeshTasksIndirectCommandNV vk_mesh_draw;// size: 2
+        VkDrawMeshTasksIndirectCommandNV vk_mesh_draw = {};// size: 2
 
         uint32_t visible = false;
         uint32_t object_index = 0;
@@ -126,9 +126,6 @@ public:
         uint32_t num_meshlets = 0;
         uint32_t count_buffer_offset = 0;
         uint32_t first_draw_index = 0;
-        int padding[3];
-        glm::vec3 sphere_center;
-        float sphere_radius;
     };
 
     struct indirect_draw_bundle_t

@@ -209,6 +209,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
     ImGui::Checkbox("frustum culling", &pbr_renderer->settings.frustum_culling);
     ImGui::Checkbox("occlusion culling", &pbr_renderer->settings.occlusion_culling);
+    ImGui::Checkbox("enable lod", &pbr_renderer->settings.enable_lod);
     ImGui::Checkbox("indirect draw", &pbr_renderer->settings.indirect_draw);
     ImGui::Checkbox("meshlet pipeline", &pbr_renderer->settings.use_meshlet_pipeline);
     ImGui::Checkbox("tesselation", &pbr_renderer->settings.tesselation);
@@ -259,10 +260,9 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                 ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
 
                 auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
-                                                       offsetof(PBRDeferred::statistics_t, timings) +
-                                                       offsetof(PBRDeferred::timings_t, total_ms));
+                                                       offsetof(PBRDeferred::statistics_t, timings.total_ms));
                 ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0, 1, 0, 0,
-                                   sizeof(PBRDeferred::timings_t));
+                                   sizeof(PBRDeferred::statistics_t));
 
                 ImPlot::PopStyleVar();
                 ImPlot::EndPlot();

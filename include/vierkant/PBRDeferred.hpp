@@ -38,6 +38,9 @@ public:
         //! occlusion-culling
         bool occlusion_culling = true;
 
+        //! enable dynamic level-of-detail (lod) selection
+        bool enable_lod = true;
+
         //! use tesselation
         bool tesselation = false;
 
@@ -300,7 +303,9 @@ private:
         VkBool32 lod_enabled = false;
 
         // buffer references
-        uint64_t draws_in;
+        uint64_t draw_commands_in;
+        uint64_t mesh_draws_in;
+        uint64_t mesh_entries_in;
         uint64_t draws_out_pre;
         uint64_t draws_out_post;
         uint64_t draw_count_pre;
@@ -351,8 +356,10 @@ private:
     void cull_draw_commands(frame_asset_t &frame_asset,
                             const vierkant::CameraPtr &cam,
                             const vierkant::ImagePtr &depth_pyramid,
-                            const vierkant::BufferPtr &draws_in,
                             uint32_t num_draws,
+                            const vierkant::BufferPtr &draws_in,
+                            const vierkant::BufferPtr &mesh_draws_in,
+                            const vierkant::BufferPtr &mesh_entries_in,
                             vierkant::BufferPtr &draws_out,
                             vierkant::BufferPtr &draws_counts_out,
                             vierkant::BufferPtr &draws_out_post,

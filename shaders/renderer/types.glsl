@@ -127,8 +127,6 @@ struct indexed_indirect_command_t
     uint num_meshlets;
     uint count_buffer_offset;
     uint first_draw_index;
-    vec3 sphere_center;
-    float sphere_radius;
 };
 
 //! meshlet parameters

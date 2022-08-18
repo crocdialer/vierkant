@@ -545,25 +545,13 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 draw_command->object_index = indexed_drawable.object_index;
                 draw_command->visible = false;
 
-                if(drawable->mesh->meshlets)
-                {
-                    draw_command->base_meshlet = drawable->base_meshlet;
-                    draw_command->num_meshlets = drawable->num_meshlets;
+                draw_command->base_meshlet = drawable->base_meshlet;
+                draw_command->num_meshlets = drawable->num_meshlets;
 
-                    //! VkDrawMeshTasksIndirectCommandNV
-                    draw_command->vk_mesh_draw.taskCount =
-                            (m_mesh_task_count + drawable->num_meshlets - 1) / m_mesh_task_count;
-                    draw_command->vk_mesh_draw.firstTask = 0;
-                }
-
-                // bounding sphere xyz, radius
-                if(drawable->mesh && !drawable->mesh->entries.empty())
-                {
-                    auto bounding_sphere = drawable->mesh->entries[drawable->entry_index].bounding_sphere.transform(
-                            drawable->matrices.modelview);
-                    draw_command->sphere_center = bounding_sphere.center;
-                    draw_command->sphere_radius = bounding_sphere.radius;
-                }
+                //! VkDrawMeshTasksIndirectCommandNV
+                draw_command->vk_mesh_draw.taskCount =
+                        (m_mesh_task_count + drawable->num_meshlets - 1) / m_mesh_task_count;
+                draw_command->vk_mesh_draw.firstTask = 0;
             }
             else
             {
@@ -890,7 +878,8 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         if(!outbuffer)
         {
             outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes,
-                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                                  VMA_MEMORY_USAGE_GPU_ONLY);
         }
         else { outbuffer->set_data(nullptr, num_bytes); }
@@ -931,7 +920,8 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
 
         staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                      VK_ACCESS_2_SHADER_READ_BIT);
-        staging_copy(mesh_draws, frame_asset.mesh_draw_buffer, VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT,
+        staging_copy(mesh_draws, frame_asset.mesh_draw_buffer,
+                     VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                      VK_ACCESS_2_SHADER_READ_BIT);
         staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
                      VK_ACCESS_2_SHADER_READ_BIT);
@@ -950,6 +940,9 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
         copy_to_buffer(material_data, frame_asset.material_buffer);
     }
+
+    frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
+    frame_asset.indirect_indexed_bundle.mesh_entries = frame_asset.mesh_entry_buffer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

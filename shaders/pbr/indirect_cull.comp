@@ -17,6 +17,8 @@ struct draw_cull_result_t
 };
 
 layout(buffer_reference, std430) buffer DrawBufferPtr{ indexed_indirect_command_t v[]; };
+layout(buffer_reference, std430) buffer readonly MeshDrawBufferPtr{ mesh_draw_t v[]; };
+layout(buffer_reference, std430) buffer readonly MeshEntryBufferPtr{ mesh_entry_t v[]; };
 layout(buffer_reference, std430) buffer DrawCountBufferPtr{ uint v[]; };
 layout(buffer_reference, std430) buffer DrawResultPtr{ draw_cull_result_t v; };
 
@@ -38,6 +40,8 @@ struct draw_cull_data_t
 
     // buffer references
     DrawBufferPtr draws_in;
+    MeshDrawBufferPtr mesh_draws_in;
+    MeshEntryBufferPtr mesh_entries_in;
     DrawBufferPtr draws_out_pre;
     DrawBufferPtr draws_out_post;
     DrawCountBufferPtr draw_count_pre;
@@ -82,8 +86,11 @@ void main()
 
     bool visible = true;
 
-    vec3 center = (cull_data.view * vec4(draw.sphere_center, 1.0)).xyz;
-    float radius = draw.sphere_radius;
+    mesh_draw_t mesh_draw = cull_data.mesh_draws_in.v[draw.object_index];
+    mesh_entry_t mesh_entry = cull_data.mesh_entries_in.v[mesh_draw.mesh_index];
+
+    vec3 center = (cull_data.view * mesh_draw.current_matrices.modelview * vec4(mesh_entry.center, 1.0)).xyz;
+    float radius = mesh_entry.radius * length(mesh_draw.current_matrices.modelview[0].xyz);
 
     if(cull_data.frustum_cull)
     {
@@ -122,6 +129,20 @@ void main()
             visible = visible && (depth_sphere >= depth);
             if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
         }
+    }
+
+    // lod managment
+    if(visible && cull_data.lod_enabled)
+    {
+        // select worst lod for testing
+        lod_t lod = mesh_entry.lods[mesh_entry.lod_count - 1];
+
+        draw.vertexOffset = int(mesh_entry.vertex_offset);
+        draw.indexCount = lod.num_indices;
+        draw.firstIndex = lod.base_index;
+        draw.taskCount = (lod.num_meshlets + 31) / 32;
+        draw.base_meshlet = lod.base_meshlet;
+        draw.num_meshlets = lod.num_meshlets;
     }
 
     // count managment

@@ -611,6 +611,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_pre);
         frame_asset.indirect_draw_params_pre.draws_out = params.draws_out;
+        frame_asset.indirect_draw_params_pre.mesh_draws = params.mesh_draws;
+        frame_asset.indirect_draw_params_pre.mesh_entries = params.mesh_entries;
 
         if(params.num_draws && !frame_asset.recycle_commands)
         {
@@ -676,7 +678,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             frame_asset.indirect_draw_params_post.draws_out = params.draws_out;
 
             cull_draw_commands(frame_asset, cam, frame_asset.depth_pyramid,
-                               frame_asset.indirect_draw_params_pre.draws_in, params.num_draws,
+                               params.num_draws,
+                               frame_asset.indirect_draw_params_pre.draws_in,
+                               frame_asset.indirect_draw_params_pre.mesh_draws,
+                               frame_asset.indirect_draw_params_pre.mesh_entries,
                                frame_asset.indirect_draw_params_pre.draws_out,
                                frame_asset.indirect_draw_params_pre.draws_counts_out,
                                frame_asset.indirect_draw_params_post.draws_out,
@@ -1160,8 +1165,10 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::ind
 void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
                                      const vierkant::CameraPtr &cam,
                                      const vierkant::ImagePtr &depth_pyramid,
-                                     const vierkant::BufferPtr &draws_in,
                                      uint32_t num_draws,
+                                     const vierkant::BufferPtr &draws_in,
+                                     const vierkant::BufferPtr &mesh_draws_in,
+                                     const vierkant::BufferPtr &mesh_entries_in,
                                      vierkant::BufferPtr &draws_out,
                                      vierkant::BufferPtr &draws_counts_out,
                                      vierkant::BufferPtr &draws_out_post,
@@ -1173,9 +1180,12 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     draw_cull_data.occlusion_cull = frame_asset.settings.occlusion_culling;
     draw_cull_data.distance_cull = false;
     draw_cull_data.frustum_cull = frame_asset.settings.frustum_culling;
+    draw_cull_data.lod_enabled = frame_asset.settings.enable_lod;
 
     // buffer references
-    draw_cull_data.draws_in = draws_in->device_address();
+    draw_cull_data.draw_commands_in = draws_in->device_address();
+    draw_cull_data.mesh_draws_in = mesh_draws_in->device_address();
+    draw_cull_data.mesh_entries_in = mesh_entries_in->device_address();
     draw_cull_data.draws_out_pre = draws_out->device_address();
     draw_cull_data.draws_out_post = draws_out_post->device_address();
     draw_cull_data.draw_count_pre = draws_counts_out->device_address();
