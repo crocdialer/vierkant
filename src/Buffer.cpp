@@ -162,7 +162,11 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
 
     if(m_num_bytes < the_num_bytes)
     {
-        if(m_buffer){ vmaDestroyBuffer(m_device->vk_mem_allocator(), m_buffer, m_allocation); }
+        if(m_buffer)
+        {
+            unmap();
+            vmaDestroyBuffer(m_device->vk_mem_allocator(), m_buffer, m_allocation);
+        }
 
         // create buffer
         VkBufferCreateInfo buffer_info = {};

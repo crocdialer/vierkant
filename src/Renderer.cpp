@@ -199,7 +199,7 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
     m_staged_drawables.resize(create_info.num_frames_in_flight);
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
-    m_queue = create_info.queue ? create_info.queue : m_device->queue();
+    m_queue = create_info.queue;
 
     m_command_pool = create_info.command_pool ? create_info.command_pool :
                      vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
@@ -208,6 +208,8 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
 
     for(auto &render_asset: m_frame_assets)
     {
+        render_asset.staging_command_buffer =
+                vierkant::CommandBuffer(m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
         render_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get(),
                                                               VK_COMMAND_BUFFER_LEVEL_SECONDARY);
         render_asset.query_pool = vierkant::create_query_pool(m_device, query_count, VK_QUERY_TYPE_TIMESTAMP);
@@ -343,12 +345,18 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
     // keep storage buffers
     next_assets.mesh_draw_buffer = std::move(current_assets.mesh_draw_buffer);
-    next_assets.mesh_lod_buffer = std::move(current_assets.mesh_lod_buffer);
+    next_assets.mesh_entry_buffer = std::move(current_assets.mesh_entry_buffer);
     next_assets.material_buffer = std::move(current_assets.material_buffer);
     next_assets.indirect_bundle = std::move(current_assets.indirect_bundle);
     next_assets.indirect_indexed_bundle = std::move(current_assets.indirect_indexed_bundle);
     next_assets.indirect_bundle.num_draws = next_assets.indirect_indexed_bundle.num_draws = 0;
     next_assets.frame_time = current_assets.frame_time;
+
+    // move commandbuffer & query-pool
+    next_assets.command_buffer = std::move(current_assets.command_buffer);
+    next_assets.staging_command_buffer = std::move(current_assets.staging_command_buffer);
+    next_assets.staging_buffer = std::move(current_assets.staging_buffer);
+    next_assets.query_pool = std::move(current_assets.query_pool);
 
     struct indirect_draw_asset_t
     {
@@ -589,9 +597,9 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     inheritance.framebuffer = framebuffer.handle();
     inheritance.renderPass = framebuffer.renderpass().get();
 
-    // move commandbuffer & query-pool
-    next_assets.command_buffer = std::move(current_assets.command_buffer);
-    next_assets.query_pool = std::move(current_assets.query_pool);
+//    // move commandbuffer & query-pool
+//    next_assets.command_buffer = std::move(current_assets.command_buffer);
+//    next_assets.query_pool = std::move(current_assets.query_pool);
 
     auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
@@ -803,8 +811,6 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
     std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
 
     // joined drawable buffers
-//    std::vector<matrix_struct_t> matrix_data(drawables.size());
-//    std::vector<matrix_struct_t> matrix_history_data(drawables.size());
     std::vector<mesh_draw_t> mesh_draws(drawables.size());
     std::vector<material_struct_t> material_data(drawables.size());
 
@@ -853,11 +859,97 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         else{ out_buffer->set_data(array); }
     };
 
-    // create/upload joined buffers
-    copy_to_buffer(material_data, frame_asset.material_buffer);
-    copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
-//    copy_to_buffer(matrix_data, frame_asset.matrix_buffer);
-//    copy_to_buffer(matrix_history_data, frame_asset.matrix_history_buffer);
+    constexpr auto num_array_bytes = [](const auto &array) -> size_t
+    {
+        using elem_t = typename std::decay<decltype(array)>::type::value_type;
+        return array.size() * sizeof(elem_t);
+    };
+
+    size_t staging_offset = 0;
+    std::vector<VkBufferMemoryBarrier2> barriers;
+
+    auto staging_copy = [num_array_bytes,
+                         &staging_buffer = frame_asset.staging_buffer,
+                         &staging_offset,
+                         &barriers,
+                         command_buffer = frame_asset.staging_command_buffer.handle(),
+                         device = m_device](
+                                const auto &array,
+                                vierkant::BufferPtr &outbuffer,
+                                VkPipelineStageFlags2 dst_stage,
+                                VkAccessFlags2 dst_access)
+    {
+        size_t num_bytes = num_array_bytes(array);
+
+        assert(staging_buffer->num_bytes() - num_bytes >= staging_offset);
+
+        // copy array into staging-buffer
+        auto staging_data = static_cast<uint8_t *>(staging_buffer->map()) + staging_offset;
+        memcpy(staging_data, array.data(), num_bytes);
+
+        if(!outbuffer)
+        {
+            outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes,
+                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                 VMA_MEMORY_USAGE_GPU_ONLY);
+        }
+        else { outbuffer->set_data(nullptr, num_bytes); }
+
+        // issue copy from staging-buffer to GPU-buffer
+        staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
+        staging_offset += num_bytes;
+
+        VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+        barrier.buffer = outbuffer->handle();
+        barrier.offset = 0;
+        barrier.size = VK_WHOLE_SIZE;
+        barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        barrier.dstStageMask = dst_stage;
+        barrier.dstAccessMask = dst_access;
+        barriers.push_back(barrier);
+    };
+
+    if(m_queue)
+    {
+        size_t num_staging_bytes = 0;
+        num_staging_bytes += num_array_bytes(mesh_entries);
+        num_staging_bytes += num_array_bytes(mesh_draws);
+        num_staging_bytes += num_array_bytes(material_data);
+        num_staging_bytes = std::max(num_staging_bytes, 1UL << 20);
+
+        if(!frame_asset.staging_buffer)
+        {
+            frame_asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, num_staging_bytes,
+                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                                  VMA_MEMORY_USAGE_CPU_ONLY);
+        }
+        else { frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes); }
+
+        frame_asset.staging_command_buffer.begin();
+
+        staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                     VK_ACCESS_2_SHADER_READ_BIT);
+        staging_copy(mesh_draws, frame_asset.mesh_draw_buffer, VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT,
+                     VK_ACCESS_2_SHADER_READ_BIT);
+        staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                     VK_ACCESS_2_SHADER_READ_BIT);
+
+        VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+        dependency_info.bufferMemoryBarrierCount = barriers.size();
+        dependency_info.pBufferMemoryBarriers = barriers.data();
+        vkCmdPipelineBarrier2(frame_asset.staging_command_buffer.handle(), &dependency_info);
+
+        frame_asset.staging_command_buffer.submit(m_queue);
+    }
+    else
+    {
+        // create/upload joined buffers
+        copy_to_buffer(mesh_entries, frame_asset.mesh_entry_buffer);
+        copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
+        copy_to_buffer(material_data, frame_asset.material_buffer);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

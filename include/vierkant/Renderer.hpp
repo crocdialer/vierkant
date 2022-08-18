@@ -144,6 +144,12 @@ public:
 
         //! device array of uint32_t
         vierkant::BufferPtr draws_counts_out;
+
+        //! device array containing any array of mesh_draw_t
+        vierkant::BufferPtr mesh_draws;
+
+        //! device array containing any array of mesh_entry_t
+        vierkant::BufferPtr mesh_entries;
     };
 
     //! define syntax for a culling-delegate
@@ -197,7 +203,7 @@ public:
         uint32_t num_frames_in_flight = 1;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
-        bool indirect_draw = true;
+        bool indirect_draw = false;
         bool enable_mesh_shader = false;
         uint32_t mesh_task_count = 32;
         vierkant::CommandPoolPtr command_pool = nullptr;
@@ -337,17 +343,20 @@ private:
         std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_set_layouts;
         descriptor_set_map_t descriptor_sets;
 
-        // SSBOs containing everything
+        // SSBOs containing everything (using gpu-mem iff a queue was provided)
         vierkant::BufferPtr mesh_draw_buffer;
-        vierkant::BufferPtr mesh_lod_buffer;
+        vierkant::BufferPtr mesh_entry_buffer;
         vierkant::BufferPtr material_buffer;
+
+        // host visible keep-alive staging-buffer
+        vierkant::BufferPtr staging_buffer;
 
         // draw-indirect buffers
         indirect_draw_bundle_t indirect_bundle;
         indirect_draw_bundle_t indirect_indexed_bundle;
 
         std::vector<drawable_t> drawables;
-        vierkant::CommandBuffer command_buffer;
+        vierkant::CommandBuffer command_buffer, staging_command_buffer;
 
         // used for gpu timestamps
         vierkant::QueryPoolPtr query_pool;
