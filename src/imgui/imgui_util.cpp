@@ -239,6 +239,47 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             auto stats = pbr_renderer->statistics();
 
             const auto &draw_result = stats.back().draw_cull_result;
+
+            std::vector<PBRDeferred::statistics_t> values(stats.begin(), stats.end());
+            auto max_axis_x = static_cast<double>(pbr_renderer->settings.timing_history_size);
+
+            // drawcall/culling plots
+            if(ImGui::TreeNode("drawcalls"))
+            {
+                if(ImPlot::BeginPlot("##drawcalls"))
+                {
+
+                    float bg_alpha = .0f;
+                    ImVec4 *implot_colors = ImPlot::GetStyle().Colors;
+                    implot_colors[ImPlotCol_FrameBg] = ImVec4(0, 0, 0, bg_alpha);
+
+                    uint32_t max_draws =
+                            (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                                return lhs.draw_cull_result.draw_count < rhs.draw_cull_result.draw_count;
+                            }))->draw_cull_result.draw_count;
+
+                    ImPlot::SetupAxes("frames", "count", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
+                    ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_draws, ImPlotCond_Always);
+
+                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
+                    ImPlot::PlotShaded(
+                            "frustum culled",
+                            reinterpret_cast<const uint32_t *>(
+                                    (uint8_t *) values.data() +
+                                    offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
+                            static_cast<int>(values.size()), 0, 1, 0, 0, sizeof(PBRDeferred::statistics_t));
+                    ImPlot::PlotShaded(
+                            "occluded",
+                            reinterpret_cast<const uint32_t *>(
+                                    (uint8_t *) values.data() +
+                                    offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
+                            static_cast<int>(values.size()), 0, 1, 0, 0, sizeof(PBRDeferred::statistics_t));
+                    ImPlot::PopStyleVar();
+                    ImPlot::EndPlot();
+                }
+                ImGui::TreePop();
+            }
+
             ImGui::BulletText("drawcount: %d", draw_result.draw_count);
             ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
             ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
@@ -246,26 +287,26 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             ImGui::Separator();
             ImGui::Spacing();
 
-            if(ImPlot::BeginPlot("##pbr_timings"))
+            if(ImGui::TreeNode("timings"))
             {
-                std::vector<PBRDeferred::statistics_t> values(stats.begin(), stats.end());
+                if(ImPlot::BeginPlot("##pbr_timings"))
+                {
+                    double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                      return lhs.timings.total_ms < rhs.timings.total_ms;
+                    }))->timings.total_ms;
 
-                double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
-                                    return lhs.timings.total_ms < rhs.timings.total_ms;
-                                }))->timings.total_ms;
+                    ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
+                    ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_ms, ImPlotCond_Always);
+                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
 
-                ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
-                ImPlot::SetupAxesLimits(0, static_cast<double>(pbr_renderer->settings.timing_history_size), 0, max_ms,
-                                        ImPlotCond_Always);
-                ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
-
-                auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
-                                                       offsetof(PBRDeferred::statistics_t, timings.total_ms));
-                ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0, 1, 0, 0,
-                                   sizeof(PBRDeferred::statistics_t));
-
-                ImPlot::PopStyleVar();
-                ImPlot::EndPlot();
+                    auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
+                                                           offsetof(PBRDeferred::statistics_t, timings.total_ms));
+                    ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0, 1, 0, 0,
+                                       sizeof(PBRDeferred::statistics_t));
+                    ImPlot::PopStyleVar();
+                    ImPlot::EndPlot();
+                }
+                ImGui::TreePop();
             }
             const auto &last = stats.back().timings;
             ImGui::BulletText("g_buffer_pre: %.3f ms", last.g_buffer_pre_ms);

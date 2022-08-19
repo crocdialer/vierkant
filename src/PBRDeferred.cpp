@@ -472,7 +472,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     // decide on indirect rendering-path
     bool use_gpu_culling = frame_asset.settings.indirect_draw &&
-                           (frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling);
+                           (frame_asset.settings.frustum_culling || frame_asset.settings.occlusion_culling ||
+                            frame_asset.settings.enable_lod);
 
     if(!frame_asset.recycle_commands)
     {

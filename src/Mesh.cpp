@@ -457,9 +457,9 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
                 result_factor = static_cast<float>(num_indices) / static_cast<float>(lod_indices.size());
 
-                spdlog::trace("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
-                              "target/actual error: {} / {}",
-                              i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
+//                spdlog::trace("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
+//                              "target/actual error: {} / {}",
+//                              i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
 
                 // not getting any simpler
                 if(result_factor - shrink_factor > max_mismatch) { break; }
@@ -477,7 +477,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 ret.index_buffer.insert(ret.index_buffer.end(), lod_indices.begin(), lod_indices.end());
             }
 
-            spdlog::debug("generated: {} levels-of-detail ({} -> {} triangles) - {}", extra_offsets.lods.size(),
+            spdlog::trace("generated: {} levels-of-detail ({} -> {} triangles) - {}", extra_offsets.lods.size(),
                           max_num / 3, min_num / 3,
                           std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()));
         }
@@ -568,7 +568,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
         if(!ret.meshlets.empty())
         {
-            spdlog::debug("generate_meshlets: {} ({} mesh(es) - {} triangles - {} meshlets)",
+            spdlog::trace("generate_meshlets: {} ({} mesh(es) - {} triangles - {} meshlets)",
                           std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.offsets.size(),
                           ret.index_buffer.size() / 3, ret.meshlets.size());
         }
