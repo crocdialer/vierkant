@@ -496,13 +496,13 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         // generate meshlets for all LODs of all submeshes
         for(auto &[geom, offsets]: splicer.offsets)
         {
-            spdlog::stopwatch single_timer;
-
             auto &extra_offsets = extra_offset_map[geom];
 
             // all LODs
             for(uint32_t lod_idx = 0; lod_idx < extra_offsets.lods.size(); ++lod_idx)
             {
+                spdlog::stopwatch single_timer;
+
                 auto &lod = extra_offsets.lods[lod_idx];
 
                 auto index_data = ret.index_buffer.data() + lod.base_index;
@@ -568,7 +568,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
         if(!ret.meshlets.empty())
         {
-            spdlog::trace("generate_meshlets: {} ({} mesh(es) - {} triangles - {} meshlets)",
+            spdlog::debug("generate_meshlets: {} ({} mesh(es) - {} triangles - {} meshlets)",
                           std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.offsets.size(),
                           ret.index_buffer.size() / 3, ret.meshlets.size());
         }

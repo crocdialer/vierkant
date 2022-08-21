@@ -5,6 +5,7 @@
 #include <unordered_map>
 
 #include "vierkant/vierkant.hpp"
+#include "vierkant/PipelineCache.hpp"
 
 BOOST_AUTO_TEST_CASE(TestPipeline_Format)
 {
@@ -70,11 +71,37 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
     auto pipeline = vierkant::Pipeline::create(test_context.device, fmt);
     BOOST_CHECK(pipeline);
 
-    // expected error here
+    // TODO: expected error here, make this obsolete
     BOOST_CHECK(test_context.validation_data.num_errors);
     test_context.validation_data.reset();
-
-
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+BOOST_AUTO_TEST_CASE(TestPipelineCache)
+{
+    VkExtent3D fb_size = {1920, 1080, 1};
+
+    vulkan_test_context_t test_context;
+
+    vierkant::Framebuffer::create_info_t create_info = {};
+    create_info.size = fb_size;
+    auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
+
+    vierkant::graphics_pipeline_info_t fmt;
+    fmt.viewport.width = framebuffer.extent().width;
+    fmt.viewport.height = framebuffer.extent().height;
+    fmt.renderpass = framebuffer.renderpass().get();
+    fmt.shader_stages = vierkant::create_shader_stages(test_context.device, vierkant::ShaderType::UNLIT_TEXTURE);
+
+    auto cache = vierkant::PipelineCache::create(test_context.device);
+
+    auto pipeline = cache->pipeline(fmt);
+    BOOST_CHECK(pipeline);
+    BOOST_CHECK(cache->has(fmt));
+    BOOST_CHECK(pipeline == cache->pipeline(fmt));
+
+    // TODO: expected error here, make this obsolete
+    BOOST_CHECK(test_context.validation_data.num_errors);
+    test_context.validation_data.reset();
+}

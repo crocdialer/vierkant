@@ -70,6 +70,39 @@ public:
         return retrieve_pipeline(format, m_compute_pipelines, m_compute_pipeline_mutex);
     }
 
+    /**
+     * @brief   'has' returns true, if a pipeline matching provided format already exists in the cache.
+     *
+     * @param   format  a graphics_pipeline_info_t describing a pipeline
+     * @return  true , if a pipeline matching provided format already exists in the cache.
+     */
+    bool has(const graphics_pipeline_info_t &format) const
+    {
+        return has(m_graphics_pipelines, m_graphics_pipeline_mutex, format);
+    }
+
+    /**
+     * @brief   'has' returns true, if a pipeline matching provided format already exists in the cache.
+     *
+     * @param   format  a raytracing_pipeline_info_t describing a pipeline
+     * @return  true , if a pipeline matching provided format already exists in the cache.
+     */
+    bool has(const raytracing_pipeline_info_t &format) const
+    {
+        return has(m_ray_pipelines, m_ray_pipeline_mutex, format);
+    }
+
+    /**
+     * @brief   'has' returns true, if a pipeline matching provided format already exists in the cache.
+     *
+     * @param   format  a compute_pipeline_info_t describing a pipeline
+     * @return  true , if a pipeline matching provided format already exists in the cache.
+     */
+    bool has(const compute_pipeline_info_t &format) const
+    {
+        return has(m_compute_pipelines, m_compute_pipeline_mutex, format);
+    }
+
     const vierkant::shader_stage_map_t &shader_stages(ShaderType shader_type)
     {
         // read-only locked for searching
@@ -132,9 +165,21 @@ private:
         return pipe_it->second;
     }
 
+    template<typename FMT_T>
+    inline bool has(const std::unordered_map<FMT_T, PipelinePtr> &map,
+                    std::shared_mutex &mutex,
+                    const FMT_T &format) const
+    {
+        // read-only locked for searching
+        {
+            std::shared_lock lock(mutex);
+            return map.count(format);
+        }
+    }
+
     vierkant::DevicePtr m_device;
 
-    std::shared_mutex m_graphics_pipeline_mutex, m_ray_pipeline_mutex, m_compute_pipeline_mutex;
+    mutable std::shared_mutex m_graphics_pipeline_mutex, m_ray_pipeline_mutex, m_compute_pipeline_mutex;
 
     std::unordered_map<graphics_pipeline_info_t, PipelinePtr> m_graphics_pipelines;
     std::unordered_map<raytracing_pipeline_info_t, PipelinePtr> m_ray_pipelines;

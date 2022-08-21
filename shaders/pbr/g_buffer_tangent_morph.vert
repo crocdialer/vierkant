@@ -101,7 +101,7 @@ void main()
     // apply morph-targets
     for(uint i = 0; i < morph_params.morph_count; ++i)
     {
-        uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + (gl_VertexIndex - draw_command.vertexOffset);
+        uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + gl_VertexIndex - draw_command.vertexOffset;
         v.position += morph_vertices[morph_index].position * morph_params.weights[i];
         v.normal = slerp(v.normal, v.normal + morph_vertices[morph_index].normal, morph_params.weights[i]);
     }
