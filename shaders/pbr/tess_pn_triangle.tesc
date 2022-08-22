@@ -39,7 +39,7 @@ layout(location = LOCATION_VERTEX_BUNDLE) in VertexData vertex_in[];
 //layout(location = 1) out VertexData vertex_out[3];
 layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices_out[3];
 layout(location = LOCATION_VERTEX_BUNDLE) out VertexData vertex_out[3];
-layout(location = 9) out PnPatch out_patch[3];
+layout(location = 10) out PnPatch out_patch[3];
 
 float wij(int i, int j)
 {

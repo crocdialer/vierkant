@@ -48,7 +48,7 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
 
 layout(location = LOCATION_INDEX_BUNDLE) flat in index_bundle_t indices_in[];
 layout(location = LOCATION_VERTEX_BUNDLE) in VertexData vertex_in[];
-layout(location = 9) in PnPatch in_patch[];
+layout(location = 10) in PnPatch in_patch[];
 
 layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices_out;
 layout(location = LOCATION_VERTEX_BUNDLE) out VertexData vertex_out;

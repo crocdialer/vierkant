@@ -97,6 +97,7 @@ void main()
         gl_MeshVerticesNV[i].gl_Position = jittered_position;
 
         indices[i].mesh_draw_index = object_index;
+        indices[i].material_index = object_index;
         indices[i].meshlet_index = mi;
 
         vertex_out[i].tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;

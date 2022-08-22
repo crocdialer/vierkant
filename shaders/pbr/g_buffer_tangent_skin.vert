@@ -49,6 +49,8 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 void main()
 {
     indices.mesh_draw_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex;
+    indices.material_index = gl_BaseInstance;
+
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 

@@ -34,6 +34,7 @@ void main()
     Vertex v = vertices[gl_VertexIndex];
 
     indices.mesh_draw_index = gl_BaseInstance;
+    indices.material_index = gl_BaseInstance;
 
     vertex_out.current_position = vec4(v.position, 1.0);
     vertex_out.last_position = vec4(v.position, 1.0);

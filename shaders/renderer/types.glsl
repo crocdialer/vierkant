@@ -38,12 +38,13 @@ struct mesh_entry_t
 struct index_bundle_t
 {
     uint mesh_draw_index;
+    uint material_index;
     uint meshlet_index;
     uint triangle_index;
 };
 
 #define LOCATION_INDEX_BUNDLE 0
-#define LOCATION_VERTEX_BUNDLE 3
+#define LOCATION_VERTEX_BUNDLE 4
 
 //! blendmode definitions
 #define BLEND_MODE_OPAQUE 0

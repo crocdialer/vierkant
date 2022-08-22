@@ -57,7 +57,7 @@ void main()
 {
     uint rng_state = tea(context.random_seed, uint(context.size.x * gl_FragCoord.y + gl_FragCoord.x));
 
-    material_struct_t material = materials[indices.mesh_draw_index];
+    material_struct_t material = materials[indices.material_index];
 
     out_color = vec4(1);
     out_emission = vec4(0);

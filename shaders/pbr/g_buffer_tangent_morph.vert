@@ -108,6 +108,7 @@ void main()
     v.normal = normalize(v.normal);
 
     indices.mesh_draw_index = draw_command.object_index;
+    indices.material_index = draw_command.object_index;
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
