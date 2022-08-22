@@ -235,6 +235,9 @@ public:
     //! option to use a meshlet-based pipeline
     bool use_mesh_shader = false;
 
+    //! optional flag to visualize object/meshlet indices
+    bool debug_draw_ids = false;
+
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;
 

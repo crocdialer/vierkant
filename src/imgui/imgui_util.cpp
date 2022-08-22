@@ -207,6 +207,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
+    ImGui::Checkbox("debug draw ids", &pbr_renderer->settings.debug_draw_ids);
     ImGui::Checkbox("frustum culling", &pbr_renderer->settings.frustum_culling);
     ImGui::Checkbox("occlusion culling", &pbr_renderer->settings.occlusion_culling);
     ImGui::Checkbox("enable lod", &pbr_renderer->settings.enable_lod);
@@ -216,7 +217,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("wireframe", &pbr_renderer->settings.wireframe);
     ImGui::Checkbox("taa", &pbr_renderer->settings.use_taa);
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
-    ImGui::SliderFloat("environment_factor", &pbr_renderer->settings.environment_factor, 0.f, 5.f);
+    ImGui::SliderFloat("environment", &pbr_renderer->settings.environment_factor, 0.f, 5.f);
     ImGui::Checkbox("tonemap", &pbr_renderer->settings.tonemap);
     ImGui::Checkbox("bloom", &pbr_renderer->settings.bloom);
     ImGui::Checkbox("motionblur", &pbr_renderer->settings.motionblur);

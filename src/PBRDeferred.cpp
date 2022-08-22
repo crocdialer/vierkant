@@ -583,15 +583,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         if(use_gpu_culling) { m_g_renderer_post.stage_drawables(cull_result.drawables); }
     }
 
-    // material override
-    m_g_renderer_pre.disable_material = frame_asset.settings.disable_material;
-    m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
-
-    m_g_renderer_pre.indirect_draw = frame_asset.settings.indirect_draw;
-    m_g_renderer_post.indirect_draw = frame_asset.settings.indirect_draw;
-
-    m_g_renderer_pre.use_mesh_shader = frame_asset.settings.use_meshlet_pipeline;
-    m_g_renderer_post.use_mesh_shader = frame_asset.settings.use_meshlet_pipeline;
+    // apply current settings for both renderers
+    m_g_renderer_pre.disable_material = m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
+    m_g_renderer_pre.debug_draw_ids = m_g_renderer_post.debug_draw_ids = frame_asset.settings.debug_draw_ids;
+    m_g_renderer_pre.indirect_draw = m_g_renderer_post.indirect_draw = frame_asset.settings.indirect_draw;
+    m_g_renderer_pre.use_mesh_shader = m_g_renderer_post.use_mesh_shader = frame_asset.settings.use_meshlet_pipeline;
 
     // draw last visible objects
     m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset,

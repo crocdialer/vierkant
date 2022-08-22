@@ -32,6 +32,9 @@ public:
         //! disable colors from textures, material, positions
         bool disable_material = false;
 
+        //! optional flag to visualize object/meshlet indices
+        bool debug_draw_ids = false;
+
         //! frustum-culling
         bool frustum_culling = true;
 

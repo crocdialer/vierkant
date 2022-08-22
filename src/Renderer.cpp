@@ -262,6 +262,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.viewport, rhs.viewport);
     std::swap(lhs.scissor, rhs.scissor);
     std::swap(lhs.disable_material, rhs.disable_material);
+    std::swap(lhs.debug_draw_ids, rhs.debug_draw_ids);
     std::swap(lhs.indirect_draw, rhs.indirect_draw);
     std::swap(lhs.draw_indirect_delegate, rhs.draw_indirect_delegate);
     std::swap(lhs.m_device, rhs.m_device);
@@ -582,15 +583,12 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.random_seed = m_random_engine();
     push_constants.disable_material = disable_material;
+    push_constants.debug_draw_ids = debug_draw_ids;
 
     VkCommandBufferInheritanceInfo inheritance = {};
     inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
     inheritance.framebuffer = framebuffer.handle();
     inheritance.renderPass = framebuffer.renderpass().get();
-
-//    // move commandbuffer & query-pool
-//    next_assets.command_buffer = std::move(current_assets.command_buffer);
-//    next_assets.query_pool = std::move(current_assets.query_pool);
 
     auto &command_buffer = next_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
