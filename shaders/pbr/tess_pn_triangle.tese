@@ -46,12 +46,12 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
     camera_t last_camera;
 };
 
-layout(location = 0) flat in uint in_object_index[];
-layout(location = 1) in VertexData vertex_in[];
-layout(location = 7) in PnPatch in_patch[];
+layout(location = LOCATION_INDEX_BUNDLE) flat in index_bundle_t indices_in[];
+layout(location = LOCATION_VERTEX_BUNDLE) in VertexData vertex_in[];
+layout(location = 9) in PnPatch in_patch[];
 
-layout(location = 0) flat out uint out_object_index;
-layout(location = 1) out VertexData vertex_out;
+layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices_out;
+layout(location = LOCATION_VERTEX_BUNDLE) out VertexData vertex_out;
 
 VertexData interpolate_vertex(vec3 coord)
 {
@@ -121,7 +121,7 @@ void main(void)
     vertex_out = interpolate_vertex_pn();
 
     // mvp transform and jittering
-    uint object_index = in_object_index[0];
+    uint object_index = indices_in[0].mesh_draw_index;
     matrix_struct_t m = draws[object_index].current_matrices;
     matrix_struct_t m_last = draws[object_index].last_matrices;
 
@@ -132,7 +132,7 @@ void main(void)
     jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
     gl_Position = jittered_position;
 
-    out_object_index = in_object_index[0];
+    indices_out = indices_in[0];
     vertex_out.tex_coord = (m.texture * vec4(vertex_out.tex_coord, 0, 1)).xy;
     vertex_out.normal = normalize(mat3(m.normal) * vertex_out.normal);
     vertex_out.tangent = normalize(mat3(m.normal) * vertex_out.tangent);

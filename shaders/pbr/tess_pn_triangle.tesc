@@ -30,12 +30,16 @@ struct VertexData
     vec4 current_position;
     vec4 last_position;
 };
-layout(location = 0) flat in uint in_object_index[];
-layout(location = 1) in VertexData vertex_in[];
+//layout(location = 0) flat in uint in_object_index[];
+//layout(location = 1) in VertexData vertex_in[];
+layout(location = LOCATION_INDEX_BUNDLE) flat in index_bundle_t indices_in[];
+layout(location = LOCATION_VERTEX_BUNDLE) in VertexData vertex_in[];
 
-layout(location = 0) flat out uint out_object_index[3];
-layout(location = 1) out VertexData vertex_out[3];
-layout(location = 7) out PnPatch out_patch[3];
+//layout(location = 0) flat out uint out_object_index[3];
+//layout(location = 1) out VertexData vertex_out[3];
+layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices_out[3];
+layout(location = LOCATION_VERTEX_BUNDLE) out VertexData vertex_out[3];
+layout(location = 9) out PnPatch out_patch[3];
 
 float wij(int i, int j)
 {
@@ -58,7 +62,7 @@ void main(void)
     gl_TessLevelInner[0] = tess_lvl;
 
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
-    out_object_index[gl_InvocationID] = in_object_index[gl_InvocationID];
+    indices_out[gl_InvocationID] = indices_in[gl_InvocationID];
     vertex_out[gl_InvocationID] = vertex_in[gl_InvocationID];
 
     // set base

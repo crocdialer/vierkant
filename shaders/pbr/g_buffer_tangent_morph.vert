@@ -83,8 +83,8 @@ layout(push_constant) uniform PushConstants
     render_context_t context;
 };
 
-layout(location = 0) flat out uint object_index;
-layout(location = 1) out VertexData
+layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices;
+layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 {
     vec2 tex_coord;
     vec3 normal;
@@ -107,9 +107,9 @@ void main()
     }
     v.normal = normalize(v.normal);
 
-    object_index = draw_command.object_index;
-    matrix_struct_t m = draws[object_index].current_matrices;
-    matrix_struct_t m_last = draws[object_index].last_matrices;
+    indices.mesh_draw_index = draw_command.object_index;
+    matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
+    matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);

@@ -13,11 +13,11 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
     material_struct_t materials[];
 };
 
-layout(location = 0) flat in uint object_index;
+layout(location = LOCATION_INDEX_BUNDLE) flat in index_bundle_t indices;
 
 layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = materials[object_index].color;
+    out_color = materials[indices.mesh_draw_index].color;
 }

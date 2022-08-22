@@ -34,8 +34,8 @@ layout(location = ATTRIB_NORMAL) in vec3 a_normal;
 layout(location = ATTRIB_BONE_INDICES) in uvec4 a_bone_ids;
 layout(location = ATTRIB_BONE_WEIGHTS) in vec4 a_bone_weights;
 
-layout(location = 0) flat out uint object_index;
-layout(location = 1) out VertexData
+layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices;
+layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 {
     vec3 normal;
     vec4 current_position;
@@ -44,9 +44,9 @@ layout(location = 1) out VertexData
 
 void main()
 {
-    object_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex
-    matrix_struct_t m = draws[object_index].current_matrices;
-    matrix_struct_t m_last = draws[object_index].last_matrices;
+    indices.mesh_draw_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex
+    matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
+    matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
     vec4 current_vertex = vec4(0);
     vec4 last_vertex = vec4(0);

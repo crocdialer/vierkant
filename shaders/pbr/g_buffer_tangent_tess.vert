@@ -19,8 +19,8 @@ layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
     Vertex vertices[];
 };
 
-layout(location = 0) flat out uint object_index;
-layout(location = 1) out VertexData
+layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices;
+layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 {
     vec2 tex_coord;
     vec3 normal;
@@ -33,7 +33,7 @@ void main()
 {
     Vertex v = vertices[gl_VertexIndex];
 
-    object_index = gl_BaseInstance;
+    indices.mesh_draw_index = gl_BaseInstance;
 
     vertex_out.current_position = vec4(v.position, 1.0);
     vertex_out.last_position = vec4(v.position, 1.0);

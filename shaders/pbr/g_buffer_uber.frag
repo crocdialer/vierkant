@@ -24,8 +24,8 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
 
 layout(set = 1, binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[];
 
-layout(location = 0) flat in uint object_index;
-layout(location = 1) in VertexData
+layout(location = LOCATION_INDEX_BUNDLE) flat in index_bundle_t indices;
+layout(location = LOCATION_VERTEX_BUNDLE) in VertexData
 {
     vec2 tex_coord;
     vec3 normal;
@@ -57,7 +57,7 @@ void main()
 {
     uint rng_state = tea(context.random_seed, uint(context.size.x * gl_FragCoord.y + gl_FragCoord.x));
 
-    material_struct_t material = materials[object_index];
+    material_struct_t material = materials[indices.mesh_draw_index];
 
     out_color = vec4(1);
     out_emission = vec4(0);
@@ -89,9 +89,12 @@ void main()
         out_emission.rgb *= out_emission.a;
     }
 
-//    // debug object-ids
-//    uint obj_hash = hash(object_index);
-//    out_color.rgb *= vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+    // debug object-ids
+    if(context.debug_draw_ids)
+    {
+        uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);
+        out_color.rgb *= vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+    }
 
     vec3 normal = vertex_in.normal;
 

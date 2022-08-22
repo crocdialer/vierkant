@@ -316,6 +316,9 @@ private:
         //! optional flag to disable colors from materials
         int disable_material = 0;
 
+        //! optional flag to visualize object/meshlet indices
+        int debug_draw_ids = 0;
+
         //! base index into an array of indexed_indirect_command_t
         uint32_t base_draw_index = 0;
     };

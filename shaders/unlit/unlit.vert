@@ -14,11 +14,11 @@ layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBu
 
 layout(location = ATTRIB_POSITION) in vec3 a_position;
 
-layout(location = 0) flat out uint object_index;
+layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices;
 
 void main()
 {
-    object_index = gl_InstanceIndex;//gl_BaseInstance + gl_InstanceIndex
-    matrix_struct_t m = draws[object_index].current_matrices;
+    indices.mesh_draw_index = gl_InstanceIndex;//gl_BaseInstance + gl_InstanceIndex
+    matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
 }

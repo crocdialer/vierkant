@@ -35,6 +35,16 @@ struct mesh_entry_t
     lod_t lods[8];
 };
 
+struct index_bundle_t
+{
+    uint mesh_draw_index;
+    uint meshlet_index;
+    uint triangle_index;
+};
+
+#define LOCATION_INDEX_BUNDLE 0
+#define LOCATION_VERTEX_BUNDLE 3
+
 //! blendmode definitions
 #define BLEND_MODE_OPAQUE 0
 #define BLEND_MODE_BLEND 1
@@ -78,6 +88,7 @@ struct render_context_t
     float time;
     uint random_seed;
     bool disable_material;
+    bool debug_draw_ids;
     uint base_draw_index;
 };
 
