@@ -453,8 +453,11 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         indexed_drawable.object_index = i;
         indexed_drawable.drawable = &drawable;
 
-        if(!current_assets.drawables[i].descriptor_set_layout)
+        if(!drawable.descriptor_set_layout)
         {
+            // TODO: improve condition here. idea is to only provide a global texture-array
+            if(indirect_draw){ drawable.descriptors.erase(BINDING_TEXTURES); }
+
             indexed_drawable.descriptor_set_layout = find_set_layout(drawable.descriptors, current_assets, next_assets);
             pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
