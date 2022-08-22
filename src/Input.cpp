@@ -77,8 +77,8 @@ struct mapping_t
                         {Joystick::Input::BUTTON_BUMPER_RIGHT, 5},
                         {Joystick::Input::BUTTON_BACK,         6},
                         {Joystick::Input::BUTTON_MENU,         7},
-                        {Joystick::Input::BUTTON_STICK_LEFT,   8},
-                        {Joystick::Input::BUTTON_STICK_RIGHT,  9}
+                        {Joystick::Input::BUTTON_STICK_LEFT,   9},
+                        {Joystick::Input::BUTTON_STICK_RIGHT,  10}
                 };
 
         for(const auto &[input, button] : input_to_button){ button_to_input[button] = input; }
