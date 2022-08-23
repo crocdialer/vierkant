@@ -332,7 +332,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         vkResetQueryPool(m_device->handle(), current_assets.query_pool.get(), 0, query_count);
     }
 
-
     if(recycle_commands && current_assets.command_buffer)
     {
         if(draw_indirect_delegate && current_assets.command_buffer)
@@ -372,7 +371,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     std::unordered_map<graphics_pipeline_info_t, draw_batch_t> pipelines;
 
     std::vector<vierkant::ImagePtr> textures;
-    std::unordered_map<vierkant::ImagePtr, size_t> texture_index_map = {{nullptr, 0}};
 
     auto create_mesh_key = [](const drawable_t &drawable) -> texture_index_key_t
     {
@@ -399,12 +397,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         if(!texture_base_index_map.count(key))
         {
             texture_base_index_map[key] = textures.size();
-
-            for(const auto &tex: drawable_textures)
-            {
-                texture_index_map[tex] = textures.size();
-                textures.push_back(tex);
-            }
+            textures.insert(textures.end(), drawable_textures.begin(), drawable_textures.end());
         }
     }
 
