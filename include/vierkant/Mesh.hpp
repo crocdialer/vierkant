@@ -43,6 +43,9 @@ VkFormat format();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+//! mesh_buffer_bundle_t is a helper-struct to group buffer-data and other information.
+struct mesh_buffer_bundle_t;
+
 DEFINE_CLASS_PTR(Mesh)
 
 /**
@@ -160,6 +163,18 @@ public:
     create_with_entries(const vierkant::DevicePtr &device,
                         const std::vector<entry_create_info_t> &entry_create_infos,
                         const create_info_t &create_info);
+
+    /**
+     * @brief   Create a vierkant::MeshPtr from a provided vierkant::mesh_buffer_bundle_t.
+     *          Will copy all available vertex-data into a single vertex buffer and create appropriate VertexAttribs for it.
+     *
+     * @param   device      handle for the vierkant::Device to create subresources with
+     * @param   geometry    a Geometry struct to extract the vertex information from
+     * @return  the newly created vierkant::MeshPtr
+     */
+    static vierkant::MeshPtr create_from_bundle(const vierkant::DevicePtr &device,
+                                                const vierkant::mesh_buffer_bundle_t &mesh_buffer_bundle,
+                                                const create_info_t &create_info);
 
     Mesh(const Mesh &) = delete;
 

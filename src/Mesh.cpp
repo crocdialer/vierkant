@@ -155,19 +155,27 @@ vierkant::MeshPtr Mesh::create_with_entries(const vierkant::DevicePtr &device,
     mesh_buffer_bundle_t buffers =
             create_combined_buffers(entry_create_infos, create_info.optimize_vertex_cache, create_info.generate_lods,
                                     create_info.generate_meshlets, create_info.use_vertex_colors);
+    return create_from_bundle(device, buffers, create_info);
+}
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
+                                           const vierkant::mesh_buffer_bundle_t &mesh_buffer_bundle,
+                                           const create_info_t &create_info)
+{
     constexpr auto num_array_bytes = [](const auto &array) -> size_t {
         using elem_t = typename std::decay<decltype(array)>::type::value_type;
         return array.size() * sizeof(elem_t);
     };
     size_t num_staging_bytes = 0;
     size_t staging_offset = 0;
-    num_staging_bytes += num_array_bytes(buffers.vertex_buffer);
-    num_staging_bytes += num_array_bytes(buffers.index_buffer);
-    num_staging_bytes += num_array_bytes(buffers.morph_buffer);
-    num_staging_bytes += num_array_bytes(buffers.meshlets);
-    num_staging_bytes += num_array_bytes(buffers.meshlet_vertices);
-    num_staging_bytes += num_array_bytes(buffers.meshlet_triangles);
+    num_staging_bytes += num_array_bytes(mesh_buffer_bundle.vertex_buffer);
+    num_staging_bytes += num_array_bytes(mesh_buffer_bundle.index_buffer);
+    num_staging_bytes += num_array_bytes(mesh_buffer_bundle.morph_buffer);
+    num_staging_bytes += num_array_bytes(mesh_buffer_bundle.meshlets);
+    num_staging_bytes += num_array_bytes(mesh_buffer_bundle.meshlet_vertices);
+    num_staging_bytes += num_array_bytes(mesh_buffer_bundle.meshlet_triangles);
 
     auto staging_buffer = create_info.staging_buffer;
 
@@ -204,38 +212,38 @@ vierkant::MeshPtr Mesh::create_with_entries(const vierkant::DevicePtr &device,
 
     // create vertexbuffer
     vierkant::BufferPtr vertex_buffer;
-    staging_copy(buffers.vertex_buffer, vertex_buffer,
+    staging_copy(mesh_buffer_bundle.vertex_buffer, vertex_buffer,
                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                          create_info.buffer_usage_flags);
 
     auto mesh = vierkant::Mesh::create();
     mesh->vertex_buffer = vertex_buffer;
-    mesh->vertex_attribs = std::move(buffers.vertex_attribs);
-    mesh->entries = std::move(buffers.entries);
+    mesh->vertex_attribs = mesh_buffer_bundle.vertex_attribs;
+    mesh->entries = mesh_buffer_bundle.entries;
     for(auto &[location, vertex_attrib]: mesh->vertex_attribs) { vertex_attrib.buffer = vertex_buffer; }
 
-    if(!buffers.morph_buffer.empty())
+    if(!mesh_buffer_bundle.morph_buffer.empty())
     {
         auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
-        staging_copy(buffers.morph_buffer, mesh->morph_buffer, buffer_flags);
+        staging_copy(mesh_buffer_bundle.morph_buffer, mesh->morph_buffer, buffer_flags);
     }
 
-    if(!buffers.meshlets.empty())
+    if(!mesh_buffer_bundle.meshlets.empty())
     {
         auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
-        staging_copy(buffers.meshlets, mesh->meshlets, buffer_flags);
-        staging_copy(buffers.meshlet_vertices, mesh->meshlet_vertices, buffer_flags);
-        staging_copy(buffers.meshlet_triangles, mesh->meshlet_triangles, buffer_flags);
+        staging_copy(mesh_buffer_bundle.meshlets, mesh->meshlets, buffer_flags);
+        staging_copy(mesh_buffer_bundle.meshlet_vertices, mesh->meshlet_vertices, buffer_flags);
+        staging_copy(mesh_buffer_bundle.meshlet_triangles, mesh->meshlet_triangles, buffer_flags);
     }
 
     // use indices
-    if(!buffers.index_buffer.empty())
+    if(!mesh_buffer_bundle.index_buffer.empty())
     {
-        staging_copy(buffers.index_buffer, mesh->index_buffer,
+        staging_copy(mesh_buffer_bundle.index_buffer, mesh->index_buffer,
                      VK_BUFFER_USAGE_INDEX_BUFFER_BIT | create_info.buffer_usage_flags);
     }
 
-    mesh->materials.resize(buffers.num_materials);
+    mesh->materials.resize(mesh_buffer_bundle.num_materials);
     for(auto &m: mesh->materials) { m = vierkant::Material::create(); }
 
     return mesh;

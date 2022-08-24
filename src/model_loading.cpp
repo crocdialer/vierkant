@@ -40,14 +40,6 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
                             VkQueue load_queue,
                             VkBufferUsageFlags buffer_flags)
 {
-    vierkant::Mesh::create_info_t mesh_create_info = {};
-    mesh_create_info.buffer_usage_flags = buffer_flags;
-    mesh_create_info.optimize_vertex_cache = optimize_vertex_cache;
-    mesh_create_info.generate_lods = generate_lods;
-    mesh_create_info.generate_meshlets = generate_meshlets;
-    mesh_create_info.use_vertex_colors = false;
-    auto mesh = vierkant::Mesh::create_with_entries(device, mesh_assets.entry_create_infos, mesh_create_info);
-
     std::vector<vierkant::BufferPtr> staging_buffers;
 
     // command pool for background transfer
@@ -55,6 +47,9 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
     auto cmd_buf = vierkant::CommandBuffer(device, command_pool.get());
+
+    auto mesh_staging_buf = vierkant::Buffer::create(device, nullptr, 1U << 20,
+                                                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
     auto create_texture = [device = device, cmd_buf_handle = cmd_buf.handle(), &staging_buffers](
             const crocore::ImagePtr &img) -> vierkant::ImagePtr
@@ -81,6 +76,16 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
     };
 
     cmd_buf.begin();
+
+    vierkant::Mesh::create_info_t mesh_create_info = {};
+    mesh_create_info.buffer_usage_flags = buffer_flags;
+    mesh_create_info.optimize_vertex_cache = optimize_vertex_cache;
+    mesh_create_info.generate_lods = generate_lods;
+    mesh_create_info.generate_meshlets = generate_meshlets;
+    mesh_create_info.use_vertex_colors = false;
+    mesh_create_info.command_buffer = cmd_buf.handle();
+    mesh_create_info.staging_buffer = mesh_staging_buf;
+    auto mesh = vierkant::Mesh::create_with_entries(device, mesh_assets.entry_create_infos, mesh_create_info);
 
     // skin + bones
     mesh->root_bone = mesh_assets.root_bone;
