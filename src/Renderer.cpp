@@ -334,7 +334,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
     if(recycle_commands && current_assets.command_buffer)
     {
-        if(draw_indirect_delegate && current_assets.command_buffer)
+        if(draw_indirect_delegate)
         {
             // invoke delegate
             draw_indirect_delegate(current_assets.indirect_indexed_bundle);
