@@ -31,27 +31,22 @@ VkFormat vk_format(const crocore::ImagePtr &img)
     return ret;
 }
 
-vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
                             const vierkant::model::mesh_assets_t &mesh_assets,
-                            bool compress_textures,
-                            bool optimize_vertex_cache,
-                            bool generate_lods,
-                            bool generate_meshlets,
-                            VkQueue load_queue,
-                            VkBufferUsageFlags buffer_flags)
+                            const std::optional<vierkant::mesh_buffer_bundle_t>& mesh_buffer_bundle)
 {
     std::vector<vierkant::BufferPtr> staging_buffers;
 
     // command pool for background transfer
-    auto command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+    auto command_pool = vierkant::create_command_pool(params.device, vierkant::Device::Queue::GRAPHICS,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
-    auto cmd_buf = vierkant::CommandBuffer(device, command_pool.get());
+    auto cmd_buf = vierkant::CommandBuffer(params.device, command_pool.get());
 
-    auto mesh_staging_buf = vierkant::Buffer::create(device, nullptr, 1U << 20,
+    auto mesh_staging_buf = vierkant::Buffer::create(params.device, nullptr, 1U << 20,
                                                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
-    auto create_texture = [device = device, cmd_buf_handle = cmd_buf.handle(), &staging_buffers](
+    auto create_texture = [device = params.device, cmd_buf_handle = cmd_buf.handle(), &staging_buffers](
             const crocore::ImagePtr &img) -> vierkant::ImagePtr
     {
         if(!img){ return nullptr; }
@@ -78,14 +73,17 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
     cmd_buf.begin();
 
     vierkant::Mesh::create_info_t mesh_create_info = {};
-    mesh_create_info.buffer_usage_flags = buffer_flags;
-    mesh_create_info.optimize_vertex_cache = optimize_vertex_cache;
-    mesh_create_info.generate_lods = generate_lods;
-    mesh_create_info.generate_meshlets = generate_meshlets;
+    mesh_create_info.buffer_usage_flags = params.buffer_flags;
+    mesh_create_info.optimize_vertex_cache = params.optimize_vertex_cache;
+    mesh_create_info.generate_lods = params.generate_lods;
+    mesh_create_info.generate_meshlets = params.generate_meshlets;
     mesh_create_info.use_vertex_colors = false;
     mesh_create_info.command_buffer = cmd_buf.handle();
     mesh_create_info.staging_buffer = mesh_staging_buf;
-    auto mesh = vierkant::Mesh::create_with_entries(device, mesh_assets.entry_create_infos, mesh_create_info);
+    auto mesh = mesh_buffer_bundle
+                        ? vierkant::Mesh::create_from_bundle(params.device, *mesh_buffer_bundle, mesh_create_info)
+                        : vierkant::Mesh::create_with_entries(params.device, mesh_assets.entry_create_infos,
+                                                              mesh_create_info);
 
     // skin + bones
     mesh->root_bone = mesh_assets.root_bone;
@@ -98,23 +96,23 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
 
     mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
-    crocore::ThreadPool threadpool(compress_textures ? std::thread::hardware_concurrency() : 0);
+    crocore::ThreadPool threadpool(params.compress_textures ? std::thread::hardware_concurrency() : 0);
 
     std::chrono::milliseconds compress_total_duration(0);
 
     // cache textures
     std::unordered_map<crocore::ImagePtr, vierkant::ImagePtr> texture_cache;
-    auto cache_helper = [&device, load_queue, compress_textures, &texture_cache, &create_texture, &threadpool, &compress_total_duration](
+    auto cache_helper = [&params, &texture_cache, &create_texture, &threadpool, &compress_total_duration](
             const crocore::ImagePtr &img)
     {
         if(img && !texture_cache.count(img))
         {
-            if(!compress_textures){ texture_cache[img] = create_texture(img); }
+            if(!params.compress_textures){ texture_cache[img] = create_texture(img); }
             else
             {
                 vierkant::Image::Format fmt;
                 fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-                fmt.max_anisotropy = device->properties().limits.maxSamplerAnisotropy;
+                fmt.max_anisotropy = params.device->properties().limits.maxSamplerAnisotropy;
                 fmt.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
                 fmt.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
@@ -124,7 +122,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
                 compress_info.delegate_fn = [&threadpool](auto fn){ return threadpool.post(fn); };
 
                 auto compress_result = bc7::compress(compress_info);
-                texture_cache[img] = create_compressed_texture(device, compress_result, fmt, load_queue);
+                texture_cache[img] = create_compressed_texture(params.device, compress_result, fmt, params.load_queue);
                 compress_total_duration += compress_result.duration;
             }
         }
@@ -140,7 +138,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
         cache_helper(asset_mat.img_transmission);
     }
 
-    if(compress_textures)
+    if(params.compress_textures)
     {
         size_t num_pixels = 0;
         for(const auto &[img, tex] : texture_cache)
@@ -209,7 +207,7 @@ vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
     }
 
     // submit transfer and sync
-    cmd_buf.submit(load_queue, true);
+    cmd_buf.submit(params.load_queue, true);
 
     return mesh;
 }

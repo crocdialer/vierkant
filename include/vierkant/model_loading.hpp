@@ -4,6 +4,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <crocore/Image.hpp>
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Mesh.hpp>
@@ -111,24 +112,33 @@ struct mesh_assets_t
     std::vector<vierkant::nodes::node_animation_t> node_animations;
 };
 
+struct load_mesh_params_t
+{
+    //! handle to a vierkant::Device
+    vierkant::DevicePtr device;
+
+    bool compress_textures = false;
+    bool optimize_vertex_cache = true;
+    bool generate_lods = false;
+    bool generate_meshlets = false;
+
+    //! a VkQueue used for required buffer/image-transfers.
+    VkQueue load_queue = VK_NULL_HANDLE;
+
+    //! additional buffer-flags for all created vierkant::Buffers.
+    VkBufferUsageFlags buffer_flags = 0;
+};
+
 /**
  * @brief   load_mesh can be used to load assets into gpu-buffers
  *          and construct a vierkant::Mesh usable for gpu-operations.
  *
- * @param   device          handle to a vierkant::Device
- * @param   mesh_assets     a struct grouping the assets to be extracted.
- * @param   load_queue      the VkQueue that shall be used for required image-transfers.
- * @param   buffer_flags    optionally pass additional buffer-flags for all created vierkant::Buffers.
+ * @param   params  a struct grouping input-parameters
  * @return  a vierkant::MeshPtr, nullptr in case of failure.
  */
-vierkant::MeshPtr load_mesh(const vierkant::DevicePtr &device,
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
                             const vierkant::model::mesh_assets_t &mesh_assets,
-                            bool compress_textures,
-                            bool optimize_vertex_cache,
-                            bool generate_lods,
-                            bool generate_meshlets,
-                            VkQueue load_queue,
-                            VkBufferUsageFlags buffer_flags);
+                            const std::optional<vierkant::mesh_buffer_bundle_t>& mesh_buffer_bundle = {});
 
 /**
  * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.
