@@ -450,24 +450,36 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             for(uint32_t i = 0; i < max_num_lods; ++i)
             {
                 // shrink num_indices to 60%
-                constexpr float shrink_factor = .6f;
+                constexpr float shrink_factor = .5f;
                 constexpr float max_mismatch = .1f;
                 constexpr float target_error = 0.05f;
-                constexpr uint32_t options = 0;
                 float result_error = 0.f;
                 float result_factor = 1.f;
 
                 auto target_index_count = static_cast<size_t>(static_cast<float>(num_indices) * shrink_factor);
-                num_indices = meshopt_simplify(lod_indices.data(), lod_indices.data(), lod_indices.size(),
-                                               reinterpret_cast<const float *>(vertices), geom->positions.size(),
-                                               splicer.vertex_stride, target_index_count, target_error, options,
-                                               &result_error);
+
+                constexpr bool sloppy = false;
+
+                if(sloppy)
+                {
+                    num_indices = meshopt_simplifySloppy(lod_indices.data(), lod_indices.data(), lod_indices.size(),
+                                                         reinterpret_cast<const float *>(vertices), geom->positions.size(),
+                                                         splicer.vertex_stride, target_index_count, target_error, &result_error);
+                }
+                else
+                {
+                    constexpr uint32_t options = 0;
+                    num_indices = meshopt_simplify(lod_indices.data(), lod_indices.data(), lod_indices.size(),
+                                                   reinterpret_cast<const float *>(vertices), geom->positions.size(),
+                                                   splicer.vertex_stride, target_index_count, target_error, options,
+                                                   &result_error);
+                }
 
                 result_factor = static_cast<float>(num_indices) / static_cast<float>(lod_indices.size());
 
-//                spdlog::trace("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
-//                              "target/actual error: {} / {}",
-//                              i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
+                spdlog::trace("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
+                              "target/actual error: {} / {}",
+                              i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
 
                 // not getting any simpler
                 if(result_factor - shrink_factor > max_mismatch) { break; }
@@ -518,6 +530,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
                 // determine size
                 size_t max_meshlets = meshopt_buildMeshletsBound(lod.num_indices, max_vertices, max_triangles);
+                if(!max_meshlets){ break; }
+
                 std::vector<meshopt_Meshlet> meshlets(max_meshlets);
                 std::vector<uint32_t> meshlet_vertices(max_meshlets * max_vertices);
                 std::vector<uint8_t> meshlet_triangles(max_meshlets * max_triangles * 3);
