@@ -11,6 +11,20 @@
 namespace vierkant
 {
 
+struct packed_vertex_t
+{
+    float pos_x, pos_y, pos_z;
+    uint8_t normal_x, normal_y, normal_z, normal_w;
+    uint16_t texcoord_x, texcoord_y;
+    uint8_t tangent_x, tangent_y, tangent_z, tangent_w;
+};
+
+enum class VertexLayout
+{
+    ADHOC,
+    PACKED
+};
+
 /**
  * @brief   vertex_splicer can be used to create an interleaved vertex-buffer from multiple geometries.
  */
@@ -38,7 +52,7 @@ public:
      *
      * @return  an array containing the spliced vertex-data for all geometries.
      */
-    [[nodiscard]] std::vector<uint8_t> create_vertex_buffer() const;
+    [[nodiscard]] std::vector<uint8_t> create_vertex_buffer(VertexLayout layout = VertexLayout::ADHOC) const;
 
     /**
      * @brief   create_vertex_attribs can be used to retrieve a description of all vertex-attributes.

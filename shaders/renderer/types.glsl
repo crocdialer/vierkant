@@ -43,6 +43,23 @@ struct index_bundle_t
     uint triangle_index;
 };
 
+////! Vertex defines the layout for a vertex-struct
+//struct Vertex
+//{
+//    vec3 position;
+//    vec2 tex_coord;
+//    vec3 normal;
+//    vec3 tangent;
+//};
+
+//struct packed_vertex_t
+//{
+//    float pos_x, pos_y, pos_z;
+//    uint8_t normal_x, normal_y, normal_z, normal_w;
+//    uint16_t texcoord_x, texcoord_y;
+//    uint8_t tangent_x, tangent_y, tangent_z, tangent_w;
+//};
+
 #define LOCATION_INDEX_BUNDLE 0
 #define LOCATION_VERTEX_BUNDLE 4
 

@@ -3,6 +3,9 @@
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_shader_8bit_storage: require
+#extension GL_EXT_shader_16bit_storage: require
+
+#extension GL_EXT_shader_explicit_arithmetic_types: require
 
 #include "../renderer/types.glsl"
 #include "../utils/camera.glsl"
@@ -22,9 +25,27 @@ struct Vertex
     vec3 tangent;
 };
 
+struct packed_vertex_t
+{
+    float pos_x, pos_y, pos_z;
+    uint8_t normal_x, normal_y, normal_z, normal_w;
+    float16_t texcoord_x, texcoord_y;
+    uint8_t tangent_x, tangent_y, tangent_z, tangent_w;
+};
+
+Vertex unpack(packed_vertex_t v)
+{
+    Vertex ret;
+    ret.position = vec3(v.pos_x, v.pos_y, v.pos_z);
+    ret.tex_coord = vec2(v.texcoord_x, v.texcoord_y);
+    ret.normal = vec3(int(v.normal_x), int(v.normal_y), int(v.normal_z)) / 127.0 - 1.0;
+    ret.tangent = vec3(int(v.tangent_x), int(v.tangent_y), int(v.tangent_z)) / 127.0 - 1.0;
+    return ret;
+}
+
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
-    Vertex vertices[];
+    packed_vertex_t vertices[];
 };
 
 layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
@@ -87,7 +108,7 @@ void main()
     for(uint i = ti; i < meshlets[mi].vertex_count; i += LOCAL_SIZE)
     {
         uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
-        const Vertex v = vertices[vi];
+        const Vertex v = unpack(vertices[vi]);
 
         vertex_out[i].current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
         vertex_out[i].last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);

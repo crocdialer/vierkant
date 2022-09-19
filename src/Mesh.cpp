@@ -383,9 +383,10 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         }
     }
 
-    ret.vertex_buffer = splicer.create_vertex_buffer();
+    bool pack_vertices = generate_meshlets;
+    ret.vertex_buffer = splicer.create_vertex_buffer(pack_vertices ? VertexLayout::PACKED : VertexLayout::ADHOC);
     ret.index_buffer = splicer.index_buffer;
-    ret.vertex_stride = splicer.vertex_stride;
+    ret.vertex_stride = pack_vertices ? sizeof(packed_vertex_t) : splicer.vertex_stride;;
     ret.vertex_attribs = splicer.create_vertex_attribs();
     ret.num_morph_targets = num_morph_targets;
     ret.morph_buffer = morph_splice.create_vertex_buffer();
@@ -400,14 +401,14 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             auto index_data = ret.index_buffer.data() + offsets.base_index;
             size_t index_count = geom->indices.size();
 
-            auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * splicer.vertex_stride;
+            auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * ret.vertex_stride;
             size_t vertex_count = geom->positions.size();
 
             meshopt_optimizeVertexCache(index_data, index_data, index_count, vertex_count);
 
             std::vector<uint32_t> vertex_remap(vertex_count);
             meshopt_optimizeVertexFetchRemap(vertex_remap.data(), index_data, index_count, vertex_count);
-            meshopt_remapVertexBuffer(vertices, vertices, vertex_count, splicer.vertex_stride, vertex_remap.data());
+            meshopt_remapVertexBuffer(vertices, vertices, vertex_count, ret.vertex_stride, vertex_remap.data());
             meshopt_remapIndexBuffer(index_data, index_data, index_count, vertex_remap.data());
 
             // remap all morph-target-vertices
@@ -438,7 +439,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
             spdlog::stopwatch single_timer;
 
             auto index_data = ret.index_buffer.data() + offsets.base_index;
-            auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * splicer.vertex_stride;
+            auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * ret.vertex_stride;
 
             auto &extra_offsets = extra_offset_map[geom];
 
@@ -464,14 +465,14 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 {
                     num_indices = meshopt_simplifySloppy(lod_indices.data(), lod_indices.data(), lod_indices.size(),
                                                          reinterpret_cast<const float *>(vertices), geom->positions.size(),
-                                                         splicer.vertex_stride, target_index_count, target_error, &result_error);
+                                                         ret.vertex_stride, target_index_count, target_error, &result_error);
                 }
                 else
                 {
                     constexpr uint32_t options = 0;
                     num_indices = meshopt_simplify(lod_indices.data(), lod_indices.data(), lod_indices.size(),
                                                    reinterpret_cast<const float *>(vertices), geom->positions.size(),
-                                                   splicer.vertex_stride, target_index_count, target_error, options,
+                                                   ret.vertex_stride, target_index_count, target_error, options,
                                                    &result_error);
                 }
 
@@ -526,7 +527,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 auto &lod = extra_offsets.lods[lod_idx];
 
                 auto index_data = ret.index_buffer.data() + lod.base_index;
-                auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * splicer.vertex_stride;
+                auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * ret.vertex_stride;
 
                 // determine size
                 size_t max_meshlets = meshopt_buildMeshletsBound(lod.num_indices, max_vertices, max_triangles);
@@ -539,7 +540,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 // generate meshlets (optimize for locality)
                 size_t meshlet_count = meshopt_buildMeshlets(
                         meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), index_data, lod.num_indices,
-                        reinterpret_cast<const float *>(vertices), geom->positions.size(), splicer.vertex_stride,
+                        reinterpret_cast<const float *>(vertices), geom->positions.size(), ret.vertex_stride,
                         max_vertices, max_triangles, cone_weight);
 
                 spdlog::trace("generate_meshlets (lod-lvl: {}): {} ({} triangles -> {} meshlets)", lod_idx,
@@ -565,7 +566,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                     const auto &m = meshlets[mi];
                     auto bounds = meshopt_computeMeshletBounds(
                             &meshlet_vertices[m.vertex_offset], &meshlet_triangles[m.triangle_offset], m.triangle_count,
-                            reinterpret_cast<const float *>(vertices), geom->positions.size(), splicer.vertex_stride);
+                            reinterpret_cast<const float *>(vertices), geom->positions.size(), ret.vertex_stride);
                     vierkant::Mesh::meshlet_t out_meshlet = {};
                     out_meshlet.vertex_offset = meshlet_vertex_offset + m.vertex_offset;
                     out_meshlet.vertex_count = m.vertex_count;

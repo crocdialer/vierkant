@@ -2,6 +2,7 @@
 // Created by crocdialer on 7/2/22.
 //
 
+#include <meshoptimizer.h>
 #include <vierkant/vertex_splicer.hpp>
 
 namespace vierkant
@@ -26,21 +27,73 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
     return true;
 }
 
-[[nodiscard]] std::vector<uint8_t> vertex_splicer::create_vertex_buffer() const
+[[nodiscard]] std::vector<uint8_t> vertex_splicer::create_vertex_buffer(VertexLayout layout) const
 {
-    std::vector<uint8_t> ret(m_num_bytes);
+    std::vector<uint8_t> ret;
 
-    for(uint32_t o = 0; o < m_vertex_offsets.size(); ++o)
+    if(layout == VertexLayout::ADHOC)
     {
-        auto buf_data = ret.data() + m_vertex_offsets[o];
+        ret.resize(m_num_bytes);
 
-        for(uint32_t i = o * m_num_attribs; i < (o + 1) * m_num_attribs; ++i)
+        for(uint32_t o = 0; o < m_vertex_offsets.size(); ++o)
         {
-            const auto &v = m_vertex_data[i];
+            auto buf_data = ret.data() + m_vertex_offsets[o];
 
-            for(uint32_t j = 0; j < v.num_elems; ++j)
+            for(uint32_t i = o * m_num_attribs; i < (o + 1) * m_num_attribs; ++i)
             {
-                memcpy(buf_data + v.offset + j * vertex_stride, v.data + j * v.elem_size, v.elem_size);
+                const auto &v = m_vertex_data[i];
+
+                for(uint32_t j = 0; j < v.num_elems; ++j)
+                {
+                    memcpy(buf_data + v.offset + j * vertex_stride, v.data + j * v.elem_size, v.elem_size);
+                }
+            }
+        }
+    }
+    else if(layout == VertexLayout::PACKED)
+    {
+        constexpr int num_mantissa_bits = 18;//1..23
+
+        size_t num_bytes = 0;
+
+        for(const auto &[geom, offset_bundle]: offsets)
+        {
+            num_bytes += geom->positions.size() * sizeof(packed_vertex_t);
+
+            if(geom->positions.empty() || geom->normals.empty() || geom->tangents.empty() || geom->tex_coords.empty())
+            {
+                return {};
+            }
+        }
+        ret.resize(num_bytes);
+
+        // pack/fill
+        for(const auto &[geom, offset_bundle]: offsets)
+        {
+            for(uint32_t i = 0; i < geom->positions.size(); ++i)
+            {
+                const glm::vec3 &pos = geom->positions[i];
+                const glm::vec3 &normal = geom->normals[i];
+                const glm::vec3 &tangent = geom->tangents[i];
+                const glm::vec2 &texcoord = geom->tex_coords[i];
+
+                packed_vertex_t *v = (packed_vertex_t *) ret.data() + offset_bundle.base_vertex + i;
+                v->pos_x = meshopt_quantizeFloat(pos.x, num_mantissa_bits);
+                v->pos_y = meshopt_quantizeFloat(pos.y, num_mantissa_bits);
+                v->pos_z = meshopt_quantizeFloat(pos.z, num_mantissa_bits);
+
+                v->normal_x = uint8_t(normal.x * 127.f + 127.5f);
+                v->normal_y = uint8_t(normal.y * 127.f + 127.5f);
+                v->normal_z = uint8_t(normal.z * 127.f + 127.5f);
+                v->normal_w = 0;
+
+                v->tangent_x = uint8_t(tangent.x * 127.f + 127.5f);
+                v->tangent_y = uint8_t(tangent.y * 127.f + 127.5f);
+                v->tangent_z = uint8_t(tangent.z * 127.f + 127.5f);
+                v->tangent_w = 0;
+
+                v->texcoord_x = meshopt_quantizeHalf(texcoord.x);
+                v->texcoord_y = meshopt_quantizeHalf(texcoord.y);
             }
         }
     }
