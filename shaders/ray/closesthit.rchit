@@ -2,12 +2,20 @@
 #extension GL_EXT_ray_tracing : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_GOOGLE_include_directive : enable
 
 #include "ray_common.glsl"
+#include "../renderer/packed_vertex.glsl"
 
 //#include "bsdf_UE4.glsl"
 #include "bsdf_disney.glsl"
+
+//! Triangle groups triangle vertices
+struct Triangle
+{
+    Vertex v0, v1, v2;
+};
 
 layout(push_constant) uniform PushConstants
 {
@@ -15,7 +23,7 @@ layout(push_constant) uniform PushConstants
 };
 
 // array of vertex-buffers
-layout(binding = 3, set = 0, scalar) readonly buffer Vertices { Vertex v[]; } vertices[];
+layout(binding = 3, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
 
 // array of index-buffers
 layout(binding = 4, set = 0) readonly buffer Indices { uint i[]; } indices[];
@@ -62,9 +70,9 @@ Triangle get_triangle()
     indices[nonuniformEXT(entry.buffer_index)].i[entry.base_index + 3 * gl_PrimitiveID + 2]);
 
     // triangle vertices
-    return Triangle(vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.x],
-                    vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.y],
-                    vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.z]);
+    return Triangle(unpack(vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.x]),
+                    unpack(vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.y]),
+                    unpack(vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.z]));
 }
 
 //! returns a base LoD for a triangle. derives the result by comparing tex-coord and world-space sizes.

@@ -154,7 +154,7 @@ vierkant::MeshPtr Mesh::create_with_entries(const vierkant::DevicePtr &device,
 
     mesh_buffer_bundle_t buffers =
             create_combined_buffers(entry_create_infos, create_info.optimize_vertex_cache, create_info.generate_lods,
-                                    create_info.generate_meshlets, create_info.use_vertex_colors);
+                                    create_info.generate_meshlets, create_info.use_vertex_colors, create_info.pack_vertices);
     return create_from_bundle(device, buffers, create_info);
 }
 
@@ -329,8 +329,11 @@ void Mesh::update_entry_transforms()
 }
 
 mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
-                                             bool optimize_vertex_cache, bool generate_lods, bool generate_meshlets,
-                                             bool use_vertex_colors)
+                                             bool optimize_vertex_cache,
+                                             bool generate_lods,
+                                             bool generate_meshlets,
+                                             bool use_vertex_colors,
+                                             bool pack_vertices)
 {
     mesh_buffer_bundle_t ret = {};
 
@@ -383,11 +386,13 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
         }
     }
 
-    bool pack_vertices = generate_meshlets;
-    ret.vertex_buffer = splicer.create_vertex_buffer(pack_vertices ? VertexLayout::PACKED : VertexLayout::ADHOC);
+    if(pack_vertices){ spdlog::debug("using quantized/packed vertex-layout"); }
+    auto vertex_layout = pack_vertices ? VertexLayout::PACKED : VertexLayout::ADHOC;
+
+    ret.vertex_buffer = splicer.create_vertex_buffer(vertex_layout);
     ret.index_buffer = splicer.index_buffer;
     ret.vertex_stride = pack_vertices ? sizeof(packed_vertex_t) : splicer.vertex_stride;;
-    ret.vertex_attribs = splicer.create_vertex_attribs();
+    ret.vertex_attribs = splicer.create_vertex_attribs(vertex_layout);
     ret.num_morph_targets = num_morph_targets;
     ret.morph_buffer = morph_splice.create_vertex_buffer();
 

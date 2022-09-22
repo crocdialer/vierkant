@@ -77,6 +77,7 @@ public:
         bool generate_lods = false;
         bool generate_meshlets = false;
         bool use_vertex_colors = true;
+        bool pack_vertices = false;
     };
 
     struct entry_create_info_t
@@ -301,6 +302,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                                              bool optimize_vertex_cache,
                                              bool generate_lods,
                                              bool generate_meshlets,
-                                             bool use_vertex_colors);
+                                             bool use_vertex_colors,
+                                             bool pack_vertices);
 
 }//namespace vierkant

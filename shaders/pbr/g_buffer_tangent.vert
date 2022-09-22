@@ -2,22 +2,15 @@
 
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_shader_explicit_arithmetic_types: require
 
 #include "../renderer/types.glsl"
+#include "../renderer/packed_vertex.glsl"
 #include "../utils/camera.glsl"
-
-//! Vertex defines the layout for a vertex-struct
-struct Vertex
-{
-    vec3 position;
-    vec2 tex_coord;
-    vec3 normal;
-    vec3 tangent;
-};
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
-    Vertex vertices[];
+    packed_vertex_t vertices[];
 };
 
 layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
@@ -48,7 +41,7 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 
 void main()
 {
-    const Vertex v = vertices[gl_VertexIndex];
+    const Vertex v = unpack(vertices[gl_VertexIndex]);
 
     indices.mesh_draw_index = gl_BaseInstance;
     indices.material_index = gl_BaseInstance;

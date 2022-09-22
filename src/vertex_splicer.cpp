@@ -100,21 +100,46 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
     return ret;
 }
 
-[[nodiscard]] vertex_attrib_map_t vertex_splicer::create_vertex_attribs() const
+[[nodiscard]] vertex_attrib_map_t vertex_splicer::create_vertex_attribs(VertexLayout layout) const
 {
     vertex_attrib_map_t ret;
 
-    for(uint32_t i = 0; i < m_num_attribs; ++i)
+    if(layout == VertexLayout::ADHOC)
     {
-        const auto &v = m_vertex_data[i];
+        for(uint32_t i = 0; i < m_num_attribs; ++i)
+        {
+            const auto &v = m_vertex_data[i];
 
-        vierkant::vertex_attrib_t attrib;
-        attrib.offset = v.offset;
-        attrib.stride = static_cast<uint32_t>(vertex_stride);
-        attrib.buffer = nullptr;
-        attrib.buffer_offset = 0;
-        attrib.format = v.format;
-        ret[v.attrib_location] = attrib;
+            vierkant::vertex_attrib_t attrib;
+            attrib.offset = v.offset;
+            attrib.stride = static_cast<uint32_t>(vertex_stride);
+            attrib.buffer = nullptr;
+            attrib.buffer_offset = 0;
+            attrib.format = v.format;
+            ret[v.attrib_location] = attrib;
+        }
+    }
+    else if(layout == VertexLayout::PACKED)
+    {
+        auto &pos_attrib = ret[Mesh::AttribLocation::ATTRIB_POSITION];
+        pos_attrib.format = VK_FORMAT_R32G32B32_SFLOAT;
+        pos_attrib.offset = offsetof(packed_vertex_t, pos_x);
+        pos_attrib.stride = sizeof(packed_vertex_t);
+
+        auto &normal_attrib = ret[Mesh::AttribLocation::ATTRIB_NORMAL];
+        normal_attrib.format = VK_FORMAT_R8G8B8A8_UINT;
+        normal_attrib.offset = offsetof(packed_vertex_t, normal_x);
+        normal_attrib.stride = sizeof(packed_vertex_t);
+
+        auto &texcoord_attrib = ret[Mesh::AttribLocation::ATTRIB_TEX_COORD];
+        texcoord_attrib.format = VK_FORMAT_R16G16_SFLOAT;
+        texcoord_attrib.offset = offsetof(packed_vertex_t, texcoord_x);
+        texcoord_attrib.stride = sizeof(packed_vertex_t);
+
+        auto &tangent_attrib = ret[Mesh::AttribLocation::ATTRIB_TANGENT];
+        tangent_attrib.format = VK_FORMAT_R8G8B8A8_UINT;
+        tangent_attrib.offset = offsetof(packed_vertex_t, tangent_x);
+        tangent_attrib.stride = sizeof(packed_vertex_t);
     }
     return ret;
 }

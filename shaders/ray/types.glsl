@@ -1,17 +1,3 @@
-//! Vertex defines the layout for a vertex-struct
-struct Vertex
-{
-    vec3 position;
-    vec2 tex_coord;
-    vec3 normal;
-    vec3 tangent;
-};
-
-//! Triangle groups triangle vertices
-struct Triangle
-{
-    Vertex v0, v1, v2;
-};
 
 //! entry_t holds properties for geometric entries with common attributes
 struct entry_t

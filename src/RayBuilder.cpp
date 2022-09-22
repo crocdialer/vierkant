@@ -3,7 +3,6 @@
 //
 
 #include <vierkant/RayBuilder.hpp>
-#include <utility>
 
 namespace vierkant
 {

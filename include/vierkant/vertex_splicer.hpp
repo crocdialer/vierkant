@@ -59,7 +59,7 @@ public:
      *
      * @return  a vertex_attrib_map_t
      */
-    [[nodiscard]] vertex_attrib_map_t create_vertex_attribs() const;
+    [[nodiscard]] vertex_attrib_map_t create_vertex_attribs(VertexLayout layout = VertexLayout::ADHOC) const;
 
     std::map<vierkant::GeometryConstPtr, geometry_offset_t> offsets;
     size_t vertex_stride = 0;
