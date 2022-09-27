@@ -82,7 +82,7 @@ private:
     };
 
     template<typename A>
-    inline void add_attrib(uint32_t location,
+    static inline void add_attrib(uint32_t location,
                            const A &array,
                            std::vector<vertex_data_t> &vertex_data,
                            size_t &offset,

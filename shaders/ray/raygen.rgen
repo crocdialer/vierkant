@@ -25,7 +25,11 @@ layout(push_constant) uniform PushConstants
     push_constants_t push_constants;
 };
 
-layout(location = 0) rayPayloadEXT payload_t payload;
+#define MISS_INDEX_DEFAULT 0
+#define MISS_INDEX_SHADOW 1
+
+layout(location = MISS_INDEX_DEFAULT) rayPayloadEXT payload_t payload;
+layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shadow;
 
 struct trace_result_t
 {
@@ -104,17 +108,17 @@ trace_result_t trace(vec2 coord, vec2 size)
             const uint ray_flags = gl_RayFlagsOpaqueEXT | (inside_media ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
 
             // trace one ray
-            traceRayEXT(topLevelAS,     // acceleration structure
-                        ray_flags,      // rayflags
-                        0xff,           // cullMask
-                        0,              // sbtRecordOffset
-                        0,              // sbtRecordStride
-                        0,              // missIndex
-                        ray.origin,     // ray origin
-                        tmin,           // ray min range
-                        ray.direction,  // ray direction
-                        tmax,           // ray max range
-                        0);             // payload (location = 0)
+            traceRayEXT(topLevelAS,         // acceleration structure
+                        ray_flags,          // rayflags
+                        0xff,               // cullMask
+                        0,                  // sbtRecordOffset
+                        0,                  // sbtRecordStride
+                        MISS_INDEX_DEFAULT, // missIndex
+                        ray.origin,         // ray origin
+                        tmin,               // ray min range
+                        ray.direction,      // ray direction
+                        tmax,               // ray max range
+                        MISS_INDEX_DEFAULT);// payload (location = 0)
 
             cone = payload.cone;
             ray = payload.ray;

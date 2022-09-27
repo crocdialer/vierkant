@@ -51,6 +51,11 @@ struct payload_t
     bool inside_media;
 };
 
+struct shadow_payload_t
+{
+    bool shadow;
+};
+
 struct push_constants_t
 {
     //! current time since start in seconds

@@ -65,14 +65,14 @@ Triangle get_triangle()
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
 
     // triangle indices
-    ivec3 ind = ivec3(indices[nonuniformEXT(entry.buffer_index)].i[entry.base_index + 3 * gl_PrimitiveID + 0],
-    indices[nonuniformEXT(entry.buffer_index)].i[entry.base_index + 3 * gl_PrimitiveID + 1],
-    indices[nonuniformEXT(entry.buffer_index)].i[entry.base_index + 3 * gl_PrimitiveID + 2]);
+    ivec3 ind = ivec3(indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 0],
+                      indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 1],
+                      indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 2]);
 
     // triangle vertices
-    return Triangle(unpack(vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.x]),
-                    unpack(vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.y]),
-                    unpack(vertices[nonuniformEXT(entry.buffer_index)].v[entry.vertex_offset + ind.z]));
+    return Triangle(unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.x]),
+                    unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.y]),
+                    unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.z]));
 }
 
 //! returns a base LoD for a triangle. derives the result by comparing tex-coord and world-space sizes.
