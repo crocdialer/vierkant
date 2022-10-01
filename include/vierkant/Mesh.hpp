@@ -230,6 +230,9 @@ public:
     // vertex buffer
     vierkant::BufferPtr vertex_buffer;
 
+    // bone-vertex buffer
+    vierkant::BufferPtr bone_vertex_buffer;
+
     // index buffer
     vierkant::BufferPtr index_buffer;
     VkDeviceSize index_buffer_offset = 0;

@@ -1,11 +1,30 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+
 #include "../renderer/types.glsl"
+#include "../renderer/packed_vertex.glsl"
 #include "../utils/camera.glsl"
 
 layout(push_constant) uniform PushConstants {
     render_context_t context;
+};
+
+layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
+{
+    indexed_indirect_command_t draw_commands[];
+};
+
+layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
+{
+    packed_vertex_t vertices[];
+};
+
+layout(set = 0, binding = BINDING_BONE_VERTEX_DATA) readonly buffer BoneVertexBuffer
+{
+    bone_vertex_data_t bone_vertex_data[];
 };
 
 layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
@@ -29,13 +48,6 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
     camera_t last_camera;
 };
 
-layout(location = ATTRIB_POSITION) in vec3 a_position;
-layout(location = ATTRIB_TEX_COORD) in vec2 a_tex_coord;
-layout(location = ATTRIB_NORMAL) in vec3 a_normal;
-layout(location = ATTRIB_TANGENT) in vec3 a_tangent;
-layout(location = ATTRIB_BONE_INDICES) in uvec4 a_bone_ids;
-layout(location = ATTRIB_BONE_WEIGHTS) in vec4 a_bone_weights;
-
 layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices;
 layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 {
@@ -48,6 +60,17 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 
 void main()
 {
+    const Vertex v = unpack(vertices[gl_VertexIndex]);
+
+    vec4 bone_weights = vec4(float(bone_vertex_data[gl_VertexIndex].weight_x),
+                             float(bone_vertex_data[gl_VertexIndex].weight_y),
+                             float(bone_vertex_data[gl_VertexIndex].weight_z),
+                             float(bone_vertex_data[gl_VertexIndex].weight_w));
+    uvec4 bone_ids = uvec4(uint(bone_vertex_data[gl_VertexIndex].index_x),
+                           uint(bone_vertex_data[gl_VertexIndex].index_y),
+                           uint(bone_vertex_data[gl_VertexIndex].index_z),
+                           uint(bone_vertex_data[gl_VertexIndex].index_w));
+
     indices.mesh_draw_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex;
     indices.material_index = gl_BaseInstance;
 
@@ -59,13 +82,13 @@ void main()
 
     for (int i = 0; i < 4; i++)
     {
-        current_vertex += u_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
-        last_vertex += u_previous_bones[a_bone_ids[i]] * vec4(a_position, 1.0) * a_bone_weights[i];
+        current_vertex += u_bones[bone_ids[i]] * vec4(v.position, 1.0) * bone_weights[i];
+        last_vertex += u_previous_bones[bone_ids[i]] * vec4(v.position, 1.0) * bone_weights[i];
     }
 
-    vertex_out.tex_coord = (m.texture * vec4(a_tex_coord, 0, 1)).xy;
-    vertex_out.normal = normalize((m.normal * vec4(a_normal, 0)).xyz);
-    vertex_out.tangent = normalize((m.normal * vec4(a_tangent, 0)).xyz);
+    vertex_out.tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
+    vertex_out.normal = normalize(mat3(m.normal) * v.normal);
+    vertex_out.tangent = normalize(mat3(m.normal) * v.tangent);
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.xyz, 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_vertex.xyz, 1.0);

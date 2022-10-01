@@ -124,6 +124,14 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
             desc_vertices.buffers = {drawable.mesh->vertex_buffer};
         }
 
+        if(drawable.mesh->bone_vertex_buffer)
+        {
+            auto &desc_vertices = drawable.descriptors[BINDING_BONE_VERTEX_DATA];
+            desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_vertices.buffers = {drawable.mesh->bone_vertex_buffer};
+        }
+
         if(drawable.mesh->meshlets && drawable.mesh->meshlet_vertices && drawable.mesh->meshlet_triangles)
         {
             auto &desc_draws = drawable.descriptors[BINDING_DRAW_COMMANDS];

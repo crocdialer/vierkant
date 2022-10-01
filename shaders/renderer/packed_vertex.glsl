@@ -15,6 +15,14 @@ struct packed_vertex_t
     uint8_t tangent_x, tangent_y, tangent_z, tangent_w;
 };
 
+struct bone_vertex_data_t
+{
+    uint16_t index_x, index_y, index_z, index_w;
+
+    //! weights are [0..1] as float16_t
+    float16_t weight_x, weight_y, weight_z, weight_w;
+};
+
 Vertex unpack(packed_vertex_t v)
 {
     Vertex ret;

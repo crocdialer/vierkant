@@ -177,6 +177,7 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     size_t num_staging_bytes = 0;
     size_t staging_offset = 0;
     num_staging_bytes += num_array_bytes(mesh_buffer_bundle.vertex_buffer);
+    num_staging_bytes += num_array_bytes(mesh_buffer_bundle.bone_vertex_buffer);
     num_staging_bytes += num_array_bytes(mesh_buffer_bundle.index_buffer);
     num_staging_bytes += num_array_bytes(mesh_buffer_bundle.morph_buffer);
     num_staging_bytes += num_array_bytes(mesh_buffer_bundle.meshlets);
@@ -229,18 +230,23 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     mesh->entries = mesh_buffer_bundle.entries;
     for(auto &[location, vertex_attrib]: mesh->vertex_attribs){ vertex_attrib.buffer = vertex_buffer; }
 
+    auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
+
     if(!mesh_buffer_bundle.morph_buffer.empty())
     {
-        auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
         staging_copy(mesh_buffer_bundle.morph_buffer, mesh->morph_buffer, buffer_flags);
     }
 
     if(!mesh_buffer_bundle.meshlets.empty())
     {
-        auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
         staging_copy(mesh_buffer_bundle.meshlets, mesh->meshlets, buffer_flags);
         staging_copy(mesh_buffer_bundle.meshlet_vertices, mesh->meshlet_vertices, buffer_flags);
         staging_copy(mesh_buffer_bundle.meshlet_triangles, mesh->meshlet_triangles, buffer_flags);
+    }
+
+    if(!mesh_buffer_bundle.bone_vertex_buffer.empty())
+    {
+        staging_copy(mesh_buffer_bundle.bone_vertex_buffer, mesh->bone_vertex_buffer, buffer_flags);
     }
 
     // use indices
@@ -366,11 +372,6 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
             return {};
         }
 
-        if(!ci.geometry->bone_indices.empty() && !ci.geometry->bone_weights.empty())
-        {
-            pack_vertices = false;
-        }
-
         if(num_morph_targets && num_morph_targets != ci.morph_targets.size())
         {
             spdlog::warn("create_mesh_buffers: morph-target counts do not match");
@@ -403,6 +404,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     ret.index_buffer = splicer.index_buffer;
     ret.vertex_stride = params.pack_vertices ? sizeof(packed_vertex_t) : splicer.vertex_stride;;
     ret.vertex_attribs = splicer.create_vertex_attribs(vertex_layout);
+    ret.bone_vertex_buffer = splicer.create_bone_vertex_buffer();
     ret.num_morph_targets = num_morph_targets;
     ret.morph_buffer = morph_splice.create_vertex_buffer();
 
