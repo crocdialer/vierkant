@@ -76,7 +76,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         // ray direction
         vec3 target_dir = normalize((cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz);
         vec3 fpoint = target_dir * cam.focal_distance / abs(target_dir.z);
-        vec3 direction = (cam.view_inverse * vec4(normalize(fpoint - lens_offset), 0)).xyz;
+        vec3 direction = normalize(mat3(cam.view_inverse) * (fpoint - lens_offset));
 
         // next ray + cone
         Ray ray = Ray(origin, direction);
@@ -118,7 +118,7 @@ trace_result_t trace(vec2 coord, vec2 size)
                         tmin,               // ray min range
                         ray.direction,      // ray direction
                         tmax,               // ray max range
-                        MISS_INDEX_DEFAULT);// payload (location = 0)
+                        MISS_INDEX_DEFAULT);// payload-location
 
             cone = payload.cone;
             ray = payload.ray;
@@ -158,8 +158,8 @@ void main()
         accumulated_radiance /= size + 1;
     }
 
-    imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.radiance, 1.0));
-    imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
-    imageStore(out_images[POSITIONS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.position, 0.0));
+//    imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.radiance, 1.0));
+//    imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
+//    imageStore(out_images[POSITIONS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.position, 0.0));
     imageStore(out_images[ACCUMULATED_RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
 }

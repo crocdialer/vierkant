@@ -189,4 +189,40 @@ bool vertex_splicer::check_and_insert(const GeometryConstPtr &g)
     return true;
 }
 
+std::vector<uint8_t> vertex_splicer::create_bone_vertex_buffer() const
+{
+    std::vector<uint8_t> ret;
+    size_t num_bytes = 0;
+
+    for(const auto &[geom, offset_bundle]: offsets)
+    {
+        num_bytes += geom->positions.size() * sizeof(bone_vertex_data_t);
+        if(geom->bone_weights.empty() || geom->bone_indices.empty()){ return {}; }
+    }
+    ret.resize(num_bytes);
+
+    // pack/fill
+    for(const auto &[geom, offset_bundle]: offsets)
+    {
+        for(uint32_t i = 0; i < geom->positions.size(); ++i)
+        {
+            const auto &indices = geom->bone_indices[i];
+            const auto &weights = geom->bone_weights[i];
+
+            bone_vertex_data_t *v = (bone_vertex_data_t *) ret.data() + offset_bundle.base_vertex + i;
+            v->index_x = indices.x;
+            v->index_y = indices.y;
+            v->index_z = indices.z;
+            v->index_w = indices.w;
+
+            v->weight_x = meshopt_quantizeHalf(weights.x);
+            v->weight_y = meshopt_quantizeHalf(weights.y);
+            v->weight_z = meshopt_quantizeHalf(weights.z);
+            v->weight_w = meshopt_quantizeHalf(weights.w);
+        }
+    }
+
+    return ret;
+}
+
 }

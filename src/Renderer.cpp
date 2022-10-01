@@ -615,8 +615,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
                               sizeof(push_constants_t), &push_constants);
 
-            // feature enabled/available, mesh exists and contains a meshlet-buffer
-            bool use_meshlets = vkCmdDrawMeshTasksNV && use_mesh_shader && mesh && mesh->meshlets;
+            // feature enabled/available, mesh exists and contains a meshlet-buffer, skinning not supported yet
+            bool use_meshlets = vkCmdDrawMeshTasksNV && use_mesh_shader && mesh && mesh->meshlets && !mesh->root_bone;
 
             if(mesh && current_mesh != mesh)
             {

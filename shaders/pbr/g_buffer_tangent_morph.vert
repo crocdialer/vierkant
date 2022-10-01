@@ -2,10 +2,10 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_scalar_block_layout : enable
-//#extension GL_EXT_shader_8bit_storage: require
-//#extension GL_EXT_shader_16bit_storage: require
+#extension GL_EXT_shader_explicit_arithmetic_types: require
 
 #include "../renderer/types.glsl"
+#include "../renderer/packed_vertex.glsl"
 #include "../utils/camera.glsl"
 
 vec3 slerp(vec3 x, vec3 y, float a)
@@ -29,15 +29,6 @@ vec3 slerp(vec3 x, vec3 y, float a)
     return x * t1 + y * t2;
 }
 
-//! Vertex defines the layout for a vertex-struct
-struct Vertex
-{
-    vec3 position;
-    vec2 tex_coord;
-    vec3 normal;
-    vec3 tangent;
-};
-
 //! morph_params_t contains information to access a morph-target buffer
 struct morph_params_t
 {
@@ -54,7 +45,7 @@ layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
-    Vertex vertices[];
+    packed_vertex_t vertices[];
 };
 
 layout(std140, binding = BINDING_MORPH_TARGETS, scalar) readonly buffer MorphVertices
@@ -96,7 +87,7 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 void main()
 {
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
-    Vertex v = vertices[gl_VertexIndex];
+    Vertex v = unpack(vertices[gl_VertexIndex]);
 
     // apply morph-targets
     for(uint i = 0; i < morph_params.morph_count; ++i)

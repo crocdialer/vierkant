@@ -150,11 +150,16 @@ vierkant::MeshPtr Mesh::create_with_entries(const vierkant::DevicePtr &device,
                                             const std::vector<entry_create_info_t> &entry_create_infos,
                                             const create_info_t &create_info)
 {
-    if(entry_create_infos.empty()) { return nullptr; }
+    if(entry_create_infos.empty()){ return nullptr; }
 
-    mesh_buffer_bundle_t buffers =
-            create_combined_buffers(entry_create_infos, create_info.optimize_vertex_cache, create_info.generate_lods,
-                                    create_info.generate_meshlets, create_info.use_vertex_colors, create_info.pack_vertices);
+    create_mesh_buffers_params_t params = {};
+    params.optimize_vertex_cache = create_info.optimize_vertex_cache;
+    params.generate_lods = create_info.generate_lods;
+    params.generate_meshlets = create_info.generate_meshlets;
+    params.use_vertex_colors = create_info.use_vertex_colors;
+    params.pack_vertices = create_info.pack_vertices;
+
+    mesh_buffer_bundle_t buffers = create_mesh_buffers(entry_create_infos, params);
     return create_from_bundle(device, buffers, create_info);
 }
 
@@ -164,7 +169,8 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
                                            const vierkant::mesh_buffer_bundle_t &mesh_buffer_bundle,
                                            const create_info_t &create_info)
 {
-    constexpr auto num_array_bytes = [](const auto &array) -> size_t {
+    constexpr auto num_array_bytes = [](const auto &array) -> size_t
+    {
         using elem_t = typename std::decay<decltype(array)>::type::value_type;
         return array.size() * sizeof(elem_t);
     };
@@ -185,10 +191,11 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
         staging_buffer = vierkant::Buffer::create(device, nullptr, num_staging_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                   VMA_MEMORY_USAGE_CPU_ONLY);
     }
-    else { staging_buffer->set_data(nullptr, num_staging_bytes); }
+    else{ staging_buffer->set_data(nullptr, num_staging_bytes); }
 
     auto staging_copy = [num_array_bytes, staging_buffer, &staging_offset, command_buffer = create_info.command_buffer,
-                         device](const auto &array, vierkant::BufferPtr &outbuffer, VkBufferUsageFlags flags) {
+            device](const auto &array, vierkant::BufferPtr &outbuffer, VkBufferUsageFlags flags)
+    {
         flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
         size_t num_bytes = num_array_bytes(array);
@@ -203,7 +210,7 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
         {
             outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes, flags, VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else { outbuffer->set_data(nullptr, num_bytes); }
+        else{ outbuffer->set_data(nullptr, num_bytes); }
 
         // issue copy from staging-buffer to GPU-buffer
         staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
@@ -214,13 +221,13 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     vierkant::BufferPtr vertex_buffer;
     staging_copy(mesh_buffer_bundle.vertex_buffer, vertex_buffer,
                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                         create_info.buffer_usage_flags);
+                 create_info.buffer_usage_flags);
 
     auto mesh = vierkant::Mesh::create();
     mesh->vertex_buffer = vertex_buffer;
     mesh->vertex_attribs = mesh_buffer_bundle.vertex_attribs;
     mesh->entries = mesh_buffer_bundle.entries;
-    for(auto &[location, vertex_attrib]: mesh->vertex_attribs) { vertex_attrib.buffer = vertex_buffer; }
+    for(auto &[location, vertex_attrib]: mesh->vertex_attribs){ vertex_attrib.buffer = vertex_buffer; }
 
     if(!mesh_buffer_bundle.morph_buffer.empty())
     {
@@ -244,7 +251,7 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     }
 
     mesh->materials.resize(mesh_buffer_bundle.num_materials);
-    for(auto &m: mesh->materials) { m = vierkant::Material::create(); }
+    for(auto &m: mesh->materials){ m = vierkant::Material::create(); }
 
     return mesh;
 }
@@ -284,7 +291,7 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
                            offsets.data());
 
     // bind index buffer
-    if(index_buffer) { vkCmdBindIndexBuffer(command_buffer, index_buffer->handle(), index_buffer_offset, index_type); }
+    if(index_buffer){ vkCmdBindIndexBuffer(command_buffer, index_buffer->handle(), index_buffer_offset, index_type); }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -328,17 +335,13 @@ void Mesh::update_entry_transforms()
     }
 }
 
-mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
-                                             bool optimize_vertex_cache,
-                                             bool generate_lods,
-                                             bool generate_meshlets,
-                                             bool use_vertex_colors,
-                                             bool pack_vertices)
+mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
+                                         const create_mesh_buffers_params_t &params)
 {
     mesh_buffer_bundle_t ret = {};
 
     vertex_splicer splicer;
-    splicer.use_vertex_colors = use_vertex_colors;
+    splicer.use_vertex_colors = params.use_vertex_colors;
 
     vertex_splicer morph_splice;
     uint32_t num_morph_targets = 0;
@@ -353,17 +356,24 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     };
     std::map<vierkant::GeometryConstPtr, extra_offset_t> extra_offset_map;
 
+    bool pack_vertices = params.pack_vertices;
+
     for(auto &ci: entry_create_infos)
     {
         if(!splicer.insert(ci.geometry))
         {
-            spdlog::warn("create_combined_buffers: array sizes do not match");
+            spdlog::warn("create_mesh_buffers: array sizes do not match");
             return {};
+        }
+
+        if(!ci.geometry->bone_indices.empty() && !ci.geometry->bone_weights.empty())
+        {
+            pack_vertices = false;
         }
 
         if(num_morph_targets && num_morph_targets != ci.morph_targets.size())
         {
-            spdlog::warn("create_combined_buffers: morph-target counts do not match");
+            spdlog::warn("create_mesh_buffers: morph-target counts do not match");
         }
 
         auto &extra_offsets = extra_offset_map[ci.geometry];
@@ -391,13 +401,13 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
 
     ret.vertex_buffer = splicer.create_vertex_buffer(vertex_layout);
     ret.index_buffer = splicer.index_buffer;
-    ret.vertex_stride = pack_vertices ? sizeof(packed_vertex_t) : splicer.vertex_stride;;
+    ret.vertex_stride = params.pack_vertices ? sizeof(packed_vertex_t) : splicer.vertex_stride;;
     ret.vertex_attribs = splicer.create_vertex_attribs(vertex_layout);
     ret.num_morph_targets = num_morph_targets;
     ret.morph_buffer = morph_splice.create_vertex_buffer();
 
     // optional vertex/cache/fetch optimization here
-    if(optimize_vertex_cache)
+    if(params.optimize_vertex_cache)
     {
         spdlog::stopwatch sw;
 
@@ -434,7 +444,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     }
 
     // generate LOD meshes here
-    if(generate_lods)
+    if(params.generate_lods)
     {
         uint32_t max_num_lods = 7;
 
@@ -469,8 +479,10 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 if(sloppy)
                 {
                     num_indices = meshopt_simplifySloppy(lod_indices.data(), lod_indices.data(), lod_indices.size(),
-                                                         reinterpret_cast<const float *>(vertices), geom->positions.size(),
-                                                         ret.vertex_stride, target_index_count, target_error, &result_error);
+                                                         reinterpret_cast<const float *>(vertices),
+                                                         geom->positions.size(),
+                                                         ret.vertex_stride, target_index_count, target_error,
+                                                         &result_error);
                 }
                 else
                 {
@@ -488,7 +500,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                               i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
 
                 // not getting any simpler
-                if(result_factor - shrink_factor > max_mismatch) { break; }
+                if(result_factor - shrink_factor > max_mismatch){ break; }
 
                 min_num = num_indices;
                 lod_indices.resize(num_indices);
@@ -510,13 +522,8 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
     }
 
     // optional meshlet generation
-    if(generate_meshlets)
+    if(params.generate_meshlets)
     {
-        // TODO: matches NV_mesh_shader, break out as parameters
-        constexpr size_t max_vertices = 64;
-        constexpr size_t max_triangles = 124;
-        constexpr float cone_weight = 0.5f;
-
         spdlog::stopwatch sw;
 
         // generate meshlets for all LODs of all submeshes
@@ -535,18 +542,19 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * ret.vertex_stride;
 
                 // determine size
-                size_t max_meshlets = meshopt_buildMeshletsBound(lod.num_indices, max_vertices, max_triangles);
+                size_t max_meshlets = meshopt_buildMeshletsBound(lod.num_indices, params.meshlet_max_vertices,
+                                                                 params.meshlet_max_triangles);
                 if(!max_meshlets){ break; }
 
                 std::vector<meshopt_Meshlet> meshlets(max_meshlets);
-                std::vector<uint32_t> meshlet_vertices(max_meshlets * max_vertices);
-                std::vector<uint8_t> meshlet_triangles(max_meshlets * max_triangles * 3);
+                std::vector<uint32_t> meshlet_vertices(max_meshlets * params.meshlet_max_vertices);
+                std::vector<uint8_t> meshlet_triangles(max_meshlets * params.meshlet_max_triangles * 3);
 
                 // generate meshlets (optimize for locality)
                 size_t meshlet_count = meshopt_buildMeshlets(
                         meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), index_data, lod.num_indices,
                         reinterpret_cast<const float *>(vertices), geom->positions.size(), ret.vertex_stride,
-                        max_vertices, max_triangles, cone_weight);
+                        params.meshlet_max_vertices, params.meshlet_max_triangles, params.meshlet_cone_weight);
 
                 spdlog::trace("generate_meshlets (lod-lvl: {}): {} ({} triangles -> {} meshlets)", lod_idx,
                               std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()),
@@ -585,7 +593,7 @@ mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_creat
                 }
 
                 // add entry vertex-offset
-                for(uint32_t vi = 0; vi < vertex_count; ++vi) { meshlet_vertices[vi] += offsets.base_vertex; }
+                for(uint32_t vi = 0; vi < vertex_count; ++vi){ meshlet_vertices[vi] += offsets.base_vertex; }
 
                 ret.meshlet_vertices.insert(ret.meshlet_vertices.end(), meshlet_vertices.begin(),
                                             meshlet_vertices.begin() + int(vertex_count));

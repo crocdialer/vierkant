@@ -19,6 +19,14 @@ struct packed_vertex_t
     uint8_t tangent_x, tangent_y, tangent_z, tangent_w;
 };
 
+struct bone_vertex_data_t
+{
+    uint16_t index_x, index_y, index_z, index_w;
+
+    //! float16_t
+    uint16_t weight_x, weight_y, weight_z, weight_w;
+};
+
 enum class VertexLayout
 {
     ADHOC,
@@ -53,6 +61,14 @@ public:
      * @return  an array containing the spliced vertex-data for all geometries.
      */
     [[nodiscard]] std::vector<uint8_t> create_vertex_buffer(VertexLayout layout = VertexLayout::ADHOC) const;
+
+    /**
+     * @brief   create_bone_vertex_buffer can be used to create an interleaved vertex-buffer
+     *          containing packed bone-indices and -weights.
+     *
+     * @return  an array containing the spliced bone-vertex-data for all geometries.
+     */
+    [[nodiscard]] std::vector<uint8_t> create_bone_vertex_buffer() const;
 
     /**
      * @brief   create_vertex_attribs can be used to retrieve a description of all vertex-attributes.

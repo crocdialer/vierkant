@@ -273,6 +273,9 @@ struct mesh_buffer_bundle_t
     //! combined array of indices
     std::vector<index_t> index_buffer;
 
+    //! combined array of bone vertex-data (bone_vertex_data_t)
+    std::vector<uint8_t> bone_vertex_buffer;
+
     //! combined array of vertex-displacements (vertex-displacement-footprint varies hence encoded as raw-bytes)
     std::vector<uint8_t> morph_buffer;
     uint32_t num_morph_targets = 0;
@@ -287,22 +290,42 @@ struct mesh_buffer_bundle_t
     std::vector<uint8_t> meshlet_triangles;
 };
 
+struct create_mesh_buffers_params_t
+{
+    //! flag indicating if the vertex/index-order should be optimized
+    bool optimize_vertex_cache = false;
+
+    //! flag indicating if a cascade of simplified meshes (LODs) shall be generated.
+    bool generate_lods = false;
+
+    //! flag indicating if meshlet/cluster information shall be generated.
+    bool generate_meshlets = false;
+
+    //! flag indicating if oldschoold vertex-colors shall be respected.
+    bool use_vertex_colors = false;
+
+    //! flag indicating if a packed vertex-layout should be used
+    bool pack_vertices = false;
+
+    //! maximum number of vertices per meshlet
+    size_t meshlet_max_vertices = 64;
+
+    //! maximum number of triangles per meshlet
+    size_t meshlet_max_triangles = 124;
+
+    //! cone-weight used during meshlet-generation. useful for cluster-culling
+    float meshlet_cone_weight = 0.5f;
+};
+
 /**
- * @brief   create_combined_buffers 'can' be used to create combined and interleaved vertex/index/meshlet-buffers
+ * @brief   create_mesh_buffers 'can' be used to create combined and interleaved vertex/index/meshlet-buffers
  *          for a list of geometries. helpful during GPU-mesh/buffer creation.
  *
  * @param   entry_create_infos      an array of entry_create_info_t structs.
- * @param   optimize_vertex_cache   flag indicating if the vertex/index-order should be optimized
- * @param   generate_lods           flag indicating if a cascade of simplified meshes (LODs) shall be generated.
- * @param   generate_meshlets       flag indicating if meshlet/cluster information shall be generated.
- * @param   use_vertex_colors       flag indicating if oldschoold vertex-colors shall be respected.
+ * @param   params                  a struct grouping parameters.
  * @return  a intermediate mesh_buffer_bundle_t.
  */
-mesh_buffer_bundle_t create_combined_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
-                                             bool optimize_vertex_cache,
-                                             bool generate_lods,
-                                             bool generate_meshlets,
-                                             bool use_vertex_colors,
-                                             bool pack_vertices);
+mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
+                                         const create_mesh_buffers_params_t &params);
 
 }//namespace vierkant
