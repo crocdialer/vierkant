@@ -431,6 +431,14 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
             // remap all morph-target-vertices
             auto &extra_offsets = extra_offset_map[geom];
 
+            if(!ret.bone_vertex_buffer.empty())
+            {
+                size_t bone_vertex_stride = sizeof(bone_vertex_data_t);
+                auto bone_vertex_data = ret.bone_vertex_buffer.data() + offsets.base_vertex * bone_vertex_stride;
+                meshopt_remapVertexBuffer(bone_vertex_data, bone_vertex_data, vertex_count, bone_vertex_stride,
+                                          vertex_remap.data());
+            }
+
             for(uint32_t i = 0; i < extra_offsets.num_morph_targets; ++i)
             {
                 auto morph_vertices = ret.morph_buffer.data() +
