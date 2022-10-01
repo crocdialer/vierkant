@@ -506,6 +506,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 }
             }
 
+            // attribute/binding descriptions obsolete here
+            drawable.pipeline_format.attribute_descriptions.clear();
+            drawable.pipeline_format.binding_descriptions.clear();
+
             const bool use_meshlet_pipeline = drawable.mesh->meshlets && frame_asset.settings.use_meshlet_pipeline &&
                                               !drawable.mesh->morph_buffer && !drawable.mesh->root_bone;
 
