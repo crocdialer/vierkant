@@ -665,4 +665,32 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     return ret;
 }
 
+bool create_mesh_buffers_params_t::operator==(const create_mesh_buffers_params_t &other) const
+{
+    if(optimize_vertex_cache != other.optimize_vertex_cache){ return false; }
+    if(generate_lods != other.generate_lods){ return false; }
+    if(generate_meshlets != other.generate_meshlets){ return false; }
+    if(use_vertex_colors != other.use_vertex_colors){ return false; }
+    if(pack_vertices != other.pack_vertices){ return false; }
+    if(meshlet_max_vertices != other.meshlet_max_vertices){ return false; }
+    if(meshlet_max_triangles != other.meshlet_max_triangles){ return false; }
+    if(meshlet_cone_weight != other.meshlet_cone_weight){ return false; }
+    return true;
+}
+
 }//namespace vierkant
+
+size_t std::hash<vierkant::create_mesh_buffers_params_t>::operator()(
+        vierkant::create_mesh_buffers_params_t const &params) const
+{
+    size_t hash_val = 0;
+    crocore::hash_combine(hash_val, params.optimize_vertex_cache);
+    crocore::hash_combine(hash_val, params.generate_lods);
+    crocore::hash_combine(hash_val, params.generate_meshlets);
+    crocore::hash_combine(hash_val, params.use_vertex_colors);
+    crocore::hash_combine(hash_val, params.pack_vertices);
+    crocore::hash_combine(hash_val, params.meshlet_max_vertices);
+    crocore::hash_combine(hash_val, params.meshlet_max_triangles);
+    crocore::hash_combine(hash_val, params.meshlet_cone_weight);
+    return hash_val;
+}

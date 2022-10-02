@@ -153,11 +153,10 @@ std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr 
             desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
             desc_meshlet_triangles.buffers = {mesh->meshlet_triangles};
         }
-//        else
-        {
-            drawable.pipeline_format.binding_descriptions = binding_descriptions;
-            drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
-        }
+
+        // NOTE: not used anymore by most pipelines
+        drawable.pipeline_format.binding_descriptions = binding_descriptions;
+        drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
 
         // textures
         if(!material->textures.empty())

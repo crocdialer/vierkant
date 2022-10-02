@@ -318,6 +318,9 @@ struct create_mesh_buffers_params_t
 
     //! cone-weight used during meshlet-generation. useful for cluster-culling
     float meshlet_cone_weight = 0.5f;
+
+    bool operator==(const create_mesh_buffers_params_t &other) const;
+    inline bool operator!=(const create_mesh_buffers_params_t &other) const { return !(*this == other); };
 };
 
 /**
@@ -332,3 +335,13 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                                          const create_mesh_buffers_params_t &params);
 
 }//namespace vierkant
+
+// template specializations for hashing
+namespace std
+{
+template<>
+struct hash<vierkant::create_mesh_buffers_params_t>
+{
+    size_t operator()(vierkant::create_mesh_buffers_params_t const &params) const;
+};
+}
