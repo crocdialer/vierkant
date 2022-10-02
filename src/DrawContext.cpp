@@ -185,6 +185,7 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
 void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer,
                                       const vierkant::nodes::NodeConstPtr &root_node,
                                       const vierkant::nodes::node_animation_t &animation,
+                                      float animation_time,
                                       const glm::mat4 &model_view,
                                       const glm::mat4 &projection)
 {
@@ -209,7 +210,7 @@ void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer,
         if(it != animation.keys.end())
         {
             const auto &animation_keys = it->second;
-            create_animation_transform(animation_keys, animation.current_time, animation.interpolation_mode,
+            create_animation_transform(animation_keys, animation_time, animation.interpolation_mode,
                                        node_transform);
         }
         joint_transform = joint_transform * node_transform;

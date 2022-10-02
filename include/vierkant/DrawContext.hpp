@@ -107,15 +107,17 @@ public:
     /**
      * @brief   Draws a node hierarchy as set of lines.
      *
-     * @param   renderer    a provided vierkant::Renderer.
-     * @param   node        a provided vierkant::nodes::NodeConstPtr.
-     * @param   animation   an optional vierkant::nodes::node_animation_t
-     * @param   model_view  the modelview matrix to use for drawing.
-     * @param   projection  the projection matrix to use for drawing.
+     * @param   renderer        a provided vierkant::Renderer.
+     * @param   node            a provided vierkant::nodes::NodeConstPtr.
+     * @param   animation       an optional vierkant::nodes::node_animation_t
+     * @param   animation_time  current animation-time
+     * @param   model_view      the modelview matrix to use for drawing.
+     * @param   projection      the projection matrix to use for drawing.
      */
     void draw_node_hierarchy(vierkant::Renderer &renderer,
                              const vierkant::nodes::NodeConstPtr &node,
                              const vierkant::nodes::node_animation_t &animation,
+                             float animation_time,
                              const glm::mat4 &model_view,
                              const glm::mat4 &projection);
 

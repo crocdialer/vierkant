@@ -8,7 +8,7 @@
 namespace vierkant::nodes
 {
 
-void bfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)> &fn)
+static inline void bfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)> &fn)
 {
     std::deque<vierkant::nodes::NodeConstPtr> node_queue;
     node_queue.emplace_back(root);
@@ -25,7 +25,7 @@ void bfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)
     }
 }
 
-void dfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)> &fn)
+static inline void dfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)> &fn)
 {
 
 }
@@ -58,12 +58,13 @@ NodeConstPtr node_by_name(NodeConstPtr root, const std::string &name)
 
 void build_morph_weights_bfs(const NodeConstPtr &root,
                              const node_animation_t &animation,
+                             float animation_time,
                              std::vector<std::vector<float>> &morph_weights)
 {
     if(!root){ return; }
     morph_weights.resize(num_nodes_in_hierarchy(root));
 
-    bfs(root, [&morph_weights, &animation](auto &node)
+    bfs(root, [&morph_weights, &animation, animation_time](auto &node)
     {
         auto it = animation.keys.find(node);
 
@@ -73,7 +74,7 @@ void build_morph_weights_bfs(const NodeConstPtr &root,
 
             if(!animation_keys.morph_weights.empty())
             {
-                morph_weights[node->index] = create_morph_weights(animation_keys, animation.current_time,
+                morph_weights[node->index] = create_morph_weights(animation_keys, animation_time,
                                                                   animation.interpolation_mode);
             }
         }
@@ -82,6 +83,7 @@ void build_morph_weights_bfs(const NodeConstPtr &root,
 
 void build_node_matrices_bfs(const NodeConstPtr &root,
                              const node_animation_t &animation,
+                             float animation_time,
                              std::vector<glm::mat4> &matrices)
 {
     if(!root){ return; }
@@ -101,7 +103,7 @@ void build_node_matrices_bfs(const NodeConstPtr &root,
         if(it != animation.keys.end())
         {
             const auto &animation_keys = it->second;
-            create_animation_transform(animation_keys, animation.current_time, animation.interpolation_mode,
+            create_animation_transform(animation_keys, animation_time, animation.interpolation_mode,
                                        node_transform);
         }
         global_joint_transform = global_joint_transform * node_transform;
@@ -123,10 +125,10 @@ void build_node_matrices(const NodeConstPtr &root, const node_animation_t &anima
 
 void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,
+                                float animation_time,
                                 std::vector<glm::mat4> &matrices,
                                 glm::mat4 global_joint_transform)
 {
-    float time = animation.current_time;
     glm::mat4 node_transform = node->transform;
 
     auto it = animation.keys.find(node);
@@ -134,7 +136,7 @@ void build_node_matrices_helper(const NodeConstPtr &node,
     if(it != animation.keys.end())
     {
         const auto &animation_keys = it->second;
-        create_animation_transform(animation_keys, time, animation.interpolation_mode, node_transform);
+        create_animation_transform(animation_keys, animation_time, animation.interpolation_mode, node_transform);
     }
     global_joint_transform = global_joint_transform * node_transform;
 
@@ -142,7 +144,7 @@ void build_node_matrices_helper(const NodeConstPtr &node,
     matrices[node->index] = global_joint_transform * node->offset;
 
     // recursion through all children
-    for(auto &b: node->children){ build_node_matrices_helper(b, animation, matrices, global_joint_transform); }
+    for(auto &b: node->children){ build_node_matrices_helper(b, animation, animation_time, matrices, global_joint_transform); }
 }
 
 }

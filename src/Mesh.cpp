@@ -316,7 +316,7 @@ std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Mesh::update_entry_transforms()
+void Mesh::update_entry_transforms(uint32_t animation_index, float animation_time)
 {
     if(!root_bone && animation_index < node_animations.size())
     {
@@ -324,11 +324,11 @@ void Mesh::update_entry_transforms()
 
         // entry animation transforms
         std::vector<glm::mat4> node_matrices;
-        vierkant::nodes::build_node_matrices_bfs(root_node, animation, node_matrices);
+        vierkant::nodes::build_node_matrices_bfs(root_node, animation, animation_time, node_matrices);
 
         // morph-target weights
         std::vector<std::vector<float>> node_morph_weights;
-        vierkant::nodes::build_morph_weights_bfs(root_node, animation, node_morph_weights);
+        vierkant::nodes::build_morph_weights_bfs(root_node, animation, animation_time, node_morph_weights);
 
         for(auto &entry: entries)
         {

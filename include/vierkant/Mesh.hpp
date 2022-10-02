@@ -208,7 +208,7 @@ public:
      * @brief   update_entry_transforms applies the current animation to all entry-transforms.
      *          no-op if no animations are defined.
      */
-    void update_entry_transforms();
+    void update_entry_transforms(uint32_t animation_index, float animation_time);
 
     // vertex attributes
     vertex_attrib_map_t vertex_attribs;
@@ -219,9 +219,10 @@ public:
     // materials for submeshes
     std::vector<vierkant::MaterialPtr> materials;
 
-    // animations general
-    uint32_t animation_index = 0;
-    float animation_speed = 1.f;
+    // TODO: remove from Mesh. animations general
+//    uint32_t animation_index = 0;
+//    float animation_speed = 1.f;
+//    float current_animation_time = 0.f;
 
     // node animations
     vierkant::nodes::NodePtr root_node, root_bone;

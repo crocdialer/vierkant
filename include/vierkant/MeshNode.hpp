@@ -18,6 +18,10 @@ public:
 
     vierkant::MeshPtr mesh = nullptr;
 
+    uint32_t animation_index = 0;
+    float animation_speed = 1.f;
+    float animation_time = 0.f;
+
     static MeshNodePtr create(vierkant::MeshPtr mesh);
 
     void accept(Visitor &visitor) override;

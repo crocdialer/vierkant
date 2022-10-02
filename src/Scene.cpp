@@ -27,15 +27,16 @@ public:
 
     void visit(vierkant::MeshNode &node) override
     {
-        if(node.mesh && node.mesh->animation_index < node.mesh->node_animations.size())
+        if(node.mesh && node.animation_index < node.mesh->node_animations.size())
         {
             // update node animation
-            vierkant::update_animation(node.mesh->node_animations[node.mesh->animation_index],
+            vierkant::update_animation(node.mesh->node_animations[node.animation_index],
                                        m_time_step,
-                                       node.mesh->animation_speed);
+                                       node.animation_speed,
+                                       node.animation_time);
 
             // apply animation to entry-transforms
-            node.mesh->update_entry_transforms();
+            node.mesh->update_entry_transforms(node.animation_index, node.animation_time);
         }
         visit(static_cast<vierkant::Object3D &>(node));
     }
