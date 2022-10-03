@@ -153,7 +153,7 @@ public:
     };
 
     //! define syntax for a culling-delegate
-    using indirect_draw_delegate_t = std::function<void(indirect_draw_bundle_t&)>;
+    using indirect_draw_delegate_t = std::function<void(indirect_draw_bundle_t &)>;
 
     /**
      * @brief   drawable_t groups all necessary information for a drawable object.
@@ -213,17 +213,6 @@ public:
         VkQueue queue = VK_NULL_HANDLE;
         uint32_t random_seed = 0;
     };
-
-    /**
-     * @brief   Factory to create drawables from a provided mesh.
-     *
-     * @param   mesh        a mesh object containing entries with vertex information.
-     * @return  an array of drawables for the mesh-entries.
-     */
-    static std::vector<drawable_t>
-    create_drawables(const MeshConstPtr &mesh,
-                     const glm::mat4 &model_view = glm::mat4(1),
-                     const std::function<bool(const Mesh::entry_t &entry)> &entry_filter = {});
 
     //! Viewport parameters currently used.
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
@@ -297,7 +286,7 @@ public:
     /**
      * @return  last measured frame's millisecond-duration
      */
-    [[nodiscard]] double_millisecond_t last_frame_ms() const { return m_frame_assets[m_current_index].frame_time; }
+    [[nodiscard]] double_millisecond_t last_frame_ms() const{ return m_frame_assets[m_current_index].frame_time; }
 
     /**
      * @brief   Release all cached rendering assets.
@@ -425,5 +414,22 @@ private:
     PFN_vkCmdDrawMeshTasksIndirectNV vkCmdDrawMeshTasksIndirectNV = nullptr;
     PFN_vkCmdDrawMeshTasksIndirectCountNV vkCmdDrawMeshTasksIndirectCountNV = nullptr;
 };
+
+struct create_drawables_params_t
+{
+    MeshConstPtr mesh;
+    glm::mat4 model_view = glm::mat4(1);
+    std::function<bool(const Mesh::entry_t &entry)> entry_filter = {};
+    uint32_t animation_index = 0;
+    float animation_time = 0.f;
+};
+
+/**
+ * @brief   Factory to create drawables from a provided mesh.
+ *
+ * @param   params  a struct containing a mesh and other params for drawable-creation.
+ * @return  an array of drawables for the mesh-entries.
+ */
+std::vector<Renderer::drawable_t> create_drawables(const create_drawables_params_t &params);
 
 }//namespace vierkant

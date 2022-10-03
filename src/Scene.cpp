@@ -34,9 +34,6 @@ public:
                                        m_time_step,
                                        node.animation_playing ? node.animation_speed : 0.f,
                                        node.animation_time);
-
-            // apply animation to entry-transforms
-            node.mesh->update_entry_transforms(node.animation_index, node.animation_time);
         }
         visit(static_cast<vierkant::Object3D &>(node));
     }

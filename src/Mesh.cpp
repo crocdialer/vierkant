@@ -316,31 +316,6 @@ std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Mesh::update_entry_transforms(uint32_t animation_index, float animation_time)
-{
-    if(!root_bone && animation_index < node_animations.size())
-    {
-        const auto &animation = node_animations[animation_index];
-
-        // entry animation transforms
-        std::vector<glm::mat4> node_matrices;
-        vierkant::nodes::build_node_matrices_bfs(root_node, animation, animation_time, node_matrices);
-
-        // morph-target weights
-        std::vector<std::vector<float>> node_morph_weights;
-        vierkant::nodes::build_morph_weights_bfs(root_node, animation, animation_time, node_morph_weights);
-
-        for(auto &entry: entries)
-        {
-            assert(entry.node_index < node_morph_weights.size());
-            assert(entry.node_index < node_matrices.size());
-
-            entry.transform = node_matrices[entry.node_index];
-            entry.morph_weights = node_morph_weights[entry.node_index];
-        }
-    }
-}
-
 mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
                                          const create_mesh_buffers_params_t &params)
 {

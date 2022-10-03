@@ -45,145 +45,6 @@ using texture_index_map_t = std::unordered_map<texture_index_key_t, size_t, text
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<Renderer::drawable_t> Renderer::create_drawables(const MeshConstPtr &mesh,
-                                                             const glm::mat4 &model_view,
-                                                             const std::function<bool(
-                                                                     const Mesh::entry_t &entry)> &entry_filter)
-{
-    if(!mesh){ return {}; }
-
-    // reserve space for one drawable per mesh-entry
-    std::vector<Renderer::drawable_t> ret;
-    ret.reserve(mesh->entries.size());
-
-    // same for all entries
-    auto binding_descriptions = mesh->binding_descriptions();
-    auto attribute_descriptions = mesh->attribute_descriptions();
-
-    for(uint32_t i = 0; i < mesh->entries.size(); ++i)
-    {
-        const auto &entry = mesh->entries[i];
-        const auto &lod_0 = mesh->entries[i].lods.front();
-
-        // filter disabled entries, sanity check material-index
-        if(!entry_filter && !entry.enabled){ continue; }
-        if(entry_filter && !entry_filter(entry)){ continue; }
-        if(entry.material_index >= mesh->materials.size()){ continue; }
-
-        const auto &material = mesh->materials[entry.material_index];
-
-        // acquire ref for mesh-drawable
-        Renderer::drawable_t drawable = {};
-        drawable.mesh = mesh;
-        drawable.entry_index = i;
-
-        // combine mesh- with entry-transform
-        drawable.matrices.modelview = model_view * entry.transform;
-        drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
-        drawable.matrices.texture = material->texture_transform;
-
-        // material params
-        drawable.material.color = material->color;
-        drawable.material.emission = material->emission;
-        drawable.material.ambient = material->occlusion;
-        drawable.material.roughness = material->roughness;
-        drawable.material.metalness = material->metalness;
-        drawable.material.blend_mode = static_cast<uint32_t>(material->blend_mode);
-        drawable.material.alpha_cutoff = material->alpha_cutoff;
-
-        drawable.base_index = lod_0.base_index;
-        drawable.num_indices = lod_0.num_indices;
-        drawable.vertex_offset = entry.vertex_offset;
-        drawable.num_vertices = entry.num_vertices;
-        drawable.morph_vertex_offset = entry.morph_vertex_offset;
-        drawable.morph_weights = entry.morph_weights;
-        drawable.base_meshlet = lod_0.base_meshlet;
-        drawable.num_meshlets = lod_0.num_meshlets;
-
-        drawable.pipeline_format.primitive_topology = entry.primitive_type;
-        drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
-        drawable.pipeline_format.depth_test = material->depth_test;
-        drawable.pipeline_format.depth_write = material->depth_write;
-        drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
-
-        // descriptors
-        auto &desc_matrices = drawable.descriptors[BINDING_MESH_DRAWS];
-        desc_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_matrices.stage_flags =
-                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
-
-        auto &desc_material = drawable.descriptors[BINDING_MATERIAL];
-        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-        if(drawable.mesh->vertex_buffer)
-        {
-            auto &desc_vertices = drawable.descriptors[BINDING_VERTICES];
-            desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
-            desc_vertices.buffers = {drawable.mesh->vertex_buffer};
-        }
-
-        if(drawable.mesh->bone_vertex_buffer)
-        {
-            auto &desc_vertices = drawable.descriptors[BINDING_BONE_VERTEX_DATA];
-            desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
-            desc_vertices.buffers = {drawable.mesh->bone_vertex_buffer};
-        }
-
-        if(drawable.mesh->meshlets && drawable.mesh->meshlet_vertices && drawable.mesh->meshlet_triangles)
-        {
-            auto &desc_draws = drawable.descriptors[BINDING_DRAW_COMMANDS];
-            desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_draws.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
-
-            auto &desc_meshlets = drawable.descriptors[BINDING_MESHLETS];
-            desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_meshlets.stage_flags = VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
-            desc_meshlets.buffers = {mesh->meshlets};
-
-            auto &desc_meshlet_vertices = drawable.descriptors[BINDING_MESHLET_VERTICES];
-            desc_meshlet_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_meshlet_vertices.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
-            desc_meshlet_vertices.buffers = {mesh->meshlet_vertices};
-
-            auto &desc_meshlet_triangles = drawable.descriptors[BINDING_MESHLET_TRIANGLES];
-            desc_meshlet_triangles.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
-            desc_meshlet_triangles.buffers = {mesh->meshlet_triangles};
-        }
-
-        // NOTE: not used anymore by most pipelines
-        drawable.pipeline_format.binding_descriptions = binding_descriptions;
-        drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
-
-        // textures
-        if(!material->textures.empty())
-        {
-            vierkant::descriptor_t desc_texture = {};
-            desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            for(auto &[type_flag, tex]: material->textures)
-            {
-                if(tex)
-                {
-                    drawable.material.texture_type_flags |= type_flag;
-                    desc_texture.images.push_back(tex);
-                }
-            }
-            drawable.descriptors[BINDING_TEXTURES] = desc_texture;
-        }
-
-        // push drawable to vector
-        ret.push_back(std::move(drawable));
-    }
-    return ret;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
         m_device(std::move(device)),
         m_random_engine(create_info.random_seed)
@@ -620,7 +481,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         {
             push_constants.base_draw_index = draw_asset.first_indexed_draw_index;
             vkCmdPushConstants(command_buffer.handle(), pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
-                              sizeof(push_constants_t), &push_constants);
+                               sizeof(push_constants_t), &push_constants);
 
             // feature enabled/available, mesh exists and contains a meshlet-buffer, skinning not supported yet
             bool use_meshlets = vkCmdDrawMeshTasksNV && use_mesh_shader && mesh && mesh->meshlets && !mesh->root_bone;
@@ -663,7 +524,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                             vkCmdDrawMeshTasksIndirectCountNV(command_buffer.handle(),
                                                               draw_buffer_indexed->handle(),
                                                               mesh_draw_cmd_offset + indexed_indirect_cmd_stride *
-                                                              draw_asset.first_indexed_draw_index,
+                                                                                     draw_asset.first_indexed_draw_index,
                                                               draw_params.draws_counts_out->handle(),
                                                               draw_asset.count_buffer_offset * sizeof(uint32_t),
                                                               draw_asset.num_draws,
@@ -688,7 +549,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                             vkCmdDrawMeshTasksIndirectNV(command_buffer.handle(),
                                                          draw_buffer_indexed->handle(),
                                                          mesh_draw_cmd_offset + indexed_indirect_cmd_stride *
-                                                         draw_asset.first_indexed_draw_index,
+                                                                                draw_asset.first_indexed_draw_index,
                                                          draw_asset.num_draws,
                                                          indexed_indirect_cmd_stride);
                         }
@@ -707,7 +568,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     constexpr size_t indirect_cmd_stride = sizeof(VkDrawIndirectCommand);
 
                     vkCmdDrawIndirect(command_buffer.handle(),
-                                     draw_buffer->handle(),
+                                      draw_buffer->handle(),
                                       indirect_cmd_stride * draw_asset.first_draw_index,
                                       draw_asset.num_draws,
                                       indirect_cmd_stride);
@@ -760,7 +621,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     }
 
     // record end-timestamp
-    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, next_assets.query_pool.get(), 1);
+    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, next_assets.query_pool.get(),
+                         1);
 
     // keep the stuff in use
     current_assets = std::move(next_assets);
@@ -858,15 +720,15 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
     std::vector<VkBufferMemoryBarrier2> barriers;
 
     auto staging_copy = [num_array_bytes,
-                         &staging_buffer = frame_asset.staging_buffer,
-                         &staging_offset,
-                         &barriers,
-                         command_buffer = frame_asset.staging_command_buffer.handle(),
-                         device = m_device](
-                                const auto &array,
-                                vierkant::BufferPtr &outbuffer,
-                                VkPipelineStageFlags2 dst_stage,
-                                VkAccessFlags2 dst_access)
+            &staging_buffer = frame_asset.staging_buffer,
+            &staging_offset,
+            &barriers,
+            command_buffer = frame_asset.staging_command_buffer.handle(),
+            device = m_device](
+            const auto &array,
+            vierkant::BufferPtr &outbuffer,
+            VkPipelineStageFlags2 dst_stage,
+            VkAccessFlags2 dst_access)
     {
         size_t num_bytes = num_array_bytes(array);
 
@@ -880,10 +742,10 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         {
             outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes,
                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                                  VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else { outbuffer->set_data(nullptr, num_bytes); }
+        else{ outbuffer->set_data(nullptr, num_bytes); }
 
         // issue copy from staging-buffer to GPU-buffer
         staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
@@ -915,7 +777,7 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
                                                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                                   VMA_MEMORY_USAGE_CPU_ONLY);
         }
-        else { frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes); }
+        else{ frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes); }
 
         frame_asset.staging_command_buffer.begin();
 
@@ -1051,9 +913,9 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
        frame_asset.indirect_indexed_bundle.draws_in->num_bytes() < num_bytes_indexed)
     {
         frame_asset.indirect_indexed_bundle.draws_in = vierkant::Buffer::create(m_device, nullptr, num_bytes_indexed,
-                                                                            VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                                                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                                                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                                                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                                                 VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
     else{ frame_asset.indirect_indexed_bundle.draws_in->set_data(nullptr, num_bytes_indexed); }
@@ -1063,8 +925,8 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
     {
         frame_asset.indirect_bundle.draws_in = vierkant::Buffer::create(m_device, nullptr,
                                                                         num_bytes,
-                                                                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+                                                                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
     else{ frame_asset.indirect_bundle.draws_in->set_data(nullptr, num_bytes); }
@@ -1079,10 +941,10 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
             frame_asset.indirect_indexed_bundle.draws_out = vierkant::Buffer::create(
                     m_device, nullptr, num_bytes_indexed,
                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else { frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed); }
+        else{ frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed); }
 
         if(!frame_asset.indirect_bundle.draws_out ||
            frame_asset.indirect_bundle.draws_out->num_bytes() < num_bytes)
@@ -1090,10 +952,10 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
             frame_asset.indirect_bundle.draws_out = vierkant::Buffer::create(
                     m_device, nullptr, num_bytes,
                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else { frame_asset.indirect_bundle.draws_out->set_data(nullptr, num_bytes); }
+        else{ frame_asset.indirect_bundle.draws_out->set_data(nullptr, num_bytes); }
     }
 }
 
@@ -1123,5 +985,155 @@ size_t Renderer::descriptor_set_key_hash_t::operator()(const Renderer::descripto
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+std::vector<Renderer::drawable_t> create_drawables(const create_drawables_params_t &params)
+{
+    if(!params.mesh){ return {}; }
+
+    // reserve space for one drawable per mesh-entry
+    std::vector<Renderer::drawable_t> ret;
+    ret.reserve(params.mesh->entries.size());
+
+    // same for all entries
+    auto binding_descriptions = params.mesh->binding_descriptions();
+    auto attribute_descriptions = params.mesh->attribute_descriptions();
+
+    // entry animation transforms
+    std::vector<glm::mat4> node_matrices;
+
+    // morph-target weights
+    std::vector<std::vector<float>> node_morph_weights;
+
+    if(!params.mesh->root_bone && params.animation_index < params.mesh->node_animations.size())
+    {
+        const auto &animation = params.mesh->node_animations[params.animation_index];
+        vierkant::nodes::build_node_matrices_bfs(params.mesh->root_bone, animation, params.animation_time,
+                                                 node_matrices);
+        vierkant::nodes::build_morph_weights_bfs(params.mesh->root_bone, animation, params.animation_time,
+                                                 node_morph_weights);
+    }
+    for(uint32_t i = 0; i < params.mesh->entries.size(); ++i)
+    {
+        const auto &entry = params.mesh->entries[i];
+        const auto &lod_0 = params.mesh->entries[i].lods.front();
+
+        // filter disabled entries, sanity check material-index
+        if(!params.entry_filter && !entry.enabled){ continue; }
+        if(params.entry_filter && !params.entry_filter(entry)){ continue; }
+        if(entry.material_index >= params.mesh->materials.size()){ continue; }
+
+        const auto &material = params.mesh->materials[entry.material_index];
+
+        // acquire ref for mesh-drawable
+        Renderer::drawable_t drawable = {};
+        drawable.mesh = params.mesh;
+        drawable.entry_index = i;
+
+        // combine mesh- with entry-transform
+        drawable.matrices.modelview = params.model_view * (node_matrices.empty() ? entry.transform : node_matrices[entry.node_index]);
+        drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
+        drawable.matrices.texture = material->texture_transform;
+
+        // material params
+        drawable.material.color = material->color;
+        drawable.material.emission = material->emission;
+        drawable.material.ambient = material->occlusion;
+        drawable.material.roughness = material->roughness;
+        drawable.material.metalness = material->metalness;
+        drawable.material.blend_mode = static_cast<uint32_t>(material->blend_mode);
+        drawable.material.alpha_cutoff = material->alpha_cutoff;
+
+        drawable.base_index = lod_0.base_index;
+        drawable.num_indices = lod_0.num_indices;
+        drawable.vertex_offset = entry.vertex_offset;
+        drawable.num_vertices = entry.num_vertices;
+        drawable.morph_vertex_offset = entry.morph_vertex_offset;
+        drawable.morph_weights =  (node_morph_weights.empty() ? entry.morph_weights : node_morph_weights[entry.node_index]);
+        drawable.base_meshlet = lod_0.base_meshlet;
+        drawable.num_meshlets = lod_0.num_meshlets;
+
+        drawable.pipeline_format.primitive_topology = entry.primitive_type;
+        drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
+        drawable.pipeline_format.depth_test = material->depth_test;
+        drawable.pipeline_format.depth_write = material->depth_write;
+        drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
+
+        // descriptors
+        auto &desc_matrices = drawable.descriptors[Renderer::BINDING_MESH_DRAWS];
+        desc_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_matrices.stage_flags =
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+
+        auto &desc_material = drawable.descriptors[Renderer::BINDING_MATERIAL];
+        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+        if(drawable.mesh->vertex_buffer)
+        {
+            auto &desc_vertices = drawable.descriptors[Renderer::BINDING_VERTICES];
+            desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_vertices.buffers = {drawable.mesh->vertex_buffer};
+        }
+
+        if(drawable.mesh->bone_vertex_buffer)
+        {
+            auto &desc_vertices = drawable.descriptors[Renderer::BINDING_BONE_VERTEX_DATA];
+            desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_vertices.buffers = {drawable.mesh->bone_vertex_buffer};
+        }
+
+        if(drawable.mesh->meshlets && drawable.mesh->meshlet_vertices && drawable.mesh->meshlet_triangles)
+        {
+            auto &desc_draws = drawable.descriptors[Renderer::BINDING_DRAW_COMMANDS];
+            desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_draws.stage_flags =
+                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+
+            auto &desc_meshlets = drawable.descriptors[Renderer::BINDING_MESHLETS];
+            desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_meshlets.stage_flags = VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlets.buffers = {params.mesh->meshlets};
+
+            auto &desc_meshlet_vertices = drawable.descriptors[Renderer::BINDING_MESHLET_VERTICES];
+            desc_meshlet_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_meshlet_vertices.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlet_vertices.buffers = {params.mesh->meshlet_vertices};
+
+            auto &desc_meshlet_triangles = drawable.descriptors[Renderer::BINDING_MESHLET_TRIANGLES];
+            desc_meshlet_triangles.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlet_triangles.buffers = {params.mesh->meshlet_triangles};
+        }
+
+        // NOTE: not used anymore by most pipelines
+        drawable.pipeline_format.binding_descriptions = binding_descriptions;
+        drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
+
+        // textures
+        if(!material->textures.empty())
+        {
+            vierkant::descriptor_t desc_texture = {};
+            desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+            for(auto &[type_flag, tex]: material->textures)
+            {
+                if(tex)
+                {
+                    drawable.material.texture_type_flags |= type_flag;
+                    desc_texture.images.push_back(tex);
+                }
+            }
+            drawable.descriptors[Renderer::BINDING_TEXTURES] = desc_texture;
+        }
+
+        // push drawable to vector
+        ret.push_back(std::move(drawable));
+    }
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 }//namespace vierkant

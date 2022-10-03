@@ -204,12 +204,6 @@ public:
      */
     [[nodiscard]] std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
 
-    /**
-     * @brief   update_entry_transforms applies the current animation to all entry-transforms.
-     *          no-op if no animations are defined.
-     */
-    void update_entry_transforms(uint32_t animation_index, float animation_time);
-
     // vertex attributes
     vertex_attrib_map_t vertex_attribs;
 

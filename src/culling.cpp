@@ -67,7 +67,12 @@ public:
             }
 
             // create drawables
-            auto mesh_drawables = vierkant::Renderer::create_drawables(node.mesh, model_view);
+            vierkant::create_drawables_params_t drawable_params = {};
+            drawable_params.mesh = node.mesh;
+            drawable_params.model_view = model_view;
+            drawable_params.animation_index = node.animation_index;
+            drawable_params.animation_time = node.animation_time;
+            auto mesh_drawables = vierkant::create_drawables(drawable_params);
 
             for(auto &drawable: mesh_drawables)
             {
