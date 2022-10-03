@@ -38,7 +38,9 @@ BOOST_AUTO_TEST_CASE(TestRenderer)
     BOOST_CHECK_EQUAL(mesh_assets.entry_create_infos.size(), mesh->entries.size());
     BOOST_CHECK_EQUAL(mesh_assets.materials.size(), mesh->materials.size());
 
-    auto drawables = vierkant::Renderer::create_drawables(mesh);
+    vierkant::create_drawables_params_t drawable_params = {};
+    drawable_params.mesh = mesh;
+    auto drawables = vierkant::create_drawables(drawable_params);
     BOOST_CHECK_EQUAL(mesh_assets.entry_create_infos.size(), drawables.size());
 
     // manually inject shader-stages which cannot be just guessed by above utility
