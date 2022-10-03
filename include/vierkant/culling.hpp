@@ -24,6 +24,9 @@ struct cull_result_t
 
     std::unordered_set<vierkant::MeshNodeConstPtr> animated_nodes;
 
+    //! reverse lookup: drawable -> scenegraph-node
+    std::unordered_map<vierkant::Renderer::DrawableId, vierkant::MeshNodeConstPtr> node_map;
+
 //    //! a list of lightsources in eye-coordinates
 //    std::vector<vierkant::Renderer::lightsource_t> lightsources;
 

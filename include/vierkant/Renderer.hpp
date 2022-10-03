@@ -6,7 +6,7 @@
 
 #include <optional>
 #include <mutex>
-#include "crocore/Area.hpp"
+#include <crocore/NamedId.hpp>
 
 #include "vierkant/Mesh.hpp"
 #include "vierkant/descriptor.hpp"
@@ -35,6 +35,8 @@ using double_millisecond_t = std::chrono::duration<double, std::milli>;
 class Renderer
 {
 public:
+
+    using DrawableId = crocore::NamedId<struct DrawableIdParam>;
 
     enum DescriptorBinding
     {
@@ -158,6 +160,8 @@ public:
      */
     struct drawable_t
     {
+        DrawableId id;
+
         MeshConstPtr mesh;
 
         uint32_t entry_index = 0;

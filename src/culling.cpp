@@ -54,14 +54,15 @@ public:
 //                return vierkant::intersect(aabb, frustum);
 //            };
 
+            auto node_ptr = std::dynamic_pointer_cast<const vierkant::MeshNode>(node.shared_from_this());
+
             // keep track of meshes
             if(node.mesh)
             {
                 m_cull_result.meshes.insert(node.mesh);
                 if(node.mesh->root_bone && node.animation_index < node.mesh->node_animations.size())
                 {
-                    m_cull_result.animated_nodes.insert(
-                            std::dynamic_pointer_cast<const vierkant::MeshNode>(node.shared_from_this()));
+                    m_cull_result.animated_nodes.insert(node_ptr);
                 }
             }
 
@@ -70,6 +71,7 @@ public:
 
             for(auto &drawable: mesh_drawables)
             {
+                m_cull_result.node_map[drawable.id] = node_ptr;
                 drawable.matrices.projection = m_camera->projection_matrix();
             }
 

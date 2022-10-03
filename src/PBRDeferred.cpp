@@ -413,11 +413,14 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)
             {
+                auto node = frame_asset.cull_result.node_map[drawable.id];
+                uint32_t buffer_offset = bone_buffer_cache[node];
+
                 vierkant::descriptor_t desc_bones = {};
                 desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
                 desc_bones.buffers = {frame_asset.bone_buffer};
-//                desc_bones.buffer_offsets = {bone_buffer_cache[drawable.mesh->root_bone]};
+                desc_bones.buffer_offsets = {buffer_offset};
                 drawable.descriptors[Renderer::BINDING_BONES] = desc_bones;
 
                 if(last_frame_asset.bone_buffer &&
