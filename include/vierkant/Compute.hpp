@@ -19,7 +19,7 @@ static inline uint32_t group_count(uint32_t thread_count, uint32_t local_size)
 }
 
 /**
- * @brief   Raytracer can be used to run raytracing pipelines.
+ * @brief   Compute can be used to run compute-pipelines.
  *
  */
 class Compute
