@@ -405,15 +405,16 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         // insert previous matrices from cache, if any
         for(auto &drawable: frame_asset.cull_result.drawables)
         {
+            auto node = frame_asset.cull_result.node_map[drawable.id];
+
             // search previous matrices
-            matrix_key_t key = {drawable.mesh, drawable.entry_index};
+            matrix_key_t key = {node, drawable.entry_index};
             auto it = m_entry_matrix_cache.find(key);
             if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
 
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)
             {
-                auto node = frame_asset.cull_result.node_map[drawable.id];
                 uint32_t buffer_offset = bone_buffer_cache[node];
 
                 vierkant::descriptor_t desc_bones = {};
@@ -917,7 +918,7 @@ void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
 size_t PBRDeferred::matrix_key_hash_t::operator()(PBRDeferred::matrix_key_t const &key) const
 {
     size_t h = 0;
-    crocore::hash_combine(h, key.mesh);
+    crocore::hash_combine(h, key.node);
     crocore::hash_combine(h, key.entry_index);
     return h;
 }

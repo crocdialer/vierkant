@@ -321,12 +321,12 @@ private:
 
     struct matrix_key_t
     {
-        vierkant::MeshConstPtr mesh;
+        vierkant::MeshNodeConstPtr node;
         uint32_t entry_index;
 
         inline bool operator==(const matrix_key_t &other) const
         {
-            return mesh == other.mesh && entry_index == other.entry_index;
+            return node == other.node && entry_index == other.entry_index;
         }
     };
 
