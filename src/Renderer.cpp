@@ -912,7 +912,7 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         if(!frame_asset.staging_buffer)
         {
             frame_asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, num_staging_bytes,
-                                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                                   VMA_MEMORY_USAGE_CPU_ONLY);
         }
         else { frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes); }
