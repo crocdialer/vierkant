@@ -369,7 +369,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
 
 void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 {
-    using bone_offset_cache_t = std::unordered_map<vierkant::nodes::NodeConstPtr, size_t>;
+    using bone_offset_cache_t = std::unordered_map<vierkant::MeshNodeConstPtr, size_t>;
     matrix_cache_t new_entry_matrix_cache;
 
     bone_offset_cache_t bone_buffer_cache;
@@ -379,18 +379,18 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
                         m_g_renderer_pre.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
-    for(const auto &mesh: frame_asset.cull_result.meshes)
+    for(const auto &node: frame_asset.cull_result.animated_nodes)
     {
-        if(mesh && mesh->root_bone && mesh->animation_index < mesh->node_animations.size())
-        {
-            std::vector<glm::mat4> bones_matrices;
-            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, mesh->node_animations[mesh->animation_index],
-                                                     bones_matrices);
+        const auto &mesh = node->mesh;
+        std::vector<glm::mat4> bones_matrices;
+        vierkant::nodes::build_node_matrices_bfs(mesh->root_bone,
+                                                 mesh->node_animations[node->animation_index],
+                                                 node->animation_time,
+                                                 bones_matrices);
 
-            // keep track of offset
-            bone_buffer_cache[mesh->root_bone] = all_bones_matrices.size() * sizeof(glm::mat4);
-            all_bones_matrices.insert(all_bones_matrices.end(), bones_matrices.begin(), bones_matrices.end());
-        }
+        // keep track of offset
+        bone_buffer_cache[node] = all_bones_matrices.size() * sizeof(glm::mat4);
+        all_bones_matrices.insert(all_bones_matrices.end(), bones_matrices.begin(), bones_matrices.end());
     }
 
     if(!frame_asset.bone_buffer)
@@ -417,7 +417,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
                 desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
                 desc_bones.buffers = {frame_asset.bone_buffer};
-                desc_bones.buffer_offsets = {bone_buffer_cache[drawable.mesh->root_bone]};
+//                desc_bones.buffer_offsets = {bone_buffer_cache[drawable.mesh->root_bone]};
                 drawable.descriptors[Renderer::BINDING_BONES] = desc_bones;
 
                 if(last_frame_asset.bone_buffer &&

@@ -737,20 +737,20 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
     if(!mesh->node_animations.empty() && ImGui::TreeNode("animation"))
     {
         // animation index
-        int animation_index = mesh->animation_index;
+        int animation_index = static_cast<int>(node->animation_index);
 
         std::vector<const char *> animation_items;
         for(auto &anim: mesh->node_animations){ animation_items.push_back(anim.name.c_str()); }
 
         if(ImGui::Combo("name", &animation_index, animation_items.data(), animation_items.size()))
         {
-            mesh->animation_index = animation_index;
+            node->animation_index = animation_index;
         }
 
-        auto &animation = mesh->node_animations[mesh->animation_index];
+        auto &animation = mesh->node_animations[node->animation_index];
 
         // animation speed
-        if(ImGui::SliderFloat("speed", &mesh->animation_speed, -3.f, 3.f)){}
+        if(ImGui::SliderFloat("speed", &node->animation_speed, -3.f, 3.f)){}
         ImGui::SameLine();
         if(ImGui::Checkbox("play", &animation.playing)){}
 
@@ -771,14 +771,14 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
             animation.interpolation_mode = interpolation_modes[mode_index];
         }
 
-        float current_time = animation.current_time / animation.ticks_per_sec;
+        float current_time = node->animation_time / animation.ticks_per_sec;
         float duration = animation.duration / animation.ticks_per_sec;
 
         // animation current time / max time
         if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(),
                               &current_time, 0.f, duration))
         {
-            animation.current_time = current_time * animation.ticks_per_sec;
+            node->animation_time = current_time * animation.ticks_per_sec;
         }
         ImGui::Separator();
         ImGui::TreePop();

@@ -37,7 +37,7 @@ public:
         if(should_visit(object))
         {
             scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform());
-            for(Object3DPtr &child : object.children()){ child->accept(*this); }
+            for(Object3DPtr &child: object.children()){ child->accept(*this); }
         }
     }
 
@@ -55,13 +55,20 @@ public:
 //            };
 
             // keep track of meshes
-            if(node.mesh){ m_cull_result.meshes.insert(node.mesh); }
+            if(node.mesh)
+            {
+                m_cull_result.meshes.insert(node.mesh);
+                if(node.mesh->root_bone && node.animation_index < node.mesh->node_animations.size())
+                {
+                    m_cull_result.animated_nodes.insert(
+                            std::dynamic_pointer_cast<const vierkant::MeshNode>(node.shared_from_this()));
+                }
+            }
 
             // create drawables
-            auto mesh_drawables = vierkant::Renderer::create_drawables(node.mesh,
-                                                                       model_view);
+            auto mesh_drawables = vierkant::Renderer::create_drawables(node.mesh, model_view);
 
-            for(auto &drawable : mesh_drawables)
+            for(auto &drawable: mesh_drawables)
             {
                 drawable.matrices.projection = m_camera->projection_matrix();
             }

@@ -8,6 +8,7 @@
 
 #include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
+#include "vierkant/MeshNode.hpp"
 #include "vierkant/Renderer.hpp"
 
 namespace vierkant
@@ -20,6 +21,8 @@ struct cull_result_t
     std::vector<vierkant::Renderer::drawable_t> drawables;
 
     std::unordered_set<vierkant::MeshConstPtr> meshes;
+
+    std::unordered_set<vierkant::MeshNodeConstPtr> animated_nodes;
 
 //    //! a list of lightsources in eye-coordinates
 //    std::vector<vierkant::Renderer::lightsource_t> lightsources;

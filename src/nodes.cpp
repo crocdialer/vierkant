@@ -33,6 +33,7 @@ static inline void dfs(const NodeConstPtr &root, const std::function<void(const 
 //! recursion helper-routine
 void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,
+                                float animation_time,
                                 std::vector<glm::mat4> &matrices,
                                 glm::mat4 global_joint_transform);
 
@@ -116,11 +117,14 @@ void build_node_matrices_bfs(const NodeConstPtr &root,
     }
 }
 
-void build_node_matrices(const NodeConstPtr &root, const node_animation_t &animation, std::vector<glm::mat4> &matrices)
+void build_node_matrices(const NodeConstPtr &root,
+                         const node_animation_t &animation,
+                         float animation_time,
+                         std::vector<glm::mat4> &matrices)
 {
     if(!root){ return; }
     matrices.resize(num_nodes_in_hierarchy(root));
-    build_node_matrices_helper(root, animation, matrices, glm::mat4(1));
+    build_node_matrices_helper(root, animation, animation_time, matrices, glm::mat4(1));
 }
 
 void build_node_matrices_helper(const NodeConstPtr &node,
