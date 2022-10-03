@@ -219,11 +219,6 @@ public:
     // materials for submeshes
     std::vector<vierkant::MaterialPtr> materials;
 
-    // TODO: remove from Mesh. animations general
-//    uint32_t animation_index = 0;
-//    float animation_speed = 1.f;
-//    float current_animation_time = 0.f;
-
     // node animations
     vierkant::nodes::NodePtr root_node, root_bone;
     std::vector<vierkant::nodes::node_animation_t> node_animations;

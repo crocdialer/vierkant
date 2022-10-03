@@ -32,7 +32,7 @@ public:
             // update node animation
             vierkant::update_animation(node.mesh->node_animations[node.animation_index],
                                        m_time_step,
-                                       node.animation_speed,
+                                       node.animation_playing ? node.animation_speed : 0.f,
                                        node.animation_time);
 
             // apply animation to entry-transforms

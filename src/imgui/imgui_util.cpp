@@ -752,7 +752,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
         // animation speed
         if(ImGui::SliderFloat("speed", &node->animation_speed, -3.f, 3.f)){}
         ImGui::SameLine();
-        if(ImGui::Checkbox("play", &animation.playing)){}
+        if(ImGui::Checkbox("play", &node->animation_playing)){}
 
         // interpolation-mode
         const char *interpolation_mode_items[] = {"Linear", "Step", "CubicSpline"};

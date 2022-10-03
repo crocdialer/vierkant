@@ -51,8 +51,6 @@ template<typename T>
 struct animation_t
 {
     std::string name;
-    bool playing = true;
-//    float current_time = 0.f;
     float duration = 0.f;
     float ticks_per_sec = 1.f;
     std::map<T, animation_keys_t> keys;
@@ -65,12 +63,9 @@ void update_animation(animation_t<T> &animation,
                       float animation_speed,
                       float &current_time)
 {
-    if(animation.playing)
-    {
-        current_time = current_time + time_delta * animation.ticks_per_sec * animation_speed;
-        if(current_time > animation.duration){ current_time -= animation.duration; }
-        current_time += current_time < 0.f ? animation.duration : 0.f;
-    }
+    current_time = current_time + time_delta * animation.ticks_per_sec * animation_speed;
+    if(current_time > animation.duration){ current_time -= animation.duration; }
+    current_time += current_time < 0.f ? animation.duration : 0.f;
 }
 
 /**

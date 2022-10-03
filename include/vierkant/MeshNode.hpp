@@ -17,9 +17,12 @@ class MeshNode : public vierkant::Object3D
 public:
 
     vierkant::MeshPtr mesh = nullptr;
+
+    //! animation playstate
     uint32_t animation_index = 0;
     float animation_speed = 1.f;
     float animation_time = 0.f;
+    bool animation_playing = true;
 
     static MeshNodePtr create(vierkant::MeshPtr mesh);
 
