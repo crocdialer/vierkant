@@ -68,7 +68,7 @@ private:
     struct ping_pong_t
     {
         vierkant::BufferPtr ubo;
-        vierkant::Renderer::drawable_t drawable;
+        vierkant::drawable_t drawable;
     };
     std::array<ping_pong_t, 2> m_ping_pongs;
 

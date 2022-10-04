@@ -148,21 +148,21 @@ private:
         Skybox
     };
 
-    std::unordered_map<DrawableType, Renderer::drawable_t> m_drawables;
+    std::unordered_map<DrawableType, vierkant::drawable_t> m_drawables;
 
-    Renderer::drawable_t m_drawable_text = {};
+    vierkant::drawable_t m_drawable_text = {};
 
-    Renderer::drawable_t m_drawable_image = {};
+    vierkant::drawable_t m_drawable_image = {};
 
-    Renderer::drawable_t m_drawable_image_fullscreen = {};
+    vierkant::drawable_t m_drawable_image_fullscreen = {};
 
-    Renderer::drawable_t m_drawable_color_depth_fullscreen = {};
+    vierkant::drawable_t m_drawable_color_depth_fullscreen = {};
 
-    Renderer::drawable_t m_drawable_aabb = {};
+    vierkant::drawable_t m_drawable_aabb = {};
 
-    Renderer::drawable_t m_drawable_grid = {};
+    vierkant::drawable_t m_drawable_grid = {};
 
-    Renderer::drawable_t m_drawable_skybox = {};
+    vierkant::drawable_t m_drawable_skybox = {};
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 

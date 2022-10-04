@@ -291,7 +291,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     auto cube_render = vierkant::Renderer(device, cuber_render_create_info);
 
     // create a drawable
-    vierkant::Renderer::drawable_t drawable = {};
+    vierkant::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
             vierkant::create_shader_module(device, vierkant::shaders::cube::cube_vert);
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_GEOMETRY_BIT] =
@@ -387,7 +387,7 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
     auto renderer = vierkant::Renderer(device, render_create_info);
 
     // create a drawable
-    vierkant::Renderer::drawable_t drawable = {};
+    vierkant::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
             vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =

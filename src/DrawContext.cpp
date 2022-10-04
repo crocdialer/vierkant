@@ -297,7 +297,7 @@ void DrawContext::draw_lines(vierkant::Renderer &renderer,
 
     if(drawable_it == m_drawables.end())
     {
-        Renderer::drawable_t drawable = {};
+        vierkant::drawable_t drawable = {};
 
         auto &fmt = drawable.pipeline_format;
         fmt.blend_state.blendEnable = true;
@@ -363,7 +363,7 @@ void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &imag
                                         bool depth_test)
 {
     // create image-drawable
-    vierkant::Renderer::drawable_t drawable;
+    vierkant::drawable_t drawable;
 
     if(image && depth)
     {

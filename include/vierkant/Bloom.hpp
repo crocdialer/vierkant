@@ -49,7 +49,7 @@ private:
 
     GaussianBlurPtr m_gaussian_blur;
 
-    vierkant::Renderer::drawable_t m_drawable;
+    vierkant::drawable_t m_drawable;
 
     vierkant::Renderer m_thresh_renderer;
     glm::vec2 m_brightness_thresh;

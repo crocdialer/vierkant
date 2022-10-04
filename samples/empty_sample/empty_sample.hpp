@@ -66,7 +66,7 @@ private:
 
     vierkant::MeshPtr m_mesh = vierkant::Mesh::create();
 
-    vierkant::Renderer::drawable_t m_drawable;
+    vierkant::drawable_t m_drawable;
 
     vierkant::Renderer m_renderer, m_gui_renderer;
 

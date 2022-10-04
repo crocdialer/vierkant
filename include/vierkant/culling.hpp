@@ -18,14 +18,14 @@ namespace vierkant
 struct cull_result_t
 {
     //! list of drawables
-    std::vector<vierkant::Renderer::drawable_t> drawables;
+    std::vector<vierkant::drawable_t> drawables;
 
     std::unordered_set<vierkant::MeshConstPtr> meshes;
 
     std::unordered_set<vierkant::MeshNodeConstPtr> animated_nodes;
 
     //! reverse lookup: drawable -> scenegraph-node
-    std::unordered_map<vierkant::Renderer::DrawableId, vierkant::MeshNodeConstPtr> node_map;
+    std::unordered_map<vierkant::DrawableId, vierkant::MeshNodeConstPtr> node_map;
 
 //    //! a list of lightsources in eye-coordinates
 //    std::vector<vierkant::Renderer::lightsource_t> lightsources;

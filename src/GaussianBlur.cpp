@@ -139,7 +139,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
         m_specialization_info.pData = &num_taps;
         m_specialization_info.dataSize = sizeof(num_taps);
 
-        vierkant::Renderer::drawable_t drawable = {};
+        vierkant::drawable_t drawable = {};
 
         graphics_pipeline_info_t fmt = {};
         fmt.depth_test = false;

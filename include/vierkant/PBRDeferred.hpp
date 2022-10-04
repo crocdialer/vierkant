@@ -335,7 +335,7 @@ private:
         size_t operator()(matrix_key_t const &key) const;
     };
 
-    using matrix_cache_t = std::unordered_map<matrix_key_t, Renderer::matrix_struct_t, matrix_key_hash_t>;
+    using matrix_cache_t = std::unordered_map<matrix_key_t, vierkant::matrix_struct_t, matrix_key_hash_t>;
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
@@ -408,8 +408,7 @@ private:
     // helper, empty image
     vierkant::ImagePtr m_empty_img;
 
-    vierkant::Renderer::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom,
-            m_drawable_taa;
+    vierkant::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom, m_drawable_taa;
 
     vierkant::Compute::computable_t m_depth_pyramid_computable;
     glm::uvec3 m_depth_pyramid_local_size{0};

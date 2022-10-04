@@ -148,7 +148,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     // create drawables for post-fx-pass
     {
-        vierkant::Renderer::drawable_t fullscreen_drawable = {};
+        vierkant::drawable_t fullscreen_drawable = {};
 
         fullscreen_drawable.num_vertices = 3;
         fullscreen_drawable.use_own_buffers = true;
@@ -784,7 +784,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
     // get next set of pingpong assets, increment index
     auto pingpong_render = [&frame_asset, &buffer_index, queue = m_queue](
-            Renderer::drawable_t &drawable,
+            vierkant::drawable_t &drawable,
             const std::vector<vierkant::semaphore_submit_info_t> &semaphore_submit_infos = {})
             -> vierkant::ImagePtr
     {

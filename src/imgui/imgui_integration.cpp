@@ -281,7 +281,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
         mesh_assets.push_back(create_mesh_assets(renderer.device()));
     }
 
-    Renderer::matrix_struct_t matrices = {};
+    vierkant::matrix_struct_t matrices = {};
     matrices.projection = glm::orthoRH(0.f, io.DisplaySize.x, 0.f, io.DisplaySize.y, 0.0f, 1.0f);
 
     // Draw

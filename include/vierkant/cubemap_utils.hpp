@@ -15,7 +15,7 @@ struct cube_pipeline_t
     vierkant::CommandPoolPtr command_pool;
     vierkant::Framebuffer framebuffer;
     vierkant::Renderer renderer;
-    vierkant::Renderer::drawable_t drawable;
+    vierkant::drawable_t drawable;
     vierkant::ImagePtr color_image;
     vierkant::ImagePtr depth_image;
 };

@@ -78,7 +78,7 @@ private:
 
     struct imgui_assets_t
     {
-        vierkant::Renderer::drawable_t drawable = {};
+        vierkant::drawable_t drawable = {};
         vierkant::ImagePtr font_texture = nullptr;
         std::vector<std::vector<mesh_asset_t>> frame_assets;
         vierkant::mouse_delegate_t mouse_delegate = {};

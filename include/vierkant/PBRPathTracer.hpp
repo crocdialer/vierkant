@@ -154,7 +154,7 @@ private:
 
         vierkant::BufferPtr ray_miss_ubo, composition_ubo;
 
-        vierkant::Renderer::drawable_t out_drawable;
+        vierkant::drawable_t out_drawable;
 
         BloomUPtr bloom;
     };
@@ -270,7 +270,7 @@ private:
 
     vierkant::ImagePtr m_environment, m_empty_img;
 
-    vierkant::Renderer::drawable_t m_drawable_bloom, m_drawable_raw;
+    vierkant::drawable_t m_drawable_bloom, m_drawable_raw;
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 
