@@ -268,13 +268,14 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                             reinterpret_cast<const uint32_t *>(
                                     (uint8_t *) values.data() +
                                     offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
-                            static_cast<int>(values.size()), 0, 1, 0, 0, sizeof(PBRDeferred::statistics_t));
+                            static_cast<int>(values.size()),
+                            0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
                     ImPlot::PlotShaded(
                             "occluded",
                             reinterpret_cast<const uint32_t *>(
                                     (uint8_t *) values.data() +
                                     offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
-                            static_cast<int>(values.size()), 0, 1, 0, 0, sizeof(PBRDeferred::statistics_t));
+                            static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
                     ImPlot::PopStyleVar();
                     ImPlot::EndPlot();
                 }
@@ -302,7 +303,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 
                     auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
                                                            offsetof(PBRDeferred::statistics_t, timings.total_ms));
-                    ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0, 1, 0, 0,
+                    ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0,
                                        sizeof(PBRDeferred::statistics_t));
                     ImPlot::PopStyleVar();
                     ImPlot::EndPlot();
