@@ -157,6 +157,9 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     // support >64k vertices with 16bit indices
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
+    // enable window-docking
+    io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
     // Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
     io.KeyMap[ImGuiKey_Tab] = Key::_TAB;
     io.KeyMap[ImGuiKey_LeftArrow] = Key::_LEFT;

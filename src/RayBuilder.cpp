@@ -342,6 +342,18 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
         index_buffers.push_back(mesh->index_buffer);
         index_buffer_offsets.push_back(mesh->index_buffer_offset);
 
+        // TODO: missing handling of animations here
+        // TODO: vertex-skin/morph animations: bake vertex-buffer per-frame in a compute-shader
+        // TODO: node animations: simply update transforms for each instance in TL-structure
+//        // entry animation transforms
+//        std::vector<glm::mat4> node_matrices;
+//
+//        if(!mesh->root_bone && animation_index < mesh->node_animations.size())
+//        {
+//            const auto &animation = mesh->node_animations[animation_index];
+//            vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, animation_time, node_matrices);
+//        }
+
         for(uint i = 0; i < acceleration_assets.size(); ++i)
         {
             const auto &mesh_entry = mesh->entries[i];
@@ -353,6 +365,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             // skip disabled entries
             if(!mesh_entry.enabled){ continue; }
 
+            // TODO: apply node-animation transform, if any
             auto modelview = asset->transform * mesh_entry.transform;
 
             // per bottom-lvl instance

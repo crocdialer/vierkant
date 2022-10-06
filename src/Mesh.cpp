@@ -431,8 +431,6 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     // generate LOD meshes here
     if(params.generate_lods)
     {
-        uint32_t max_num_lods = 7;
-
         // corresponds to mesh.entries
         for(auto &[geom, offsets]: splicer.offsets)
         {
@@ -448,7 +446,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
             size_t min_num = num_indices, max_num = num_indices;
 
-            for(uint32_t i = 0; i < max_num_lods; ++i)
+            for(uint32_t i = 0; i < params.max_num_lods; ++i)
             {
                 // shrink num_indices to 60%
                 constexpr float shrink_factor = .5f;
@@ -644,6 +642,7 @@ bool create_mesh_buffers_params_t::operator==(const create_mesh_buffers_params_t
 {
     if(optimize_vertex_cache != other.optimize_vertex_cache){ return false; }
     if(generate_lods != other.generate_lods){ return false; }
+    if(max_num_lods != other.max_num_lods){ return false; }
     if(generate_meshlets != other.generate_meshlets){ return false; }
     if(use_vertex_colors != other.use_vertex_colors){ return false; }
     if(pack_vertices != other.pack_vertices){ return false; }
@@ -661,6 +660,7 @@ size_t std::hash<vierkant::create_mesh_buffers_params_t>::operator()(
     size_t hash_val = 0;
     crocore::hash_combine(hash_val, params.optimize_vertex_cache);
     crocore::hash_combine(hash_val, params.generate_lods);
+    crocore::hash_combine(hash_val, params.max_num_lods);
     crocore::hash_combine(hash_val, params.generate_meshlets);
     crocore::hash_combine(hash_val, params.use_vertex_colors);
     crocore::hash_combine(hash_val, params.pack_vertices);

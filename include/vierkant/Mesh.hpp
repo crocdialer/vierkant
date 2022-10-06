@@ -291,6 +291,9 @@ struct create_mesh_buffers_params_t
     //! flag indicating if a cascade of simplified meshes (LODs) shall be generated.
     bool generate_lods = false;
 
+    //! maximum number of lods to be generated
+    uint32_t max_num_lods = 7;
+
     //! flag indicating if meshlet/cluster information shall be generated.
     bool generate_meshlets = false;
 
