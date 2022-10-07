@@ -247,6 +247,7 @@ private:
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
         vierkant::BufferPtr bone_buffer;
+        vierkant::BufferPtr morph_param_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;
         vierkant::BufferPtr lighting_param_ubo;
         vierkant::BufferPtr lights_ubo;
@@ -319,23 +320,23 @@ private:
         uint64_t draw_result;
     };
 
-    struct matrix_key_t
+    struct node_entry_key_t
     {
         vierkant::MeshNodeConstPtr node;
         uint32_t entry_index;
 
-        inline bool operator==(const matrix_key_t &other) const
+        inline bool operator==(const node_entry_key_t &other) const
         {
             return node == other.node && entry_index == other.entry_index;
         }
     };
 
-    struct matrix_key_hash_t
+    struct node_key_hash_t
     {
-        size_t operator()(matrix_key_t const &key) const;
+        size_t operator()(node_entry_key_t const &key) const;
     };
 
-    using matrix_cache_t = std::unordered_map<matrix_key_t, vierkant::matrix_struct_t, matrix_key_hash_t>;
+    using matrix_cache_t = std::unordered_map<node_entry_key_t, vierkant::matrix_struct_t, node_key_hash_t>;
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 

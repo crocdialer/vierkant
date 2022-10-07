@@ -60,7 +60,9 @@ public:
             if(node.mesh)
             {
                 m_cull_result.meshes.insert(node.mesh);
-                if(node.mesh->root_bone && node.animation_index < node.mesh->node_animations.size())
+
+                if(node.animation_index < node.mesh->node_animations.size() &&
+                   (node.mesh->root_bone || node.mesh->morph_buffer))
                 {
                     m_cull_result.animated_nodes.insert(node_ptr);
                 }

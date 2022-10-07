@@ -359,9 +359,8 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
         lod_0.num_indices = ci.geometry->indices.size();
         extra_offsets.lods.push_back(lod_0);
 
-        auto &morph_offsets = extra_offsets;
-        morph_offsets.morph_base_vertex = num_morph_vertices;
-        morph_offsets.num_morph_targets = ci.morph_targets.size();
+        extra_offsets.morph_base_vertex = num_morph_vertices;
+        extra_offsets.num_morph_targets = ci.morph_targets.size();
         num_morph_targets += ci.morph_targets.size();
 
         for(auto &morph_geom: ci.morph_targets)
@@ -377,7 +376,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
     ret.vertex_buffer = splicer.create_vertex_buffer(vertex_layout);
     ret.index_buffer = splicer.index_buffer;
-    ret.vertex_stride = params.pack_vertices ? sizeof(packed_vertex_t) : splicer.vertex_stride;;
+    ret.vertex_stride = params.pack_vertices ? sizeof(packed_vertex_t) : splicer.vertex_stride;
     ret.vertex_attribs = splicer.create_vertex_attribs(vertex_layout);
     ret.bone_vertex_buffer = splicer.create_bone_vertex_buffer();
     ret.num_morph_targets = num_morph_targets;

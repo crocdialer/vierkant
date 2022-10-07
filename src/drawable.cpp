@@ -108,6 +108,15 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
             desc_vertices.buffers = {drawable.mesh->bone_vertex_buffer};
         }
 
+        if(drawable.mesh->morph_buffer)
+        {
+            // add descriptors for morph- buffer_params
+            vierkant::descriptor_t &desc_morph_buffer = drawable.descriptors[Renderer::BINDING_MORPH_TARGETS];
+            desc_morph_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
+        }
+
         if(drawable.mesh->meshlets && drawable.mesh->meshlet_vertices && drawable.mesh->meshlet_triangles)
         {
             auto &desc_draws = drawable.descriptors[Renderer::BINDING_DRAW_COMMANDS];

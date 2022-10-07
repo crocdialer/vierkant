@@ -276,7 +276,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     for(const auto &n: mesh_visitor.objects)
     {
         meshes.insert(n->mesh);
-        if(!n->mesh->node_animations.empty()){ static_scene = false; }
+//        if(!n->mesh->node_animations.empty()){ static_scene = false; }
         crocore::hash_combine(scene_hash, n->transform());
 
         for(const auto &entry: n->mesh->entries){ crocore::hash_combine(scene_hash, entry.enabled); }
@@ -369,11 +369,24 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
 
 void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 {
-    using bone_offset_cache_t = std::unordered_map<vierkant::MeshNodeConstPtr, size_t>;
     matrix_cache_t new_entry_matrix_cache;
 
-    bone_offset_cache_t bone_buffer_cache;
+    // cache/collect bone-matrices
+    std::unordered_map<vierkant::MeshNodeConstPtr, size_t> bone_buffer_offsets;
     std::vector<glm::mat4> all_bones_matrices;
+
+    // cache/collect morph-params
+    //! morph_params_t contains information to access a morph-target buffer
+    struct alignas(16) morph_params_t
+    {
+        uint32_t morph_count = 0;
+        uint32_t base_vertex = 0;
+        uint32_t vertex_count = 0;
+        float weights[61] = {};
+    };
+    using morph_buffer_offset_mapt_t = std::unordered_map<node_entry_key_t, size_t, node_key_hash_t>;
+    morph_buffer_offset_mapt_t morph_buffer_offsets;
+    std::vector<morph_params_t> all_morph_params;
 
     size_t last_index = (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
                         m_g_renderer_pre.num_concurrent_frames();
@@ -382,15 +395,46 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     for(const auto &node: frame_asset.cull_result.animated_nodes)
     {
         const auto &mesh = node->mesh;
-        std::vector<glm::mat4> bones_matrices;
-        vierkant::nodes::build_node_matrices_bfs(mesh->root_bone,
-                                                 mesh->node_animations[node->animation_index],
-                                                 node->animation_time,
-                                                 bones_matrices);
+        const auto &animation = mesh->node_animations[node->animation_index];
 
-        // keep track of offset
-        bone_buffer_cache[node] = all_bones_matrices.size() * sizeof(glm::mat4);
-        all_bones_matrices.insert(all_bones_matrices.end(), bones_matrices.begin(), bones_matrices.end());
+        if(mesh->root_bone)
+        {
+            std::vector<glm::mat4> bones_matrices;
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone,
+                                                     animation,
+                                                     node->animation_time,
+                                                     bones_matrices);
+
+            // keep track of offset
+            bone_buffer_offsets[node] = all_bones_matrices.size() * sizeof(glm::mat4);
+            all_bones_matrices.insert(all_bones_matrices.end(), bones_matrices.begin(), bones_matrices.end());
+        }
+        else if(mesh->morph_buffer)
+        {
+            // morph-target weights
+            std::vector<std::vector<float>> node_morph_weights;
+            vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, node->animation_time,
+                                                     node_morph_weights);
+
+            for(uint32_t i = 0; i < mesh->entries.size(); ++i)
+            {
+                const auto &entry = mesh->entries[i];
+                node_entry_key_t key = {node, i};
+                const auto weights = node_morph_weights[entry.node_index];
+
+                morph_params_t p;
+                p.base_vertex = entry.morph_vertex_offset;
+                p.vertex_count = entry.num_vertices;
+                p.morph_count = weights.size();
+
+                assert(p.morph_count * sizeof(float) <= sizeof(p.weights));
+                memcpy(p.weights, weights.data(), weights.size() * sizeof(float));
+
+                // keep track of offset
+                morph_buffer_offsets[key] = all_morph_params.size() * sizeof(morph_params_t);
+                all_morph_params.push_back(p);
+            }
+        }
     }
 
     if(!frame_asset.bone_buffer)
@@ -400,6 +444,13 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     }
     else{ frame_asset.bone_buffer->set_data(all_bones_matrices); }
 
+    if(!frame_asset.morph_param_buffer)
+    {
+        frame_asset.morph_param_buffer = vierkant::Buffer::create(
+                m_device, all_morph_params, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    }
+    else{ frame_asset.morph_param_buffer->set_data(all_morph_params); }
+
     if(!frame_asset.recycle_commands)
     {
         // insert previous matrices from cache, if any
@@ -408,14 +459,14 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             auto node = frame_asset.cull_result.node_map[drawable.id];
 
             // search previous matrices
-            matrix_key_t key = {node, drawable.entry_index};
+            node_entry_key_t key = {node, drawable.entry_index};
             auto it = m_entry_matrix_cache.find(key);
             if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
 
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)
             {
-                uint32_t buffer_offset = bone_buffer_cache[node];
+                uint32_t buffer_offset = bone_buffer_offsets[node];
 
                 vierkant::descriptor_t desc_bones = {};
                 desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -430,6 +481,27 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
                     desc_bones.buffers = {last_frame_asset.bone_buffer};
                 }
                 drawable.descriptors[Renderer::BINDING_PREVIOUS_BONES] = desc_bones;
+            }
+
+            if(drawable.mesh && drawable.mesh->morph_buffer)
+            {
+                //! morph_params_t contains information to access a morph-target buffer
+                uint32_t buffer_offset = morph_buffer_offsets[key];
+
+                // use combined buffer
+                vierkant::descriptor_t desc_morph_params = {};
+                desc_morph_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_morph_params.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+                desc_morph_params.buffers = {frame_asset.morph_param_buffer};
+                desc_morph_params.buffer_offsets = {buffer_offset};
+                drawable.descriptors[Renderer::BINDING_MORPH_PARAMS] = desc_morph_params;
+
+                if(last_frame_asset.morph_param_buffer &&
+                   last_frame_asset.morph_param_buffer->num_bytes() == frame_asset.morph_param_buffer->num_bytes())
+                {
+                    desc_morph_params.buffers = {last_frame_asset.morph_param_buffer};
+                }
+                drawable.descriptors[Renderer::BINDING_PREVIOUS_MORPH_PARAMS] = desc_morph_params;
             }
 
             // store current matrices
@@ -524,37 +596,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             }
 
             // check if morph-targets are available
-            if(drawable.mesh->morph_buffer)
-            {
-                shader_flags |= PROP_MORPH_TARGET;
-
-                //! morph_params_t contains information to access a morph-target buffer
-                struct alignas(16) morph_params_t
-                {
-                    uint32_t morph_count = 0;
-                    uint32_t base_vertex = 0;
-                    uint32_t vertex_count = 0;
-                    float weights[61] = {};
-                } morph_params;
-
-                morph_params.base_vertex = drawable.morph_vertex_offset;
-                morph_params.vertex_count = drawable.num_vertices;
-                morph_params.morph_count = drawable.morph_weights.size();
-                memcpy(morph_params.weights, drawable.morph_weights.data(), morph_params.morph_count * sizeof(float));
-
-                // add descriptors for morph- buffer_params
-                vierkant::descriptor_t &desc_morph_buffer = drawable.descriptors[Renderer::BINDING_MORPH_TARGETS];
-                desc_morph_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-                desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
-
-                vierkant::descriptor_t &desc_morph_params = drawable.descriptors[Renderer::BINDING_MORPH_PARAMS];
-                desc_morph_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_morph_params.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-                desc_morph_params.buffers = {vierkant::Buffer::create(m_device, &morph_params, sizeof(morph_params_t),
-                                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                                      VMA_MEMORY_USAGE_CPU_TO_GPU)};
-            }
+            if(drawable.mesh->morph_buffer){ shader_flags |= PROP_MORPH_TARGET; }
 
             // select shader-stages from cache
             auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
@@ -915,7 +957,7 @@ void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
     m_conv_ggx = ggx;
 }
 
-size_t PBRDeferred::matrix_key_hash_t::operator()(PBRDeferred::matrix_key_t const &key) const
+size_t PBRDeferred::node_key_hash_t::operator()(PBRDeferred::node_entry_key_t const &key) const
 {
     size_t h = 0;
     crocore::hash_combine(h, key.node);

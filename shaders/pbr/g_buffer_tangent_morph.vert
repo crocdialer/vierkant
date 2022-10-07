@@ -7,27 +7,7 @@
 #include "../renderer/types.glsl"
 #include "../renderer/packed_vertex.glsl"
 #include "../utils/camera.glsl"
-
-vec3 slerp(vec3 x, vec3 y, float a)
-{
-    // get cosine of angle between vectors (-1 -> 1)
-    float cos_alpha = dot(x, y);
-
-    if (cos_alpha > 0.9999 || cos_alpha < -0.9999){ return a <= 0.5 ? x : y; }
-
-    // get angle (0 -> pi)
-    float alpha = acos(cos_alpha);
-
-    // get sine of angle between vectors (0 -> 1)
-    float sin_alpha = sin(alpha);
-
-    // this breaks down when sin_alpha = 0, i.e. alpha = 0 or pi
-    float t1 = sin((1.0 - a) * alpha) / sin_alpha;
-    float t2 = sin(a * alpha) / sin_alpha;
-
-    // interpolate src vectors
-    return x * t1 + y * t2;
-}
+#include "../utils/slerp.glsl"
 
 //! morph_params_t contains information to access a morph-target buffer
 struct morph_params_t
@@ -64,9 +44,14 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
     camera_t last_camera;
 };
 
-layout(set = 0, binding = BINDING_MORPH_PARAMS, scalar) readonly buffer MorphParams
+layout(set = 0, binding = BINDING_MORPH_PARAMS) readonly buffer MorphParams
 {
     morph_params_t morph_params;
+};
+
+layout(set = 0, binding = BINDING_PREVIOUS_MORPH_PARAMS) readonly buffer PreviousMorphParams
+{
+    morph_params_t prev_morph_params;
 };
 
 layout(push_constant) uniform PushConstants
@@ -89,28 +74,36 @@ void main()
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
     Vertex v = unpack(vertices[gl_VertexIndex]);
 
+    Vertex current_vertex;
+    current_vertex.position = v.position;
+    vec3 last_position = v.position;
+
     // apply morph-targets
     for(uint i = 0; i < morph_params.morph_count; ++i)
     {
         uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + gl_VertexIndex - draw_command.vertexOffset;
-        v.position += morph_vertices[morph_index].position * morph_params.weights[i];
-        v.normal = slerp(v.normal, v.normal + morph_vertices[morph_index].normal, morph_params.weights[i]);
+
+        current_vertex.position += morph_vertices[morph_index].position * morph_params.weights[i];
+        current_vertex.normal = slerp(v.normal, v.normal + morph_vertices[morph_index].normal, morph_params.weights[i]);
+        current_vertex.tangent = slerp(v.tangent, v.tangent + morph_vertices[morph_index].normal, morph_params.weights[i]);
+
+        last_position += morph_vertices[morph_index].position * prev_morph_params.weights[i];
     }
-    v.normal = normalize(v.normal);
+    current_vertex.normal = normalize(current_vertex.normal);
 
     indices.mesh_draw_index = draw_command.object_index;
     indices.material_index = draw_command.object_index;
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
-    vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
-    vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);
+    vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.position, 1.0);
+    vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_position, 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
     jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
     gl_Position = jittered_position;
 
     vertex_out.tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
-    vertex_out.normal = normalize(mat3(m.normal) * v.normal);
-    vertex_out.tangent = normalize(mat3(m.normal) * v.tangent);
+    vertex_out.normal = normalize(mat3(m.normal) * current_vertex.normal);
+    vertex_out.tangent = normalize(mat3(m.normal) * current_vertex.tangent);
 }
