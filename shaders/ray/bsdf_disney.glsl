@@ -109,16 +109,10 @@ vec3 EvalSpecularIridescence(float roughness, in vec3 Cspec0, vec3 V, vec3 N, ve
     return vec3(0.0);
 
     float VoH = dot(V, H);
-
     float D = GTR2(dot(N, H), roughness);
     pdf = D * dot(N, H) / (4.0 * VoH);
-
-//    float FH = SchlickFresnel(dot(L, H));
-//    vec3 F = mix(Cspec0, vec3(1.0), FH);
     vec3 F = iridescent_fresnel(1.0, ir_ior, Cspec0, ir_thickness, VoH);
-
     float G = SmithGGX(abs(dot(N, L)), roughness) * SmithGGX(abs(dot(N, V)), roughness);
-
     return F * D * G;
 }
 
@@ -131,13 +125,10 @@ vec3 EvalClearcoat(float clearcoat, float clearcoat_roughness, vec3 V, vec3 N, v
 
 //    float D = GTR1(dot(N, H), mix(0.1, 0.001, clearcoatGloss));
     float D = GTR2(dot(N, H), clearcoat_roughness);
-
     pdf = D * dot(N, H) / (4.0 * dot(V, H));
-
     float FH = SchlickFresnel(dot(L, H));
     float F = mix(0.04, 1.0, FH);
     float G = SmithGGX(dot(N, L), 0.25) * SmithGGX(dot(N, V), 0.25);
-
     return vec3(0.25 * clearcoat * F * D * G);
 }
 

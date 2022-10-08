@@ -22,6 +22,8 @@ layout(push_constant) uniform PushConstants
     push_constants_t push_constants;
 };
 
+layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
+
 // array of vertex-buffers
 layout(binding = 3, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
 
@@ -41,7 +43,8 @@ layout(binding = 9) uniform sampler2D u_emissionmaps[];
 layout(binding = 10) uniform sampler2D u_ao_rough_metal_maps[];
 
 // the ray-payload written here
-layout(location = 0) rayPayloadInEXT payload_t payload;
+layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
+layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shadow;
 
 // builtin barycentric coords
 hitAttributeEXT vec2 attribs;
@@ -173,6 +176,27 @@ void main()
     // absorption in media
     payload.beta *= exp(-payload.absorption * gl_HitTEXT);
     payload.absorption = vec3(0);
+
+    // test-code for shadow-rays
+//    Ray ray = Ray(payload.position + EPS * payload.ff_normal, normalize(vec3(0.7, 0.9, 0.3)));
+//    const uint ray_flags =  gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT | gl_RayFlagsOpaqueEXT;
+//    float tmin = 0.0001;
+//    float tmax = 10000.0;
+//    payload_shadow.shadow = true;
+//
+//    traceRayEXT(topLevelAS,         // acceleration structure
+//                ray_flags,          // rayflags
+//                0xff,               // cullMask
+//                0,                  // sbtRecordOffset
+//                0,                  // sbtRecordStride
+//                MISS_INDEX_SHADOW,  // missIndex
+//                ray.origin,         // ray origin
+//                tmin,               // ray min range
+//                ray.direction,      // ray direction
+//                tmax,               // ray max range
+//                MISS_INDEX_SHADOW); // payload-location
+//
+//    payload.radiance += payload_shadow.shadow ? vec3(0) : vec3(.1);
 
     // add radiance from emission
     payload.radiance += payload.beta * material.emission.rgb;

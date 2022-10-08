@@ -1,3 +1,5 @@
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+
 //! Vertex defines the layout for a vertex-struct
 struct Vertex
 {

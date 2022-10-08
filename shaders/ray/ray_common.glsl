@@ -15,6 +15,9 @@ struct RayCone
     float width;
 };
 
+#define MISS_INDEX_DEFAULT 0
+#define MISS_INDEX_SHADOW 1
+
 //! simple struct to groupt rayhit-parameters
 struct payload_t
 {

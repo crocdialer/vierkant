@@ -323,7 +323,7 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     // descriptors
     auto &desc_acceleration_structure = frame_asset.tracable.descriptors[0];
     desc_acceleration_structure.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-    desc_acceleration_structure.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    desc_acceleration_structure.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_acceleration_structure.acceleration_structure = frame_asset.acceleration_asset.structure;
 
     auto &desc_storage_images = frame_asset.tracable.descriptors[1];

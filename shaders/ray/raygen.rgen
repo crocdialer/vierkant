@@ -25,9 +25,6 @@ layout(push_constant) uniform PushConstants
     push_constants_t push_constants;
 };
 
-#define MISS_INDEX_DEFAULT 0
-#define MISS_INDEX_SHADOW 1
-
 layout(location = MISS_INDEX_DEFAULT) rayPayloadEXT payload_t payload;
 layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shadow;
 
