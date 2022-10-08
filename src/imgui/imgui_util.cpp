@@ -12,11 +12,14 @@
 #include <vierkant/GBuffer.hpp>
 
 #include "imgui_internal.h"
+#include "vierkant/Visitor.hpp"
 
 using namespace crocore;
 
 namespace vierkant::gui
 {
+
+void draw_material_ui(const MaterialPtr &material);
 
 const ImVec4 gray(.6, .6, .6, 1.);
 
@@ -255,7 +258,8 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                     implot_colors[ImPlotCol_FrameBg] = ImVec4(0, 0, 0, bg_alpha);
 
                     uint32_t max_draws =
-                            (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                            (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs)
+                            {
                                 return lhs.draw_cull_result.draw_count < rhs.draw_cull_result.draw_count;
                             }))->draw_cull_result.draw_count;
 
@@ -293,8 +297,9 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             {
                 if(ImPlot::BeginPlot("##pbr_timings"))
                 {
-                    double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
-                      return lhs.timings.total_ms < rhs.timings.total_ms;
+                    double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs)
+                    {
+                        return lhs.timings.total_ms < rhs.timings.total_ms;
                     }))->timings.total_ms;
 
                     ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
@@ -505,27 +510,70 @@ void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &c
 
     if(is_open)
     {
-        // draw a tree for the scene-objects
-        auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection);
-
-        // add / remove an object from selection
-        if(clicked_obj && selection)
+        ImGui::BeginTabBar("scene_tabs");
+        if(ImGui::BeginTabItem("scene"))
         {
-            if(ImGui::GetIO().KeyCtrl)
+            // draw a tree for the scene-objects
+            auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection);
+
+            // add / remove an object from selection
+            if(clicked_obj && selection)
             {
-                if(selection->count(clicked_obj)){ selection->erase(clicked_obj); }
-                else{ selection->insert(clicked_obj); }
+                if(ImGui::GetIO().KeyCtrl)
+                {
+                    if(selection->contains(clicked_obj)){ selection->erase(clicked_obj); }
+                    else{ selection->insert(clicked_obj); }
+                }
+                else
+                {
+                    selection->clear();
+                    selection->insert(clicked_obj);
+                }
             }
-            else
-            {
-                selection->clear();
-                selection->insert(clicked_obj);
-            }
+            ImGui::Separator();
+            if(selection){ for(auto &obj: *selection){ draw_object_ui(obj, camera); }}
+
+            ImGui::EndTabItem();
         }
+        if(ImGui::BeginTabItem("materials"))
+        {
+            vierkant::SelectVisitor<vierkant::MeshNode> v;
+            scene->root()->accept(v);
 
-        ImGui::Separator();
+            std::unordered_set<vierkant::MaterialPtr> material_map;
+            std::vector<vierkant::MaterialPtr> materials;
 
-        if(selection){ for(auto &obj: *selection){ draw_object_ui(obj, camera); }}
+            // uniquely gather all materials in order
+            for(const auto node: v.objects)
+            {
+                if(node && node->mesh)
+                {
+                    for(const auto &m: node->mesh->materials)
+                    {
+                        if(!material_map.contains(m))
+                        {
+                            materials.push_back(m);
+                            material_map.insert(m);
+                        }
+                    }
+                }
+            }
+            for(uint32_t i = 0; i < materials.size(); ++i)
+            {
+                const auto &mat = materials[i];
+                auto mat_name = mat->name.empty() ? std::to_string(i) : mat->name;
+
+                if(mat && ImGui::TreeNode((void *) (mat.get()), "%s", mat_name.c_str()))
+                {
+                    draw_material_ui(mat);
+                    ImGui::Separator();
+                    ImGui::TreePop();
+                }
+            }
+
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
     }
 
     // end window
