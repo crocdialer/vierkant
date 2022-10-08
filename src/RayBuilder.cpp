@@ -3,6 +3,8 @@
 //
 
 #include <vierkant/RayBuilder.hpp>
+#include <unordered_set>
+#include "vierkant/Visitor.hpp"
 
 namespace vierkant
 {
@@ -62,7 +64,7 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
 }
 
 RayBuilder::build_result_t
-RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh, const glm::mat4 &transform) const
+RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
 {
     // raytracing flags
     VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
@@ -234,7 +236,7 @@ void RayBuilder::compact(build_result_t &build_result) const
         entry_assets_compact[i] = std::make_shared<acceleration_asset_t>();
         auto &acceleration_asset = *entry_assets_compact[i];
         acceleration_asset = create_acceleration_asset(create_info);
-        acceleration_asset.transform = build_result.acceleration_assets[i]->transform;
+//        acceleration_asset.transform = build_result.acceleration_assets[i]->transform;
 
         // copy the original BLAS to a compact version
         VkCopyAccelerationStructureInfoKHR copy_info{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
@@ -296,7 +298,7 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     acceleration_asset.device_address = vkGetAccelerationStructureDeviceAddressKHR(m_device->handle(), &address_info);
 
     // pass transform
-    acceleration_asset.transform = transform;
+//    acceleration_asset.transform = transform;
 
     acceleration_asset.structure = AccelerationStructurePtr(handle, [device = m_device,
             buffer = acceleration_asset.buffer,
@@ -307,7 +309,8 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     return acceleration_asset;
 }
 
-RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_asset_map_t &asset_map,
+RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::SceneConstPtr &scene,
+                                                             const acceleration_asset_map_t &asset_map,
                                                              VkCommandBuffer commandbuffer,
                                                              const vierkant::AccelerationStructurePtr &last) const
 {
@@ -329,44 +332,58 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
 
-    uint32_t mesh_index = 0;
+    // TODO: culling, no culling, which volume to use!?
+    vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector;
+    scene->root()->accept(mesh_selector);
 
-    for(const auto &[mesh, acceleration_assets] : asset_map)
+    std::unordered_map<MeshConstPtr, size_t> mesh_buffer_indices;
+    std::unordered_map<MaterialConstPtr, size_t> material_indices;
+
+//    for(const auto &[mesh, acceleration_assets] : asset_map)
+    for(auto mesh_node : mesh_selector.objects)
     {
-        assert(mesh->entries.size() == acceleration_assets.size());
+        assert(mesh_node->mesh);
+        assert(asset_map.contains(mesh_node->mesh));
 
-        const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+        const auto &acceleration_assets = asset_map.at(mesh_node->mesh);
+        assert(mesh_node->mesh->entries.size() == acceleration_assets.size());
 
-        vertex_buffers.push_back(vertex_attrib.buffer);
-        vertex_buffer_offsets.push_back(vertex_attrib.buffer_offset);
-        index_buffers.push_back(mesh->index_buffer);
-        index_buffer_offsets.push_back(mesh->index_buffer_offset);
+        if(!mesh_buffer_indices.contains(mesh_node->mesh))
+        {
+            mesh_buffer_indices[mesh_node->mesh] = vertex_buffers.size();
 
-        // TODO: missing handling of animations here
+            const auto &vertex_attrib = mesh_node->mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+            vertex_buffers.push_back(vertex_attrib.buffer);
+            vertex_buffer_offsets.push_back(vertex_attrib.buffer_offset);
+            index_buffers.push_back(mesh_node->mesh->index_buffer);
+            index_buffer_offsets.push_back(mesh_node->mesh->index_buffer_offset);
+        }
+
         // TODO: vertex-skin/morph animations: bake vertex-buffer per-frame in a compute-shader
         // TODO: node animations: simply update transforms for each instance in TL-structure
-//        // entry animation transforms
-//        std::vector<glm::mat4> node_matrices;
-//
-//        if(!mesh->root_bone && animation_index < mesh->node_animations.size())
-//        {
-//            const auto &animation = mesh->node_animations[animation_index];
-//            vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, animation_time, node_matrices);
-//        }
+        // entry animation transforms
+        std::vector<glm::mat4> node_matrices;
+
+        if(!mesh_node->mesh->root_bone && mesh_node->animation_index < mesh_node->mesh->node_animations.size())
+        {
+            const auto &animation = mesh_node->mesh->node_animations[mesh_node->animation_index];
+            vierkant::nodes::build_node_matrices_bfs(mesh_node->mesh->root_node, animation, mesh_node->animation_time, node_matrices);
+        }
 
         for(uint i = 0; i < acceleration_assets.size(); ++i)
         {
-            const auto &mesh_entry = mesh->entries[i];
+            const auto &mesh_entry = mesh_node->mesh->entries[i];
             const auto &lod = mesh_entry.lods.front();
-            const auto &mesh_material = mesh->materials[mesh_entry.material_index];
+            const auto &mesh_material = mesh_node->mesh->materials[mesh_entry.material_index];
 
             const auto &asset = acceleration_assets[i];
 
             // skip disabled entries
             if(!mesh_entry.enabled){ continue; }
 
-            // TODO: apply node-animation transform, if any
-            auto modelview = asset->transform * mesh_entry.transform;
+            // apply node-animation transform, if any
+            auto modelview = mesh_node->transform() * (node_matrices.empty() ? mesh_entry.transform
+                                                                             : node_matrices[mesh_entry.node_index]);
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
@@ -382,69 +399,70 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const acceleration_
             instance.instanceShaderBindingTableRecordOffset = 0;
             instance.flags = instance_flags;
             instance.accelerationStructureReference = asset->device_address;
-
             instances.push_back(instance);
+
+            if(!material_indices.contains(mesh_material))
+            {
+                material_indices[mesh_material] = materials.size();
+                RayBuilder::material_struct_t material = {};
+                material.color = mesh_material->color;
+                material.emission = mesh_material->emission;
+                material.roughness = mesh_material->roughness;
+                material.metalness = mesh_material->metalness;
+                material.transmission = mesh_material->transmission;
+                material.ior = mesh_material->ior;
+                material.attenuation_distance = mesh_material->attenuation_distance;
+                material.attenuation_color = {mesh_material->attenuation_color, 0.f};
+                material.clearcoat_factor = mesh_material->clearcoat_factor;
+                material.clearcoat_roughness_factor = mesh_material->clearcoat_roughness_factor;
+                material.sheen_color = {mesh_material->sheen_color, 0.f};
+                material.sheen_roughness = mesh_material->sheen_roughness;
+
+                material.blend_mode = static_cast<uint32_t>(mesh_material->blend_mode);
+                material.alpha_cutoff = mesh_material->alpha_cutoff;
+
+                material.iridescence_strength = mesh_material->iridescence_factor;
+                material.iridescence_ior = mesh_material->iridescence_ior;
+                material.iridescence_thickness_range = mesh_material->iridescence_thickness_range;
+
+                for(auto &[type_flag, tex] : mesh_material->textures)
+                {
+                    material.texture_type_flags |= type_flag;
+
+                    if(type_flag == vierkant::Material::TextureType::Color)
+                    {
+                        material.texture_index = textures.size();
+                        textures.push_back(tex);
+                    }
+                    else if(type_flag == vierkant::Material::TextureType::Normal)
+                    {
+                        material.normalmap_index = normalmaps.size();
+                        normalmaps.push_back(tex);
+                    }
+                    else if(type_flag == vierkant::Material::TextureType::Emission)
+                    {
+                        material.emission_index = emissions.size();
+                        emissions.push_back(tex);
+                    }
+                    else if(type_flag == vierkant::Material::TextureType::Ao_rough_metal)
+                    {
+                        material.ao_rough_metal_index = ao_rough_metal_maps.size();
+                        ao_rough_metal_maps.push_back(tex);
+                    }
+                }
+                materials.push_back(material);
+            }
 
             RayBuilder::entry_t top_level_entry = {};
             top_level_entry.modelview = modelview;
             top_level_entry.normal_matrix = glm::inverseTranspose(modelview);
             top_level_entry.texture_matrix = mesh_material->texture_transform;
-            top_level_entry.buffer_index = mesh_index;
-            top_level_entry.material_index = materials.size();
+            top_level_entry.buffer_index = mesh_buffer_indices[mesh_node->mesh];
+            top_level_entry.material_index = material_indices[mesh_material];
             top_level_entry.vertex_offset = mesh_entry.vertex_offset;
             top_level_entry.base_index = lod.base_index;
             entries.push_back(top_level_entry);
-
-            RayBuilder::material_struct_t material = {};
-            material.color = mesh_material->color;
-            material.emission = mesh_material->emission;
-            material.roughness = mesh_material->roughness;
-            material.metalness = mesh_material->metalness;
-            material.transmission = mesh_material->transmission;
-            material.ior = mesh_material->ior;
-            material.attenuation_distance = mesh_material->attenuation_distance;
-            material.attenuation_color = {mesh_material->attenuation_color, 0.f};
-            material.clearcoat_factor = mesh_material->clearcoat_factor;
-            material.clearcoat_roughness_factor = mesh_material->clearcoat_roughness_factor;
-            material.sheen_color = {mesh_material->sheen_color, 0.f};
-            material.sheen_roughness = mesh_material->sheen_roughness;
-
-            material.blend_mode = static_cast<uint32_t>(mesh_material->blend_mode);
-            material.alpha_cutoff = mesh_material->alpha_cutoff;
-
-            material.iridescence_strength = mesh_material->iridescence_factor;
-            material.iridescence_ior = mesh_material->iridescence_ior;
-            material.iridescence_thickness_range = mesh_material->iridescence_thickness_range;
-
-            for(auto &[type_flag, tex] : mesh_material->textures)
-            {
-                material.texture_type_flags |= type_flag;
-
-                if(type_flag == vierkant::Material::TextureType::Color)
-                {
-                    material.texture_index = textures.size();
-                    textures.push_back(tex);
-                }
-                else if(type_flag == vierkant::Material::TextureType::Normal)
-                {
-                    material.normalmap_index = normalmaps.size();
-                    normalmaps.push_back(tex);
-                }
-                else if(type_flag == vierkant::Material::TextureType::Emission)
-                {
-                    material.emission_index = emissions.size();
-                    emissions.push_back(tex);
-                }
-                else if(type_flag == vierkant::Material::TextureType::Ao_rough_metal)
-                {
-                    material.ao_rough_metal_index = ao_rough_metal_maps.size();
-                    ao_rough_metal_maps.push_back(tex);
-                }
-            }
-
-            materials.push_back(material);
         }
-        mesh_index++;
     }
 
     // avoid passing zero-length buffer-arrays

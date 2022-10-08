@@ -6,6 +6,7 @@
 
 #include <vierkant/Device.hpp>
 #include <vierkant/Mesh.hpp>
+#include "vierkant/Scene.hpp"
 #include <vierkant/descriptor.hpp>
 
 namespace vierkant
@@ -89,7 +90,6 @@ public:
         vierkant::AccelerationStructurePtr structure = nullptr;
         VkDeviceAddress device_address = 0;
         vierkant::BufferPtr buffer = nullptr;
-        glm::mat4 transform = glm::mat4(1);
 
         //! buffer containing entry-information
         vierkant::BufferPtr entry_buffer = nullptr;
@@ -148,8 +148,7 @@ public:
      * @param   mesh        a provided vierkant::MeshConstPtr
      * @param   transform   a provided transformation-matrix
      */
-    [[nodiscard]] build_result_t create_mesh_structures(const vierkant::MeshConstPtr &mesh,
-                                                        const glm::mat4 &transform = glm::mat4(1)) const;
+    [[nodiscard]] build_result_t create_mesh_structures(const vierkant::MeshConstPtr &mesh) const;
 
     void compact(build_result_t &build_result) const;
 
@@ -160,7 +159,8 @@ public:
      *
      * @param   last    an optional, existing toplevel-structure to perform an update to
      */
-    acceleration_asset_t create_toplevel(const acceleration_asset_map_t &asset_map,
+    acceleration_asset_t create_toplevel(const vierkant::SceneConstPtr &scene,
+                                         const acceleration_asset_map_t &asset_map,
                                          VkCommandBuffer commandbuffer = VK_NULL_HANDLE,
                                          const vierkant::AccelerationStructurePtr &last = nullptr) const;
 

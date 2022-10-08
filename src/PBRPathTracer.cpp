@@ -167,7 +167,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
         update_acceleration_structures(frame_asset, scene, tags);
 
         // pathtracing pass
-        path_trace_pass(frame_asset, cam);
+        path_trace_pass(frame_asset, scene, cam);
 
         // increase batch index
         m_batch_index = std::min<size_t>(m_batch_index + 1, frame_asset.settings.max_num_batches);
@@ -197,7 +197,9 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     return ret;
 }
 
-void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam)
+void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset,
+                                    const vierkant::SceneConstPtr &scene,
+                                    const CameraPtr &cam)
 {
     // push constants
     frame_asset.tracable.push_constants.resize(sizeof(push_constants_t));
@@ -214,7 +216,8 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const CameraPtr
     frame_asset.cmd_build_toplvl.begin();
 
     // update top-level structure
-    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(frame_asset.bottom_lvl_assets,
+    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(scene,
+                                                                   frame_asset.bottom_lvl_assets,
                                                                    frame_asset.cmd_build_toplvl.handle());
     frame_asset.cmd_build_toplvl.end();
 
@@ -452,14 +455,13 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
         if(search_it != m_acceleration_assets.end())
         {
-            for(auto &asset: search_it->second){ asset->transform = node->global_transform(); }
+//            for(auto &asset: search_it->second){ asset->transform = node->global_transform(); }
         }
         else
         {
             // create bottom-lvl
-            auto result = m_ray_builder.create_mesh_structures(node->mesh, node->global_transform());
+            auto result = m_ray_builder.create_mesh_structures(node->mesh);
             m_acceleration_assets[node->mesh] = result.acceleration_assets;
-
             frame_asset.build_results[node->mesh] = std::move(result);
         }
     }

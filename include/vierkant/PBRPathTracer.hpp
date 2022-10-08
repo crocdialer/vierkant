@@ -220,7 +220,9 @@ private:
 
     void update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam);
 
-    void path_trace_pass(frame_assets_t &frame_asset, const CameraPtr &cam);
+    void path_trace_pass(frame_assets_t &frame_asset,
+                         const vierkant::SceneConstPtr &scene,
+                         const CameraPtr &cam);
 
     void denoise_pass(frame_assets_t &frame_asset);
 
