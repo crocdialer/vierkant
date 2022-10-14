@@ -236,7 +236,6 @@ void RayBuilder::compact(build_result_t &build_result) const
         entry_assets_compact[i] = std::make_shared<acceleration_asset_t>();
         auto &acceleration_asset = *entry_assets_compact[i];
         acceleration_asset = create_acceleration_asset(create_info);
-//        acceleration_asset.transform = build_result.acceleration_assets[i]->transform;
 
         // copy the original BLAS to a compact version
         VkCopyAccelerationStructureInfoKHR copy_info{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
@@ -297,9 +296,6 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     address_info.accelerationStructure = handle;
     acceleration_asset.device_address = vkGetAccelerationStructureDeviceAddressKHR(m_device->handle(), &address_info);
 
-    // pass transform
-//    acceleration_asset.transform = transform;
-
     acceleration_asset.structure = AccelerationStructurePtr(handle, [device = m_device,
             buffer = acceleration_asset.buffer,
             pFn = vkDestroyAccelerationStructureKHR](VkAccelerationStructureKHR s)
@@ -339,7 +335,6 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     std::unordered_map<MeshConstPtr, size_t> mesh_buffer_indices;
     std::unordered_map<MaterialConstPtr, size_t> material_indices;
 
-//    for(const auto &[mesh, acceleration_assets] : asset_map)
     for(auto mesh_node : mesh_selector.objects)
     {
         assert(mesh_node->mesh);
@@ -360,14 +355,17 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
         }
 
         // TODO: vertex-skin/morph animations: bake vertex-buffer per-frame in a compute-shader
-        // TODO: node animations: simply update transforms for each instance in TL-structure
+
         // entry animation transforms
         std::vector<glm::mat4> node_matrices;
+        const auto &anim_state = mesh_node->animation_state;
 
-        if(!mesh_node->mesh->root_bone && mesh_node->animation_index < mesh_node->mesh->node_animations.size())
+        if(!(mesh_node->mesh->root_bone || mesh_node->mesh->morph_buffer) &&
+           anim_state.index < mesh_node->mesh->node_animations.size())
         {
-            const auto &animation = mesh_node->mesh->node_animations[mesh_node->animation_index];
-            vierkant::nodes::build_node_matrices_bfs(mesh_node->mesh->root_node, animation, mesh_node->animation_time, node_matrices);
+            const auto &animation = mesh_node->mesh->node_animations[anim_state.index];
+            vierkant::nodes::build_node_matrices_bfs(mesh_node->mesh->root_node, animation,
+                                                     mesh_node->animation_state.current_time, node_matrices);
         }
 
         for(uint i = 0; i < acceleration_assets.size(); ++i)
@@ -475,8 +473,10 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     }
 
     // put instances into host-visible gpu-buffer
-    auto instance_buffer = vierkant::Buffer::create(m_device, instances, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                                         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+    auto instance_buffer = vierkant::Buffer::create(m_device,
+                                                    instances,
+                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                                    VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
                                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     VkDeviceOrHostAddressConstKHR instance_data_device_address{};

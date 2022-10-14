@@ -418,7 +418,6 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     bool use_environment = m_environment && frame_asset.settings.draw_skybox;
     frame_asset.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
 
-    // TODO: culling, no culling, which volume to use!?
     vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector(tags);
     scene->root()->accept(mesh_selector);
 
@@ -451,13 +450,8 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     //  cache-lookup / non-blocking build of acceleration structures
     for(const auto &node: mesh_selector.objects)
     {
-        auto search_it = m_acceleration_assets.find(node->mesh);
-
-        if(search_it != m_acceleration_assets.end())
-        {
-//            for(auto &asset: search_it->second){ asset->transform = node->global_transform(); }
-        }
-        else
+        // TODO: support updates of animated (skin/morph) assets
+        if(!m_acceleration_assets.contains(node->mesh))
         {
             // create bottom-lvl
             auto result = m_ray_builder.create_mesh_structures(node->mesh);

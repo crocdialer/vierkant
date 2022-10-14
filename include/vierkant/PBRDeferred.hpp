@@ -358,8 +358,10 @@ private:
                       const vierkant::ImagePtr &color,
                       const vierkant::ImagePtr &depth);
 
+    // TODO: this is big+fat enough to become its own module
     void create_depth_pyramid(frame_asset_t &frame_asset);
 
+    // TODO: this is big+fat enough to become its own module
     void cull_draw_commands(frame_asset_t &frame_asset,
                             const vierkant::CameraPtr &cam,
                             const vierkant::ImagePtr &depth_pyramid,

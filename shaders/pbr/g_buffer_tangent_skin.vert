@@ -72,7 +72,7 @@ void main()
                            uint(bone_vertex_data[gl_VertexIndex].index_w));
 
     indices.mesh_draw_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex;
-    indices.material_index = gl_BaseInstance;
+    indices.material_index = draws[gl_BaseInstance].material_index;
 
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;

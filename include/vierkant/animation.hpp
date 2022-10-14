@@ -57,15 +57,26 @@ struct animation_t
     InterpolationMode interpolation_mode = InterpolationMode::Linear;
 };
 
-template<typename T>
-void update_animation(animation_t<T> &animation,
-                      float time_delta,
-                      float animation_speed,
-                      float &current_time)
+struct animation_state_t
 {
-    current_time = current_time + time_delta * animation.ticks_per_sec * animation_speed;
-    if(current_time > animation.duration){ current_time -= animation.duration; }
-    current_time += current_time < 0.f ? animation.duration : 0.f;
+    uint32_t index = 0;
+    bool playing = true;
+    double animation_speed = 1.0;
+    double current_time = 0.0;
+};
+
+template<typename T>
+void update_animation(const animation_t<T> &animation,
+                      float time_delta,
+                      vierkant::animation_state_t &animation_state)
+{
+    if(animation_state.playing)
+    {
+        animation_state.current_time =
+                animation_state.current_time + time_delta * animation.ticks_per_sec * animation_state.animation_speed;
+        if(animation_state.current_time > animation.duration){ animation_state.current_time -= animation.duration; }
+        animation_state.current_time += animation_state.current_time < 0.f ? animation.duration : 0.f;
+    }
 }
 
 /**

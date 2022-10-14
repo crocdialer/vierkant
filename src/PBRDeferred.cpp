@@ -395,14 +395,14 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     for(const auto &node: frame_asset.cull_result.animated_nodes)
     {
         const auto &mesh = node->mesh;
-        const auto &animation = mesh->node_animations[node->animation_index];
+        const auto &animation = mesh->node_animations[node->animation_state.index];
 
         if(mesh->root_bone)
         {
             std::vector<glm::mat4> bones_matrices;
             vierkant::nodes::build_node_matrices_bfs(mesh->root_bone,
                                                      animation,
-                                                     node->animation_time,
+                                                     node->animation_state.current_time,
                                                      bones_matrices);
 
             // keep track of offset
@@ -413,7 +413,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         {
             // morph-target weights
             std::vector<std::vector<float>> node_morph_weights;
-            vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, node->animation_time,
+            vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, node->animation_state.current_time,
                                                      node_morph_weights);
 
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)

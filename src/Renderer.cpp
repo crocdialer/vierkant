@@ -661,13 +661,17 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
     std::vector<mesh_entry_t> mesh_entries;
     std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
 
+    // maps -> material-index
+    std::unordered_map<vierkant::MaterialConstPtr, uint32_t> material_index_map;
+
     // joined drawable buffers
     std::vector<mesh_draw_t> mesh_draws(drawables.size());
-    std::vector<material_struct_t> material_data(drawables.size());
+    std::vector<material_struct_t> material_data;
 
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
         uint32_t mesh_index = 0;
+        vierkant::MaterialConstPtr mat;
 
         if(drawables[i].mesh && !drawables[i].mesh->entries.empty())
         {
@@ -688,11 +692,19 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
                 mesh_entries.push_back(mesh_entry);
             }
             else{ mesh_index = mesh_entry_it->second; }
-        }
+
+            mat = drawables[i].mesh->materials[drawables[i].mesh->entries[drawables[i].entry_index].material_index];
+
+            if(!material_index_map.contains(mat))
+            {
+                material_index_map[mat] = material_data.size();
+                material_data.push_back(drawables[i].material);
+            }
+        }else{ material_data.push_back(drawables[i].material); }
+
         mesh_draws[i].current_matrices = drawables[i].matrices;
         mesh_draws[i].mesh_index = mesh_index;
-        mesh_draws[i].material_index = i;// yeah, not optimal
-        material_data[i] = drawables[i].material;
+        mesh_draws[i].material_index = material_index_map[mat];
 
         if(drawables[i].last_matrices){ mesh_draws[i].last_matrices = *drawables[i].last_matrices; }
         else{ mesh_draws[i].last_matrices = drawables[i].matrices; }

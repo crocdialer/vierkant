@@ -45,7 +45,7 @@ void main()
     Vertex v = unpack(vertices[gl_VertexIndex]);
 
     indices.mesh_draw_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex
-    indices.material_index = indices.mesh_draw_index;
+    indices.material_index = draws[gl_BaseInstance].material_index;
     indices.meshlet_index = 0;
 
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;

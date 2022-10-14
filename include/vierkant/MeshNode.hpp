@@ -19,10 +19,7 @@ public:
     vierkant::MeshPtr mesh = nullptr;
 
     //! animation playstate
-    uint32_t animation_index = 0;
-    float animation_speed = 1.f;
-    float animation_time = 0.f;
-    bool animation_playing = true;
+    vierkant::animation_state_t animation_state = {};
 
     static MeshNodePtr create(vierkant::MeshPtr mesh);
 

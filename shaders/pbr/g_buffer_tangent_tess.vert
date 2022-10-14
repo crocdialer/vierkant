@@ -19,6 +19,11 @@ layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
     Vertex vertices[];
 };
 
+layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
+{
+    mesh_draw_t draws[];
+};
+
 layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices;
 layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 {
@@ -34,7 +39,7 @@ void main()
     Vertex v = vertices[gl_VertexIndex];
 
     indices.mesh_draw_index = gl_BaseInstance;
-    indices.material_index = gl_BaseInstance;
+    indices.material_index = draws[gl_BaseInstance].material_index;
 
     vertex_out.current_position = vec4(v.position, 1.0);
     vertex_out.last_position = vec4(v.position, 1.0);

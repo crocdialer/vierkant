@@ -61,7 +61,7 @@ public:
             {
                 m_cull_result.meshes.insert(node.mesh);
 
-                if(node.animation_index < node.mesh->node_animations.size() &&
+                if(node.animation_state.index < node.mesh->node_animations.size() &&
                    (node.mesh->root_bone || node.mesh->morph_buffer))
                 {
                     m_cull_result.animated_nodes.insert(node_ptr);
@@ -72,8 +72,8 @@ public:
             vierkant::create_drawables_params_t drawable_params = {};
             drawable_params.mesh = node.mesh;
             drawable_params.model_view = model_view;
-            drawable_params.animation_index = node.animation_index;
-            drawable_params.animation_time = node.animation_time;
+            drawable_params.animation_index = node.animation_state.index;
+            drawable_params.animation_time = node.animation_state.current_time;
             auto mesh_drawables = vierkant::create_drawables(drawable_params);
 
             for(auto &drawable: mesh_drawables)

@@ -8,10 +8,8 @@ namespace vierkant
 struct range_item_t
 {
     Object3D *object = nullptr;
-
     float distance = 0.f;
-
-    bool operator<(const range_item_t &other) const{ return distance < other.distance; }
+    inline bool operator<(const range_item_t &other) const{ return distance < other.distance; }
 };
 
 class UpdateVisitor : public Visitor
@@ -27,13 +25,11 @@ public:
 
     void visit(vierkant::MeshNode &node) override
     {
-        if(node.mesh && node.animation_index < node.mesh->node_animations.size())
+        if(node.mesh && node.animation_state.index < node.mesh->node_animations.size())
         {
             // update node animation
-            vierkant::update_animation(node.mesh->node_animations[node.animation_index],
-                                       m_time_step,
-                                       node.animation_playing ? node.animation_speed : 0.f,
-                                       node.animation_time);
+            vierkant::update_animation(node.mesh->node_animations[node.animation_state.index],
+                                       m_time_step, node.animation_state);
         }
         visit(static_cast<vierkant::Object3D &>(node));
     }
@@ -71,8 +67,13 @@ void Scene::clear()
 
 void Scene::update(double time_delta)
 {
-    UpdateVisitor uv(time_delta);
-    m_root->accept(uv);
+    if(m_animation_state.playing)
+    {
+        time_delta *= m_animation_state.animation_speed;
+        m_animation_state.current_time += time_delta;
+        UpdateVisitor uv(static_cast<float>(time_delta));
+        m_root->accept(uv);
+    }
 }
 
 Object3DPtr Scene::pick(const Ray &ray, bool high_precision,

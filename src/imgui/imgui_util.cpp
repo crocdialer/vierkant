@@ -786,22 +786,23 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
     if(!mesh->node_animations.empty() && ImGui::TreeNode("animation"))
     {
         // animation index
-        int animation_index = static_cast<int>(node->animation_index);
+        int animation_index = static_cast<int>(node->animation_state.index);
 
         std::vector<const char *> animation_items;
         for(auto &anim: mesh->node_animations){ animation_items.push_back(anim.name.c_str()); }
 
         if(ImGui::Combo("name", &animation_index, animation_items.data(), animation_items.size()))
         {
-            node->animation_index = animation_index;
+            node->animation_state.index = animation_index;
         }
 
-        auto &animation = mesh->node_animations[node->animation_index];
+        auto &animation = mesh->node_animations[node->animation_state.index];
 
         // animation speed
-        if(ImGui::SliderFloat("speed", &node->animation_speed, -3.f, 3.f)){}
+        auto speed = static_cast<float>(node->animation_state.animation_speed);
+        if(ImGui::SliderFloat("speed", &speed, -3.f, 3.f)){ node->animation_state.animation_speed = speed; }
         ImGui::SameLine();
-        if(ImGui::Checkbox("play", &node->animation_playing)){}
+        if(ImGui::Checkbox("play", &node->animation_state.playing)){}
 
         // interpolation-mode
         const char *interpolation_mode_items[] = {"Linear", "Step", "CubicSpline"};
@@ -820,14 +821,14 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
             animation.interpolation_mode = interpolation_modes[mode_index];
         }
 
-        float current_time = node->animation_time / animation.ticks_per_sec;
+        float current_time = static_cast<float>(node->animation_state.current_time) / animation.ticks_per_sec;
         float duration = animation.duration / animation.ticks_per_sec;
 
         // animation current time / max time
         if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(),
                               &current_time, 0.f, duration))
         {
-            node->animation_time = current_time * animation.ticks_per_sec;
+            node->animation_state.current_time = current_time * animation.ticks_per_sec;
         }
         ImGui::Separator();
         ImGui::TreePop();
