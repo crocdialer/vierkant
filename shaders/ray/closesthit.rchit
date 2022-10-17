@@ -127,6 +127,8 @@ Vertex interpolate_vertex(Triangle t)
 
 void main()
 {
+    uint rng_state = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
+
     //    vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     Triangle triangle = get_triangle();
     Vertex v = interpolate_vertex(triangle);
@@ -212,6 +214,7 @@ void main()
 
     // alpha-cutoff
     if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
+    if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state)){ return; }
 
     // roughness / metalness
     if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)
@@ -222,16 +225,14 @@ void main()
         material.metalness *= rough_metal_tex.y;
     }
 
-    uint rngState = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
-
     float eta = payload.inside_media ? material.ior / payload.ior : payload.ior / material.ior;
     eta += EPS;
 
     payload.ior = payload.inside_media ? material.ior : 1.0;
 
     // TODO: compile-time toggle BSDF
-//    bsdf_sample_t bsdf_sample = sample_UE4(material, payload.ff_normal, V, eta, rngState);
-    bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rngState);
+//    bsdf_sample_t bsdf_sample = sample_UE4(material, payload.ff_normal, V, eta, rng_state);
+    bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
 
     payload.ray.direction = bsdf_sample.direction;
 
