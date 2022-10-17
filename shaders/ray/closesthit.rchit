@@ -243,8 +243,7 @@ void main()
         return;
     }
 
-    payload.beta *= bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS);
-    payload.beta = clamp(payload.beta, 0.0, 2 * PI);
+    payload.beta = clamp(payload.beta * bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS), 0.0, 1.0);
     payload.inside_media = bsdf_sample.transmission ? !payload.inside_media : payload.inside_media;
 
     payload.absorption = payload.inside_media ?
