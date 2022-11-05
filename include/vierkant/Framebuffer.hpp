@@ -15,8 +15,8 @@ namespace vierkant
 using RenderPassPtr = std::shared_ptr<VkRenderPass_T>;
 
 /**
-     * @brief   Enum to differentiate Image-Attachments
-     */
+ * @brief   Enum to differentiate Image-Attachments
+ */
 enum class AttachmentType
 {
     Color, Resolve, DepthStencil

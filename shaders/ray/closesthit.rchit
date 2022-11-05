@@ -198,7 +198,7 @@ void main()
 //                tmax,               // ray max range
 //                MISS_INDEX_SHADOW); // payload-location
 //
-//    payload.radiance += payload_shadow.shadow ? vec3(0) : vec3(.1);
+//    payload.radiance += payload.beta * (payload_shadow.shadow ? vec3(0) : vec3(.1));
 
     // add radiance from emission
     payload.radiance += payload.beta * material.emission.rgb;
