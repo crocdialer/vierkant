@@ -355,17 +355,21 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
         }
 
         // TODO: vertex-skin/morph animations: bake vertex-buffer per-frame in a compute-shader
-
         // entry animation transforms
         std::vector<glm::mat4> node_matrices;
-        const auto &anim_state = mesh_node->animation_state;
 
-        if(!(mesh_node->mesh->root_bone || mesh_node->mesh->morph_buffer) &&
-           anim_state.index < mesh_node->mesh->node_animations.size())
+        if(mesh_node->has_component<animation_state_t>())
         {
-            const auto &animation = mesh_node->mesh->node_animations[anim_state.index];
-            vierkant::nodes::build_node_matrices_bfs(mesh_node->mesh->root_node, animation,
-                                                     mesh_node->animation_state.current_time, node_matrices);
+            auto &animation_state = mesh_node->get_component<animation_state_t>();
+            const auto &anim_state = animation_state;
+
+            if(!(mesh_node->mesh->root_bone || mesh_node->mesh->morph_buffer) &&
+               anim_state.index < mesh_node->mesh->node_animations.size())
+            {
+                const auto &animation = mesh_node->mesh->node_animations[anim_state.index];
+                vierkant::nodes::build_node_matrices_bfs(mesh_node->mesh->root_node, animation,
+                                                         animation_state.current_time, node_matrices);
+            }
         }
 
         for(uint i = 0; i < acceleration_assets.size(); ++i)

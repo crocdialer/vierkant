@@ -25,11 +25,17 @@ public:
 
     void visit(vierkant::MeshNode &node) override
     {
-        if(node.mesh && node.animation_state.index < node.mesh->node_animations.size())
+        if(node.mesh && node.has_component<animation_state_t>())
         {
-            // update node animation
-            vierkant::update_animation(node.mesh->node_animations[node.animation_state.index],
-                                       m_time_step, node.animation_state);
+            auto &animation_state = node.get_component<animation_state_t>();
+
+            if(animation_state.index < node.mesh->node_animations.size())
+            {
+                // update node animation
+                vierkant::update_animation(node.mesh->node_animations[animation_state.index],
+                                           m_time_step, animation_state);
+            }
+
         }
         visit(static_cast<vierkant::Object3D &>(node));
     }
@@ -49,19 +55,31 @@ ScenePtr Scene::create()
     return ScenePtr(new Scene());
 }
 
+Scene::Scene()
+{
+    auto& root_entity = m_entities[m_root] = m_registry->create();
+    m_registry->emplace<animation_state_t>(root_entity);
+}
+
 void Scene::add_object(const Object3DPtr &object)
 {
     m_root->add_child(object);
+
+    if(!m_entities.contains(object))
+    {
+        m_entities[object] = m_registry->create();
+    }
 }
 
 void Scene::remove_object(const Object3DPtr &object)
 {
     m_root->remove_child(object, true);
+    m_entities.erase(object);
 }
 
 void Scene::clear()
 {
-    m_root = vierkant::Object3D::create("scene root");
+    m_root = vierkant::Object3D::create(nullptr, "scene root");
 //    m_skybox.reset();
 }
 
@@ -73,6 +91,17 @@ void Scene::update(double time_delta)
         m_animation_state.current_time += time_delta;
         UpdateVisitor uv(static_cast<float>(time_delta));
         m_root->accept(uv);
+    }
+
+    auto view = m_registry->view<animation_state_t>();
+
+    for(auto [entity, animation_state]: view.each())
+    {
+        if(animation_state.playing)
+        {
+            time_delta *= animation_state.animation_speed;
+            animation_state.current_time += time_delta;
+        }
     }
 }
 

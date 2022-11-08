@@ -6,10 +6,16 @@
 
 #include <list>
 #include <crocore/crocore.hpp>
+#include <entt/entity/registry.hpp>
+#include <optional>
+
 #include "vierkant/intersection.hpp"
 
 namespace vierkant
 {
+
+//! forward declare Scene
+DEFINE_CLASS_PTR(Scene);
 
 DEFINE_CLASS_PTR(Object3D);
 
@@ -22,7 +28,7 @@ DEFINE_CLASS_PTR(Object3D);
  */
 inline static bool check_tags(const std::set<std::string> &whitelist, const std::set<std::string> &obj_tags)
 {
-    for(const auto &t : obj_tags){ if(whitelist.count(t)){ return true; }}
+    for(const auto &t: obj_tags){ if(whitelist.count(t)){ return true; }}
     return whitelist.empty();
 }
 
@@ -32,7 +38,8 @@ public:
 
     using update_fn_t = std::function<void(float)>;
 
-    static Object3DPtr create(const std::string &the_name = "");
+    static Object3DPtr create(const vierkant::SceneConstPtr &scene,
+                              std::string name = "");
 
     virtual ~Object3D() = default;
 
@@ -148,8 +155,46 @@ public:
 
     virtual void accept(class Visitor &theVisitor);
 
+    template<typename T>
+    void add_component(const T &component)
+    {
+        if(m_registry && m_entity)
+        {
+            m_registry->template emplace<T>(*m_entity, component);
+        }
+    }
+
+    template<typename T>
+    bool has_component() const
+    {
+        return m_registry && m_entity && m_registry->try_get<T>(*m_entity);
+    }
+
+    template<typename T>
+    T& get_component()
+    {
+        if(m_registry && m_entity)
+        {
+            auto ptr = m_registry->try_get<T>(*m_entity);
+            if(ptr){ return *ptr; }
+        }
+        throw std::runtime_error("component does not exist");
+    }
+
+    template<typename T>
+    inline const T& get_component() const
+    {
+        if(m_registry && m_entity)
+        {
+            auto ptr = m_registry->try_get<T>(*m_entity);
+            if(ptr){ return *ptr; }
+        }
+        throw std::runtime_error("component does not exist");
+    }
+
 protected:
-    explicit Object3D(std::string name = "");
+    explicit Object3D(const vierkant::SceneConstPtr &scene,
+                      std::string name = "");
 
 private:
 
@@ -177,6 +222,10 @@ private:
     std::list<Object3DPtr> m_children;
 
     update_fn_t m_update_function;
+
+    std::shared_ptr<entt::registry> m_registry;
+
+    std::optional<entt::entity> m_entity;
 };
 
 }//namespace

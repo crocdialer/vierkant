@@ -1,4 +1,6 @@
 #include "vierkant/Object3D.hpp"
+
+#include <vierkant/Scene.hpp>
 #include "vierkant/Visitor.hpp"
 
 namespace vierkant
@@ -7,19 +9,23 @@ namespace vierkant
 uint32_t Object3D::s_id_pool = 0;
 
 // static factory
-Object3DPtr Object3D::create(const std::string &name)
+Object3DPtr Object3D::create(const vierkant::SceneConstPtr &scene,
+                             std::string name)
 {
-    return Object3DPtr(new Object3D(name));
+    return Object3DPtr(new Object3D(scene, std::move(name)));
 }
 
-Object3D::Object3D(std::string name) :
+Object3D::Object3D(const vierkant::SceneConstPtr &scene,
+                   std::string name) :
         m_id(s_id_pool++),
         m_name(std::move(name)),
         m_enabled(true),
         m_billboard(false),
-        m_transform(1)
+        m_transform(1),
+        m_registry(scene ? scene->registry() : nullptr)
 {
     if(m_name.empty()){ m_name = "Object3D_" + std::to_string(m_id); }
+    if(m_registry){ m_entity = m_registry->create(); }
 }
 
 void Object3D::set_position(const glm::vec3 &pos)
@@ -173,7 +179,7 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
     else if(recursive)
     {
         // not a direct descendant, go on recursive if requested
-        for(auto &c : children())
+        for(auto &c: children())
         {
             c->remove_child(child, recursive);
         }
@@ -183,7 +189,7 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
 AABB Object3D::aabb() const
 {
     AABB ret;
-    for(auto &c :children()){ if(c->enabled()){ ret += c->aabb().transform(c->transform()); }}
+    for(auto &c: children()){ if(c->enabled()){ ret += c->aabb().transform(c->transform()); }}
     return ret;
 }
 
@@ -199,7 +205,7 @@ void Object3D::add_tag(const std::string &tag, bool recursive)
 
     if(recursive)
     {
-        for(auto &c : children()){ c->add_tag(tag, recursive); }
+        for(auto &c: children()){ c->add_tag(tag, recursive); }
     }
 
 }
@@ -210,7 +216,7 @@ void Object3D::remove_tag(const std::string &tag, bool recursive)
 
     if(recursive)
     {
-        for(auto &c : children()){ c->remove_tag(tag, recursive); }
+        for(auto &c: children()){ c->remove_tag(tag, recursive); }
     }
 }
 

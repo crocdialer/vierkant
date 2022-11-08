@@ -26,3 +26,7 @@
 	path = submodules/VulkanMemoryAllocator
 	url = git@github.com:GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
 	shallow = true
+[submodule "submodules/entt"]
+	path = submodules/entt
+	url = git@github.com:skypjack/entt.git
+	shallow = true

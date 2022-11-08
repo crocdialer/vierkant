@@ -1,5 +1,7 @@
 #pragma once
 
+#include <entt/entity/registry.hpp>
+
 #include <vierkant/Object3D.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Camera.hpp>
@@ -41,13 +43,19 @@ public:
 
     void set_environment(const vierkant::ImagePtr &img);
 
+    const std::shared_ptr<entt::registry>& registry() const { return m_registry; }
+
 private:
 
-    Scene() = default;
+    Scene();
+
+    std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
+
+    std::unordered_map<Object3DPtr, entt::entity> m_entities;
 
     vierkant::ImagePtr m_skybox = nullptr;
 
-    Object3DPtr m_root = Object3D::create("scene root");
+    Object3DPtr m_root = Object3D::create(nullptr, "scene root");
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
     vierkant::animation_state_t m_animation_state = {};

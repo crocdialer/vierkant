@@ -53,27 +53,6 @@ public:
                                   const glm::vec4 &theColor = glm::vec4(1),
                                   float extrude = 0.f) const;
 
-    vierkant::Object3DPtr create_text_object(const std::string &the_text,
-                                             Align the_align = Align::LEFT,
-                                             uint32_t the_linewidth = 0,
-                                             uint32_t the_lineheight = 0) const;
-
-    vierkant::Object3DPtr create_text_object(std::list<std::string> the_lines,
-                                             Align the_align = Align::LEFT,
-                                             uint32_t the_linewidth = 0,
-                                             uint32_t the_lineheight = 0) const;
-
-    template<template<typename, typename> class Collection, typename T = std::string>
-    vierkant::Object3DPtr create_text_object(const Collection<T, std::allocator<T>> &the_lines,
-                                             Align the_align = Align::LEFT,
-                                             uint32_t the_linewidth = 0,
-                                             uint32_t the_lineheight = 0) const
-    {
-        return create_text_object(std::list<std::string>(std::begin(the_lines),
-                                                         std::end(the_lines)),
-                                  the_align, the_linewidth, the_lineheight);
-    }
-
     uint32_t font_size() const;
 
     uint32_t line_height() const;

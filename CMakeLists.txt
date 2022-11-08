@@ -73,6 +73,10 @@ add_subdirectory("submodules/crocore")
 include_directories(${crocore_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
+# entt
+add_subdirectory(submodules/entt EXCLUDE_FROM_ALL)
+set(LIBS ${LIBS} EnTT)
+
 ##shaders
 include(build_shaders)
 get_shaders_recursive(GLSL_SOURCE_FILES "shaders")

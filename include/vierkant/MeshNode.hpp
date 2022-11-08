@@ -18,10 +18,11 @@ public:
 
     vierkant::MeshPtr mesh = nullptr;
 
-    //! animation playstate
-    vierkant::animation_state_t animation_state = {};
+//    //! animation playstate
+//    vierkant::animation_state_t animation_state = {};
 
-    static MeshNodePtr create(vierkant::MeshPtr mesh);
+    static MeshNodePtr create(vierkant::MeshPtr mesh,
+                              const vierkant::SceneConstPtr &scene = nullptr);
 
     void accept(Visitor &visitor) override;
 
@@ -29,7 +30,7 @@ public:
 
 private:
 
-    MeshNode() = default;
+    explicit MeshNode(const vierkant::SceneConstPtr &scene) : Object3D(scene){};
 };
 
 }// namespace vierkant
