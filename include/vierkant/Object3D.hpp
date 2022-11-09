@@ -41,7 +41,7 @@ public:
     static Object3DPtr create(const vierkant::SceneConstPtr &scene,
                               std::string name = "");
 
-    virtual ~Object3D() = default;
+    virtual ~Object3D() noexcept;
 
     inline uint32_t id() const{ return m_id; };
 
@@ -156,7 +156,7 @@ public:
     virtual void accept(class Visitor &theVisitor);
 
     template<typename T>
-    void add_component(const T &component)
+    void add_component(const T &component = {})
     {
         if(m_registry && m_entity)
         {
@@ -165,30 +165,27 @@ public:
     }
 
     template<typename T>
-    bool has_component() const
-    {
-        return m_registry && m_entity && m_registry->try_get<T>(*m_entity);
-    }
+    bool has_component() const { return get_component_ptr<T>(); }
 
     template<typename T>
-    T& get_component()
+    T* get_component_ptr(){ return m_registry && m_entity ? m_registry->try_get<T>(*m_entity) : nullptr; }
+
+    template<typename T>
+    const T* get_component_ptr() const { return m_registry && m_entity ? m_registry->try_get<T>(*m_entity) : nullptr; }
+
+    template<typename T>
+    T &get_component()
     {
-        if(m_registry && m_entity)
-        {
-            auto ptr = m_registry->try_get<T>(*m_entity);
-            if(ptr){ return *ptr; }
-        }
+        auto ptr = get_component_ptr<T>();
+        if(ptr){ return *ptr; }
         throw std::runtime_error("component does not exist");
     }
 
     template<typename T>
-    inline const T& get_component() const
+    inline const T &get_component() const
     {
-        if(m_registry && m_entity)
-        {
-            auto ptr = m_registry->try_get<T>(*m_entity);
-            if(ptr){ return *ptr; }
-        }
+        auto ptr = get_component_ptr<T>();
+        if(ptr){ return *ptr; }
         throw std::runtime_error("component does not exist");
     }
 

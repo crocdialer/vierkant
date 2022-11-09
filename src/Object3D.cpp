@@ -12,7 +12,8 @@ uint32_t Object3D::s_id_pool = 0;
 Object3DPtr Object3D::create(const vierkant::SceneConstPtr &scene,
                              std::string name)
 {
-    return Object3DPtr(new Object3D(scene, std::move(name)));
+    auto ret = Object3DPtr(new Object3D(scene, std::move(name)));
+    return ret;
 }
 
 Object3D::Object3D(const vierkant::SceneConstPtr &scene,
@@ -26,6 +27,11 @@ Object3D::Object3D(const vierkant::SceneConstPtr &scene,
 {
     if(m_name.empty()){ m_name = "Object3D_" + std::to_string(m_id); }
     if(m_registry){ m_entity = m_registry->create(); }
+}
+
+Object3D::~Object3D() noexcept
+{
+//    if(m_registry && m_entity){ m_registry->release(*m_entity); }
 }
 
 void Object3D::set_position(const glm::vec3 &pos)

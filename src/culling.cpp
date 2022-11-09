@@ -55,14 +55,15 @@ public:
 //            };
 
             auto node_ptr = std::dynamic_pointer_cast<const vierkant::MeshNode>(node.shared_from_this());
+            const auto &mesh = node_ptr->get_component<vierkant::MeshPtr>();
 
             // keep track of meshes
-            if(node.mesh)
+            if(mesh)
             {
-                m_cull_result.meshes.insert(node.mesh);
+                m_cull_result.meshes.insert(mesh);
 
                 if(node.has_component<animation_state_t>() &&
-                   (node.mesh->root_bone || node.mesh->morph_buffer))
+                   (mesh->root_bone || mesh->morph_buffer))
                 {
                     m_cull_result.animated_nodes.insert(node_ptr);
                 }
@@ -70,7 +71,7 @@ public:
 
             // create drawables
             vierkant::create_drawables_params_t drawable_params = {};
-            drawable_params.mesh = node.mesh;
+            drawable_params.mesh = mesh;
             drawable_params.model_view = model_view;
 
             if(node.has_component<animation_state_t>())

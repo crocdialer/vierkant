@@ -67,13 +67,12 @@ struct animation_state_t
 
 template<typename T>
 void update_animation(const animation_t<T> &animation,
-                      float time_delta,
+                      double time_delta,
                       vierkant::animation_state_t &animation_state)
 {
     if(animation_state.playing)
     {
-        animation_state.current_time =
-                animation_state.current_time + time_delta * animation.ticks_per_sec * animation_state.animation_speed;
+        animation_state.current_time += time_delta * animation.ticks_per_sec * animation_state.animation_speed;
         if(animation_state.current_time > animation.duration){ animation_state.current_time -= animation.duration; }
         animation_state.current_time += animation_state.current_time < 0.f ? animation.duration : 0.f;
     }

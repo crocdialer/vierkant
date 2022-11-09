@@ -275,11 +275,12 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
     for(const auto &n: mesh_visitor.objects)
     {
-        meshes.insert(n->mesh);
+        const auto &mesh = n->get_component<vierkant::MeshPtr>();
+        meshes.insert(mesh);
 //        if(!n->mesh->node_animations.empty()){ static_scene = false; }
         crocore::hash_combine(scene_hash, n->transform());
 
-        for(const auto &entry: n->mesh->entries){ crocore::hash_combine(scene_hash, entry.enabled); }
+        for(const auto &entry: mesh->entries){ crocore::hash_combine(scene_hash, entry.enabled); }
     }
     if(scene_hash != frame_asset.scene_hash)
     {
@@ -394,7 +395,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 
     for(const auto &node: frame_asset.cull_result.animated_nodes)
     {
-        const auto &mesh = node->mesh;
+        const auto &mesh = node->get_component<vierkant::MeshPtr>();
         if(!node->has_component<animation_state_t>()){ continue; }
         auto &animation_state = node->get_component<animation_state_t>();
 

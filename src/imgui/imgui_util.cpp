@@ -546,9 +546,11 @@ void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &c
             // uniquely gather all materials in order
             for(const auto node: v.objects)
             {
-                if(node && node->mesh)
+                const auto &mesh = node->get_component<vierkant::MeshPtr>();
+
+                if(node && mesh)
                 {
-                    for(const auto &m: node->mesh->materials)
+                    for(const auto &m: mesh->materials)
                     {
                         if(!material_map.contains(m))
                         {
@@ -695,9 +697,9 @@ void draw_material_ui(const MaterialPtr &material)
 
 void draw_mesh_ui(const vierkant::MeshNodePtr &node)
 {
-    if(!node || !node->mesh){ return; }
+    if(!node){ return; }
 
-    auto mesh = node->mesh;
+    const auto &mesh = node->get_component<vierkant::MeshPtr>();
 
     size_t num_vertices = 0, num_faces = 0;
 
@@ -750,7 +752,7 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
                 ImGui::Separator();
 
                 // material ui
-                draw_material_ui(node->mesh->materials[e.material_index]);
+                draw_material_ui(mesh->materials[e.material_index]);
 
                 ImGui::TreePop();
             }

@@ -16,11 +16,6 @@ class MeshNode : public vierkant::Object3D
 {
 public:
 
-    vierkant::MeshPtr mesh = nullptr;
-
-//    //! animation playstate
-//    vierkant::animation_state_t animation_state = {};
-
     static MeshNodePtr create(vierkant::MeshPtr mesh,
                               const vierkant::SceneConstPtr &scene = nullptr);
 

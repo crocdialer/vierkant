@@ -43,7 +43,7 @@ public:
 
     void set_environment(const vierkant::ImagePtr &img);
 
-    const std::shared_ptr<entt::registry>& registry() const { return m_registry; }
+    [[nodiscard]] const std::shared_ptr<entt::registry>& registry() const { return m_registry; }
 
 private:
 
@@ -51,7 +51,7 @@ private:
 
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
 
-    std::unordered_map<Object3DPtr, entt::entity> m_entities;
+//    std::unordered_map<Object3DPtr, entt::entity> m_entities;
 
     vierkant::ImagePtr m_skybox = nullptr;
 

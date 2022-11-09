@@ -9,6 +9,7 @@ struct range_item_t
 {
     Object3D *object = nullptr;
     float distance = 0.f;
+
     inline bool operator<(const range_item_t &other) const{ return distance < other.distance; }
 };
 
@@ -23,22 +24,22 @@ public:
         Visitor::visit(static_cast<vierkant::Object3D &>(object));
     };
 
-    void visit(vierkant::MeshNode &node) override
-    {
-        if(node.mesh && node.has_component<animation_state_t>())
-        {
-            auto &animation_state = node.get_component<animation_state_t>();
-
-            if(animation_state.index < node.mesh->node_animations.size())
-            {
-                // update node animation
-                vierkant::update_animation(node.mesh->node_animations[animation_state.index],
-                                           m_time_step, animation_state);
-            }
-
-        }
-        visit(static_cast<vierkant::Object3D &>(node));
-    }
+//    void visit(vierkant::MeshNode &node) override
+//    {
+//        if(node.mesh && node.has_component<animation_state_t>())
+//        {
+//            auto &animation_state = node.get_component<animation_state_t>();
+//
+//            if(animation_state.index < node.mesh->node_animations.size())
+//            {
+//                // update node animation
+//                vierkant::update_animation(node.mesh->node_animations[animation_state.index],
+//                                           m_time_step, animation_state);
+//            }
+//
+//        }
+//        visit(static_cast<vierkant::Object3D &>(node));
+//    }
 
     bool should_visit(vierkant::Object3D &object) override
     {
@@ -57,51 +58,38 @@ ScenePtr Scene::create()
 
 Scene::Scene()
 {
-    auto& root_entity = m_entities[m_root] = m_registry->create();
-    m_registry->emplace<animation_state_t>(root_entity);
+//    auto &root_entity = m_entities[m_root] = m_registry->create();
+//    m_registry->emplace<animation_state_t>(root_entity);
 }
 
 void Scene::add_object(const Object3DPtr &object)
 {
     m_root->add_child(object);
 
-    if(!m_entities.contains(object))
-    {
-        m_entities[object] = m_registry->create();
-    }
+//    if(!m_entities.contains(object))
+//    {
+//        m_entities[object] = m_registry->create();
+//    }
 }
 
 void Scene::remove_object(const Object3DPtr &object)
 {
     m_root->remove_child(object, true);
-    m_entities.erase(object);
+//    m_entities.erase(object);
 }
 
 void Scene::clear()
 {
     m_root = vierkant::Object3D::create(nullptr, "scene root");
-//    m_skybox.reset();
 }
 
 void Scene::update(double time_delta)
 {
-    if(m_animation_state.playing)
-    {
-        time_delta *= m_animation_state.animation_speed;
-        m_animation_state.current_time += time_delta;
-        UpdateVisitor uv(static_cast<float>(time_delta));
-        m_root->accept(uv);
-    }
+    auto mesh_animations_view = m_registry->view<animation_state_t, vierkant::MeshPtr>();
 
-    auto view = m_registry->view<animation_state_t>();
-
-    for(auto [entity, animation_state]: view.each())
+    for(auto [entity, animation_state, mesh]: mesh_animations_view.each())
     {
-        if(animation_state.playing)
-        {
-            time_delta *= animation_state.animation_speed;
-            animation_state.current_time += time_delta;
-        }
+        vierkant::update_animation(mesh->node_animations[animation_state.index], time_delta, animation_state);
     }
 }
 
@@ -114,7 +102,7 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
 
     std::list<range_item_t> clicked_items;
 
-    for(const auto &object : sv.objects)
+    for(const auto &object: sv.objects)
     {
         if(object == m_root.get()){ continue; }
 
@@ -176,7 +164,7 @@ vierkant::Object3DPtr Scene::object_by_name(const std::string &name) const
     vierkant::SelectVisitor<vierkant::Object3D> sv({}, false);
     root()->accept(sv);
 
-    for(vierkant::Object3D *o : sv.objects)
+    for(vierkant::Object3D *o: sv.objects)
     {
         if(o->name() == name){ return o->shared_from_this(); }
     }
@@ -189,7 +177,7 @@ std::vector<vierkant::Object3DPtr> Scene::objects_by_tags(const std::set<std::st
     vierkant::SelectVisitor<vierkant::Object3D> sv(tags, false);
     root()->accept(sv);
 
-    for(vierkant::Object3D *o : sv.objects){ ret.push_back(o->shared_from_this()); }
+    for(vierkant::Object3D *o: sv.objects){ ret.push_back(o->shared_from_this()); }
     return ret;
 }
 

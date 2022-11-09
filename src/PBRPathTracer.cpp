@@ -450,13 +450,15 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     //  cache-lookup / non-blocking build of acceleration structures
     for(const auto &node: mesh_selector.objects)
     {
+        const auto &mesh = node->get_component<vierkant::MeshPtr>();
+
         // TODO: support updates of animated (skin/morph) assets
-        if(!m_acceleration_assets.contains(node->mesh))
+        if(!m_acceleration_assets.contains(mesh))
         {
             // create bottom-lvl
-            auto result = m_ray_builder.create_mesh_structures(node->mesh);
-            m_acceleration_assets[node->mesh] = result.acceleration_assets;
-            frame_asset.build_results[node->mesh] = std::move(result);
+            auto result = m_ray_builder.create_mesh_structures(mesh);
+            m_acceleration_assets[mesh] = result.acceleration_assets;
+            frame_asset.build_results[mesh] = std::move(result);
         }
     }
 
@@ -469,7 +471,11 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         semaphore_infos.push_back(wait_info);
     }
 
-    for(auto node: mesh_selector.objects){ frame_asset.bottom_lvl_assets[node->mesh] = m_acceleration_assets[node->mesh]; }
+    for(auto node: mesh_selector.objects)
+    {
+        const auto &mesh = node->get_component<vierkant::MeshPtr>();
+        frame_asset.bottom_lvl_assets[mesh] = m_acceleration_assets[mesh];
+    }
 
     vierkant::semaphore_submit_info_t signal_info = {};
     signal_info.semaphore = frame_asset.semaphore.handle();

@@ -337,21 +337,23 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
 
     for(auto mesh_node : mesh_selector.objects)
     {
-        assert(mesh_node->mesh);
-        assert(asset_map.contains(mesh_node->mesh));
+        const auto &mesh = mesh_node->get_component<vierkant::MeshPtr>();
 
-        const auto &acceleration_assets = asset_map.at(mesh_node->mesh);
-        assert(mesh_node->mesh->entries.size() == acceleration_assets.size());
+        assert(mesh);
+        assert(asset_map.contains(mesh));
 
-        if(!mesh_buffer_indices.contains(mesh_node->mesh))
+        const auto &acceleration_assets = asset_map.at(mesh);
+        assert(mesh->entries.size() == acceleration_assets.size());
+
+        if(!mesh_buffer_indices.contains(mesh))
         {
-            mesh_buffer_indices[mesh_node->mesh] = vertex_buffers.size();
+            mesh_buffer_indices[mesh] = vertex_buffers.size();
 
-            const auto &vertex_attrib = mesh_node->mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+            const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
             vertex_buffers.push_back(vertex_attrib.buffer);
             vertex_buffer_offsets.push_back(vertex_attrib.buffer_offset);
-            index_buffers.push_back(mesh_node->mesh->index_buffer);
-            index_buffer_offsets.push_back(mesh_node->mesh->index_buffer_offset);
+            index_buffers.push_back(mesh->index_buffer);
+            index_buffer_offsets.push_back(mesh->index_buffer_offset);
         }
 
         // TODO: vertex-skin/morph animations: bake vertex-buffer per-frame in a compute-shader
@@ -363,20 +365,20 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             auto &animation_state = mesh_node->get_component<animation_state_t>();
             const auto &anim_state = animation_state;
 
-            if(!(mesh_node->mesh->root_bone || mesh_node->mesh->morph_buffer) &&
-               anim_state.index < mesh_node->mesh->node_animations.size())
+            if(!(mesh->root_bone || mesh->morph_buffer) &&
+               anim_state.index < mesh->node_animations.size())
             {
-                const auto &animation = mesh_node->mesh->node_animations[anim_state.index];
-                vierkant::nodes::build_node_matrices_bfs(mesh_node->mesh->root_node, animation,
+                const auto &animation = mesh->node_animations[anim_state.index];
+                vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
                                                          animation_state.current_time, node_matrices);
             }
         }
 
         for(uint i = 0; i < acceleration_assets.size(); ++i)
         {
-            const auto &mesh_entry = mesh_node->mesh->entries[i];
+            const auto &mesh_entry = mesh->entries[i];
             const auto &lod = mesh_entry.lods.front();
-            const auto &mesh_material = mesh_node->mesh->materials[mesh_entry.material_index];
+            const auto &mesh_material = mesh->materials[mesh_entry.material_index];
 
             const auto &asset = acceleration_assets[i];
 
@@ -459,7 +461,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             top_level_entry.modelview = modelview;
             top_level_entry.normal_matrix = glm::inverseTranspose(modelview);
             top_level_entry.texture_matrix = mesh_material->texture_transform;
-            top_level_entry.buffer_index = mesh_buffer_indices[mesh_node->mesh];
+            top_level_entry.buffer_index = mesh_buffer_indices[mesh];
             top_level_entry.material_index = material_indices[mesh_material];
             top_level_entry.vertex_offset = mesh_entry.vertex_offset;
             top_level_entry.base_index = lod.base_index;
