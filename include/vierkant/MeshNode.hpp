@@ -16,8 +16,8 @@ class MeshNode : public vierkant::Object3D
 {
 public:
 
-    static MeshNodePtr create(vierkant::MeshPtr mesh,
-                              const vierkant::SceneConstPtr &scene = nullptr);
+    static MeshNodePtr create(const vierkant::MeshPtr& mesh,
+                              const std::weak_ptr<entt::registry> &registry = {});
 
     void accept(Visitor &visitor) override;
 
@@ -25,7 +25,7 @@ public:
 
 private:
 
-    explicit MeshNode(const vierkant::SceneConstPtr &scene) : Object3D(scene){};
+    explicit MeshNode(const std::weak_ptr<entt::registry> &registry) : Object3D(registry){};
 };
 
 }// namespace vierkant

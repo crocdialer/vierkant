@@ -55,7 +55,7 @@ private:
 
     vierkant::ImagePtr m_skybox = nullptr;
 
-    Object3DPtr m_root = Object3D::create(nullptr, "scene root");
+    Object3DPtr m_root = Object3D::create(m_registry, "scene root");
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
     vierkant::animation_state_t m_animation_state = {};

@@ -1,6 +1,7 @@
 #include "vierkant/Object3D.hpp"
 
 #include <vierkant/Scene.hpp>
+#include <utility>
 #include "vierkant/Visitor.hpp"
 
 namespace vierkant
@@ -9,29 +10,25 @@ namespace vierkant
 uint32_t Object3D::s_id_pool = 0;
 
 // static factory
-Object3DPtr Object3D::create(const vierkant::SceneConstPtr &scene,
+Object3DPtr Object3D::create(const std::weak_ptr<entt::registry> &registry,
                              std::string name)
 {
-    auto ret = Object3DPtr(new Object3D(scene, std::move(name)));
+    auto ret = Object3DPtr(new Object3D(registry, std::move(name)));
+    ret->add_component(ret);
     return ret;
 }
 
-Object3D::Object3D(const vierkant::SceneConstPtr &scene,
+Object3D::Object3D(std::weak_ptr<entt::registry> registry,
                    std::string name) :
         m_id(s_id_pool++),
         m_name(std::move(name)),
         m_enabled(true),
         m_billboard(false),
         m_transform(1),
-        m_registry(scene ? scene->registry() : nullptr)
+        m_registry(std::move(registry))
 {
     if(m_name.empty()){ m_name = "Object3D_" + std::to_string(m_id); }
-    if(m_registry){ m_entity = m_registry->create(); }
-}
-
-Object3D::~Object3D() noexcept
-{
-//    if(m_registry && m_entity){ m_registry->release(*m_entity); }
+    if(auto reg = m_registry.lock()){ m_entity = reg->create(); }
 }
 
 void Object3D::set_position(const glm::vec3 &pos)

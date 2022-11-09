@@ -38,10 +38,10 @@ public:
 
     using update_fn_t = std::function<void(float)>;
 
-    static Object3DPtr create(const vierkant::SceneConstPtr &scene,
+    static Object3DPtr create(const std::weak_ptr<entt::registry> &registry = {},
                               std::string name = "");
 
-    virtual ~Object3D() noexcept;
+    virtual ~Object3D() noexcept = default;
 
     inline uint32_t id() const{ return m_id; };
 
@@ -158,9 +158,10 @@ public:
     template<typename T>
     void add_component(const T &component = {})
     {
-        if(m_registry && m_entity)
+        auto reg = m_registry.lock();
+        if(reg && m_entity)
         {
-            m_registry->template emplace<T>(*m_entity, component);
+            reg->template emplace<T>(*m_entity, component);
         }
     }
 
@@ -168,10 +169,18 @@ public:
     bool has_component() const { return get_component_ptr<T>(); }
 
     template<typename T>
-    T* get_component_ptr(){ return m_registry && m_entity ? m_registry->try_get<T>(*m_entity) : nullptr; }
+    T* get_component_ptr()
+    {
+        auto reg = m_registry.lock();
+        return reg && m_entity ? reg->try_get<T>(*m_entity) : nullptr;
+    }
 
     template<typename T>
-    const T* get_component_ptr() const { return m_registry && m_entity ? m_registry->try_get<T>(*m_entity) : nullptr; }
+    const T* get_component_ptr() const
+    {
+        auto reg = m_registry.lock();
+        return reg && m_entity ? reg->try_get<T>(*m_entity) : nullptr;
+    }
 
     template<typename T>
     T &get_component()
@@ -190,7 +199,7 @@ public:
     }
 
 protected:
-    explicit Object3D(const vierkant::SceneConstPtr &scene,
+    explicit Object3D(std::weak_ptr<entt::registry> registry,
                       std::string name = "");
 
 private:
@@ -220,7 +229,7 @@ private:
 
     update_fn_t m_update_function;
 
-    std::shared_ptr<entt::registry> m_registry;
+    std::weak_ptr<entt::registry> m_registry;
 
     std::optional<entt::entity> m_entity;
 };

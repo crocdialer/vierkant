@@ -8,13 +8,16 @@
 namespace vierkant
 {
 
-MeshNodePtr MeshNode::create(vierkant::MeshPtr mesh, const vierkant::SceneConstPtr &scene)
+MeshNodePtr MeshNode::create(const vierkant::MeshPtr& mesh, const std::weak_ptr<entt::registry> &registry)
 {
-    auto ret = MeshNodePtr(new MeshNode(scene));
+    auto ret = MeshNodePtr(new MeshNode(registry));
     ret->set_name("mesh_" + std::to_string(ret->id()));
 
     if(mesh){ ret->add_component<vierkant::MeshPtr>(mesh); }
     if(!mesh->node_animations.empty()){ ret->add_component<vierkant::animation_state_t>(); }
+
+    // 'object as component' hack -> resolve with not having this subclass
+    ret->add_component<vierkant::Object3DPtr>(ret);
     return ret;
 }
 

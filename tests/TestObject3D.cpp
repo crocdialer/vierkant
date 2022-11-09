@@ -5,14 +5,16 @@
 // each test module could contain no more then one 'main' file with init function defined
 // alternatively you could define init function yourself
 #define BOOST_TEST_MAIN
+
 #include <boost/test/unit_test.hpp>
 #include <boost/test/tools/floating_point_comparison.hpp>
 #include "vierkant/Object3D.hpp"
+#include "vierkant/Scene.hpp"
 
 using namespace vierkant;
 //____________________________________________________________________________//
 
-BOOST_AUTO_TEST_CASE( test_Object3D )
+BOOST_AUTO_TEST_CASE(test_Object3D_hierarchy)
 {
     Object3DPtr a(Object3D::create()), b(Object3D::create()), c(Object3D::create());
 
@@ -65,6 +67,33 @@ BOOST_AUTO_TEST_CASE( test_Object3D )
     BOOST_CHECK(b->global_scale() == glm::vec3(17.f));
 }
 
-//____________________________________________________________________________//
+BOOST_AUTO_TEST_CASE(test_Object3D_scene_entity)
+{
+    auto registry = std::make_shared<entt::registry>();
+    Object3DPtr a(Object3D::create(registry)), b(Object3D::create(registry)), c(Object3D::create(registry));
 
-// EOF
+    struct foo_component_t
+    {
+        int a = 0, b = 0;
+    };
+
+    // miss-case
+    BOOST_CHECK(!c->has_component<foo_component_t>());
+
+    // emplace new instance
+    a->add_component<foo_component_t>();
+    BOOST_CHECK(a->has_component<foo_component_t>());
+
+    // copy existing
+    foo_component_t foo_comp = {};
+    b->add_component(foo_comp);
+    BOOST_CHECK(b->has_component<foo_component_t>());
+
+    auto view = registry->view<vierkant::Object3DPtr, foo_component_t>();
+
+    std::set<vierkant::Object3DPtr> foo_objects, ref = {a, b};
+    for(auto [entity, object, foo]: view.each()){ foo_objects.insert(object); }
+    BOOST_CHECK_EQUAL(foo_objects.size(), 2);
+    foo_objects.contains(a);
+    foo_objects.contains(b);
+}
