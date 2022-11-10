@@ -11,7 +11,7 @@ Object3DPtr Object3D::create(const std::shared_ptr<entt::registry> &registry,
                              std::string name)
 {
     auto ret = Object3DPtr(new Object3D(registry, std::move(name)));
-    ret->add_component(ret);
+    ret->add_component(ret.get());
     return ret;
 }
 
@@ -30,7 +30,7 @@ Object3D::Object3D(const std::shared_ptr<entt::registry>& registry,
 
 Object3D::~Object3D() noexcept
 {
-    if(auto reg = m_registry.lock()){ reg->release(m_entity); }
+    if(auto reg = m_registry.lock()){ reg->destroy(m_entity); }
 }
 
 void Object3D::set_position(const glm::vec3 &pos)
@@ -148,7 +148,7 @@ void Object3D::set_parent(const Object3DPtr &parent_object)
         p->remove_child(shared_from_this());
         if(auto reg = m_registry.lock())
         {
-            reg->release(m_entity);
+            reg->destroy(m_entity);
             m_registry = {};
             m_entity = {};
         }

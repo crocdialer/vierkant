@@ -93,13 +93,13 @@ BOOST_AUTO_TEST_CASE(test_Object3D_scene_entity)
     BOOST_CHECK_EQUAL(foo_ref.a, foo_comp.a);
     BOOST_CHECK_EQUAL(foo_ref.b, foo_comp.b);
 
-    auto view = registry->view<vierkant::Object3DPtr, foo_component_t>();
+    auto view = registry->view<vierkant::Object3D*, foo_component_t>();
 
-    std::set<vierkant::Object3DPtr> foo_objects;
+    std::set<vierkant::Object3D*> foo_objects;
     for(auto [entity, object, foo]: view.each()){ foo_objects.insert(object); }
     BOOST_CHECK_EQUAL(foo_objects.size(), 2);
-    foo_objects.contains(a);
-    foo_objects.contains(b);
+    foo_objects.contains(a.get());
+    foo_objects.contains(b.get());
 
     // destruction
     bool destructed = false;

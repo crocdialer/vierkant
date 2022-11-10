@@ -330,11 +330,10 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
 
     std::unordered_map<MeshConstPtr, size_t> mesh_buffer_indices;
     std::unordered_map<MaterialConstPtr, size_t> material_indices;
-    auto view = scene->registry()->view<vierkant::Object3DPtr, vierkant::MeshPtr>();
+    auto view = scene->registry()->view<vierkant::Object3D*, vierkant::MeshPtr>();
 
     for(const auto &[entity, object, mesh]: view.each())
     {
-
         assert(mesh);
         assert(asset_map.contains(mesh));
 
