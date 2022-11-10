@@ -465,27 +465,27 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
 
     // push object id
     ImGui::PushID(obj->id());
-    bool is_enabled = obj->enabled();
-    if(ImGui::Checkbox("", &is_enabled)){ obj->set_enabled(is_enabled); }
+    bool is_enabled = obj->enabled;
+    if(ImGui::Checkbox("", &is_enabled)){ obj->enabled = is_enabled; }
     ImGui::SameLine();
 
     if(!is_enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
-    if(obj->children().empty())
+    if(obj->children.empty())
     {
         node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
-        ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj->name().c_str());
+        ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj->name.c_str());
         if(ImGui::IsItemClicked()){ ret = obj; }
     }
     else
     {
         bool is_open = ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s",
-                                         obj->name().c_str());
+                                         obj->name.c_str());
         if(ImGui::IsItemClicked()){ ret = obj; }
 
         if(is_open)
         {
-            for(auto &c: obj->children())
+            for(auto &c: obj->children)
             {
                 auto clicked_obj = draw_scenegraph_ui_helper(c, selection);
                 if(!ret){ ret = clicked_obj; }
@@ -854,13 +854,13 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
     ImGui::Spacing();
 
     // name
-    size_t buf_size = object->name().size() + 4;
+    size_t buf_size = object->name.size() + 4;
     char text_buf[buf_size];
-    strcpy(text_buf, object->name().c_str());
+    strcpy(text_buf, object->name.c_str());
 
     if(ImGui::InputText("name", text_buf, IM_ARRAYSIZE(text_buf), ImGuiInputTextFlags_EnterReturnsTrue))
     {
-        object->set_name(text_buf);
+        object->name = text_buf;
     }
 
     ImGui::Separator();
@@ -868,7 +868,7 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
     // transform
     if(object && ImGui::TreeNode("transform"))
     {
-        glm::mat4 transform = object->transform();
+        glm::mat4 transform = object->transform;
         glm::vec3 position = transform[3].xyz();
         glm::vec3 rotation = glm::degrees(glm::eulerAngles(glm::quat_cast(transform)));
         glm::vec3 scale = glm::vec3(length(transform[0]), length(transform[1]), length(transform[2]));
@@ -883,7 +883,7 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
             auto m = glm::mat4_cast(glm::quat(glm::radians(rotation)));
             m[3] = glm::vec4(position, 1.f);
             m = glm::scale(m, scale);
-            object->set_transform(m);
+            object->transform = m;
         }
 
         ImGui::Separator();

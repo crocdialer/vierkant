@@ -36,8 +36,8 @@ public:
     {
         if(should_visit(object))
         {
-            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform());
-            for(Object3DPtr &child: object.children()){ child->accept(*this); }
+            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform);
+            for(Object3DPtr &child: object.children){ child->accept(*this); }
         }
     }
 
@@ -45,7 +45,7 @@ public:
     {
         if(should_visit(node))
         {
-            auto model_view = m_transform_stack.top() * node.transform();
+            auto model_view = m_transform_stack.top() * node.transform;
 
 //            auto entry_filter = [&model_view, &frustum = m_frustum](const Mesh::entry_t &entry) -> bool
 //            {
@@ -92,19 +92,19 @@ public:
             std::move(mesh_drawables.begin(), mesh_drawables.end(), std::back_inserter(m_cull_result.drawables));
 
             // continue scenegraph-traversal
-            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * node.transform());
+            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * node.transform);
             visit(static_cast<vierkant::Object3D &>(node));
         }
     }
 
     bool should_visit(vierkant::Object3D &object) override
     {
-        if(object.enabled() && check_tags(m_tags, object.tags()))
+        if(object.enabled && check_tags(m_tags, object.tags))
         {
             if(m_check_intersection)
             {
                 // check intersection of aabb in eye-coords with view-frustum
-                auto aabb = object.aabb().transform(m_transform_stack.top() * object.transform());
+                auto aabb = object.aabb().transform(m_transform_stack.top() * object.transform);
                 return vierkant::intersect(m_frustum, aabb);
             }
             return true;

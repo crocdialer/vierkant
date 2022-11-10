@@ -10,7 +10,7 @@ namespace vierkant
 uint32_t Object3D::s_id_pool = 0;
 
 // static factory
-Object3DPtr Object3D::create(const std::weak_ptr<entt::registry> &registry,
+Object3DPtr Object3D::create(const std::shared_ptr<entt::registry> &registry,
                              std::string name)
 {
     auto ret = Object3DPtr(new Object3D(registry, std::move(name)));
@@ -18,29 +18,29 @@ Object3DPtr Object3D::create(const std::weak_ptr<entt::registry> &registry,
     return ret;
 }
 
-Object3D::Object3D(std::weak_ptr<entt::registry> registry,
-                   std::string name) :
+Object3D::Object3D(const std::shared_ptr<entt::registry>& registry,
+                   std::string name_) :
+        name(std::move(name_)),
+        enabled(true),
+        billboard(false),
+        transform(1),
         m_id(s_id_pool++),
-        m_name(std::move(name)),
-        m_enabled(true),
-        m_billboard(false),
-        m_transform(1),
-        m_registry(std::move(registry))
+        m_registry(registry)
 {
-    if(m_name.empty()){ m_name = "Object3D_" + std::to_string(m_id); }
+    if(name.empty()){ name = "Object3D_" + std::to_string(m_id); }
     if(auto reg = m_registry.lock()){ m_entity = reg->create(); }
 }
 
 void Object3D::set_position(const glm::vec3 &pos)
 {
-    glm::vec3 &dst = *reinterpret_cast<glm::vec3 *>(&m_transform[3].x);
+    glm::vec3 &dst = *reinterpret_cast<glm::vec3 *>(&transform[3].x);
     dst = pos;
 }
 
 void Object3D::set_rotation(const glm::quat &rot)
 {
     glm::vec3 pos_tmp(position()), scale_tmp(scale());
-    m_transform = glm::mat4_cast(rot);
+    transform = glm::mat4_cast(rot);
     set_position(pos_tmp);
     set_scale(scale_tmp);
 }
@@ -48,7 +48,7 @@ void Object3D::set_rotation(const glm::quat &rot)
 void Object3D::set_rotation(const glm::mat3 &rot)
 {
     glm::vec3 pos_tmp(position()), scale_tmp(scale());
-    m_transform = glm::mat4(rot);
+    transform = glm::mat4(rot);
     set_position(pos_tmp);
     set_scale(scale_tmp);
 }
@@ -56,19 +56,19 @@ void Object3D::set_rotation(const glm::mat3 &rot)
 void Object3D::set_rotation(float pitch, float yaw, float roll)
 {
     glm::vec3 pos_tmp(position()), scale_tmp(scale());
-    m_transform = glm::mat4_cast(glm::quat(glm::vec3(pitch, yaw, roll)));
+    transform = glm::mat4_cast(glm::quat(glm::vec3(pitch, yaw, roll)));
     set_position(pos_tmp);
     set_scale(scale_tmp);
 }
 
 glm::quat Object3D::rotation() const
 {
-    return glm::normalize(glm::quat_cast(m_transform));
+    return glm::normalize(glm::quat_cast(transform));
 }
 
 void Object3D::set_look_at(const glm::vec3 &lookAt, const glm::vec3 &up)
 {
-    set_transform(glm::inverse(glm::lookAt(position(), lookAt, up)) * glm::scale(glm::mat4(1), scale()));
+    transform = glm::inverse(glm::lookAt(position(), lookAt, up)) * glm::scale(glm::mat4(1), scale());
 }
 
 void Object3D::set_look_at(const Object3DPtr &lookAt)
@@ -79,16 +79,16 @@ void Object3D::set_look_at(const Object3DPtr &lookAt)
 void Object3D::set_scale(const glm::vec3 &s)
 {
     glm::vec3 scale_vec = s / scale();
-    m_transform = glm::scale(m_transform, scale_vec);
+    transform = glm::scale(transform, scale_vec);
 }
 
 glm::mat4 Object3D::global_transform() const
 {
-    glm::mat4 ret = transform();
+    glm::mat4 ret = transform;
     Object3DPtr ancestor = parent();
     while(ancestor)
     {
-        ret = ancestor->transform() * ret;
+        ret = ancestor->transform * ret;
         ancestor = ancestor->parent();
     }
     return ret;
@@ -114,10 +114,10 @@ glm::vec3 Object3D::global_scale() const
                      glm::length(global_trans[2]));
 }
 
-void Object3D::set_global_transform(const glm::mat4 &transform)
+void Object3D::set_global_transform(const glm::mat4 &transform_)
 {
     glm::mat4 parent_trans_inv = parent() ? glm::inverse(parent()->global_transform()) : glm::mat4(1);
-    m_transform = parent_trans_inv * transform;
+    transform = parent_trans_inv * transform_;
 }
 
 void Object3D::set_global_position(const glm::vec3 &position)
@@ -164,25 +164,25 @@ void Object3D::add_child(const Object3DPtr &child)
         child->m_parent = shared_from_this();
 
         // prevent multiple insertions
-        if(std::find(m_children.begin(), m_children.end(), child) == m_children.end())
+        if(std::find(children.begin(), children.end(), child) == children.end())
         {
-            m_children.push_back(child);
+            children.push_back(child);
         }
     }
 }
 
 void Object3D::remove_child(const Object3DPtr &child, bool recursive)
 {
-    auto it = std::find(m_children.begin(), m_children.end(), child);
-    if(it != m_children.end())
+    auto it = std::find(children.begin(), children.end(), child);
+    if(it != children.end())
     {
-        m_children.erase(it);
+        children.erase(it);
         if(child){ child->set_parent(nullptr); }
     }
     else if(recursive)
     {
         // not a direct descendant, go on recursive if requested
-        for(auto &c: children())
+        for(auto &c: children)
         {
             c->remove_child(child, recursive);
         }
@@ -192,7 +192,7 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
 AABB Object3D::aabb() const
 {
     AABB ret;
-    for(auto &c: children()){ if(c->enabled()){ ret += c->aabb().transform(c->transform()); }}
+    for(auto &c: children){ if(c->enabled){ ret += c->aabb().transform(c->transform); }}
     return ret;
 }
 
@@ -204,22 +204,22 @@ OBB Object3D::obb() const
 
 void Object3D::add_tag(const std::string &tag, bool recursive)
 {
-    m_tags.insert(tag);
+    tags.insert(tag);
 
     if(recursive)
     {
-        for(auto &c: children()){ c->add_tag(tag, recursive); }
+        for(auto &c: children){ c->add_tag(tag, recursive); }
     }
 
 }
 
 void Object3D::remove_tag(const std::string &tag, bool recursive)
 {
-    m_tags.erase(tag);
+    tags.erase(tag);
 
     if(recursive)
     {
-        for(auto &c: children()){ c->remove_tag(tag, recursive); }
+        for(auto &c: children){ c->remove_tag(tag, recursive); }
     }
 }
 

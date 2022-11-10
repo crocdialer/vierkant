@@ -33,7 +33,7 @@ public:
     {
         if(should_visit(object))
         {
-            for(Object3DPtr &child : object.children()){ child->accept(*this); }
+            for(Object3DPtr &child : object.children){ child->accept(*this); }
         }
     }
 
@@ -65,7 +65,7 @@ public:
 
     bool should_visit(vierkant::Object3D &object) override
     {
-        return (object.enabled() || !select_only_enabled) && check_tags(tags, object.tags());
+        return (object.enabled || !select_only_enabled) && check_tags(tags, object.tags);
     }
 
     std::vector<T *> objects = {};

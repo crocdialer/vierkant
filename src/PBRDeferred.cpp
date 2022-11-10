@@ -278,7 +278,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         const auto &mesh = n->get_component<vierkant::MeshPtr>();
         meshes.insert(mesh);
 //        if(!n->mesh->node_animations.empty()){ static_scene = false; }
-        crocore::hash_combine(scene_hash, n->transform());
+        crocore::hash_combine(scene_hash, n->transform);
 
         for(const auto &entry: mesh->entries){ crocore::hash_combine(scene_hash, entry.enabled); }
     }

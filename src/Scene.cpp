@@ -43,7 +43,7 @@ public:
 
     bool should_visit(vierkant::Object3D &object) override
     {
-        return object.enabled();
+        return object.enabled;
     }
 
 private:
@@ -166,7 +166,7 @@ vierkant::Object3DPtr Scene::object_by_name(const std::string &name) const
 
     for(vierkant::Object3D *o: sv.objects)
     {
-        if(o->name() == name){ return o->shared_from_this(); }
+        if(o->name == name){ return o->shared_from_this(); }
     }
     return nullptr;
 }
