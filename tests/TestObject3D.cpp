@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_CASE(test_Object3D_hierarchy)
 
     a->set_parent(b);
     BOOST_CHECK(a->parent() == b);
-    BOOST_CHECK(b->children().size() == 1);
+    BOOST_CHECK(b->children.size() == 1);
 
     b->remove_child(a);
     BOOST_CHECK(!a->parent());
@@ -28,11 +28,11 @@ BOOST_AUTO_TEST_CASE(test_Object3D_hierarchy)
     b->remove_child(a);
 
     a->add_child(b);
-    BOOST_CHECK(a->children().size() == 1);
+    BOOST_CHECK(a->children.size() == 1);
     BOOST_CHECK(b->parent() == a);
 
     b->set_parent(Object3DPtr());
-    BOOST_CHECK(a->children().empty());
+    BOOST_CHECK(a->children.empty());
     BOOST_CHECK(!b->parent());
 
     // a -> b -> c
