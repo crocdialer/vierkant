@@ -263,8 +263,6 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset) const
 {
-    vierkant::SelectVisitor<vierkant::MeshNode> mesh_visitor;
-    scene->root()->accept(mesh_visitor);
     std::unordered_set<vierkant::MeshConstPtr> meshes;
 
     bool static_scene = true;
@@ -272,13 +270,13 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     bool scene_unchanged = true;
 
     size_t scene_hash = 0;
+    auto view = scene->registry()->view<vierkant::Object3D*, vierkant::MeshPtr>();
 
-    for(const auto &n: mesh_visitor.objects)
+    for(const auto &[entity, object, mesh] : view.each())
     {
-        const auto &mesh = n->get_component<vierkant::MeshPtr>();
         meshes.insert(mesh);
 //        if(!n->mesh->node_animations.empty()){ static_scene = false; }
-        crocore::hash_combine(scene_hash, n->transform);
+        crocore::hash_combine(scene_hash, object->transform);
 
         for(const auto &entry: mesh->entries){ crocore::hash_combine(scene_hash, entry.enabled); }
     }

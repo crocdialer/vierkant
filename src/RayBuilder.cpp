@@ -328,16 +328,12 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
 
-    // TODO: culling, no culling, which volume to use!?
-    vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector;
-    scene->root()->accept(mesh_selector);
-
     std::unordered_map<MeshConstPtr, size_t> mesh_buffer_indices;
     std::unordered_map<MaterialConstPtr, size_t> material_indices;
+    auto view = scene->registry()->view<vierkant::Object3DPtr, vierkant::MeshPtr>();
 
-    for(auto mesh_node : mesh_selector.objects)
+    for(const auto &[entity, object, mesh]: view.each())
     {
-        const auto &mesh = mesh_node->get_component<vierkant::MeshPtr>();
 
         assert(mesh);
         assert(asset_map.contains(mesh));
@@ -360,9 +356,9 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
         // entry animation transforms
         std::vector<glm::mat4> node_matrices;
 
-        if(mesh_node->has_component<animation_state_t>())
+        if(object->has_component<animation_state_t>())
         {
-            auto &animation_state = mesh_node->get_component<animation_state_t>();
+            auto &animation_state = object->get_component<animation_state_t>();
             const auto &anim_state = animation_state;
 
             if(!(mesh->root_bone || mesh->morph_buffer) &&
@@ -386,7 +382,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             if(!mesh_entry.enabled){ continue; }
 
             // apply node-animation transform, if any
-            auto modelview = mesh_node->transform * (node_matrices.empty() ? mesh_entry.transform
+            auto modelview = object->transform * (node_matrices.empty() ? mesh_entry.transform
                                                                            : node_matrices[mesh_entry.node_index]);
 
             // per bottom-lvl instance
@@ -429,7 +425,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
                 material.iridescence_ior = mesh_material->iridescence_ior;
                 material.iridescence_thickness_range = mesh_material->iridescence_thickness_range;
 
-                for(auto &[type_flag, tex] : mesh_material->textures)
+                for(auto &[type_flag, tex]: mesh_material->textures)
                 {
                     material.texture_type_flags |= type_flag;
 

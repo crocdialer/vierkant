@@ -65,21 +65,16 @@ Scene::Scene()
 void Scene::add_object(const Object3DPtr &object)
 {
     m_root->add_child(object);
-
-//    if(!m_entities.contains(object))
-//    {
-//        m_entities[object] = m_registry->create();
-//    }
 }
 
 void Scene::remove_object(const Object3DPtr &object)
 {
     m_root->remove_child(object, true);
-//    m_entities.erase(object);
 }
 
 void Scene::clear()
 {
+    m_registry = std::make_shared<entt::registry>();
     m_root = vierkant::Object3D::create(m_registry, "scene root");
 }
 

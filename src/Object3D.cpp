@@ -1,7 +1,4 @@
 #include "vierkant/Object3D.hpp"
-
-#include <vierkant/Scene.hpp>
-#include <utility>
 #include "vierkant/Visitor.hpp"
 
 namespace vierkant
@@ -29,6 +26,11 @@ Object3D::Object3D(const std::shared_ptr<entt::registry>& registry,
 {
     if(name.empty()){ name = "Object3D_" + std::to_string(m_id); }
     if(auto reg = m_registry.lock()){ m_entity = reg->create(); }
+}
+
+Object3D::~Object3D() noexcept
+{
+    if(auto reg = m_registry.lock()){ reg->release(m_entity); }
 }
 
 void Object3D::set_position(const glm::vec3 &pos)
@@ -141,9 +143,22 @@ void Object3D::set_global_scale(const glm::vec3 &scale)
 void Object3D::set_parent(const Object3DPtr &parent_object)
 {
     // detach object from former parent
-    if(auto p = parent()){ p->remove_child(shared_from_this()); }
+    if(auto p = parent())
+    {
+        p->remove_child(shared_from_this());
+        if(auto reg = m_registry.lock())
+        {
+            reg->release(m_entity);
+            m_registry = {};
+            m_entity = {};
+        }
+    }
 
-    if(parent_object){ parent_object->add_child(shared_from_this()); }
+    if(parent_object)
+    {
+        parent_object->add_child(shared_from_this());
+        m_registry = parent_object->m_registry;
+    }
     else{ m_parent.reset(); }
 }
 

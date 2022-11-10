@@ -41,7 +41,7 @@ public:
     static Object3DPtr create(const std::shared_ptr<entt::registry> &registry = {},
                               std::string name = "");
 
-    virtual ~Object3D() noexcept = default;
+    virtual ~Object3D() noexcept;
 
     inline uint32_t id() const{ return m_id; };
 

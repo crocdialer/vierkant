@@ -85,15 +85,37 @@ BOOST_AUTO_TEST_CASE(test_Object3D_scene_entity)
     BOOST_CHECK(a->has_component<foo_component_t>());
 
     // copy existing
-    foo_component_t foo_comp = {};
+    foo_component_t foo_comp = {1, 2};
     b->add_component(foo_comp);
     BOOST_CHECK(b->has_component<foo_component_t>());
 
+    auto &foo_ref = b->get_component<foo_component_t>();
+    BOOST_CHECK_EQUAL(foo_ref.a, foo_comp.a);
+    BOOST_CHECK_EQUAL(foo_ref.b, foo_comp.b);
+
     auto view = registry->view<vierkant::Object3DPtr, foo_component_t>();
 
-    std::set<vierkant::Object3DPtr> foo_objects, ref = {a, b};
+    std::set<vierkant::Object3DPtr> foo_objects;
     for(auto [entity, object, foo]: view.each()){ foo_objects.insert(object); }
     BOOST_CHECK_EQUAL(foo_objects.size(), 2);
     foo_objects.contains(a);
     foo_objects.contains(b);
+
+    // destruction
+    bool destructed = false;
+    {
+        auto d = Object3D::create(registry);
+
+        struct destruction_test_comp_t
+        {
+            std::function<void()> f;
+
+            ~destruction_test_comp_t(){ if(f){ f(); }}
+        };
+
+        d->add_component<destruction_test_comp_t>();
+        d->get_component<destruction_test_comp_t>().f = [&destructed](){ destructed = true; };
+    }
+//    registry.reset();
+    BOOST_CHECK(destructed);
 }

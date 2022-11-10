@@ -418,9 +418,6 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     bool use_environment = m_environment && frame_asset.settings.draw_skybox;
     frame_asset.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
 
-    vierkant::SelectVisitor<vierkant::MeshNode> mesh_selector(tags);
-    scene->root()->accept(mesh_selector);
-
     std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
 
     auto previous_builds = std::move(frame_asset.build_results);
@@ -447,11 +444,11 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     // clear left-overs
     frame_asset.bottom_lvl_assets.clear();
 
-    //  cache-lookup / non-blocking build of acceleration structures
-    for(const auto &node: mesh_selector.objects)
-    {
-        const auto &mesh = node->get_component<vierkant::MeshPtr>();
+    auto view = scene->registry()->view<vierkant::MeshPtr>();
 
+    //  cache-lookup / non-blocking build of acceleration structures
+    for(const auto &[entity, mesh] : view.each())
+    {
         // TODO: support updates of animated (skin/morph) assets
         if(!m_acceleration_assets.contains(mesh))
         {
@@ -471,9 +468,8 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         semaphore_infos.push_back(wait_info);
     }
 
-    for(auto node: mesh_selector.objects)
+    for(const auto &[entity, mesh] : view.each())
     {
-        const auto &mesh = node->get_component<vierkant::MeshPtr>();
         frame_asset.bottom_lvl_assets[mesh] = m_acceleration_assets[mesh];
     }
 
