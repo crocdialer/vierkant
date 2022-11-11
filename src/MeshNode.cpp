@@ -15,9 +15,6 @@ MeshNodePtr MeshNode::create(const vierkant::MeshPtr& mesh, const std::shared_pt
 
     if(mesh){ ret->add_component<vierkant::MeshPtr>(mesh); }
     if(!mesh->node_animations.empty()){ ret->add_component<vierkant::animation_state_t>(); }
-
-    // 'object as component' hack -> resolve with not having this subclass
-    ret->add_component<vierkant::Object3D*>(ret.get());
     return ret;
 }
 

@@ -36,33 +36,19 @@ public:
     {
         if(should_visit(object))
         {
-            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform);
-            for(Object3DPtr &child: object.children){ child->accept(*this); }
-        }
-    }
+            auto model_view = m_transform_stack.top() * object.transform;
 
-    void visit(vierkant::MeshNode &node) override
-    {
-        if(should_visit(node))
-        {
-            auto model_view = m_transform_stack.top() * node.transform;
-
-//            auto entry_filter = [&model_view, &frustum = m_frustum](const Mesh::entry_t &entry) -> bool
-//            {
-//                if(!entry.enabled){ return false; }
-//                auto aabb = entry.boundingbox.transform(model_view * entry.transform);
-//                return vierkant::intersect(aabb, frustum);
-//            };
-
-            auto node_ptr = std::dynamic_pointer_cast<const vierkant::MeshNode>(node.shared_from_this());
-            const auto &mesh = node_ptr->get_component<vierkant::MeshPtr>();
+            // TODO: remove
+            auto node_ptr = std::dynamic_pointer_cast<const vierkant::MeshNode>(object.shared_from_this());
+            vierkant::MeshConstPtr mesh;
 
             // keep track of meshes
-            if(mesh)
+            if(object.has_component<vierkant::MeshPtr>())
             {
+                mesh = object.get_component<vierkant::MeshPtr>();
                 m_cull_result.meshes.insert(mesh);
 
-                if(node.has_component<animation_state_t>() &&
+                if(object.has_component<animation_state_t>() &&
                    (mesh->root_bone || mesh->morph_buffer))
                 {
                     m_cull_result.animated_nodes.insert(node_ptr);
@@ -74,9 +60,9 @@ public:
             drawable_params.mesh = mesh;
             drawable_params.model_view = model_view;
 
-            if(node.has_component<animation_state_t>())
+            if(object.has_component<animation_state_t>())
             {
-                auto &animation_state = node.get_component<animation_state_t>();
+                auto &animation_state = object.get_component<animation_state_t>();
                 drawable_params.animation_index = animation_state.index;
                 drawable_params.animation_time = animation_state.current_time;
             }
@@ -91,9 +77,8 @@ public:
             // move drawables into cull_result
             std::move(mesh_drawables.begin(), mesh_drawables.end(), std::back_inserter(m_cull_result.drawables));
 
-            // continue scenegraph-traversal
-            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * node.transform);
-            visit(static_cast<vierkant::Object3D &>(node));
+            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform);
+            for(Object3DPtr &child: object.children){ child->accept(*this); }
         }
     }
 

@@ -75,7 +75,7 @@ set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
 # entt
 add_subdirectory(submodules/entt EXCLUDE_FROM_ALL)
-set(LIBS ${LIBS} EnTT)
+set(LIBS ${LIBS} EnTT::EnTT)
 
 ##shaders
 include(build_shaders)

@@ -23,6 +23,19 @@
 namespace vierkant
 {
 
+/**
+ * @brief   Utility to check if one set of tags contains at least one item from another set.
+ *
+ * @param   whitelist the tags that shall pass the check.
+ * @param   obj_tags    the tags to check against the whitelist
+ * @return
+ */
+inline static bool check_tags(const std::set<std::string> &whitelist, const std::set<std::string> &obj_tags)
+{
+    for(const auto &t: obj_tags){ if(whitelist.count(t)){ return true; }}
+    return whitelist.empty();
+}
+
 class Visitor
 {
 public:
@@ -36,10 +49,6 @@ public:
             for(Object3DPtr &child : object.children){ child->accept(*this); }
         }
     }
-
-    virtual void visit(vierkant::MeshNode &mesh){ visit(static_cast<Object3D &>(mesh)); };
-
-    virtual void visit(vierkant::Camera &camera){ visit(static_cast<Object3D &>(camera)); };
 
     virtual bool should_visit(vierkant::Object3D &object) = 0;
 

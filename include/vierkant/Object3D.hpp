@@ -14,23 +14,7 @@
 namespace vierkant
 {
 
-//! forward declare Scene
-DEFINE_CLASS_PTR(Scene);
-
 DEFINE_CLASS_PTR(Object3D);
-
-/**
- * @brief   Utility to check if one set of tags contains at least one item from another set.
- *
- * @param   whitelist the tags that shall pass the check.
- * @param   obj_tags    the tags to check against the whitelist
- * @return
- */
-inline static bool check_tags(const std::set<std::string> &whitelist, const std::set<std::string> &obj_tags)
-{
-    for(const auto &t: obj_tags){ if(whitelist.count(t)){ return true; }}
-    return whitelist.empty();
-}
 
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
@@ -43,11 +27,17 @@ public:
 
     virtual ~Object3D() noexcept;
 
-    inline uint32_t id() const{ return m_id; };
+    inline uint32_t id() const{ return static_cast<uint32_t>(m_entity); };
 
     void add_tag(const std::string &tag, bool recursive = false);
 
     void remove_tag(const std::string &tag, bool recursive = false);
+
+    inline Object3DPtr parent() const{ return m_parent.lock(); }
+
+    void add_child(const Object3DPtr &child);
+
+    void remove_child(const Object3DPtr &child, bool recursive = false);
 
     void set_position(const glm::vec3 &pos);
 
@@ -81,12 +71,6 @@ public:
     void set_look_at(const Object3DPtr &lookAt);
 
     void set_parent(const Object3DPtr &parent);
-
-    inline Object3DPtr parent() const{ return m_parent.lock(); }
-
-    void add_child(const Object3DPtr &child);
-
-    void remove_child(const Object3DPtr &child, bool recursive = false);
 
     glm::mat4 global_transform() const;
 
@@ -178,9 +162,6 @@ public:
     //! enabled hint, can be used by Visitors
     bool enabled;
 
-    //! billboard hint, can be used by Visitors
-    bool billboard;
-
     //! a transformation-matrix for this object
     glm::mat4 transform = glm::mat4(1);
 
@@ -192,11 +173,6 @@ protected:
                       std::string name = "");
 
 private:
-
-    static uint32_t s_id_pool;
-
-    //! unique id
-    uint32_t m_id;
 
     std::weak_ptr<Object3D> m_parent;
 

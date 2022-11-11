@@ -4,28 +4,24 @@
 namespace vierkant
 {
 
-uint32_t Object3D::s_id_pool = 0;
-
 // static factory
 Object3DPtr Object3D::create(const std::shared_ptr<entt::registry> &registry,
                              std::string name)
 {
-    auto ret = Object3DPtr(new Object3D(registry, std::move(name)));
-    ret->add_component(ret.get());
-    return ret;
+    return Object3DPtr(new Object3D(registry, std::move(name)));
 }
 
 Object3D::Object3D(const std::shared_ptr<entt::registry>& registry,
                    std::string name_) :
         name(std::move(name_)),
         enabled(true),
-        billboard(false),
         transform(1),
-        m_id(s_id_pool++),
         m_registry(registry)
 {
-    if(name.empty()){ name = "Object3D_" + std::to_string(m_id); }
     if(auto reg = m_registry.lock()){ m_entity = reg->create(); }
+    add_component(this);
+
+    if(name.empty()){ name = "Object3D_" + std::to_string(id()); }
 }
 
 Object3D::~Object3D() noexcept

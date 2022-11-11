@@ -537,18 +537,15 @@ void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &c
         }
         if(ImGui::BeginTabItem("materials"))
         {
-            vierkant::SelectVisitor<vierkant::MeshNode> v;
-            scene->root()->accept(v);
-
             std::unordered_set<vierkant::MaterialPtr> material_map;
             std::vector<vierkant::MaterialPtr> materials;
 
-            // uniquely gather all materials in order
-            for(const auto node: v.objects)
-            {
-                const auto &mesh = node->get_component<vierkant::MeshPtr>();
+            auto view = scene->registry()->view<vierkant::MeshPtr>();
 
-                if(node && mesh)
+            // uniquely gather all materials in order
+            for(const auto &[entity, mesh] : view.each())
+            {
+                if(mesh)
                 {
                     for(const auto &m: mesh->materials)
                     {
