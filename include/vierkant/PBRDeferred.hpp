@@ -322,12 +322,12 @@ private:
 
     struct node_entry_key_t
     {
-        vierkant::MeshNodeConstPtr node;
+        entt::entity entity;
         uint32_t entry_index;
 
         inline bool operator==(const node_entry_key_t &other) const
         {
-            return node == other.node && entry_index == other.entry_index;
+            return entity == other.entity && entry_index == other.entry_index;
         }
     };
 

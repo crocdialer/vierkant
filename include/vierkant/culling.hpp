@@ -22,13 +22,8 @@ struct cull_result_t
 
     std::unordered_set<vierkant::MeshConstPtr> meshes;
 
-    std::unordered_set<vierkant::MeshNodeConstPtr> animated_nodes;
-
-    //! reverse lookup: drawable -> scenegraph-node
-    std::unordered_map<vierkant::DrawableId, vierkant::MeshNodeConstPtr> node_map;
-
-//    //! a list of lightsources in eye-coordinates
-//    std::vector<vierkant::Renderer::lightsource_t> lightsources;
+    //! reverse lookup: drawable -> entity
+    std::unordered_map<vierkant::DrawableId, uint32_t> entity_map;
 
     //! the camera used to perform culling
     CameraPtr camera;

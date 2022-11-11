@@ -24,23 +24,6 @@ public:
         Visitor::visit(static_cast<vierkant::Object3D &>(object));
     };
 
-//    void visit(vierkant::MeshNode &node) override
-//    {
-//        if(node.mesh && node.has_component<animation_state_t>())
-//        {
-//            auto &animation_state = node.get_component<animation_state_t>();
-//
-//            if(animation_state.index < node.mesh->node_animations.size())
-//            {
-//                // update node animation
-//                vierkant::update_animation(node.mesh->node_animations[animation_state.index],
-//                                           m_time_step, animation_state);
-//            }
-//
-//        }
-//        visit(static_cast<vierkant::Object3D &>(node));
-//    }
-
     bool should_visit(vierkant::Object3D &object) override
     {
         return object.enabled;
@@ -54,12 +37,6 @@ private:
 ScenePtr Scene::create()
 {
     return ScenePtr(new Scene());
-}
-
-Scene::Scene()
-{
-//    auto &root_entity = m_entities[m_root] = m_registry->create();
-//    m_registry->emplace<animation_state_t>(root_entity);
 }
 
 void Scene::add_object(const Object3DPtr &object)
@@ -101,48 +78,9 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
     {
         if(object == m_root.get()){ continue; }
 
-//        vierkant::Ray ray_in_object_space = ray.transform(glm::inverse(object->global_transform()));
-//        if(auto ray_hit = object->obb().intersect(ray_in_object_space))
         if(auto ray_hit = vierkant::intersect(object->obb().transform(object->global_transform()), ray))
         {
-//            if(high_precision)
-//            {
-//                const vierkant::Mesh *m = dynamic_cast<const vierkant::Mesh *>(object);
-//                if(!m){ continue; }
-//
-////                if()
-//                {
-//                    vierkant::Ray ray_in_object_space = ray.transform(glm::inverse(object->global_transform()));
-//                    const auto &positions = m->geometry()->positions();
-//                    const auto &indices = m->geometry()->indices();
-//
-//                    for(const auto &e : m->entries)
-//                    {
-////                            if(e.primitive_type && e.primitive_type != GL_TRIANGLES){ continue; }
-//
-//                        for(uint32_t i = 0; i < e.num_concurrent_frames; i += 3)
-//                        {
-//                            vierkant::Triangle t(positions[indices[i + e.base_index] + e.base_vertex],
-//                                                 positions[indices[i + e.base_index + 1] + e.base_vertex],
-//                                                 positions[indices[i + e.base_index + 2] + e.base_vertex]);
-//
-//                            if(ray_triangle_intersection ray_tri_hit = t.intersect(ray_in_object_space))
-//                            {
-//                                float distance_scale = glm::length(
-//                                        object->global_scale() * ray_in_object_space.direction);
-//                                ray_tri_hit.distance *= distance_scale;
-//                                clicked_items.push_back(range_item_t(object, ray_tri_hit.distance));
-//                                LOG_TRACE_2 << "hit distance: " << ray_tri_hit.distance;
-//                                break;
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//            else
-            {
                 clicked_items.push_back({object, ray_hit.distance});
-            }
         }
     }
     if(!clicked_items.empty())

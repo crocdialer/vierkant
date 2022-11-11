@@ -371,7 +371,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     matrix_cache_t new_entry_matrix_cache;
 
     // cache/collect bone-matrices
-    std::unordered_map<vierkant::MeshNodeConstPtr, size_t> bone_buffer_offsets;
+    std::unordered_map<entt::entity, size_t> bone_buffer_offsets;
     std::vector<glm::mat4> all_bones_matrices;
 
     // cache/collect morph-params
@@ -391,12 +391,10 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
                         m_g_renderer_pre.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
-    for(const auto &node: frame_asset.cull_result.animated_nodes)
-    {
-        const auto &mesh = node->get_component<vierkant::MeshPtr>();
-        if(!node->has_component<animation_state_t>()){ continue; }
-        auto &animation_state = node->get_component<animation_state_t>();
+    auto view = frame_asset.cull_result.scene->registry()->view<vierkant::MeshPtr, vierkant::animation_state_t>();
 
+    for(const auto &[entity, mesh, animation_state] : view.each())
+    {
         const auto &animation = mesh->node_animations[animation_state.index];
 
         if(mesh->root_bone)
@@ -408,7 +406,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
                                                      bones_matrices);
 
             // keep track of offset
-            bone_buffer_offsets[node] = all_bones_matrices.size() * sizeof(glm::mat4);
+            bone_buffer_offsets[entity] = all_bones_matrices.size() * sizeof(glm::mat4);
             all_bones_matrices.insert(all_bones_matrices.end(), bones_matrices.begin(), bones_matrices.end());
         }
         else if(mesh->morph_buffer)
@@ -421,7 +419,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)
             {
                 const auto &entry = mesh->entries[i];
-                node_entry_key_t key = {node, i};
+                node_entry_key_t key = {entity, i};
                 const auto weights = node_morph_weights[entry.node_index];
 
                 morph_params_t p;
@@ -458,17 +456,17 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         // insert previous matrices from cache, if any
         for(auto &drawable: frame_asset.cull_result.drawables)
         {
-            auto node = frame_asset.cull_result.node_map[drawable.id];
+            auto entity = entt::entity(frame_asset.cull_result.entity_map[drawable.id]);
 
             // search previous matrices
-            node_entry_key_t key = {node, drawable.entry_index};
+            node_entry_key_t key = {entity, drawable.entry_index};
             auto it = m_entry_matrix_cache.find(key);
             if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
 
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)
             {
-                uint32_t buffer_offset = bone_buffer_offsets[node];
+                uint32_t buffer_offset = bone_buffer_offsets[entity];
 
                 vierkant::descriptor_t desc_bones = {};
                 desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -962,7 +960,7 @@ void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
 size_t PBRDeferred::node_key_hash_t::operator()(PBRDeferred::node_entry_key_t const &key) const
 {
     size_t h = 0;
-    crocore::hash_combine(h, key.node);
+    crocore::hash_combine(h, key.entity);
     crocore::hash_combine(h, key.entry_index);
     return h;
 }

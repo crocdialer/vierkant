@@ -37,9 +37,6 @@ public:
         if(should_visit(object))
         {
             auto model_view = m_transform_stack.top() * object.transform;
-
-            // TODO: remove
-            auto node_ptr = std::dynamic_pointer_cast<const vierkant::MeshNode>(object.shared_from_this());
             vierkant::MeshConstPtr mesh;
 
             // keep track of meshes
@@ -47,12 +44,6 @@ public:
             {
                 mesh = object.get_component<vierkant::MeshPtr>();
                 m_cull_result.meshes.insert(mesh);
-
-                if(object.has_component<animation_state_t>() &&
-                   (mesh->root_bone || mesh->morph_buffer))
-                {
-                    m_cull_result.animated_nodes.insert(node_ptr);
-                }
             }
 
             // create drawables
@@ -70,7 +61,7 @@ public:
 
             for(auto &drawable: mesh_drawables)
             {
-                m_cull_result.node_map[drawable.id] = node_ptr;
+                m_cull_result.entity_map[drawable.id] = object.id();
                 drawable.matrices.projection = m_camera->projection_matrix();
             }
 

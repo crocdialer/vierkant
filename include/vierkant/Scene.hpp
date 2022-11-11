@@ -47,11 +47,9 @@ public:
 
 private:
 
-    Scene();
+    Scene() = default;
 
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
-
-//    std::unordered_map<Object3DPtr, entt::entity> m_entities;
 
     vierkant::ImagePtr m_skybox = nullptr;
 
