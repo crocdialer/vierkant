@@ -13,27 +13,6 @@ struct range_item_t
     inline bool operator<(const range_item_t &other) const{ return distance < other.distance; }
 };
 
-class UpdateVisitor : public Visitor
-{
-public:
-    explicit UpdateVisitor(float time_step) : m_time_step(time_step){};
-
-    void visit(vierkant::Object3D &object) override
-    {
-        object.update(m_time_step);
-        Visitor::visit(static_cast<vierkant::Object3D &>(object));
-    };
-
-    bool should_visit(vierkant::Object3D &object) override
-    {
-        return object.enabled;
-    }
-
-private:
-
-    float m_time_step;
-};
-
 ScenePtr Scene::create()
 {
     return ScenePtr(new Scene());
@@ -59,7 +38,7 @@ void Scene::update(double time_delta)
 {
     auto mesh_animations_view = m_registry->view<animation_state_t, vierkant::MeshPtr>();
 
-    for(auto [entity, animation_state, mesh]: mesh_animations_view.each())
+    for(const auto &[entity, animation_state, mesh]: mesh_animations_view.each())
     {
         vierkant::update_animation(mesh->node_animations[animation_state.index], time_delta, animation_state);
     }
