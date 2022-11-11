@@ -11,7 +11,6 @@
 #include "stb_truetype.h"
 
 #include <codecvt>
-#include <vierkant/MeshNode.hpp>
 
 std::wstring utf8_to_wstring(const std::string &str)
 {

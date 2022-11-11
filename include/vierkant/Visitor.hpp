@@ -17,7 +17,6 @@
 #include <stack>
 
 #include "vierkant/Object3D.hpp"
-#include "vierkant/MeshNode.hpp"
 #include "vierkant/Camera.hpp"
 
 namespace vierkant

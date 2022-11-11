@@ -21,7 +21,6 @@
 #include "vierkant/intersection.hpp"
 #include "vierkant/DrawContext.hpp"
 #include "vierkant/Camera.hpp"
-#include "vierkant/MeshNode.hpp"
 #include "vierkant/Scene.hpp"
 #include "vierkant/SceneRenderer.hpp"
 #include <vierkant/Semaphore.hpp>

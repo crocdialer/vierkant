@@ -8,7 +8,6 @@
 
 #include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
-#include "vierkant/MeshNode.hpp"
 #include "vierkant/Renderer.hpp"
 
 namespace vierkant
@@ -44,7 +43,7 @@ struct cull_params_t
  * @brief   Applies view-frustum culling for provided scene and camera.
  *
  * @param   scene       a provided scene.
- * @param   cull_params a struct grouping all parameters
+ * @param   cull_params a struct grouping all parameters*
  *
  * @return  a cull_result_t struct.
  */

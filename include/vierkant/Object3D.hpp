@@ -91,7 +91,7 @@ public:
     /**
      * @return the axis-aligned boundingbox (AABB) in object coords.
      */
-    virtual AABB aabb() const;
+    virtual AABB aabb() const{ auto aabb_ptr = get_component_ptr<vierkant::AABB>(); return aabb_ptr ? * aabb_ptr : AABB(); };
 
     virtual OBB obb() const;
 

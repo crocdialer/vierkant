@@ -4,7 +4,6 @@
 
 #include <cmath>
 
-#include <vierkant/MeshNode.hpp>
 
 #include <vierkant/imgui/imgui_util.h>
 #include <vierkant/PBRDeferred.hpp>
@@ -692,11 +691,9 @@ void draw_material_ui(const MaterialPtr &material)
     ImGui::SliderFloat("clearcoat roughness", &material->clearcoat_roughness_factor, 0.f, 1.f);
 }
 
-void draw_mesh_ui(const vierkant::MeshNodePtr &node)
+void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &mesh)
 {
-    if(!node){ return; }
-
-    const auto &mesh = node->get_component<vierkant::MeshPtr>();
+    if(!object || !mesh){ return; }
 
     size_t num_vertices = 0, num_faces = 0;
 
@@ -782,9 +779,10 @@ void draw_mesh_ui(const vierkant::MeshNodePtr &node)
     }
 
     // animation
-    if(!mesh->node_animations.empty() && ImGui::TreeNode("animation") && node->has_component<animation_state_t>())
+    if(!mesh->node_animations.empty() && ImGui::TreeNode("animation") && object->has_component<animation_state_t>())
     {
-        auto &animation_state = node->get_component<animation_state_t>();
+        auto &animation_state = object->get_component<animation_state_t>();
+
         // animation index
         int animation_index = static_cast<int>(animation_state.index);
 
@@ -901,8 +899,7 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
     }
 
     // cast to mesh
-    auto mesh = std::dynamic_pointer_cast<vierkant::MeshNode>(object);
-    if(mesh){ draw_mesh_ui(mesh); }
+    if(object->has_component<vierkant::MeshPtr>()){ draw_mesh_ui(object, object->get_component<vierkant::MeshPtr>()); }
 
     if(is_child_window){ ImGui::EndChild(); }
     else{ ImGui::End(); }
