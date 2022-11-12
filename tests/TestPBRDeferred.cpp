@@ -55,6 +55,7 @@ BOOST_AUTO_TEST_CASE(TestPBRDeferred)
     pbr_render_info.num_frames_in_flight = 2;
     pbr_render_info.pipeline_cache = nullptr;
     pbr_render_info.settings.resolution = res;
+    pbr_render_info.settings.indirect_draw = false;
     auto pbr_renderer = vierkant::PBRDeferred::create(test_context.device, pbr_render_info);
     BOOST_CHECK(pbr_renderer);
 

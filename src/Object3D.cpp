@@ -200,13 +200,6 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
     }
 }
 
-//AABB Object3D::aabb() const
-//{
-//    AABB ret;
-//    for(auto &c: children){ if(c->enabled){ ret += c->aabb().transform(c->transform); }}
-//    return ret;
-//}
-
 OBB Object3D::obb() const
 {
     OBB ret(aabb(), glm::mat4(1));

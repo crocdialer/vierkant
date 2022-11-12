@@ -196,7 +196,8 @@ private:
 
     enum SemaphoreValue : uint64_t
     {
-        G_BUFFER_LAST_VISIBLE = 1,
+        INVALID = 0,
+        G_BUFFER_LAST_VISIBLE,
         DEPTH_PYRAMID,
         CULLING,
         G_BUFFER_ALL,
@@ -230,7 +231,7 @@ private:
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
         size_t scene_hash = 0;
         bool recycle_commands = false;
-        SemaphoreValue semaphore_value_done = SemaphoreValue::G_BUFFER_ALL;
+        SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
         Renderer::indirect_draw_bundle_t indirect_draw_params_pre = {}, indirect_draw_params_post = {};
         camera_params_t camera_params;
 
