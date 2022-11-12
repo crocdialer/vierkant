@@ -21,6 +21,14 @@ inline static bool check_tags(const std::set<std::string> &whitelist, const std:
     return whitelist.empty();
 }
 
+inline size_t vierkant::id_entry_key_hash_t::operator()(vierkant::id_entry_key_t const &key) const
+{
+    size_t h = 0;
+    crocore::hash_combine(h, key.id);
+    crocore::hash_combine(h, key.entry);
+    return h;
+}
+
 struct scoped_stack_push
 {
     std::stack<glm::mat4> &stack;
@@ -72,10 +80,14 @@ public:
             }
             auto mesh_drawables = vierkant::create_drawables(drawable_params);
 
-            for(auto &drawable: mesh_drawables)
+            for(uint32_t i = 0; i < mesh_drawables.size(); ++i)
             {
+                auto &drawable = mesh_drawables[i];
                 m_cull_result.entity_map[drawable.id] = object.id();
                 drawable.matrices.projection = m_camera->projection_matrix();
+
+                id_entry_key_t key = {object.id(), drawable.entry_index};
+                m_cull_result.index_map[key] = i;
             }
 
             // move drawables into cull_result

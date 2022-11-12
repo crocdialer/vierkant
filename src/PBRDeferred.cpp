@@ -261,24 +261,60 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
     return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info));
 }
 
-void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset) const
+void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset)
 {
     std::unordered_set<vierkant::MeshConstPtr> meshes;
 
     bool static_scene = true;
     bool materials_unchanged = true;
     bool scene_unchanged = true;
+    frame_asset.dirty_drawable_indices.clear();
 
     size_t scene_hash = 0;
-    auto view = scene->registry()->view<vierkant::Object3D*, vierkant::MeshPtr>();
+    auto view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
 
-    for(const auto &[entity, object, mesh] : view.each())
+    for(const auto &[entity, object, mesh]: view.each())
     {
         meshes.insert(mesh);
-//        if(!n->mesh->node_animations.empty()){ static_scene = false; }
         crocore::hash_combine(scene_hash, object->transform);
 
-        for(const auto &entry: mesh->entries){ crocore::hash_combine(scene_hash, entry.enabled); }
+        bool needs_transform_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
+                                      object->has_component<animation_state_t>();
+
+        // entry animation transforms
+        std::vector<glm::mat4> node_matrices;
+
+        if(needs_transform_update)
+        {
+            const auto &animation_state = object->get_component<animation_state_t>();
+            const auto &animation = mesh->node_animations[animation_state.index];
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, animation_state.current_time,
+                                                     node_matrices);
+        }
+
+        for(uint32_t i = 0; i < mesh->entries.size(); ++i)
+        {
+            const auto &entry = mesh->entries[i];
+            crocore::hash_combine(scene_hash, entry.enabled);
+
+            id_entry_key_t key = {object->id(), i};
+            auto it = m_entry_matrix_cache.find(key);
+
+            if(needs_transform_update && frame_asset.cull_result.index_map.contains(key))
+            {
+                // combine mesh- with entry-transform
+                uint32_t drawable_index = frame_asset.cull_result.index_map.at(key);
+                frame_asset.dirty_drawable_indices.insert(drawable_index);
+
+                auto &drawable = frame_asset.cull_result.drawables[drawable_index];
+                drawable.matrices.modelview = object->global_transform() * node_matrices[entry.node_index];
+                drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
+                drawable.last_matrices =
+                        it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
+
+                m_entry_matrix_cache[key] = drawable.matrices;
+            }
+        }
     }
     if(scene_hash != frame_asset.scene_hash)
     {
@@ -383,7 +419,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         uint32_t vertex_count = 0;
         float weights[61] = {};
     };
-    using morph_buffer_offset_mapt_t = std::unordered_map<node_entry_key_t, size_t, node_key_hash_t>;
+    using morph_buffer_offset_mapt_t = std::unordered_map<id_entry_key_t, size_t, id_entry_key_hash_t>;
     morph_buffer_offset_mapt_t morph_buffer_offsets;
     std::vector<morph_params_t> all_morph_params;
 
@@ -393,7 +429,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 
     auto view = frame_asset.cull_result.scene->registry()->view<vierkant::MeshPtr, vierkant::animation_state_t>();
 
-    for(const auto &[entity, mesh, animation_state] : view.each())
+    for(const auto &[entity, mesh, animation_state]: view.each())
     {
         const auto &animation = mesh->node_animations[animation_state.index];
 
@@ -419,7 +455,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)
             {
                 const auto &entry = mesh->entries[i];
-                node_entry_key_t key = {entity, i};
+                id_entry_key_t key = {static_cast<uint32_t>(entity), i};
                 const auto weights = node_morph_weights[entry.node_index];
 
                 morph_params_t p;
@@ -459,7 +495,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             auto entity = entt::entity(frame_asset.cull_result.entity_map[drawable.id]);
 
             // search previous matrices
-            node_entry_key_t key = {entity, drawable.entry_index};
+            id_entry_key_t key = {static_cast<uint32_t>(entity), drawable.entry_index};
             auto it = m_entry_matrix_cache.find(key);
             if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
 
@@ -508,10 +544,6 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             new_entry_matrix_cache[key] = drawable.matrices;
         }
         m_entry_matrix_cache = std::move(new_entry_matrix_cache);
-    }
-    else
-    {
-        // TODO: animations: update 'mesh_draws' (transformations) gpu-buffer via staging-copy
     }
 }
 
@@ -654,6 +686,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_asset.indirect_draw_params_pre.mesh_draws = params.mesh_draws;
         frame_asset.indirect_draw_params_pre.mesh_entries = params.mesh_entries;
 
+        std::vector<VkBufferMemoryBarrier2> barriers;
+
         if(params.num_draws && !frame_asset.recycle_commands)
         {
             auto drawbuffer = use_gpu_culling ? frame_asset.indirect_draw_params_pre.draws_in
@@ -669,8 +703,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
             barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-
-            std::vector<VkBufferMemoryBarrier2> barriers(1, barrier);
+            barriers.push_back(barrier);
 
             if(use_gpu_culling && !params.draws_counts_out)
             {
@@ -681,12 +714,70 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 barrier.buffer = frame_asset.indirect_draw_params_pre.draws_counts_out->handle();
                 barriers.push_back(barrier);
             }
+        }
+        else if(params.num_draws && !frame_asset.dirty_drawable_indices.empty())
+        {
+//            spdlog::debug("dirty drawable-transforms: {}", frame_asset.dirty_drawable_indices);
 
+            constexpr size_t stride = sizeof(Renderer::mesh_draw_t);
+            constexpr size_t size = 2 * sizeof(matrix_struct_t);
+
+            const size_t num_staging_bytes = size * frame_asset.dirty_drawable_indices.size();
+            size_t staging_offset = 0;
+
+            if(!frame_asset.staging_buffer)
+            {
+                frame_asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, num_staging_bytes,
+                                                                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                                      VMA_MEMORY_USAGE_CPU_ONLY);
+            }
+            else{ frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes); }
+            auto staging_ptr = static_cast<uint8_t *>(frame_asset.staging_buffer->map());
+            std::vector<VkBufferCopy2> copy_regions;
+
+            for(auto idx: frame_asset.dirty_drawable_indices)
+            {
+                const auto &drawable = frame_asset.cull_result.drawables[idx];
+
+                VkBufferCopy2 copy = {VK_STRUCTURE_TYPE_BUFFER_COPY_2};
+                copy.size = size;
+                copy.srcOffset = staging_offset;
+                copy.dstOffset = stride * idx;
+                copy_regions.push_back(copy);
+
+                auto *m = reinterpret_cast<matrix_struct_t *>(staging_ptr + staging_offset);
+                m[0] = drawable.matrices;
+                m[1] = drawable.last_matrices ? *drawable.last_matrices : drawable.matrices;
+                staging_offset += size;
+            }
+
+            VkCopyBufferInfo2 copy_info2 = {VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2};
+            copy_info2.srcBuffer = frame_asset.staging_buffer->handle();
+            copy_info2.dstBuffer = params.mesh_draws->handle();
+            copy_info2.regionCount = copy_regions.size();
+            copy_info2.pRegions = copy_regions.data();
+            vkCmdCopyBuffer2(frame_asset.clear_cmd_buffer.handle(), &copy_info2);
+
+            VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+            barrier.buffer = params.mesh_draws->handle();
+            barrier.offset = 0;
+            barrier.size = VK_WHOLE_SIZE;
+            barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+            barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+            barriers.push_back(barrier);
+        }
+
+        if(!barriers.empty())
+        {
             VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
             dependency_info.bufferMemoryBarrierCount = barriers.size();
             dependency_info.pBufferMemoryBarriers = barriers.data();
             vkCmdPipelineBarrier2(frame_asset.clear_cmd_buffer.handle(), &dependency_info);
         }
+
         frame_asset.clear_cmd_buffer.submit(m_queue);
     };
 
@@ -959,14 +1050,6 @@ void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
 {
     m_conv_lambert = lambert;
     m_conv_ggx = ggx;
-}
-
-size_t PBRDeferred::node_key_hash_t::operator()(PBRDeferred::node_entry_key_t const &key) const
-{
-    size_t h = 0;
-    crocore::hash_combine(h, key.entity);
-    crocore::hash_combine(h, key.entry_index);
-    return h;
 }
 
 void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t &asset, const glm::uvec2 &resolution)

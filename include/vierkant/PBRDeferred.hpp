@@ -228,9 +228,13 @@ private:
         //! contains the culled scene-drawables
         vierkant::cull_result_t cull_result;
         settings_t settings;
+
+        //! recycling section
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
+        std::unordered_set<uint32_t> dirty_drawable_indices;
         size_t scene_hash = 0;
         bool recycle_commands = false;
+
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
         Renderer::indirect_draw_bundle_t indirect_draw_params_pre = {}, indirect_draw_params_post = {};
         camera_params_t camera_params;
@@ -324,30 +328,12 @@ private:
         uint64_t draw_result;
     };
 
-    struct node_entry_key_t
-    {
-        entt::entity entity;
-        uint32_t entry_index;
-
-        inline bool operator==(const node_entry_key_t &other) const
-        {
-            return entity == other.entity && entry_index == other.entry_index;
-        }
-    };
-
-    struct node_key_hash_t
-    {
-        size_t operator()(node_entry_key_t const &key) const;
-    };
-
-    using matrix_cache_t = std::unordered_map<node_entry_key_t, vierkant::matrix_struct_t, node_key_hash_t>;
-
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     void update_timing(frame_asset_t &frame_asset);
 
     void update_recycling(const SceneConstPtr &scene,
-                          const CameraPtr &cam, frame_asset_t &frame_asset) const;
+                          const CameraPtr &cam, frame_asset_t &frame_asset);
 
     void update_matrix_history(frame_asset_t &frame_asset);
 
