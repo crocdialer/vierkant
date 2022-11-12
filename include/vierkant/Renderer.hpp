@@ -96,6 +96,15 @@ public:
         //! number of array-elements in 'draws_in'
         uint32_t num_draws = 0;
 
+        //! device array containing any array of mesh_draw_t
+        vierkant::BufferPtr mesh_draws;
+
+        //! device array containing any array of mesh_entry_t
+        vierkant::BufferPtr mesh_entries;
+
+        //! device array containing any array of material_t
+        vierkant::BufferPtr materials;
+
         //! host-visible array of indexed_indirect_command_t
         vierkant::BufferPtr draws_in;
 
@@ -104,12 +113,6 @@ public:
 
         //! device array of uint32_t
         vierkant::BufferPtr draws_counts_out;
-
-        //! device array containing any array of mesh_draw_t
-        vierkant::BufferPtr mesh_draws;
-
-        //! device array containing any array of mesh_entry_t
-        vierkant::BufferPtr mesh_entries;
     };
 
     //! define syntax for a culling-delegate

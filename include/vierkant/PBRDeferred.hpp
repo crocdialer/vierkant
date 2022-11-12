@@ -247,6 +247,9 @@ private:
         vierkant::BufferPtr cull_ubo, cull_result_buffer, cull_result_buffer_host;
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
+
+        // host-visible
+        vierkant::BufferPtr staging_buffer;
         vierkant::BufferPtr bone_buffer;
         vierkant::BufferPtr morph_param_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;

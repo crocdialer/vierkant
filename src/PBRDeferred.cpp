@@ -509,6 +509,10 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         }
         m_entry_matrix_cache = std::move(new_entry_matrix_cache);
     }
+    else
+    {
+        // TODO: animations: update 'mesh_draws' (transformations) gpu-buffer via staging-copy
+    }
 }
 
 vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
