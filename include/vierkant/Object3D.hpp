@@ -95,20 +95,6 @@ public:
 
     virtual OBB obb() const;
 
-    /*!
-     * Performs an update on this scenegraph node.
-     * Triggered by gl::Scene instances during gl::Scene::update(float delta) calls
-     */
-    virtual void update(float time_delta)
-    {
-        if(m_update_function){ m_update_function(time_delta); }
-    };
-
-    /*!
-     * Provide a function object to be called on each update
-     */
-    void set_update_function(update_fn_t f){ m_update_function = f; }
-
     virtual void accept(class Visitor &theVisitor);
 
     template<typename T>
@@ -131,7 +117,7 @@ public:
     }
 
     template<typename T>
-    const T* get_component_ptr() const
+    inline const T* get_component_ptr() const
     {
         auto reg = m_registry.lock();
         return reg ? reg->try_get<T>(m_entity) : nullptr;
@@ -175,8 +161,6 @@ protected:
 private:
 
     std::weak_ptr<Object3D> m_parent;
-
-    update_fn_t m_update_function;
 
     std::weak_ptr<entt::registry> m_registry;
 
