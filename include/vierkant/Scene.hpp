@@ -3,7 +3,6 @@
 #include <entt/entity/registry.hpp>
 
 #include <vierkant/Object3D.hpp>
-#include <vierkant/Mesh.hpp>
 #include <vierkant/Camera.hpp>
 #include <vierkant/Image.hpp>
 
@@ -30,12 +29,6 @@ public:
     void remove_object(const Object3DPtr &object);
 
     void clear();
-
-    [[nodiscard]] vierkant::Object3DPtr object_by_name(const std::string &name) const;
-
-    [[nodiscard]] std::vector<vierkant::Object3DPtr> objects_by_tags(const std::set<std::string> &tags) const;
-
-    [[nodiscard]] std::vector<vierkant::Object3DPtr> objects_by_tag(const std::string &tag) const;
 
     [[nodiscard]] inline const Object3DPtr &root() const{ return m_root; };
 

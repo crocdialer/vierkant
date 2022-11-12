@@ -18,9 +18,11 @@ Object3D::Object3D(const std::shared_ptr<entt::registry>& registry,
         transform(1),
         m_registry(registry)
 {
-    if(auto reg = m_registry.lock()){ m_entity = reg->create(); }
-    add_component(this);
-
+    if(auto reg = m_registry.lock())
+    {
+        m_entity = reg->create();
+        add_component(this);
+    }
     if(name.empty()){ name = "Object3D_" + std::to_string(id()); }
 }
 

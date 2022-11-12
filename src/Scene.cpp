@@ -48,12 +48,10 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
                         const std::set<std::string> &tags) const
 {
     Object3DPtr ret;
-    SelectVisitor<Object3D> sv(tags);
-    m_root->accept(sv);
-
+    auto objects_view = m_registry->view<vierkant::Object3D*>();
     std::list<range_item_t> clicked_items;
 
-    for(const auto &object: sv.objects)
+    for(const auto &[entity, object] : objects_view.each())
     {
         if(object == m_root.get()){ continue; }
 
@@ -71,41 +69,9 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
     return ret;
 }
 
-vierkant::Object3DPtr Scene::object_by_name(const std::string &name) const
-{
-    vierkant::SelectVisitor<vierkant::Object3D> sv({}, false);
-    root()->accept(sv);
-
-    for(vierkant::Object3D *o: sv.objects)
-    {
-        if(o->name == name){ return o->shared_from_this(); }
-    }
-    return nullptr;
-}
-
-std::vector<vierkant::Object3DPtr> Scene::objects_by_tags(const std::set<std::string> &tags) const
-{
-    std::vector<vierkant::Object3DPtr> ret;
-    vierkant::SelectVisitor<vierkant::Object3D> sv(tags, false);
-    root()->accept(sv);
-
-    for(vierkant::Object3D *o: sv.objects){ ret.push_back(o->shared_from_this()); }
-    return ret;
-}
-
-std::vector<vierkant::Object3DPtr> Scene::objects_by_tag(const std::string &tag) const
-{
-    return objects_by_tags({tag});
-}
-
 void Scene::set_environment(const vierkant::ImagePtr &img)
 {
     if(!img){ return; }
-
-//    // derive sane resolution for cube from panorama-width
-//    float res = crocore::next_pow_2(std::max(img->width(), img->height()) / 4);
-//    m_skybox = vierkant::cubemap_from_panorama(img, {res, res}, true);
-
     m_skybox = img;
 }
 

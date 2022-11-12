@@ -7,7 +7,6 @@
 #include <list>
 #include <crocore/crocore.hpp>
 #include <entt/entity/registry.hpp>
-#include <optional>
 
 #include "vierkant/intersection.hpp"
 
@@ -19,8 +18,6 @@ DEFINE_CLASS_PTR(Object3D);
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
-
-    using update_fn_t = std::function<void(float)>;
 
     static Object3DPtr create(const std::shared_ptr<entt::registry> &registry = {},
                               std::string name = "");
@@ -91,46 +88,90 @@ public:
     /**
      * @return the axis-aligned boundingbox (AABB) in object coords.
      */
-    virtual AABB aabb() const{ auto aabb_ptr = get_component_ptr<vierkant::AABB>(); return aabb_ptr ? * aabb_ptr : AABB(); };
+    virtual inline AABB aabb() const
+    {
+        auto aabb_ptr = get_component_ptr<vierkant::AABB>();
+        return aabb_ptr ? *aabb_ptr : AABB();
+    };
 
     virtual OBB obb() const;
 
     virtual void accept(class Visitor &theVisitor);
 
+    /**
+     * @brief   'add_component' can be used to attach an arbitrary component to this object's entity.
+     *
+     * @tparam  T           type of the component
+     * @param   component   optional arbitrary component. will be copied if provided, otherwise default-constructed
+     * @return  a reference for the newly created component.
+     */
     template<typename T>
-    void add_component(const T &component = {})
+    inline T &add_component(const T &component = {})
     {
         if(auto reg = m_registry.lock())
         {
-            reg->template emplace<T>(m_entity, component);
+            return reg->template emplace<T>(m_entity, component);
         }
+        throw std::runtime_error("error adding component: no registry defined");
     }
 
+    /**
+     * @brief   'has_component' can be used to determine if a given type exists among an object's components.
+     *
+     * @tparam  T   type of the component
+     * @return  true, if a component of the provided type exists.
+     */
     template<typename T>
-    bool has_component() const { return get_component_ptr<T>(); }
+    inline bool has_component() const{ return get_component_ptr<T>(); }
 
+    /**
+     * @brief   'get_component_ptr' can be used to retrieve a pointer to an object's component, if existing.
+     *
+     * @tparam  T   type of the component
+     * @return  a pointer to a component of the provided type, if available. nullptr otherwise.
+     */
     template<typename T>
-    T* get_component_ptr()
+    inline T *get_component_ptr()
     {
         auto reg = m_registry.lock();
         return reg ? reg->try_get<T>(m_entity) : nullptr;
     }
 
+    /**
+     * @brief   'get_component_ptr' can be used to retrieve a pointer to an object's component, if existing.
+     *
+     * @tparam  T   type of the component
+     * @return  a pointer to a component of the provided type, if available. nullptr otherwise.
+     */
     template<typename T>
-    inline const T* get_component_ptr() const
+    inline const T *get_component_ptr() const
     {
         auto reg = m_registry.lock();
         return reg ? reg->try_get<T>(m_entity) : nullptr;
     }
 
+    /**
+     * @brief   'get_component' can be used to retrieve a reference to an object's component, if existing.
+     *          will throw if no object of the requested type could be found.
+     *
+     * @tparam  T   type of the component
+     * @return  a reference to an associated component of the provided type.
+     */
     template<typename T>
-    T &get_component()
+    inline T &get_component()
     {
         auto ptr = get_component_ptr<T>();
         if(ptr){ return *ptr; }
         throw std::runtime_error("component does not exist");
     }
 
+    /**
+     * @brief   get_component can be used to retrieve a reference to an object's component, if existing.
+     *          will throw if no object of the requested type could be found.
+     *
+     * @tparam  T   type of the component
+     * @return  a reference to an associated component of the provided type.
+     */
     template<typename T>
     inline const T &get_component() const
     {
@@ -155,7 +196,7 @@ public:
     std::list<Object3DPtr> children;
 
 protected:
-    explicit Object3D(const std::shared_ptr<entt::registry>& registry,
+    explicit Object3D(const std::shared_ptr<entt::registry> &registry,
                       std::string name = "");
 
 private:

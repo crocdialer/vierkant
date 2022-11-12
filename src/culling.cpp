@@ -8,6 +8,19 @@
 namespace vierkant
 {
 
+/**
+ * @brief   Utility to check if one set of tags contains at least one item from another set.
+ *
+ * @param   whitelist the tags that shall pass the check.
+ * @param   obj_tags    the tags to check against the whitelist
+ * @return
+ */
+inline static bool check_tags(const std::set<std::string> &whitelist, const std::set<std::string> &obj_tags)
+{
+    for(const auto &t: obj_tags){ if(whitelist.count(t)){ return true; }}
+    return whitelist.empty();
+}
+
 struct scoped_stack_push
 {
     std::stack<glm::mat4> &stack;

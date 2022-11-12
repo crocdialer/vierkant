@@ -113,9 +113,8 @@ BOOST_AUTO_TEST_CASE(test_Object3D_scene_entity)
             ~destruction_test_comp_t(){ if(f){ f(); }}
         };
 
-        d->add_component<destruction_test_comp_t>();
-        d->get_component<destruction_test_comp_t>().f = [&destructed](){ destructed = true; };
+        auto &destruct_comp = d->add_component<destruction_test_comp_t>();
+        destruct_comp.f = [&destructed](){ destructed = true; };
     }
-//    registry.reset();
     BOOST_CHECK(destructed);
 }
