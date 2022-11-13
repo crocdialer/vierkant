@@ -79,6 +79,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.cull_result_buffer_host = vierkant::Buffer::create(
                 m_device, &result, sizeof(draw_cull_result_t),
                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+
+        asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, 1U << 20U,
+                                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                        VMA_MEMORY_USAGE_CPU_ONLY);
     }
 
     // create renderer for g-buffer-pass
@@ -694,6 +698,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                               : frame_asset.indirect_draw_params_pre.draws_out;
             params.draws_in->copy_to(drawbuffer, frame_asset.clear_cmd_buffer.handle());
 
+            frame_asset.staging_buffer->set_data(nullptr, params.mesh_draws->num_bytes());
+
             VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
             barrier.buffer = drawbuffer->handle();
             barrier.offset = 0;
@@ -717,39 +723,38 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         else if(params.num_draws && !frame_asset.dirty_drawable_indices.empty())
         {
-//            spdlog::debug("dirty drawable-transforms: {}", frame_asset.dirty_drawable_indices);
+            spdlog::trace("dirty drawable-transforms: {}", frame_asset.dirty_drawable_indices);
 
             constexpr size_t stride = sizeof(Renderer::mesh_draw_t);
-            constexpr size_t size = 2 * sizeof(matrix_struct_t);
+            constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
-            const size_t num_staging_bytes = size * frame_asset.dirty_drawable_indices.size();
+            const size_t num_staging_bytes = std::max(staging_stride * frame_asset.dirty_drawable_indices.size(),
+                                                      frame_asset.staging_buffer->num_bytes());
+            frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes);
             size_t staging_offset = 0;
 
-            if(!frame_asset.staging_buffer)
-            {
-                frame_asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, num_staging_bytes,
-                                                                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                                      VMA_MEMORY_USAGE_CPU_ONLY);
-            }
-            else{ frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes); }
             auto staging_ptr = static_cast<uint8_t *>(frame_asset.staging_buffer->map());
+            assert(staging_ptr);
             std::vector<VkBufferCopy2> copy_regions;
 
             for(auto idx: frame_asset.dirty_drawable_indices)
             {
+                assert(idx < frame_asset.cull_result.drawables.size());
                 const auto &drawable = frame_asset.cull_result.drawables[idx];
 
                 VkBufferCopy2 copy = {VK_STRUCTURE_TYPE_BUFFER_COPY_2};
-                copy.size = size;
+                copy.size = staging_stride;
                 copy.srcOffset = staging_offset;
                 copy.dstOffset = stride * idx;
                 copy_regions.push_back(copy);
 
-                auto *m = reinterpret_cast<matrix_struct_t *>(staging_ptr + staging_offset);
-                m[0] = drawable.matrices;
-                m[1] = drawable.last_matrices ? *drawable.last_matrices : drawable.matrices;
-                staging_offset += size;
+                vierkant::matrix_struct_t matrices[2] = {};
+                matrices[0] = drawable.matrices;
+                matrices[1] = drawable.last_matrices ? *drawable.last_matrices : drawable.matrices;
+                memcpy(staging_ptr + staging_offset, matrices, sizeof(matrices));
+                staging_offset += staging_stride;
             }
+            frame_asset.staging_buffer->unmap();
 
             VkCopyBufferInfo2 copy_info2 = {VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2};
             copy_info2.srcBuffer = frame_asset.staging_buffer->handle();
@@ -777,7 +782,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             dependency_info.pBufferMemoryBarriers = barriers.data();
             vkCmdPipelineBarrier2(frame_asset.clear_cmd_buffer.handle(), &dependency_info);
         }
-
         frame_asset.clear_cmd_buffer.submit(m_queue);
     };
 
