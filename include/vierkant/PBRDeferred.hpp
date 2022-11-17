@@ -318,14 +318,14 @@ private:
         VkBool32 lod_enabled = false;
 
         // buffer references
-        uint64_t draw_commands_in;
-        uint64_t mesh_draws_in;
-        uint64_t mesh_entries_in;
-        uint64_t draws_out_pre;
-        uint64_t draws_out_post;
-        uint64_t draw_count_pre;
-        uint64_t draw_count_post;
-        uint64_t draw_result;
+        uint64_t draw_commands_in = 0;
+        uint64_t mesh_draws_in = 0;
+        uint64_t mesh_entries_in = 0;
+        uint64_t draws_out_pre = 0;
+        uint64_t draws_out_post = 0;
+        uint64_t draw_count_pre = 0;
+        uint64_t draw_count_post = 0;
+        uint64_t draw_result = 0;
     };
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);

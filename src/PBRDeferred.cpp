@@ -736,6 +736,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             auto staging_ptr = static_cast<uint8_t *>(frame_asset.staging_buffer->map());
             assert(staging_ptr);
             std::vector<VkBufferCopy2> copy_regions;
+            copy_regions.reserve(frame_asset.dirty_drawable_indices.size());
 
             for(auto idx: frame_asset.dirty_drawable_indices)
             {
@@ -773,6 +774,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
             barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
             barriers.push_back(barrier);
+
+            // TODO: improve placement, maybe try to share one(1) meshdraw-buffer for main/post rendering
+            if(frame_asset.indirect_draw_params_post.mesh_draws)
+            {
+                copy_info2.dstBuffer = frame_asset.indirect_draw_params_post.mesh_draws->handle();
+                vkCmdCopyBuffer2(frame_asset.clear_cmd_buffer.handle(), &copy_info2);
+                barrier.buffer = frame_asset.indirect_draw_params_post.mesh_draws->handle();
+                barriers.push_back(barrier);
+            }
         }
 
         if(!barriers.empty())
@@ -811,6 +821,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             // draws_out should have bee pre-created by Renderer
             frame_asset.indirect_draw_params_post.draws_out = params.draws_out;
+            frame_asset.indirect_draw_params_post.mesh_draws = params.mesh_draws;
 
             cull_draw_commands(frame_asset, cam, frame_asset.depth_pyramid,
                                params.num_draws,
