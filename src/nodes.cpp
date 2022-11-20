@@ -33,7 +33,7 @@ static inline void dfs(const NodeConstPtr &root, const std::function<void(const 
 //! recursion helper-routine
 void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,
-                                float animation_time,
+                                double animation_time,
                                 std::vector<glm::mat4> &matrices,
                                 glm::mat4 global_joint_transform);
 
@@ -59,7 +59,7 @@ NodeConstPtr node_by_name(NodeConstPtr root, const std::string &name)
 
 void build_morph_weights_bfs(const NodeConstPtr &root,
                              const node_animation_t &animation,
-                             float animation_time,
+                             double animation_time,
                              std::vector<std::vector<float>> &morph_weights)
 {
     if(!root){ return; }
@@ -84,7 +84,7 @@ void build_morph_weights_bfs(const NodeConstPtr &root,
 
 void build_node_matrices_bfs(const NodeConstPtr &root,
                              const node_animation_t &animation,
-                             float animation_time,
+                             double animation_time,
                              std::vector<glm::mat4> &matrices)
 {
     if(!root){ return; }
@@ -119,7 +119,7 @@ void build_node_matrices_bfs(const NodeConstPtr &root,
 
 void build_node_matrices(const NodeConstPtr &root,
                          const node_animation_t &animation,
-                         float animation_time,
+                         double animation_time,
                          std::vector<glm::mat4> &matrices)
 {
     if(!root){ return; }
@@ -129,7 +129,7 @@ void build_node_matrices(const NodeConstPtr &root,
 
 void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,
-                                float animation_time,
+                                double animation_time,
                                 std::vector<glm::mat4> &matrices,
                                 glm::mat4 global_joint_transform)
 {

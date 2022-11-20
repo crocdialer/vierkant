@@ -268,11 +268,10 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset)
 {
     std::unordered_set<vierkant::MeshConstPtr> meshes;
-    std::unordered_map<const vierkant::Object3D*, size_t> transform_hashes;
+    std::unordered_map<vierkant::id_entry_key_t, size_t, vierkant::id_entry_key_hash_t> transform_hashes;
 
-    bool static_scene = true;
     bool materials_unchanged = true;
-    bool scene_unchanged = true;
+    bool objects_unchanged = true;
     frame_asset.dirty_drawable_indices.clear();
 
     size_t scene_hash = 0;
@@ -280,15 +279,10 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
     for(const auto &[entity, object, mesh]: view.each())
     {
+        bool transform_update = false;
+
         meshes.insert(mesh);
         crocore::hash_combine(scene_hash, object);
-
-        size_t transform_hash = 0;
-        crocore::hash_combine(transform_hash, object->transform);
-        transform_hashes[object] = transform_hash;
-
-        auto hash_it = frame_asset.transform_hashes.find(object);
-        bool transform_update = hash_it != frame_asset.transform_hashes.end() && hash_it->second != transform_hash;
 
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
                                 object->has_component<animation_state_t>();
@@ -312,6 +306,14 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             id_entry_key_t key = {object->id(), i};
             auto it = m_entry_matrix_cache.find(key);
 
+            size_t transform_hash = 0;
+            crocore::hash_combine(transform_hash, object->transform * entry.transform);
+            transform_hashes[key] = transform_hash;
+
+            auto hash_it = frame_asset.transform_hashes.find(key);
+            transform_update = transform_update ||
+                               (hash_it != frame_asset.transform_hashes.end() && hash_it->second != transform_hash);
+
             if((transform_update || animation_update) && frame_asset.cull_result.index_map.contains(key))
             {
                 // combine mesh- with entry-transform
@@ -319,7 +321,8 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_asset.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_asset.cull_result.drawables[drawable_index];
-                drawable.matrices.modelview = object->global_transform() * node_matrices[entry.node_index];
+                drawable.matrices.modelview = node_matrices.empty() ? object->global_transform() :
+                                              object->global_transform() * node_matrices[entry.node_index];
                 drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.last_matrices =
                         it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
@@ -333,7 +336,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
     if(scene_hash != frame_asset.scene_hash)
     {
-        scene_unchanged = false;
+        objects_unchanged = false;
         frame_asset.scene_hash = scene_hash;
     }
 
@@ -347,7 +350,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         }
     }
     bool need_culling = frame_asset.cull_result.camera != cam || meshes != frame_asset.cull_result.meshes;
-    frame_asset.recycle_commands = static_scene && scene_unchanged && materials_unchanged && !need_culling;
+    frame_asset.recycle_commands = objects_unchanged && materials_unchanged && !need_culling;
 
     frame_asset.recycle_commands = frame_asset.recycle_commands && frame_asset.settings == settings;
     frame_asset.settings = settings;
@@ -734,8 +737,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         else if(params.num_draws && !frame_asset.dirty_drawable_indices.empty())
         {
-            spdlog::trace("dirty drawable-transforms: {}", frame_asset.dirty_drawable_indices);
-
             constexpr size_t stride = sizeof(Renderer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
