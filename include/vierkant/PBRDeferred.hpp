@@ -233,6 +233,7 @@ private:
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
         std::unordered_set<uint32_t> dirty_drawable_indices;
         size_t scene_hash = 0;
+        std::unordered_map<const vierkant::Object3D*, size_t> transform_hashes;
         bool recycle_commands = false;
 
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;

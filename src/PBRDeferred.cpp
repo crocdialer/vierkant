@@ -268,6 +268,7 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset)
 {
     std::unordered_set<vierkant::MeshConstPtr> meshes;
+    std::unordered_map<const vierkant::Object3D*, size_t> transform_hashes;
 
     bool static_scene = true;
     bool materials_unchanged = true;
@@ -280,15 +281,22 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     for(const auto &[entity, object, mesh]: view.each())
     {
         meshes.insert(mesh);
-        crocore::hash_combine(scene_hash, object->transform);
+        crocore::hash_combine(scene_hash, object);
 
-        bool needs_transform_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
-                                      object->has_component<animation_state_t>();
+        size_t transform_hash = 0;
+        crocore::hash_combine(transform_hash, object->transform);
+        transform_hashes[object] = transform_hash;
+
+        auto hash_it = frame_asset.transform_hashes.find(object);
+        bool transform_update = hash_it != frame_asset.transform_hashes.end() && hash_it->second != transform_hash;
+
+        bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
+                                object->has_component<animation_state_t>();
 
         // entry animation transforms
         std::vector<glm::mat4> node_matrices;
 
-        if(needs_transform_update)
+        if(animation_update)
         {
             const auto &animation_state = object->get_component<animation_state_t>();
             const auto &animation = mesh->node_animations[animation_state.index];
@@ -304,7 +312,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             id_entry_key_t key = {object->id(), i};
             auto it = m_entry_matrix_cache.find(key);
 
-            if(needs_transform_update && frame_asset.cull_result.index_map.contains(key))
+            if((transform_update || animation_update) && frame_asset.cull_result.index_map.contains(key))
             {
                 // combine mesh- with entry-transform
                 uint32_t drawable_index = frame_asset.cull_result.index_map.at(key);
@@ -320,6 +328,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             }
         }
     }
+
+    frame_asset.transform_hashes = std::move(transform_hashes);
+
     if(scene_hash != frame_asset.scene_hash)
     {
         scene_unchanged = false;
