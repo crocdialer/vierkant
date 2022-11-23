@@ -45,8 +45,6 @@ trace_result_t trace(vec2 coord, vec2 size)
     // The sum of the colors of all of the samples.
     trace_result.radiance = vec3(0);
 
-    float sample_offset = rnd(rng_state);
-
     // cone spread_angle
     float spread_angle = atan(2.0 * tan(cam.fov / 2.0) / size.y);
 
@@ -60,8 +58,10 @@ trace_result_t trace(vec2 coord, vec2 size)
     //          -1
     for (int sampleIdx = 0; sampleIdx < push_constants.num_samples; sampleIdx++)
     {
+//        float sample_offset = rnd(rng_state);
+
         // random+stratified sampling
-        const vec2 randomPixelCenter = coord + fract(Hammersley(sampleIdx, push_constants.num_samples) + vec2(sample_offset));
+        const vec2 randomPixelCenter = coord + fract(Hammersley(sampleIdx, push_constants.num_samples));
         const vec2 inUV = randomPixelCenter / size;
         vec2 d = inUV * 2.0 - 1.0;
 
@@ -138,7 +138,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         trace_result.radiance += path_radiance;
     }
 
-    trace_result.radiance /= push_constants.num_samples;
+    trace_result.radiance /= float(push_constants.num_samples);
     if(any(isinf(trace_result.radiance)) || any(isnan(trace_result.radiance))){ trace_result.radiance = vec3(0); }
     return trace_result;
 }

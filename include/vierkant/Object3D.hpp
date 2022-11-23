@@ -5,10 +5,12 @@
 #pragma once
 
 #include <list>
+#include <optional>
 #include <crocore/crocore.hpp>
 #include <entt/entity/registry.hpp>
 
-#include "vierkant/intersection.hpp"
+#include <vierkant/intersection.hpp>
+#include <vierkant/animation.hpp>
 
 namespace vierkant
 {
@@ -18,6 +20,13 @@ DEFINE_CLASS_PTR(Object3D);
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
+
+    //! signature for a function to retrieve a combined AABB
+    using aabb_fn_t = std::function<vierkant::AABB(const std::optional<vierkant::animation_state_t> &)>;
+
+    //! signature for a function to retrieve all sub-AABBs
+    using sub_aabb_fn_t = std::function<std::vector<vierkant::AABB>(
+            const std::optional<vierkant::animation_state_t> &)>;
 
     static Object3DPtr create(const std::shared_ptr<entt::registry> &registry = {},
                               std::string name = "");
@@ -88,13 +97,26 @@ public:
     /**
      * @return the axis-aligned boundingbox (AABB) in object coords.
      */
-    virtual inline AABB aabb() const
+    inline AABB aabb() const
     {
+        auto aabb_fn_ptr = get_component_ptr<aabb_fn_t>();
+        auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
+        std::optional<vierkant::animation_state_t> dummy;
+        if(aabb_fn_ptr){ return (*aabb_fn_ptr)(animation_state_ptr ? *animation_state_ptr : dummy); }
         auto aabb_ptr = get_component_ptr<vierkant::AABB>();
         return aabb_ptr ? *aabb_ptr : AABB();
     };
 
-    virtual OBB obb() const;
+    OBB obb() const;
+
+    inline std::vector<AABB> sub_aabbs() const
+    {
+        auto sub_aabb_fn_ptr = get_component_ptr<sub_aabb_fn_t>();
+        auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
+        std::optional<vierkant::animation_state_t> dummy;
+        if(sub_aabb_fn_ptr){ return (*sub_aabb_fn_ptr)(animation_state_ptr ? *animation_state_ptr : dummy); }
+        return {};
+    }
 
     virtual void accept(class Visitor &theVisitor);
 

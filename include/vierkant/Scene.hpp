@@ -5,6 +5,7 @@
 #include <vierkant/Object3D.hpp>
 #include <vierkant/Camera.hpp>
 #include <vierkant/Image.hpp>
+#include <vierkant/Mesh.hpp>
 
 namespace vierkant
 {
@@ -12,6 +13,18 @@ namespace vierkant
 DEFINE_CLASS_PTR(Scene);
 
 using double_second = std::chrono::duration<double>;
+
+/**
+ * @brief   'create_mesh_object' is a factory to create an Object3D containing a mesh.
+ *
+ * in addition the created object offers support for animations and dynamically updated aabbs for submeshes.
+ *
+ * @param   registry    a provided entt::registry
+ * @param   mesh        a provided mesh
+ * @return  a newly created Object3D with attached components.
+ */
+vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &registry,
+                                         const vierkant::MeshPtr &mesh);
 
 class Scene
 {

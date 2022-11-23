@@ -13,6 +13,67 @@ struct range_item_t
     inline bool operator<(const range_item_t &other) const{ return distance < other.distance; }
 };
 
+vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &registry,
+                                         const vierkant::MeshPtr &mesh)
+{
+    auto object = vierkant::Object3D::create(registry);
+    object->add_component(mesh);
+    vierkant::Object3D::aabb_fn_t aabb_fn;
+    vierkant::Object3D::sub_aabb_fn_t sub_aabb_fn;
+    if(!mesh->node_animations.empty()){ object->add_component<vierkant::animation_state_t>(); }
+
+    aabb_fn = [mesh](const std::optional<vierkant::animation_state_t> &anim_state)
+    {
+        vierkant::AABB ret = {};
+
+        // entry animation transforms
+        std::vector<glm::mat4> node_matrices;
+
+        if(!mesh->root_bone && anim_state && anim_state->index < mesh->node_animations.size())
+        {
+            const auto &animation = mesh->node_animations[anim_state->index];
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
+                                                     anim_state->current_time,
+                                                     node_matrices);
+        }
+
+        for(const auto &entry: mesh->entries)
+        {
+            ret += entry.bounding_box.transform(
+                    (node_matrices.empty() ? entry.transform : node_matrices[entry.node_index]));
+        }
+        return ret;
+    };
+    object->add_component(aabb_fn);
+    vierkant::AABB aabb = aabb_fn({});
+    object->add_component(aabb);
+
+    sub_aabb_fn = [mesh](const std::optional<vierkant::animation_state_t> &anim_state)
+    {
+        std::vector<vierkant::AABB> ret;
+
+        // entry animation transforms
+        std::vector<glm::mat4> node_matrices;
+
+        if(!mesh->root_bone && anim_state && anim_state->index < mesh->node_animations.size())
+        {
+            const auto &animation = mesh->node_animations[anim_state->index];
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
+                                                     anim_state->current_time,
+                                                     node_matrices);
+        }
+
+        for(const auto &entry: mesh->entries)
+        {
+            ret.push_back(entry.bounding_box.transform(
+                    (node_matrices.empty() ? entry.transform : node_matrices[entry.node_index])));
+        }
+        return ret;
+    };
+    object->add_component(sub_aabb_fn);
+    return object;
+}
+
 ScenePtr Scene::create()
 {
     return ScenePtr(new Scene());
@@ -48,16 +109,16 @@ Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
                         const std::set<std::string> &tags) const
 {
     Object3DPtr ret;
-    auto objects_view = m_registry->view<vierkant::Object3D*>();
+    auto objects_view = m_registry->view<vierkant::Object3D *>();
     std::list<range_item_t> clicked_items;
 
-    for(const auto &[entity, object] : objects_view.each())
+    for(const auto &[entity, object]: objects_view.each())
     {
         if(object == m_root.get()){ continue; }
 
         if(auto ray_hit = vierkant::intersect(object->obb().transform(object->global_transform()), ray))
         {
-                clicked_items.push_back({object, ray_hit.distance});
+            clicked_items.push_back({object, ray_hit.distance});
         }
     }
     if(!clicked_items.empty())
