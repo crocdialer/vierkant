@@ -67,6 +67,8 @@ struct material_t
     // optional texture-transform (todo: per image)
     glm::mat4 texture_transform = glm::mat4(1);
 
+    std::vector<crocore::ImagePtr> images;
+
     crocore::ImagePtr img_diffuse;
     crocore::ImagePtr img_emission;
 
@@ -114,8 +116,8 @@ struct mesh_assets_t
 
 struct asset_bundle_t
 {
-    std::optional<vierkant::mesh_buffer_bundle_t> mesh_buffer_bundle;
-    std::optional<std::vector<vierkant::bc7::compress_result_t>> compressed_images;
+    vierkant::mesh_buffer_bundle_t mesh_buffer_bundle;
+    std::vector<vierkant::bc7::compress_result_t> compressed_images;
 };
 
 struct load_mesh_params_t
@@ -144,7 +146,10 @@ struct load_mesh_params_t
  */
 vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
                             const vierkant::model::mesh_assets_t &mesh_assets,
-                            const std::optional<vierkant::mesh_buffer_bundle_t> &mesh_buffer_bundle = {});
+                            const std::optional<asset_bundle_t> &asset_bundle = {});
+
+std::vector<vierkant::bc7::compress_result_t>
+create_compressed_images(const std::vector<vierkant::model::material_t> &materials);
 
 /**
  * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.

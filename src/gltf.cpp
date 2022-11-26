@@ -377,7 +377,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
         for(; dst < end; dst += ret.img_ao_roughness_metal->num_components()){ dst[ao_offset] = 255; }
     }
 
-    for(const auto&[ext, value]: tiny_mat.extensions)
+    for(const auto &[ext, value]: tiny_mat.extensions)
     {
         spdlog::trace("ext-properties: {}", value.Keys());
 
@@ -552,6 +552,18 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             }
         }
     }
+    if(ret.img_diffuse){ ret.images.push_back(ret.img_diffuse); }
+    if(ret.img_emission){ ret.images.push_back(ret.img_emission); }
+    if(ret.img_normals){ ret.images.push_back(ret.img_normals); }
+    if(ret.img_ao_roughness_metal){ ret.images.push_back(ret.img_ao_roughness_metal); }
+    if(ret.img_thickness){ ret.images.push_back(ret.img_thickness); }
+    if(ret.img_transmission){ ret.images.push_back(ret.img_transmission); }
+    if(ret.img_clearcoat){ ret.images.push_back(ret.img_clearcoat); }
+    if(ret.img_sheen_color){ ret.images.push_back(ret.img_sheen_color); }
+    if(ret.img_sheen_roughness){ ret.images.push_back(ret.img_sheen_roughness); }
+    if(ret.img_specular){ ret.images.push_back(ret.img_specular); }
+    if(ret.img_specular_color){ ret.images.push_back(ret.img_specular_color); }
+    if(ret.img_iridescence){ ret.images.push_back(ret.img_iridescence); }
     return ret;
 }
 
@@ -593,7 +605,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
 
         while(!node_queue.empty())
         {
-            auto[current_index, world_transform, parent_node] = std::move(node_queue.front());
+            auto [current_index, world_transform, parent_node] = std::move(node_queue.front());
             node_queue.pop_front();
 
             const tinygltf::Node &skeleton_node = model.nodes[current_index];
@@ -804,9 +816,10 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
         if(!image_cache.count(t.source))
         {
-            image_cache[t.source] = crocore::Image_<uint8_t>::create(tiny_image.image.data(), tiny_image.width,
-                                                                     tiny_image.height,
-                                                                     tiny_image.component);
+            auto img = crocore::Image_<uint8_t>::create(tiny_image.image.data(), tiny_image.width,
+                                                        tiny_image.height,
+                                                        tiny_image.component);
+            image_cache[t.source] = img;
         }
     }
 
@@ -865,7 +878,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     while(!node_queue.empty())
     {
-        auto[current_index, world_transform, parent_node] = node_queue.front();
+        auto [current_index, world_transform, parent_node] = node_queue.front();
         node_queue.pop_front();
 
         const tinygltf::Node &tiny_node = model.nodes[current_index];

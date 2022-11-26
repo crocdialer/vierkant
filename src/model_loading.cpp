@@ -15,25 +15,56 @@ VkFormat vk_format(const crocore::ImagePtr &img)
 
     switch(img->num_components())
     {
-        case 1:
-            ret = VK_FORMAT_R8_UNORM;
+        case 1:ret = VK_FORMAT_R8_UNORM;
             break;
-        case 2:
-            ret = VK_FORMAT_R8G8_UNORM;
+        case 2:ret = VK_FORMAT_R8G8_UNORM;
             break;
-        case 3:
-            ret = VK_FORMAT_R8G8B8_UNORM;
+        case 3:ret = VK_FORMAT_R8G8B8_UNORM;
             break;
-        case 4:
-            ret = VK_FORMAT_R8G8B8A8_UNORM;
+        case 4:ret = VK_FORMAT_R8G8B8A8_UNORM;
             break;
     }
     return ret;
 }
 
+std::vector<vierkant::bc7::compress_result_t>
+create_compressed_images(const std::vector<vierkant::model::material_t> &materials)
+{
+    std::vector<vierkant::bc7::compress_result_t> ret;
+    std::set<crocore::ImagePtr> images;
+
+    crocore::ThreadPool threadpool(std::thread::hardware_concurrency());
+    std::chrono::milliseconds compress_total_duration(0);
+    size_t num_pixels = 0;
+
+    for(const auto &mat: materials)
+    {
+        for(const auto &img: mat.images)
+        {
+            if(img && !images.contains(img))
+            {
+                images.insert(img);
+                bc7::compress_info_t compress_info = {};
+                compress_info.image = img;
+                compress_info.generate_mipmaps = true;
+                compress_info.delegate_fn = [&threadpool](auto fn){ return threadpool.post(fn); };
+                auto compress_result = bc7::compress(compress_info);
+                compress_total_duration += compress_result.duration;
+                num_pixels += img->width() * img->height();
+                ret.push_back(std::move(compress_result));
+            }
+        }
+    }
+    float mpx_per_sec =
+            1.e-6f * static_cast<float>(num_pixels) / std::chrono::duration<float>(compress_total_duration).count();
+    spdlog::debug("compressed {} images in {} ms - avg. {:03.2f} Mpx/s", images.size(),
+                  compress_total_duration.count(), mpx_per_sec);
+    return ret;
+}
+
 vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
                             const vierkant::model::mesh_assets_t &mesh_assets,
-                            const std::optional<vierkant::mesh_buffer_bundle_t>& mesh_buffer_bundle)
+                            const std::optional<asset_bundle_t> &asset_bundle)
 {
     std::vector<vierkant::BufferPtr> staging_buffers;
 
@@ -80,10 +111,10 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
     mesh_create_info.use_vertex_colors = false;
     mesh_create_info.command_buffer = cmd_buf.handle();
     mesh_create_info.staging_buffer = mesh_staging_buf;
-    auto mesh = mesh_buffer_bundle
-                        ? vierkant::Mesh::create_from_bundle(params.device, *mesh_buffer_bundle, mesh_create_info)
-                        : vierkant::Mesh::create_with_entries(params.device, mesh_assets.entry_create_infos,
-                                                              mesh_create_info);
+    auto mesh = asset_bundle
+                ? vierkant::Mesh::create_from_bundle(params.device, asset_bundle->mesh_buffer_bundle, mesh_create_info)
+                : vierkant::Mesh::create_with_entries(params.device, mesh_assets.entry_create_infos,
+                                                      mesh_create_info);
 
     // skin + bones
     mesh->root_bone = mesh_assets.root_bone;
@@ -96,13 +127,35 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
 
     mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
-    crocore::ThreadPool threadpool(params.compress_textures ? std::thread::hardware_concurrency() : 0);
+    std::map<crocore::ImagePtr, uint32_t> index_map;
+    std::set<crocore::ImagePtr> images;
+    uint32_t i = 0;
 
-    std::chrono::milliseconds compress_total_duration(0);
+    for(const auto &mat: mesh_assets.materials)
+    {
+        for(const auto &img: mat.images)
+        {
+            if(img && !images.contains(img))
+            {
+                images.insert(img);
+                index_map[img] = i++;
+            }
+        }
+    }
+
+    std::vector<vierkant::bc7::compress_result_t> compressed_images;
+    if(asset_bundle && asset_bundle->compressed_images.size() == index_map.size())
+    {
+        compressed_images = asset_bundle->compressed_images;
+    }
+    if(params.compress_textures && compressed_images.empty())
+    {
+        compressed_images = create_compressed_images(mesh_assets.materials);
+    }
 
     // cache textures
     std::unordered_map<crocore::ImagePtr, vierkant::ImagePtr> texture_cache;
-    auto cache_helper = [&params, &texture_cache, &create_texture, &threadpool, &compress_total_duration](
+    auto cache_helper = [&params, &texture_cache, &create_texture, &compressed_images, &index_map](
             const crocore::ImagePtr &img)
     {
         if(img && !texture_cache.count(img))
@@ -116,40 +169,24 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
                 fmt.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
                 fmt.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
-                bc7::compress_info_t compress_info = {};
-                compress_info.image = img;
-                compress_info.generate_mipmaps = true;
-                compress_info.delegate_fn = [&threadpool](auto fn){ return threadpool.post(fn); };
-
-                auto compress_result = bc7::compress(compress_info);
+                const auto &compress_result = compressed_images[index_map[img]];
                 texture_cache[img] = create_compressed_texture(params.device, compress_result, fmt, params.load_queue);
-                compress_total_duration += compress_result.duration;
             }
         }
     };
 
-    for(const auto &asset_mat : mesh_assets.materials)
+    for(const auto &asset_mat: mesh_assets.materials)
     {
-        cache_helper(asset_mat.img_diffuse);
-        cache_helper(asset_mat.img_emission);
-        cache_helper(asset_mat.img_normals);
-        cache_helper(asset_mat.img_ao_roughness_metal);
-        cache_helper(asset_mat.img_thickness);
-        cache_helper(asset_mat.img_transmission);
-    }
-
-    if(params.compress_textures)
-    {
-        size_t num_pixels = 0;
-        for(const auto &[img, tex] : texture_cache)
+        for(const auto &img : asset_mat.images)
         {
-            num_pixels += img->width() * img->height();
+            if(img){ cache_helper(img); }
         }
-        float mpx_per_sec =
-                1.e-6f * static_cast<float>(num_pixels) / std::chrono::duration<float>(compress_total_duration).count();
-
-        spdlog::debug("compressed {} textures in {} ms - avg. {:03.2f} Mpx/s", texture_cache.size(),
-                      compress_total_duration.count(), mpx_per_sec);
+//        cache_helper(asset_mat.img_diffuse);
+//        cache_helper(asset_mat.img_emission);
+//        cache_helper(asset_mat.img_normals);
+//        cache_helper(asset_mat.img_ao_roughness_metal);
+//        cache_helper(asset_mat.img_thickness);
+//        cache_helper(asset_mat.img_transmission);
     }
 
     for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
