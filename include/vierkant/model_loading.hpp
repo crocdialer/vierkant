@@ -112,6 +112,12 @@ struct mesh_assets_t
     std::vector<vierkant::nodes::node_animation_t> node_animations;
 };
 
+struct asset_bundle_t
+{
+    std::optional<vierkant::mesh_buffer_bundle_t> mesh_buffer_bundle;
+    std::optional<std::vector<vierkant::bc7::compress_result_t>> compressed_images;
+};
+
 struct load_mesh_params_t
 {
     //! handle to a vierkant::Device
@@ -138,7 +144,7 @@ struct load_mesh_params_t
  */
 vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
                             const vierkant::model::mesh_assets_t &mesh_assets,
-                            const std::optional<vierkant::mesh_buffer_bundle_t>& mesh_buffer_bundle = {});
+                            const std::optional<vierkant::mesh_buffer_bundle_t> &mesh_buffer_bundle = {});
 
 /**
  * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.

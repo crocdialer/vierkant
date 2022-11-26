@@ -1100,7 +1100,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     // nothing to do
     if(asset.g_buffer_post && asset.g_buffer_post.color_attachment()->extent() == size){ return; }
 
-    m_logger->debug("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
+    m_logger->trace("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
                     resolution.y);
     asset.recycle_commands = false;
     vierkant::RenderPassPtr lighting_renderpass, sky_renderpass, post_fx_renderpass;
