@@ -143,8 +143,8 @@ Device::Device(const create_info_t &create_info) :
         driver_info = fmt::format("{}.{}.{:02}", nvidia_driver_major, nvidia_driver_minor, nvidia_driver_patch);
     }
 
-    spdlog::info("Vulkan {}.{}.{} - {} (driver: {})", version_major, version_minor, version_patch,
-                 m_physical_device_properties.properties.deviceName, driver_info);
+    spdlog::info("Vulkan {}.{}.{} - {} (driver: {} - vierkant: {})", version_major, version_minor, version_patch,
+                 m_physical_device_properties.properties.deviceName, driver_info, GIT_COMMIT_HASH);
 
     // add some obligatory features here
     VkPhysicalDeviceFeatures device_features = create_info.device_features;

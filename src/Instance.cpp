@@ -22,11 +22,11 @@ bool check_validation_layer_support()
     std::vector<VkLayerProperties> available_layers(layer_count);
     vkEnumerateInstanceLayerProperties(&layer_count, available_layers.data());
 
-    for(const char *layerName : g_validation_layers)
+    for(const char *layerName: g_validation_layers)
     {
         bool layer_found = false;
 
-        for(const auto &layerProperties : available_layers)
+        for(const auto &layerProperties: available_layers)
         {
             if(strcmp(layerName, layerProperties.layerName) == 0)
             {
@@ -69,7 +69,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags
         Instance::debug_fn_t &debug_fn = *reinterpret_cast<Instance::debug_fn_t *>(user_data);
         if(debug_fn){ debug_fn(msg, flags); }
     }
-    else{ std::cerr << msg << std::endl; }
+    else{ spdlog::error(msg); }
     return VK_FALSE;
 }
 
@@ -83,7 +83,7 @@ bool check_device_extension_support(VkPhysicalDevice device, const std::vector<c
     std::vector<VkExtensionProperties> extensions_available(num_extensions);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &num_extensions, extensions_available.data());
     std::set<std::string> extensions_required(extensions.begin(), extensions.end());
-    for(const auto &extension : extensions_available){ extensions_required.erase(extension.extensionName); }
+    for(const auto &extension: extensions_available){ extensions_required.erase(extension.extensionName); }
     return extensions_required.empty();
 }
 
@@ -91,10 +91,7 @@ bool check_device_extension_support(VkPhysicalDevice device, const std::vector<c
 
 void vkCheck(VkResult res, const std::string &fail_msg)
 {
-    if(res != VK_SUCCESS)
-    {
-        throw std::runtime_error(fail_msg);
-    }
+    if(res != VK_SUCCESS){ throw std::runtime_error(fail_msg); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -104,7 +101,7 @@ VkFormat find_supported_format(VkPhysicalDevice the_device,
                                VkImageTiling the_tiling,
                                VkFormatFeatureFlags the_features)
 {
-    for(VkFormat format : the_candidates)
+    for(VkFormat format: the_candidates)
     {
         VkFormatProperties props;
         vkGetPhysicalDeviceFormatProperties(the_device, format, &props);
@@ -135,10 +132,7 @@ VkFormat find_depth_format(VkPhysicalDevice device)
 
 Instance::Instance(bool use_validation_layers, const std::vector<const char *> &the_required_extensions)
 {
-    if(!init(use_validation_layers, the_required_extensions))
-    {
-        *this = Instance();
-    }
+    if(!init(use_validation_layers, the_required_extensions)){ *this = Instance(); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +180,7 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     // check support for validation-layers
     if(use_validation_layers && !check_validation_layer_support())
     {
-        std::cerr << "validation layers requested, but not available!";
+        spdlog::error("validation layers requested, but not available!");
         return false;
     }
 
@@ -198,8 +192,8 @@ bool Instance::init(bool use_validation_layers, const std::vector<const char *> 
     std::vector<VkExtensionProperties> extensions(num_extensions);
     vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, extensions.data());
 
-    LOG_TRACE << "available extensions:";
-    for(const auto &ext : extensions){ LOG_TRACE << "\t" << ext.extensionName; }
+    spdlog::trace("available extensions: ");
+    for(const auto &ext: extensions){ spdlog::trace(ext.extensionName); }
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
