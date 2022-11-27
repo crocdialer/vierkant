@@ -148,6 +148,13 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
                             const vierkant::model::mesh_assets_t &mesh_assets,
                             const std::optional<asset_bundle_t> &asset_bundle = {});
 
+/**
+ * @brief   create_compressed_images will compress all images retrieved from provided materials
+ *          and return an array of compression-results.
+ *
+ * @param   materials   a provided array of materials.
+ * @return  an array of bc7-compressed images.
+ */
 std::vector<vierkant::bc7::compress_result_t>
 create_compressed_images(const std::vector<vierkant::model::material_t> &materials);
 

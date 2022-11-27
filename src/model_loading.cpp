@@ -129,7 +129,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
 
     std::map<crocore::ImagePtr, uint32_t> index_map;
     std::set<crocore::ImagePtr> images;
-    uint32_t i = 0;
+    uint32_t idx = 0;
 
     for(const auto &mat: mesh_assets.materials)
     {
@@ -138,7 +138,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
             if(img && !images.contains(img))
             {
                 images.insert(img);
-                index_map[img] = i++;
+                index_map[img] = idx++;
             }
         }
     }
@@ -181,12 +181,6 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
         {
             if(img){ cache_helper(img); }
         }
-//        cache_helper(asset_mat.img_diffuse);
-//        cache_helper(asset_mat.img_emission);
-//        cache_helper(asset_mat.img_normals);
-//        cache_helper(asset_mat.img_ao_roughness_metal);
-//        cache_helper(asset_mat.img_thickness);
-//        cache_helper(asset_mat.img_transmission);
     }
 
     for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
