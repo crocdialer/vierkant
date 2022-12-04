@@ -70,8 +70,6 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint mi = task_payload.meshlet_indices[gl_WorkGroupID.x];
 
-    SetMeshOutputsEXT(meshlets[mi].vertex_count, meshlets[mi].triangle_count);
-
     matrix_struct_t m = draws[task_payload.object_index].current_matrices;
     matrix_struct_t m_last = draws[task_payload.object_index].last_matrices;
 
@@ -98,8 +96,10 @@ void main()
 
     for(uint i = ti; i < meshlets[mi].triangle_count; i += LOCAL_SIZE)
     {
-        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(uint(meshlet_triangles[meshlets[mi].triangle_offset]),
-                                                  uint(meshlet_triangles[meshlets[mi].triangle_offset + 1]),
-                                                  uint(meshlet_triangles[meshlets[mi].triangle_offset + 2]));
+        uint base_index = meshlets[mi].triangle_offset + 3 * i;
+        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(uint(meshlet_triangles[base_index]),
+                                                  uint(meshlet_triangles[base_index + 1]),
+                                                  uint(meshlet_triangles[base_index + 2]));
     }
+    SetMeshOutputsEXT(meshlets[mi].vertex_count, meshlets[mi].triangle_count);
 }

@@ -35,11 +35,6 @@ layout(push_constant) uniform PushConstants
     render_context_t context;
 };
 
-//out taskNV TaskBuffer
-//{
-//    uint meshlet_indices[LOCAL_SIZE];
-//    uint object_index;
-//};
 taskPayloadSharedEXT mesh_task_payload_t task_payload;
 
 layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
@@ -70,7 +65,7 @@ void main()
     float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
 
     // backface-culling
-    bool accept = gid >= draw_command.num_meshlets && !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
+    bool accept = (gid < draw_command.num_meshlets) && !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
 
     // frustum-culling
     accept = accept && !frustum_cull(center, radius, camera.frustum);
@@ -82,10 +77,11 @@ void main()
 
     // write result
     if (accept){ task_payload.meshlet_indices[index] = mi; }
-    if (ti == 0){ EmitMeshTasksEXT(count, 1, 1); }
+    EmitMeshTasksEXT(count, 1, 1);
 
 #else
     task_payload.meshlet_indices[ti] = mi;
-    if (ti == 0){ EmitMeshTasksEXT(LOCAL_SIZE, 1, 1); }
+    uint count = min(LOCAL_SIZE, draw_command.groupCountX - gl_WorkGroupID.x * LOCAL_SIZE);
+    EmitMeshTasksEXT(count, 1, 1);
 #endif
 }

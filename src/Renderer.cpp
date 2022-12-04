@@ -416,6 +416,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                 //! VkDrawMeshTasksIndirectCommandEXT
                 draw_command->vk_mesh_draw.groupCountX =
                         (m_mesh_task_count + drawable->num_meshlets - 1) / m_mesh_task_count;
+                draw_command->vk_mesh_draw.groupCountY = draw_command->vk_mesh_draw.groupCountZ = 1;
             }
             else
             {

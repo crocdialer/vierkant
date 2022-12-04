@@ -149,7 +149,7 @@ void main()
         draw.indexCount = lod.num_indices;
         draw.firstIndex = lod.base_index;
         draw.groupCountX = (lod.num_meshlets + 31) / 32;
-        draw.groupCountY = draw.groupCountZ = 0;
+        draw.groupCountY = draw.groupCountZ = 1;
         draw.base_meshlet = lod.base_meshlet;
         draw.num_meshlets = lod.num_meshlets;
     }
