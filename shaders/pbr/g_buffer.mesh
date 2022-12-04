@@ -69,6 +69,7 @@ void main()
 {
     uint ti = gl_LocalInvocationID.x;
     uint mi = task_payload.meshlet_indices[gl_WorkGroupID.x];
+    SetMeshOutputsEXT(meshlets[mi].vertex_count, meshlets[mi].triangle_count);
 
     matrix_struct_t m = draws[task_payload.object_index].current_matrices;
     matrix_struct_t m_last = draws[task_payload.object_index].last_matrices;
@@ -101,5 +102,4 @@ void main()
                                                   uint(meshlet_triangles[base_index + 1]),
                                                   uint(meshlet_triangles[base_index + 2]));
     }
-    SetMeshOutputsEXT(meshlets[mi].vertex_count, meshlets[mi].triangle_count);
 }
