@@ -7,7 +7,7 @@
 rendering backends
 -
 - gpu-driven rasterizer with compute-based frustum/occlusion-culling
-- optional support for meshlet-based pipelines (using VK_NV_mesh_shader)
+- optional support for meshlet-based pipelines (using VK_EXT_mesh_shader)
 - pathtracer using VK_KHR_ray* extensions, useful for comparing against a groundtruth
 
 features

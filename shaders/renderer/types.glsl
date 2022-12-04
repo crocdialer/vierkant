@@ -130,9 +130,11 @@ struct indexed_indirect_command_t
     int  vertexOffset;
     uint firstInstance;
 
-    //! VkDrawMeshTasksIndirectCommandNV
-    uint taskCount;
-    uint firstTask;
+    //! VkDrawMeshTasksIndirectCommandEXT
+    uint groupCountX;
+    uint groupCountY;
+    uint groupCountZ;
+
 
     bool visible;
     uint object_index;
@@ -160,4 +162,13 @@ struct meshlet_t
     //! normal cone (axis, cutoff), useful for backface culling
     vec3 cone_axis;
     float cone_cutoff;
+};
+
+//! nv-specific warp-value (use 64 for AMD)
+#define LOCAL_SIZE 32
+
+struct mesh_task_payload_t
+{
+    uint meshlet_indices[LOCAL_SIZE];
+    uint object_index;
 };

@@ -646,7 +646,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             if(use_meshlet_pipeline)
             {
                 shader_flags |= PROP_MESHLETS;
-                camera_desc.stage_flags = VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+                camera_desc.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
             }
 
             // check if morph-targets are available

@@ -81,7 +81,7 @@ public:
     {
         VkDrawIndexedIndirectCommand vk_draw = {};// size: 5
 
-        VkDrawMeshTasksIndirectCommandNV vk_mesh_draw = {};// size: 2
+        VkDrawMeshTasksIndirectCommandEXT vk_mesh_draw = {};// size: 3
 
         uint32_t visible = false;
         uint32_t object_index = 0;
@@ -330,9 +330,9 @@ private:
     uint32_t m_mesh_task_count = 32;
 
     //! function pointers for optional mesh-shader support
-    PFN_vkCmdDrawMeshTasksNV vkCmdDrawMeshTasksNV = nullptr;
-    PFN_vkCmdDrawMeshTasksIndirectNV vkCmdDrawMeshTasksIndirectNV = nullptr;
-    PFN_vkCmdDrawMeshTasksIndirectCountNV vkCmdDrawMeshTasksIndirectCountNV = nullptr;
+    PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT = nullptr;
+    PFN_vkCmdDrawMeshTasksIndirectEXT vkCmdDrawMeshTasksIndirectEXT = nullptr;
+    PFN_vkCmdDrawMeshTasksIndirectCountEXT vkCmdDrawMeshTasksIndirectCountEXT = nullptr;
 };
 
 }//namespace vierkant

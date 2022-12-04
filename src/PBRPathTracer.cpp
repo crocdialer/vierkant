@@ -517,7 +517,7 @@ void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2
     if(!frame_asset.denoise_image || frame_asset.denoise_image->extent() != size)
     {
         glm::uvec2 previous_size = {frame_asset.tracable.extent.width, frame_asset.tracable.extent.height};
-        spdlog::debug("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
+        spdlog::trace("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
                       resolution.y);
 
         frame_asset.tracable.extent = size;

@@ -86,7 +86,7 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         auto &desc_matrices = drawable.descriptors[Renderer::BINDING_MESH_DRAWS];
         desc_matrices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrices.stage_flags =
-                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
 
         auto &desc_material = drawable.descriptors[Renderer::BINDING_MATERIAL];
         desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -96,7 +96,7 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         {
             auto &desc_vertices = drawable.descriptors[Renderer::BINDING_VERTICES];
             desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
             desc_vertices.buffers = {drawable.mesh->vertex_buffer};
         }
 
@@ -104,7 +104,7 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         {
             auto &desc_vertices = drawable.descriptors[Renderer::BINDING_BONE_VERTEX_DATA];
             desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
             desc_vertices.buffers = {drawable.mesh->bone_vertex_buffer};
         }
 
@@ -113,7 +113,7 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
             // add descriptors for morph- buffer_params
             vierkant::descriptor_t &desc_morph_buffer = drawable.descriptors[Renderer::BINDING_MORPH_TARGETS];
             desc_morph_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
             desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
         }
 
@@ -122,21 +122,21 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
             auto &desc_draws = drawable.descriptors[Renderer::BINDING_DRAW_COMMANDS];
             desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             desc_draws.stage_flags =
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
 
             auto &desc_meshlets = drawable.descriptors[Renderer::BINDING_MESHLETS];
             desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_meshlets.stage_flags = VK_SHADER_STAGE_TASK_BIT_NV | VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlets.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
             desc_meshlets.buffers = {params.mesh->meshlets};
 
             auto &desc_meshlet_vertices = drawable.descriptors[Renderer::BINDING_MESHLET_VERTICES];
             desc_meshlet_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_meshlet_vertices.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlet_vertices.stage_flags = VK_SHADER_STAGE_MESH_BIT_EXT;
             desc_meshlet_vertices.buffers = {params.mesh->meshlet_vertices};
 
             auto &desc_meshlet_triangles = drawable.descriptors[Renderer::BINDING_MESHLET_TRIANGLES];
             desc_meshlet_triangles.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_NV;
+            desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_EXT;
             desc_meshlet_triangles.buffers = {params.mesh->meshlet_triangles};
         }
 

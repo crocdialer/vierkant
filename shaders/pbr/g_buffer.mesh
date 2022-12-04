@@ -1,5 +1,5 @@
 #version 460
-#extension GL_NV_mesh_shader : require
+#extension GL_EXT_mesh_shader : require
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_shader_8bit_storage: require
@@ -53,11 +53,7 @@ layout(push_constant) uniform PushConstants
     render_context_t context;
 };
 
-in taskNV TaskBuffer
-{
-    uint meshlet_indices[LOCAL_SIZE];
-    uint object_index;
-};
+taskPayloadSharedEXT mesh_task_payload_t task_payload;
 
 layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices[];
 layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
@@ -72,12 +68,12 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 void main()
 {
     uint ti = gl_LocalInvocationID.x;
-    uint mi = meshlet_indices[gl_WorkGroupID.x];
+    uint mi = task_payload.meshlet_indices[gl_WorkGroupID.x];
 
-    if(ti == 0){ gl_PrimitiveCountNV = meshlets[mi].triangle_count; }
+    SetMeshOutputsEXT(meshlets[mi].vertex_count, meshlets[mi].triangle_count);
 
-    matrix_struct_t m = draws[object_index].current_matrices;
-    matrix_struct_t m_last = draws[object_index].last_matrices;
+    matrix_struct_t m = draws[task_payload.object_index].current_matrices;
+    matrix_struct_t m_last = draws[task_payload.object_index].last_matrices;
 
     for(uint i = ti; i < meshlets[mi].vertex_count; i += LOCAL_SIZE)
     {
@@ -89,10 +85,10 @@ void main()
 
         vec4 jittered_position = vertex_out[i].current_position;
         jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
-        gl_MeshVerticesNV[i].gl_Position = jittered_position;
+        gl_MeshVerticesEXT[i].gl_Position = jittered_position;
 
-        indices[i].mesh_draw_index = object_index;
-        indices[i].material_index = draws[object_index].material_index;
+        indices[i].mesh_draw_index = task_payload.object_index;
+        indices[i].material_index = draws[task_payload.object_index].material_index;
         indices[i].meshlet_index = mi;
 
         vertex_out[i].tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
@@ -100,10 +96,10 @@ void main()
         vertex_out[i].tangent = normalize(mat3(m.normal) * v.tangent);
     }
 
-    uint num_meshlet_indices = meshlets[mi].triangle_count * 3;
-
-    for(uint i = ti; i < num_meshlet_indices; i += LOCAL_SIZE)
+    for(uint i = ti; i < meshlets[mi].triangle_count; i += LOCAL_SIZE)
     {
-        gl_PrimitiveIndicesNV[i] = uint(meshlet_triangles[meshlets[mi].triangle_offset + i]);
+        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(uint(meshlet_triangles[meshlets[mi].triangle_offset]),
+                                                  uint(meshlet_triangles[meshlets[mi].triangle_offset + 1]),
+                                                  uint(meshlet_triangles[meshlets[mi].triangle_offset + 2]));
     }
 }

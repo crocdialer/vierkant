@@ -117,8 +117,8 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
 
     // meshlet pipelines
     auto &stages_mesh = ret[PROP_TANGENT_SPACE | PROP_MESHLETS];
-    stages_mesh[VK_SHADER_STAGE_TASK_BIT_NV] = pbr_tangent_task;
-    stages_mesh[VK_SHADER_STAGE_MESH_BIT_NV] = pbr_tangent_mesh;
+    stages_mesh[VK_SHADER_STAGE_TASK_BIT_EXT] = pbr_tangent_task;
+    stages_mesh[VK_SHADER_STAGE_MESH_BIT_EXT] = pbr_tangent_mesh;
     stages_mesh[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
     return ret;
 }

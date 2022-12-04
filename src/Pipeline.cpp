@@ -32,7 +32,7 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
 {
     // no vertex shader -> fail
     if(!format.shader_stages.count(VK_SHADER_STAGE_VERTEX_BIT) &&
-       !format.shader_stages.count(VK_SHADER_STAGE_MESH_BIT_NV))
+       !format.shader_stages.count(VK_SHADER_STAGE_MESH_BIT_EXT))
     {
         throw std::runtime_error("pipeline creation failed: no vertex/mesh shader stage provided");
     }

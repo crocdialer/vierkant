@@ -148,7 +148,8 @@ void main()
         draw.vertexOffset = int(mesh_entry.vertex_offset);
         draw.indexCount = lod.num_indices;
         draw.firstIndex = lod.base_index;
-        draw.taskCount = (lod.num_meshlets + 31) / 32;
+        draw.groupCountX = (lod.num_meshlets + 31) / 32;
+        draw.groupCountY = draw.groupCountZ = 0;
         draw.base_meshlet = lod.base_meshlet;
         draw.num_meshlets = lod.num_meshlets;
     }

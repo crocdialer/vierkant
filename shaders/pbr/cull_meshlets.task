@@ -1,5 +1,5 @@
 #version 460
-#extension GL_NV_mesh_shader : require
+#extension GL_EXT_mesh_shader : require
 #extension GL_GOOGLE_include_directive : require
 #extension GL_KHR_shader_subgroup_ballot: require
 
@@ -35,11 +35,12 @@ layout(push_constant) uniform PushConstants
     render_context_t context;
 };
 
-out taskNV TaskBuffer
-{
-    uint meshlet_indices[LOCAL_SIZE];
-    uint object_index;
-};
+//out taskNV TaskBuffer
+//{
+//    uint meshlet_indices[LOCAL_SIZE];
+//    uint object_index;
+//};
+taskPayloadSharedEXT mesh_task_payload_t task_payload;
 
 layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
 
@@ -55,16 +56,10 @@ void main()
     uint gid = gl_GlobalInvocationID.x;
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
 
-    if(gid >= draw_command.num_meshlets)
-    {
-        gl_TaskCountNV = 0;
-        return;
-    }
-
     uint ti = gl_LocalInvocationID.x;
     uint mi = draw_command.base_meshlet + gid;
-
-    object_index = draw_command.object_index;
+    uint object_index = draw_command.object_index;
+    task_payload.object_index = object_index;
 
 #if CULLING
     // transform bounding volume and normal-cone
@@ -75,7 +70,7 @@ void main()
     float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
 
     // backface-culling
-    bool accept = !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
+    bool accept = gid >= draw_command.num_meshlets && !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
 
     // frustum-culling
     accept = accept && !frustum_cull(center, radius, camera.frustum);
@@ -86,11 +81,11 @@ void main()
     uint count = subgroupBallotBitCount(ballot);
 
     // write result
-    if (accept){ meshlet_indices[index] = mi; }
-    if (ti == 0){ gl_TaskCountNV = count; }
+    if (accept){ task_payload.meshlet_indices[index] = mi; }
+    if (ti == 0){ EmitMeshTasksEXT(count, 1, 1); }
 
 #else
-    meshlet_indices[ti] = mi;
-    if (ti == 0){ gl_TaskCountNV = LOCAL_SIZE; }
+    task_payload.meshlet_indices[ti] = mi;
+    if (ti == 0){ EmitMeshTasksEXT(LOCAL_SIZE, 1, 1); }
 #endif
 }

@@ -234,13 +234,13 @@ Device::Device(const create_info_t &create_info) :
     }
 
     //------------------------------------ mesh-shader feature ---------------------------------------------------------
-    VkPhysicalDeviceMeshShaderFeaturesNV mesh_shader_features = {};
-    mesh_shader_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV;
+    VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader_features = {};
+    mesh_shader_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
     *last_pNext = &mesh_shader_features;
     last_pNext = &mesh_shader_features.pNext;
 
-    VkPhysicalDeviceMeshShaderPropertiesNV mesh_shader_properties = {};
-    mesh_shader_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV;
+    VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader_properties = {};
+    mesh_shader_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
 
     {
         VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
