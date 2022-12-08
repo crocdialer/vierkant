@@ -61,10 +61,6 @@ set(LIBS ${LIBS} glfw)
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glm)
 
-# vma
-add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
-include_directories(BEFORE SYSTEM submodules/VulkanMemoryAllocator/include)
-
 # tinygltf, suppress warnings from 3rd party header
 include_directories(BEFORE SYSTEM "submodules/tinygltf")
 
@@ -76,6 +72,10 @@ set(LIBS ${LIBS} meshoptimizer)
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
+
+# vma
+add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
+include_directories(BEFORE SYSTEM submodules/VulkanMemoryAllocator/include)
 
 #crocore
 add_subdirectory("submodules/crocore")
