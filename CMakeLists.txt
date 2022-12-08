@@ -50,6 +50,10 @@ endif (NOT BUILD_SHARED_LIBS)
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake_modules ${CMAKE_MODULE_PATH})
 include(vierkant_utils)
 
+set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}/3rdparty/include
+        ${PROJECT_BINARY_DIR}/include)
+
 add_subdirectory(submodules/spdlog EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} spdlog)
 
@@ -71,15 +75,18 @@ set(LIBS ${LIBS} meshoptimizer)
 ## Vulkan
 find_package(Vulkan REQUIRED)
 include_directories(${Vulkan_INCLUDE_DIRS})
+set(INCLUDE_DIRS ${INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
 SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
 
 # vma
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
 include_directories(SYSTEM submodules/VulkanMemoryAllocator/include)
+set(INCLUDE_DIRS ${INCLUDE_DIRS} submodules/VulkanMemoryAllocator/include)
 
 #crocore
 add_subdirectory("submodules/crocore")
 include_directories(${crocore_INCLUDE_DIRS})
+set(INCLUDE_DIRS ${INCLUDE_DIRS} ${crocore_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
 # entt
@@ -106,22 +113,18 @@ add_custom_target("shaders" DEPENDS ${SHADERS_CPP})
 
 # vierkant
 add_subdirectory("src")
-include_directories(${vierkant_INCLUDE_DIRS})
+#include_directories(${vierkant_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${vierkant_LIBRARIES})
 
 # Expose public includes (including Boost transitively) to other
 # subprojects through cache variable.
-set(${PROJECT_NAME}_INCLUDE_DIRS
-        ${crocore_INCLUDE_DIRS}
-        ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/3rdparty/include
-        ${PROJECT_BINARY_DIR}/include
+set(${PROJECT_NAME}_INCLUDE_DIRS ${INCLUDE_DIRS}
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
 set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
-#message("includes: ${vierkant_INCLUDE_DIRS}")
+message("includes: ${vierkant_INCLUDE_DIRS}")
 
 #examples
 if (BUILD_EXAMPLES)
