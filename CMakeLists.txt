@@ -75,7 +75,7 @@ SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
 
 # vma
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
-include_directories(BEFORE SYSTEM submodules/VulkanMemoryAllocator/include)
+include_directories(SYSTEM submodules/VulkanMemoryAllocator/include)
 
 #crocore
 add_subdirectory("submodules/crocore")
