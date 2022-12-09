@@ -130,7 +130,7 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     auto pipeline = m_pipeline_cache->pipeline(tracable.pipeline_info);
 
     // create the binding table
-    shader_binding_table_t binding_table = {};
+    shader_binding_table_t binding_table;
 
     try{ binding_table = m_binding_tables.get(pipeline->handle()); }
     catch(std::out_of_range &e)

@@ -95,10 +95,10 @@ private:
         {
             struct
             {
-                VkStridedDeviceAddressRegionKHR raygen = {};
-                VkStridedDeviceAddressRegionKHR hit = {};
-                VkStridedDeviceAddressRegionKHR miss = {};
-                VkStridedDeviceAddressRegionKHR callable = {};
+                VkStridedDeviceAddressRegionKHR raygen;
+                VkStridedDeviceAddressRegionKHR hit;
+                VkStridedDeviceAddressRegionKHR miss;
+                VkStridedDeviceAddressRegionKHR callable;
             };
             VkStridedDeviceAddressRegionKHR strided_address_region[Group::MAX_ENUM];
         };

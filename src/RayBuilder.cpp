@@ -369,7 +369,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             }
         }
 
-        for(uint i = 0; i < acceleration_assets.size(); ++i)
+        for(uint32_t i = 0; i < acceleration_assets.size(); ++i)
         {
             const auto &mesh_entry = mesh->entries[i];
             const auto &lod = mesh_entry.lods.front();
@@ -483,7 +483,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     VkDeviceOrHostAddressConstKHR instance_data_device_address{};
     instance_data_device_address.deviceAddress = instance_buffer->device_address();
 
-    VkAccelerationStructureGeometryKHR acceleration_structure_geometry{};
+    VkAccelerationStructureGeometryKHR acceleration_structure_geometry = {};
     acceleration_structure_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
     acceleration_structure_geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     acceleration_structure_geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;

@@ -1290,7 +1290,7 @@ void PBRDeferred::create_depth_pyramid(frame_asset_t &frame_asset)
 void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params)
 {
     // reserve space for indirect drawing-commands
-    const size_t num_bytes = std::max(num_draws * sizeof(Renderer::indexed_indirect_command_t), 1ul << 20);
+    const size_t num_bytes = std::max<size_t>(num_draws * sizeof(Renderer::indexed_indirect_command_t), 1ul << 20);
 
     if(!params.draws_in || params.draws_in->num_bytes() < num_bytes)
     {

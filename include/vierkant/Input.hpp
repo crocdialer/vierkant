@@ -240,6 +240,7 @@ private:
 };
 
 std::string to_string(Joystick::Input input);
+#undef _SPACE
 
 struct Key
 {
