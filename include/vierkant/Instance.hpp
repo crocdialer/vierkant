@@ -6,9 +6,6 @@
 
 #include <vulkan/vulkan.h>
 
-#if defined(_WIN32)
-#define SPDLOG_USE_STD_FORMAT
-#endif
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/ranges.h>
 #include <spdlog/fmt/chrono.h>

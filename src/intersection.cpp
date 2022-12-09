@@ -293,12 +293,12 @@ ray_intersection AABB::intersect(const Ray &ray) const
 
 Frustum::Frustum(const glm::mat4 &the_VP_martix)
 {
-    planes[NEAR] = Plane(the_VP_martix[2] + the_VP_martix[3]); // near plane
-    planes[FAR] = Plane(the_VP_martix[3] - the_VP_martix[2]); // far plane
-    planes[LEFT] = Plane(the_VP_martix[0] + the_VP_martix[3]); // left plane
-    planes[RIGHT] = Plane(the_VP_martix[3] - the_VP_martix[0]); // right plane
-    planes[TOP] = Plane(the_VP_martix[3] - the_VP_martix[1]); // top plane
-    planes[BOTTOM] = Plane(the_VP_martix[1] + the_VP_martix[3]); // bottom plane
+    planes[0] = Plane(the_VP_martix[2] + the_VP_martix[3]); // near plane
+    planes[1] = Plane(the_VP_martix[3] - the_VP_martix[2]); // far plane
+    planes[2] = Plane(the_VP_martix[0] + the_VP_martix[3]); // left plane
+    planes[3] = Plane(the_VP_martix[3] - the_VP_martix[0]); // right plane
+    planes[4] = Plane(the_VP_martix[3] - the_VP_martix[1]); // top plane
+    planes[5] = Plane(the_VP_martix[1] + the_VP_martix[3]); // bottom plane
 }
 
 Frustum::Frustum(float aspect, float fov, float near, float far)
@@ -309,20 +309,20 @@ Frustum::Frustum(float aspect, float fov, float near, float far)
     float angle_y = glm::radians(90.0f - aspect * fov / 2.0f);
     float angle_x = glm::radians(90.0f - (fov / 2.0f));
 
-    planes[NEAR] = Plane(eye + (near * look_at), look_at); // near plane
-    planes[FAR] = Plane(eye + (far * look_at), -look_at); // far plane
+    planes[0] = Plane(eye + (near * look_at), look_at); // near plane
+    planes[1] = Plane(eye + (far * look_at), -look_at); // far plane
 
     t = glm::rotate(glm::mat4(1), angle_y, up);
-    planes[LEFT] = Plane(eye, look_at).transform(t); // left plane
+    planes[2] = Plane(eye, look_at).transform(t); // left plane
 
     t = glm::rotate(glm::mat4(1), -angle_y, up);
-    planes[RIGHT] = Plane(eye, look_at).transform(t); // right plane
+    planes[3] = Plane(eye, look_at).transform(t); // right plane
 
     t = glm::rotate(glm::mat4(1), -angle_x, side);
-    planes[TOP] = Plane(eye, look_at).transform(t); // top plane
+    planes[4] = Plane(eye, look_at).transform(t); // top plane
 
     t = glm::rotate(glm::mat4(1), angle_x, side);
-    planes[BOTTOM] = Plane(eye, look_at).transform(t); // bottom plane
+    planes[5] = Plane(eye, look_at).transform(t); // bottom plane
 }
 
 Frustum::Frustum(float left, float right, float bottom, float top,
@@ -330,12 +330,12 @@ Frustum::Frustum(float left, float right, float bottom, float top,
 {
     static glm::vec3 lookAt = glm::vec3(0, 0, -1), eyePos = glm::vec3(0),
             side = glm::vec3(1, 0, 0), up = glm::vec3(0, 1, 0);
-    planes[NEAR] = Plane(eyePos + (near * lookAt), lookAt); // near plane
-    planes[FAR] = Plane(eyePos + (far * lookAt), -lookAt); // far plane
-    planes[LEFT] = Plane(eyePos + (left * side), side); // left plane
-    planes[RIGHT] = Plane(eyePos + (right * side), -side); // right plane
-    planes[TOP] = Plane(eyePos + (top * up), -up); // top plane
-    planes[BOTTOM] = Plane(eyePos + (bottom * up), up); // bottom plane
+    planes[0] = Plane(eyePos + (near * lookAt), lookAt); // near plane
+    planes[1] = Plane(eyePos + (far * lookAt), -lookAt); // far plane
+    planes[2] = Plane(eyePos + (left * side), side); // left plane
+    planes[3] = Plane(eyePos + (right * side), -side); // right plane
+    planes[4] = Plane(eyePos + (top * up), -up); // top plane
+    planes[5] = Plane(eyePos + (bottom * up), up); // bottom plane
 
 }
 

@@ -378,17 +378,17 @@ struct OBB
 
 struct Frustum
 {
-    enum CLippingPlane
-    {
-        NEAR = 0,
-        FAR = 1,
-        LEFT = 2,
-        RIGHT = 3,
-        TOP = 4,
-        BOTTOM = 5,
-        NUM_PLANES = 6
-    };
-    Plane planes[NUM_PLANES];
+    //enum CLippingPlane
+    //{
+        //NEAR = 0,
+        //FAR = 1,
+        //LEFT = 2,
+        //RIGHT = 3,
+        //TOP = 4,
+        //BOTTOM = 5,
+        //NUM_PLANES = 6
+    //};
+    Plane planes[6];
 
     explicit Frustum(const glm::mat4 &the_VP_martix);
 

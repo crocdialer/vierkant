@@ -848,7 +848,7 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
     ImGui::Spacing();
 
     // name
-    size_t buf_size = object->name.size() + 4;
+    constexpr size_t buf_size = 4096;
     char text_buf[buf_size];
     strcpy(text_buf, object->name.c_str());
 

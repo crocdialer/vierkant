@@ -785,8 +785,8 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     bool ret = false;
     auto ext_str = path.extension().string();
     std::transform(ext_str.begin(), ext_str.end(), ext_str.begin(), ::tolower);
-    if(ext_str == ".gltf"){ ret = loader.LoadASCIIFromFile(&model, &err, &warn, path); }
-    else if(ext_str == ".glb"){ ret = loader.LoadBinaryFromFile(&model, &err, &warn, path); }
+    if(ext_str == ".gltf"){ ret = loader.LoadASCIIFromFile(&model, &err, &warn, path.string()); }
+    else if(ext_str == ".glb") { ret = loader.LoadBinaryFromFile(&model, &err, &warn, path.string()); }
     if(!warn.empty()){ spdlog::warn(warn); }
     if(!err.empty()){ spdlog::error(err); }
     if(!ret){ return {}; }

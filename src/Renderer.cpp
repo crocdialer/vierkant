@@ -782,7 +782,7 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         num_staging_bytes += num_array_bytes(mesh_entries);
         num_staging_bytes += num_array_bytes(mesh_draws);
         num_staging_bytes += num_array_bytes(material_data);
-        num_staging_bytes = std::max(num_staging_bytes, 1UL << 20);
+        num_staging_bytes = std::max<size_t>(num_staging_bytes, 1UL << 20);
 
         if(!frame_asset.staging_buffer)
         {
@@ -920,8 +920,8 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
                                             frame_assets_t &frame_asset)
 {
     // reserve space for indirect drawing-commands
-    size_t num_bytes_indexed = std::max(num_drawables * sizeof(indexed_indirect_command_t), 1UL << 20);
-    size_t num_bytes = std::max(num_drawables * sizeof(VkDrawIndirectCommand), 1UL << 20);
+    size_t num_bytes_indexed = std::max<size_t>(num_drawables * sizeof(indexed_indirect_command_t), 1UL << 20);
+    size_t num_bytes = std::max<size_t>(num_drawables * sizeof(VkDrawIndirectCommand), 1UL << 20);
 
     if(!frame_asset.indirect_indexed_bundle.draws_in ||
        frame_asset.indirect_indexed_bundle.draws_in->num_bytes() < num_bytes_indexed)

@@ -213,7 +213,7 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline,
                                                  shader_handle_data.data()),
             "Raytracer::trace_rays: could not retrieve shader group handles");
 
-    shader_binding_table_t binding_table = {};
+    shader_binding_table_t binding_table;
     binding_table.buffer = vierkant::Buffer::create(m_device, nullptr, binding_table_size,
                                                     VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
                                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
