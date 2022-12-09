@@ -130,7 +130,7 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     auto pipeline = m_pipeline_cache->pipeline(tracable.pipeline_info);
 
     // create the binding table
-    shader_binding_table_t binding_table;
+    shader_binding_table_t binding_table = {};
 
     try{ binding_table = m_binding_tables.get(pipeline->handle()); }
     catch(std::out_of_range &e)
@@ -213,7 +213,7 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline,
                                                  shader_handle_data.data()),
             "Raytracer::trace_rays: could not retrieve shader group handles");
 
-    shader_binding_table_t binding_table;
+    shader_binding_table_t binding_table = {};
     binding_table.buffer = vierkant::Buffer::create(m_device, nullptr, binding_table_size,
                                                     VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
                                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
