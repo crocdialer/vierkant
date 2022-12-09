@@ -163,7 +163,7 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
                 else if(log_level == spdlog::level::debug){ color = color_debug; }
 
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
-                ImGui::Text(msg.c_str());
+                ImGui::Text("%s", msg.c_str());
                 ImGui::PopStyleColor();
             }
 
@@ -353,7 +353,7 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     if(ImGui::InputInt2("resolution", res) &&
        res[0] > 0 && res[1] > 0){ path_tracer->settings.resolution = {res[0], res[1]}; }
 
-    ImGui::Text((std::to_string(path_tracer->current_batch()) + " / ").c_str());
+    ImGui::Text("%s", (std::to_string(path_tracer->current_batch()) + " / ").c_str());
     ImGui::SameLine();
     int max_num_batches = static_cast<int>(path_tracer->settings.max_num_batches);
     int num_samples = static_cast<int>(path_tracer->settings.num_samples);
@@ -703,28 +703,27 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
         num_faces += e.lods.empty() ? 0 : e.lods[0].num_indices / 3;
     }
     ImGui::Separator();
-    ImGui::BulletText("%d positions", num_vertices);
-    ImGui::BulletText("%d faces", num_faces);
+    ImGui::BulletText("%zu positions", num_vertices);
+    ImGui::BulletText("%zu faces", num_faces);
     ImGui::BulletText("%d bones", vierkant::nodes::num_nodes_in_hierarchy(mesh->root_bone));
     ImGui::Separator();
     ImGui::Spacing();
 
     // entries
-    if(!mesh->entries.empty() && ImGui::TreeNode("entries", "entries (%d)", mesh->entries.size()))
+    if(!mesh->entries.empty() && ImGui::TreeNode("entries", "entries (%zu)", mesh->entries.size()))
     {
         size_t index = 0;
         std::hash<vierkant::MeshPtr> hash;
 
         for(auto &e: mesh->entries)
         {
-            int mesh_id = hash(mesh);
+            int mesh_id = static_cast<int>(hash(mesh));
 
             // push object id
-            ImGui::PushID(mesh_id + index);
+            ImGui::PushID(static_cast<int>(mesh_id + index));
             ImGui::Checkbox("", &e.enabled);
             ImGui::SameLine();
 
-            const ImVec4 gray(.6, .6, .6, 1.);
             if(!e.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
             auto entry_name = e.name.empty() ? ("entry " + std::to_string(index)) : e.name;
@@ -760,7 +759,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
     }
 
     // materials
-    if(!mesh->entries.empty() && ImGui::TreeNode("materials", "materials (%d)", mesh->materials.size()))
+    if(!mesh->entries.empty() && ImGui::TreeNode("materials", "materials (%zu)", mesh->materials.size()))
     {
         for(uint32_t i = 0; i < mesh->materials.size(); ++i)
         {
