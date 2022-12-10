@@ -350,9 +350,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         }
     }
     bool need_culling = frame_asset.cull_result.camera != cam || meshes != frame_asset.cull_result.meshes;
-    frame_asset.recycle_commands = objects_unchanged && materials_unchanged && !need_culling;
+    frame_asset.recycle_commands =
+            objects_unchanged && materials_unchanged && !need_culling && frame_asset.settings == settings;
 
-    frame_asset.recycle_commands = frame_asset.recycle_commands && frame_asset.settings == settings;
     frame_asset.settings = settings;
 }
 
@@ -366,11 +366,14 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     // retrieve last performance-query, start new
     update_timing(frame_asset);
 
+    // determine if we can re-use commandbuffers, buffers, etc.
     update_recycling(scene, cam, frame_asset);
-//    frame_asset.recycle_commands = false;
 
     if(!frame_asset.recycle_commands)
     {
+        // flush outdated transform-cache
+        m_entry_matrix_cache.clear();
+
         vierkant::cull_params_t cull_params = {};
         cull_params.scene = scene;
         cull_params.camera = cam;
