@@ -16,7 +16,7 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = texture(u_sampler_2D[0], vertex_in.tex_coord);
+    out_color = max(texture(u_sampler_2D[0], vertex_in.tex_coord), 0.0);
 
     // NTSC luma formula
     const vec3 to_luma = vec3(0.299, 0.587, 0.114);
