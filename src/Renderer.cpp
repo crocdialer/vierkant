@@ -62,7 +62,7 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
     viewport = create_info.viewport;
     scissor = create_info.scissor;
     indirect_draw = create_info.indirect_draw;
-    m_sample_count = create_info.sample_count;
+    sample_count = create_info.sample_count;
 
     m_staged_drawables.resize(create_info.num_frames_in_flight);
     m_frame_assets.resize(create_info.num_frames_in_flight);
@@ -134,7 +134,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.indirect_draw, rhs.indirect_draw);
     std::swap(lhs.draw_indirect_delegate, rhs.draw_indirect_delegate);
     std::swap(lhs.m_device, rhs.m_device);
-    std::swap(lhs.m_sample_count, rhs.m_sample_count);
+    std::swap(lhs.sample_count, rhs.sample_count);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_queue, rhs.m_queue);
     std::swap(lhs.m_command_pool, rhs.m_command_pool);
@@ -308,7 +308,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         auto &drawable = current_assets.drawables[i];
         pipeline_format.renderpass = framebuffer.renderpass().get();
         pipeline_format.viewport = viewport;
-        pipeline_format.sample_count = m_sample_count;
+        pipeline_format.sample_count = sample_count;
         pipeline_format.push_constant_ranges = {m_push_constant_range};
 
         indexed_drawable_t indexed_drawable = {};

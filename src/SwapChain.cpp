@@ -156,7 +156,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     m_depth_format = find_depth_format(m_device->physical_device());
 
     // clamp number of samples to device limit
-    m_num_samples = std::max(VK_SAMPLE_COUNT_1_BIT, std::min(num_samples, m_device->max_usable_samples()));
+    m_num_samples = std::clamp(num_samples, VK_SAMPLE_COUNT_1_BIT, m_device->max_usable_samples());
 
     // create framebuffers
     create_framebuffers();

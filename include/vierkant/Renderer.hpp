@@ -134,6 +134,9 @@ public:
         uint32_t random_seed = 0;
     };
 
+    //! num samples used.
+    VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+
     //! Viewport parameters currently used.
     VkViewport viewport = {.x = 0.f, .y = 0.f, .width = 1.f, .height = 1.f, .minDepth = 0.f, .maxDepth = 1.f};
 
@@ -302,8 +305,6 @@ private:
                               bool variable_count);
 
     DevicePtr m_device;
-
-    VkSampleCountFlagBits m_sample_count = VK_SAMPLE_COUNT_1_BIT;
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 
