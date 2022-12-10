@@ -7,8 +7,8 @@
 rendering backends
 -
 - gpu-driven rasterizer with compute-based frustum/occlusion-culling
-- optional support for meshlet-based pipelines (using VK_EXT_mesh_shader)
-- pathtracer using VK_KHR_ray* extensions, useful for comparing against a groundtruth
+- optional support for meshlet-based pipelines (using [VK_EXT_mesh_shader](https://www.khronos.org/blog/mesh-shading-for-vulkan))
+- pathtracer using [VK_KHR_ray_tracing_pipeline](https://www.khronos.org/blog/vulkan-ray-tracing-final-specification-release), useful for comparing against a groundtruth
 
 features
 -

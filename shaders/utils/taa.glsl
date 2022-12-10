@@ -176,5 +176,5 @@ vec4 taa(vec2 in_coord,
 
 //    return vec4(vec3(linear_depth(min_depth, taa_settings.near, taa_settings.far)), 1.0);
 //    return mix(color, vec4(1, 0, 0, 1), depth_reject);
-    return color;
+    return max(color, 0);
 }
