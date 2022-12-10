@@ -73,8 +73,11 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
     if(ImGui::Checkbox("fullscreen", &is_fullscreen))
     {
-        size_t monitor_index = window->monitor_index();
-        window->set_fullscreen(is_fullscreen, monitor_index);
+        app->main_queue().post([window, is_fullscreen]()
+                               {
+                                   size_t monitor_index = window->monitor_index();
+                                   window->set_fullscreen(is_fullscreen, monitor_index);
+                               });
     }
     ImGui::SameLine();
 
