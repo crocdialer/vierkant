@@ -4,11 +4,12 @@
 
 #pragma once
 
+#include <set>
 #include <list>
 #include <optional>
-#include <crocore/crocore.hpp>
-#include <entt/entity/registry.hpp>
 
+#include <entt/entity/registry.hpp>
+#include <crocore/crocore.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/animation.hpp>
 

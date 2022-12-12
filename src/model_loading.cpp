@@ -2,8 +2,9 @@
 // Created by crocdialer on 9/17/21.
 //
 
-#include <crocore/ThreadPool.hpp>
+#include <set>
 
+#include <crocore/ThreadPool.hpp>
 #include <vierkant/model_loading.hpp>
 
 namespace vierkant::model

@@ -2,6 +2,7 @@
 // Created by crocdialer on 1/31/22.
 //
 
+#include <set>
 #include <vierkant/vertex_attrib.hpp>
 
 namespace vierkant
