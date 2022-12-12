@@ -4,8 +4,6 @@
 
 void HelloTriangleApplication::setup()
 {
-    crocore::g_logger.set_severity(crocore::Severity::DEBUG);
-
     create_context_and_window();
     load_model();
     create_graphics_pipeline();

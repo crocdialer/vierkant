@@ -34,18 +34,16 @@ struct string_mesh_container
 };
 
 FontPtr Font::create(const vierkant::DevicePtr& device,
-                     const std::string &path,
+                     const std::filesystem::path &path,
                      size_t size,
                      bool use_sdf)
 {
     try
     {
-        auto p = crocore::fs::search_file(path);
-        auto font_data = crocore::fs::read_binary_file(p);
+        auto font_data = crocore::fs::read_binary_file(path);
         return create(device, font_data, size, use_sdf);
     } catch(const std::exception &e)
     {
-        LOG_ERROR << e.what();
         return nullptr;
     }
 }
@@ -311,7 +309,6 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
     // free the less frequent used half of our buffered string-meshes
     if(m_impl->string_mesh_map.size() >= m_impl->max_mesh_buffer_size)
     {
-        LOG_TRACE << "font-mesh buffersize: " << m_impl->max_mesh_buffer_size << " -> clearing ...";
         std::list<string_mesh_container> tmp_list;
 
         for(auto &item : m_impl->string_mesh_map){ tmp_list.push_back(item.second); }

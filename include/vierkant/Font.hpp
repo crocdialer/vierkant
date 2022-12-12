@@ -4,12 +4,15 @@
 
 #pragma once
 
+#include <filesystem>
+
 #include <crocore/Image.hpp>
 #include "vierkant/Image.hpp"
 #include "vierkant/Mesh.hpp"
 #include "vierkant/Object3D.hpp"
 
-namespace vierkant {
+namespace vierkant
+{
 
 DEFINE_CLASS_PTR(Font)
 
@@ -22,12 +25,12 @@ public:
         LEFT, CENTER, RIGHT
     };
 
-    static FontPtr create(const vierkant::DevicePtr& device,
-                          const std::string &path,
+    static FontPtr create(const vierkant::DevicePtr &device,
+                          const std::filesystem::path &path,
                           size_t size,
                           bool use_sdf = false);
 
-    static FontPtr create(const vierkant::DevicePtr& device,
+    static FontPtr create(const vierkant::DevicePtr &device,
                           const std::vector<uint8_t> &data,
                           size_t size,
                           bool use_sdf = false);
@@ -38,34 +41,35 @@ public:
 
     Font &operator=(Font other) = delete;
 
-    vierkant::ImagePtr glyph_texture() const;
+    [[nodiscard]] vierkant::ImagePtr glyph_texture() const;
 
-    vierkant::ImagePtr sdf_texture() const;
+    [[nodiscard]] vierkant::ImagePtr sdf_texture() const;
 
-    vierkant::AABB create_aabb(const std::string &theText) const;
+    [[nodiscard]] vierkant::AABB create_aabb(const std::string &theText) const;
 
-    crocore::ImagePtr create_image(const std::string &theText, const glm::vec4 &theColor = glm::vec4(1)) const;
+    [[nodiscard]] crocore::ImagePtr
+    create_image(const std::string &theText, const glm::vec4 &theColor = glm::vec4(1)) const;
 
-    vierkant::ImagePtr create_texture(vierkant::DevicePtr device, const std::string &theText,
-                                      const glm::vec4 &theColor = glm::vec4(1)) const;
+    [[nodiscard]] vierkant::ImagePtr create_texture(vierkant::DevicePtr device, const std::string &theText,
+                                                    const glm::vec4 &theColor = glm::vec4(1)) const;
 
-    vierkant::MeshPtr create_mesh(const std::string &theText,
-                                  const glm::vec4 &theColor = glm::vec4(1),
-                                  float extrude = 0.f) const;
+    [[nodiscard]] vierkant::MeshPtr create_mesh(const std::string &theText,
+                                                const glm::vec4 &theColor = glm::vec4(1),
+                                                float extrude = 0.f) const;
 
-    uint32_t font_size() const;
+    [[nodiscard]] uint32_t font_size() const;
 
-    uint32_t line_height() const;
+    [[nodiscard]] uint32_t line_height() const;
 
     void set_line_height(uint32_t the_line_height);
 
-    bool use_sdf() const;
+    [[nodiscard]] bool use_sdf() const;
 
     void set_use_sdf(bool b);
 
 private:
 
-    Font(const vierkant::DevicePtr& device, const std::vector<uint8_t> &data, size_t size, bool use_sdf);
+    Font(const vierkant::DevicePtr &device, const std::vector<uint8_t> &data, size_t size, bool use_sdf);
 
     std::unique_ptr<struct FontImpl> m_impl;
 };
