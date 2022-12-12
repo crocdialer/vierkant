@@ -3,7 +3,6 @@
 #include <deque>
 
 #include <crocore/Application.hpp>
-#include <crocore/Component.hpp>
 
 #include <vierkant/Image.hpp>
 #include <vierkant/Window.hpp>
@@ -12,9 +11,6 @@
 
 namespace vierkant::gui
 {
-
-//! draw a generic crocore::Component
-void draw_component_ui(const crocore::ComponentConstPtr &the_component);
 
 void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::WindowPtr &window);
 
