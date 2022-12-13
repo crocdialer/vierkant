@@ -209,7 +209,8 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
         }
     }
 
-    // init semaphore
+    // init/reset semaphore
+    m_semaphore.wait(m_framebuffers.size() - 1);
     m_semaphore = vierkant::Semaphore(device);
     vierkant::semaphore_submit_info_t semaphore_info_ping = {}, semaphore_info_pong = {};
     semaphore_info_ping.semaphore = semaphore_info_pong.semaphore = m_semaphore.handle();
