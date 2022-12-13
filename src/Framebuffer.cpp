@@ -84,7 +84,8 @@ create_renderpass(const vierkant::DevicePtr &device,
 
         for(const auto &img: images)
         {
-            VkAttachmentDescription2 description = {VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2};
+            VkAttachmentDescription2 description = {};
+            description.sType = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
             description.format = img->format().format;
             description.samples = img->format().sample_count;
             description.loadOp = loadOp;
@@ -107,7 +108,8 @@ create_renderpass(const vierkant::DevicePtr &device,
 
     for(uint32_t i = 0; i < num_color_images; ++i)
     {
-        VkAttachmentReference2 color_attachment_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
+        VkAttachmentReference2 color_attachment_ref = {};
+        color_attachment_ref.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
         color_attachment_ref.attachment = i;
         color_attachment_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         color_attachment_ref.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -116,7 +118,8 @@ create_renderpass(const vierkant::DevicePtr &device,
 
         if(has_resolve)
         {
-            VkAttachmentReference2 color_attachment_resolve_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
+            VkAttachmentReference2 color_attachment_resolve_ref = {};
+            color_attachment_resolve_ref.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
             color_attachment_resolve_ref.attachment = i + num_color_images;
             color_attachment_resolve_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
             color_attachment_resolve_ref.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -126,14 +129,16 @@ create_renderpass(const vierkant::DevicePtr &device,
     }
     if(has_depth_stencil)
     {
-        VkAttachmentReference2 depth_attachment_ref = {VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2};
+        VkAttachmentReference2 depth_attachment_ref = {};
+        depth_attachment_ref.sType = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
         depth_attachment_ref.attachment = attachment_index;
         depth_attachment_ref.layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         depth_attachment_ref.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         depth_stencil_refs = {depth_attachment_ref};
     }
 
-    VkSubpassDescription2 subpass = {VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2};
+    VkSubpassDescription2 subpass = {};
+    subpass.sType = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2;
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = static_cast<uint32_t>(color_refs.size());
     subpass.pColorAttachments = color_refs.data();
@@ -141,7 +146,8 @@ create_renderpass(const vierkant::DevicePtr &device,
                                                                  : depth_stencil_refs.data();
     subpass.pResolveAttachments = resolve_refs.empty() ? nullptr : resolve_refs.data();
 
-    VkRenderPassCreateInfo2 render_pass_info = {VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2};
+    VkRenderPassCreateInfo2 render_pass_info = {};
+    render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
     render_pass_info.attachmentCount = static_cast<uint32_t>(attachment_descriptions.size());
     render_pass_info.pAttachments = attachment_descriptions.data();
     render_pass_info.subpassCount = 1;
@@ -558,7 +564,8 @@ void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer) const
 
     for(const auto &[type, images]: m_attachments)
     {
-        VkRenderingAttachmentInfo attachment_info = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+        VkRenderingAttachmentInfo attachment_info = {};
+        attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
 
         if(type == AttachmentType::DepthStencil && !images.empty())
@@ -574,7 +581,8 @@ void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer) const
         {
             for(const auto &img: images)
             {
-                VkRenderingAttachmentInfo color_attachment = {VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
+                VkRenderingAttachmentInfo color_attachment = {};
+                color_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                 color_attachment.imageView = img->image_view();
                 color_attachment.imageLayout = img->image_layout();
                 color_attachment.loadOp = clear_color_img ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
@@ -584,7 +592,8 @@ void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer) const
         }
     }
 
-    VkRenderingInfo pass_info = {VK_STRUCTURE_TYPE_RENDERING_INFO };
+    VkRenderingInfo pass_info = {};
+    pass_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
     pass_info.renderArea.extent = {m_extent.width, m_extent.height};
     pass_info.layerCount = m_format.color_attachment_format.num_layers;
     pass_info.colorAttachmentCount = color_attachments.size();

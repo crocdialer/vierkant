@@ -225,7 +225,7 @@ glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::Ray CubeCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
+vierkant::Ray CubeCamera::calculate_ray(const glm::vec2 &/*pos*/, const glm::vec2 &/*extent*/) const
 {
     return {position(), glm::vec3(0, 0, 1)};
 }

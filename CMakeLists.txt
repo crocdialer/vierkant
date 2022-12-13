@@ -24,7 +24,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CXX_DEFAULT_FLAGS "${CMAKE_CXX_FLAGS} -pthread -Wall")
+#set(CXX_DEFAULT_FLAGS "${CMAKE_CXX_FLAGS} -pthread -Wall")
 
 if (NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE Release CACHE STRING
@@ -116,9 +116,15 @@ add_custom_command(OUTPUT ${SHADERS_CPP}
 add_custom_target("shaders" DEPENDS ${SHADERS_CPP})
 
 # vierkant
+set(LIB_NAME ${PROJECT_NAME})
 add_subdirectory("src")
-#include_directories(${vierkant_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${vierkant_LIBRARIES})
+
+if(MSVC)
+    target_compile_options(${LIB_NAME} PRIVATE /W4 /WX)
+else()
+    target_compile_options(${LIB_NAME} PRIVATE -Wall -Wextra -Werror) # -Wpedantic
+endif()
 
 # Expose public includes (including Boost transitively) to other
 # subprojects through cache variable.

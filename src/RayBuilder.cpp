@@ -22,9 +22,11 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
         m_queue(queue),
         m_memory_pool(std::move(pool))
 {
-    m_properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
+    m_properties = {};
+    m_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
 
-    VkPhysicalDeviceProperties2 device_properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    VkPhysicalDeviceProperties2 device_properties = {};
+    device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     device_properties.pNext = &m_properties;
     vkGetPhysicalDeviceProperties2(device->physical_device(), &device_properties);
 
@@ -155,7 +157,8 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
 
         entry_assets[i] = std::make_shared<acceleration_asset_t>();
         auto &acceleration_asset = *entry_assets[i];
-        VkAccelerationStructureCreateInfoKHR create_info = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+        VkAccelerationStructureCreateInfoKHR create_info = {};
+        create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
         create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         create_info.size = size_info.accelerationStructureSize;
         acceleration_asset = create_acceleration_asset(create_info);
@@ -180,7 +183,8 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
         if(enable_compaction)
         {
             // barrier before reading back size
-            VkMemoryBarrier barrier = {VK_STRUCTURE_TYPE_MEMORY_BARRIER};
+            VkMemoryBarrier barrier = {};
+            barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
             barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
             barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
             vkCmdPipelineBarrier(ret.build_command.handle(),
@@ -229,7 +233,8 @@ void RayBuilder::compact(build_result_t &build_result) const
                       compact_sizes[i] / 1024);
 
         // Creating a compact version of the AS
-        VkAccelerationStructureCreateInfoKHR create_info{VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR};
+        VkAccelerationStructureCreateInfoKHR create_info = {};
+        create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
         create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         create_info.size = compact_sizes[i];
 
@@ -238,7 +243,8 @@ void RayBuilder::compact(build_result_t &build_result) const
         acceleration_asset = create_acceleration_asset(create_info);
 
         // copy the original BLAS to a compact version
-        VkCopyAccelerationStructureInfoKHR copy_info{VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR};
+        VkCopyAccelerationStructureInfoKHR copy_info = {};
+        copy_info.sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR;
         copy_info.src = build_result.acceleration_assets[i]->structure.get();
         copy_info.dst = acceleration_asset.structure.get();
         copy_info.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
@@ -272,8 +278,7 @@ void RayBuilder::set_function_pointers()
 }
 
 RayBuilder::acceleration_asset_t
-RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info,
-                                      const glm::mat4 &transform) const
+RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info) const
 {
     RayBuilder::acceleration_asset_t acceleration_asset = {};
     acceleration_asset.buffer = vierkant::Buffer::create(m_device, nullptr, create_info.size,
@@ -330,7 +335,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
 
     std::unordered_map<MeshConstPtr, size_t> mesh_buffer_indices;
     std::unordered_map<MaterialConstPtr, size_t> material_indices;
-    auto view = scene->registry()->view<vierkant::Object3D*, vierkant::MeshPtr>();
+    auto view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
 
     for(const auto &[entity, object, mesh]: view.each())
     {
@@ -382,7 +387,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
 
             // apply node-animation transform, if any
             auto modelview = object->transform * (node_matrices.empty() ? mesh_entry.transform
-                                                                           : node_matrices[mesh_entry.node_index]);
+                                                                        : node_matrices[mesh_entry.node_index]);
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};

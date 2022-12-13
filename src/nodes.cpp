@@ -25,11 +25,6 @@ static inline void bfs(const NodeConstPtr &root, const std::function<void(const 
     }
 }
 
-static inline void dfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)> &fn)
-{
-
-}
-
 //! recursion helper-routine
 void build_node_matrices_helper(const NodeConstPtr &node,
                                 const node_animation_t &animation,

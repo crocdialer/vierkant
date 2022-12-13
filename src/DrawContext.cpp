@@ -388,9 +388,13 @@ void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &imag
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_grid(vierkant::Renderer &renderer, float scale, uint32_t num_subs, const glm::mat4 &model_view,
+void DrawContext::draw_grid(vierkant::Renderer &renderer,
+                            float scale,
+                            uint32_t /*num_subs*/,
+                            const glm::mat4 &model_view,
                             const glm::mat4 &projection)
 {
+    // TODO: map-lookup for requested num-subdivisions
     auto drawable = m_drawable_grid;
     drawable.matrices.modelview = glm::scale(model_view, glm::vec3(scale));
     drawable.matrices.projection = projection;

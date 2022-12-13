@@ -34,8 +34,7 @@ public:
 
     void update(double time_delta);
 
-    [[nodiscard]] Object3DPtr pick(const Ray &ray, bool high_precision = false,
-                                   const std::set<std::string> &tags = {}) const;
+    [[nodiscard]] Object3DPtr pick(const Ray &ray) const;
 
     void add_object(const Object3DPtr &object);
 

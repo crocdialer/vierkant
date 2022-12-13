@@ -56,11 +56,11 @@ void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags,
-                                                     VkDebugReportObjectTypeEXT obj_type,
-                                                     uint64_t obj,
-                                                     size_t location,
-                                                     int32_t code,
-                                                     const char *layer_prefix,
+                                                     VkDebugReportObjectTypeEXT /*obj_type*/,
+                                                     uint64_t /*obj*/,
+                                                     size_t /*location*/,
+                                                     int32_t /*code*/,
+                                                     const char */*layer_prefix*/,
                                                      const char *msg,
                                                      void *user_data)
 {

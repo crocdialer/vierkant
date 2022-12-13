@@ -857,15 +857,9 @@ namespace vierkant::model
 {
 
 //! load a single 3D model from file
-mesh_assets_t load_model(const std::string &path, const crocore::ThreadPool &threadpool)
+mesh_assets_t load_model(const std::string &/*path*/, const crocore::ThreadPool &/*threadpool*/)
 {
     return {};
-};
-
-//! load animations from file and add to existing geometry
-size_t add_animations_to_mesh(const std::string &path, mesh_assets_t &mesh_assets)
-{
-    return 0;
 }
 
 } //namespace vierkant::model

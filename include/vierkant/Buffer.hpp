@@ -102,7 +102,7 @@ public:
     {
         size_t num_bytes = the_array.size() * sizeof(typename T::value_type);
         set_data((void *) the_array.data(), num_bytes);
-    };
+    }
 
     /**
      * @brief   copy the contents of this buffer to another buffer

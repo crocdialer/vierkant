@@ -47,11 +47,9 @@ public:
 
     [[nodiscard]] vierkant::AABB create_aabb(const std::string &theText) const;
 
-    [[nodiscard]] crocore::ImagePtr
-    create_image(const std::string &theText, const glm::vec4 &theColor = glm::vec4(1)) const;
+    [[nodiscard]] crocore::ImagePtr create_image(const std::string &theText) const;
 
-    [[nodiscard]] vierkant::ImagePtr create_texture(vierkant::DevicePtr device, const std::string &theText,
-                                                    const glm::vec4 &theColor = glm::vec4(1)) const;
+    [[nodiscard]] vierkant::ImagePtr create_texture(vierkant::DevicePtr device, const std::string &theText) const;
 
     [[nodiscard]] vierkant::MeshPtr create_mesh(const std::string &theText,
                                                 const glm::vec4 &theColor = glm::vec4(1),

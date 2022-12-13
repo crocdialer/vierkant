@@ -59,7 +59,8 @@ void submit(const vierkant::DevicePtr &device,
             cmd_info.deviceMask = 0;
         }
 
-        VkSubmitInfo2 submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
+        VkSubmitInfo2 submit_info = {};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
         submit_info.commandBufferInfoCount = command_submit_infos.size();
         submit_info.pCommandBufferInfos = command_submit_infos.data();
 
@@ -74,7 +75,8 @@ void submit(const vierkant::DevicePtr &device,
             {
                 if(semaphore_info.semaphore)
                 {
-                    VkSemaphoreSubmitInfo semaphore_submit_info = {VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO};
+                    VkSemaphoreSubmitInfo semaphore_submit_info = {};
+                    semaphore_submit_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
                     semaphore_submit_info.semaphore = semaphore_info.semaphore;
                     semaphore_submit_info.deviceIndex = 0;
 
@@ -238,10 +240,12 @@ void CommandBuffer::submit(VkQueue queue,
 
         if(semaphore_infos.empty())
         {
-            VkCommandBufferSubmitInfo cmd_submit_info = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO};
+            VkCommandBufferSubmitInfo cmd_submit_info = {};
+            cmd_submit_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
             cmd_submit_info.commandBuffer = m_handle;
 
-            VkSubmitInfo2 submit_info = {VK_STRUCTURE_TYPE_SUBMIT_INFO_2};
+            VkSubmitInfo2 submit_info = {};
+            submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
             submit_info.commandBufferInfoCount = 1;
             submit_info.pCommandBufferInfos = &cmd_submit_info;
 

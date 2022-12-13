@@ -314,7 +314,8 @@ void SwapChain::create_framebuffers()
     if(resolve){ attachments[vierkant::AttachmentType::Resolve] = {m_images.front()}; }
 
     // subpass is dependant on swapchain image
-    VkSubpassDependency2 dependency = {VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2};
+    VkSubpassDependency2 dependency = {};
+    dependency.sType = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2;
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
     dependency.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;

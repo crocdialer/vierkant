@@ -221,7 +221,7 @@ int tri_tri_overlap_test_3d(const real p1[3], const real q1[3], const real r1[3]
 
 int coplanar_tri_tri3d(const real p1[3], const real q1[3], const real r1[3],
                        const real p2[3], const real q2[3], const real r2[3],
-                       const real N1[3], const real N2[3])
+                       const real N1[3], const real /*N2*/[3])
 {
     real P1[2], Q1[2], R1[2];
     real P2[2], Q2[2], R2[2];

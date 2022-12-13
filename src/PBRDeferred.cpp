@@ -717,7 +717,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             frame_asset.staging_buffer->set_data(nullptr, params.mesh_draws->num_bytes());
 
-            VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+            VkBufferMemoryBarrier2 barrier = {};
+            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
             barrier.buffer = drawbuffer->handle();
             barrier.offset = 0;
             barrier.size = VK_WHOLE_SIZE;
@@ -758,7 +759,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 assert(idx < frame_asset.cull_result.drawables.size());
                 const auto &drawable = frame_asset.cull_result.drawables[idx];
 
-                VkBufferCopy2 copy = {VK_STRUCTURE_TYPE_BUFFER_COPY_2};
+                VkBufferCopy2 copy = {};
+                copy.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
                 copy.size = staging_stride;
                 copy.srcOffset = staging_offset;
                 copy.dstOffset = stride * idx;
@@ -772,14 +774,16 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             }
             frame_asset.staging_buffer->unmap();
 
-            VkCopyBufferInfo2 copy_info2 = {VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2};
+            VkCopyBufferInfo2 copy_info2 = {};
+            copy_info2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
             copy_info2.srcBuffer = frame_asset.staging_buffer->handle();
             copy_info2.dstBuffer = params.mesh_draws->handle();
             copy_info2.regionCount = copy_regions.size();
             copy_info2.pRegions = copy_regions.data();
             vkCmdCopyBuffer2(frame_asset.clear_cmd_buffer.handle(), &copy_info2);
 
-            VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+            VkBufferMemoryBarrier2 barrier = {};
+            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
             barrier.buffer = params.mesh_draws->handle();
             barrier.offset = 0;
             barrier.size = VK_WHOLE_SIZE;
@@ -802,7 +806,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         if(!barriers.empty())
         {
-            VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+            VkDependencyInfo dependency_info = {};
+            dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
             dependency_info.bufferMemoryBarrierCount = barriers.size();
             dependency_info.pBufferMemoryBarriers = barriers.data();
             vkCmdPipelineBarrier2(frame_asset.clear_cmd_buffer.handle(), &dependency_info);
@@ -1222,7 +1227,8 @@ void PBRDeferred::create_depth_pyramid(frame_asset_t &frame_asset)
         frame_asset.depth_pyramid_computes.emplace_back(m_device, compute_info);
     }
 
-    VkImageMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+    VkImageMemoryBarrier2 barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     barrier.image = frame_asset.depth_pyramid->image();
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1235,7 +1241,8 @@ void PBRDeferred::create_depth_pyramid(frame_asset_t &frame_asset)
     barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
     barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
 
-    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    VkDependencyInfo dependency_info = {};
+    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
     dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
     dependency_info.imageMemoryBarrierCount = 1;
     dependency_info.pImageMemoryBarriers = &barrier;
@@ -1402,7 +1409,8 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
 
     computable.extent = {vierkant::group_count(num_draws, m_cull_compute_local_size.x), 1, 1};
 
-    VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+    VkBufferMemoryBarrier2 barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.srcAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
     barrier.srcStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
@@ -1417,7 +1425,8 @@ void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
     draw_buffer_barriers[2].buffer = draws_counts_out_post->handle();
     draw_buffer_barriers[3].buffer = draws_out_post->handle();
 
-    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    VkDependencyInfo dependency_info = {};
+    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
     dependency_info.bufferMemoryBarrierCount = draw_buffer_barriers.size();
     dependency_info.pBufferMemoryBarriers = draw_buffer_barriers.data();
 

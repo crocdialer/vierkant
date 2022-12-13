@@ -1,5 +1,3 @@
-set(LIB_NAME ${PROJECT_NAME})
-
 # 3rd party header-only libs
 set(3RDPARTY_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/3rdparty/include)
 

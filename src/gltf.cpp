@@ -700,7 +700,8 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
                 for(float t: input_times)
                 {
-                    vierkant::animation_value_t<glm::vec3> animation_value = {ptr[0]};
+                    vierkant::animation_value_t<glm::vec3> animation_value = {};
+                    animation_value.value = ptr[0];
                     if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
                     animation_keys.positions.insert({t, animation_value});
                     ptr += num_elems;
@@ -716,7 +717,8 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 for(float t: input_times)
                 {
                     auto q0 = glm::quat(ptr[3], ptr[0], ptr[1], ptr[2]);
-                    vierkant::animation_value_t<glm::quat> animation_value = {q0};
+                    vierkant::animation_value_t<glm::quat> animation_value = {};
+                    animation_value.value = q0;
 
                     if(is_cubic_spline)
                     {
@@ -736,7 +738,8 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
                 for(float t: input_times)
                 {
-                    vierkant::animation_value_t<glm::vec3> animation_value = {ptr[0]};
+                    vierkant::animation_value_t<glm::vec3> animation_value = {};
+                    animation_value.value = ptr[0];
                     if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
                     animation_keys.scales.insert({t, animation_value});
                     ptr += num_elems;

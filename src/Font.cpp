@@ -200,7 +200,7 @@ vierkant::AABB Font::create_aabb(const std::string &theText) const
     return ret;
 }
 
-crocore::ImagePtr Font::create_image(const std::string &theText, const glm::vec4 &theColor) const
+crocore::ImagePtr Font::create_image(const std::string &theText) const
 {
     uint32_t max_x = 0, max_y = 0;
     using area_pair_t = std::pair<crocore::Area_<uint32_t>, crocore::Area_<uint32_t>>;
@@ -234,10 +234,9 @@ crocore::ImagePtr Font::create_image(const std::string &theText, const glm::vec4
     return dst_img;
 }
 
-vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::string &theText,
-                                        const glm::vec4 &theColor) const
+vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::string &theText) const
 {
-    auto img = create_image(theText, theColor);
+    auto img = create_image(theText);
 
     vierkant::Image::Format fmt;
     fmt.format = vierkant::format<uint8_t>();
@@ -248,7 +247,7 @@ vierkant::ImagePtr Font::create_texture(vierkant::DevicePtr device, const std::s
     return vierkant::Image::create(std::move(device), img->data(), fmt);
 }
 
-vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 &theColor, float extrude) const
+vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 &/*theColor*/, float /*extrude*/) const
 {
     // look for an existing mesh
     auto mesh_iter = m_impl->string_mesh_map.find(theText);

@@ -411,8 +411,10 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t &frame_asset,
                                                    const SceneConstPtr &scene,
-                                                   const std::set<std::string> &tags)
+                                                   const std::set<std::string> &/*tags*/)
 {
+    // TODO: drop or use tags
+
     // set environment
     m_environment = scene->environment();
     bool use_environment = m_environment && frame_asset.settings.draw_skybox;

@@ -40,6 +40,9 @@
 #define _freea(x)
 #endif
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-copy"
+
 // includes patches for multiview from
 // https://github.com/CedricGuillemet/ImGuizmo/issues/15
 
@@ -2884,3 +2887,4 @@ namespace IMGUIZMO_NAMESPACE
       ComputeContext(svgView.m16, svgProjection.m16, gContext.mModelSource.m16, gContext.mMode);
    }
 };
+#pragma GCC diagnostic pop

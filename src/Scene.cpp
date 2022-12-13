@@ -105,8 +105,7 @@ void Scene::update(double time_delta)
     }
 }
 
-Object3DPtr Scene::pick(const Ray &ray, bool high_precision,
-                        const std::set<std::string> &tags) const
+Object3DPtr Scene::pick(const Ray &ray) const
 {
     Object3DPtr ret;
     auto objects_view = m_registry->view<vierkant::Object3D *>();

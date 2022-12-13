@@ -168,8 +168,8 @@ private:
 
     void set_function_pointers();
 
-    [[nodiscard]] acceleration_asset_t create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info,
-                                                                 const glm::mat4 &transform = glm::mat4(1)) const;
+    [[nodiscard]] acceleration_asset_t
+    create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info) const;
 
     vierkant::DevicePtr m_device;
 

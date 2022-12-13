@@ -27,12 +27,14 @@ void copy_to_helper(const DevicePtr &device,
     // assure dst buffer has correct size, no-op if already the case
     dst->set_data(nullptr, dst_offset + num_bytes);
 
-    VkBufferCopy2 copy_region = {VK_STRUCTURE_TYPE_BUFFER_COPY_2};
+    VkBufferCopy2 copy_region = {};
+    copy_region.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
     copy_region.size = num_bytes;
     copy_region.srcOffset = src_offset;
     copy_region.dstOffset = dst_offset;
 
-    VkCopyBufferInfo2 copy_info2 = {VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2};
+    VkCopyBufferInfo2 copy_info2 = {};
+    copy_info2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
     copy_info2.srcBuffer = src->handle();
     copy_info2.dstBuffer = dst->handle();
     copy_info2.regionCount = 1;
@@ -53,7 +55,8 @@ VmaPoolPtr Buffer::create_pool(const DevicePtr& device,
                                VmaMemoryUsage mem_usage,
                                VmaPoolCreateInfo pool_create_info)
 {
-    VkBufferCreateInfo dummy_buf_create_info = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    VkBufferCreateInfo dummy_buf_create_info = {};
+    dummy_buf_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     dummy_buf_create_info.usage = usage_flags;
     dummy_buf_create_info.size = 1024;
 

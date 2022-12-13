@@ -203,7 +203,7 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     if(!is_child_window){ ImGui::End(); }
 }
 
-void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const CameraPtr &cam)
+void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const CameraPtr &/*cam*/)
 {
     int res[2] = {static_cast<int>(pbr_renderer->settings.resolution.x),
                   static_cast<int>(pbr_renderer->settings.resolution.y)};

@@ -5,12 +5,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-
-#include <spdlog/spdlog.h>
-#include <spdlog/fmt/ranges.h>
-#include <spdlog/fmt/chrono.h>
-#include <spdlog/stopwatch.h>
-#include "crocore/crocore.hpp"
+#include <crocore/crocore.hpp>
 
 namespace vierkant
 {

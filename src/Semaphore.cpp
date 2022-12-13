@@ -10,7 +10,8 @@ namespace vierkant
 Semaphore::Semaphore(const vierkant::DevicePtr &device, uint64_t initial_value) :
         m_device(device)
 {
-    VkSemaphoreTypeCreateInfo timeline_create_info{VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO};
+    VkSemaphoreTypeCreateInfo timeline_create_info{};
+    timeline_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO;
     timeline_create_info.pNext = nullptr;
     timeline_create_info.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
     timeline_create_info.initialValue = initial_value;

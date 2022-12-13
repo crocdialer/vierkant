@@ -764,7 +764,8 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
         staging_offset += num_bytes;
 
-        VkBufferMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+        VkBufferMemoryBarrier2 barrier = {};
+        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
         barrier.buffer = outbuffer->handle();
         barrier.offset = 0;
         barrier.size = VK_WHOLE_SIZE;
@@ -802,7 +803,8 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
                      VK_ACCESS_2_SHADER_READ_BIT);
 
-        VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+        VkDependencyInfo dependency_info = {};
+        dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
         dependency_info.bufferMemoryBarrierCount = barriers.size();
         dependency_info.pBufferMemoryBarriers = barriers.data();
         vkCmdPipelineBarrier2(frame_asset.staging_command_buffer.handle(), &dependency_info);

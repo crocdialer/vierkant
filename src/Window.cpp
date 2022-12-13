@@ -154,7 +154,7 @@ void Window::init_handles(int width, int height, const std::string &title, GLFWm
 
     // init callbacks
     glfwSetErrorCallback(&Window::glfw_error_cb);
-    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
+//    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
     glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
     glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
     glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
@@ -416,7 +416,7 @@ bool Window::should_close() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
+void Window::glfw_resize_cb(GLFWwindow */*window*/, int /*width*/, int /*height*/)
 {
 
 }
@@ -437,12 +437,12 @@ void Window::glfw_close_cb(GLFWwindow *window)
 
 void Window::glfw_error_cb(int error_code, const char *error_msg)
 {
-    spdlog::error(error_msg);
+    spdlog::error("{} ({})", error_msg, error_code);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_refresh_cb(GLFWwindow *window)
+void Window::glfw_refresh_cb(GLFWwindow */*window*/)
 {
     // like resizing!?
 }
@@ -471,7 +471,7 @@ void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int modifier_mask)
+void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int /*modifier_mask*/)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -537,7 +537,7 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, int modifier_mask)
+void Window::glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int action, int /*modifier_mask*/)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 

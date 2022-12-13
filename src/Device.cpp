@@ -124,7 +124,8 @@ Device::Device(const create_info_t &create_info) :
     }
 
     // query physical device properties
-    m_physical_device_properties = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    m_physical_device_properties = {};
+    m_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     vkGetPhysicalDeviceProperties2(create_info.physical_device, &m_physical_device_properties);
 
     auto version_major = VK_API_VERSION_MAJOR(m_physical_device_properties.properties.apiVersion);
@@ -243,7 +244,8 @@ Device::Device(const create_info_t &create_info) :
     mesh_shader_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
 
     {
-        VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+        VkPhysicalDeviceProperties2 props = {};
+        props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
         props.pNext = &mesh_shader_properties;
         vkGetPhysicalDeviceProperties2(create_info.physical_device, &props);
     }
@@ -251,7 +253,8 @@ Device::Device(const create_info_t &create_info) :
     //------------------------------------------------------------------------------------------------------------------
 
     // query support for the required device-features
-    VkPhysicalDeviceFeatures2 query_features = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2};
+    VkPhysicalDeviceFeatures2 query_features = {};
+    query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     query_features.pNext = &device_features_11;
     vkGetPhysicalDeviceFeatures2(m_physical_device, &query_features);
 
@@ -265,7 +268,8 @@ Device::Device(const create_info_t &create_info) :
     if(mesh_shader_available){ last_pNext = &mesh_shader_features.pNext; }
     *last_pNext = create_info.create_device_pNext;
 
-    VkDeviceCreateInfo device_create_info = {VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    VkDeviceCreateInfo device_create_info = {};
+    device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
     // pNext feature chaining
     device_create_info.pNext = &device_features_11;

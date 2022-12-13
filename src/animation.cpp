@@ -71,6 +71,7 @@ void create_animation_transform(const animation_keys_t &keys,
             {
                 case InterpolationMode::Step:
                     frac = 0.f;
+                    [[fallthrough]];
                 case InterpolationMode::Linear:
                     pos = glm::mix(it_lhs->second.value, it_rhs->second.value, frac);
                     break;
@@ -120,7 +121,7 @@ void create_animation_transform(const animation_keys_t &keys,
             {
                 case InterpolationMode::Step:
                     frac = 0.f;
-
+                    [[fallthrough]];
                 case InterpolationMode::Linear:
                     // quaternion spherical linear interpolation
                     quat = glm::slerp(it_lhs->second.value, it_rhs->second.value, frac);
@@ -179,7 +180,7 @@ void create_animation_transform(const animation_keys_t &keys,
             {
                 case InterpolationMode::Step:
                     frac = 0.f;
-
+                    [[fallthrough]];
                 case InterpolationMode::Linear:
                     scale = glm::mix(it_lhs->second.value, it_rhs->second.value, frac);
                     break;
@@ -236,7 +237,7 @@ std::vector<float> create_morph_weights(const animation_keys_t &keys,
                 {
                     case InterpolationMode::Step:
                         frac = 0.f;
-
+                        [[fallthrough]];
                     case InterpolationMode::Linear:
                         out_weights[i] = glm::mix(start_value.value[i], end_value.value[i], frac);
                         break;

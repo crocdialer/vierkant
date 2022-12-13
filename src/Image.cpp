@@ -64,7 +64,8 @@ void transition_image_layout(VkCommandBuffer command_buffer,
                              uint32_t num_mip_levels,
                              VkImageAspectFlags aspectMask)
 {
-    VkImageMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+    VkImageMemoryBarrier2 barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     barrier.oldLayout = old_layout;
     barrier.newLayout = new_layout;
 
@@ -175,7 +176,8 @@ void transition_image_layout(VkCommandBuffer command_buffer,
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
             break;
     }
-    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    VkDependencyInfo dependency_info = {};
+    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
     dependency_info.imageMemoryBarrierCount = 1;
     dependency_info.pImageMemoryBarriers = &barrier;
     dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
@@ -185,7 +187,8 @@ void transition_image_layout(VkCommandBuffer command_buffer,
 VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format &format, VkDeviceSize block_size,
                               size_t min_block_count, size_t max_block_count, VmaPoolCreateFlags vma_flags)
 {
-    VkImageCreateInfo image_create_info = {VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO};
+    VkImageCreateInfo image_create_info = {};
+    image_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     image_create_info.imageType = format.image_type;
     image_create_info.extent = format.extent;
     image_create_info.mipLevels = 1;
@@ -485,7 +488,8 @@ void Image::copy_from(const BufferPtr &src,
             extent.depth = std::max<uint32_t>(extent.depth >> level, 1);
         }
 
-        VkBufferImageCopy2 region = {VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2};
+        VkBufferImageCopy2 region = {};
+        region.sType = VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2;
         region.bufferOffset = buf_offset;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
@@ -496,7 +500,8 @@ void Image::copy_from(const BufferPtr &src,
         region.imageOffset = img_offset;
         region.imageExtent = extent;
 
-        VkCopyBufferToImageInfo2 copy_info = {VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2};
+        VkCopyBufferToImageInfo2 copy_info = {};
+        copy_info.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_TO_IMAGE_INFO_2;
         copy_info.regionCount = 1;
         copy_info.pRegions = &region;
         copy_info.srcBuffer = src->handle();
@@ -542,7 +547,8 @@ void Image::copy_to(const BufferPtr &dst,
 
         transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, command_buffer);
 
-        VkBufferImageCopy2 region = {VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2};
+        VkBufferImageCopy2 region = {};
+        region.sType = VK_STRUCTURE_TYPE_BUFFER_IMAGE_COPY_2;
         region.bufferOffset = buf_offset;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
@@ -553,7 +559,8 @@ void Image::copy_to(const BufferPtr &dst,
         region.imageOffset = img_offset;
         region.imageExtent = extent;
 
-        VkCopyImageToBufferInfo2 copy_info = {VK_STRUCTURE_TYPE_COPY_IMAGE_TO_BUFFER_INFO_2};
+        VkCopyImageToBufferInfo2 copy_info = {};
+        copy_info.sType = VK_STRUCTURE_TYPE_COPY_IMAGE_TO_BUFFER_INFO_2;
         copy_info.regionCount = 1;
         copy_info.pRegions = &region;
         copy_info.srcImage = m_image.get();
@@ -596,7 +603,8 @@ void Image::copy_to(const ImagePtr &dst,
         dst->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_buffer);
 
         // copy src-image -> dst-image
-        VkImageCopy2 region = {VK_STRUCTURE_TYPE_IMAGE_COPY_2};
+        VkImageCopy2 region = {};
+        region.sType = VK_STRUCTURE_TYPE_IMAGE_COPY_2;
         region.extent = extent;
         region.srcOffset = src_offset;
         region.dstOffset = dst_offset;
@@ -610,7 +618,8 @@ void Image::copy_to(const ImagePtr &dst,
         region.dstSubresource.layerCount = m_format.num_layers;
         region.dstSubresource.mipLevel = 0;
 
-        VkCopyImageInfo2 copy_info = {VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2};
+        VkCopyImageInfo2 copy_info = {};
+        copy_info.sType = VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2;
         copy_info.regionCount = 1;
         copy_info.pRegions = &region;
         copy_info.srcImage = m_image.get();
@@ -661,7 +670,8 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
         command_buffer = local_command_buffer.handle();
     }
 
-    VkImageMemoryBarrier2 barrier = {VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
+    VkImageMemoryBarrier2 barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
     barrier.image = m_image.get();
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -670,7 +680,8 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
     barrier.subresourceRange.layerCount = m_format.num_layers;
     barrier.subresourceRange.levelCount = 1;
 
-    VkDependencyInfo dependency_info = {VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    VkDependencyInfo dependency_info = {};
+    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
     dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
     dependency_info.imageMemoryBarrierCount = 1;
     dependency_info.pImageMemoryBarriers = &barrier;
@@ -690,7 +701,8 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
         vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 
-        VkImageBlit2 blit_region = {VK_STRUCTURE_TYPE_IMAGE_BLIT_2};
+        VkImageBlit2 blit_region = {};
+        blit_region.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2;
         blit_region.srcOffsets[0] = {0, 0, 0};
         blit_region.srcOffsets[1] = {mip_width, mip_height, 1};
         blit_region.srcSubresource.aspectMask = m_format.aspect;
@@ -704,7 +716,8 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
         blit_region.dstSubresource.baseArrayLayer = 0;
         blit_region.dstSubresource.layerCount = m_format.num_layers;
 
-        VkBlitImageInfo2 blit_info = {VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2};
+        VkBlitImageInfo2 blit_info = {};
+        blit_info.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2;
         blit_info.regionCount = 1;
         blit_info.pRegions = &blit_region;
         blit_info.srcImage = m_image.get();
