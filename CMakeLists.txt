@@ -61,9 +61,6 @@ set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/3rdparty/include
         ${PROJECT_BINARY_DIR}/include)
 
-add_subdirectory(submodules/spdlog EXCLUDE_FROM_ALL)
-set(LIBS ${LIBS} spdlog)
-
 # glfw
 add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glfw)

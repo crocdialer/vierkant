@@ -23,7 +23,6 @@ features
 submodules:
 - 
 - https://github.com/crocdialer/crocore
-- https://github.com/gabime/spdlog
 - https://github.com/nothings/stb (stb_truetype.h)
 - https://github.com/glfw/glfw
 - https://github.com/syoyo/tinygltf
