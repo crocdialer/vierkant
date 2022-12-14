@@ -22,11 +22,11 @@ constexpr uint32_t query_count = 2;
 struct texture_index_key_t
 {
     vierkant::MeshConstPtr mesh;
-    std::vector<vierkant::ImagePtr> textures;
+    uint64_t texture_hash;
 
     inline bool operator==(const texture_index_key_t &other) const
     {
-        return mesh == other.mesh && textures == other.textures;
+        return mesh == other.mesh && texture_hash == other.texture_hash;
     }
 };
 
@@ -36,7 +36,7 @@ struct texture_index_hash_t
     {
         size_t h = 0;
         crocore::hash_combine(h, key.mesh);
-        for(const auto &tex: key.textures){ crocore::hash_combine(h, tex); }
+        crocore::hash_combine(h, key.texture_hash);
         return h;
     }
 };
@@ -240,13 +240,19 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
     std::vector<vierkant::ImagePtr> textures;
 
-    auto create_mesh_key = [](const drawable_t &drawable) -> texture_index_key_t
+    auto create_texture_hash = [](const std::vector<vierkant::ImagePtr> &textures) -> uint64_t
+    {
+        uint64_t texture_hash = 0;
+        for(const auto &tex: textures){ crocore::hash_combine(texture_hash, tex); }
+        return texture_hash;
+    };
+
+    auto create_mesh_key = [create_texture_hash](const drawable_t &drawable) -> texture_index_key_t
     {
         auto it = drawable.descriptors.find(BINDING_TEXTURES);
         if(it == drawable.descriptors.end() || it->second.images.empty()){ return {drawable.mesh, {}}; }
-
         const auto &drawable_textures = it->second.images;
-        return {drawable.mesh, drawable_textures};
+        return {drawable.mesh, create_texture_hash(drawable_textures)};
     };
 
     texture_index_map_t texture_base_index_map;
@@ -260,7 +266,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         const auto &drawable_textures = it->second.images;
 
         // insert other textures from drawables
-        texture_index_key_t key = {drawable.mesh, drawable_textures};
+        texture_index_key_t key = {drawable.mesh, create_texture_hash(drawable_textures)};
 
         if(!texture_base_index_map.count(key))
         {

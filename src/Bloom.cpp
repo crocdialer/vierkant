@@ -129,10 +129,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
 
     auto blur_submit_infos = signal_infos;
     blur_submit_infos.push_back(blur_info);
-
-    auto blur_img = m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue, blur_submit_infos);
-
-    return blur_img;
+    return m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue, blur_submit_infos);
 }
 
 }// namespace vierkant

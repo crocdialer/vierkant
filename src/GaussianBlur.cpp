@@ -46,13 +46,13 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 
     // init framebuffers
     vierkant::attachment_map_t fb_attachments_ping, fb_attachments_pong;
-    vierkant::Image::Format fmt = {};
-    fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    fmt.format = create_info.color_format;
-    fmt.extent = create_info.size;
+    vierkant::Image::Format img_fmt = {};
+    img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    img_fmt.format = create_info.color_format;
+    img_fmt.extent = create_info.size;
 
-    fb_attachments_ping[vierkant::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
-    fb_attachments_pong[vierkant::AttachmentType::Color] = {vierkant::Image::create(device, fmt)};
+    fb_attachments_ping[vierkant::AttachmentType::Color] = {vierkant::Image::create(device, img_fmt)};
+    fb_attachments_pong[vierkant::AttachmentType::Color] = {vierkant::Image::create(device, img_fmt)};
 
     vierkant::RenderPassPtr renderpass;
     renderpass = vierkant::create_renderpass(device, fb_attachments_ping, true, false);
