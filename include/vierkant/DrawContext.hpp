@@ -20,7 +20,11 @@ public:
 
     DrawContext(const DrawContext &) = delete;
 
+    DrawContext(DrawContext &&) = default;
+
     explicit DrawContext(vierkant::DevicePtr device);
+
+    DrawContext& operator=(DrawContext &&) = default;
 
     /**
      * @brief   Draws text in a 2D context.

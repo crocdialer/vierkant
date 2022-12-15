@@ -225,13 +225,15 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
 
     for(uint32_t i = 0; i < m_framebuffers.size(); i += 2)
     {
-        semaphore_info_ping.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        semaphore_info_ping.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
         semaphore_info_ping.wait_value = i;
         semaphore_info_ping.signal_value = i + 1;
+        semaphore_info_ping.signal_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
 
-        semaphore_info_pong.wait_stage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        semaphore_info_pong.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
         semaphore_info_pong.wait_value = i + 1;
         semaphore_info_pong.signal_value = i + 2;
+        semaphore_info_pong.signal_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
 
         auto &fb_ping = m_framebuffers[i];
         auto &fb_pong = m_framebuffers[i + 1];

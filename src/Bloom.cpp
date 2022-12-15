@@ -27,8 +27,8 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
     // create renderer for thresh-pass
     vierkant::Renderer::create_info_t thresh_render_info = {};
     thresh_render_info.num_frames_in_flight = 1;
-    thresh_render_info.viewport.width = create_info.size.width;
-    thresh_render_info.viewport.height = create_info.size.height;
+    thresh_render_info.viewport.width = static_cast<float>(create_info.size.width);
+    thresh_render_info.viewport.height = static_cast<float>(create_info.size.height);
     thresh_render_info.viewport.maxDepth = 1;
     thresh_render_info.pipeline_cache = create_info.pipeline_cache;
     m_thresh_renderer = vierkant::Renderer(device, thresh_render_info);
