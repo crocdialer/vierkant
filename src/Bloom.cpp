@@ -125,7 +125,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
     blur_info.wait_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     blur_info.wait_value = SemaphoreValue::THRESH_DONE;
     blur_info.signal_value = SemaphoreValue::BLUR_DONE;
-    thresh_done.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    blur_info.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     auto blur_submit_infos = signal_infos;
     blur_submit_infos.push_back(blur_info);

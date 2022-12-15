@@ -75,13 +75,9 @@ private:
     std::array<ping_pong_t, 2> m_ping_pongs;
 
     std::vector<vierkant::Framebuffer> m_framebuffers;
-
     vierkant::Renderer m_renderer;
-
     vierkant::Semaphore m_semaphore;
 
-    vierkant::CommandPoolPtr m_command_pool;
-    vierkant::CommandBuffer m_command_buffer;
     VkSpecializationInfo m_specialization_info = {};
     VkSpecializationMapEntry m_specialization_entry = {};
 };

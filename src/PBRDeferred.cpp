@@ -1003,7 +1003,13 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         auto bloom_img = m_empty_img;
 
         // generate bloom image
-        if(frame_asset.settings.bloom){ bloom_img = frame_asset.bloom->apply(output_img, m_queue, {}); }
+        if(frame_asset.settings.bloom)
+        {
+            vierkant::semaphore_submit_info_t bloom_semaphore_info = {};
+            bloom_semaphore_info.semaphore = frame_asset.timeline.handle();
+            bloom_semaphore_info.signal_value = SemaphoreValue::BLOOM;
+            bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_semaphore_info});
+        }
 
         // motionblur
         auto motion_img = m_empty_img;
@@ -1027,6 +1033,9 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
         vierkant::semaphore_submit_info_t tonemap_semaphore_info = {};
         tonemap_semaphore_info.semaphore = frame_asset.timeline.handle();
+        tonemap_semaphore_info.wait_value = frame_asset.settings.bloom ? SemaphoreValue::BLOOM
+                                                                       : SemaphoreValue::INVALID;
+        tonemap_semaphore_info.wait_stage = VK_SHADER_STAGE_FRAGMENT_BIT;
         tonemap_semaphore_info.signal_value = SemaphoreValue::TONEMAP;
         output_img = pingpong_render(m_drawable_bloom, {tonemap_semaphore_info});
         frame_asset.semaphore_value_done = SemaphoreValue::TONEMAP;

@@ -265,12 +265,6 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
         const auto &drawable_textures = it->second.images;
 
-        // layout transition, not strictly required, idk
-        for(const auto &tex: drawable_textures)
-        {
-            tex->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, next_assets.command_buffer.handle());
-        }
-
         // insert other textures from drawables
         texture_index_key_t key = {drawable.mesh, create_texture_hash(drawable_textures)};
 

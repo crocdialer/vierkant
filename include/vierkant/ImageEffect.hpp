@@ -29,7 +29,8 @@ public:
      * @param   submit_info an optional VkSubmitInof struct.
      * @return  a vierkant::ImagePtr containing the result of the operation.
      */
-    virtual vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue,
+    virtual vierkant::ImagePtr apply(const vierkant::ImagePtr &image,
+                                     VkQueue queue,
                                      const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos) = 0;
 };
 

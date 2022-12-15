@@ -203,6 +203,7 @@ private:
         G_BUFFER_ALL,
         LIGHTING,
         TAA,
+        BLOOM,
         TONEMAP,
         DEFOCUS_BLUR,
         MAX_VALUE

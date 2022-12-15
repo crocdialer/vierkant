@@ -34,12 +34,6 @@ GaussianBlur_<NUM_TAPS>::create(const DevicePtr &device, const create_info_t &cr
 template<uint32_t NUM_TAPS>
 GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_info_t &create_info)
 {
-    m_command_pool = create_info.command_pool ?
-                     create_info.command_pool : vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
-                                                                              VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-
-//    m_command_buffer = vierkant::CommandBuffer(device, m_command_pool.get());
-
     // create renderer for blur-passes
     vierkant::Renderer::create_info_t post_render_info = {};
     post_render_info.num_frames_in_flight = 2 * create_info.num_iterations;
@@ -48,7 +42,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     post_render_info.viewport.height = create_info.size.height;
     post_render_info.viewport.maxDepth = 1;
     post_render_info.pipeline_cache = create_info.pipeline_cache;
-    post_render_info.command_pool = m_command_pool;
+    post_render_info.command_pool = create_info.command_pool;
     post_render_info.descriptor_pool = create_info.descriptor_pool;
     m_renderer = vierkant::Renderer(device, post_render_info);
 
@@ -264,17 +258,8 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue
     semaphore_info_final.wait_value = m_framebuffers.size();
     signal_infos.push_back(semaphore_info_final);
 
-    if(!m_command_buffer)
-    {
-        m_command_buffer = vierkant::CommandBuffer(device, m_command_pool.get());
-        m_command_buffer.begin(0);
-        m_framebuffers.back().color_attachment()->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
-                                                                    m_command_buffer.handle());
-        m_command_buffer.end();
-    }
-
-    vierkant::submit(device, queue, {m_command_buffer.handle()}, false, VK_NULL_HANDLE, signal_infos);
-
+    // submit in order to signal semophore
+    vierkant::submit(device, queue, {}, false, VK_NULL_HANDLE, signal_infos);
     return current_img;
 }
 
