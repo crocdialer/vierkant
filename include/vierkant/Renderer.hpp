@@ -124,10 +124,10 @@ public:
         VkRect2D scissor = {.offset = {0, 0}, .extent = {0, 0}};
         uint32_t num_frames_in_flight = 1;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
-        vierkant::PipelineCachePtr pipeline_cache = nullptr;
         bool indirect_draw = false;
         bool enable_mesh_shader = false;
         uint32_t mesh_task_count = 32;
+        vierkant::PipelineCachePtr pipeline_cache = nullptr;
         vierkant::CommandPoolPtr command_pool = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;

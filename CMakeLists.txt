@@ -121,13 +121,12 @@ add_subdirectory("src")
 set(LIBS ${LIBS} ${vierkant_LIBRARIES})
 
 if(MSVC)
-    target_compile_options(${LIB_NAME} PRIVATE /W4) #TODO /WX (warnings as errors)
+    target_compile_options(${LIB_NAME} PRIVATE /W3) #TODO /W4 /WX (warnings as errors)
 else()
     target_compile_options(${LIB_NAME} PRIVATE -Wall -Wextra -Werror) # -Wpedantic
 endif()
 
-# Expose public includes (including Boost transitively) to other
-# subprojects through cache variable.
+# Expose public includes to subprojects through cache variable.
 set(${PROJECT_NAME}_INCLUDE_DIRS ${INCLUDE_DIRS}
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 

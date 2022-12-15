@@ -33,6 +33,8 @@ public:
 
         //! optional pipeline-cache to share shaders and piplines
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
+        vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
+        vierkant::CommandPoolPtr command_pool = nullptr;
     };
 
     ~GaussianBlur_() override = default;
@@ -78,6 +80,8 @@ private:
 
     vierkant::Semaphore m_semaphore;
 
+    vierkant::CommandPoolPtr m_command_pool;
+    vierkant::CommandBuffer m_command_buffer;
     VkSpecializationInfo m_specialization_info = {};
     VkSpecializationMapEntry m_specialization_entry = {};
 };
