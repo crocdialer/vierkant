@@ -8,6 +8,23 @@
 namespace vierkant
 {
 
+struct gpu_cull_context_t
+{
+    vierkant::DevicePtr device;
+    vierkant::CommandPoolPtr command_pool;
+    vierkant::CommandBuffer command_buffer;
+
+    vierkant::Compute compute;
+    glm::uvec3 local_size;
+    vierkant::Compute::computable_t computable;
+
+    vierkant::BufferPtr draw_cull_buffer;
+
+    //! draw_cull_result_t buffers
+    vierkant::BufferPtr result_buffer;
+    vierkant::BufferPtr result_buffer_host;
+};
+
 struct alignas(16) draw_cull_data_t
 {
     glm::mat4 view = glm::mat4(1);
@@ -40,7 +57,7 @@ struct alignas(16) draw_cull_data_t
     uint64_t draw_result = 0;
 };
 
-draw_cull_result_t gpu_cull(vierkant::gpu_cull_context_t &context,
+draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context,
                             const gpu_cull_params_t &params)
 {
     draw_cull_data_t draw_cull_data = {};
@@ -60,7 +77,7 @@ draw_cull_result_t gpu_cull(vierkant::gpu_cull_context_t &context,
     draw_cull_data.draws_out_post = params.draws_out_post->device_address();
     draw_cull_data.draw_count_pre = params.draws_counts_out_main->device_address();
     draw_cull_data.draw_count_post = params.draws_counts_out_post->device_address();
-    draw_cull_data.draw_result = context.result_buffer->device_address();
+    draw_cull_data.draw_result = context->result_buffer->device_address();
 
     auto projection = params.camera->projection_matrix();
     draw_cull_data.P00 = projection[0][0];
@@ -79,31 +96,31 @@ draw_cull_result_t gpu_cull(vierkant::gpu_cull_context_t &context,
     draw_cull_data.lod_base = 15.f;
     draw_cull_data.lod_step = 1.5f;
 
-    context.computable.extent = {vierkant::group_count(params.num_draws, context.local_size.x), 1, 1};
+    context->computable.extent = {vierkant::group_count(params.num_draws, context->local_size.x), 1, 1};
     draw_cull_data.pyramid_size = {params.depth_pyramid->width(), params.depth_pyramid->height()};
 
-    context.draw_cull_buffer->set_data(&draw_cull_data, sizeof(draw_cull_data));
+    context->draw_cull_buffer->set_data(&draw_cull_data, sizeof(draw_cull_data));
 
-    descriptor_t &depth_pyramid_desc = context.computable.descriptors[0];
+    descriptor_t &depth_pyramid_desc = context->computable.descriptors[0];
     depth_pyramid_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     depth_pyramid_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     depth_pyramid_desc.images = {params.depth_pyramid};
 
-    descriptor_t &draw_cull_data_desc = context.computable.descriptors[1];
+    descriptor_t &draw_cull_data_desc = context->computable.descriptors[1];
     draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     draw_cull_data_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    draw_cull_data_desc.buffers = {context.draw_cull_buffer};
+    draw_cull_data_desc.buffers = {context->draw_cull_buffer};
 
     // create / start a new command-buffer
-    context.command_buffer = vierkant::CommandBuffer(context.device, context.command_pool.get());
-    context.command_buffer.begin();
+    context->command_buffer = vierkant::CommandBuffer(context->device, context->command_pool.get());
+    context->command_buffer.begin();
 
     // clear gpu-result-buffer with zeros
-    vkCmdFillBuffer(context.command_buffer.handle(), context.result_buffer->handle(), 0, VK_WHOLE_SIZE, 0);
+    vkCmdFillBuffer(context->command_buffer.handle(), context->result_buffer->handle(), 0, VK_WHOLE_SIZE, 0);
 
     // clear count-buffers with zeros
-    vkCmdFillBuffer(context.command_buffer.handle(), params.draws_counts_out_main->handle(), 0, VK_WHOLE_SIZE, 0);
-    vkCmdFillBuffer(context.command_buffer.handle(), params.draws_counts_out_post->handle(), 0, VK_WHOLE_SIZE, 0);
+    vkCmdFillBuffer(context->command_buffer.handle(), params.draws_counts_out_main->handle(), 0, VK_WHOLE_SIZE, 0);
+    vkCmdFillBuffer(context->command_buffer.handle(), params.draws_counts_out_post->handle(), 0, VK_WHOLE_SIZE, 0);
 
     VkBufferMemoryBarrier2 barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
@@ -127,10 +144,10 @@ draw_cull_result_t gpu_cull(vierkant::gpu_cull_context_t &context,
     dependency_info.pBufferMemoryBarriers = draw_buffer_barriers.data();
 
     // barrier before writing to indirect-draw-buffer
-    vkCmdPipelineBarrier2(context.command_buffer.handle(), &dependency_info);
+    vkCmdPipelineBarrier2(context->command_buffer.handle(), &dependency_info);
 
     // dispatch cull-compute
-    context.compute.dispatch({context.computable}, context.command_buffer.handle());
+    context->compute.dispatch({context->computable}, context->command_buffer.handle());
 
     // swap access
     for(auto &b: draw_buffer_barriers)
@@ -140,10 +157,10 @@ draw_cull_result_t gpu_cull(vierkant::gpu_cull_context_t &context,
     }
 
     // memory barrier for draw-indirect buffer
-    vkCmdPipelineBarrier2(context.command_buffer.handle(), &dependency_info);
+    vkCmdPipelineBarrier2(context->command_buffer.handle(), &dependency_info);
 
     // memory barrier before copying cull-result buffer
-    barrier.buffer = context.result_buffer->handle();
+    barrier.buffer = context->result_buffer->handle();
     barrier.size = VK_WHOLE_SIZE;
     barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
     barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
@@ -152,55 +169,55 @@ draw_cull_result_t gpu_cull(vierkant::gpu_cull_context_t &context,
 
     dependency_info.bufferMemoryBarrierCount = 1;
     dependency_info.pBufferMemoryBarriers = &barrier;
-    vkCmdPipelineBarrier2(context.command_buffer.handle(), &dependency_info);
+    vkCmdPipelineBarrier2(context->command_buffer.handle(), &dependency_info);
 
     // copy result into host-visible buffer
-    context.result_buffer->copy_to(context.result_buffer_host, context.command_buffer.handle());
+    context->result_buffer->copy_to(context->result_buffer_host, context->command_buffer.handle());
 
     // culling done timestamp
-    vkCmdWriteTimestamp2(context.command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+    vkCmdWriteTimestamp2(context->command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                          params.query_pool.get(), params.query_index);
 
-    context.command_buffer.submit(params.queue, false, VK_NULL_HANDLE, {params.semaphore_submit_info});
+    context->command_buffer.submit(params.queue, false, VK_NULL_HANDLE, {params.semaphore_submit_info});
 
     // return results from host-buffer
-    return *reinterpret_cast<draw_cull_result_t *>(context.result_buffer_host->map());
+    return *reinterpret_cast<draw_cull_result_t *>(context->result_buffer_host->map());
 }
 
-gpu_cull_context_t create_gpu_cull_context(const DevicePtr &device)
+gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device)
 {
-    gpu_cull_context_t ret = {};
-    ret.device = device;
-    ret.command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+    auto ret = gpu_cull_context_ptr(new gpu_cull_context_t, std::default_delete<gpu_cull_context_t>());
+    ret->device = device;
+    ret->command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    ret.command_buffer = vierkant::CommandBuffer(device, ret.command_pool.get());
+    ret->command_buffer = vierkant::CommandBuffer(device, ret->command_pool.get());
 
-    ret.draw_cull_buffer = vierkant::Buffer::create(device, nullptr, sizeof(draw_cull_data_t),
+    ret->draw_cull_buffer = vierkant::Buffer::create(device, nullptr, sizeof(draw_cull_data_t),
                                                     VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
 
-    ret.result_buffer = vierkant::Buffer::create(device, nullptr, sizeof(draw_cull_result_t),
+    ret->result_buffer = vierkant::Buffer::create(device, nullptr, sizeof(draw_cull_result_t),
                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                                  VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                  VMA_MEMORY_USAGE_GPU_ONLY);
 
-    ret.result_buffer_host = vierkant::Buffer::create(
+    ret->result_buffer_host = vierkant::Buffer::create(
             device, nullptr, sizeof(draw_cull_result_t),
             VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-    *reinterpret_cast<draw_cull_result_t *>(ret.result_buffer_host->map()) = {};
+    *reinterpret_cast<draw_cull_result_t *>(ret->result_buffer_host->map()) = {};
 
     // indirect-draw cull compute
     auto cull_shader_stage = vierkant::create_shader_module(device, vierkant::shaders::pbr::indirect_cull_comp,
-                                                            &ret.local_size);
-    ret.computable.pipeline_info.shader_stage = cull_shader_stage;
+                                                            &ret->local_size);
+    ret->computable.pipeline_info.shader_stage = cull_shader_stage;
 
     vierkant::Compute::create_info_t compute_info = {};
 //        compute_info.pipeline_cache = m_pipeline_cache;
-    compute_info.command_pool = ret.command_pool;
-    ret.compute = vierkant::Compute(device, compute_info);
+    compute_info.command_pool = ret->command_pool;
+    ret->compute = vierkant::Compute(device, compute_info);
     return ret;
 }
 

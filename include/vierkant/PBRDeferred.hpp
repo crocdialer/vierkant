@@ -242,7 +242,7 @@ private:
         std::vector<vierkant::Compute> depth_pyramid_computes;
         vierkant::CommandBuffer depth_pyramid_cmd_buffer, clear_cmd_buffer;
 
-        vierkant::gpu_cull_context_t gpu_cull_context = {};
+        vierkant::gpu_cull_context_ptr gpu_cull_context;
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
 

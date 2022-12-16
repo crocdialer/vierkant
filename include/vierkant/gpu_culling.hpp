@@ -13,24 +13,8 @@
 namespace vierkant
 {
 
-struct gpu_cull_context_t
-{
-    vierkant::DevicePtr device;
-    vierkant::CommandPoolPtr command_pool;
-    vierkant::CommandBuffer command_buffer;
-
-    vierkant::Compute compute;
-    glm::uvec3 local_size;
-    vierkant::Compute::computable_t computable;
-
-    vierkant::BufferPtr draw_cull_buffer;
-
-    //! draw_cull_result_t buffers
-    vierkant::BufferPtr result_buffer;
-    vierkant::BufferPtr result_buffer_host;
-};
-
-gpu_cull_context_t create_gpu_cull_context(const vierkant::DevicePtr &device);
+using gpu_cull_context_ptr = std::unique_ptr<struct gpu_cull_context_t, std::function<void(
+        struct gpu_cull_context_t *)>>;
 
 struct gpu_cull_params_t
 {
@@ -71,7 +55,21 @@ struct draw_cull_result_t
     uint32_t num_triangles = 0;
 };
 
-draw_cull_result_t gpu_cull(vierkant::gpu_cull_context_t &context,
-                            const gpu_cull_params_t &params);
+/**
+ * @brief   create_gpu_cull_context is a factory to create an opaque gpu_cull_context_ptr.
+ *
+ * @param   device  a provided vierkant::Device
+ * @return  an opaque pointer, owning a gpu_cull_context.
+ */
+gpu_cull_context_ptr create_gpu_cull_context(const vierkant::DevicePtr &device);
+
+/**
+ * @brief   gpu_cull can be used to cull draw-commands provided in gpu-buffers.
+ *
+ * @param   context a provided gpu_cull_context_t
+ * @param   params  a provided gpu_cull_params_t struct
+ * @return  a struct grouping culling-results from previous frame.
+ */
+draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const gpu_cull_params_t &params);
 
 }
