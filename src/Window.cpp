@@ -113,7 +113,7 @@ Window::Window(const create_info_t &create_info) :
 
     int monitor_count = 0;
     GLFWmonitor **monitors = glfwGetMonitors(&monitor_count);
-    uint32_t monitor_index = std::max<int>(create_info.monitor_index, monitor_count - 1);
+    uint32_t monitor_index = std::max(static_cast<int>(create_info.monitor_index), monitor_count - 1);
 
     init_handles(m_window_size.x, m_window_size.y, create_info.title,
                  create_info.fullscreen ? monitors[monitor_index] : nullptr);
@@ -187,7 +187,7 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
 
     // make sure everything is cleaned up
     // prevents: vkCreateSwapChainKHR(): surface has an existing swapchain other than oldSwapchain
-    m_swap_chain = SwapChain();
+    m_swap_chain = {};
 
     // wait for good measure
     vkDeviceWaitIdle(device->handle());
@@ -195,7 +195,7 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
     // create swapchain for this window
     m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync);
 
-    for(auto &pair : window_delegates)
+    for(auto &pair: window_delegates)
     {
         if(pair.second.resize_fn){ pair.second.resize_fn(m_swap_chain.extent().width, m_swap_chain.extent().height); }
     }
@@ -211,7 +211,7 @@ void Window::poll_events()
     {
         m_joysticks = get_joystick_states(m_joysticks);
 
-        for(auto &[name, delegate] : joystick_delegates)
+        for(auto &[name, delegate]: joystick_delegates)
         {
             if(delegate.joystick_cb && (!delegate.enabled || delegate.enabled())){ delegate.joystick_cb(m_joysticks); }
         }
@@ -334,7 +334,7 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     std::vector<VkCommandBuffer> commandbuffers;
 
     // create secondary commandbuffers
-    for(auto &[delegate_id, delegate] : window_delegates)
+    for(auto &[delegate_id, delegate]: window_delegates)
     {
         if(delegate.draw_fn)
         {
@@ -427,7 +427,7 @@ void Window::glfw_close_cb(GLFWwindow *window)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
-    for(auto &pair : self->window_delegates)
+    for(auto &pair: self->window_delegates)
     {
         if(pair.second.close_fn){ pair.second.close_fn(); }
     }
@@ -458,9 +458,9 @@ void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
         uint32_t button_mods, key_mods, all_mods;
         get_modifiers(window, button_mods, key_mods);
         all_mods = button_mods | key_mods;
-        MouseEvent e(button_mods, (int) x, (int) y, all_mods, glm::ivec2(0));
+        MouseEvent e(static_cast<int>(button_mods), (int) x, (int) y, all_mods, glm::ivec2(0));
 
-        for(auto &pair : self->mouse_delegates)
+        for(auto &pair: self->mouse_delegates)
         {
             if(pair.second.enabled && !pair.second.enabled()){ continue; }
             if(pair.second.mouse_move){ pair.second.mouse_move(e); }
@@ -480,17 +480,13 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
         uint32_t initiator = 0;
         switch(button)
         {
-            case GLFW_MOUSE_BUTTON_LEFT:
-                initiator = MouseEvent::BUTTON_LEFT;
+            case GLFW_MOUSE_BUTTON_LEFT:initiator = MouseEvent::BUTTON_LEFT;
                 break;
-            case GLFW_MOUSE_BUTTON_MIDDLE:
-                initiator = MouseEvent::BUTTON_MIDDLE;
+            case GLFW_MOUSE_BUTTON_MIDDLE:initiator = MouseEvent::BUTTON_MIDDLE;
                 break;
-            case GLFW_MOUSE_BUTTON_RIGHT:
-                initiator = MouseEvent::BUTTON_RIGHT;
+            case GLFW_MOUSE_BUTTON_RIGHT:initiator = MouseEvent::BUTTON_RIGHT;
                 break;
-            default:
-                break;
+            default:break;
         }
         uint32_t button_mods, key_mods, all_mods;
         get_modifiers(window, button_mods, key_mods);
@@ -498,9 +494,9 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
 
         double posX, posY;
         glfwGetCursorPos(window, &posX, &posY);
-        MouseEvent e(initiator, (int) posX, (int) posY, all_mods, glm::ivec2(0));
+        MouseEvent e(static_cast<int>(initiator), (int) posX, (int) posY, all_mods, glm::ivec2(0));
 
-        for(auto &pair : self->mouse_delegates)
+        for(auto &pair: self->mouse_delegates)
         {
             if(pair.second.enabled && !pair.second.enabled()){ continue; }
             if(action == GLFW_PRESS && pair.second.mouse_press){ pair.second.mouse_press(e); }
@@ -520,7 +516,7 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
 
     if(!self->mouse_delegates.empty())
     {
-        for(auto &pair : self->mouse_delegates)
+        for(auto &pair: self->mouse_delegates)
         {
             if(pair.second.enabled && !pair.second.enabled()){ continue; }
             glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
@@ -547,23 +543,20 @@ void Window::glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int acti
         get_modifiers(window, buttonMod, keyMod);
         KeyEvent e(key, key, keyMod);
 
-        for(auto &pair : self->key_delegates)
+        for(auto &pair: self->key_delegates)
         {
             if(pair.second.enabled && !pair.second.enabled()){ continue; }
 
             switch(action)
             {
                 case GLFW_REPEAT:
-                case GLFW_PRESS:
-                    if(pair.second.key_press){ pair.second.key_press(e); }
+                case GLFW_PRESS:if(pair.second.key_press){ pair.second.key_press(e); }
                     break;
 
-                case GLFW_RELEASE:
-                    if(pair.second.key_release){ pair.second.key_release(e); }
+                case GLFW_RELEASE:if(pair.second.key_release){ pair.second.key_release(e); }
                     break;
 
-                default:
-                    break;
+                default:break;
             }
         }
     }
@@ -575,7 +568,7 @@ void Window::glfw_char_cb(GLFWwindow *window, unsigned int key)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
-    for(auto &pair : self->key_delegates)
+    for(auto &pair: self->key_delegates)
     {
         if(pair.second.enabled && !pair.second.enabled()){ continue; }
         if(pair.second.character_input){ pair.second.character_input(key); }
@@ -597,9 +590,9 @@ void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **p
         all_mods = button_mods | key_mods;
         double posX, posY;
         glfwGetCursorPos(window, &posX, &posY);
-        MouseEvent e(button_mods, (int) posX, (int) posY, all_mods, glm::ivec2(0));
+        MouseEvent e(static_cast<int>(button_mods), (int) posX, (int) posY, all_mods, glm::ivec2(0));
 
-        for(auto &pair : self->mouse_delegates)
+        for(auto &pair: self->mouse_delegates)
         {
             if(pair.second.enabled && !pair.second.enabled()){ continue; }
             if(pair.second.file_drop){ pair.second.file_drop(e, files); }
@@ -620,14 +613,8 @@ void Window::glfw_monitor_cb(GLFWmonitor *the_monitor, int status)
 
 void Window::glfw_joystick_cb(int joy, int event)
 {
-    if(event == GLFW_CONNECTED)
-    {
-        spdlog::debug("{} connected ({})", glfwGetJoystickName(joy), joy) ;
-    }
-    else if(event == GLFW_DISCONNECTED)
-    {
-        spdlog::debug("disconnected joystick ({})", joy) ;
-    }
+    if(event == GLFW_CONNECTED){ spdlog::debug("{} connected ({})", glfwGetJoystickName(joy), joy); }
+    else if(event == GLFW_DISCONNECTED){ spdlog::debug("disconnected joystick ({})", joy); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

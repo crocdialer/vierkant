@@ -27,7 +27,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
     auto device = panorama_img->device();
 
     VkImageUsageFlags flags = mipmap ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_SAMPLED_BIT;
-    auto cube = vierkant::create_cube_pipeline(device, size.x, format, queue, false, flags);
+    auto cube = vierkant::create_cube_pipeline(device, static_cast<uint32_t>(size.x), format, queue, false, flags);
 
     auto ret_img = cube.color_image;
 
@@ -185,7 +185,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
         cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = frag_module;
 
         // increasing roughness in range [0 .. 1]
-        float roughness = lvl / static_cast<float>(num_mips - 1);
+        float roughness = static_cast<float>(lvl) / static_cast<float>(num_mips - 1);
 
         vierkant::descriptor_t desc_ubo = {};
         desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -285,9 +285,9 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
 //    cuber_render_create_info.renderpass = cube_fb.renderpass();
     cuber_render_create_info.num_frames_in_flight = 1;
     cuber_render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    cuber_render_create_info.viewport.width = cube_fb.extent().width;
-    cuber_render_create_info.viewport.height = cube_fb.extent().height;
-    cuber_render_create_info.viewport.maxDepth = cube_fb.extent().depth;
+    cuber_render_create_info.viewport.width = static_cast<float>(cube_fb.extent().width);
+    cuber_render_create_info.viewport.height = static_cast<float>(cube_fb.extent().height);
+    cuber_render_create_info.viewport.maxDepth = static_cast<float>(cube_fb.extent().depth);
     auto cube_render = vierkant::Renderer(device, cuber_render_create_info);
 
     // create a drawable

@@ -839,7 +839,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         {
             resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
 
-            // draws_out should have bee pre-created by Renderer
+            // draws_out_main should have bee pre-created by Renderer
             frame_asset.indirect_draw_params_post.draws_out = params.draws_out;
             frame_asset.indirect_draw_params_post.mesh_draws = params.mesh_draws;
 
