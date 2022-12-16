@@ -7,7 +7,8 @@
 
 #include <vierkant/Compute.hpp>
 #include <vierkant/GBuffer.hpp>
-#include "vierkant/culling.hpp"
+#include <vierkant/culling.hpp>
+#include <vierkant/gpu_culling.hpp>
 #include "vierkant/PipelineCache.hpp"
 #include "vierkant/DrawContext.hpp"
 #include "vierkant/SceneRenderer.hpp"
@@ -105,20 +106,11 @@ public:
         double total_ms = 0.0;
     };
 
-    struct draw_cull_result_t
-    {
-        uint32_t draw_count = 0;
-        uint32_t num_frustum_culled = 0;
-        uint32_t num_occlusion_culled = 0;
-        uint32_t num_distance_culled = 0;
-        uint32_t num_triangles = 0;
-    };
-
     struct statistics_t
     {
         std::chrono::steady_clock::time_point timestamp;
         timings_t timings;
-        draw_cull_result_t draw_cull_result;
+        vierkant::draw_cull_result_t draw_cull_result;
     };
 
     struct create_info_t
@@ -238,7 +230,7 @@ private:
         bool recycle_commands = false;
 
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
-        Renderer::indirect_draw_bundle_t indirect_draw_params_pre = {}, indirect_draw_params_post = {};
+        Renderer::indirect_draw_bundle_t indirect_draw_params_main = {}, indirect_draw_params_post = {};
         camera_params_t camera_params;
 
         vierkant::Semaphore timeline;
@@ -248,9 +240,9 @@ private:
 
         vierkant::ImagePtr depth_pyramid;
         std::vector<vierkant::Compute> depth_pyramid_computes;
-        vierkant::CommandBuffer depth_pyramid_cmd_buffer, clear_cmd_buffer, cull_cmd_buffer;
-        vierkant::Compute cull_compute;
-        vierkant::BufferPtr cull_ubo, cull_result_buffer, cull_result_buffer_host;
+        vierkant::CommandBuffer depth_pyramid_cmd_buffer, clear_cmd_buffer;
+
+        vierkant::gpu_cull_context_t gpu_cull_context = {};
 
         vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
 
@@ -298,38 +290,6 @@ private:
         float motionblur_gain = 1.f;
     };
 
-    struct alignas(16) draw_cull_data_t
-    {
-        glm::mat4 view = glm::mat4(1);
-
-        float P00, P11, znear, zfar; // symmetric projection parameters
-        glm::vec4 frustum; // data for left/right/top/bottom frustum planes
-
-        float lod_base;
-        float lod_step;
-
-        // depth pyramid size in texels
-        glm::vec2 pyramid_size = glm::vec2(0);
-
-        uint32_t num_draws = 0;
-
-        VkBool32 frustum_cull = false;
-        VkBool32 occlusion_cull = false;
-        VkBool32 distance_cull = false;
-        VkBool32 backface_cull = false;
-        VkBool32 lod_enabled = false;
-
-        // buffer references
-        uint64_t draw_commands_in = 0;
-        uint64_t mesh_draws_in = 0;
-        uint64_t mesh_entries_in = 0;
-        uint64_t draws_out_pre = 0;
-        uint64_t draws_out_post = 0;
-        uint64_t draw_count_pre = 0;
-        uint64_t draw_count_post = 0;
-        uint64_t draw_result = 0;
-    };
-
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     void update_timing(frame_asset_t &frame_asset);
@@ -353,19 +313,6 @@ private:
     // TODO: this is big+fat enough to become its own module
     void create_depth_pyramid(frame_asset_t &frame_asset);
 
-    // TODO: this is big+fat enough to become its own module
-    void cull_draw_commands(frame_asset_t &frame_asset,
-                            const vierkant::CameraPtr &cam,
-                            const vierkant::ImagePtr &depth_pyramid,
-                            uint32_t num_draws,
-                            const vierkant::BufferPtr &draws_in,
-                            const vierkant::BufferPtr &mesh_draws_in,
-                            const vierkant::BufferPtr &mesh_entries_in,
-                            vierkant::BufferPtr &draws_out,
-                            vierkant::BufferPtr &draws_counts_out,
-                            vierkant::BufferPtr &draws_out_post,
-                            vierkant::BufferPtr &draws_counts_out_post);
-
     void resize_indirect_draw_buffers(uint32_t num_draws,
                                       Renderer::indirect_draw_bundle_t &params);
 
@@ -387,7 +334,7 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::Renderer m_g_renderer_pre, m_g_renderer_post;
+    vierkant::Renderer m_g_renderer_main, m_g_renderer_post;
 
     vierkant::Renderer m_light_renderer, m_sky_renderer, m_taa_renderer;
 
@@ -407,9 +354,6 @@ private:
 
     vierkant::Compute::computable_t m_depth_pyramid_computable;
     glm::uvec3 m_depth_pyramid_local_size{0};
-
-    vierkant::Compute::computable_t m_cull_computable;
-    glm::uvec3 m_cull_compute_local_size{0};
 
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;

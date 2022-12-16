@@ -65,20 +65,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         asset.query_pool = vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 
-        draw_cull_result_t result = {};
-
-        asset.cull_ubo = vierkant::Buffer::create(m_device, nullptr, sizeof(draw_cull_data_t),
-                                                  VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-        asset.cull_result_buffer = vierkant::Buffer::create(
-                m_device, &result, sizeof(draw_cull_result_t),
-                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                VMA_MEMORY_USAGE_GPU_ONLY);
-
-        asset.cull_result_buffer_host = vierkant::Buffer::create(
-                m_device, &result, sizeof(draw_cull_result_t),
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+        asset.gpu_cull_context = vierkant::create_gpu_cull_context(device);
 
         asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, 1U << 20U,
                                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -95,7 +82,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.pipeline_cache = m_pipeline_cache;
     render_create_info.indirect_draw = true;
     render_create_info.enable_mesh_shader = true;
-    m_g_renderer_pre = vierkant::Renderer(device, render_create_info);
+    m_g_renderer_main = vierkant::Renderer(device, render_create_info);
     m_g_renderer_post = vierkant::Renderer(device, render_create_info);
 
     // create renderer for lighting-pass
@@ -248,11 +235,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     auto shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::depth_min_reduce_comp,
                                                        &m_depth_pyramid_local_size);
     m_depth_pyramid_computable.pipeline_info.shader_stage = shader_stage;
-
-    // indirect-draw cull compute
-    auto cull_shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::indirect_cull_comp,
-                                                            &m_cull_compute_local_size);
-    m_cull_computable.pipeline_info.shader_stage = cull_shader_stage;
 }
 
 PBRDeferred::~PBRDeferred()
@@ -360,7 +342,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
                                                          const CameraPtr &cam, const std::set<std::string> &tags)
 {
     // reference to current frame-assets
-    auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
+    auto &frame_asset = m_frame_assets[m_g_renderer_main.current_index()];
     frame_asset.timestamp = std::chrono::steady_clock::now();
 
     // retrieve last performance-query, start new
@@ -444,8 +426,8 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     morph_buffer_offset_mapt_t morph_buffer_offsets;
     std::vector<morph_params_t> all_morph_params;
 
-    size_t last_index = (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
-                        m_g_renderer_pre.num_concurrent_frames();
+    size_t last_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
+                        m_g_renderer_main.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
     auto view = frame_asset.cull_result.scene->registry()->view<vierkant::MeshPtr, vierkant::animation_state_t>();
@@ -570,10 +552,10 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 
 vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 {
-    auto &frame_asset = m_frame_assets[m_g_renderer_pre.current_index()];
+    auto &frame_asset = m_frame_assets[m_g_renderer_main.current_index()];
 
-    size_t last_index = (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
-                        m_g_renderer_pre.num_concurrent_frames();
+    size_t last_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
+                        m_g_renderer_main.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
     // jitter state
@@ -681,18 +663,18 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = camera_desc;
         }
         // stage drawables
-        m_g_renderer_pre.stage_drawables(cull_result.drawables);
+        m_g_renderer_main.stage_drawables(cull_result.drawables);
         if(use_gpu_culling){ m_g_renderer_post.stage_drawables(cull_result.drawables); }
     }
 
     // apply current settings for both renderers
-    m_g_renderer_pre.disable_material = m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
-    m_g_renderer_pre.debug_draw_ids = m_g_renderer_post.debug_draw_ids = frame_asset.settings.debug_draw_ids;
-    m_g_renderer_pre.indirect_draw = m_g_renderer_post.indirect_draw = frame_asset.settings.indirect_draw;
-    m_g_renderer_pre.use_mesh_shader = m_g_renderer_post.use_mesh_shader = frame_asset.settings.use_meshlet_pipeline;
+    m_g_renderer_main.disable_material = m_g_renderer_post.disable_material = frame_asset.settings.disable_material;
+    m_g_renderer_main.debug_draw_ids = m_g_renderer_post.debug_draw_ids = frame_asset.settings.debug_draw_ids;
+    m_g_renderer_main.indirect_draw = m_g_renderer_post.indirect_draw = frame_asset.settings.indirect_draw;
+    m_g_renderer_main.use_mesh_shader = m_g_renderer_post.use_mesh_shader = frame_asset.settings.use_meshlet_pipeline;
 
     // draw last visible objects
-    m_g_renderer_pre.draw_indirect_delegate = [this, &frame_asset,
+    m_g_renderer_main.draw_indirect_delegate = [this, &frame_asset,
             use_gpu_culling](Renderer::indirect_draw_bundle_t &params)
     {
         frame_asset.clear_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -702,17 +684,17 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         vkCmdWriteTimestamp2(frame_asset.clear_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                              frame_asset.query_pool.get(), 0);
 
-        resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_pre);
-        frame_asset.indirect_draw_params_pre.draws_out = params.draws_out;
-        frame_asset.indirect_draw_params_pre.mesh_draws = params.mesh_draws;
-        frame_asset.indirect_draw_params_pre.mesh_entries = params.mesh_entries;
+        resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_main);
+        frame_asset.indirect_draw_params_main.draws_out = params.draws_out;
+        frame_asset.indirect_draw_params_main.mesh_draws = params.mesh_draws;
+        frame_asset.indirect_draw_params_main.mesh_entries = params.mesh_entries;
 
         std::vector<VkBufferMemoryBarrier2> barriers;
 
         if(params.num_draws && !frame_asset.recycle_commands)
         {
-            auto drawbuffer = use_gpu_culling ? frame_asset.indirect_draw_params_pre.draws_in
-                                              : frame_asset.indirect_draw_params_pre.draws_out;
+            auto drawbuffer = use_gpu_culling ? frame_asset.indirect_draw_params_main.draws_in
+                                              : frame_asset.indirect_draw_params_main.draws_out;
             params.draws_in->copy_to(drawbuffer, frame_asset.clear_cmd_buffer.handle());
 
             frame_asset.staging_buffer->set_data(nullptr, params.mesh_draws->num_bytes());
@@ -731,11 +713,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             if(use_gpu_culling && !params.draws_counts_out)
             {
-                params.draws_counts_out = frame_asset.indirect_draw_params_pre.draws_counts_out;
+                params.draws_counts_out = frame_asset.indirect_draw_params_main.draws_counts_out;
                 vkCmdFillBuffer(frame_asset.clear_cmd_buffer.handle(),
-                                frame_asset.indirect_draw_params_pre.draws_counts_out->handle(), 0, VK_WHOLE_SIZE, 0);
+                                frame_asset.indirect_draw_params_main.draws_counts_out->handle(), 0, VK_WHOLE_SIZE, 0);
 
-                barrier.buffer = frame_asset.indirect_draw_params_pre.draws_counts_out->handle();
+                barrier.buffer = frame_asset.indirect_draw_params_main.draws_counts_out->handle();
                 barriers.push_back(barrier);
             }
         }
@@ -816,9 +798,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     };
 
     // pre-render will repeat all previous draw-calls
-    frame_asset.timings_map[G_BUFFER_LAST_VISIBLE] = m_g_renderer_pre.last_frame_ms();
+    frame_asset.timings_map[G_BUFFER_LAST_VISIBLE] = m_g_renderer_main.last_frame_ms();
 
-    auto cmd_buffer_pre = m_g_renderer_pre.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
+    auto cmd_buffer_pre = m_g_renderer_main.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
     g_buffer_semaphore_submit_info_pre.signal_value =
@@ -834,26 +816,37 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         create_depth_pyramid(frame_asset);
 
         // post-render will perform actual culling
-        m_g_renderer_post.draw_indirect_delegate = [this, cam = cull_result.camera,
-                &frame_asset](Renderer::indirect_draw_bundle_t &params)
+        m_g_renderer_post.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_bundle_t &params)
         {
             resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
-
-            // draws_out_main should have bee pre-created by Renderer
-            frame_asset.indirect_draw_params_post.draws_out = params.draws_out;
-            frame_asset.indirect_draw_params_post.mesh_draws = params.mesh_draws;
-
-            cull_draw_commands(frame_asset, cam, frame_asset.depth_pyramid,
-                               params.num_draws,
-                               frame_asset.indirect_draw_params_pre.draws_in,
-                               frame_asset.indirect_draw_params_pre.mesh_draws,
-                               frame_asset.indirect_draw_params_pre.mesh_entries,
-                               frame_asset.indirect_draw_params_pre.draws_out,
-                               frame_asset.indirect_draw_params_pre.draws_counts_out,
-                               frame_asset.indirect_draw_params_post.draws_out,
-                               frame_asset.indirect_draw_params_post.draws_counts_out);
-
             params.draws_counts_out = frame_asset.indirect_draw_params_post.draws_counts_out;
+
+            // populate gpu-culling params
+            vierkant::gpu_cull_params_t gpu_cull_params = {};
+            gpu_cull_params.num_draws = params.num_draws;
+            gpu_cull_params.camera = frame_asset.cull_result.camera;
+            gpu_cull_params.queue = m_queue;
+            gpu_cull_params.query_pool = frame_asset.query_pool;
+            gpu_cull_params.query_index = SemaphoreValue::CULLING;
+            gpu_cull_params.frustum_cull = frame_asset.settings.frustum_culling;
+            gpu_cull_params.occlusion_cull = frame_asset.settings.occlusion_culling;
+            gpu_cull_params.lod_enabled = frame_asset.settings.enable_lod;
+            gpu_cull_params.depth_pyramid = frame_asset.depth_pyramid;
+            gpu_cull_params.draws_in = frame_asset.indirect_draw_params_main.draws_in;
+            gpu_cull_params.mesh_draws_in = frame_asset.indirect_draw_params_main.mesh_draws;
+            gpu_cull_params.mesh_entries_in = frame_asset.indirect_draw_params_main.mesh_entries;
+
+            gpu_cull_params.draws_out_main = frame_asset.indirect_draw_params_main.draws_out;
+            gpu_cull_params.draws_counts_out_main = frame_asset.indirect_draw_params_main.draws_counts_out;
+            gpu_cull_params.draws_out_post = params.draws_out;
+            gpu_cull_params.draws_counts_out_post = frame_asset.indirect_draw_params_post.draws_counts_out;
+
+            gpu_cull_params.semaphore_submit_info.semaphore = frame_asset.timeline.handle();
+            gpu_cull_params.semaphore_submit_info.wait_value = SemaphoreValue::DEPTH_PYRAMID;
+            gpu_cull_params.semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+            gpu_cull_params.semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
+
+            frame_asset.stats.draw_cull_result = vierkant::gpu_cull(frame_asset.gpu_cull_context, gpu_cull_params);
         };
 
         vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
@@ -877,8 +870,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // |- IBL, environment lighting-pass + emission
     // |- TODO: draw light volumes with fancy stencil settings
 
-    size_t index = (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
-                   m_g_renderer_pre.num_concurrent_frames();
+    size_t index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
+                   m_g_renderer_main.num_concurrent_frames();
     auto &frame_asset = m_frame_assets[index];
 
     frame_asset.timings_map[SemaphoreValue::LIGHTING] =
@@ -944,10 +937,10 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &cam, const vierkant::ImagePtr &color,
                                const vierkant::ImagePtr &depth)
 {
-    size_t frame_index = (m_g_renderer_pre.current_index() + m_g_renderer_pre.num_concurrent_frames() - 1) %
-                         m_g_renderer_pre.num_concurrent_frames();
+    size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
+                         m_g_renderer_main.num_concurrent_frames();
     size_t last_frame_index =
-            (frame_index + m_g_renderer_pre.num_concurrent_frames() - 1) % m_g_renderer_pre.num_concurrent_frames();
+            (frame_index + m_g_renderer_main.num_concurrent_frames() - 1) % m_g_renderer_main.num_concurrent_frames();
 
     auto &frame_asset = m_frame_assets[frame_index];
 
@@ -1079,8 +1072,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
 const vierkant::Framebuffer &PBRDeferred::g_buffer() const
 {
-    size_t last_index = (m_g_renderer_pre.num_concurrent_frames() + m_g_renderer_pre.current_index() - 1) %
-                        m_g_renderer_pre.num_concurrent_frames();
+    size_t last_index = (m_g_renderer_main.num_concurrent_frames() + m_g_renderer_main.current_index() - 1) %
+                        m_g_renderer_main.num_concurrent_frames();
     return m_frame_assets[last_index].g_buffer_post;
 }
 
@@ -1109,7 +1102,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     viewport.height = static_cast<float>(size.height);
     viewport.maxDepth = 1;
 
-    m_g_renderer_pre.viewport = viewport;
+    m_g_renderer_main.viewport = viewport;
     m_g_renderer_post.viewport = viewport;
     m_light_renderer.viewport = viewport;
     m_sky_renderer.viewport = viewport;
@@ -1331,156 +1324,6 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::ind
                 VMA_MEMORY_USAGE_GPU_ONLY);
     }
     params.num_draws = num_draws;
-}
-
-void PBRDeferred::cull_draw_commands(frame_asset_t &frame_asset,
-                                     const vierkant::CameraPtr &cam,
-                                     const vierkant::ImagePtr &depth_pyramid,
-                                     uint32_t num_draws,
-                                     const vierkant::BufferPtr &draws_in,
-                                     const vierkant::BufferPtr &mesh_draws_in,
-                                     const vierkant::BufferPtr &mesh_entries_in,
-                                     vierkant::BufferPtr &draws_out,
-                                     vierkant::BufferPtr &draws_counts_out,
-                                     vierkant::BufferPtr &draws_out_post,
-                                     vierkant::BufferPtr &draws_counts_out_post)
-{
-    draw_cull_data_t draw_cull_data = {};
-    draw_cull_data.num_draws = num_draws;
-    draw_cull_data.pyramid_size = {depth_pyramid->width(), depth_pyramid->height()};
-    draw_cull_data.occlusion_cull = frame_asset.settings.occlusion_culling;
-    draw_cull_data.distance_cull = false;
-    draw_cull_data.frustum_cull = frame_asset.settings.frustum_culling;
-    draw_cull_data.lod_enabled = frame_asset.settings.enable_lod;
-
-    // buffer references
-    draw_cull_data.draw_commands_in = draws_in->device_address();
-    draw_cull_data.mesh_draws_in = mesh_draws_in->device_address();
-    draw_cull_data.mesh_entries_in = mesh_entries_in->device_address();
-    draw_cull_data.draws_out_pre = draws_out->device_address();
-    draw_cull_data.draws_out_post = draws_out_post->device_address();
-    draw_cull_data.draw_count_pre = draws_counts_out->device_address();
-    draw_cull_data.draw_count_post = draws_counts_out_post->device_address();
-    draw_cull_data.draw_result = frame_asset.cull_result_buffer->device_address();
-
-    auto projection = cam->projection_matrix();
-    draw_cull_data.P00 = projection[0][0];
-    draw_cull_data.P11 = projection[1][1];
-    draw_cull_data.znear = cam->near();
-    draw_cull_data.zfar = cam->far();
-    draw_cull_data.view = cam->view_matrix();
-
-    glm::mat4 projectionT = transpose(projection);
-    glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
-    frustumX /= glm::length(frustumX.xyz());
-    glm::vec4 frustumY = projectionT[3] + projectionT[1];// y + w < 0
-    frustumY /= glm::length(frustumY.xyz());
-
-    draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
-    draw_cull_data.lod_base = 15.f;
-    draw_cull_data.lod_step = 1.5f;
-
-    frame_asset.cull_ubo->set_data(&draw_cull_data, sizeof(draw_cull_data));
-
-    // read results from host-buffer
-    frame_asset.stats.draw_cull_result = *reinterpret_cast<draw_cull_result_t *>(frame_asset.cull_result_buffer_host->map());
-
-    vierkant::Compute::computable_t computable = m_cull_computable;
-
-    descriptor_t &depth_pyramid_desc = computable.descriptors[0];
-    depth_pyramid_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    depth_pyramid_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    depth_pyramid_desc.images = {depth_pyramid};
-
-    descriptor_t &draw_cull_data_desc = computable.descriptors[1];
-    draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    draw_cull_data_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-    draw_cull_data_desc.buffers = {frame_asset.cull_ubo};
-
-    // create / start a new command-buffer
-    frame_asset.cull_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    frame_asset.cull_cmd_buffer.begin();
-
-    // clear gpu-result-buffer with zeros
-    vkCmdFillBuffer(frame_asset.cull_cmd_buffer.handle(), frame_asset.cull_result_buffer->handle(), 0, VK_WHOLE_SIZE,
-                    0);
-
-    // clear count-buffers with zeros
-    vkCmdFillBuffer(frame_asset.cull_cmd_buffer.handle(), draws_counts_out->handle(), 0, VK_WHOLE_SIZE, 0);
-    vkCmdFillBuffer(frame_asset.cull_cmd_buffer.handle(), draws_counts_out_post->handle(), 0, VK_WHOLE_SIZE, 0);
-
-    if(!frame_asset.cull_compute)
-    {
-        vierkant::Compute::create_info_t compute_info = {};
-        compute_info.pipeline_cache = m_pipeline_cache;
-        compute_info.command_pool = m_command_pool;
-        frame_asset.cull_compute = vierkant::Compute(m_device, compute_info);
-    }
-
-    computable.extent = {vierkant::group_count(num_draws, m_cull_compute_local_size.x), 1, 1};
-
-    VkBufferMemoryBarrier2 barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.srcAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-    barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    barrier.buffer = draws_out->handle();
-    barrier.offset = 0;
-    barrier.size = VK_WHOLE_SIZE;
-
-    std::vector<VkBufferMemoryBarrier2> draw_buffer_barriers(4, barrier);
-    draw_buffer_barriers[1].buffer = draws_counts_out->handle();
-    draw_buffer_barriers[2].buffer = draws_counts_out_post->handle();
-    draw_buffer_barriers[3].buffer = draws_out_post->handle();
-
-    VkDependencyInfo dependency_info = {};
-    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency_info.bufferMemoryBarrierCount = draw_buffer_barriers.size();
-    dependency_info.pBufferMemoryBarriers = draw_buffer_barriers.data();
-
-    // barrier before writing to indirect-draw-buffer
-    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
-
-    // dispatch cull-compute
-    frame_asset.cull_compute.dispatch({computable}, frame_asset.cull_cmd_buffer.handle());
-
-    // swap access
-    for(auto &b: draw_buffer_barriers)
-    {
-        std::swap(b.srcStageMask, b.dstStageMask);
-        std::swap(b.srcAccessMask, b.dstAccessMask);
-    }
-
-    // memory barrier for draw-indirect buffer
-    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
-
-    // memory barrier before copying cull-result buffer
-    barrier.buffer = frame_asset.cull_result_buffer->handle();
-    barrier.size = VK_WHOLE_SIZE;
-    barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-    barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-
-    dependency_info.bufferMemoryBarrierCount = 1;
-    dependency_info.pBufferMemoryBarriers = &barrier;
-    vkCmdPipelineBarrier2(frame_asset.cull_cmd_buffer.handle(), &dependency_info);
-
-    // copy result into host-visible buffer
-    frame_asset.cull_result_buffer->copy_to(frame_asset.cull_result_buffer_host, frame_asset.cull_cmd_buffer.handle());
-
-    // culling done timestamp
-    vkCmdWriteTimestamp2(frame_asset.cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                         frame_asset.query_pool.get(), SemaphoreValue::CULLING);
-
-    vierkant::semaphore_submit_info_t culling_semaphore_submit_info = {};
-    culling_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
-    culling_semaphore_submit_info.wait_value = SemaphoreValue::DEPTH_PYRAMID;
-    culling_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    culling_semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
-    frame_asset.cull_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {culling_semaphore_submit_info});
 }
 
 void PBRDeferred::update_timing(frame_asset_t &frame_asset)
