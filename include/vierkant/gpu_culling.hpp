@@ -13,6 +13,7 @@
 namespace vierkant
 {
 
+//! opaque handle owning a gpu_cull_context_t
 using gpu_cull_context_ptr = std::unique_ptr<struct gpu_cull_context_t, std::function<void(
         struct gpu_cull_context_t *)>>;
 
@@ -55,19 +56,40 @@ struct draw_cull_result_t
     uint32_t num_triangles = 0;
 };
 
+struct create_depth_pyramid_params_t
+{
+    vierkant::ImagePtr depth_map;
+    VkQueue queue = VK_NULL_HANDLE;
+    vierkant::semaphore_submit_info_t semaphore_submit_info = {};
+    vierkant::QueryPoolPtr query_pool;
+    uint32_t query_index_start = 0, query_index_end = 0;
+};
+
 /**
  * @brief   create_gpu_cull_context is a factory to create an opaque gpu_cull_context_ptr.
  *
- * @param   device  a provided vierkant::Device
+ * @param   device          a provided vierkant::Device.
+ * @param   pipeline_cache  an optional pipeline_cache.
  * @return  an opaque pointer, owning a gpu_cull_context.
  */
-gpu_cull_context_ptr create_gpu_cull_context(const vierkant::DevicePtr &device);
+gpu_cull_context_ptr create_gpu_cull_context(const vierkant::DevicePtr &device,
+                                             const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
+
+/**
+ * @brief   create_depth_pyramid can be used to create a 'hierarchical z-buffer (hzb)' or 'depth-pyramid'.
+ *
+ * @param   context     a provided vierkant::Device.
+ * @param   params      a provided struct with parameters
+ * @return  a vierkant::ImagePtr containing the created depth-pyramid
+ */
+vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &context,
+                                        const create_depth_pyramid_params_t &params);
 
 /**
  * @brief   gpu_cull can be used to cull draw-commands provided in gpu-buffers.
  *
  * @param   context a provided gpu_cull_context_t
- * @param   params  a provided gpu_cull_params_t struct
+ * @param   params  a provided struct with parameters
  * @return  a struct grouping culling-results from previous frame.
  */
 draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const gpu_cull_params_t &params);

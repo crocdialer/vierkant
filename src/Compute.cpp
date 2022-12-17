@@ -143,7 +143,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
         }
     }
 
-    // keep-alive copy of computable
+    // keep-alive copy of cull_computable
     compute_asset.computables = std::move(computables);
 
     // submit only if we created the command buffer

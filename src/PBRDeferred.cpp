@@ -14,21 +14,6 @@
 namespace vierkant
 {
 
-inline float halton(uint32_t index, uint32_t base)
-{
-    float f = 1;
-    float r = 0;
-    uint32_t current = index;
-
-    while(current)
-    {
-        f = f / static_cast<float>(base);
-        r = r + f * static_cast<float>(current % base);
-        current /= base;
-    }
-    return r;
-}
-
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) : m_device(device)
 {
     m_logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
@@ -65,7 +50,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         asset.query_pool = vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 
-        asset.gpu_cull_context = vierkant::create_gpu_cull_context(device);
+        asset.gpu_cull_context = vierkant::create_gpu_cull_context(device, m_pipeline_cache);
 
         asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, 1U << 20U,
                                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -228,13 +213,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     for(uint32_t i = 0; i < m_sample_offsets.size(); ++i)
     {
-        m_sample_offsets[i] = glm::vec2(halton(i + 1, 2), halton(i + 1, 3));
+        m_sample_offsets[i] = glm::vec2(crocore::halton(i + 1, 2), crocore::halton(i + 1, 3));
     }
-
-    // depth pyramid compute
-    auto shader_stage = vierkant::create_shader_module(m_device, vierkant::shaders::pbr::depth_min_reduce_comp,
-                                                       &m_depth_pyramid_local_size);
-    m_depth_pyramid_computable.pipeline_info.shader_stage = shader_stage;
 }
 
 PBRDeferred::~PBRDeferred()
@@ -813,7 +793,17 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     if(use_gpu_culling)
     {
         // generate depth-pyramid
-        create_depth_pyramid(frame_asset);
+        vierkant::create_depth_pyramid_params_t depth_pyramid_params = {};
+        depth_pyramid_params.depth_map = frame_asset.depth_map;
+        depth_pyramid_params.queue = m_queue;
+        depth_pyramid_params.query_pool = frame_asset.query_pool;
+        depth_pyramid_params.query_index_start = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
+        depth_pyramid_params.query_index_end = SemaphoreValue::DEPTH_PYRAMID;
+        depth_pyramid_params.semaphore_submit_info.semaphore = frame_asset.timeline.handle();
+        depth_pyramid_params.semaphore_submit_info.wait_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
+        depth_pyramid_params.semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+        depth_pyramid_params.semaphore_submit_info.signal_value = SemaphoreValue::DEPTH_PYRAMID;
+        frame_asset.depth_pyramid = create_depth_pyramid(frame_asset.gpu_cull_context, depth_pyramid_params);
 
         // post-render will perform actual culling
         m_g_renderer_post.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_bundle_t &params)
@@ -1177,127 +1167,6 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     bloom_info.size.height = std::max(1U, bloom_info.size.height / 2);
     bloom_info.num_blur_iterations = 3;
     asset.bloom = Bloom::create(m_device, bloom_info);
-}
-
-void PBRDeferred::create_depth_pyramid(frame_asset_t &frame_asset)
-{
-    auto extent_pyramid_lvl0 = frame_asset.depth_map->extent();
-    extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
-    extent_pyramid_lvl0.height = crocore::next_pow_2(1 + extent_pyramid_lvl0.height / 2);
-
-    // create/resize depth pyramid
-    if(!frame_asset.depth_pyramid || frame_asset.depth_pyramid->extent() != extent_pyramid_lvl0)
-    {
-        vierkant::Image::Format depth_pyramid_fmt = {};
-        depth_pyramid_fmt.extent = extent_pyramid_lvl0;
-        depth_pyramid_fmt.format = VK_FORMAT_R32_SFLOAT;
-        depth_pyramid_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        depth_pyramid_fmt.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        depth_pyramid_fmt.use_mipmap = true;
-        depth_pyramid_fmt.autogenerate_mipmaps = false;
-        depth_pyramid_fmt.reduction_mode = VK_SAMPLER_REDUCTION_MODE_MIN;
-        depth_pyramid_fmt.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
-        frame_asset.depth_pyramid = vierkant::Image::create(m_device, depth_pyramid_fmt);
-    }
-
-    std::vector<VkImageView> pyramid_views = {frame_asset.depth_map->image_view()};
-    std::vector<vierkant::ImagePtr> pyramid_images = {frame_asset.depth_map};
-    pyramid_images.resize(1 + frame_asset.depth_pyramid->num_mip_levels(), frame_asset.depth_pyramid);
-
-    pyramid_views.insert(pyramid_views.end(), frame_asset.depth_pyramid->mip_image_views().begin(),
-                         frame_asset.depth_pyramid->mip_image_views().end());
-
-    vierkant::Compute::computable_t computable = m_depth_pyramid_computable;
-
-    descriptor_t &input_sampler_desc = computable.descriptors[0];
-    input_sampler_desc.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    input_sampler_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    descriptor_t &output_image_desc = computable.descriptors[1];
-    output_image_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    output_image_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    descriptor_t &ubo_desc = computable.descriptors[2];
-    ubo_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    ubo_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    vierkant::Compute::create_info_t compute_info = {};
-    compute_info.pipeline_cache = m_pipeline_cache;
-    compute_info.command_pool = m_command_pool;
-
-    for(uint32_t i = frame_asset.depth_pyramid_computes.size(); i < frame_asset.depth_pyramid->num_mip_levels(); ++i)
-    {
-        frame_asset.depth_pyramid_computes.emplace_back(m_device, compute_info);
-    }
-
-    VkImageMemoryBarrier2 barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    barrier.image = frame_asset.depth_pyramid->image();
-    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.oldLayout = barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-    barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-
-    VkDependencyInfo dependency_info = {};
-    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-    dependency_info.imageMemoryBarrierCount = 1;
-    dependency_info.pImageMemoryBarriers = &barrier;
-
-    frame_asset.depth_pyramid_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    frame_asset.depth_pyramid_cmd_buffer.begin();
-
-    // pre depth-pyramid timestamp
-    vkCmdWriteTimestamp2(frame_asset.depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                         frame_asset.query_pool.get(), SemaphoreValue::G_BUFFER_LAST_VISIBLE);
-
-    // transition all mips to general layout for writing
-    frame_asset.depth_pyramid->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
-                                                 frame_asset.depth_pyramid_cmd_buffer.handle());
-
-    for(uint32_t lvl = 1; lvl < pyramid_views.size(); ++lvl)
-    {
-        auto width = std::max(1u, extent_pyramid_lvl0.width >> (lvl - 1));
-        auto height = std::max(1u, extent_pyramid_lvl0.height >> (lvl - 1));
-
-        computable.extent = {vierkant::group_count(width, m_depth_pyramid_local_size.x),
-                             vierkant::group_count(height, m_depth_pyramid_local_size.y), 1};
-
-        computable.descriptors[0].images = {pyramid_images[lvl - 1]};
-        computable.descriptors[0].image_views = {pyramid_views[lvl - 1]};
-
-        computable.descriptors[1].images = {pyramid_images[lvl]};
-        computable.descriptors[1].image_views = {pyramid_views[lvl]};
-
-        glm::vec2 image_size = {width, height};
-        auto ubo_buffer = vierkant::Buffer::create(m_device, &image_size, sizeof(glm::vec2),
-                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-        computable.descriptors[2].buffers = {ubo_buffer};
-
-        // dispatch compute shader
-        frame_asset.depth_pyramid_computes[lvl - 1].dispatch({computable},
-                                                             frame_asset.depth_pyramid_cmd_buffer.handle());
-
-        barrier.subresourceRange.baseMipLevel = lvl - 1;
-        vkCmdPipelineBarrier2(frame_asset.depth_pyramid_cmd_buffer.handle(), &dependency_info);
-    }
-
-    // depth-pyramid timestamp
-    vkCmdWriteTimestamp2(frame_asset.depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                         frame_asset.query_pool.get(), SemaphoreValue::DEPTH_PYRAMID);
-
-    vierkant::semaphore_submit_info_t pyramid_semaphore_submit_info = {};
-    pyramid_semaphore_submit_info.semaphore = frame_asset.timeline.handle();
-    pyramid_semaphore_submit_info.wait_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
-    pyramid_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    pyramid_semaphore_submit_info.signal_value = SemaphoreValue::DEPTH_PYRAMID;
-    frame_asset.depth_pyramid_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {pyramid_semaphore_submit_info});
 }
 
 void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params)

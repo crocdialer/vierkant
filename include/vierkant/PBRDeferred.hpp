@@ -236,11 +236,8 @@ private:
         vierkant::Semaphore timeline;
         vierkant::Framebuffer g_buffer_pre, g_buffer_post;
 
-        vierkant::ImagePtr depth_map;
-
-        vierkant::ImagePtr depth_pyramid;
-        std::vector<vierkant::Compute> depth_pyramid_computes;
-        vierkant::CommandBuffer depth_pyramid_cmd_buffer, clear_cmd_buffer;
+        vierkant::ImagePtr depth_map, depth_pyramid;
+        vierkant::CommandBuffer clear_cmd_buffer;
 
         vierkant::gpu_cull_context_ptr gpu_cull_context;
 
@@ -310,9 +307,6 @@ private:
                       const vierkant::ImagePtr &color,
                       const vierkant::ImagePtr &depth);
 
-    // TODO: this is big+fat enough to become its own module
-    void create_depth_pyramid(frame_asset_t &frame_asset);
-
     void resize_indirect_draw_buffers(uint32_t num_draws,
                                       Renderer::indirect_draw_bundle_t &params);
 
@@ -352,8 +346,8 @@ private:
 
     vierkant::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom, m_drawable_taa;
 
-    vierkant::Compute::computable_t m_depth_pyramid_computable;
-    glm::uvec3 m_depth_pyramid_local_size{0};
+//    vierkant::Compute::computable_t m_depth_pyramid_computable;
+//    glm::uvec3 m_depth_pyramid_local_size{0};
 
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;
