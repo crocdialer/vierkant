@@ -15,6 +15,8 @@ class CameraControl
 {
 public:
 
+    virtual ~CameraControl() = default;
+
     using transform_cb_t = std::function<void(const glm::mat4 &)>;
 
     bool enabled = true;
@@ -74,8 +76,6 @@ private:
     [[nodiscard]] inline glm::quat rotation() const{ return {glm::vec3(spherical_coords.yx(), 0.f)}; }
 
     glm::ivec2 m_last_pos{};
-
-    bool m_mouse_down = false;
 
     std::vector<Joystick> m_last_joystick_states;
 };

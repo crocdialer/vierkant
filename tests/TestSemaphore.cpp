@@ -80,7 +80,7 @@ BOOST_AUTO_TEST_CASE(WaitBeforeSignal)
     vierkant::semaphore_submit_info_t waitBeforeSignalInfo = {};
     waitBeforeSignalInfo.semaphore = semaphore.handle();
     waitBeforeSignalInfo.wait_value = signal1;
-    waitBeforeSignalInfo.wait_stage = VK_PIPELINE_STAGE_2_NONE_KHR;
+    waitBeforeSignalInfo.wait_stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
     waitBeforeSignalInfo.signal_value = signal2;
 
     // signal value on gpu, same semaphore

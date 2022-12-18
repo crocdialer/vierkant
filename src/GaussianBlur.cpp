@@ -38,8 +38,8 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     vierkant::Renderer::create_info_t post_render_info = {};
     post_render_info.num_frames_in_flight = 2 * create_info.num_iterations;
     post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    post_render_info.viewport.width = create_info.size.width;
-    post_render_info.viewport.height = create_info.size.height;
+    post_render_info.viewport.width = static_cast<float>(create_info.size.width);
+    post_render_info.viewport.height = static_cast<float>(create_info.size.height);
     post_render_info.viewport.maxDepth = 1;
     post_render_info.pipeline_cache = create_info.pipeline_cache;
     post_render_info.command_pool = create_info.command_pool;
