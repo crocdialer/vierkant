@@ -88,7 +88,7 @@ public:
         uint32_t node_index = 0;
         uint32_t material_index = 0;
         std::vector<GeometryPtr> morph_targets;
-        std::vector<float> morph_weights;
+        std::vector<double> morph_weights;
     };
 
     struct lod_t
@@ -115,7 +115,7 @@ public:
         uint32_t material_index = 0;
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         uint32_t morph_vertex_offset = 0;
-        std::vector<float> morph_weights;
+        std::vector<double> morph_weights;
 
         bool enabled = true;
     };

@@ -71,6 +71,6 @@ void build_node_matrices_bfs(const NodeConstPtr &root,
 void build_morph_weights_bfs(const NodeConstPtr &root,
                              const node_animation_t &animation,
                              double animation_time,
-                             std::vector<std::vector<float>> &morph_weights);
+                             std::vector<std::vector<double>> &morph_weights);
 
 }// namespace vierkant::bones

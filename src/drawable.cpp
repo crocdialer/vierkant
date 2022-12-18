@@ -26,7 +26,7 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
     std::vector<glm::mat4> node_matrices;
 
     // morph-target weights
-    std::vector<std::vector<float>> node_morph_weights;
+    std::vector<std::vector<double>> node_morph_weights;
 
     if(!params.mesh->root_bone && params.animation_index < params.mesh->node_animations.size())
     {
@@ -54,7 +54,8 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         drawable.entry_index = i;
 
         // combine mesh- with entry-transform
-        drawable.matrices.modelview = params.model_view * (node_matrices.empty() ? entry.transform : node_matrices[entry.node_index]);
+        drawable.matrices.modelview =
+                params.model_view * (node_matrices.empty() ? entry.transform : node_matrices[entry.node_index]);
         drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
         drawable.matrices.texture = material->texture_transform;
 
@@ -72,7 +73,8 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         drawable.vertex_offset = entry.vertex_offset;
         drawable.num_vertices = entry.num_vertices;
         drawable.morph_vertex_offset = entry.morph_vertex_offset;
-        drawable.morph_weights =  (node_morph_weights.empty() ? entry.morph_weights : node_morph_weights[entry.node_index]);
+        drawable.morph_weights = (node_morph_weights.empty() ? entry.morph_weights
+                                                             : node_morph_weights[entry.node_index]);
         drawable.base_meshlet = lod_0.base_meshlet;
         drawable.num_meshlets = lod_0.num_meshlets;
 

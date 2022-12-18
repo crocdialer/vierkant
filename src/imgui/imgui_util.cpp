@@ -435,7 +435,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
         ImGui::PopID();
 
         ImGui::SameLine();
-        const ImVec4 gray(.6, .6, .6, 1.);
+        const ImVec4 gray(.6f, .6f, .6f, 1.f);
         if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
         if(ImGui::TreeNode("dof"))
@@ -473,7 +473,7 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     if(ImGui::Checkbox("", &is_enabled)){ obj->enabled = is_enabled; }
     ImGui::SameLine();
 
-    const ImVec4 gray(.6, .6, .6, 1.);
+    const ImVec4 gray(.6f, .6f, .6f, 1.f);
     if(!is_enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
     if(obj->children.empty())
@@ -771,7 +771,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
             ImGui::Checkbox("", &e.enabled);
             ImGui::SameLine();
 
-            const ImVec4 gray(.6, .6, .6, 1.);
+            const ImVec4 gray(.6f, .6f, .6f, 1.f);
             if(!e.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
             auto entry_name = e.name.empty() ? ("entry " + std::to_string(index)) : e.name;

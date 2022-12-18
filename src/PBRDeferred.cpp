@@ -436,7 +436,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         else if(mesh->morph_buffer)
         {
             // morph-target weights
-            std::vector<std::vector<float>> node_morph_weights;
+            std::vector<std::vector<double>> node_morph_weights;
             vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, animation_state.current_time,
                                                      node_morph_weights);
 

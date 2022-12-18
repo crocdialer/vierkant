@@ -39,7 +39,7 @@ struct animation_keys_t
     std::map<float, animation_value_t<glm::vec3>> positions;
     std::map<float, animation_value_t<glm::quat>> rotations;
     std::map<float, animation_value_t<glm::vec3>> scales;
-    std::map<float, animation_value_t<std::vector<float>>> morph_weights;
+    std::map<float, animation_value_t<std::vector<double>>> morph_weights;
 };
 
 /**
@@ -92,7 +92,7 @@ void create_animation_transform(const animation_keys_t &keys,
                                 InterpolationMode interpolation_mode,
                                 glm::mat4 &out_transform);
 
-std::vector<float> create_morph_weights(const animation_keys_t &keys,
-                                        float time,
-                                        InterpolationMode interpolation_mode);
+std::vector<double> create_morph_weights(const animation_keys_t &keys,
+                                         float time,
+                                         InterpolationMode interpolation_mode);
 }

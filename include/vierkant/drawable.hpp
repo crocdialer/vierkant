@@ -88,7 +88,7 @@ struct drawable_t
     uint32_t num_vertices = 0;
 
     uint32_t morph_vertex_offset = 0;
-    std::vector<float> morph_weights;
+    std::vector<double> morph_weights;
 
     uint32_t base_meshlet = 0;
     uint32_t num_meshlets = 0;

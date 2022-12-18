@@ -8,7 +8,7 @@
 namespace vierkant::nodes
 {
 
-static inline void bfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr&)> &fn)
+static inline void bfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr &)> &fn)
 {
     std::deque<vierkant::nodes::NodeConstPtr> node_queue;
     node_queue.emplace_back(root);
@@ -55,7 +55,7 @@ NodeConstPtr node_by_name(NodeConstPtr root, const std::string &name)
 void build_morph_weights_bfs(const NodeConstPtr &root,
                              const node_animation_t &animation,
                              double animation_time,
-                             std::vector<std::vector<float>> &morph_weights)
+                             std::vector<std::vector<double>> &morph_weights)
 {
     if(!root){ return; }
     morph_weights.resize(num_nodes_in_hierarchy(root));
@@ -90,7 +90,7 @@ void build_node_matrices_bfs(const NodeConstPtr &root,
 
     while(!node_queue.empty())
     {
-        auto[node, global_joint_transform] = node_queue.front();
+        auto [node, global_joint_transform] = node_queue.front();
         node_queue.pop_front();
 
         glm::mat4 node_transform = node->transform;
@@ -143,7 +143,10 @@ void build_node_matrices_helper(const NodeConstPtr &node,
     matrices[node->index] = global_joint_transform * node->offset;
 
     // recursion through all children
-    for(auto &b: node->children){ build_node_matrices_helper(b, animation, animation_time, matrices, global_joint_transform); }
+    for(auto &b: node->children)
+    {
+        build_node_matrices_helper(b, animation, animation_time, matrices, global_joint_transform);
+    }
 }
 
 }

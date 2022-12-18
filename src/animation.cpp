@@ -69,11 +69,9 @@ void create_animation_transform(const animation_keys_t &keys,
 
             switch(interpolation_mode)
             {
-                case InterpolationMode::Step:
-                    frac = 0.f;
+                case InterpolationMode::Step:frac = 0.f;
                     [[fallthrough]];
-                case InterpolationMode::Linear:
-                    pos = glm::mix(it_lhs->second.value, it_rhs->second.value, frac);
+                case InterpolationMode::Linear:pos = glm::mix(it_lhs->second.value, it_rhs->second.value, frac);
                     break;
                 case InterpolationMode::CubicSpline:
                     pos = glm::hermite(it_lhs->second.value, it_lhs->second.out_tangent, it_rhs->second.value,
@@ -119,8 +117,7 @@ void create_animation_transform(const animation_keys_t &keys,
 
             switch(interpolation_mode)
             {
-                case InterpolationMode::Step:
-                    frac = 0.f;
+                case InterpolationMode::Step:frac = 0.f;
                     [[fallthrough]];
                 case InterpolationMode::Linear:
                     // quaternion spherical linear interpolation
@@ -178,11 +175,9 @@ void create_animation_transform(const animation_keys_t &keys,
 
             switch(interpolation_mode)
             {
-                case InterpolationMode::Step:
-                    frac = 0.f;
+                case InterpolationMode::Step:frac = 0.f;
                     [[fallthrough]];
-                case InterpolationMode::Linear:
-                    scale = glm::mix(it_lhs->second.value, it_rhs->second.value, frac);
+                case InterpolationMode::Linear:scale = glm::mix(it_lhs->second.value, it_rhs->second.value, frac);
                     break;
 
                 case InterpolationMode::CubicSpline:
@@ -196,11 +191,11 @@ void create_animation_transform(const animation_keys_t &keys,
     if(has_keys){ out_transform = translation * rotation * scale_matrix; }
 }
 
-std::vector<float> create_morph_weights(const animation_keys_t &keys,
-                                        float time,
-                                        InterpolationMode interpolation_mode)
+std::vector<double> create_morph_weights(const animation_keys_t &keys,
+                                         float time,
+                                         InterpolationMode interpolation_mode)
 {
-    std::vector<float> out_weights;
+    std::vector<double> out_weights;
 
     if(!keys.morph_weights.empty())
     {
@@ -226,7 +221,7 @@ std::vector<float> create_morph_weights(const animation_keys_t &keys,
             // interpolate two surrounding keys
             auto &[start_time, start_value] = *it_lhs;
             auto &[end_time, end_value] = *it_rhs;
-            float frac = std::max((time - start_time) / (end_time - start_time), 0.0f);
+            double frac = std::max<double>((time - start_time) / (end_time - start_time), 0.0);
 
             out_weights.resize(start_value.value.size(), 0.f);
 
@@ -235,8 +230,7 @@ std::vector<float> create_morph_weights(const animation_keys_t &keys,
             {
                 switch(interpolation_mode)
                 {
-                    case InterpolationMode::Step:
-                        frac = 0.f;
+                    case InterpolationMode::Step:frac = 0.f;
                         [[fallthrough]];
                     case InterpolationMode::Linear:
                         out_weights[i] = glm::mix(start_value.value[i], end_value.value[i], frac);

@@ -754,7 +754,7 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 
                 for(float t: input_times)
                 {
-                    vierkant::animation_value_t<std::vector<float>> animation_value = {};
+                    vierkant::animation_value_t<std::vector<double>> animation_value = {};
                     animation_value.value = {ptr, ptr + num_weights};
 
                     if(is_cubic_spline)
@@ -765,8 +765,8 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                     }
                     else
                     {
-                        animation_value.in_tangent.resize(animation_value.value.size(), 0.f);
-                        animation_value.out_tangent.resize(animation_value.value.size(), 0.f);
+                        animation_value.in_tangent.resize(animation_value.value.size(), 0.);
+                        animation_value.out_tangent.resize(animation_value.value.size(), 0.);
                     }
                     animation_keys.morph_weights.insert({t, animation_value});
                     ptr += num_elems * num_weights;
