@@ -33,7 +33,7 @@ struct string_mesh_container
     bool operator<(const string_mesh_container &other) const{ return counter < other.counter; }
 };
 
-FontPtr Font::create(const vierkant::DevicePtr& device,
+FontPtr Font::create(const vierkant::DevicePtr &device,
                      const std::filesystem::path &path,
                      size_t size,
                      bool use_sdf)
@@ -88,7 +88,8 @@ struct FontImpl
 
         // rect packing
         stbtt_pack_context spc;
-        stbtt_PackBegin(&spc, (uint8_t *) img->data(), img->width(), img->height(), 0, the_padding, nullptr);
+        stbtt_PackBegin(&spc, (uint8_t *) img->data(), static_cast<int>(img->width()), static_cast<int>(img->height()),
+                        0, static_cast<int>(the_padding), nullptr);
 
         int num_chars = 768;
         stbtt_PackFontRange(&spc, const_cast<uint8_t *>(the_font.data()), 0, the_font_size, 32,
@@ -98,7 +99,7 @@ struct FontImpl
     }
 
     std::vector<stbtt_aligned_quad> create_quads(const std::string &the_text,
-                                               uint32_t *the_max_x, uint32_t *the_max_y)
+                                                 uint32_t *max_x, uint32_t *max_y)
     {
         // workaround for weirdness in stb_truetype (blank 1st characters on line)
         constexpr float start_x = 0.5f;
@@ -120,14 +121,17 @@ struct FontImpl
             if(codepoint == '\n')
             {
                 x = start_x;
-                y += line_height;
+                y += static_cast<float>(line_height);
                 continue;
             }
-            stbtt_GetPackedQuad(char_data.get(), bitmap->width(), bitmap->height(),
+            stbtt_GetPackedQuad(char_data.get(), static_cast<int>(bitmap->width()), static_cast<int>(bitmap->height()),
                                 codepoint - 32, &x, &y, &quad, 0);
 
-            if(the_max_y && *the_max_y < quad.y1 + font_height){ *the_max_y = quad.y1 + font_height; }
-            if(the_max_x && *the_max_x < quad.x1){ *the_max_x = quad.x1; }
+            if(max_y && static_cast<float>(*max_y) < quad.y1 + static_cast<float>(font_height))
+            {
+                *max_y = static_cast<uint32_t>(quad.y1 + static_cast<float>(font_height));
+            }
+            if(max_x && static_cast<float>(*max_x) < quad.x1){ *max_x = static_cast<uint32_t>(quad.x1); }
         }
         return quads;
     }
@@ -143,7 +147,7 @@ Font::Font(const vierkant::DevicePtr &device, const std::vector<uint8_t> &data, 
     m_impl->line_height = size;
     m_impl->use_sdf = use_sdf;
 
-    auto img_quads_pair = m_impl->create_bitmap(data, size, BITMAP_WIDTH(size),
+    auto img_quads_pair = m_impl->create_bitmap(data, static_cast<float>(size), BITMAP_WIDTH(size),
                                                 use_sdf ? 6 : 2);
 
     m_impl->bitmap = img_quads_pair.first;
@@ -192,7 +196,7 @@ vierkant::AABB Font::create_aabb(const std::string &theText) const
     uint32_t max_x = 0, max_y = 0;
     auto quads = m_impl->create_quads(theText, &max_x, &max_y);
 
-    for(const auto &quad : quads)
+    for(const auto &quad: quads)
     {
         ret += vierkant::AABB(glm::vec3(quad.x0, quad.y0, 0),
                               glm::vec3(quad.x1, quad.y1, 0));
@@ -210,14 +214,14 @@ crocore::ImagePtr Font::create_image(const std::string &theText) const
     auto w = static_cast<float>(m_impl->bitmap->width() - 1);
     auto h = static_cast<float>(m_impl->bitmap->height() - 1);
 
-    for(auto &q : quads)
+    for(auto &q: quads)
     {
         crocore::Area_<uint32_t> src = {static_cast<uint32_t>(q.s0 * w),
                                         static_cast<uint32_t>(q.t0 * h),
                                         static_cast<uint32_t>((q.s1 - q.s0) * w),
                                         static_cast<uint32_t>((q.t1 - q.t0) * h)};
         crocore::Area_<uint32_t> dst = {static_cast<uint32_t>(q.x0),
-                                        static_cast<uint32_t>(m_impl->font_height + q.y0),
+                                        static_cast<uint32_t>(static_cast<float>(m_impl->font_height) + q.y0),
                                         static_cast<uint32_t>(q.x1 - q.x0),
                                         static_cast<uint32_t>(q.y1 - q.y0)};
 
@@ -225,7 +229,7 @@ crocore::ImagePtr Font::create_image(const std::string &theText) const
     }
     auto dst_img = crocore::Image_<uint8_t>::create(max_x, max_y, 1);
 
-    for(const auto &a : area_pairs)
+    for(const auto &a: area_pairs)
     {
         m_impl->bitmap->roi = a.first;
         dst_img->roi = a.second;
@@ -274,7 +278,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
     tex_coords.reserve(quads.size() * 4);
     indices.reserve(quads.size() * 6);
 
-    for(const auto &quad : quads)
+    for(const auto &quad: quads)
     {
         // CREATE QUAD
         // create positions
@@ -310,7 +314,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
     {
         std::list<string_mesh_container> tmp_list;
 
-        for(auto &item : m_impl->string_mesh_map){ tmp_list.push_back(item.second); }
+        for(auto &item: m_impl->string_mesh_map){ tmp_list.push_back(item.second); }
         tmp_list.sort();
 
         auto list_it = tmp_list.rbegin();

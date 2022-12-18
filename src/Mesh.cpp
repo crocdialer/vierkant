@@ -14,7 +14,7 @@ namespace vierkant
 {
 
 //! internal helper type
-using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, uint32_t, VkVertexInputRate>>;
+using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, VkDeviceSize, uint32_t, VkVertexInputRate>>;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -277,10 +277,9 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
 {
     buffer_binding_set_t buf_tuples;
 
-    for(auto &pair: vertex_attribs)
+    for(auto &[binding, attrib]: vertex_attribs)
     {
-        auto &att = pair.second;
-        buf_tuples.insert(std::make_tuple(att.buffer, att.buffer_offset, att.stride, att.input_rate));
+        buf_tuples.insert(std::make_tuple(attrib.buffer, attrib.buffer_offset, attrib.stride, attrib.input_rate));
     }
 
     std::vector<VkBuffer> buf_handles;
