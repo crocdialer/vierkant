@@ -98,7 +98,7 @@ vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
     ret.mouse_wheel = [this](const vierkant::MouseEvent &e)
     {
         float scroll_gain = e.is_control_down() ? .1f : 1.f;
-        if(enabled){ distance = std::max(.1f, distance - scroll_gain * e.wheel_increment().y); }
+        if(enabled){ distance = std::max(.1f, distance - scroll_gain * static_cast<float>(e.wheel_increment().y)); }
         if(enabled && transform_cb){ transform_cb(transform()); }
     };
     return ret;

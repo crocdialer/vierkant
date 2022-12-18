@@ -87,7 +87,7 @@ void HelloTriangleApplication::create_graphics_pipeline()
     auto fb_extent = framebuffers.front().extent();
 
     vierkant::Renderer::create_info_t create_info = {};
-    create_info.num_frames_in_flight = framebuffers.size();
+    create_info.num_frames_in_flight = static_cast<uint32_t>(framebuffers.size());
     create_info.sample_count = m_window->swapchain().sample_count();
     create_info.viewport = {0.f, 0.f, static_cast<float>(fb_extent.width),
                             static_cast<float>(fb_extent.height), 0.f,

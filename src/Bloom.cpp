@@ -78,7 +78,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
 vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
                                 const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
-    if(!queue){ queue = image->device()->queue(); }
+//    if(!queue){ queue = image->device()->queue(); }
 
     m_semaphore.wait(SemaphoreValue::BLUR_DONE);
     m_semaphore = vierkant::Semaphore(image->device());
@@ -122,7 +122,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
     // blur
     vierkant::semaphore_submit_info_t blur_info = {};
     blur_info.semaphore = m_semaphore.handle();
-    blur_info.wait_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    blur_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     blur_info.wait_value = SemaphoreValue::THRESH_DONE;
     blur_info.signal_value = SemaphoreValue::BLUR_DONE;
     blur_info.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;

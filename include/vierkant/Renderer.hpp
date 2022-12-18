@@ -204,7 +204,7 @@ public:
     /**
      * @return  the number of concurrent (in-flight) frames.
      */
-    [[nodiscard]] uint32_t num_concurrent_frames() const{ return m_frame_assets.size(); }
+    [[nodiscard]] uint32_t num_concurrent_frames() const{ return static_cast<uint32_t>(m_frame_assets.size()); }
 
     /**
      * @return  last measured frame's millisecond-duration
