@@ -25,7 +25,7 @@ void OrbitCamera::update(double time_delta)
         const auto &state = joystick_states[0];
         auto trigger = state.trigger();
 
-        constexpr float deadzone_thresh = 0.008;
+        constexpr float deadzone_thresh = 0.008f;
         bool above_thresh = glm::length2(state.analog_right()) > deadzone_thresh ||
                             glm::length2(state.analog_left()) > deadzone_thresh ||
                             glm::length2(trigger) > deadzone_thresh;

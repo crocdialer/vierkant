@@ -294,7 +294,7 @@ vierkant::MeshPtr Font::create_mesh(const std::string &theText, const glm::vec4 
         tex_coords.emplace_back(quad.s0, quad.t0);
 
         // create colors
-        for(int i = 0; i < 4; i++){ colors.emplace_back(1); }
+        for(int i = 0; i < 4; i++){ colors.emplace_back(1.f); }
     }
     for(uint32_t i = 0; i < vertices.size(); i += 4)
     {
