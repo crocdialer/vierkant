@@ -20,7 +20,7 @@ namespace vierkant::gui
 
 void draw_material_ui(const MaterialPtr &material);
 
-const ImVec4 gray(.6, .6, .6, 1.);
+void draw_light_ui(vierkant::model::lightsource_t &light);
 
 void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::WindowPtr &window)
 {
@@ -51,10 +51,11 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
         ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
         ImGui::SetNextWindowBgAlpha(bg_alpha);
 
-        ImGui::Begin("about: blank", &is_open,
-                     (corner != -1 ? ImGuiWindowFlags_NoMove : 0) | ImGuiWindowFlags_NoTitleBar |
-                     ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
-                     ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav);
+        ImGui::Begin("about: blank", &is_open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
+                                               ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar |
+                                               ImGuiWindowFlags_AlwaysAutoResize |
+                                               ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+                                               ImGuiWindowFlags_NoNav);
     }
 
     const char *log_items[] = {"Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
@@ -65,7 +66,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
         spdlog::set_level(spdlog::level::level_enum(log_level));
     }
     ImGui::Spacing();
-    ImGui::Text("time: %s", crocore::secs_to_time_str(app->application_time()).c_str());
+    ImGui::Text("time: %s", crocore::secs_to_time_str(static_cast<float>(app->application_time())).c_str());
     ImGui::Spacing();
 
     ImGui::Text("%.0f x %.0f", io.DisplaySize.x, io.DisplaySize.y);
@@ -192,7 +193,7 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     {
         if(tex)
         {
-            ImVec2 sz(w, w / (tex->width() / (float) tex->height()));
+            ImVec2 sz(w, w / (static_cast<float>(tex->width()) / static_cast<float>(tex->height())));
             ImGui::Image((ImTextureID) (tex.get()), sz, uv_0, uv_1);
             ImGui::Spacing();
             ImGui::Separator();
@@ -434,6 +435,7 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const Camera
         ImGui::PopID();
 
         ImGui::SameLine();
+        const ImVec4 gray(.6, .6, .6, 1.);
         if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
         if(ImGui::TreeNode("dof"))
@@ -466,11 +468,12 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     node_flags |= selection && selection->count(obj) ? ImGuiTreeNodeFlags_Selected : 0;
 
     // push object id
-    ImGui::PushID(obj->id());
+    ImGui::PushID((int) obj->id());
     bool is_enabled = obj->enabled;
     if(ImGui::Checkbox("", &is_enabled)){ obj->enabled = is_enabled; }
     ImGui::SameLine();
 
+    const ImVec4 gray(.6, .6, .6, 1.);
     if(!is_enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
     if(obj->children.empty())
@@ -500,12 +503,13 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     return ret;
 }
 
-void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &camera,
+void draw_scene_ui(const ScenePtr &scene,
+                   const vierkant::CameraConstPtr &camera,
                    std::set<vierkant::Object3DPtr> *selection)
 {
     constexpr char window_name[] = "scene";
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
-    bool is_open = false;
+    bool is_open;
 
     if(is_child_window){ is_open = ImGui::BeginChild(window_name); }
     else{ is_open = ImGui::Begin(window_name); }
@@ -545,7 +549,7 @@ void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &c
             auto view = scene->registry()->view<vierkant::MeshPtr>();
 
             // uniquely gather all materials in order
-            for(const auto &[entity, mesh] : view.each())
+            for(const auto &[entity, mesh]: view.each())
             {
                 if(mesh)
                 {
@@ -574,6 +578,22 @@ void draw_scene_ui(const SceneConstPtr &scene, const vierkant::CameraConstPtr &c
 
             ImGui::EndTabItem();
         }
+        if(ImGui::BeginTabItem("lights"))
+        {
+            auto view = scene->registry()->view<vierkant::Object3D *, vierkant::model::lightsource_t>();
+
+            // uniquely gather all materials in order
+            for(auto [entity, object, light]: view.each())
+            {
+                if(ImGui::TreeNode((void *) object, "%s", object->name.c_str()))
+                {
+                    ImGui::Separator();
+                    draw_light_ui(light);
+                    ImGui::TreePop();
+                }
+            }
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
     }
 
@@ -595,7 +615,7 @@ void draw_material_ui(const MaterialPtr &material)
             const auto &img = it->second;
             bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
                           img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
-            ImVec2 sz(w, w / (img->width() / (float) img->height()));
+            ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
             ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), is_bc7 ? ", BC7" : "");
             ImGui::Image((ImTextureID) (img.get()), sz);
             ImGui::Separator();
@@ -694,6 +714,30 @@ void draw_material_ui(const MaterialPtr &material)
     ImGui::SliderFloat("clearcoat roughness", &material->clearcoat_roughness_factor, 0.f, 1.f);
 }
 
+void draw_light_ui(vierkant::model::lightsource_t &light)
+{
+    const char *light_type_strings[] = {"Omni", "Spot", "Directional"};
+    constexpr vierkant::model::LightType light_types[] = {model::LightType::Omni, model::LightType::Spot,
+                                                          model::LightType::Directional};
+    int light_type_index = 0;
+
+    for(auto type: light_types)
+    {
+        if(light.type == type){ break; }
+        light_type_index++;
+    }
+
+    if(ImGui::Combo("blend-mode", &light_type_index, light_type_strings, IM_ARRAYSIZE(light_type_strings)))
+    {
+        light.type = light_types[light_type_index];
+    }
+    ImGui::ColorEdit3("color", glm::value_ptr(light.color));
+    ImGui::InputFloat("intensity", &light.intensity);
+    ImGui::InputFloat("range", &light.range);
+    ImGui::InputFloat("inner_cone_angle", &light.inner_cone_angle);
+    ImGui::InputFloat("outer_cone_angle", &light.outer_cone_angle);
+}
+
 void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &mesh)
 {
     if(!object || !mesh){ return; }
@@ -727,6 +771,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
             ImGui::Checkbox("", &e.enabled);
             ImGui::SameLine();
 
+            const ImVec4 gray(.6, .6, .6, 1.);
             if(!e.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
             auto entry_name = e.name.empty() ? ("entry " + std::to_string(index)) : e.name;
@@ -791,7 +836,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
         std::vector<const char *> animation_items;
         for(auto &anim: mesh->node_animations){ animation_items.push_back(anim.name.c_str()); }
 
-        if(ImGui::Combo("name", &animation_index, animation_items.data(), animation_items.size()))
+        if(ImGui::Combo("name", &animation_index, animation_items.data(), static_cast<int>(animation_items.size())))
         {
             animation_state.index = animation_index;
         }

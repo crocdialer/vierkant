@@ -237,14 +237,19 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     frame_asset.dirty_drawable_indices.clear();
 
     size_t scene_hash = 0;
-    auto view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
+    auto object_view = scene->registry()->view<vierkant::Object3D *>();
+    object_view.each([&scene_hash](const auto &object)
+    {
+        crocore::hash_combine(scene_hash, object);
+        crocore::hash_combine(scene_hash, object->enabled);
+    });
 
-    for(const auto &[entity, object, mesh]: view.each())
+    auto mesh_view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
+
+    for(const auto &[entity, object, mesh]: mesh_view.each())
     {
         bool transform_update = false;
-
         meshes.insert(mesh);
-        crocore::hash_combine(scene_hash, object);
 
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
                                 object->has_component<animation_state_t>();
@@ -872,16 +877,9 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
     ubo.environment_factor = frame_asset.settings.environment_factor;
-    ubo.num_lights = 1;
+    ubo.num_lights = frame_asset.cull_result.lights.size();
     frame_asset.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
-
-    //    // test lightsource
-    //    vierkant::lightsource_t l = {};
-    //    l.type = vierkant::LightType::Directional;
-    //    l.intensity = 2.f;
-
-    std::vector<lightsource_ubo_t> lights_ubo;//= {vierkant::convert_light(l)};
-    frame_asset.lights_ubo->set_data(lights_ubo);
+    frame_asset.lights_ubo->set_data(frame_asset.cull_result.lights);
 
     // environment lighting-pass
     auto drawable = m_drawable_lighting_env;

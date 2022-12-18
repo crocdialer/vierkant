@@ -18,7 +18,7 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
 
 void draw_images_ui(const std::vector<vierkant::ImagePtr> &images);
 
-void draw_scene_ui(const vierkant::SceneConstPtr &scene,
+void draw_scene_ui(const vierkant::ScenePtr &scene,
                    const vierkant::CameraConstPtr &camera = nullptr,
                    std::set<vierkant::Object3DPtr> *selection = nullptr);
 

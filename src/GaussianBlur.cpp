@@ -77,7 +77,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     {
         // [-NUM_TAPS / 2, ..., NUM_TAPS / 2]
         std::array<float, NUM_TAPS> offsets;
-        std::iota(offsets.begin(), offsets.end(), -static_cast<float>(NUM_TAPS / 2));
+        std::iota(offsets.begin(), offsets.end(), -static_cast<float>(NUM_TAPS / 2.f));
 
         ubo_t ubo = {};
         ubo.size = size;

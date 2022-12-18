@@ -5,30 +5,13 @@
 #pragma once
 
 #include <vierkant/math.hpp>
+#include <vierkant/model_loading.hpp>
 #include <limits>
 
 namespace vierkant
 {
 
-enum LightType : uint32_t
-{
-    Point = 0,
-    Spot,
-    Directional
-};
-
-struct lightsource_t
-{
-    glm::vec3 position;
-    LightType type = LightType::Point;
-    glm::vec3 color = glm::vec3(1);
-    float intensity = 1.f;
-    glm::vec3 direction = glm::vec3(0.f, 0.f, -1.f);
-    float range = std::numeric_limits<float>::infinity();
-    float inner_cone_angle = 0.f;
-    float outer_cone_angle = glm::quarter_pi<float>();
-};
-
+//! padded buffer-data
 struct alignas(16) lightsource_ubo_t
 {
     glm::vec3 position;
@@ -41,11 +24,11 @@ struct alignas(16) lightsource_ubo_t
     float spot_angle_offset;
 };
 
-static inline lightsource_ubo_t convert_light(const lightsource_t &light_in)
+static inline lightsource_ubo_t convert_light(const vierkant::model::lightsource_t &light_in)
 {
     lightsource_ubo_t ret = {};
     ret.position = light_in.position;
-    ret.type = light_in.type;
+    ret.type = static_cast<uint32_t>(light_in.type);
     ret.color = light_in.color;
     ret.intensity = light_in.intensity;
     ret.direction = light_in.direction;

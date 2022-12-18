@@ -9,6 +9,7 @@
 #include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
 #include "vierkant/Renderer.hpp"
+#include "vierkant/punctual_light.hpp"
 
 namespace vierkant
 {
@@ -40,6 +41,9 @@ struct cull_result_t
     std::vector<vierkant::drawable_t> drawables;
 
     std::unordered_set<vierkant::MeshConstPtr> meshes;
+
+    //! list of light-sources
+    std::vector<vierkant::lightsource_ubo_t> lights;
 
     //! lookup: drawable-id -> entity
     std::unordered_map<vierkant::DrawableId, uint32_t> entity_map;

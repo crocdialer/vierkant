@@ -944,7 +944,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
             {
                 auto &l = out_assets.lights[light_index];
                 l.position = world_transform[3].xyz();
-                l.direction = world_transform[2].xyz();
+                l.direction = -world_transform[2].xyz();
             }
         }
 
