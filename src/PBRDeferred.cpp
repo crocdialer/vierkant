@@ -932,8 +932,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
     auto &frame_asset = m_frame_assets[frame_index];
 
-    size_t buffer_index = 0;
     vierkant::ImagePtr output_img = color;
+    size_t buffer_index = 0;
 
     // get next set of pingpong assets, increment index
     auto pingpong_render = [&frame_asset, &buffer_index, queue = m_queue](
@@ -941,10 +941,10 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
             const std::vector<vierkant::semaphore_submit_info_t> &semaphore_submit_infos = {})
             -> vierkant::ImagePtr
     {
-        auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index];
-        buffer_index = (buffer_index + 1) % frame_asset.post_fx_ping_pongs.size();
+        auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index++ % 2];
         pingpong.renderer.stage_drawable(drawable);
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
+        pingpong.framebuffer.color_attachment(0)->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmd_buf);
         pingpong.framebuffer.submit({cmd_buf}, queue, semaphore_submit_infos);
         return pingpong.framebuffer.color_attachment(0);
     };
@@ -988,8 +988,9 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         {
             vierkant::semaphore_submit_info_t bloom_semaphore_info = {};
             bloom_semaphore_info.semaphore = frame_asset.timeline.handle();
+            bloom_semaphore_info.wait_value = frame_asset.semaphore_value_done;
+            bloom_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             bloom_semaphore_info.signal_value = SemaphoreValue::BLOOM;
-            bloom_semaphore_info.signal_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_semaphore_info});
         }
 
@@ -1016,7 +1017,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         vierkant::semaphore_submit_info_t tonemap_semaphore_info = {};
         tonemap_semaphore_info.semaphore = frame_asset.timeline.handle();
         tonemap_semaphore_info.wait_value = frame_asset.settings.bloom ? SemaphoreValue::BLOOM
-                                                                       : SemaphoreValue::INVALID;
+                                                                       : frame_asset.semaphore_value_done;
         tonemap_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
         tonemap_semaphore_info.signal_value = SemaphoreValue::TONEMAP;
         output_img = pingpong_render(m_drawable_bloom, {tonemap_semaphore_info});
@@ -1028,7 +1029,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
     {
         auto drawable = m_drawable_fxaa;
         drawable.descriptors[0].images = {output_img};
-
         output_img = pingpong_render(drawable);
     }
 
@@ -1038,6 +1038,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         auto drawable = m_drawable_dof;
         drawable.descriptors[0].images = {output_img, depth};
 
+        // TODO: borked since infinite-far changes
         // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
         drawable.matrices.projection = cam->projection_matrix();
 
@@ -1049,6 +1050,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         }
         vierkant::semaphore_submit_info_t dof_semaphore_info = {};
         dof_semaphore_info.semaphore = frame_asset.timeline.handle();
+        dof_semaphore_info.wait_value = frame_asset.semaphore_value_done;
+        dof_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
         dof_semaphore_info.signal_value = SemaphoreValue::DEFOCUS_BLUR;
         frame_asset.semaphore_value_done = SemaphoreValue::DEFOCUS_BLUR;
         output_img = pingpong_render(drawable, {dof_semaphore_info});
