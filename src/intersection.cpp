@@ -112,7 +112,7 @@ vierkant::AABB compute_aabb(const std::vector<glm::vec3> &vertices)
 
 glm::vec3 compute_centroid(const std::vector<glm::vec3> &vertices)
 {
-    return crocore::mean<glm::vec3>(vertices);
+    return crocore::mean(vertices);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
