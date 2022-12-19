@@ -18,9 +18,9 @@ bool check_attachment_count(const vierkant::attachment_map_t &attachments,
     if(attachments.count(vierkant::AttachmentType::DepthStencil) !=
        expected_count.count(vierkant::AttachmentType::DepthStencil)){ return false; }
 
-    for(auto &pair : attachments)
+    for(auto &[type, images]: attachments)
     {
-        if(pair.second.size() != expected_count[pair.first]){ return false; }
+        if(images.size() != expected_count[type]){ return false; }
     }
     return true;
 }
@@ -213,4 +213,81 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_Manual_Attachments)
     expected_count[vierkant::AttachmentType::Resolve] = 1;
     auto res = check_attachment_count(framebuffer.attachments(), expected_count);
     BOOST_CHECK(res);
+}
+
+BOOST_AUTO_TEST_CASE(TestFramebuffer_DirectRendering)
+{
+    VkExtent3D fb_size = {1920, 1080, 1};
+    vulkan_test_context_t test_context;
+
+    // 1 color attachment plus depth/stencil
+    vierkant::Framebuffer::create_info_t create_info = {};
+    create_info.size = fb_size;
+    create_info.depth = true;
+    create_info.stencil = true;
+    auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
+    BOOST_CHECK(framebuffer);
+    BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::AttachmentType::Color), 1);
+    BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::AttachmentType::DepthStencil), 1);
+
+    attachment_count_t expected_count;
+    expected_count[vierkant::AttachmentType::Color] = 1;
+    expected_count[vierkant::AttachmentType::DepthStencil] = 1;
+    auto res = check_attachment_count(framebuffer.attachments(), expected_count);
+    BOOST_CHECK(res);
+
+    // create command-buffer, start direct rendering-pass
+    vierkant::CommandPoolPtr command_pool =
+            vierkant::create_command_pool(test_context.device, vierkant::Device::Queue::GRAPHICS,
+                                          VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                          VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    BOOST_CHECK(command_pool);
+    vierkant::CommandBuffer cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
+    BOOST_CHECK(cmd_buffer);
+
+    // record direct rendering-pass
+    cmd_buffer.begin();
+    framebuffer.begin_rendering(cmd_buffer.handle());
+    vkCmdEndRendering(cmd_buffer.handle());
+
+    // submit to queue
+    VkQueue queue = test_context.device->queue();
+    cmd_buffer.submit(queue, true);
+}
+
+BOOST_AUTO_TEST_CASE(TestFramebuffer_DirectRendering_MSAA)
+{
+    VkExtent3D fb_size = {1920, 1080, 1};
+    vulkan_test_context_t test_context;
+
+    // 1 color attachment (MSAA) | depth/stencil (MSAA) | resolve
+    vierkant::Framebuffer::create_info_t create_info = {};
+    create_info.size = fb_size;
+    create_info.num_color_attachments = 1;
+    create_info.depth = true;
+    create_info.stencil = true;
+    create_info.color_attachment_format.sample_count = test_context.device->max_usable_samples();
+    auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
+    BOOST_CHECK(framebuffer);
+    BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::AttachmentType::Color), 1);
+    BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::AttachmentType::Resolve), 1);
+    BOOST_CHECK_EQUAL(framebuffer.num_attachments(vierkant::AttachmentType::DepthStencil), 1);
+
+    // create command-buffer, start direct rendering-pass
+    vierkant::CommandPoolPtr command_pool =
+            vierkant::create_command_pool(test_context.device, vierkant::Device::Queue::GRAPHICS,
+                                          VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                          VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    BOOST_CHECK(command_pool);
+    vierkant::CommandBuffer cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
+    BOOST_CHECK(cmd_buffer);
+
+    // record direct rendering-pass
+    cmd_buffer.begin();
+    framebuffer.begin_rendering(cmd_buffer.handle());
+    vkCmdEndRendering(cmd_buffer.handle());
+
+    // submit to queue
+    VkQueue queue = test_context.device->queue();
+    cmd_buffer.submit(queue, true);
 }

@@ -997,10 +997,10 @@ size_t Renderer::descriptor_set_key_hash_t::operator()(const Renderer::descripto
     size_t h = 0;
     crocore::hash_combine(h, key.mesh);
 
-    for(const auto &pair: key.descriptors)
+    for(const auto &[binding, descriptor]: key.descriptors)
     {
-        crocore::hash_combine(h, pair.first);
-        crocore::hash_combine(h, pair.second);
+        crocore::hash_combine(h, binding);
+        crocore::hash_combine(h, descriptor);
     }
     return h;
 }

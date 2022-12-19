@@ -1,5 +1,4 @@
 #include <crocore/Area.hpp>
-#include <crocore/filesystem.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Pipeline.hpp>
 #include "vierkant/imgui/imgui_integration.h"
@@ -136,7 +135,7 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
 
 ImVec4 im_vec_cast(const glm::vec3 &v)
 {
-    return ImVec4(v.x, v.y, v.z, 1.f);
+    return {v.x, v.y, v.z, 1.f};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -382,8 +381,8 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     vierkant::graphics_pipeline_info_t pipeline_fmt = {};
     pipeline_fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     pipeline_fmt.shader_stages = vierkant::create_shader_stages(device, vierkant::ShaderType::UNLIT_TEXTURE);
-    pipeline_fmt.attribute_descriptions = mesh->attribute_descriptions();
-    pipeline_fmt.binding_descriptions = mesh->binding_descriptions();
+    pipeline_fmt.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
+    pipeline_fmt.binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
     pipeline_fmt.depth_write = false;
     pipeline_fmt.depth_test = false;
     pipeline_fmt.blend_state.blendEnable = true;
@@ -449,8 +448,8 @@ void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
 void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    io.MouseWheelH += e.wheel_increment().x;
-    io.MouseWheel += e.wheel_increment().y;
+    io.MouseWheelH += static_cast<float>(e.wheel_increment().x);
+    io.MouseWheel += static_cast<float>(e.wheel_increment().y);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

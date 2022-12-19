@@ -321,8 +321,10 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     drawable.vertex_offset = mesh_entry.vertex_offset;
     drawable.num_vertices = mesh_entry.num_vertices;
 
-    drawable.pipeline_format.binding_descriptions = drawable.mesh->binding_descriptions();
-    drawable.pipeline_format.attribute_descriptions = drawable.mesh->attribute_descriptions();
+    drawable.pipeline_format.binding_descriptions = vierkant::create_binding_descriptions(
+            drawable.mesh->vertex_attribs);
+    drawable.pipeline_format.attribute_descriptions = vierkant::create_attribute_descriptions(
+            drawable.mesh->vertex_attribs);
     drawable.pipeline_format.primitive_topology = mesh_entry.primitive_type;
     drawable.pipeline_format.blend_state.blendEnable = false;
     drawable.pipeline_format.depth_test = false;

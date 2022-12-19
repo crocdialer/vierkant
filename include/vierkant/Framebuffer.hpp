@@ -110,7 +110,7 @@ public:
     VkCommandBuffer record_commandbuffer(const std::vector<VkCommandBuffer> &commandbuffers);
 
     /**
-     * @brief   Execute a provided array of secondary VkCommandBuffers within a renderpass for this framebuffer,
+     * @brief   Execute a provided array of secondary VkCommandBuffers within a renderpass for this Framebuffer,
      *          submit to a VkQueue with optional submit_info.
      *
      * @param   command_buffers an array of secondary VkCommandBuffers to render into this Framebuffer.
@@ -126,6 +126,17 @@ public:
      * @brief   wait for a prior frame to finish.
      */
     void wait_fence();
+
+    /**
+     * @brief   Begin a direct-rendering-pass using this Framebuffer.
+     *
+     * @param   commandbuffer           a (primary) VkCommandBuffer handle to record into
+     * @param   clear_color_attachment  optional flag to set if color should be cleared prior to rendering.
+     * @param   clear_depth_attachment  optional flag to set if depth should be cleared prior to rendering.
+     */
+    void begin_rendering(VkCommandBuffer commandbuffer,
+                         bool clear_color_attachment = true,
+                         bool clear_depth_attachment = true) const;
 
     /**
      * @return  the VkExtent3D used by the Image-Attachments
@@ -198,12 +209,6 @@ private:
      * @brief   End an currently active render-pass. Does nothing, if there is no active render-pass
      */
     void end_renderpass() const;
-
-    /**
-     * @brief   Begin a dynamic render-pass using this Framebuffer
-     * @param   commandbuffer     the VkCommandBuffer handle to record into
-     */
-    void begin_rendering(VkCommandBuffer commandbuffer) const;
 
     DevicePtr m_device;
 

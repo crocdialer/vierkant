@@ -200,7 +200,7 @@ Framebuffer::Framebuffer(DevicePtr device, create_info_t format) :
         }
     }
 
-    init(create_attachments(m_device, m_format), std::move(format.renderpass));
+    init(create_attachments(m_device, m_format), m_format.renderpass);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -399,9 +399,10 @@ void Framebuffer::init(attachment_map_t attachments, RenderPassPtr renderpass)
 
     std::vector<VkImageView> attachment_views;
 
-    for(const auto &pair: attachments)
+    uint32_t num_layers = 0;
+    for(const auto &[type, images]: attachments)
     {
-        for(const auto &img: pair.second)
+        for(const auto &img: images)
         {
             attachment_views.push_back(img->image_view());
 
@@ -412,8 +413,15 @@ void Framebuffer::init(attachment_map_t attachments, RenderPassPtr renderpass)
                 // image dimensions do not match
                 throw std::invalid_argument("framebuffer: attachment sizes do not match");
             }
+            if(num_layers && num_layers != img->format().num_layers)
+            {
+                // image dimensions do not match
+                throw std::invalid_argument("framebuffer: number of layers does not match");
+            }
+            num_layers = img->format().num_layers;
         }
     }
+    m_format.color_attachment_format.num_layers = num_layers;
 
     // create vkFramebuffer using the existing VkRenderpass
     VkFramebufferCreateInfo framebuffer_info = {};
@@ -552,42 +560,71 @@ void swap(Framebuffer &lhs, Framebuffer &rhs)
 }
 
 // TODO: see if dynamic rendering ends up less verbose, i.d.k.
-void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer) const
+void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer,
+                                  bool clear_color_attachment,
+                                  bool clear_depth_attachment) const
 {
     std::vector<VkRenderingAttachmentInfo> color_attachments;
     std::vector<VkRenderingAttachmentInfo> depth_attachments;
 
 //    bool has_depth_stencil = check_attachment(AttachmentType::DepthStencil, m_attachments);
-//    bool has_resolve = check_attachment(AttachmentType::Resolve, m_attachments);
-
-    bool clear_color_img = true, clear_depth_img = true;
+    bool has_resolve = check_attachment(AttachmentType::Resolve, m_attachments);
 
     for(const auto &[type, images]: m_attachments)
     {
         VkRenderingAttachmentInfo attachment_info = {};
         attachment_info.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
         attachment_info.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+        attachment_info.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+        switch(type)
+        {
+            case AttachmentType::Color:
+                attachment_info.loadOp = clear_color_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                attachment_info.clearValue.color = clear_color;
+                break;
+
+            case AttachmentType::DepthStencil:
+                attachment_info.loadOp = clear_depth_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                attachment_info.clearValue.depthStencil = clear_depth_stencil;
+                break;
+
+            case AttachmentType::Resolve:
+            default:
+                break;
+        }
 
         if(type == AttachmentType::DepthStencil && !images.empty())
         {
             auto &depth = images.front();
             attachment_info.imageView = depth->image_view();
-
-            attachment_info.loadOp = clear_depth_img ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
-            attachment_info.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
             attachment_info.clearValue.depthStencil = clear_depth_stencil;
         }
-        else
+        else if(type == AttachmentType::Color && !images.empty())
         {
-            for(const auto &img: images)
+            for(uint32_t i = 0; i < images.size(); ++i)
             {
+                const auto &img = images[i];
+
                 VkRenderingAttachmentInfo color_attachment = {};
                 color_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                 color_attachment.imageView = img->image_view();
                 color_attachment.imageLayout = img->image_layout();
-                color_attachment.loadOp = clear_color_img ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+                color_attachment.loadOp = clear_color_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                 color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 color_attachment.clearValue.color = clear_color;
+
+                if(has_resolve && img->format().sample_count != VK_SAMPLE_COUNT_1_BIT)
+                {
+                    const auto &resolve_attachments = m_attachments.at(AttachmentType::Resolve);
+                    assert(resolve_attachments.size() == images.size());
+                    color_attachment.resolveImageView = resolve_attachments[i]->image_view();
+                    color_attachment.resolveImageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+                    color_attachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+                }
                 color_attachments.push_back(color_attachment);
             }
         }
@@ -595,11 +632,14 @@ void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer) const
 
     VkRenderingInfo pass_info = {};
     pass_info.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    pass_info.viewMask = 0;
+    pass_info.renderArea.offset = {0, 0};
     pass_info.renderArea.extent = {m_extent.width, m_extent.height};
     pass_info.layerCount = m_format.color_attachment_format.num_layers;
     pass_info.colorAttachmentCount = color_attachments.size();
-    pass_info.pColorAttachments = color_attachments.data();
-    pass_info.pDepthAttachment = depth_attachments.data();
+    pass_info.pColorAttachments = color_attachments.empty() ? nullptr : color_attachments.data();
+    pass_info.pDepthAttachment = depth_attachments.empty() ? nullptr : depth_attachments.data();
+    pass_info.pStencilAttachment = depth_attachments.empty() ? nullptr : depth_attachments.data();
     vkCmdBeginRendering(commandbuffer, &pass_info);
 }
 

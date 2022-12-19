@@ -190,40 +190,26 @@ public:
      */
     void bind_buffers(VkCommandBuffer command_buffer) const;
 
-    /**
-     * @brief   Create an array of VkVertexInputAttributeDescription for a given vierkant::Mesh
-     *
-     * @return  the newly created array of VkVertexInputAttributeDescriptions
-     */
-    [[nodiscard]] std::vector<VkVertexInputAttributeDescription> attribute_descriptions() const;
-
-    /**
-     * @brief   Create an array of VkVertexInputBindingDescription for a given vierkant::Mesh
-     *
-     * @return  the newly created array of VkVertexInputBindingDescriptions
-     */
-    [[nodiscard]] std::vector<VkVertexInputBindingDescription> binding_descriptions() const;
-
-    // vertex attributes
+    //! vertex attributes
     vertex_attrib_map_t vertex_attribs;
 
-    // entries for sub-meshes
+    //! entries for sub-meshes
     std::vector<entry_t> entries;
 
-    // materials for submeshes
+    //! materials for submeshes
     std::vector<vierkant::MaterialPtr> materials;
 
-    // node animations
+    //! node animations
     vierkant::nodes::NodePtr root_node, root_bone;
     std::vector<vierkant::nodes::node_animation_t> node_animations;
 
-    // vertex buffer
+    //! vertex buffer
     vierkant::BufferPtr vertex_buffer;
 
-    // bone-vertex buffer
+    //! bone-vertex buffer
     vierkant::BufferPtr bone_vertex_buffer;
 
-    // index buffer
+    //! index buffer
     vierkant::BufferPtr index_buffer;
     VkDeviceSize index_buffer_offset = 0;
     VkIndexType index_type = VK_INDEX_TYPE_UINT32;

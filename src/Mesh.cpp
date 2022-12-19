@@ -301,20 +301,6 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<VkVertexInputAttributeDescription> Mesh::attribute_descriptions() const
-{
-    return create_attribute_descriptions(vertex_attribs);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-std::vector<VkVertexInputBindingDescription> Mesh::binding_descriptions() const
-{
-    return create_binding_descriptions(vertex_attribs);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
                                          const create_mesh_buffers_params_t &params)
 {

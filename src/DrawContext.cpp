@@ -31,8 +31,8 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.depth_test = false;
         fmt.depth_write = false;
         fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
-        fmt.binding_descriptions = mesh->binding_descriptions();
-        fmt.attribute_descriptions = mesh->attribute_descriptions();
+        fmt.binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
+        fmt.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
         fmt.primitive_topology = entry.primitive_type;
 
         // descriptors
@@ -175,7 +175,7 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
     drawable_params.mesh = mesh;
     auto drawables = vierkant::create_drawables(drawable_params);
 
-    for(auto &drawable : drawables)
+    for(auto &drawable: drawables)
     {
         drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(shader_type);
         drawable.matrices.modelview = model_view * drawable.matrices.modelview;
@@ -204,7 +204,7 @@ void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer,
 
     while(!node_queue.empty())
     {
-        auto[node, joint_transform] = node_queue.front();
+        auto [node, joint_transform] = node_queue.front();
         node_queue.pop_front();
 
         glm::mat4 node_transform = node->transform;
@@ -220,7 +220,7 @@ void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer,
         joint_transform = joint_transform * node_transform;
 
         // queue all children
-        for(auto &child_node : node->children)
+        for(auto &child_node: node->children)
         {
             // draw line from current to child
             auto child_transform = joint_transform * child_node->transform;
@@ -245,8 +245,10 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
 
     if(m_drawable_text.pipeline_format.attribute_descriptions.empty())
     {
-        m_drawable_text.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
-        m_drawable_text.pipeline_format.binding_descriptions = mesh->binding_descriptions();
+        m_drawable_text.pipeline_format.attribute_descriptions = vierkant::create_attribute_descriptions(
+                mesh->vertex_attribs);
+        m_drawable_text.pipeline_format.binding_descriptions = vierkant::create_binding_descriptions(
+                mesh->vertex_attribs);
     }
 
     auto drawable = m_drawable_text;
@@ -345,8 +347,8 @@ void DrawContext::draw_lines(vierkant::Renderer &renderer,
                                                       m_memory_pool);
 
     drawable.mesh = mesh;
-    drawable.pipeline_format.attribute_descriptions = mesh->attribute_descriptions();
-    drawable.pipeline_format.binding_descriptions = mesh->binding_descriptions();
+    drawable.pipeline_format.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
+    drawable.pipeline_format.binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
     drawable.num_vertices = lines.size();
 
     // line color via material

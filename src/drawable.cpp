@@ -19,8 +19,8 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
     ret.reserve(params.mesh->entries.size());
 
     // same for all entries
-    auto binding_descriptions = params.mesh->binding_descriptions();
-    auto attribute_descriptions = params.mesh->attribute_descriptions();
+    auto binding_descriptions = vierkant::create_binding_descriptions(params.mesh->vertex_attribs);
+    auto attribute_descriptions = vierkant::create_attribute_descriptions(params.mesh->vertex_attribs);
 
     // entry animation transforms
     std::vector<glm::mat4> node_matrices;
