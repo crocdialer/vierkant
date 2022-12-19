@@ -294,14 +294,14 @@ private:
 
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
-                                           frame_assets_t &current,
-                                           frame_assets_t &next);
+                                           std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
+                                           std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next);
 
     DescriptorSetPtr find_set(const vierkant::MeshConstPtr &mesh,
                               const DescriptorSetLayoutPtr &set_layout,
                               const descriptor_map_t &descriptors,
-                              frame_assets_t &current,
-                              frame_assets_t &next,
+                              descriptor_set_map_t &current,
+                              descriptor_set_map_t &next,
                               bool variable_count);
 
     DevicePtr m_device;
