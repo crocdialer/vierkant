@@ -64,25 +64,6 @@ static inline bool operator!=(const VkPipelineColorBlendAttachmentState &lhs,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static inline bool operator==(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
-{
-    if(lhs.failOp != rhs.failOp){ return false; }
-    if(lhs.passOp != rhs.passOp){ return false; }
-    if(lhs.depthFailOp != rhs.depthFailOp){ return false; }
-    if(lhs.compareOp != rhs.compareOp){ return false; }
-    if(lhs.compareMask != rhs.compareMask){ return false; }
-    if(lhs.writeMask != rhs.writeMask){ return false; }
-    if(lhs.reference != rhs.reference){ return false; }
-    return true;
-}
-
-static inline bool operator!=(const VkStencilOpState &lhs, const VkStencilOpState &rhs)
-{
-    return !(lhs == rhs);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 static inline bool operator==(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
 {
     if(lhs.size != rhs.size){ return false; }
@@ -263,23 +244,25 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
     if(depth_clamp != other.depth_clamp){ return false; }
     if(depth_compare_op != other.depth_compare_op){ return false; }
     if(stencil_test != other.stencil_test){ return false; }
-    if(stencil_state_front != other.stencil_state_front){ return false; }
-    if(stencil_state_back != other.stencil_state_back){ return false; }
+    if(memcmp(&stencil_state_front, &other.stencil_state_front, sizeof(VkStencilOpState)) != 0){ return false; }
+    if(memcmp(&stencil_state_back, &other.stencil_state_back, sizeof(VkStencilOpState)) != 0){ return false; }
     if(line_width != other.line_width){ return false; }
     if(sample_count != other.sample_count){ return false; }
     if(sample_shading != other.sample_shading){ return false; }
     if(min_sample_shading != other.min_sample_shading){ return false; }
-    if(blend_state != other.blend_state){ return false; }
+    if(memcmp(&blend_state, &other.blend_state, sizeof(VkPipelineColorBlendAttachmentState)) != 0){ return false; }
     if(attachment_blend_states != other.attachment_blend_states){ return false; }
     if(renderpass != other.renderpass){ return false; }
+    if(view_mask != other.view_mask){ return false; }
+    if(color_attachment_formats != other.color_attachment_formats){ return false; }
+    if(depth_attachment_format != other.depth_attachment_format){ return false; }
+    if(stencil_attachment_format != other.stencil_attachment_format){ return false; }
     if(subpass != other.subpass){ return false; }
     if(base_pipeline != other.base_pipeline){ return false; }
     if(base_pipeline_index != other.base_pipeline_index){ return false; }
     if(specialization_info != other.specialization_info){ return false; }
     if(pipeline_cache != other.pipeline_cache){ return false; }
-
     if(dynamic_states != other.dynamic_states){ return false; }
-
     if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
     if(push_constant_ranges != other.push_constant_ranges){ return false; }
     return true;
@@ -434,6 +417,10 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     hash_combine(h, fmt.blend_state);
     for(const auto &bs : fmt.attachment_blend_states){ hash_combine(h, bs); }
     hash_combine(h, fmt.renderpass);
+    hash_combine(h, fmt.view_mask);
+    for(const auto &caf : fmt.color_attachment_formats){ hash_combine(h, caf); }
+    hash_combine(h, fmt.depth_attachment_format);
+    hash_combine(h, fmt.stencil_attachment_format);
     hash_combine(h, fmt.subpass);
     hash_combine(h, fmt.base_pipeline);
     hash_combine(h, fmt.base_pipeline_index);

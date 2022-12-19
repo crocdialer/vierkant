@@ -147,6 +147,12 @@ struct graphics_pipeline_info_t
 
     VkRenderPass renderpass = VK_NULL_HANDLE;
 
+    // direct rendering
+    uint32_t view_mask = 0;
+    std::vector<VkFormat> color_attachment_formats;
+    VkFormat depth_attachment_format = VK_FORMAT_UNDEFINED;
+    VkFormat stencil_attachment_format = VK_FORMAT_UNDEFINED;
+
     uint32_t subpass = 0;
     VkPipeline base_pipeline = VK_NULL_HANDLE;
     int32_t base_pipeline_index = -1;

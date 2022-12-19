@@ -944,7 +944,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index++ % 2];
         pingpong.renderer.stage_drawable(drawable);
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-        pingpong.framebuffer.color_attachment(0)->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmd_buf);
+//        pingpong.framebuffer.color_attachment(0)->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmd_buf);
         pingpong.framebuffer.submit({cmd_buf}, queue, semaphore_submit_infos);
         return pingpong.framebuffer.color_attachment(0);
     };

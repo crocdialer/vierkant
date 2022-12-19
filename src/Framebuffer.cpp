@@ -588,6 +588,7 @@ void Framebuffer::begin_rendering(VkCommandBuffer commandbuffer) const
                 color_attachment.loadOp = clear_color_img ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                 color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 color_attachment.clearValue.color = clear_color;
+                color_attachments.push_back(color_attachment);
             }
         }
     }

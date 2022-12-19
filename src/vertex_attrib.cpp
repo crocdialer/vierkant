@@ -9,7 +9,7 @@ namespace vierkant
 {
 
 //! internal helper type
-using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, uint32_t, uint32_t, VkVertexInputRate>>;
+using buffer_binding_set_t = std::set<std::tuple<vierkant::BufferPtr, VkDeviceSize, uint32_t, VkVertexInputRate>>;
 
 std::vector<VkVertexInputAttributeDescription> create_attribute_descriptions(const vertex_attrib_map_t &attribs)
 {
@@ -22,7 +22,7 @@ std::vector<VkVertexInputAttributeDescription> create_attribute_descriptions(con
 
     auto binding_index = [](const vertex_attrib_t &a, const buffer_binding_set_t &bufs) -> int32_t
     {
-        uint32_t i = 0;
+        int32_t i = 0;
         for(const auto &t : bufs)
         {
             if(t == std::make_tuple(a.buffer, a.buffer_offset, a.stride, a.input_rate)){ return i; }

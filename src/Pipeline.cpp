@@ -173,6 +173,19 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     pipeline_info.basePipelineHandle = format.base_pipeline;
     pipeline_info.basePipelineIndex = format.base_pipeline_index;
 
+    bool direct_rendering = !format.renderpass && (!format.color_attachment_formats.empty() ||
+                                                   format.depth_attachment_format != VK_FORMAT_UNDEFINED ||
+                                                   format.stencil_attachment_format != VK_FORMAT_UNDEFINED);
+
+    VkPipelineRenderingCreateInfo rendering_create_info = {};
+    rendering_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    rendering_create_info.viewMask = format.view_mask;
+    rendering_create_info.colorAttachmentCount = static_cast<uint32_t>(format.color_attachment_formats.size());
+    rendering_create_info.pColorAttachmentFormats = format.color_attachment_formats.data();
+    rendering_create_info.depthAttachmentFormat = format.depth_attachment_format;
+    rendering_create_info.stencilAttachmentFormat = format.stencil_attachment_format;
+    pipeline_info.pNext = direct_rendering ? &rendering_create_info : nullptr;
+
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCheck(vkCreateGraphicsPipelines(device->handle(), format.pipeline_cache, 1, &pipeline_info, nullptr,
                                       &pipeline),
