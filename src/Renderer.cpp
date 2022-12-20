@@ -177,15 +177,15 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     {
         std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
         current_index = m_current_index;
-        m_current_index = (m_current_index + 1) % m_staged_drawables.size();
+        m_current_index = (m_current_index + 1) % m_frame_assets.size();
         m_frame_assets[current_index].drawables = std::move(m_staged_drawables[current_index]);
     }
-    auto &current_assets = m_frame_assets[current_index];
+    auto &frame_assets = m_frame_assets[current_index];
 
     // retrieve last frame-timestamps for this index
     uint64_t timestamps[query_count] = {};
 
-    auto query_result = vkGetQueryPoolResults(m_device->handle(), current_assets.query_pool.get(), 0, query_count,
+    auto query_result = vkGetQueryPoolResults(m_device->handle(), frame_assets.query_pool.get(), 0, query_count,
                                               sizeof(timestamps), timestamps, sizeof(uint64_t),
                                               VK_QUERY_RESULT_64_BIT);
 
@@ -194,23 +194,31 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         // calculate last gpu-frametime
         auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[1] - timestamps[0]) *
                                                                        m_device->properties().limits.timestampPeriod));
-        current_assets.frame_time = std::chrono::duration_cast<double_millisecond_t>(frame_ns);
+        frame_assets.frame_time = std::chrono::duration_cast<double_millisecond_t>(frame_ns);
 
         // reset query-pool
-        vkResetQueryPool(m_device->handle(), current_assets.query_pool.get(), 0, query_count);
+        vkResetQueryPool(m_device->handle(), frame_assets.query_pool.get(), 0, query_count);
     }
 
-    if(recycle_commands && current_assets.command_buffer)
+    if(recycle_commands && frame_assets.command_buffer)
     {
         // invoke delegate
-        if(draw_indirect_delegate){ draw_indirect_delegate(current_assets.indirect_indexed_bundle); }
-        return current_assets.command_buffer.handle();
+        if(draw_indirect_delegate){ draw_indirect_delegate(frame_assets.indirect_indexed_bundle); }
+        return frame_assets.command_buffer.handle();
     }
 
     // (re-)create assets and commands
-    current_assets.indirect_bundle.num_draws = current_assets.indirect_indexed_bundle.num_draws = 0;
+    frame_assets.indirect_bundle.num_draws = frame_assets.indirect_indexed_bundle.num_draws = 0;
     std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> next_set_layouts;
     descriptor_set_map_t next_descriptor_sets;
+
+    VkCommandBufferInheritanceInfo inheritance = {};
+    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritance.framebuffer = framebuffer.handle();
+    inheritance.renderPass = framebuffer.renderpass().get();
+
+    auto &command_buffer = frame_assets.command_buffer;
+    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
     struct indirect_draw_asset_t
     {
@@ -244,7 +252,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     texture_index_map_t texture_base_index_map;
 
     // swoop all texture-indices
-    for(const auto &drawable: current_assets.drawables)
+    for(const auto &drawable: frame_assets.drawables)
     {
         auto it = drawable.descriptors.find(BINDING_TEXTURES);
         if(it == drawable.descriptors.end() || it->second.images.empty()){ continue; }
@@ -270,20 +278,20 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     desc_texture.images = textures;
     bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
 
-    auto bindless_texture_layout = find_set_layout(bindless_texture_desc, current_assets.descriptor_set_layouts,
+    auto bindless_texture_layout = find_set_layout(bindless_texture_desc, frame_assets.descriptor_set_layouts,
                                                    next_set_layouts);
 
     // create/resize draw_indirect buffers
-    resize_draw_indirect_buffers(current_assets.drawables.size(), current_assets);
+    resize_draw_indirect_buffers(frame_assets.drawables.size(), frame_assets);
 
-    for(auto &drawable: current_assets.drawables)
+    for(auto &drawable: frame_assets.drawables)
     {
         // adjust baseTextureIndex
         drawable.material.base_texture_index = texture_base_index_map[create_mesh_key(drawable)];
     }
 
     // update uniform buffers
-    update_buffers(current_assets.drawables, current_assets);
+    update_buffers(frame_assets.drawables, frame_assets);
 
     // sort by pipelines
     struct indexed_drawable_t
@@ -295,10 +303,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipeline_drawables;
 
     // preprocess drawables
-    for(uint32_t i = 0; i < current_assets.drawables.size(); i++)
+    for(uint32_t i = 0; i < frame_assets.drawables.size(); i++)
     {
-        auto &pipeline_format = current_assets.drawables[i].pipeline_format;
-        auto &drawable = current_assets.drawables[i];
+        auto &pipeline_format = frame_assets.drawables[i].pipeline_format;
+        auto &drawable = frame_assets.drawables[i];
         pipeline_format.renderpass = framebuffer.renderpass().get();
         pipeline_format.viewport = viewport;
         pipeline_format.sample_count = sample_count;
@@ -314,7 +322,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             if(indirect_draw){ drawable.descriptors.erase(BINDING_TEXTURES); }
 
             indexed_drawable.descriptor_set_layout = find_set_layout(drawable.descriptors,
-                                                                     current_assets.descriptor_set_layouts,
+                                                                     frame_assets.descriptor_set_layouts,
                                                                      next_set_layouts);
             pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
@@ -327,14 +335,14 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
         pipeline_drawables[pipeline_format].push_back(indexed_drawable);
     }
 
-    vierkant::BufferPtr draw_buffer = current_assets.indirect_bundle.draws_in;
-    vierkant::BufferPtr draw_buffer_indexed = current_assets.indirect_indexed_bundle.draws_in;
+    vierkant::BufferPtr draw_buffer = frame_assets.indirect_bundle.draws_in;
+    vierkant::BufferPtr draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_in;
 
     // hook up GPU frustum/occlusion/distance culling here
     if(indirect_draw && draw_indirect_delegate)
     {
-        draw_buffer = current_assets.indirect_bundle.draws_out;
-        draw_buffer_indexed = current_assets.indirect_indexed_bundle.draws_out;
+        draw_buffer = frame_assets.indirect_bundle.draws_out;
+        draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_out;
     }
 
     // batch/pipeline index
@@ -355,15 +363,15 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             {
                 indirect_draw_asset_t new_draw = {};
                 new_draw.count_buffer_offset = count_buffer_offset++;
-                new_draw.first_draw_index = current_assets.indirect_bundle.num_draws;
-                new_draw.first_indexed_draw_index = current_assets.indirect_indexed_bundle.num_draws;
+                new_draw.first_draw_index = frame_assets.indirect_bundle.num_draws;
+                new_draw.first_indexed_draw_index = frame_assets.indirect_indexed_bundle.num_draws;
                 new_draw.scissor = drawable->pipeline_format.scissor;
 
                 // predefined buffers
                 if(!drawable->use_own_buffers)
                 {
-                    drawable->descriptors[BINDING_MESH_DRAWS].buffers = {current_assets.mesh_draw_buffer};
-                    drawable->descriptors[BINDING_MATERIAL].buffers = {current_assets.material_buffer};
+                    drawable->descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.mesh_draw_buffer};
+                    drawable->descriptors[BINDING_MATERIAL].buffers = {frame_assets.material_buffer};
 
                     if(drawable->descriptors.count(BINDING_DRAW_COMMANDS) && draw_buffer_indexed)
                     {
@@ -373,10 +381,10 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
                 auto descriptor_set = find_set(drawable->mesh, indexed_drawable.descriptor_set_layout,
                                                drawable->descriptors,
-                                               current_assets.descriptor_sets, next_descriptor_sets, false);
+                                               frame_assets.descriptor_sets, next_descriptor_sets, false);
 
                 auto bindless_texture_set = find_set(drawable->mesh, bindless_texture_layout, bindless_texture_desc,
-                                                     current_assets.descriptor_sets,
+                                                     frame_assets.descriptor_sets,
                                                      next_descriptor_sets, true);
 
                 new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
@@ -389,8 +397,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
                 auto draw_command =
-                        static_cast<indexed_indirect_command_t *>(current_assets.indirect_indexed_bundle.draws_in->map()) +
-                        current_assets.indirect_indexed_bundle.num_draws++;
+                        static_cast<indexed_indirect_command_t *>(frame_assets.indirect_indexed_bundle.draws_in->map()) +
+                        frame_assets.indirect_indexed_bundle.num_draws++;
 
                 //! VkDrawIndexedIndirectCommand
                 *draw_command = {};
@@ -416,8 +424,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
             else
             {
                 auto draw_command =
-                        static_cast<VkDrawIndirectCommand *>(current_assets.indirect_bundle.draws_in->map()) +
-                        current_assets.indirect_bundle.num_draws++;
+                        static_cast<VkDrawIndirectCommand *>(frame_assets.indirect_bundle.draws_in->map()) +
+                        frame_assets.indirect_bundle.num_draws++;
 
                 draw_command->vertexCount = drawable->num_vertices;
                 draw_command->instanceCount = 1;
@@ -431,7 +439,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     if(indirect_draw && draw_indirect_delegate)
     {
         // invoke delegate
-        draw_indirect_delegate(current_assets.indirect_indexed_bundle);
+        draw_indirect_delegate(frame_assets.indirect_indexed_bundle);
     }
 
     // push constants
@@ -442,16 +450,8 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     push_constants.disable_material = disable_material;
     push_constants.debug_draw_ids = debug_draw_ids;
 
-    VkCommandBufferInheritanceInfo inheritance = {};
-    inheritance.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritance.framebuffer = framebuffer.handle();
-    inheritance.renderPass = framebuffer.renderpass().get();
-
-    auto &command_buffer = current_assets.command_buffer;
-    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
-
     // record start-timestamp
-    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, current_assets.query_pool.get(),
+    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_assets.query_pool.get(),
                          0);
 
     // grouped by pipelines
@@ -510,7 +510,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
 
                 if(mesh && mesh->index_buffer)
                 {
-                    const indirect_draw_bundle_t &draw_params = current_assets.indirect_indexed_bundle;
+                    const indirect_draw_bundle_t &draw_params = frame_assets.indirect_indexed_bundle;
 
                     // issue (indexed) drawing command
                     if(draw_params.draws_counts_out)
@@ -577,7 +577,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
                     {
                         auto cmd =
-                                static_cast<indexed_indirect_command_t *>(current_assets.indirect_indexed_bundle.draws_in->map()) +
+                                static_cast<indexed_indirect_command_t *>(frame_assets.indirect_indexed_bundle.draws_in->map()) +
                                 draw_asset.first_indexed_draw_index + i;
 
                         vkCmdDrawMeshTasksEXT(command_buffer.handle(), cmd->vk_mesh_draw.groupCountX,
@@ -589,7 +589,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
                     {
                         auto cmd =
-                                static_cast<indexed_indirect_command_t *>(current_assets.indirect_indexed_bundle.draws_in->map()) +
+                                static_cast<indexed_indirect_command_t *>(frame_assets.indirect_indexed_bundle.draws_in->map()) +
                                 draw_asset.first_indexed_draw_index + i;
 
                         vkCmdDrawIndexed(command_buffer.handle(), cmd->vk_draw.indexCount, cmd->vk_draw.instanceCount,
@@ -602,7 +602,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
                     for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
                     {
                         auto cmd =
-                                static_cast<VkDrawIndirectCommand *>(current_assets.indirect_bundle.draws_in->map()) +
+                                static_cast<VkDrawIndirectCommand *>(frame_assets.indirect_bundle.draws_in->map()) +
                                 draw_asset.first_draw_index + i;
 
                         vkCmdDraw(command_buffer.handle(),
@@ -617,16 +617,16 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer,
     }
 
     // record end-timestamp
-    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, current_assets.query_pool.get(),
+    vkCmdWriteTimestamp2(command_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_assets.query_pool.get(),
                          1);
 
     // keep the stuff in use
-    current_assets.descriptor_set_layouts = std::move(next_set_layouts);
-    current_assets.descriptor_sets = std::move(next_descriptor_sets);
+    frame_assets.descriptor_set_layouts = std::move(next_set_layouts);
+    frame_assets.descriptor_sets = std::move(next_descriptor_sets);
 
     // end and return commandbuffer
-    current_assets.command_buffer.end();
-    return current_assets.command_buffer.handle();
+    frame_assets.command_buffer.end();
+    return frame_assets.command_buffer.handle();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -881,34 +881,21 @@ DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh,
         // not found in current assets
         if(current_assets_it == current.end())
         {
-
             // create a new descriptor set
-            auto descriptor_set = vierkant::create_descriptor_set(m_device, m_descriptor_pool, set_layout,
-                                                                  variable_count);
-
-            // keep handle
-            ret = descriptor_set;
-
-            // update the newly created descriptor set
-            vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
-
-            // insert all created assets and store in map
-            next[key] = std::move(descriptor_set);
+            ret = vierkant::create_descriptor_set(m_device, m_descriptor_pool, set_layout, variable_count);
         }
         else
         {
             // use existing descriptor set
-            auto descriptor_set = std::move(current_assets_it->second);
+            ret = std::move(current_assets_it->second);
             current.erase(current_assets_it);
-
-            // keep handle
-            ret = descriptor_set;
-
-            // update existing descriptor set
-            vierkant::update_descriptor_set(m_device, descriptor_set, descriptors);
-
-            next[key] = std::move(descriptor_set);
         }
+
+        // update the descriptor set
+        vierkant::update_descriptor_set(m_device, ret, descriptors);
+
+        // insert all created assets and store in map
+        next[key] = ret;
     }
     else{ ret = descriptor_set_it->second; }
     return ret;
