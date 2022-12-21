@@ -134,6 +134,16 @@ public:
         uint32_t random_seed = 0;
     };
 
+    //! struct grouping information for direct-rendering
+    struct rendering_info_t
+    {
+        VkCommandBuffer command_buffer = VK_NULL_HANDLE;
+        uint32_t view_mask = 0;
+        std::vector<VkFormat> color_attachment_formats;
+        VkFormat depth_attachment_format = VK_FORMAT_UNDEFINED;
+        VkFormat stencil_attachment_format = VK_FORMAT_UNDEFINED;
+    };
+
     //! num samples used.
     VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
 
@@ -193,8 +203,15 @@ public:
      *
      * @return  handle to the recorded VkCommandBuffer.
      */
-    VkCommandBuffer render(const vierkant::Framebuffer &framebuffer,
-                           bool recycle_commands = false);
+    VkCommandBuffer render(const vierkant::Framebuffer &framebuffer, bool recycle_commands = false);
+
+    /**
+     * @brief   Records drawing-commands for all staged drawables into a provided command-buffer,
+     *          using direct-rendering.
+     *
+     * @param   rendering_info  a struct grouping parameters for a direct-rendering pass.
+     */
+    void render(const rendering_info_t &rendering_info);
 
     /**
      * @return  the current frame-index.
@@ -285,11 +302,14 @@ private:
 
     void set_function_pointers();
 
+    //! internal rendering-workhorse, creating assets and recording drawing-commands
+    void render(VkCommandBuffer command_buffer, frame_assets_t &frame_assets);
+
     //! update the combined uniform buffers
     void update_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
     //! create/resize draw_indirect buffers
-    void resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_asset);
+    void resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_assets);
 
     //! helper routine to find and move assets
     DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
@@ -302,6 +322,8 @@ private:
                               descriptor_set_map_t &current,
                               descriptor_set_map_t &next,
                               bool variable_count);
+
+    frame_assets_t &next_frame();
 
     DevicePtr m_device;
 
