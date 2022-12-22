@@ -127,6 +127,17 @@ public:
 
 private:
 
+    enum SemaphoreValue : uint64_t
+    {
+        INVALID = 0,
+        UPDATE_BOTTOM,
+        UPDATE_TOP,
+        RAYTRACING,
+        DENOISER,
+        BLOOM,
+        TONEMAP
+    };
+
     struct frame_assets_t
     {
         settings_t settings;
@@ -134,8 +145,10 @@ private:
         //! timeline semaphore to sync raytracing and draw-operations
         vierkant::Semaphore semaphore;
 
+        SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
+
         //! records raytracing commands
-        vierkant::CommandBuffer cmd_build_toplvl, cmd_trace, cmd_denoise;
+        vierkant::CommandBuffer cmd_build_toplvl, cmd_trace, cmd_denoise, cmd_post_fx;
 
         //! pending builds for this frame
         std::unordered_map<MeshConstPtr, RayBuilder::build_result_t> build_results;
@@ -150,23 +163,19 @@ private:
 
         vierkant::Compute::computable_t denoise_computable = {};
 
-        vierkant::ImagePtr denoise_image;
+        vierkant::ImagePtr denoise_image, out_image;
 
         vierkant::BufferPtr ray_miss_ubo, composition_ubo;
 
-        vierkant::drawable_t out_drawable;
-
         BloomUPtr bloom;
-    };
 
-    enum SemaphoreValue : uint64_t
-    {
-        UPDATE_BOTTOM = 1,
-        UPDATE_TOP,
-        RAYTRACING,
-        DENOISER,
-        COMPOSITION,
-        RENDER_DONE = COMPOSITION
+        //! ping-pong post-fx framebuffers
+        struct ping_pong_t
+        {
+            vierkant::Framebuffer framebuffer;
+        };
+        std::array<ping_pong_t, 2> post_fx_ping_pongs;
+        vierkant::Renderer post_fx_renderer;
     };
 
     struct push_constants_t
@@ -272,7 +281,7 @@ private:
 
     vierkant::ImagePtr m_environment, m_empty_img;
 
-    vierkant::drawable_t m_drawable_bloom, m_drawable_raw;
+    vierkant::drawable_t m_drawable_tonemap;
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 

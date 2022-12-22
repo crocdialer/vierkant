@@ -148,16 +148,12 @@ CommandBuffer::CommandBuffer(DevicePtr device, VkCommandPool command_pool, VkCom
         m_pool(command_pool),
         m_recording(false)
 {
-    if(command_pool)
-    {
-        VkCommandBufferAllocateInfo alloc_info = {};
-        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        alloc_info.level = level;
-        alloc_info.commandPool = command_pool;
-        alloc_info.commandBufferCount = 1;
-
-        vkAllocateCommandBuffers(m_device->handle(), &alloc_info, &m_handle);
-    }
+    VkCommandBufferAllocateInfo alloc_info = {};
+    alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    alloc_info.level = level;
+    alloc_info.commandPool = command_pool;
+    alloc_info.commandBufferCount = 1;
+    vkCheck(vkAllocateCommandBuffers(m_device->handle(), &alloc_info, &m_handle), "failed to create command buffer!");
 
     VkFenceCreateInfo fence_create_info = {};
     fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;

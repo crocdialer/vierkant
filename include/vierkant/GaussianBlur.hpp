@@ -69,17 +69,19 @@ private:
     //! ping-pong post-fx framebuffers
     struct ping_pong_t
     {
+        vierkant::Framebuffer framebuffer;
         vierkant::BufferPtr ubo;
         vierkant::drawable_t drawable;
     };
     std::array<ping_pong_t, 2> m_ping_pongs;
-
-    std::vector<vierkant::Framebuffer> m_framebuffers;
     vierkant::Renderer m_renderer;
-    vierkant::Semaphore m_semaphore;
 
     VkSpecializationInfo m_specialization_info = {};
     VkSpecializationMapEntry m_specialization_entry = {};
+
+    uint32_t m_num_iterations = 0;
+    VkFormat m_color_format = VK_FORMAT_UNDEFINED;
+    vierkant::CommandBuffer m_command_buffer;
 };
 
 extern template

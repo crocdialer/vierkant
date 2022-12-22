@@ -37,12 +37,6 @@ public:
 
 private:
 
-    enum SemaphoreValue : uint64_t
-    {
-        THRESH_DONE = 1,
-        BLUR_DONE
-    };
-
     Bloom(const DevicePtr &device, const create_info_t &create_info);
 
     vierkant::Framebuffer m_thresh_framebuffer;
@@ -56,8 +50,6 @@ private:
 
     VkSpecializationInfo m_specialization_info = {};
     std::array<VkSpecializationMapEntry, 2> m_specialization_entry{};
-
-    vierkant::Semaphore m_semaphore;
 };
 
 }// namespace vierkant

@@ -5,8 +5,9 @@
 #include "vierkant/vierkant.hpp"
 #include "vierkant/model_loading.hpp"
 
-vierkant::MeshPtr create_mesh(const vierkant::DevicePtr &device)
+std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePtr &device)
 {
+
     // create some drawables for a template-shape
     vierkant::Mesh::entry_create_info_t entry_info = {};
     entry_info.geometry = vierkant::Geometry::Box();
@@ -24,7 +25,15 @@ vierkant::MeshPtr create_mesh(const vierkant::DevicePtr &device)
 
     BOOST_CHECK_EQUAL(mesh_assets.entry_create_infos.size(), mesh->entries.size());
     BOOST_CHECK_EQUAL(mesh_assets.materials.size(), mesh->materials.size());
-    return mesh;
+
+    vierkant::create_drawables_params_t drawable_params = {};
+    drawable_params.mesh = mesh;
+    auto drawables = vierkant::create_drawables(drawable_params);
+
+    // manually inject shader-stages which cannot be just guessed by above utility
+    auto unlit_shader_stages = vierkant::create_shader_stages(device, vierkant::ShaderType::UNLIT_COLOR);
+    for(auto &drawable: drawables){ drawable.pipeline_format.shader_stages = unlit_shader_stages; }
+    return drawables;
 }
 
 BOOST_AUTO_TEST_CASE(TestRenderer_renderpass_API)
@@ -38,26 +47,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_renderpass_API)
     create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     create_info.viewport = {0.f, 0.f, res.x, res.y, 0.f, 1.f};
     auto renderer = vierkant::Renderer(test_context.device, create_info);
-
-    // create some drawables for a template-shape
-    vierkant::Mesh::entry_create_info_t entry_info = {};
-    entry_info.geometry = vierkant::Geometry::Box();
-    entry_info.geometry->normals.clear();
-    entry_info.geometry->tangents.clear();
-    entry_info.geometry->tex_coords.clear();
-
-    vierkant::model::mesh_assets_t mesh_assets = {};
-    mesh_assets.entry_create_infos = {entry_info};
-    mesh_assets.materials.resize(1);
-
-    vierkant::create_drawables_params_t drawable_params = {};
-    drawable_params.mesh = create_mesh(test_context.device);;
-    auto drawables = vierkant::create_drawables(drawable_params);
-
-    // manually inject shader-stages which cannot be just guessed by above utility
-    auto unlit_shader_stages = vierkant::create_shader_stages(test_context.device,
-                                                              vierkant::ShaderType::UNLIT_COLOR);
-    for(auto &drawable: drawables){ drawable.pipeline_format.shader_stages = unlit_shader_stages; }
+    auto drawables = create_test_drawables(test_context.device);
 
     // create a framebuffer to submit to
     vierkant::Framebuffer::create_info_t framebuffer_info = {};
@@ -92,16 +82,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
     create_info.command_pool = command_pool;
 
     auto renderer = vierkant::Renderer(test_context.device, create_info);
-
-    auto mesh = create_mesh(test_context.device);
-
-    vierkant::create_drawables_params_t drawable_params = {};
-    drawable_params.mesh = mesh;
-    auto drawables = vierkant::create_drawables(drawable_params);
-
-    // manually inject shader-stages which cannot be just guessed by above utility
-    auto unlit_shader_stages = vierkant::create_shader_stages(test_context.device, vierkant::ShaderType::UNLIT_COLOR);
-    for(auto &drawable: drawables){ drawable.pipeline_format.shader_stages = unlit_shader_stages; }
+    auto drawables = create_test_drawables(test_context.device);
 
     // create a framebuffer to submit to
     vierkant::Framebuffer::create_info_t framebuffer_info = {};
@@ -119,6 +100,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
     rendering_info.command_buffer = cmd_buffer.handle();
     rendering_info.color_attachment_formats = {framebuffer_info.color_attachment_format.format};
 
+    // record drawing commands into an active command-buffer
     renderer.render(rendering_info);
     vkCmdEndRendering(cmd_buffer.handle());
 

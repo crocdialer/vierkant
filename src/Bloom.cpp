@@ -78,11 +78,6 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
 vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
                                 const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
-//    if(!queue){ queue = image->device()->queue(); }
-
-    m_semaphore.wait(SemaphoreValue::BLUR_DONE);
-    m_semaphore = vierkant::Semaphore(image->device());
-
     std::vector<vierkant::semaphore_submit_info_t> wait_infos, signal_infos;
 
     for(const auto &info: semaphore_infos)
@@ -105,31 +100,14 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
         }
     }
 
-    vierkant::semaphore_submit_info_t thresh_done = {};
-    thresh_done.semaphore = m_semaphore.handle();
-    thresh_done.signal_value = SemaphoreValue::THRESH_DONE;
-    thresh_done.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-
     // threshold
-    auto thresh_submit_infos = wait_infos;
-    thresh_submit_infos.push_back(thresh_done);
-
     m_drawable.descriptors[0].images = {image};
     m_thresh_renderer.stage_drawable(m_drawable);
     auto cmd_buf = m_thresh_renderer.render(m_thresh_framebuffer);
-    m_thresh_framebuffer.submit({cmd_buf}, queue, thresh_submit_infos);
+    m_thresh_framebuffer.submit({cmd_buf}, queue, wait_infos);
 
     // blur
-    vierkant::semaphore_submit_info_t blur_info = {};
-    blur_info.semaphore = m_semaphore.handle();
-    blur_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-    blur_info.wait_value = SemaphoreValue::THRESH_DONE;
-    blur_info.signal_value = SemaphoreValue::BLUR_DONE;
-    blur_info.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-    auto blur_submit_infos = signal_infos;
-    blur_submit_infos.push_back(blur_info);
-    return m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue, blur_submit_infos);
+    return m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue, signal_infos);
 }
 
 }// namespace vierkant

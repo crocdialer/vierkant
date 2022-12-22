@@ -936,6 +936,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
     vierkant::ImagePtr output_img = color;
     size_t buffer_index = 0;
 
+    // TODO: refactor with direct-rendering API
     // get next set of pingpong assets, increment index
     auto pingpong_render = [&frame_asset, &buffer_index, queue = m_queue](
             vierkant::drawable_t &drawable,
@@ -945,7 +946,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index++ % 2];
         pingpong.renderer.stage_drawable(drawable);
         auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-//        pingpong.framebuffer.color_attachment(0)->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, cmd_buf);
         pingpong.framebuffer.submit({cmd_buf}, queue, semaphore_submit_infos);
         return pingpong.framebuffer.color_attachment(0);
     };
@@ -993,6 +993,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
             bloom_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             bloom_semaphore_info.signal_value = SemaphoreValue::BLOOM;
             bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_semaphore_info});
+            frame_asset.semaphore_value_done = SemaphoreValue::BLOOM;
         }
 
         // motionblur
@@ -1017,8 +1018,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
         vierkant::semaphore_submit_info_t tonemap_semaphore_info = {};
         tonemap_semaphore_info.semaphore = frame_asset.timeline.handle();
-        tonemap_semaphore_info.wait_value = frame_asset.settings.bloom ? SemaphoreValue::BLOOM
-                                                                       : frame_asset.semaphore_value_done;
+        tonemap_semaphore_info.wait_value = frame_asset.semaphore_value_done;
         tonemap_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
         tonemap_semaphore_info.signal_value = SemaphoreValue::TONEMAP;
         output_img = pingpong_render(m_drawable_bloom, {tonemap_semaphore_info});
@@ -1106,7 +1106,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     m_logger->trace("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
                     resolution.y);
     asset.recycle_commands = false;
-    vierkant::RenderPassPtr lighting_renderpass, sky_renderpass, post_fx_renderpass;
+    vierkant::RenderPassPtr lighting_renderpass, sky_renderpass;
 
     // G-buffer (pre and post occlusion-culling)
     asset.g_buffer_pre = create_g_buffer(m_device, size);
@@ -1145,11 +1145,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     post_fx_buffer_info.color_attachment_format.usage =
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    post_fx_buffer_info.renderpass = post_fx_renderpass;
 
-    // create renderer for g-buffer-pass
+    // create renderer for post-fx-passes
     vierkant::Renderer::create_info_t post_render_info = {};
-    post_render_info.num_frames_in_flight = m_frame_assets.size();
+    post_render_info.num_frames_in_flight = 1;
     post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     post_render_info.viewport = viewport;
     post_render_info.pipeline_cache = m_pipeline_cache;
