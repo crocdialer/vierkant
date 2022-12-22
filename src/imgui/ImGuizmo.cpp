@@ -34,14 +34,14 @@
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h>
+#else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-copy"
 #endif
 #if !defined(_MSC_VER) && !defined(__MINGW64_VERSION_MAJOR)
 #define _malloca(x) alloca(x)
 #define _freea(x)
 #endif
-
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-copy"
 
 // includes patches for multiview from
 // https://github.com/CedricGuillemet/ImGuizmo/issues/15
@@ -1233,7 +1233,7 @@ namespace IMGUIZMO_NAMESPACE
          }
          const bool usingAxis = (gContext.mbUsing && type == MT_ROTATE_Z - axis);
          const int circleMul = (hasRSC && !usingAxis ) ? 1 : 2;
-         
+
          ImVec2* circlePos = (ImVec2*)alloca(sizeof(ImVec2) * (circleMul * halfCircleSegmentCount + 1));
 
          float angleStart = atan2f(cameraToModelNormalized[(4 - axis) % 3], cameraToModelNormalized[(3 - axis) % 3]) + ZPI * 0.5f;
@@ -2887,4 +2887,6 @@ namespace IMGUIZMO_NAMESPACE
       ComputeContext(svgView.m16, svgProjection.m16, gContext.mModelSource.m16, gContext.mMode);
    }
 };
+#if !defined(_MSC_VER) && !defined(__MINGW32__)
 #pragma GCC diagnostic pop
+#endif
