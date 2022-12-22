@@ -3,16 +3,16 @@ cmake_minimum_required(VERSION 3.8)
 ## define our project
 project(vierkant)
 
-# commit hash of the working branch
+# retrieve git-commit hash/date
 execute_process(
         COMMAND git log -1 --format=%h
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_COMMIT_HASH
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 execute_process(
         COMMAND git log -1 --format=%cd --date=local
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_COMMIT_DATE
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 
@@ -23,8 +23,6 @@ add_definitions("-DGIT_COMMIT_DATE=\"${GIT_COMMIT_DATE}\"")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-
-#set(CXX_DEFAULT_FLAGS "${CMAKE_CXX_FLAGS} -pthread -Wall")
 
 if (NOT CMAKE_BUILD_TYPE)
     SET(CMAKE_BUILD_TYPE Release CACHE STRING
@@ -48,7 +46,7 @@ option(BUILD_EXAMPLES "Build Examples" ON)
 if (NOT BUILD_SHARED_LIBS)
     set(CMAKE_CXX_FLAGS ${CXX_DEFAULT_FLAGS})
     set(LIB_TYPE STATIC)
-else()
+else ()
     set(CMAKE_CXX_FLAGS "${CXX_DEFAULT_FLAGS} -fPIC")
     set(LIB_TYPE SHARED)
 endif (NOT BUILD_SHARED_LIBS)
@@ -120,11 +118,11 @@ set(LIB_NAME ${PROJECT_NAME})
 add_subdirectory("src")
 set(LIBS ${LIBS} ${vierkant_LIBRARIES})
 
-if(MSVC)
-    target_compile_options(${LIB_NAME} PRIVATE /W2) #TODO /W4 /WX (warnings as errors)
-else()
+if (MSVC)
+    target_compile_options(${LIB_NAME} PRIVATE /W2 /WX) # /W4
+else ()
     target_compile_options(${LIB_NAME} PRIVATE -Wall -Wextra -Werror) # -Wpedantic
-endif()
+endif ()
 
 # Expose public includes to subprojects through cache variable.
 set(${PROJECT_NAME}_INCLUDE_DIRS ${INCLUDE_DIRS}
@@ -132,8 +130,6 @@ set(${PROJECT_NAME}_INCLUDE_DIRS ${INCLUDE_DIRS}
 
 set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
-
-#message("includes: ${vierkant_INCLUDE_DIRS}")
 
 #examples
 if (BUILD_EXAMPLES)
