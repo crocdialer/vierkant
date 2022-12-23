@@ -204,6 +204,8 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image,
     auto &ping = m_ping_pongs[0], &pong = m_ping_pongs[1];
 
     m_command_buffer.begin(0);
+    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
+    begin_rendering_info.commandbuffer = m_command_buffer.handle();
 
     for(uint32_t i = 0; i < m_num_iterations; ++i)
     {
@@ -219,7 +221,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image,
         current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, m_command_buffer.handle());
         ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
                                                                m_command_buffer.handle());
-        ping.framebuffer.begin_rendering(m_command_buffer.handle());
+        ping.framebuffer.begin_rendering(begin_rendering_info);
         m_renderer.render(rendering_info);
         vkCmdEndRendering(m_command_buffer.handle());
 
@@ -229,7 +231,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image,
                                                                m_command_buffer.handle());
         pong.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
                                                                m_command_buffer.handle());
-        pong.framebuffer.begin_rendering(m_command_buffer.handle());
+        pong.framebuffer.begin_rendering(begin_rendering_info);
         m_renderer.render(rendering_info);
         vkCmdEndRendering(m_command_buffer.handle());
         current_img = pong.framebuffer.color_attachment();

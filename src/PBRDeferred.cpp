@@ -74,8 +74,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
     render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     render_create_info.indirect_draw = false;
-    m_light_renderer = vierkant::Renderer(device, render_create_info);
-    m_sky_renderer = vierkant::Renderer(device, render_create_info);
+    auto light_render_create_info = render_create_info;
+    light_render_create_info.num_frames_in_flight = 2 * create_info.num_frames_in_flight;
+    m_light_renderer = vierkant::Renderer(device, light_render_create_info);
     m_taa_renderer = vierkant::Renderer(device, render_create_info);
 
     // create drawable for environment lighting-pass
@@ -239,10 +240,10 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     size_t scene_hash = 0;
     auto object_view = scene->registry()->view<vierkant::Object3D *>();
     object_view.each([&scene_hash](const auto &object)
-    {
-        crocore::hash_combine(scene_hash, object);
-        crocore::hash_combine(scene_hash, object->enabled);
-    });
+                     {
+                         crocore::hash_combine(scene_hash, object);
+                         crocore::hash_combine(scene_hash, object->enabled);
+                     });
 
     auto mesh_view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
 
@@ -870,9 +871,6 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                    m_g_renderer_main.num_concurrent_frames();
     auto &frame_asset = m_frame_assets[index];
 
-    frame_asset.timings_map[SemaphoreValue::LIGHTING] =
-            m_light_renderer.last_frame_ms() + m_sky_renderer.last_frame_ms();
-
     environment_lighting_ubo_t ubo = {};
     ubo.camera_transform = cull_result.camera->global_transform();
     ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
@@ -895,32 +893,51 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
     drawable.descriptors[3].buffers = {frame_asset.lights_ubo};
 
-    std::vector<VkCommandBuffer> primary_cmd_buffers;
+    frame_asset.lighting_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    frame_asset.lighting_cmd_buffer.begin(0);
 
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
-    auto cmd_buffer = m_light_renderer.render(frame_asset.lighting_buffer);
-    primary_cmd_buffers.push_back(frame_asset.lighting_buffer.record_commandbuffer({cmd_buffer}));
+
+    vierkant::Renderer::rendering_info_t rendering_info = {};
+    rendering_info.command_buffer = frame_asset.lighting_cmd_buffer.handle();
+    rendering_info.color_attachment_formats = {frame_asset.lighting_buffer.color_attachment()->format().format};
+    rendering_info.depth_attachment_format = frame_asset.lighting_buffer.depth_attachment()->format().format;
+
+    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
+    begin_rendering_info.commandbuffer = frame_asset.lighting_cmd_buffer.handle();
+    begin_rendering_info.use_depth_attachment = false;
+
+    frame_asset.lighting_buffer.begin_rendering(begin_rendering_info);
+    m_light_renderer.render(rendering_info);
+    vkCmdEndRendering(frame_asset.lighting_cmd_buffer.handle());
 
     // skybox rendering
     if(frame_asset.settings.draw_skybox)
     {
         if(cull_result.scene->environment())
         {
-            m_draw_context.draw_skybox(m_sky_renderer, cull_result.scene->environment(), cull_result.camera);
-            cmd_buffer = m_sky_renderer.render(frame_asset.sky_buffer);
-            primary_cmd_buffers.push_back(frame_asset.sky_buffer.record_commandbuffer({cmd_buffer}));
+            m_draw_context.draw_skybox(m_light_renderer, cull_result.scene->environment(), cull_result.camera);
+
+            begin_rendering_info.clear_color_attachment = false;
+            begin_rendering_info.use_depth_attachment = true;
+            begin_rendering_info.clear_depth_attachment = false;
+            frame_asset.lighting_buffer.begin_rendering(begin_rendering_info);
+            m_light_renderer.render(rendering_info);
+            vkCmdEndRendering(frame_asset.lighting_cmd_buffer.handle());
         }
     }
-    frame_asset.semaphore_value_done = SemaphoreValue::LIGHTING;
+    vkCmdWriteTimestamp2(frame_asset.lighting_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::LIGHTING);
 
     vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
     lighting_semaphore_info.semaphore = frame_asset.timeline.handle();
     lighting_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     lighting_semaphore_info.wait_value = SemaphoreValue::G_BUFFER_ALL;
     lighting_semaphore_info.signal_value = SemaphoreValue::LIGHTING;
-    vierkant::submit(m_device, m_queue, primary_cmd_buffers, false, VK_NULL_HANDLE, {lighting_semaphore_info});
-    return frame_asset.sky_buffer;
+    frame_asset.semaphore_value_done = SemaphoreValue::LIGHTING;
+    frame_asset.lighting_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {lighting_semaphore_info});
+    return frame_asset.lighting_buffer;
 }
 
 void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &cam, const vierkant::ImagePtr &color,
@@ -1071,8 +1088,8 @@ const vierkant::Framebuffer &PBRDeferred::g_buffer() const
 
 const vierkant::Framebuffer &PBRDeferred::lighting_buffer() const
 {
-    size_t last_index = (m_light_renderer.num_concurrent_frames() + m_light_renderer.current_index() - 1) %
-                        m_light_renderer.num_concurrent_frames();
+    size_t last_index = (m_g_renderer_main.num_concurrent_frames() + m_g_renderer_main.current_index() - 1) %
+                        m_g_renderer_main.num_concurrent_frames();
     return m_frame_assets[last_index].lighting_buffer;
 }
 
@@ -1097,7 +1114,6 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     m_g_renderer_main.viewport = viewport;
     m_g_renderer_post.viewport = viewport;
     m_light_renderer.viewport = viewport;
-    m_sky_renderer.viewport = viewport;
     m_taa_renderer.viewport = viewport;
 
     // nothing to do
@@ -1106,7 +1122,6 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     m_logger->trace("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
                     resolution.y);
     asset.recycle_commands = false;
-    vierkant::RenderPassPtr lighting_renderpass, sky_renderpass;
 
     // G-buffer (pre and post occlusion-culling)
     asset.g_buffer_pre = create_g_buffer(m_device, size);
@@ -1117,23 +1132,16 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
     // init lighting framebuffer
-    vierkant::attachment_map_t lighting_attachments, sky_attachments;
+    vierkant::attachment_map_t lighting_attachments;
     vierkant::Image::Format img_attachment_16f = {};
     img_attachment_16f.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     img_attachment_16f.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     img_attachment_16f.extent = size;
     lighting_attachments[vierkant::AttachmentType::Color] = {vierkant::Image::create(m_device, img_attachment_16f)};
 
-    sky_attachments = lighting_attachments;
-
     // use depth from g_buffer
-    sky_attachments[vierkant::AttachmentType::DepthStencil] = {asset.g_buffer_post.depth_attachment()};
-
-    lighting_renderpass = vierkant::create_renderpass(m_device, lighting_attachments, true, false);
-    sky_renderpass = vierkant::create_renderpass(m_device, sky_attachments, false, false);
-    asset.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments, lighting_renderpass);
-
-    asset.sky_buffer = vierkant::Framebuffer(m_device, sky_attachments, sky_renderpass);
+    lighting_attachments[vierkant::AttachmentType::DepthStencil] = {asset.g_buffer_post.depth_attachment()};
+    asset.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments);
 
     vierkant::Framebuffer::create_info_t taa_framebuffer_info = {};
     taa_framebuffer_info.color_attachment_format = img_attachment_16f;
@@ -1201,7 +1209,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     timings_t &timings_result = frame_asset.stats.timings;
     frame_asset.stats.timestamp = frame_asset.timestamp;
 
-    constexpr size_t query_count = SemaphoreValue::CULLING + 1;
+    constexpr size_t query_count = SemaphoreValue::LIGHTING + 1;
 
     uint64_t timestamps[query_count] = {};
     auto query_result = vkGetQueryPoolResults(m_device->handle(), frame_asset.query_pool.get(), 0, query_count,
@@ -1218,7 +1226,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 
     if(query_result == VK_SUCCESS)
     {
-        for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= SemaphoreValue::CULLING; ++i)
+        for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= SemaphoreValue::LIGHTING; ++i)
         {
             auto val = SemaphoreValue(i);
             frame_asset.timings_map[val] = millis(val);

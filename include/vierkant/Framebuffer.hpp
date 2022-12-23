@@ -61,6 +61,16 @@ public:
         RenderPassPtr renderpass = nullptr;
     };
 
+    //! group parameters for  'begin_rendering'-routine
+    struct begin_rendering_info_t
+    {
+        VkCommandBuffer commandbuffer = VK_NULL_HANDLE;
+        bool use_color_attachment = true;
+        bool clear_color_attachment = true;
+        bool use_depth_attachment = true;
+        bool clear_depth_attachment = true;
+    };
+
     /**
      * @brief   Utility to create an AttachmentMap.
      *
@@ -134,9 +144,7 @@ public:
      * @param   clear_color_attachment  optional flag to set if color should be cleared prior to rendering.
      * @param   clear_depth_attachment  optional flag to set if depth should be cleared prior to rendering.
      */
-    void begin_rendering(VkCommandBuffer commandbuffer,
-                         bool clear_color_attachment = true,
-                         bool clear_depth_attachment = true) const;
+    void begin_rendering(const begin_rendering_info_t &info) const;
 
     /**
      * @return  the VkExtent3D used by the Image-Attachments

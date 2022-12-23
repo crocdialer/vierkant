@@ -314,7 +314,9 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
 
         frame_asset.cmd_post_fx.begin(0);
         bloom_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_post_fx.handle());
-        frame_asset.post_fx_ping_pongs[0].framebuffer.begin_rendering(frame_asset.cmd_post_fx.handle());
+        vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
+        begin_rendering_info.commandbuffer = frame_asset.cmd_post_fx.handle();
+        frame_asset.post_fx_ping_pongs[0].framebuffer.begin_rendering(begin_rendering_info);
 
         vierkant::Renderer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = frame_asset.cmd_post_fx.handle();

@@ -237,11 +237,11 @@ private:
         vierkant::Framebuffer g_buffer_pre, g_buffer_post;
 
         vierkant::ImagePtr depth_map, depth_pyramid;
-        vierkant::CommandBuffer clear_cmd_buffer;
+        vierkant::CommandBuffer clear_cmd_buffer, lighting_cmd_buffer;
 
         vierkant::gpu_cull_context_ptr gpu_cull_context;
 
-        vierkant::Framebuffer lighting_buffer, sky_buffer, taa_buffer;
+        vierkant::Framebuffer lighting_buffer, /*sky_buffer,*/ taa_buffer;
 
         // host-visible
         vierkant::BufferPtr staging_buffer;
@@ -330,7 +330,7 @@ private:
 
     vierkant::Renderer m_g_renderer_main, m_g_renderer_post;
 
-    vierkant::Renderer m_light_renderer, m_sky_renderer, m_taa_renderer;
+    vierkant::Renderer m_light_renderer, /*m_sky_renderer,*/ m_taa_renderer;
 
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;
@@ -345,9 +345,6 @@ private:
     vierkant::ImagePtr m_empty_img;
 
     vierkant::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom, m_drawable_taa;
-
-//    vierkant::Compute::computable_t m_depth_pyramid_computable;
-//    glm::uvec3 m_depth_pyramid_local_size{0};
 
     // cache matrices and bones from previous frame
     matrix_cache_t m_entry_matrix_cache;

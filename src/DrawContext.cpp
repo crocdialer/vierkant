@@ -155,15 +155,6 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         mat->textures[vierkant::Material::TextureType::Environment] = {};
         m_drawable_skybox = vierkant::create_drawables(drawable_params).front();
     }
-
-//    // memorypool with 128MB blocks
-//    constexpr size_t block_size = 1U << 27U;
-//    constexpr size_t min_num_blocks = 0, max_num_blocks = 0;
-//    m_memory_pool = vierkant::Buffer::create_pool(m_device,
-//                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-//                                                  VMA_MEMORY_USAGE_CPU_TO_GPU,
-//                                                  block_size, min_num_blocks, max_num_blocks,
-//                                                  VMA_POOL_CREATE_LINEAR_ALGORITHM_BIT);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
