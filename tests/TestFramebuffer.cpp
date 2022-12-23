@@ -247,7 +247,9 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_DirectRendering)
 
     // record direct rendering-pass
     cmd_buffer.begin();
-    framebuffer.begin_rendering(cmd_buffer.handle());
+    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
+    begin_rendering_info.commandbuffer = cmd_buffer.handle();
+    framebuffer.begin_rendering(begin_rendering_info);
     vkCmdEndRendering(cmd_buffer.handle());
 
     // submit to queue
@@ -284,7 +286,9 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_DirectRendering_MSAA)
 
     // record direct rendering-pass
     cmd_buffer.begin();
-    framebuffer.begin_rendering(cmd_buffer.handle());
+    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
+    begin_rendering_info.commandbuffer = cmd_buffer.handle();
+    framebuffer.begin_rendering(begin_rendering_info);
     vkCmdEndRendering(cmd_buffer.handle());
 
     // submit to queue
