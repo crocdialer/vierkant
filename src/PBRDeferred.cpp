@@ -863,10 +863,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
 vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_result)
 {
-    // lighting-pass
-    // |- IBL, environment lighting-pass + emission
-    // |- TODO: draw light volumes with fancy stencil settings
-
     size_t index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
                    m_g_renderer_main.num_concurrent_frames();
     auto &frame_asset = m_frame_assets[index];
@@ -895,6 +891,10 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     frame_asset.lighting_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.lighting_cmd_buffer.begin(0);
+
+    // g-buffer done timestamp
+    vkCmdWriteTimestamp2(frame_asset.lighting_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::G_BUFFER_ALL);
 
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
