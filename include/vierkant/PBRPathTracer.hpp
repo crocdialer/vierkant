@@ -147,7 +147,7 @@ private:
 
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
 
-        //! records raytracing commands
+        //! re-usable command-buffers for all stages
         vierkant::CommandBuffer cmd_build_toplvl, cmd_trace, cmd_denoise, cmd_post_fx;
 
         //! pending builds for this frame
