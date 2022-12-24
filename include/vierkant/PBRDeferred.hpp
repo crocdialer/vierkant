@@ -197,6 +197,7 @@ private:
         TAA,
         BLOOM,
         TONEMAP,
+        FXAA,
         DEFOCUS_BLUR,
         MAX_VALUE
     };
@@ -261,7 +262,6 @@ private:
         struct ping_pong_t
         {
             vierkant::Framebuffer framebuffer;
-            vierkant::Renderer renderer;
         };
         std::array<ping_pong_t, 2> post_fx_ping_pongs;
 
@@ -330,7 +330,7 @@ private:
 
     vierkant::Renderer m_g_renderer_main, m_g_renderer_post;
 
-    vierkant::Renderer m_light_renderer, m_taa_renderer;
+    vierkant::Renderer m_renderer_lighting, m_renderer_taa, m_renderer_post_fx;
 
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;

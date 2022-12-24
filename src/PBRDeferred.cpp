@@ -76,8 +76,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.indirect_draw = false;
     auto light_render_create_info = render_create_info;
     light_render_create_info.num_frames_in_flight = 2 * create_info.num_frames_in_flight;
-    m_light_renderer = vierkant::Renderer(device, light_render_create_info);
-    m_taa_renderer = vierkant::Renderer(device, render_create_info);
+    m_renderer_lighting = vierkant::Renderer(device, light_render_create_info);
+    m_renderer_taa = vierkant::Renderer(device, render_create_info);
+
+    // create renderer for post-fx-passes
+    constexpr size_t max_num_post_fx_passes = 5;
+    render_create_info.num_frames_in_flight = create_info.num_frames_in_flight * max_num_post_fx_passes;
+    m_renderer_post_fx = vierkant::Renderer(m_device, render_create_info);
 
     // create drawable for environment lighting-pass
     {
@@ -897,7 +902,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                          frame_asset.query_pool.get(), SemaphoreValue::G_BUFFER_ALL);
 
     // stage, render, submit
-    m_light_renderer.stage_drawable(drawable);
+    m_renderer_lighting.stage_drawable(drawable);
 
     vierkant::Renderer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = frame_asset.cmd_lighting.handle();
@@ -910,7 +915,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     begin_rendering_info.clear_depth_attachment = false;
 
     frame_asset.lighting_buffer.begin_rendering(begin_rendering_info);
-    m_light_renderer.render(rendering_info);
+    m_renderer_lighting.render(rendering_info);
     vkCmdEndRendering(frame_asset.cmd_lighting.handle());
 
     // skybox rendering
@@ -918,12 +923,12 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     {
         if(cull_result.scene->environment())
         {
-            m_draw_context.draw_skybox(m_light_renderer, cull_result.scene->environment(), cull_result.camera);
+            m_draw_context.draw_skybox(m_renderer_lighting, cull_result.scene->environment(), cull_result.camera);
 
             begin_rendering_info.clear_color_attachment = false;
             begin_rendering_info.use_depth_attachment = true;
             frame_asset.lighting_buffer.begin_rendering(begin_rendering_info);
-            m_light_renderer.render(rendering_info);
+            m_renderer_lighting.render(rendering_info);
             vkCmdEndRendering(frame_asset.cmd_lighting.handle());
         }
     }
@@ -949,23 +954,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
             (frame_index + m_g_renderer_main.num_concurrent_frames() - 1) % m_g_renderer_main.num_concurrent_frames();
 
     auto &frame_asset = m_frame_assets[frame_index];
-
     vierkant::ImagePtr output_img = color;
-    size_t buffer_index = 0;
-
-    // TODO: refactor with direct-rendering API
-    // get next set of pingpong assets, increment index
-    auto pingpong_render = [&frame_asset, &buffer_index, queue = m_queue](
-            vierkant::drawable_t &drawable,
-            const std::vector<vierkant::semaphore_submit_info_t> &semaphore_submit_infos = {})
-            -> vierkant::ImagePtr
-    {
-        auto &pingpong = frame_asset.post_fx_ping_pongs[buffer_index++ % 2];
-        pingpong.renderer.stage_drawable(drawable);
-        auto cmd_buf = pingpong.renderer.render(pingpong.framebuffer);
-        pingpong.framebuffer.submit({cmd_buf}, queue, semaphore_submit_infos);
-        return pingpong.framebuffer.color_attachment(0);
-    };
 
     // TAA
     if(frame_asset.settings.use_taa)
@@ -983,10 +972,10 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         {
             drawable.descriptors[1].buffers.front()->set_data(&frame_asset.camera_params, sizeof(camera_params_t));
         }
-        m_taa_renderer.stage_drawable(drawable);
+        m_renderer_taa.stage_drawable(drawable);
 
-        frame_asset.timings_map[SemaphoreValue::TAA] = m_taa_renderer.last_frame_ms();
-        auto cmd = m_taa_renderer.render(frame_asset.taa_buffer);
+        frame_asset.timings_map[SemaphoreValue::TAA] = m_renderer_taa.last_frame_ms();
+        auto cmd = m_renderer_taa.render(frame_asset.taa_buffer);
 
         vierkant::semaphore_submit_info_t taa_semaphore_info = {};
         taa_semaphore_info.semaphore = frame_asset.timeline.handle();
@@ -995,6 +984,38 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         frame_asset.semaphore_value_done = SemaphoreValue::TAA;
         output_img = frame_asset.taa_buffer.color_attachment();
     }
+
+    size_t buffer_index = 0;
+
+    // get next set of pingpong assets, increment index
+    auto pingpong_render = [&frame_asset,
+            &buffer_index,
+            &renderer = m_renderer_post_fx](vierkant::drawable_t &drawable, SemaphoreValue semaphore_value)
+            -> vierkant::ImagePtr
+    {
+        auto &framebuffer = frame_asset.post_fx_ping_pongs[buffer_index++ % 2].framebuffer;
+        auto cmd = frame_asset.cmd_post_fx.handle();
+
+        vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
+        begin_rendering_info.commandbuffer = cmd;
+        framebuffer.begin_rendering(begin_rendering_info);
+        renderer.stage_drawable(drawable);
+
+        vierkant::Renderer::rendering_info_t rendering_info = {};
+        rendering_info.command_buffer = cmd;
+        rendering_info.color_attachment_formats = {framebuffer.color_attachment()->format().format};
+        renderer.render(rendering_info);
+        vkCmdEndRendering(cmd);
+
+        vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_asset.query_pool.get(), semaphore_value);
+        frame_asset.semaphore_value_done = semaphore_value;
+        return framebuffer.color_attachment();
+    };
+
+    frame_asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    frame_asset.cmd_post_fx.begin(0);
+    vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::TAA);
 
     // tonemap / bloom
     if(frame_asset.settings.tonemap)
@@ -1027,19 +1048,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         using duration_t = std::chrono::duration<float>;
         comp_ubo.time_delta = duration_t(frame_asset.timestamp - m_frame_assets[last_frame_index].timestamp).count();
         comp_ubo.motionblur_gain = frame_asset.settings.motionblur_gain;
-
         frame_asset.composition_ubo->set_data(&comp_ubo, sizeof(composition_ubo_t));
 
         m_drawable_bloom.descriptors[0].images = {output_img, bloom_img, motion_img};
         m_drawable_bloom.descriptors[1].buffers = {frame_asset.composition_ubo};
-
-        vierkant::semaphore_submit_info_t tonemap_semaphore_info = {};
-        tonemap_semaphore_info.semaphore = frame_asset.timeline.handle();
-        tonemap_semaphore_info.wait_value = frame_asset.semaphore_value_done;
-        tonemap_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-        tonemap_semaphore_info.signal_value = SemaphoreValue::TONEMAP;
-        output_img = pingpong_render(m_drawable_bloom, {tonemap_semaphore_info});
-        frame_asset.semaphore_value_done = SemaphoreValue::TONEMAP;
+        output_img = pingpong_render(m_drawable_bloom, SemaphoreValue::TONEMAP);
     }
 
     // fxaa
@@ -1047,7 +1060,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
     {
         auto drawable = m_drawable_fxaa;
         drawable.descriptors[0].images = {output_img};
-        output_img = pingpong_render(drawable);
+        output_img = pingpong_render(drawable, SemaphoreValue::FXAA);
     }
 
     // depth of field
@@ -1066,13 +1079,19 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
             drawable.descriptors[1].buffers.front()->set_data(&frame_asset.settings.dof,
                                                               sizeof(vierkant::dof_settings_t));
         }
-        vierkant::semaphore_submit_info_t dof_semaphore_info = {};
-        dof_semaphore_info.semaphore = frame_asset.timeline.handle();
-        dof_semaphore_info.wait_value = frame_asset.semaphore_value_done;
-        dof_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-        dof_semaphore_info.signal_value = SemaphoreValue::DEFOCUS_BLUR;
-        frame_asset.semaphore_value_done = SemaphoreValue::DEFOCUS_BLUR;
-        output_img = pingpong_render(drawable, {dof_semaphore_info});
+        output_img = pingpong_render(drawable, SemaphoreValue::DEFOCUS_BLUR);
+    }
+    frame_asset.cmd_post_fx.end();
+
+    if(frame_asset.semaphore_value_done > SemaphoreValue::TAA)
+    {
+        vierkant::semaphore_submit_info_t post_fx_semaphore_info = {};
+        post_fx_semaphore_info.semaphore = frame_asset.timeline.handle();
+        post_fx_semaphore_info.wait_value = frame_asset.settings.use_taa ? SemaphoreValue::TAA
+                                                                         : SemaphoreValue::LIGHTING;
+        post_fx_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+        post_fx_semaphore_info.signal_value = frame_asset.semaphore_value_done;
+        frame_asset.cmd_post_fx.submit(m_queue, false, VK_NULL_HANDLE, {post_fx_semaphore_info});
     }
 
     // draw final color+depth with provided renderer
@@ -1113,8 +1132,9 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
 
     m_g_renderer_main.viewport = viewport;
     m_g_renderer_post.viewport = viewport;
-    m_light_renderer.viewport = viewport;
-    m_taa_renderer.viewport = viewport;
+    m_renderer_lighting.viewport = viewport;
+    m_renderer_taa.viewport = viewport;
+    m_renderer_post_fx.viewport = viewport;
 
     // nothing to do
     if(asset.g_buffer_post && asset.g_buffer_post.color_attachment()->extent() == size){ return; }
@@ -1154,19 +1174,11 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     post_fx_buffer_info.color_attachment_format.usage =
             VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
-    // create renderer for post-fx-passes
-    vierkant::Renderer::create_info_t post_render_info = {};
-    post_render_info.num_frames_in_flight = 1;
-    post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    post_render_info.viewport = viewport;
-    post_render_info.pipeline_cache = m_pipeline_cache;
-
     // create post_fx ping pong buffers and renderers
     for(auto &post_fx_ping_pong: asset.post_fx_ping_pongs)
     {
         post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
         post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
-        post_fx_ping_pong.renderer = vierkant::Renderer(m_device, post_render_info);
     }
 
     // create bloom
@@ -1209,9 +1221,9 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     timings_t &timings_result = frame_asset.stats.timings;
     frame_asset.stats.timestamp = frame_asset.timestamp;
 
-    constexpr size_t query_count = SemaphoreValue::LIGHTING + 1;
+    const size_t query_count = frame_asset.semaphore_value_done + 1;
 
-    uint64_t timestamps[query_count] = {};
+    uint64_t timestamps[SemaphoreValue::MAX_VALUE] = {};
     auto query_result = vkGetQueryPoolResults(m_device->handle(), frame_asset.query_pool.get(), 0, query_count,
                                               sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
 
@@ -1224,9 +1236,9 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
         return std::chrono::duration_cast<double_millisecond_t>(frame_ns);
     };
 
-    if(query_result == VK_SUCCESS)
+    if(query_result == VK_SUCCESS || query_result == VK_NOT_READY)
     {
-        for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= SemaphoreValue::LIGHTING; ++i)
+        for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= frame_asset.semaphore_value_done; ++i)
         {
             auto val = SemaphoreValue(i);
             frame_asset.timings_map[val] = millis(val);
