@@ -663,11 +663,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_main.draw_indirect_delegate = [this, &frame_asset,
             use_gpu_culling](Renderer::indirect_draw_bundle_t &params)
     {
-        frame_asset.clear_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        frame_asset.clear_cmd_buffer.begin();
+        frame_asset.cmd_clear = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        frame_asset.cmd_clear.begin();
 
         // base/first timestamp
-        vkCmdWriteTimestamp2(frame_asset.clear_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        vkCmdWriteTimestamp2(frame_asset.cmd_clear.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                              frame_asset.query_pool.get(), 0);
 
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_main);
@@ -681,7 +681,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         {
             auto drawbuffer = use_gpu_culling ? frame_asset.indirect_draw_params_main.draws_in
                                               : frame_asset.indirect_draw_params_main.draws_out;
-            params.draws_in->copy_to(drawbuffer, frame_asset.clear_cmd_buffer.handle());
+            params.draws_in->copy_to(drawbuffer, frame_asset.cmd_clear.handle());
 
             frame_asset.staging_buffer->set_data(nullptr, params.mesh_draws->num_bytes());
 
@@ -700,7 +700,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             if(use_gpu_culling && !params.draws_counts_out)
             {
                 params.draws_counts_out = frame_asset.indirect_draw_params_main.draws_counts_out;
-                vkCmdFillBuffer(frame_asset.clear_cmd_buffer.handle(),
+                vkCmdFillBuffer(frame_asset.cmd_clear.handle(),
                                 frame_asset.indirect_draw_params_main.draws_counts_out->handle(), 0, VK_WHOLE_SIZE, 0);
 
                 barrier.buffer = frame_asset.indirect_draw_params_main.draws_counts_out->handle();
@@ -748,7 +748,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             copy_info2.dstBuffer = params.mesh_draws->handle();
             copy_info2.regionCount = copy_regions.size();
             copy_info2.pRegions = copy_regions.data();
-            vkCmdCopyBuffer2(frame_asset.clear_cmd_buffer.handle(), &copy_info2);
+            vkCmdCopyBuffer2(frame_asset.cmd_clear.handle(), &copy_info2);
 
             VkBufferMemoryBarrier2 barrier = {};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
@@ -766,7 +766,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             if(frame_asset.indirect_draw_params_post.mesh_draws)
             {
                 copy_info2.dstBuffer = frame_asset.indirect_draw_params_post.mesh_draws->handle();
-                vkCmdCopyBuffer2(frame_asset.clear_cmd_buffer.handle(), &copy_info2);
+                vkCmdCopyBuffer2(frame_asset.cmd_clear.handle(), &copy_info2);
                 barrier.buffer = frame_asset.indirect_draw_params_post.mesh_draws->handle();
                 barriers.push_back(barrier);
             }
@@ -778,9 +778,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
             dependency_info.bufferMemoryBarrierCount = barriers.size();
             dependency_info.pBufferMemoryBarriers = barriers.data();
-            vkCmdPipelineBarrier2(frame_asset.clear_cmd_buffer.handle(), &dependency_info);
+            vkCmdPipelineBarrier2(frame_asset.cmd_clear.handle(), &dependency_info);
         }
-        frame_asset.clear_cmd_buffer.submit(m_queue);
+        frame_asset.cmd_clear.submit(m_queue);
     };
 
     // pre-render will repeat all previous draw-calls
@@ -889,28 +889,29 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
     drawable.descriptors[3].buffers = {frame_asset.lights_ubo};
 
-    frame_asset.lighting_cmd_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    frame_asset.lighting_cmd_buffer.begin(0);
+    frame_asset.cmd_lighting = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    frame_asset.cmd_lighting.begin(0);
 
     // g-buffer done timestamp
-    vkCmdWriteTimestamp2(frame_asset.lighting_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+    vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                          frame_asset.query_pool.get(), SemaphoreValue::G_BUFFER_ALL);
 
     // stage, render, submit
     m_light_renderer.stage_drawable(drawable);
 
     vierkant::Renderer::rendering_info_t rendering_info = {};
-    rendering_info.command_buffer = frame_asset.lighting_cmd_buffer.handle();
+    rendering_info.command_buffer = frame_asset.cmd_lighting.handle();
     rendering_info.color_attachment_formats = {frame_asset.lighting_buffer.color_attachment()->format().format};
     rendering_info.depth_attachment_format = frame_asset.lighting_buffer.depth_attachment()->format().format;
 
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = frame_asset.lighting_cmd_buffer.handle();
+    begin_rendering_info.commandbuffer = frame_asset.cmd_lighting.handle();
     begin_rendering_info.use_depth_attachment = false;
+    begin_rendering_info.clear_depth_attachment = false;
 
     frame_asset.lighting_buffer.begin_rendering(begin_rendering_info);
     m_light_renderer.render(rendering_info);
-    vkCmdEndRendering(frame_asset.lighting_cmd_buffer.handle());
+    vkCmdEndRendering(frame_asset.cmd_lighting.handle());
 
     // skybox rendering
     if(frame_asset.settings.draw_skybox)
@@ -921,13 +922,12 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
             begin_rendering_info.clear_color_attachment = false;
             begin_rendering_info.use_depth_attachment = true;
-            begin_rendering_info.clear_depth_attachment = false;
             frame_asset.lighting_buffer.begin_rendering(begin_rendering_info);
             m_light_renderer.render(rendering_info);
-            vkCmdEndRendering(frame_asset.lighting_cmd_buffer.handle());
+            vkCmdEndRendering(frame_asset.cmd_lighting.handle());
         }
     }
-    vkCmdWriteTimestamp2(frame_asset.lighting_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+    vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                          frame_asset.query_pool.get(), SemaphoreValue::LIGHTING);
 
     vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
@@ -936,7 +936,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     lighting_semaphore_info.wait_value = SemaphoreValue::G_BUFFER_ALL;
     lighting_semaphore_info.signal_value = SemaphoreValue::LIGHTING;
     frame_asset.semaphore_value_done = SemaphoreValue::LIGHTING;
-    frame_asset.lighting_cmd_buffer.submit(m_queue, false, VK_NULL_HANDLE, {lighting_semaphore_info});
+    frame_asset.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE, {lighting_semaphore_info});
     return frame_asset.lighting_buffer;
 }
 
