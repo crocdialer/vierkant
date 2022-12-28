@@ -16,6 +16,16 @@ BloomUPtr Bloom::create(const DevicePtr &device, const Bloom::create_info_t &cre
 Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
         m_brightness_thresh(create_info.brightness_thresh)
 {
+    m_command_pool = create_info.command_pool;
+
+    if(!m_command_pool)
+    {
+        m_command_pool = vierkant::create_command_pool(device,
+                                                     vierkant::Device::Queue::GRAPHICS,
+                                                     VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                                     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    }
+
     VkFormat color_format = VK_FORMAT_R16G16B16A16_SFLOAT;
 
     vierkant::Framebuffer::create_info_t thresh_buffer_info = {};
@@ -31,13 +41,18 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
     thresh_render_info.viewport.height = static_cast<float>(create_info.size.height);
     thresh_render_info.viewport.maxDepth = 1;
     thresh_render_info.pipeline_cache = create_info.pipeline_cache;
+    thresh_render_info.command_pool = m_command_pool;
     m_thresh_renderer = vierkant::Renderer(device, thresh_render_info);
+
+    m_command_buffer = vierkant::CommandBuffer(device, m_command_pool.get());
 
     // create gaussian blur
     GaussianBlur::create_info_t gaussian_info = {};
     gaussian_info.size = create_info.size;
     gaussian_info.color_format = color_format;
     gaussian_info.pipeline_cache = create_info.pipeline_cache;
+    gaussian_info.command_pool = m_command_pool;
+    gaussian_info.descriptor_pool = create_info.descriptor_pool;
     gaussian_info.num_iterations = create_info.num_blur_iterations;
     m_gaussian_blur = GaussianBlur::create(device, gaussian_info);
 
@@ -75,39 +90,34 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
     m_drawable.use_own_buffers = true;
 }
 
-vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
+vierkant::ImagePtr Bloom::apply(const ImagePtr &image,
+                                VkQueue queue,
                                 const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
-    std::vector<vierkant::semaphore_submit_info_t> wait_infos, signal_infos;
+    m_command_buffer.begin(0);
+    auto ret = apply(image, m_command_buffer.handle());
+    m_command_buffer.submit(queue, false, VK_NULL_HANDLE, semaphore_infos);
+    return ret;
+}
 
-    for(const auto &info: semaphore_infos)
-    {
-        if(info.semaphore)
-        {
-            if(info.signal_value)
-            {
-                auto signal_info = info;
-                signal_info.wait_stage = 0;
-                signal_info.wait_value = 0;
-                signal_infos.push_back(signal_info);
-            }
-            if(info.wait_stage)
-            {
-                auto wait_info = info;
-                wait_info.signal_value = 0;
-                wait_infos.push_back(wait_info);
-            }
-        }
-    }
-
+vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbuffer)
+{
     // threshold
+    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
+    begin_rendering_info.commandbuffer = commandbuffer;
+    m_thresh_framebuffer.begin_rendering(begin_rendering_info);
+
+    vierkant::Renderer::rendering_info_t rendering_info = {};
+    rendering_info.command_buffer = commandbuffer;
+    rendering_info.color_attachment_formats = {m_thresh_framebuffer.color_attachment()->format().format};
+
     m_drawable.descriptors[0].images = {image};
     m_thresh_renderer.stage_drawable(m_drawable);
-    auto cmd_buf = m_thresh_renderer.render(m_thresh_framebuffer);
-    m_thresh_framebuffer.submit({cmd_buf}, queue, wait_infos);
+    m_thresh_renderer.render(rendering_info);
+    vkCmdEndRendering(commandbuffer);
 
     // blur
-    return m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), queue, signal_infos);
+    return m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), commandbuffer);
 }
 
 }// namespace vierkant

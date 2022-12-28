@@ -197,15 +197,20 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image,
                                                   VkQueue queue,
                                                   const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
-    auto device = image->device();
-    if(!queue){ queue = device->queue(); }
+    m_command_buffer.begin(0);
+    auto ret = apply(image, m_command_buffer.handle());
+    m_command_buffer.submit(queue, false, VK_NULL_HANDLE, semaphore_infos);
+    return ret;
+}
 
+template<uint32_t NUM_TAPS>
+vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkCommandBuffer commandbuffer)
+{
     auto current_img = image;
     auto &ping = m_ping_pongs[0], &pong = m_ping_pongs[1];
 
-    m_command_buffer.begin(0);
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = m_command_buffer.handle();
+    begin_rendering_info.commandbuffer = commandbuffer;
 
     for(uint32_t i = 0; i < m_num_iterations; ++i)
     {
@@ -213,31 +218,30 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image,
         pong.drawable.descriptors[0].images = {ping.framebuffer.color_attachment()};
 
         vierkant::Renderer::rendering_info_t rendering_info = {};
-        rendering_info.command_buffer = m_command_buffer.handle();
+        rendering_info.command_buffer = commandbuffer;
         rendering_info.color_attachment_formats = {m_color_format};
 
         // horizontal pass
         m_renderer.stage_drawable(ping.drawable);
-        current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, m_command_buffer.handle());
+        current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, commandbuffer);
         ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                                               m_command_buffer.handle());
+                                                               commandbuffer);
         ping.framebuffer.begin_rendering(begin_rendering_info);
         m_renderer.render(rendering_info);
-        vkCmdEndRendering(m_command_buffer.handle());
+        vkCmdEndRendering(commandbuffer);
 
         // vertical pass
         m_renderer.stage_drawable(pong.drawable);
         ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
-                                                               m_command_buffer.handle());
+                                                               commandbuffer);
         pong.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                                               m_command_buffer.handle());
+                                                               commandbuffer);
         pong.framebuffer.begin_rendering(begin_rendering_info);
         m_renderer.render(rendering_info);
-        vkCmdEndRendering(m_command_buffer.handle());
+        vkCmdEndRendering(commandbuffer);
         current_img = pong.framebuffer.color_attachment();
     }
-    current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, m_command_buffer.handle());
-    m_command_buffer.submit(queue, false, VK_NULL_HANDLE, semaphore_infos);
+    current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, commandbuffer);
     return current_img;
 }
 

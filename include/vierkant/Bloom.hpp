@@ -28,6 +28,8 @@ public:
 
         //! optional pipeline-cache to share shaders and piplines
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
+        vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
+        vierkant::CommandPoolPtr command_pool = nullptr;
     };
 
     static BloomUPtr create(const DevicePtr &device, const create_info_t &create_info);
@@ -35,11 +37,16 @@ public:
     vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue,
                              const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos) override;
 
+    vierkant::ImagePtr apply(const vierkant::ImagePtr &image,
+                             VkCommandBuffer commandbuffer) override;
+
 private:
 
     Bloom(const DevicePtr &device, const create_info_t &create_info);
 
     vierkant::Framebuffer m_thresh_framebuffer;
+    vierkant::CommandPoolPtr m_command_pool;
+    vierkant::CommandBuffer m_command_buffer;
 
     GaussianBlurPtr m_gaussian_blur;
 

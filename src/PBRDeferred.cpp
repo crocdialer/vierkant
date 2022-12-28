@@ -1187,6 +1187,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     bloom_info.size.width = std::max(1U, bloom_info.size.width / 2);
     bloom_info.size.height = std::max(1U, bloom_info.size.height / 2);
     bloom_info.num_blur_iterations = 3;
+    bloom_info.command_pool = m_command_pool;
+    bloom_info.pipeline_cache = m_pipeline_cache;
     asset.bloom = Bloom::create(m_device, bloom_info);
 }
 

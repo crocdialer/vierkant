@@ -22,16 +22,26 @@ public:
     ImageEffect &operator=(const ImageEffect &) = delete;
 
     /**
-     * @brief   Applies the screenspace-operation using a provided image as input.
+     * @brief   Apply an image-effect on a provided image, submit to provided queue.
      *
      * @param   image       a provided input-image used as texture-sampler.
      * @param   queue       an optional VkQueue.
-     * @param   submit_info an optional VkSubmitInof struct.
+     * @param   submit_info an optional VkSubmitInfo struct.
      * @return  a vierkant::ImagePtr containing the result of the operation.
      */
     virtual vierkant::ImagePtr apply(const vierkant::ImagePtr &image,
                                      VkQueue queue,
                                      const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos) = 0;
+
+    /**
+     * @brief   Apply an image-effect on a provided image, using a provided command-buffer.
+     *
+     * @param   image           a provided input-image used as texture-sampler.
+     * @param   commandbuffer   a provided command-buffer, currently recording rendering-commands.
+     * @return  a vierkant::ImagePtr containing the result of the operation.
+     */
+    virtual vierkant::ImagePtr apply(const vierkant::ImagePtr &image,
+                                     VkCommandBuffer commandbuffer) = 0;
 };
 
 }// namespace vierkant

@@ -44,6 +44,9 @@ public:
     vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue,
                              const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos) override;
 
+    vierkant::ImagePtr apply(const vierkant::ImagePtr &image,
+                             VkCommandBuffer commandbuffer) override;
+
 private:
 
     //! used as data for specialization constant
