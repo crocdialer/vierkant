@@ -1234,8 +1234,11 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 
     auto millis = [&](SemaphoreValue val) -> double_millisecond_t
     {
+        if(!timestamps[val]){ return double_millisecond_t(0.0); }
+        auto rhs = timestamps[val - 1];
+        for(uint32_t v = val - 1; !rhs && v > 0; v--){ rhs = timestamps[v]; }
         auto frame_ns = std::chrono::nanoseconds(
-                static_cast<uint64_t>(double(timestamps[val] - timestamps[val - 1]) * timestamp_period));
+                static_cast<uint64_t>(double(timestamps[val] - rhs) * timestamp_period));
         return std::chrono::duration_cast<double_millisecond_t>(frame_ns);
     };
 
