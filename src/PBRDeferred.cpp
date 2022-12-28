@@ -80,7 +80,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_renderer_taa = vierkant::Renderer(device, render_create_info);
 
     // create renderer for post-fx-passes
-    constexpr size_t max_num_post_fx_passes = 5;
+    constexpr size_t max_num_post_fx_passes = SemaphoreValue::MAX_VALUE - SemaphoreValue::LIGHTING;
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight * max_num_post_fx_passes;
     m_renderer_post_fx = vierkant::Renderer(m_device, render_create_info);
 
@@ -990,26 +990,32 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
     // get next set of pingpong assets, increment index
     auto pingpong_render = [&frame_asset,
             &buffer_index,
-            &renderer = m_renderer_post_fx](vierkant::drawable_t &drawable, SemaphoreValue semaphore_value)
+            &renderer = m_renderer_post_fx](vierkant::drawable_t &drawable,
+                                            SemaphoreValue semaphore_value,
+                                            const vierkant::Framebuffer &override_fb = {})
             -> vierkant::ImagePtr
     {
-        auto &framebuffer = frame_asset.post_fx_ping_pongs[buffer_index++ % 2].framebuffer;
+        const vierkant::Framebuffer *framebuffer = override_fb ? &override_fb :
+                                                   &frame_asset.post_fx_ping_pongs[buffer_index++ % 2].framebuffer;
         auto cmd = frame_asset.cmd_post_fx.handle();
+        auto color_attachment = framebuffer->color_attachment();
 
         vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
         begin_rendering_info.commandbuffer = cmd;
-        framebuffer.begin_rendering(begin_rendering_info);
+        color_attachment->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, cmd);
+        framebuffer->begin_rendering(begin_rendering_info);
         renderer.stage_drawable(drawable);
 
         vierkant::Renderer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = cmd;
-        rendering_info.color_attachment_formats = {framebuffer.color_attachment()->format().format};
+        rendering_info.color_attachment_formats = {color_attachment->format().format};
         renderer.render(rendering_info);
         vkCmdEndRendering(cmd);
 
         vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_asset.query_pool.get(), semaphore_value);
         frame_asset.semaphore_value_done = semaphore_value;
-        return framebuffer.color_attachment();
+        color_attachment->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd);
+        return color_attachment;
     };
 
     frame_asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -1025,12 +1031,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         // generate bloom image
         if(frame_asset.settings.bloom)
         {
-            vierkant::semaphore_submit_info_t bloom_semaphore_info = {};
-            bloom_semaphore_info.semaphore = frame_asset.timeline.handle();
-            bloom_semaphore_info.wait_value = frame_asset.semaphore_value_done;
-            bloom_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-            bloom_semaphore_info.signal_value = SemaphoreValue::BLOOM;
-            bloom_img = frame_asset.bloom->apply(output_img, m_queue, {bloom_semaphore_info});
+            bloom_img = frame_asset.bloom->apply(output_img, frame_asset.cmd_post_fx.handle());
             frame_asset.semaphore_value_done = SemaphoreValue::BLOOM;
         }
 

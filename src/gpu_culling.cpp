@@ -68,6 +68,9 @@ struct alignas(16) draw_cull_data_t
 vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &context,
                                         const create_depth_pyramid_params_t &params)
 {
+//    context->depth_pyramid_cmd_buffer = vierkant::CommandBuffer(context->device, context->command_pool.get());
+    context->depth_pyramid_cmd_buffer.begin(0);
+
     auto extent_pyramid_lvl0 = params.depth_map->extent();
     extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
     extent_pyramid_lvl0.height = crocore::next_pow_2(1 + extent_pyramid_lvl0.height / 2);
@@ -84,6 +87,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
         depth_pyramid_fmt.autogenerate_mipmaps = false;
         depth_pyramid_fmt.reduction_mode = VK_SAMPLER_REDUCTION_MODE_MIN;
         depth_pyramid_fmt.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+        depth_pyramid_fmt.initial_cmd_buffer = context->depth_pyramid_cmd_buffer.handle();
         context->depth_pyramid_img = vierkant::Image::create(context->device, depth_pyramid_fmt);
     }
 
@@ -136,9 +140,6 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
     dependency_info.imageMemoryBarrierCount = 1;
     dependency_info.pImageMemoryBarriers = &barrier;
-
-    context->depth_pyramid_cmd_buffer = vierkant::CommandBuffer(context->device, context->command_pool.get());
-    context->depth_pyramid_cmd_buffer.begin();
 
     // pre depth-pyramid timestamp
     if(params.query_pool)
@@ -321,7 +322,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device,
     ret->command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                       VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-
+    ret->depth_pyramid_cmd_buffer = vierkant::CommandBuffer(device, ret->command_pool.get());
     ret->draw_cull_buffer = vierkant::Buffer::create(device, nullptr, sizeof(draw_cull_data_t),
                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
