@@ -55,6 +55,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, 1U << 20U,
                                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                         VMA_MEMORY_USAGE_CPU_ONLY);
+
+        asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
     }
 
     // create renderer for g-buffer-pass
@@ -1018,7 +1020,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         return color_attachment;
     };
 
-    frame_asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    // begin command-buffer
     frame_asset.cmd_post_fx.begin(0);
     vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                          frame_asset.query_pool.get(), SemaphoreValue::TAA);
