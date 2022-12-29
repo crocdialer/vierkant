@@ -325,6 +325,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);
             ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
             ImGui::BulletText("taa: %.3f ms", last.taa_ms);
+            ImGui::BulletText("fxaa: %.3f ms", last.fxaa_ms);
             ImGui::TreePop();
         }
 

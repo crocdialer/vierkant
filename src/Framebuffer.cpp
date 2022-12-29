@@ -565,31 +565,31 @@ void Framebuffer::begin_rendering(const begin_rendering_info_t &info) const
 
     for(const auto &[type, images]: m_attachments)
     {
-        if(type == AttachmentType::DepthStencil && use_depth_attachment && !images.empty())
+        for(uint32_t i = 0; i < images.size(); ++i)
         {
-            const auto &depth = images.front();
+            const auto &img = images[i];
 
-            VkRenderingAttachmentInfo depth_attachment = {};
-            depth_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-            depth_attachment.imageView = depth->image_view();
-            depth_attachment.imageLayout = depth->image_layout();
-            depth_attachment.loadOp = info.clear_depth_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                                                  : VK_ATTACHMENT_LOAD_OP_LOAD;
-            depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            depth_attachment.imageView = depth->image_view();
-            depth_attachment.clearValue.depthStencil = clear_depth_stencil;
-            depth_attachments.push_back(depth_attachment);
-        }
-        else if(type == AttachmentType::Color && use_color_attachment && !images.empty())
-        {
-            for(uint32_t i = 0; i < images.size(); ++i)
+            if(type == AttachmentType::DepthStencil && use_depth_attachment)
             {
-                const auto &img = images[i];
+                const auto &depth = images.front();
 
+                VkRenderingAttachmentInfo depth_attachment = {};
+                depth_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+                depth_attachment.imageView = depth->image_view();
+                depth_attachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+                depth_attachment.loadOp = info.clear_depth_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR
+                                                                      : VK_ATTACHMENT_LOAD_OP_LOAD;
+                depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                depth_attachment.imageView = depth->image_view();
+                depth_attachment.clearValue.depthStencil = clear_depth_stencil;
+                depth_attachments.push_back(depth_attachment);
+            }
+            else if(type == AttachmentType::Color && use_color_attachment)
+            {
                 VkRenderingAttachmentInfo color_attachment = {};
                 color_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                 color_attachment.imageView = img->image_view();
-                color_attachment.imageLayout = img->image_layout();
+                color_attachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
                 color_attachment.loadOp = info.clear_color_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR
                                                                       : VK_ATTACHMENT_LOAD_OP_LOAD;
                 color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;

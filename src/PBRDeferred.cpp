@@ -947,7 +947,9 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     return frame_asset.lighting_buffer;
 }
 
-void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &cam, const vierkant::ImagePtr &color,
+void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
+                               const CameraPtr &cam,
+                               const vierkant::ImagePtr &color,
                                const vierkant::ImagePtr &depth)
 {
     size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
@@ -1004,7 +1006,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
         vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
         begin_rendering_info.commandbuffer = cmd;
-        color_attachment->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, cmd);
         framebuffer->begin_rendering(begin_rendering_info);
         renderer.stage_drawable(drawable);
 
@@ -1022,8 +1023,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
     // begin command-buffer
     frame_asset.cmd_post_fx.begin(0);
-    vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                         frame_asset.query_pool.get(), SemaphoreValue::TAA);
 
     // tonemap / bloom
     if(frame_asset.settings.tonemap)
@@ -1234,9 +1233,9 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 
     auto timestamp_period = m_device->properties().limits.timestampPeriod;
 
-    auto millis = [&](SemaphoreValue val) -> double_millisecond_t
+    auto millis = [&](SemaphoreValue val) -> std::optional<double_millisecond_t>
     {
-        if(!timestamps[val]){ return double_millisecond_t(0.0); }
+        if(!timestamps[val]){ return {}; }
         auto rhs = timestamps[val - 1];
         for(uint32_t v = val - 1; !rhs && v > 0; v--){ rhs = timestamps[v]; }
         auto frame_ns = std::chrono::nanoseconds(
@@ -1249,7 +1248,8 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
         for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= frame_asset.semaphore_value_done; ++i)
         {
             auto val = SemaphoreValue(i);
-            frame_asset.timings_map[val] = millis(val);
+            auto measurement = millis(val);
+            if(measurement){ frame_asset.timings_map[val] = *measurement; };
         }
     }
 
@@ -1259,6 +1259,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     timings_result.g_buffer_post_ms = frame_asset.timings_map[SemaphoreValue::G_BUFFER_ALL].count();
     timings_result.lighting_ms = frame_asset.timings_map[SemaphoreValue::LIGHTING].count();
     timings_result.taa_ms = frame_asset.timings_map[SemaphoreValue::TAA].count();
+    timings_result.fxaa_ms = frame_asset.timings_map[SemaphoreValue::FXAA].count();
     timings_result.tonemap_bloom_ms = frame_asset.timings_map[SemaphoreValue::TONEMAP].count();
 
     timings_result.total_ms = timings_result.g_buffer_pre_ms + timings_result.depth_pyramid_ms +

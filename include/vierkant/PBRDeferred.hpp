@@ -102,6 +102,7 @@ public:
         double g_buffer_post_ms = 0.0;
         double lighting_ms = 0.0;
         double taa_ms = 0.0;
+        double fxaa_ms = 0.0;
         double tonemap_bloom_ms = 0.0;
         double total_ms = 0.0;
     };
