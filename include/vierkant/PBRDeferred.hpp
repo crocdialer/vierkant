@@ -315,6 +315,8 @@ private:
 
     VkQueue m_queue = VK_NULL_HANDLE;
 
+    VkFormat m_hdr_image_format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+
     vierkant::CommandPoolPtr m_command_pool;
 
     vierkant::PipelineCachePtr m_pipeline_cache;

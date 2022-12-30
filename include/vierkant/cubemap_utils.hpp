@@ -42,7 +42,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
 vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size,
                                          VkQueue queue,
                                          bool mipmap = false,
-                                         VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT);
+                                         VkFormat format = VK_FORMAT_B10G11R11_UFLOAT_PACK32);
 
 /**
  * @brief   Create a diffuse (lambertian brdf) convolution of a provided cubemap.

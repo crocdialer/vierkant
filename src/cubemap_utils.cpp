@@ -117,7 +117,7 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
                                               VkQueue queue)
 {
     // create a cube-pipeline
-    auto cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, queue, false,
+    auto cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_B10G11R11_UFLOAT_PACK32, queue, false,
                                                VK_IMAGE_USAGE_SAMPLED_BIT);
 
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
@@ -149,7 +149,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
     size = crocore::next_pow_2(size);
 
     vierkant::Image::Format ret_fmt = {};
-    ret_fmt.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    ret_fmt.format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
     ret_fmt.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     ret_fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
     ret_fmt.num_layers = 6;
@@ -179,7 +179,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
         auto &cube = cube_pipelines[lvl];
 
         // create a cube-pipeline
-        cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_R16G16B16A16_SFLOAT, queue, false,
+        cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_B10G11R11_UFLOAT_PACK32, queue, false,
                                               VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
         cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = frag_module;

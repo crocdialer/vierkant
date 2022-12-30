@@ -1155,26 +1155,23 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
 
     // init lighting framebuffer
     vierkant::attachment_map_t lighting_attachments;
-    vierkant::Image::Format img_attachment_16f = {};
-    img_attachment_16f.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    img_attachment_16f.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    img_attachment_16f.extent = size;
-    lighting_attachments[vierkant::AttachmentType::Color] = {vierkant::Image::create(m_device, img_attachment_16f)};
+    vierkant::Image::Format hdr_attachment_info = {};
+    hdr_attachment_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    hdr_attachment_info.format = m_hdr_image_format;
+    hdr_attachment_info.extent = size;
+    lighting_attachments[vierkant::AttachmentType::Color] = {vierkant::Image::create(m_device, hdr_attachment_info)};
 
     // use depth from g_buffer
     lighting_attachments[vierkant::AttachmentType::DepthStencil] = {asset.g_buffer_post.depth_attachment()};
     asset.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments);
 
-    vierkant::Framebuffer::create_info_t taa_framebuffer_info = {};
-    taa_framebuffer_info.color_attachment_format = img_attachment_16f;
-    taa_framebuffer_info.size = size;
-    asset.taa_buffer = vierkant::Framebuffer(m_device, taa_framebuffer_info);
-
+    // post-fx buffers with optional upscaling
+    VkExtent3D upscaling_size = size;
     vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
-    post_fx_buffer_info.size = size;
-    post_fx_buffer_info.color_attachment_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
-    post_fx_buffer_info.color_attachment_format.usage =
-            VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    post_fx_buffer_info.size = upscaling_size;
+    post_fx_buffer_info.color_attachment_format = hdr_attachment_info;
+
+    asset.taa_buffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
 
     // create post_fx ping pong buffers and renderers
     for(auto &post_fx_ping_pong: asset.post_fx_ping_pongs)
@@ -1185,7 +1182,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
 
     // create bloom
     Bloom::create_info_t bloom_info = {};
-    bloom_info.size = size;
+    bloom_info.size = upscaling_size;
     bloom_info.size.width = std::max(1U, bloom_info.size.width / 2);
     bloom_info.size.height = std::max(1U, bloom_info.size.height / 2);
     bloom_info.num_blur_iterations = 3;

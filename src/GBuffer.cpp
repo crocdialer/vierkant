@@ -24,7 +24,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     // emission
     Image::Format emission_format = {};
     emission_format.extent = extent;
-    emission_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+    emission_format.format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
     emission_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     g_buffer_attachments[G_BUFFER_EMISSION] = vierkant::Image::create(device, emission_format);
 
