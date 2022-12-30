@@ -113,12 +113,14 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size,
+vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device,
+                                              const ImagePtr &cubemap,
+                                              uint32_t size,
+                                              VkFormat format,
                                               VkQueue queue)
 {
     // create a cube-pipeline
-    auto cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_B10G11R11_UFLOAT_PACK32, queue, false,
-                                               VK_IMAGE_USAGE_SAMPLED_BIT);
+    auto cube = vierkant::create_cube_pipeline(device, size, format, queue, false, VK_IMAGE_USAGE_SAMPLED_BIT);
 
     cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
             vierkant::create_shader_module(device, vierkant::shaders::pbr::convolve_lambert_frag);
@@ -143,13 +145,16 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const Ima
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size,
+vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device,
+                                          const ImagePtr &cubemap,
+                                          uint32_t size,
+                                          VkFormat format,
                                           VkQueue queue)
 {
     size = crocore::next_pow_2(size);
 
     vierkant::Image::Format ret_fmt = {};
-    ret_fmt.format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+    ret_fmt.format = format;
     ret_fmt.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     ret_fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
     ret_fmt.num_layers = 6;

@@ -17,27 +17,17 @@ VkDeviceSize num_bytes(VkFormat format)
     {
         case VK_FORMAT_BC7_UNORM_BLOCK:
         case VK_FORMAT_BC7_SRGB_BLOCK:
-        case VK_FORMAT_R8_UNORM:
-            return 1;
+        case VK_FORMAT_R8_UNORM:return 1;
 
-        case VK_FORMAT_R8G8B8A8_UNORM:
-            return 4;
-        case VK_FORMAT_R8G8B8_UNORM:
-            return 3;
-        case VK_FORMAT_R32G32B32A32_SFLOAT:
-            return 16;
-        case VK_FORMAT_R32G32B32_SFLOAT:
-            return 12;
-        case VK_FORMAT_R32_SFLOAT:
-            return 4;
-        case VK_FORMAT_R16_SFLOAT:
-            return 2;
-        case VK_FORMAT_R16G16B16A16_SFLOAT:
-            return 8;
-        case VK_FORMAT_R16G16B16_SFLOAT:
-            return 6;
-        default:
-            throw std::runtime_error("num_bytes: format not handled");
+        case VK_FORMAT_R8G8B8A8_UNORM:return 4;
+        case VK_FORMAT_R8G8B8_UNORM:return 3;
+        case VK_FORMAT_R32G32B32A32_SFLOAT:return 16;
+        case VK_FORMAT_R32G32B32_SFLOAT:return 12;
+        case VK_FORMAT_R32_SFLOAT:return 4;
+        case VK_FORMAT_R16_SFLOAT:return 2;
+        case VK_FORMAT_R16G16B16A16_SFLOAT:return 8;
+        case VK_FORMAT_R16G16B16_SFLOAT:return 6;
+        default:throw std::runtime_error("num_bytes: format not handled");
     }
 }
 
@@ -45,12 +35,9 @@ VkDeviceSize num_bytes(VkIndexType index_type)
 {
     switch(index_type)
     {
-        case VK_INDEX_TYPE_UINT16:
-            return 2;
-        case VK_INDEX_TYPE_UINT32:
-            return 4;
-        default:
-            return 0;
+        case VK_INDEX_TYPE_UINT16:return 2;
+        case VK_INDEX_TYPE_UINT32:return 4;
+        default:return 0;
     }
 }
 
@@ -81,31 +68,26 @@ void transition_image_layout(VkCommandBuffer command_buffer,
 
     switch(old_layout)
     {
-        case VK_IMAGE_LAYOUT_UNDEFINED:
-            barrier.srcAccessMask = VK_ACCESS_2_NONE;
+        case VK_IMAGE_LAYOUT_UNDEFINED:barrier.srcAccessMask = VK_ACCESS_2_NONE;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
             break;
 
             // TODO: check if this makes sense
-        case VK_IMAGE_LAYOUT_GENERAL:
-            barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_GENERAL:barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
             barrier.srcStageMask =
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
             break;
 
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             break;
 
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             break;
 
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             break;
 
@@ -126,21 +108,18 @@ void transition_image_layout(VkCommandBuffer command_buffer,
         }
             break;
 
-        default:
-            break;
+        default:break;
     }
 
     switch(new_layout)
     {
-        case VK_IMAGE_LAYOUT_GENERAL:
-            barrier.dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_GENERAL:barrier.dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
                                    VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
             break;
 
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             break;
 
@@ -161,18 +140,15 @@ void transition_image_layout(VkCommandBuffer command_buffer,
             break;
         }
 
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             break;
 
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             break;
 
-        default:
-            barrier.dstAccessMask = VK_ACCESS_2_NONE;
+        default:barrier.dstAccessMask = VK_ACCESS_2_NONE;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
             break;
     }
@@ -608,12 +584,12 @@ void Image::copy_to(const ImagePtr &dst,
         region.extent = extent;
         region.srcOffset = src_offset;
         region.dstOffset = dst_offset;
-        region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.srcSubresource.aspectMask = m_format.aspect;
         region.srcSubresource.baseArrayLayer = 0;
         region.srcSubresource.layerCount = m_format.num_layers;
         region.srcSubresource.mipLevel = 0;
 
-        region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.dstSubresource.aspectMask = dst->format().aspect;
         region.dstSubresource.baseArrayLayer = 0;
         region.dstSubresource.layerCount = m_format.num_layers;
         region.dstSubresource.mipLevel = 0;
@@ -630,10 +606,7 @@ void Image::copy_to(const ImagePtr &dst,
         // actual copy command
         vkCmdCopyImage2(command_buffer, &copy_info);
 
-        if(local_command_buffer)
-        {
-            local_command_buffer.submit(m_device->queue(), true);
-        }
+        if(local_command_buffer){ local_command_buffer.submit(m_device->queue(), true); }
     }
 }
 
