@@ -32,7 +32,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     for(auto &asset: m_frame_assets)
     {
-        resize_storage(asset, create_info.settings.resolution);
+        resize_storage(asset, create_info.settings.resolution, create_info.settings.output_resolution);
 
         asset.g_buffer_camera_ubo = vierkant::Buffer::create(
                 m_device, nullptr, sizeof(glm::vec2), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -362,7 +362,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     frame_asset.timeline.wait(frame_asset.semaphore_value_done);
     frame_asset.timeline = vierkant::Semaphore(m_device);
 
-    resize_storage(frame_asset, settings.resolution);
+    resize_storage(frame_asset, settings.resolution, settings.output_resolution);
 
     // apply+update transform history
     update_matrix_history(frame_asset);
@@ -1004,6 +1004,9 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto cmd = frame_asset.cmd_post_fx.handle();
         auto color_attachment = framebuffer->color_attachment();
 
+        drawable.pipeline_format.scissor.extent.width = color_attachment->width();
+        drawable.pipeline_format.scissor.extent.height = color_attachment->height();
+
         vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
         begin_rendering_info.commandbuffer = cmd;
         framebuffer->begin_rendering(begin_rendering_info);
@@ -1055,6 +1058,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         m_drawable_bloom.descriptors[0].images = {output_img, bloom_img, motion_img};
         m_drawable_bloom.descriptors[1].buffers = {frame_asset.composition_ubo};
         output_img = pingpong_render(m_drawable_bloom, SemaphoreValue::TONEMAP);
+
     }
 
     // fxaa
@@ -1120,12 +1124,18 @@ void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
     m_conv_ggx = ggx;
 }
 
-void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t &asset, const glm::uvec2 &resolution)
+void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t &asset,
+                                           const glm::uvec2 &resolution,
+                                           const glm::uvec2 &out_resolution)
 {
     glm::uvec2 previous_size = {asset.g_buffer_post.extent().width, asset.g_buffer_post.extent().height};
+    glm::uvec2 previous_output_size = {asset.taa_buffer.extent().width, asset.taa_buffer.extent().height};
+
     asset.settings.resolution = glm::max(resolution, glm::uvec2(16));
+    asset.settings.output_resolution = glm::max(out_resolution, glm::uvec2(16));
 
     VkExtent3D size = {asset.settings.resolution.x, asset.settings.resolution.y, 1};
+    VkExtent3D upscaling_size = {asset.settings.output_resolution.x, asset.settings.output_resolution.y, 1};
 
     VkViewport viewport = {};
     viewport.width = static_cast<float>(size.width);
@@ -1135,60 +1145,75 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     m_g_renderer_main.viewport = viewport;
     m_g_renderer_post.viewport = viewport;
     m_renderer_lighting.viewport = viewport;
+
+    // TAA and post-FX potentially upscaled
+    viewport.width = static_cast<float>(upscaling_size.width);
+    viewport.height = static_cast<float>(upscaling_size.height);
     m_renderer_taa.viewport = viewport;
     m_renderer_post_fx.viewport = viewport;
 
     // nothing to do
-    if(asset.g_buffer_post && asset.g_buffer_post.color_attachment()->extent() == size){ return; }
-
-    m_logger->trace("resizing storage: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
-                    resolution.y);
-    asset.recycle_commands = false;
-
-    // G-buffer (pre and post occlusion-culling)
-    asset.g_buffer_pre = create_g_buffer(m_device, size);
-
-    auto renderpass_no_clear_depth =
-            vierkant::create_renderpass(m_device, asset.g_buffer_pre.attachments(), false, false);
-    asset.g_buffer_post = vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(), renderpass_no_clear_depth);
-    asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
-
-    // init lighting framebuffer
-    vierkant::attachment_map_t lighting_attachments;
-    vierkant::Image::Format hdr_attachment_info = {};
-    hdr_attachment_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    hdr_attachment_info.format = m_hdr_image_format;
-    hdr_attachment_info.extent = size;
-    lighting_attachments[vierkant::AttachmentType::Color] = {vierkant::Image::create(m_device, hdr_attachment_info)};
-
-    // use depth from g_buffer
-    lighting_attachments[vierkant::AttachmentType::DepthStencil] = {asset.g_buffer_post.depth_attachment()};
-    asset.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments);
-
-    // post-fx buffers with optional upscaling
-    VkExtent3D upscaling_size = size;
-    vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
-    post_fx_buffer_info.size = upscaling_size;
-    post_fx_buffer_info.color_attachment_format = hdr_attachment_info;
-
-    asset.taa_buffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
-
-    // create post_fx ping pong buffers and renderers
-    for(auto &post_fx_ping_pong: asset.post_fx_ping_pongs)
+    if(!asset.g_buffer_post || asset.g_buffer_post.color_attachment()->extent() != size)
     {
-        post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
-        post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+        // G-buffer (pre and post occlusion-culling)
+        asset.g_buffer_pre = create_g_buffer(m_device, size);
+
+        auto renderpass_no_clear_depth =
+                vierkant::create_renderpass(m_device, asset.g_buffer_pre.attachments(), false, false);
+        asset.g_buffer_post = vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(),
+                                                    renderpass_no_clear_depth);
+        asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+
+        // init lighting framebuffer
+        vierkant::attachment_map_t lighting_attachments;
+        vierkant::Image::Format hdr_attachment_info = {};
+        hdr_attachment_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        hdr_attachment_info.format = m_hdr_image_format;
+        hdr_attachment_info.extent = size;
+        lighting_attachments[vierkant::AttachmentType::Color] = {
+                vierkant::Image::create(m_device, hdr_attachment_info)};
+
+        // use depth from g_buffer
+        lighting_attachments[vierkant::AttachmentType::DepthStencil] = {asset.g_buffer_post.depth_attachment()};
+        asset.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments);
+
+        m_logger->trace("internal resolution: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
+                        resolution.y);
+        asset.recycle_commands = false;
+    }
+    if(!asset.taa_buffer || asset.taa_buffer.color_attachment()->extent() != upscaling_size)
+    {
+        // post-fx buffers with optional upscaling
+        vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
+        post_fx_buffer_info.size = upscaling_size;
+        post_fx_buffer_info.color_attachment_format.usage =
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        post_fx_buffer_info.color_attachment_format.extent = upscaling_size;
+        post_fx_buffer_info.color_attachment_format.format = m_hdr_image_format;
+        asset.taa_buffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
+
+        // create post_fx ping pong buffers and renderers
+        for(auto &post_fx_ping_pong: asset.post_fx_ping_pongs)
+        {
+            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
+            post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+        }
+
+        // create bloom
+        Bloom::create_info_t bloom_info = {};
+        bloom_info.size = upscaling_size;
+        bloom_info.size.width = std::max(1U, bloom_info.size.width / 2);
+        bloom_info.size.height = std::max(1U, bloom_info.size.height / 2);
+        bloom_info.num_blur_iterations = 3;
+        bloom_info.command_pool = m_command_pool;
+        bloom_info.pipeline_cache = m_pipeline_cache;
+        asset.bloom = Bloom::create(m_device, bloom_info);
+
+        m_logger->trace("output resolution: {} x {} -> {} x {}", previous_output_size.x, previous_output_size.y,
+                        out_resolution.x,
+                        out_resolution.y);
     }
 
-    // create bloom
-    Bloom::create_info_t bloom_info = {};
-    bloom_info.size = upscaling_size;
-    bloom_info.size.width = std::max(1U, bloom_info.size.width / 2);
-    bloom_info.size.height = std::max(1U, bloom_info.size.height / 2);
-    bloom_info.num_blur_iterations = 3;
-    bloom_info.command_pool = m_command_pool;
-    bloom_info.pipeline_cache = m_pipeline_cache;
-    asset.bloom = Bloom::create(m_device, bloom_info);
 }
 
 void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params)

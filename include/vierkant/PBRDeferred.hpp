@@ -30,6 +30,9 @@ public:
         //! internal resolution
         glm::uvec2 resolution = {1920, 1080};
 
+        //! output resolution
+        glm::uvec2 output_resolution = {1920, 1080};
+
         //! disable colors from textures, material, positions
         bool disable_material = false;
 
@@ -297,7 +300,7 @@ private:
 
     void update_matrix_history(frame_asset_t &frame_asset);
 
-    void resize_storage(frame_asset_t &frame_asset, const glm::uvec2 &resolution);
+    void resize_storage(frame_asset_t &frame_asset, const glm::uvec2 &resolution, const glm::uvec2 &out_resolution);
 
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 

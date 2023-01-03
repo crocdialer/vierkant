@@ -208,8 +208,18 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 {
     int res[2] = {static_cast<int>(pbr_renderer->settings.resolution.x),
                   static_cast<int>(pbr_renderer->settings.resolution.y)};
-    if(ImGui::InputInt2("resolution", res) &&
-       res[0] > 0 && res[1] > 0){ pbr_renderer->settings.resolution = {res[0], res[1]}; }
+    if(ImGui::InputInt2("internal", res) && res[0] > 0 && res[1] > 0)
+    {
+        pbr_renderer->settings.resolution = {res[0], res[1]};
+    }
+
+    res[0] = static_cast<int>(pbr_renderer->settings.output_resolution.x);
+    res[1] = static_cast<int>(pbr_renderer->settings.output_resolution.y);
+
+    if(ImGui::InputInt2("output", res) && res[0] > 0 && res[1] > 0)
+    {
+        pbr_renderer->settings.output_resolution = {res[0], res[1]};
+    }
 
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
