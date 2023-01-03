@@ -125,7 +125,7 @@ void FlyCamera::update(double time_delta)
         glm::vec3 move_mask(0.f);
         bool needs_update = false;
 
-        for(const auto &[key, state] : m_keys)
+        for(const auto &[key, state]: m_keys)
         {
             if(state)
             {
@@ -133,26 +133,19 @@ void FlyCamera::update(double time_delta)
 
                 switch(key)
                 {
-                    case vierkant::Key::_PAGE_UP:
-                        move_mask.y += 1.f;
+                    case vierkant::Key::_PAGE_UP:move_mask.y += 1.f;
                         break;
-                    case vierkant::Key::_PAGE_DOWN:
-                        move_mask.y -= 1.f;
+                    case vierkant::Key::_PAGE_DOWN:move_mask.y -= 1.f;
                         break;
-                    case vierkant::Key::_RIGHT:
-                        move_mask.x += 1.f;
+                    case vierkant::Key::_RIGHT:move_mask.x += 1.f;
                         break;
-                    case vierkant::Key::_LEFT:
-                        move_mask.x -= 1.f;
+                    case vierkant::Key::_LEFT:move_mask.x -= 1.f;
                         break;
-                    case vierkant::Key::_UP:
-                        move_mask.z -= 1.f;
+                    case vierkant::Key::_UP:move_mask.z -= 1.f;
                         break;
-                    case vierkant::Key::_DOWN:
-                        move_mask.z += 1.f;
+                    case vierkant::Key::_DOWN:move_mask.z += 1.f;
                         break;
-                    default:
-                        break;
+                    default:break;
                 }
             }
         }
@@ -183,7 +176,8 @@ void FlyCamera::update(double time_delta)
 
         if(needs_update)
         {
-            position += static_cast<float>(time_delta) * move_speed * (rotation() * move_mask);
+            position += static_cast<float>(time_delta) * move_speed *
+                        (rotation() * glm::vec3(move_mask.x, 0.f, move_mask.z) + glm::vec3(0.f, move_mask.y, 0.f));
             if(transform_cb){ transform_cb(transform()); }
         }
     }
@@ -223,11 +217,9 @@ vierkant::key_delegate_t FlyCamera::key_delegate()
             case vierkant::Key::_RIGHT:
             case vierkant::Key::_LEFT:
             case vierkant::Key::_UP:
-            case vierkant::Key::_DOWN:
-                m_keys[e.code()] = true;
+            case vierkant::Key::_DOWN:m_keys[e.code()] = true;
                 if(enabled && transform_cb){ transform_cb(transform()); }
-            default:
-                break;
+            default:break;
         }
     };
     ret.key_release = [this](const vierkant::KeyEvent &e)
@@ -239,11 +231,9 @@ vierkant::key_delegate_t FlyCamera::key_delegate()
             case vierkant::Key::_RIGHT:
             case vierkant::Key::_LEFT:
             case vierkant::Key::_UP:
-            case vierkant::Key::_DOWN:
-                m_keys[e.code()] = false;
+            case vierkant::Key::_DOWN:m_keys[e.code()] = false;
                 if(enabled && transform_cb){ transform_cb(transform()); }
-            default:
-                break;
+            default:break;
         }
     };
     return ret;
