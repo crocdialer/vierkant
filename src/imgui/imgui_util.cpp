@@ -953,7 +953,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object,
     // imguizmo drawing is in fact another window
     if(object && camera && type != GuizmoType::INACTIVE)
     {
-        int32_t current_gizmo;
+        int32_t current_gizmo = -1;
 
         switch(type)
         {
