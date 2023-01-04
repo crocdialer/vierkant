@@ -5784,7 +5784,7 @@ static void ShowDemoWindowInputs()
             if (ImGui::IsMousePosValid())
                 ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x, io.MousePos.y);
             else
-                ImGui::Text("Mouse pos: <INVALID>");
+                ImGui::Text("Mouse pos: <INACTIVE>");
             ImGui::Text("Mouse delta: (%g, %g)", io.MouseDelta.x, io.MouseDelta.y);
 
             int count = IM_ARRAYSIZE(io.MouseDown);

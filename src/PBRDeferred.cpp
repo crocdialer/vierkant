@@ -296,7 +296,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_asset.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_asset.cull_result.drawables[drawable_index];
-                drawable.matrices.modelview = node_matrices.empty() ? object->global_transform() :
+                drawable.matrices.modelview = node_matrices.empty() ? object->global_transform() * entry.transform :
                                               object->global_transform() * node_matrices[entry.node_index];
                 drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.last_matrices =

@@ -515,7 +515,6 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
 }
 
 void draw_scene_ui(const ScenePtr &scene,
-                   const vierkant::CameraConstPtr &camera,
                    std::set<vierkant::Object3DPtr> *selection)
 {
     constexpr char window_name[] = "scene";
@@ -548,7 +547,7 @@ void draw_scene_ui(const ScenePtr &scene,
                 }
             }
             ImGui::Separator();
-            if(selection){ for(auto &obj: *selection){ draw_object_ui(obj, camera); }}
+            if(selection){ for(auto &obj: *selection){ draw_object_ui(obj); }}
 
             ImGui::EndTabItem();
         }
@@ -891,14 +890,13 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
     }
 }
 
-void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &camera)
+void draw_object_ui(const Object3DPtr &object)
 {
     constexpr char window_name[] = "object";
-    constexpr int32_t gizmo_inactive = -1;
-    static int32_t current_gizmo = gizmo_inactive;
+//    static GuizmoType current_gizmo = GuizmoType::INACTIVE;
 
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
-    bool draw_guizmo = false;
+//    bool draw_guizmo = false;
 
     if(is_child_window){ ImGui::BeginChild(window_name); }
     else{ ImGui::Begin(window_name); }
@@ -938,21 +936,6 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
             m = glm::scale(m, scale);
             object->transform = m;
         }
-
-        ImGui::Separator();
-
-        // imguizmo handle
-        draw_guizmo = true;
-        if(ImGui::RadioButton("None", current_gizmo == gizmo_inactive)){ current_gizmo = gizmo_inactive; }
-        ImGui::SameLine();
-        if(ImGui::RadioButton("Translate",
-                              current_gizmo == ImGuizmo::TRANSLATE)){ current_gizmo = ImGuizmo::TRANSLATE; }
-        ImGui::SameLine();
-        if(ImGui::RadioButton("Rotate", current_gizmo == ImGuizmo::ROTATE)){ current_gizmo = ImGuizmo::ROTATE; }
-        ImGui::SameLine();
-        if(ImGui::RadioButton("Scale", current_gizmo == ImGuizmo::SCALE)){ current_gizmo = ImGuizmo::SCALE; }
-        ImGui::Separator();
-
         ImGui::TreePop();
     }
 
@@ -961,19 +944,34 @@ void draw_object_ui(const Object3DPtr &object, const vierkant::CameraConstPtr &c
 
     if(is_child_window){ ImGui::EndChild(); }
     else{ ImGui::End(); }
+}
 
+void draw_transform_guizmo(const vierkant::Object3DPtr &object,
+                           const vierkant::CameraConstPtr &camera,
+                           GuizmoType type)
+{
     // imguizmo drawing is in fact another window
-    if(draw_guizmo && camera && (current_gizmo != gizmo_inactive))
+    if(object && camera && type != GuizmoType::INACTIVE)
     {
+        int32_t current_gizmo;
+
+        switch(type)
+        {
+            case GuizmoType::TRANSLATE: current_gizmo = ImGuizmo::TRANSLATE;
+                break;
+            case GuizmoType::ROTATE: current_gizmo = ImGuizmo::ROTATE;
+                break;
+            case GuizmoType::SCALE: current_gizmo = ImGuizmo::SCALE;
+                break;
+            default: break;
+        }
         glm::mat4 transform = object->global_transform();
         bool is_ortho = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
         auto z_val = transform[3].z;
-
         ImGuizmo::SetOrthographic(is_ortho);
 
         auto sz = ImGui::GetIO().DisplaySize;
-        auto proj = glm::perspectiveRH(camera->fov(), sz.x / sz.y, camera->near(),
-                                       camera->far());
+        auto proj = glm::perspectiveRH(camera->fov(), sz.x / sz.y, camera->near(), camera->far());
         ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
                              ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(transform));
         if(is_ortho){ transform[3].z = z_val; }
