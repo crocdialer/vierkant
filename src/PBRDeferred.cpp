@@ -988,6 +988,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         frame_asset.semaphore_value_done = SemaphoreValue::TAA;
         output_img = frame_asset.taa_buffer.color_attachment();
     }
+    // lighting/TAA are optional for sync
+    auto semaphore_wait_value = frame_asset.semaphore_value_done;
 
     size_t buffer_index = 0;
 
@@ -1093,8 +1095,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     {
         vierkant::semaphore_submit_info_t post_fx_semaphore_info = {};
         post_fx_semaphore_info.semaphore = frame_asset.timeline.handle();
-        post_fx_semaphore_info.wait_value = frame_asset.settings.use_taa ? SemaphoreValue::TAA
-                                                                         : SemaphoreValue::LIGHTING;
+        post_fx_semaphore_info.wait_value = semaphore_wait_value;
         post_fx_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
         post_fx_semaphore_info.signal_value = frame_asset.semaphore_value_done;
         frame_asset.cmd_post_fx.submit(m_queue, false, VK_NULL_HANDLE, {post_fx_semaphore_info});

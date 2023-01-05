@@ -42,7 +42,7 @@ struct payload_t
     // accumulated radiance along a path
     vec3 radiance;
 
-    // material absorbtion
+    // path throughput
     vec3 beta;
 
     // media refraction index
