@@ -568,6 +568,7 @@ void Framebuffer::begin_rendering(const begin_rendering_info_t &info) const
         for(uint32_t i = 0; i < images.size(); ++i)
         {
             const auto &img = images[i];
+            img->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, info.commandbuffer);
 
             if(type == AttachmentType::DepthStencil && use_depth_attachment)
             {
