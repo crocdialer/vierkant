@@ -5,7 +5,8 @@
 #include <unordered_set>
 #include <crocore/Area.hpp>
 #include <vierkant/Pipeline.hpp>
-#include "vierkant/Renderer.hpp"
+#include <vierkant/staging_copy.hpp>
+#include <vierkant/Renderer.hpp>
 
 namespace vierkant
 {
@@ -732,33 +733,15 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         else{ out_buffer->set_data(array); }
     };
 
-    constexpr auto num_array_bytes = [](const auto &array) -> size_t
+    std::vector<staging_copy_info_t> staging_copies;
+
+    auto add_staging_copy = [&staging_copies, device = m_device](const auto &array,
+                                                                 vierkant::BufferPtr &outbuffer,
+                                                                 VkPipelineStageFlags2 dst_stage,
+                                                                 VkAccessFlags2 dst_access)
     {
         using elem_t = typename std::decay<decltype(array)>::type::value_type;
-        return array.size() * sizeof(elem_t);
-    };
-
-    size_t staging_offset = 0;
-    std::vector<VkBufferMemoryBarrier2> barriers;
-
-    auto staging_copy = [num_array_bytes,
-            &staging_buffer = frame_asset.staging_buffer,
-            &staging_offset,
-            &barriers,
-            command_buffer = frame_asset.staging_command_buffer.handle(),
-            device = m_device](
-            const auto &array,
-            vierkant::BufferPtr &outbuffer,
-            VkPipelineStageFlags2 dst_stage,
-            VkAccessFlags2 dst_access)
-    {
-        size_t num_bytes = num_array_bytes(array);
-
-        assert(staging_buffer->num_bytes() - num_bytes >= staging_offset);
-
-        // copy array into staging-buffer
-        auto staging_data = static_cast<uint8_t *>(staging_buffer->map()) + staging_offset;
-        memcpy(staging_data, array.data(), num_bytes);
+        size_t num_bytes = array.size() * sizeof(elem_t);
 
         if(!outbuffer)
         {
@@ -769,54 +752,36 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         }
         else{ outbuffer->set_data(nullptr, num_bytes); }
 
-        // issue copy from staging-buffer to GPU-buffer
-        staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
-        staging_offset += num_bytes;
-
-        VkBufferMemoryBarrier2 barrier = {};
-        barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-        barrier.buffer = outbuffer->handle();
-        barrier.offset = 0;
-        barrier.size = VK_WHOLE_SIZE;
-        barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-        barrier.dstStageMask = dst_stage;
-        barrier.dstAccessMask = dst_access;
-        barriers.push_back(barrier);
+        vierkant::staging_copy_info_t info = {};
+        info.num_bytes = num_bytes;
+        info.data = array.data();
+        info.dst_buffer = outbuffer;
+        info.dst_stage = dst_stage;
+        info.dst_access = dst_access;
+        staging_copies.push_back(std::move(info));
     };
 
     if(m_queue)
     {
-        size_t num_staging_bytes = 0;
-        num_staging_bytes += num_array_bytes(mesh_entries);
-        num_staging_bytes += num_array_bytes(mesh_draws);
-        num_staging_bytes += num_array_bytes(material_data);
-        num_staging_bytes = std::max<size_t>(num_staging_bytes, 1UL << 20);
-
         if(!frame_asset.staging_buffer)
         {
-            frame_asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, num_staging_bytes,
+            frame_asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, 1UL << 20,
                                                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                                   VMA_MEMORY_USAGE_CPU_ONLY);
         }
-        else{ frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes); }
-
         frame_asset.staging_command_buffer.begin();
 
-        staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                     VK_ACCESS_2_SHADER_READ_BIT);
-        staging_copy(mesh_draws, frame_asset.mesh_draw_buffer,
-                     VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                     VK_ACCESS_2_SHADER_READ_BIT);
-        staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-                     VK_ACCESS_2_SHADER_READ_BIT);
+        add_staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                         VK_ACCESS_2_SHADER_READ_BIT);
+        add_staging_copy(mesh_draws, frame_asset.mesh_draw_buffer,
+                         VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                         VK_ACCESS_2_SHADER_READ_BIT);
+        add_staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+                         VK_ACCESS_2_SHADER_READ_BIT);
 
-        VkDependencyInfo dependency_info = {};
-        dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        dependency_info.bufferMemoryBarrierCount = barriers.size();
-        dependency_info.pBufferMemoryBarriers = barriers.data();
-        vkCmdPipelineBarrier2(frame_asset.staging_command_buffer.handle(), &dependency_info);
+        vierkant::staging_copy(frame_asset.staging_command_buffer.handle(),
+                               frame_asset.staging_buffer,
+                               staging_copies);
 
         frame_asset.staging_command_buffer.submit(m_queue);
     }
