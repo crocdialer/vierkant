@@ -16,6 +16,16 @@ class Buffer
 {
 public:
 
+    struct create_info_t
+    {
+        DevicePtr device;
+        const void *data = nullptr;
+        size_t num_bytes = 0;
+        VkBufferUsageFlags usage = 0;
+        VmaMemoryUsage mem_usage = VMA_MEMORY_USAGE_UNKNOWN;
+        VmaPoolPtr pool;
+    };
+
     /**
      * @brief   Create a memory pool, that can be used to allocate Buffers from.
      *
@@ -27,6 +37,12 @@ public:
      */
     static VmaPoolPtr create_pool(const DevicePtr &device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
                                   VmaPoolCreateInfo pool_create_info = {});
+
+    static BufferPtr create(const create_info_t &create_info)
+    {
+        return create(create_info.device, create_info.data, create_info.num_bytes, create_info.usage,
+                      create_info.mem_usage, create_info.pool);
+    };
 
     static BufferPtr create(DevicePtr device, const void *data, size_t num_bytes,
                             VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
@@ -89,10 +105,10 @@ public:
     /**
      * @brief   upload data into the buffer
      *
-     * @param   the_data        pointer to data to be uploaded
-     * @param   the_num_bytes   the number of bytes to upload
+     * @param   data        pointer to data to be uploaded
+     * @param   num_bytes   the number of bytes to upload
      */
-    void set_data(const void *the_data, size_t the_num_bytes);
+    void set_data(const void *data, size_t num_bytes);
 
     /**
      * @brief   convenience template to set the contents of this buffer from a std::vector or std::array

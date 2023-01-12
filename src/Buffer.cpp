@@ -159,11 +159,11 @@ size_t Buffer::num_bytes() const
     return m_num_bytes;
 }
 
-void Buffer::set_data(const void *the_data, size_t the_num_bytes)
+void Buffer::set_data(const void *data, size_t num_bytes)
 {
-    if(!the_num_bytes){ return; }
+    if(!num_bytes){ return; }
 
-    if(m_num_bytes < the_num_bytes)
+    if(m_num_bytes < num_bytes)
     {
         if(m_buffer)
         {
@@ -174,9 +174,9 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
         // create buffer
         VkBufferCreateInfo buffer_info = {};
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffer_info.size = the_num_bytes;
+        buffer_info.size = num_bytes;
         buffer_info.usage = m_usage;
-        if(!is_host_visible() && the_data){ buffer_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT; }
+        if(!is_host_visible() && data){ buffer_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT; }
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VmaAllocationCreateInfo alloc_info = {};
@@ -187,7 +187,7 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
                         &m_allocation_info);
 
         // the actually allocated num_bytes might be bigger
-        m_num_bytes = the_num_bytes;
+        m_num_bytes = num_bytes;
 
         // query the VkDeviceAddress for this buffer
         if(m_usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
@@ -199,18 +199,18 @@ void Buffer::set_data(const void *the_data, size_t the_num_bytes)
         }
     }
 
-    if(the_data)
+    if(data)
     {
         void *buf_data = map();
 
         if(buf_data)
         {
-            memcpy(buf_data, the_data, the_num_bytes);
+            memcpy(buf_data, data, num_bytes);
             unmap();
         }else
         {
             // create staging buffer
-            auto staging_buffer = Buffer::create(m_device, the_data, the_num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            auto staging_buffer = Buffer::create(m_device, data, num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                  VMA_MEMORY_USAGE_CPU_ONLY);
 
             // copy staging buffer to this buffer

@@ -21,9 +21,8 @@ vec2 reproject(vec2 coord,
 
 float linear_depth(float depth, float near, float far)
 {
-    // TODO: fix after reverse+infite z changes
-//    return near / depth;
-    return (2.0 * near) / (far + near - depth * (far - near));
+    // reverse+infite z
+    return (near / depth - near) / (far - near);
 }
 
 vec3 luma_weight(vec3 color)
@@ -124,7 +123,10 @@ vec4 taa(vec2 in_coord,
             min_depth_coord = d_coord;
         }
     }
-    vec2 motion_delta = texture(sampler_motion, min_depth_coord).xy;
+
+    // max motion-delta in screenspace
+    const float max_motion_delta = 0.15;
+    vec2 motion_delta = min(texture(sampler_motion, min_depth_coord).xy, max_motion_delta);
 
     // previous
     vec2 history_coord = in_coord - motion_delta;
@@ -145,7 +147,7 @@ vec4 taa(vec2 in_coord,
     float alpha = 0.1;
 
     // motion adjustment to alpha
-    alpha += min(0.02 * length(motion_delta / texel), 0.5);
+    alpha += min(0.02 * length(motion_delta / texel), 0.25);
 
     // out of bounds sampling
     if(any(lessThan(history_coord, vec2(0))) || any(greaterThan(history_coord, vec2(1)))){ alpha = 1.0; }
@@ -154,8 +156,8 @@ vec4 taa(vec2 in_coord,
         linear_depth(history_depth, taa_settings.near, taa_settings.far));
 
     // reject based on depth
-    const float depth_eps = 5.0e-3; // 0.00000006 = 1.0 / (1 << 24)
-    float depth_reject = depth_delta > depth_eps ? 1.0 : 0.0;
+    const float depth_eps = 5.0e-3;
+    float depth_reject = depth_delta > depth_eps ? .1 : 0.0;
     alpha += depth_reject;
 
     // clip history against AABB
@@ -164,8 +166,8 @@ vec4 taa(vec2 in_coord,
     vec3 rectified_color = clip_aabb(variance_aabb.min, variance_aabb.max, history_ycocg);
     rectified_color = YCoCg2RGB * rectified_color;
 
-    vec3 rect_diff = history_color - rectified_color;
-    float rect_len2 = dot(rect_diff, rect_diff);
+//    vec3 rect_diff = history_color - rectified_color;
+//    float rect_len2 = dot(rect_diff, rect_diff);
 
     alpha = clamp(alpha, 0.0, 1.0);
 
@@ -174,7 +176,7 @@ vec4 taa(vec2 in_coord,
     color.rgb = mix(history_color, color.rgb, alpha);
     color.rgb = luma_weight_inverse(color.rgb);
 
-//    return vec4(vec3(linear_depth(min_depth, taa_settings.near, taa_settings.far)), 1.0);
+//    return vec4(vec3(linear_depth(history_depth, taa_settings.near, taa_settings.far)), 1.0);
 //    return mix(color, vec4(1, 0, 0, 1), depth_reject);
     return max(color, 0);
 }

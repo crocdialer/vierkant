@@ -46,10 +46,10 @@ vec3 sample_motion_blur(sampler2D tex, vec2 coord, vec2 motion)
 
 void main()
 {
-    vec2 motion = u_motionblur_gain * (u_shutter_time / u_time_delta) * texture(u_sampler_2D[MOTION], vertex_in.tex_coord).rg;
+    float gain = u_motionblur_gain * clamp(u_time_delta / u_shutter_time, 0.0, 2.0);
+    vec2 motion = gain * texture(u_sampler_2D[MOTION], vertex_in.tex_coord).rg;
 
-    vec3 hdr_color = sample_motion_blur(u_sampler_2D[COLOR], vertex_in.tex_coord, motion);//texture(u_sampler_2D[COLOR], vertex_in.tex_coord).rgb;
-
+    vec3 hdr_color = sample_motion_blur(u_sampler_2D[COLOR], vertex_in.tex_coord, motion);
     vec3 bloom = texture(u_sampler_2D[BLOOM], vertex_in.tex_coord).rgb;
 
     // additive blending + tone mapping

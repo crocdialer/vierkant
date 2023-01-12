@@ -206,7 +206,6 @@ private:
         float fov = glm::quarter_pi<float>();
         float aperture = 0.f;
         float focal_distance = 1.f;
-        int padding[2]{};
     };
 
     struct alignas(16) composition_ubo_t
@@ -217,8 +216,6 @@ private:
         float time_delta = 1.f / 60.f;
         float shutter_time = 1.f / 60.f;
         float motionblur_gain = 1.f;
-
-        int padding[3]{};
     };
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
