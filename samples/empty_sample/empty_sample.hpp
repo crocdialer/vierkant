@@ -71,6 +71,8 @@ private:
     vierkant::Renderer m_renderer, m_gui_renderer;
 
     vierkant::gui::Context m_gui_context;
+
+    std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
 };
 
 int main(int argc, char *argv[])

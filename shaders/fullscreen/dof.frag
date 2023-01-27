@@ -15,7 +15,7 @@ layout(binding = 0) uniform sampler2D u_sampler_2D[2];
 
 layout(std140, binding = 1) uniform dof_ubo
 {
-    dof_settings_t dof_settings;
+    dof_params_t dof_params;
 };
 
 layout(location = 0) in VertexData
@@ -30,6 +30,5 @@ void main()
     gl_FragDepth = texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x;
 
     // depth of field
-    out_color = depth_of_field(u_sampler_2D[COLOR], u_sampler_2D[DEPTH], vertex_in.tex_coord, context.size,
-                               dof_settings);
+    out_color = depth_of_field(u_sampler_2D[COLOR], u_sampler_2D[DEPTH], vertex_in.tex_coord, context.size, dof_params);
 }

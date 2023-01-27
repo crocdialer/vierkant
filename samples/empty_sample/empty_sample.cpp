@@ -47,7 +47,7 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h)
     {
         create_graphics_pipeline();
-        m_camera->set_aspect(m_window->aspect_ratio());
+        m_camera->get_component<vierkant::projective_camera_params_t>().aspect = m_window->aspect_ratio();
     };
     window_delegate.close_fn = [this](){ running = false; };
     m_window->window_delegates[name()] = window_delegate;
@@ -77,7 +77,7 @@ void HelloTriangleApplication::create_context_and_window()
     m_window->mouse_delegates["gui"] = m_gui_context.mouse_delegate();
 
     // camera
-    m_camera = vierkant::PerspectiveCamera::create(m_window->aspect_ratio(), 45.f, .1f, 100.f);
+    m_camera = vierkant::PerspectiveCamera::create(m_registry);
     m_camera->set_position(glm::vec3(0.f, 0.f, 2.f));
 }
 

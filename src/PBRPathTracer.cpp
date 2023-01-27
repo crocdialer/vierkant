@@ -346,13 +346,15 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals,
                                   m_storage_images.positions, m_storage_images.accumulated_radiance};
 
-    // provide inverse modelview and projection matrices
+    const auto& camera_params = cam->get_component<vierkant::projective_camera_params_t>();
+
     camera_ubo_t camera_ubo = {};
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
     camera_ubo.view_inverse = glm::inverse(cam->view_matrix());
-    camera_ubo.fov = glm::radians(cam->fov());
-    camera_ubo.aperture = frame_asset.settings.depth_of_field ? settings.aperture : 0.f;
-    camera_ubo.focal_distance = frame_asset.settings.focal_distance;
+    camera_ubo.fov = camera_params.fovy();
+    camera_ubo.aperture = frame_asset.settings.depth_of_field ? static_cast<float>(camera_params.aperture_size())
+                                                              : 0.f;
+    camera_ubo.focal_distance = camera_params.focal_distance;
 
     vierkant::descriptor_t &desc_matrices = frame_asset.tracable.descriptors[2];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -460,7 +462,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     auto view = scene->registry()->view<vierkant::MeshPtr>();
 
     //  cache-lookup / non-blocking build of acceleration structures
-    for(const auto &[entity, mesh] : view.each())
+    for(const auto &[entity, mesh]: view.each())
     {
         // TODO: support updates of animated (skin/morph) assets
         if(!m_acceleration_assets.contains(mesh))
@@ -481,7 +483,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         semaphore_infos.push_back(wait_info);
     }
 
-    for(const auto &[entity, mesh] : view.each())
+    for(const auto &[entity, mesh]: view.each())
     {
         frame_asset.bottom_lvl_assets[mesh] = m_acceleration_assets[mesh];
     }

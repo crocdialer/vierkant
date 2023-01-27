@@ -18,6 +18,26 @@ using namespace crocore;
 namespace vierkant::gui
 {
 
+struct scoped_child_window_t
+{
+    bool is_child_window = false;
+    bool is_open = false;
+
+    explicit scoped_child_window_t(const std::string &window_name)
+    {
+        is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
+
+        if(is_child_window){ is_open = ImGui::BeginChild(window_name.c_str()); }
+        else{ is_open = ImGui::Begin(window_name.c_str()); }
+    }
+
+    ~scoped_child_window_t()
+    {
+        if(is_child_window){ ImGui::EndChild(); }
+        else{ ImGui::End(); }
+    }
+};
+
 void draw_material_ui(const MaterialPtr &material);
 
 void draw_light_ui(vierkant::model::lightsource_t &light);
@@ -175,8 +195,6 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
         if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()){ ImGui::SetScrollHereY(); }
     }
     ImGui::End();
-
-//    ImGui::PopStyleColor(ImGuiCol_TitleBg);
 }
 
 void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
@@ -237,6 +255,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("tonemap", &pbr_renderer->settings.tonemap);
     ImGui::Checkbox("bloom", &pbr_renderer->settings.bloom);
     ImGui::Checkbox("motionblur", &pbr_renderer->settings.motionblur);
+    ImGui::Checkbox("depth of field", &pbr_renderer->settings.depth_of_field);
 
     // motionblur gain
     ImGui::SliderFloat("motionblur gain", &pbr_renderer->settings.motionblur_gain, 0.f, 10.f);
@@ -336,6 +355,8 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
             ImGui::BulletText("taa: %.3f ms", last.taa_ms);
             ImGui::BulletText("fxaa: %.3f ms", last.fxaa_ms);
+            ImGui::BulletText("composition: %.3f ms", last.tonemap_bloom_ms);
+            ImGui::BulletText("depth-of-field: %.3f ms", last.depth_of_field_ms);
             ImGui::TreePop();
         }
 
@@ -361,7 +382,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     }
 }
 
-void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr &cam)
+void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr &/*cam*/)
 {
     int res[2] = {static_cast<int>(path_tracer->settings.resolution.x),
                   static_cast<int>(path_tracer->settings.resolution.y)};
@@ -395,80 +416,21 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
-
-    if(path_tracer->settings.depth_of_field)
-    {
-        // aperture
-        constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
-
-        float f_stop = clamp(1.f / path_tracer->settings.aperture, f_stop_min, f_stop_max);
-
-        if(ImGui::SliderFloat("f-stop", &f_stop, f_stop_min, f_stop_max))
-        {
-            path_tracer->settings.aperture = 1.f / f_stop;
-        }
-
-        // focal distance
-        ImGui::SliderFloat("focal distance", &path_tracer->settings.focal_distance, cam->near(), cam->far());
-    }
 }
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
 {
     constexpr char window_name[] = "scene_renderer";
-    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
-
-    if(is_child_window){ ImGui::BeginChild(window_name); }
-    else{ ImGui::Begin(window_name); }
-
-    vierkant::dof_settings_t *settings_dof = nullptr;
+    scoped_child_window_t child_window(window_name);
 
     if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
     {
-        settings_dof = &pbr_renderer->settings.dof;
-
         draw_scene_renderer_ui_intern(pbr_renderer, cam);
     }
     else if(auto path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer))
     {
         draw_scene_renderer_ui_intern(path_tracer, cam);
     }
-
-    ImGui::Separator();
-
-    // dof
-    if(settings_dof)
-    {
-        auto &dof = *settings_dof;
-
-        ImGui::PushID(std::addressof(dof));
-        ImGui::Checkbox("", reinterpret_cast<bool *>(std::addressof(dof.enabled)));
-        ImGui::PopID();
-
-        ImGui::SameLine();
-        const ImVec4 gray(.6f, .6f, .6f, 1.f);
-        if(!dof.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
-
-        if(ImGui::TreeNode("dof"))
-        {
-
-            ImGui::Checkbox("autofocus", reinterpret_cast<bool *>(std::addressof(dof.auto_focus)));
-            ImGui::SliderFloat("focal distance (m)", &dof.focal_depth, 0.f, cam->far());
-            ImGui::SliderFloat("focal length (mm)", &dof.focal_length, 0.f, 280.f);
-            ImGui::SliderFloat("f-stop", &dof.fstop, 0.f, 180.f);
-            ImGui::InputFloat("circle of confusion (mm)", &dof.circle_of_confusion_sz, 0.001f, .01f);
-            ImGui::SliderFloat("gain", &dof.gain, 0.f, 10.f);
-            ImGui::SliderFloat("color fringe", &dof.fringe, 0.f, 10.f);
-            ImGui::SliderFloat("max blur", &dof.max_blur, 0.f, 10.f);
-            ImGui::Checkbox("debug focus", reinterpret_cast<bool *>(std::addressof(dof.debug_focus)));
-            ImGui::TreePop();
-        }
-        if(!dof.enabled){ ImGui::PopStyleColor(); }
-    }
-
-    // end window
-    if(is_child_window){ ImGui::EndChild(); }
-    else{ ImGui::End(); }
 }
 
 vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj,
@@ -518,13 +480,9 @@ void draw_scene_ui(const ScenePtr &scene,
                    std::set<vierkant::Object3DPtr> *selection)
 {
     constexpr char window_name[] = "scene";
-    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
-    bool is_open;
+    scoped_child_window_t scoped_child_window(window_name);
 
-    if(is_child_window){ is_open = ImGui::BeginChild(window_name); }
-    else{ is_open = ImGui::Begin(window_name); }
-
-    if(is_open)
+    if(scoped_child_window.is_open)
     {
         ImGui::BeginTabBar("scene_tabs");
         if(ImGui::BeginTabItem("scene"))
@@ -604,12 +562,24 @@ void draw_scene_ui(const ScenePtr &scene,
             }
             ImGui::EndTabItem();
         }
+        if(ImGui::BeginTabItem("cameras"))
+        {
+            auto view = scene->registry()->view<vierkant::Object3D *, vierkant::projective_camera_params_t>();
+
+            for(auto [entity, object, camera_params]: view.each())
+            {
+                if(ImGui::TreeNode((void *) (entity), "%s", object->name.c_str()))
+                {
+                    ImGui::Separator();
+                    vierkant::gui::draw_camera_param_ui(camera_params);
+                    ImGui::TreePop();
+                }
+            }
+
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
     }
-
-    // end window
-    if(is_child_window){ ImGui::EndChild(); }
-    else{ ImGui::End(); }
 }
 
 void draw_material_ui(const MaterialPtr &material)
@@ -893,13 +863,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
 void draw_object_ui(const Object3DPtr &object)
 {
     constexpr char window_name[] = "object";
-//    static GuizmoType current_gizmo = GuizmoType::INACTIVE;
-
-    bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
-//    bool draw_guizmo = false;
-
-    if(is_child_window){ ImGui::BeginChild(window_name); }
-    else{ ImGui::Begin(window_name); }
+    scoped_child_window_t child_window(window_name);
 
     ImGui::BulletText("%s", window_name);
     ImGui::Spacing();
@@ -941,9 +905,6 @@ void draw_object_ui(const Object3DPtr &object)
 
     // cast to mesh
     if(object->has_component<vierkant::MeshPtr>()){ draw_mesh_ui(object, object->get_component<vierkant::MeshPtr>()); }
-
-    if(is_child_window){ ImGui::EndChild(); }
-    else{ ImGui::End(); }
 }
 
 void draw_transform_guizmo(const vierkant::Object3DPtr &object,
@@ -970,13 +931,42 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object,
         auto z_val = transform[3].z;
         ImGuizmo::SetOrthographic(is_ortho);
 
+        const auto &cam_params = camera->get_component<vierkant::projective_camera_params_t>();
+        float fovy = is_ortho ? 0.f : cam_params.fovy();
+
         auto sz = ImGui::GetIO().DisplaySize;
-        auto proj = glm::perspectiveRH(camera->fov(), sz.x / sz.y, camera->near(), camera->far());
+        auto proj = glm::perspectiveRH(fovy, sz.x / sz.y, camera->near(), camera->far());
         ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
                              ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(transform));
         if(is_ortho){ transform[3].z = z_val; }
         object->set_global_transform(transform);
     }
+}
+
+void draw_camera_param_ui(vierkant::projective_camera_params_t &camera_params)
+{
+    scoped_child_window_t child_window("camera");
+
+    // focal-length / fov
+    ImGui::SliderFloat("focal-length (mm)", &camera_params.focal_length, 0.1f, 500.f);
+
+    // clipping planes
+    ImGui::InputFloat("sensor (mm)", &camera_params.sensor_width, 0.1f, 1000.f);
+    ImGui::InputFloat2("near/far", glm::value_ptr(camera_params.clipping_distances));
+
+    ImGui::BulletText("hfov: %.1f", glm::degrees(camera_params.fovx()));
+    ImGui::BulletText("aspect: %.2f", camera_params.aspect);
+
+    ImGui::Separator();
+
+    // focal distance (dof)
+    ImGui::SliderFloat("focal distance (m)", &camera_params.focal_distance,
+                       camera_params.clipping_distances.x, camera_params.clipping_distances.y);
+
+    // f-stop/aperture
+    constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
+    ImGui::SliderFloat("f-stop", &camera_params.fstop, f_stop_min, f_stop_max);
+    ImGui::BulletText("aperture: %.1f mm", camera_params.aperture_size() * 1000);
 }
 
 }// namespace vierkant::gui

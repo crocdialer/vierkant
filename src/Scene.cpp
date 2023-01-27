@@ -91,7 +91,7 @@ void Scene::remove_object(const Object3DPtr &object)
 
 void Scene::clear()
 {
-    m_registry = std::make_shared<entt::registry>();
+//    m_registry = std::make_shared<entt::registry>();
     m_root = vierkant::Object3D::create(m_registry, "scene root");
 }
 

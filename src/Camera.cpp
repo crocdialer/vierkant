@@ -20,22 +20,12 @@ glm::vec2 clipping_distances(const glm::mat4 &projection)
     return ret;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-Camera::Camera(const std::string &name) : Object3D({}, name){}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::mat4 Camera::view_matrix() const
 {
     return glm::inverse(global_transform());
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-AABB Camera::boundingbox() const
-{
-    return {glm::vec3(-0.5f), glm::vec3(0.5f)};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,13 +42,13 @@ OrthoCameraPtr OrthoCamera::create(float left, float right,
 OrthoCamera::OrthoCamera(float left, float right,
                          float bottom, float top,
                          float near, float far) :
-        Camera("OrthoCamera"),
-        m_left(left),
-        m_right(right),
-        m_bottom(bottom),
-        m_top(top),
-        m_near(near),
-        m_far(far)
+        Object3D({}, "OrthoCamera"),
+        left(left),
+        right(right),
+        bottom(bottom),
+        top(top),
+        near_(near),
+        far_(far)
 {
 
 }
@@ -67,7 +57,7 @@ OrthoCamera::OrthoCamera(float left, float right,
 
 glm::mat4 OrthoCamera::projection_matrix() const
 {
-    auto m = glm::orthoRH(m_left, m_right, m_bottom, m_top, m_near, m_far);
+    auto m = glm::orthoRH(left, right, bottom, top, near_, far_);
     m[1][1] *= -1;
     return m;
 }
@@ -76,7 +66,7 @@ glm::mat4 OrthoCamera::projection_matrix() const
 
 vierkant::Frustum OrthoCamera::frustum() const
 {
-    return {left(), right(), bottom(), top(), near(), far()};
+    return {left, right, bottom, top, near_, far_};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -85,8 +75,8 @@ vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &
 {
     glm::vec3 click_world_pos, ray_dir;
 
-    glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, left(), right()),
-                    crocore::map_value<float>(pos.y, extent.y, 0, bottom(), top()));
+    glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, left, right),
+                    crocore::map_value<float>(pos.y, extent.y, 0, bottom, top));
     click_world_pos = position() + lookAt() * near() + side() * coord.x + up() * coord.y;
     ray_dir = lookAt();
     spdlog::trace("clicked_world: ({}, {}, {})", click_world_pos.x, click_world_pos.y, click_world_pos.z);
@@ -95,24 +85,8 @@ vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void OrthoCamera::set_size(const glm::vec2 &the_sz)
-{
-    m_left = 0.f;
-    m_right = the_sz.x;
-    m_bottom = 0.f;
-    m_top = the_sz.y;
-    m_near = 0.f;
-    m_far = 1.f;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-PerspectiveCamera::PerspectiveCamera(float ascpect, float fov, float near, float far) :
-        Camera("PerspectiveCamera"),
-        m_near(near),
-        m_far(far),
-        m_fov(fov),
-        m_aspect(ascpect)
+PerspectiveCamera::PerspectiveCamera(const std::shared_ptr<entt::registry> &registry) :
+        Object3D(registry, "PerspectiveCamera")
 {
 
 }
@@ -121,37 +95,16 @@ PerspectiveCamera::PerspectiveCamera(float ascpect, float fov, float near, float
 
 glm::mat4 PerspectiveCamera::projection_matrix() const
 {
-    return perspective_infinite_reverse_RH_ZO(glm::radians(m_fov), m_aspect, m_near);
+    const auto &params = get_component<projective_camera_params_t>();
+    return perspective_infinite_reverse_RH_ZO(params.fovy(), params.aspect, params.clipping_distances.x);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::Frustum PerspectiveCamera::frustum() const
 {
-    return {aspect(), fov(), near(), far()};
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void PerspectiveCamera::set_fov(float theFov)
-{
-    m_fov = theFov;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void PerspectiveCamera::set_aspect(float theAspect)
-{
-    if(std::isnan(theAspect)){ return; }
-    m_aspect = theAspect;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-void PerspectiveCamera::set_clipping(float near, float far)
-{
-    m_near = near;
-    m_far = far;
+    const auto &params = get_component<projective_camera_params_t>();
+    return {params.aspect, params.fovx(), params.clipping_distances.x, params.clipping_distances.y};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -168,20 +121,22 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
     click_2D.y = -click_2D.y;
 
     // convert fovy to radians
-    float rad = glm::radians(fov());
-    float vLength = std::tan(rad / 2) * near();
-    float hLength = vLength * aspect();
+    const auto &params = get_component<projective_camera_params_t>();
+    float rad = params.fovx();
+    float near = params.clipping_distances.x;
+    float hLength = std::tan(rad / 2) * near;
+    float vLength = hLength / params.aspect;
 
-    ray_origin = position() + lookAt() * near() + side() * hLength * click_2D.x
+    ray_origin = position() + lookAt() * near + side() * hLength * click_2D.x
                  + up() * vLength * click_2D.y;
     ray_dir = ray_origin - position();
-    return Ray(ray_origin, ray_dir);
+    return {ray_origin, ray_dir};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 CubeCamera::CubeCamera(float the_near, float the_far) :
-        Camera("CubeCamera"),
+        Object3D({}, "CubeCamera"),
         m_near(the_near),
         m_far(the_far)
 {

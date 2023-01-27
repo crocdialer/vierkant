@@ -2,6 +2,7 @@
 // Created by crocdialer on 10.01.23.
 //
 
+#include <set>
 #include "vierkant/staging_copy.hpp"
 
 namespace vierkant
@@ -22,6 +23,7 @@ size_t staging_copy(VkCommandBuffer command_buffer,
     std::vector<VkBufferMemoryBarrier2> barriers;
 
     size_t offset = 0;
+    std::set<vierkant::Buffer*> buffer_set;
 
     for(const auto &info: staging_copy_infos)
     {
@@ -35,11 +37,13 @@ size_t staging_copy(VkCommandBuffer command_buffer,
         info.dst_buffer->set_data(nullptr, info.num_bytes);
 
         // issue copy from staging-buffer to GPU-buffer
-        staging_buffer->copy_to(info.dst_buffer, command_buffer, offset, 0, info.num_bytes);
+        staging_buffer->copy_to(info.dst_buffer, command_buffer, offset, info.dst_offset, info.num_bytes);
         offset += info.num_bytes;
 
-        if(info.dst_stage && info.dst_access)
+        if(info.dst_stage && info.dst_access && !buffer_set.contains(info.dst_buffer.get()))
         {
+            buffer_set.insert(info.dst_buffer.get());
+
             VkBufferMemoryBarrier2 barrier = {};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
             barrier.buffer = info.dst_buffer->handle();

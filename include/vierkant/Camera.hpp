@@ -21,13 +21,56 @@ DEFINE_CLASS_PTR(CubeCamera)
  */
 glm::vec2 clipping_distances(const glm::mat4 &projection);
 
-class Camera : public Object3D
+struct alignas(16) projective_camera_params_t
+{
+    //! focal length in mm
+    float focal_length = 50.f;
+
+    //! horizontal sensor-size in mm
+    float sensor_width = 36.f;
+
+    //! sensor aspect-ratio (w/h)
+    float aspect = 16.f / 9.f;
+
+    //! camera near/far clipping distances in meter
+    glm::vec2 clipping_distances = {0.1f, 100.f};
+
+    //! focal distance in meter
+    float focal_distance = 10.f;
+
+    //! f-stop value
+    float fstop = 2.8f;
+
+    //! aperture/lens size in m
+    [[nodiscard]] inline double aperture_size() const
+    {
+        return 0.001 * focal_length / fstop;
+    }
+
+    //! horizontal field-of-view (fov) in radians
+    [[nodiscard]] inline float fovx() const
+    {
+        return 2 * std::atan(0.5f * sensor_width / focal_length);
+    }
+
+    //! horizontal field-of-view (fov) in radians
+    [[nodiscard]] inline float fovy() const
+    {
+        return fovx() / aspect;
+    }
+
+    //! will adjust focal_length to match provided field-of-view (fov) in radians
+    inline void set_fov(float fov)
+    {
+        focal_length = 0.5f * sensor_width / std::tan(fov * 0.5f);
+    }
+};
+
+class Camera : virtual public Object3D
 {
 public:
 
     glm::mat4 view_matrix() const;
-
-    vierkant::AABB boundingbox() const;
 
     virtual glm::mat4 projection_matrix() const = 0;
 
@@ -37,19 +80,14 @@ public:
 
     virtual float far() const = 0;
 
-    virtual float fov() const = 0;
-
     virtual vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const = 0;
-
-protected:
-
-    explicit Camera(const std::string &name);
-
 };
 
 class OrthoCamera : public Camera
 {
 public:
+
+    float left, right, bottom, top, near_, far_;
 
     static OrthoCameraPtr create(float left, float right, float bottom, float top, float near, float far);
 
@@ -57,60 +95,17 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override{ return m_near; };
+    float near() const override{ return near_; };
 
-    void near(float val)
-    {
-        m_near = val;
-    };
+    float far() const override{ return far_; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
-    float far() const override{ return m_far; };
-
-    void far(float val)
-    {
-        m_far = val;
-    };
-
-    float fov() const override{ return glm::degrees(atanf(std::abs(m_right - m_left) / std::abs(m_far - m_near))); };
-
-    inline float left() const{ return m_left; };
-
-    void left(float val)
-    {
-        m_left = val;
-    };
-
-    inline float right() const{ return m_right; };
-
-    void right(float val)
-    {
-        m_right = val;
-    };
-
-    inline float bottom() const{ return m_bottom; };
-
-    void bottom(float val)
-    {
-        m_bottom = val;
-    };
-
-    inline float top() const{ return m_top; };
-
-    void top(float val)
-    {
-        m_top = val;
-    };
-
-    void set_size(const glm::vec2 &the_sz);
 
 private:
 
     OrthoCamera(float left, float right, float bottom, float top,
                 float near, float far);
-
-    float m_left, m_right, m_bottom, m_top, m_near, m_far;
 };
 
 class PerspectiveCamera : public Camera
@@ -118,38 +113,27 @@ class PerspectiveCamera : public Camera
 
 public:
 
-    static PerspectiveCameraPtr create(float ascpect = 4.f / 3.f, float fov = 45, float near = .01, float far = 5000)
+    static PerspectiveCameraPtr create(const std::shared_ptr<entt::registry> &registry,
+                                       const projective_camera_params_t params = {})
     {
-        return PerspectiveCameraPtr(new PerspectiveCamera(ascpect, fov, near, far));
+        auto ret = PerspectiveCameraPtr(new PerspectiveCamera(registry));
+        ret->add_component(params);
+        return ret;
     }
 
     glm::mat4 projection_matrix() const override;
 
     vierkant::Frustum frustum() const override;
 
-    void set_fov(float theFov);
+    float near() const override{ return get_component<projective_camera_params_t>().clipping_distances.x; };
 
-    float fov() const override{ return m_fov; };
-
-    void set_aspect(float theAspect);
-
-    float aspect() const{ return m_aspect; };
-
-    void set_clipping(float near, float far);
-
-    float near() const override{ return m_near; };
-
-    float far() const override{ return m_far; };
+    float far() const override{ return get_component<projective_camera_params_t>().clipping_distances.y; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
 private:
 
-    PerspectiveCamera(float ascpect, float fov, float near, float far);
-
-    float m_near, m_far;
-    float m_fov;
-    float m_aspect;
+    explicit PerspectiveCamera(const std::shared_ptr<entt::registry> &registry);
 };
 
 class CubeCamera : public Camera
@@ -168,8 +152,6 @@ public:
     float near() const override{ return m_near; };
 
     float far() const override{ return m_far; };
-
-    float fov() const override{ return 45.f; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 

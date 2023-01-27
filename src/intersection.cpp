@@ -306,8 +306,8 @@ Frustum::Frustum(float aspect, float fov, float near, float far)
     glm::mat4 t;
     constexpr glm::vec3 look_at = glm::vec3(0, 0, -1), eye = glm::vec3(0),
             side = glm::vec3(1, 0, 0), up = glm::vec3(0, 1, 0);
-    float angle_y = glm::radians(90.0f - aspect * fov / 2.0f);
-    float angle_x = glm::radians(90.0f - (fov / 2.0f));
+    float angle_y = glm::half_pi<float>() - (fov / aspect) / 2.0f;
+    float angle_x = glm::half_pi<float>() - fov / 2.0f;
 
     planes[0] = Plane(eye + (near * look_at), look_at); // near plane
     planes[1] = Plane(eye + (far * look_at), -look_at); // far plane

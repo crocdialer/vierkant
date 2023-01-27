@@ -36,15 +36,10 @@ layout(binding = 2) uniform samplerCube u_sampler_cube[2];
 
 layout(binding = 3) readonly buffer LightsBuffer{ lightsource_t lights[]; };
 
-vec3 sample_diffuse(in samplerCube diff_map, in vec3 normal)
-{
-    return texture(diff_map, normal).rgb * ONE_OVER_PI;
-}
-
 vec3 compute_enviroment_lighting(vec3 V, vec3 N, vec3 albedo, float roughness, float metalness,
                                  float ambient_occlusion)
 {
-    vec3 irradiance = sample_diffuse(u_sampler_cube[ENV_DIFFUSE], N);
+    vec3 irradiance = texture(u_sampler_cube[ENV_DIFFUSE], N).rgb * ONE_OVER_PI;
 
     vec3 R = normalize(reflect(V, N));
     float spec_mip_lvl = roughness * float(ubo.num_mip_levels - 1);
@@ -80,6 +75,11 @@ void main()
 {
     float depth = texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x;
 
+//    A     = prj_mat[2][2];
+//    B     = prj_mat[3][2];
+//    z_ndc = depth; // 2.0 * depth - 1.0;
+//    z_eye = B / (A + z_ndc);
+
     // reconstruct position from depth
     vec3 clip_pos = vec3(gl_FragCoord.xy / context.size, depth);
     vec4 viewspace_pos = ubo.inverse_projection * vec4(2.0 * clip_pos.xy - 1, clip_pos.z, 1);
@@ -97,13 +97,6 @@ void main()
     vec3 env_color = compute_enviroment_lighting(V, normal, albedo.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r);
 
     vec3 punctial_light_color = vec3(0);
-//    lightsource_t l;
-//    l.type = LIGHT_TYPE_DIRECTIONAL;
-//    l.position = vec3(0);
-//    l.direction = vec3(0, 0, -1.0);
-//    l.color = vec3(1);
-//    l.intensity = 2.0;
-//    l.range = 10000.0;
 
     for(uint i = 0; i < ubo.num_lights; ++i)
     {

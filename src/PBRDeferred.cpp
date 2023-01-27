@@ -4,12 +4,13 @@
 
 #include <crocore/gaussian.hpp>
 
-#include <vierkant/PBRDeferred.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/cubemap_utils.hpp>
 #include <vierkant/culling.hpp>
 #include <vierkant/punctual_light.hpp>
 #include <vierkant/shaders.hpp>
+#include <vierkant/staging_copy.hpp>
+#include <vierkant/PBRDeferred.hpp>
 
 namespace vierkant
 {
@@ -52,9 +53,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         asset.gpu_cull_context = vierkant::create_gpu_cull_context(device, m_pipeline_cache);
 
-        asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, 1U << 20U,
-                                                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                        VMA_MEMORY_USAGE_CPU_ONLY);
+        // create staging-buffers
+        vierkant::Buffer::create_info_t staging_buffer_info = {};
+        staging_buffer_info.device = m_device;
+        staging_buffer_info.num_bytes = 1U << 20U;
+        staging_buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        staging_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
+        asset.staging_main = vierkant::Buffer::create(staging_buffer_info);
+        asset.staging_post_fx = vierkant::Buffer::create(staging_buffer_info);
 
         asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
     }
@@ -174,13 +180,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         m_drawable_dof.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::dof_frag);
 
-        // DOF settings uniform-buffer
+        // TODO: depth-of-field settings uniform-buffer
         vierkant::descriptor_t desc_dof_ubo = {};
         desc_dof_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_dof_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_dof_ubo.buffers = {vierkant::Buffer::create(m_device, &settings.dof, sizeof(vierkant::dof_settings_t),
-                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                         VMA_MEMORY_USAGE_CPU_TO_GPU)};
+        desc_dof_ubo.buffers = {vierkant::Buffer::create(m_device, nullptr, sizeof(depth_of_field_params_t),
+                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+                                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                         VMA_MEMORY_USAGE_GPU_ONLY)};
 
         m_drawable_dof.descriptors[1] = std::move(desc_dof_ubo);
 
@@ -382,7 +389,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     }
 
     // dof, bloom, anti-aliasing
-    post_fx_pass(renderer, cam, out_img, frame_asset.depth_map);
+    post_fx_pass(renderer, cam, out_img, frame_asset.g_buffer_pre.depth_attachment());
 
     SceneRenderer::render_result_t ret = {};
     ret.num_draws = frame_asset.cull_result.drawables.size();
@@ -690,7 +697,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                               : frame_asset.indirect_draw_params_main.draws_out;
             params.draws_in->copy_to(drawbuffer, frame_asset.cmd_clear.handle());
 
-            frame_asset.staging_buffer->set_data(nullptr, params.mesh_draws->num_bytes());
+            frame_asset.staging_main->set_data(nullptr, params.mesh_draws->num_bytes());
 
             VkBufferMemoryBarrier2 barrier = {};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
@@ -720,11 +727,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
             const size_t num_staging_bytes = std::max(staging_stride * frame_asset.dirty_drawable_indices.size(),
-                                                      frame_asset.staging_buffer->num_bytes());
-            frame_asset.staging_buffer->set_data(nullptr, num_staging_bytes);
+                                                      frame_asset.staging_main->num_bytes());
+            frame_asset.staging_main->set_data(nullptr, num_staging_bytes);
             size_t staging_offset = 0;
 
-            auto staging_ptr = static_cast<uint8_t *>(frame_asset.staging_buffer->map());
+            auto staging_ptr = static_cast<uint8_t *>(frame_asset.staging_main->map());
             assert(staging_ptr);
             std::vector<VkBufferCopy2> copy_regions;
             copy_regions.reserve(frame_asset.dirty_drawable_indices.size());
@@ -747,11 +754,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 memcpy(staging_ptr + staging_offset, matrices, sizeof(matrices));
                 staging_offset += staging_stride;
             }
-            frame_asset.staging_buffer->unmap();
+            frame_asset.staging_main->unmap();
 
             VkCopyBufferInfo2 copy_info2 = {};
             copy_info2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
-            copy_info2.srcBuffer = frame_asset.staging_buffer->handle();
+            copy_info2.srcBuffer = frame_asset.staging_main->handle();
             copy_info2.dstBuffer = params.mesh_draws->handle();
             copy_info2.regionCount = copy_regions.size();
             copy_info2.pRegions = copy_regions.data();
@@ -800,14 +807,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             use_gpu_culling ? SemaphoreValue::G_BUFFER_LAST_VISIBLE : SemaphoreValue::G_BUFFER_ALL;
     frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
 
-    // depth-attachment
-    frame_asset.depth_map = frame_asset.g_buffer_pre.depth_attachment();
-
     if(use_gpu_culling)
     {
         // generate depth-pyramid
         vierkant::create_depth_pyramid_params_t depth_pyramid_params = {};
-        depth_pyramid_params.depth_map = frame_asset.depth_map;
+        depth_pyramid_params.depth_map = frame_asset.g_buffer_pre.depth_attachment();
         depth_pyramid_params.queue = m_queue;
         depth_pyramid_params.query_pool = frame_asset.query_pool;
         depth_pyramid_params.query_index_start = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
@@ -965,7 +969,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     {
         // assign history
         auto history_color = m_frame_assets[last_frame_index].taa_buffer.color_attachment();
-        auto history_depth = m_frame_assets[last_frame_index].g_buffer_post.depth_attachment();
+        auto history_depth = m_frame_assets[last_frame_index].depth_map;
 
         auto drawable = m_drawable_taa;
         drawable.descriptors[0].images = {output_img, depth,
@@ -1029,6 +1033,16 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     // begin command-buffer
     frame_asset.cmd_post_fx.begin(0);
 
+    // TODO: tmp until TAA is lined up as pingpong-render
+    vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::TAA);
+
+    // copy depthmap
+    frame_asset.g_buffer_pre.depth_attachment()->copy_to(frame_asset.depth_map, frame_asset.cmd_post_fx.handle());
+    frame_asset.g_buffer_pre.depth_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                                                                   frame_asset.cmd_post_fx.handle());
+    frame_asset.depth_map->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_post_fx.handle());
+
     // tonemap / bloom
     if(frame_asset.settings.tonemap)
     {
@@ -1072,20 +1086,28 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     }
 
     // depth of field
-    if(frame_asset.settings.dof.enabled)
+    if(frame_asset.settings.depth_of_field)
     {
         auto drawable = m_drawable_dof;
         drawable.descriptors[0].images = {output_img, depth};
 
-        // TODO: borked since infinite-far changes
-        // pass projection matrix (vierkant::Renderer will extract near-/far-clipping planes)
-        drawable.matrices.projection = cam->projection_matrix();
-
         if(!drawable.descriptors[1].buffers.empty())
         {
-            frame_asset.settings.dof.clipping = vierkant::clipping_distances(cam->projection_matrix());
-            drawable.descriptors[1].buffers.front()->set_data(&frame_asset.settings.dof,
-                                                              sizeof(vierkant::dof_settings_t));
+            const auto &cam_params = cam->get_component<vierkant::projective_camera_params_t>();
+            depth_of_field_params_t dof_params = {};
+            dof_params.focal_distance = cam_params.focal_distance;
+            dof_params.focal_length = cam_params.focal_length / 1000.f;
+            dof_params.sensor_width = cam_params.sensor_width / 1000.f;
+            dof_params.aperture = static_cast<float>(cam_params.aperture_size());
+            dof_params.near = cam_params.clipping_distances.x;
+            dof_params.far = cam_params.clipping_distances.y;
+            vierkant::staging_copy_info_t staging_copy_info = {};
+            staging_copy_info.data = &dof_params;
+            staging_copy_info.num_bytes = sizeof(dof_params);
+            staging_copy_info.dst_buffer = drawable.descriptors[1].buffers.front();
+            staging_copy_info.dst_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+            staging_copy_info.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+            vierkant::staging_copy(frame_asset.cmd_post_fx.handle(), frame_asset.staging_post_fx, {staging_copy_info});
         }
         output_img = pingpong_render(drawable, SemaphoreValue::DEFOCUS_BLUR);
     }
@@ -1153,7 +1175,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     m_renderer_taa.viewport = viewport;
     m_renderer_post_fx.viewport = viewport;
 
-    // nothing to do
+    // internal resolution changed
     if(!asset.g_buffer_post || asset.g_buffer_post.color_attachment()->extent() != size)
     {
         // G-buffer (pre and post occlusion-culling)
@@ -1164,6 +1186,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
         asset.g_buffer_post = vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(),
                                                     renderpass_no_clear_depth);
         asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+
+        auto depth_fmt = asset.g_buffer_pre.depth_attachment()->format();
+        depth_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        asset.depth_map = vierkant::Image::create(m_device, depth_fmt);
 
         // init lighting framebuffer
         vierkant::attachment_map_t lighting_attachments;
@@ -1182,6 +1208,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
                         resolution.y);
         asset.recycle_commands = false;
     }
+
+    // upscaling resolution changed
     if(!asset.taa_buffer || asset.taa_buffer.color_attachment()->extent() != upscaling_size)
     {
         // post-fx buffers with optional upscaling
@@ -1284,6 +1312,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     timings_result.taa_ms = frame_asset.timings_map[SemaphoreValue::TAA].count();
     timings_result.fxaa_ms = frame_asset.timings_map[SemaphoreValue::FXAA].count();
     timings_result.tonemap_bloom_ms = frame_asset.timings_map[SemaphoreValue::TONEMAP].count();
+    timings_result.depth_of_field_ms = frame_asset.timings_map[SemaphoreValue::DEFOCUS_BLUR].count();
 
     timings_result.total_ms = timings_result.g_buffer_pre_ms + timings_result.depth_pyramid_ms +
                               timings_result.culling_ms + timings_result.g_buffer_post_ms + timings_result.lighting_ms +
@@ -1301,8 +1330,31 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)
 {
-    // TODO: maybe too wonky
-    return memcmp(&lhs, &rhs, sizeof(PBRDeferred::settings_t)) == 0;
+    if(lhs.resolution != rhs.resolution){ return false; }
+    if(lhs.output_resolution != rhs.output_resolution){ return false; }
+    if(lhs.disable_material != rhs.disable_material){ return false; }
+    if(lhs.debug_draw_ids != rhs.debug_draw_ids){ return false; }
+    if(lhs.frustum_culling != rhs.frustum_culling){ return false; }
+    if(lhs.occlusion_culling != rhs.occlusion_culling){ return false; }
+    if(lhs.enable_lod != rhs.enable_lod){ return false; }
+    if(lhs.tesselation != rhs.tesselation){ return false; }
+    if(lhs.wireframe != rhs.wireframe){ return false; }
+    if(lhs.draw_skybox != rhs.draw_skybox){ return false; }
+    if(lhs.use_fxaa != rhs.use_fxaa){ return false; }
+    if(lhs.use_taa != rhs.use_taa){ return false; }
+    if(lhs.environment_factor != rhs.environment_factor){ return false; }
+    if(lhs.tonemap != rhs.tonemap){ return false; }
+    if(lhs.bloom != rhs.bloom){ return false; }
+    if(lhs.motionblur != rhs.motionblur){ return false; }
+    if(lhs.motionblur_gain != rhs.motionblur_gain){ return false; }
+    if(lhs.gamma != rhs.gamma){ return false; }
+    if(lhs.exposure != rhs.exposure){ return false; }
+    if(lhs.indirect_draw != rhs.indirect_draw){ return false; }
+    if(lhs.use_meshlet_pipeline != rhs.use_meshlet_pipeline){ return false; }
+    if(lhs.timing_history_size != rhs.timing_history_size){ return false; }
+    if(lhs.depth_of_field != rhs.depth_of_field){ return false; }
+    return true;
+//    return memcmp(&lhs, &rhs, sizeof(PBRDeferred::settings_t)) == 0;
 }
 
 }// namespace vierkant

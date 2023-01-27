@@ -11,7 +11,6 @@
 #include <vierkant/culling.hpp>
 #include <vierkant/PipelineCache.hpp>
 #include <vierkant/Bloom.hpp>
-#include <vierkant/DepthOfField.hpp>
 #include <vierkant/DrawContext.hpp>
 
 
@@ -68,11 +67,6 @@ public:
 
         //! enable depth of field
         bool depth_of_field = false;
-
-        //! aperture diameter
-        float aperture = 0.f;
-
-        float focal_distance = 1.f;
     };
 
     struct create_info_t

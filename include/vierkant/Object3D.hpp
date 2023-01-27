@@ -36,10 +36,6 @@ public:
 
     inline uint32_t id() const{ return static_cast<uint32_t>(m_entity); };
 
-    void add_tag(const std::string &tag, bool recursive = false);
-
-    void remove_tag(const std::string &tag, bool recursive = false);
-
     inline Object3DPtr parent() const{ return m_parent.lock(); }
 
     void add_child(const Object3DPtr &child);

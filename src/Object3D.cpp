@@ -208,27 +208,6 @@ OBB Object3D::obb() const
     return ret;
 }
 
-void Object3D::add_tag(const std::string &tag, bool recursive)
-{
-    tags.insert(tag);
-
-    if(recursive)
-    {
-        for(auto &c: children){ c->add_tag(tag, recursive); }
-    }
-
-}
-
-void Object3D::remove_tag(const std::string &tag, bool recursive)
-{
-    tags.erase(tag);
-
-    if(recursive)
-    {
-        for(auto &c: children){ c->remove_tag(tag, recursive); }
-    }
-}
-
 void Object3D::accept(Visitor &theVisitor)
 {
     theVisitor.visit(*this);

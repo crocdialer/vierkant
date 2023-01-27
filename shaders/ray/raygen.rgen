@@ -40,7 +40,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     trace_result_t trace_result;
 
     // init random number generator.
-    uint rng_state = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
+    uint rng_state = xxhash32(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 
     // The sum of the colors of all of the samples.
     trace_result.radiance = vec3(0);

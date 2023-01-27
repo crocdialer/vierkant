@@ -37,7 +37,8 @@ BOOST_AUTO_TEST_CASE(TestPBRDeferred)
     BOOST_CHECK_EQUAL(mesh_assets.materials.size(), mesh->materials.size());
 
     // create camera / mesh-node/ scene
-    auto cam = vierkant::PerspectiveCamera::create(res.x / res.y);
+    auto registry = std::make_shared<entt::registry>();
+    auto cam = vierkant::PerspectiveCamera::create(registry);
     BOOST_CHECK(cam);
 
     auto scene = vierkant::Scene::create();

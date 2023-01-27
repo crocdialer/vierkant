@@ -13,7 +13,6 @@
 #include "vierkant/DrawContext.hpp"
 #include "vierkant/SceneRenderer.hpp"
 #include "vierkant/Bloom.hpp"
-#include "vierkant/DepthOfField.hpp"
 
 namespace vierkant
 {
@@ -93,8 +92,8 @@ public:
         //! max number stored timing-values
         uint32_t timing_history_size = 500;
 
-        //! desired depth-of-field settings, disabled by default
-        vierkant::dof_settings_t dof = {};
+        //! enable depth of field
+        bool depth_of_field = false;
     };
 
     struct timings_t
@@ -107,6 +106,7 @@ public:
         double taa_ms = 0.0;
         double fxaa_ms = 0.0;
         double tonemap_bloom_ms = 0.0;
+        double depth_of_field_ms = 0.0;
         double total_ms = 0.0;
     };
 
@@ -219,6 +219,16 @@ private:
         glm::vec4 frustum;
     };
 
+    struct alignas(16) depth_of_field_params_t
+    {
+        float focal_distance;
+        float focal_length;
+        float aperture;
+        float sensor_width;
+        float near;
+        float far;
+    };
+
     struct frame_asset_t
     {
         std::chrono::steady_clock::time_point timestamp;
@@ -249,12 +259,16 @@ private:
         vierkant::Framebuffer lighting_buffer, taa_buffer;
 
         // host-visible
-        vierkant::BufferPtr staging_buffer;
+        vierkant::BufferPtr staging_main, staging_post_fx;
         vierkant::BufferPtr bone_buffer;
         vierkant::BufferPtr morph_param_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;
+
+        // lighting
         vierkant::BufferPtr lighting_param_ubo;
         vierkant::BufferPtr lights_ubo;
+
+        // tonemap
         vierkant::BufferPtr composition_ubo;
 
         // gpu timings/statistics
