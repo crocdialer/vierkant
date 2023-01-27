@@ -68,7 +68,6 @@ struct alignas(16) draw_cull_data_t
 vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &context,
                                         const create_depth_pyramid_params_t &params)
 {
-//    context->depth_pyramid_cmd_buffer = vierkant::CommandBuffer(context->device, context->command_pool.get());
     context->depth_pyramid_cmd_buffer.begin(0);
 
     auto extent_pyramid_lvl0 = params.depth_map->extent();
@@ -193,10 +192,10 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context,
 
     draw_cull_data.num_draws = params.num_draws;
     draw_cull_data.pyramid_size = {params.depth_pyramid->width(), params.depth_pyramid->height()};
-    draw_cull_data.occlusion_cull = true;
-    draw_cull_data.distance_cull = false;
-    draw_cull_data.frustum_cull = true;
-    draw_cull_data.lod_enabled = true;
+    draw_cull_data.occlusion_cull = params.occlusion_cull;
+    draw_cull_data.distance_cull = params.distance_cull;
+    draw_cull_data.frustum_cull = params.frustum_cull;
+    draw_cull_data.lod_enabled = params.lod_enabled;
 
     // buffer references
     draw_cull_data.draw_commands_in = params.draws_in->device_address();
@@ -222,8 +221,8 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context,
     frustumY /= glm::length(frustumY.xyz());
 
     draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
-    draw_cull_data.lod_base = 15.f;
-    draw_cull_data.lod_step = 1.5f;
+    draw_cull_data.lod_base = params.lod_base;
+    draw_cull_data.lod_step = params.lod_step;
 
     context->cull_computable.extent = {vierkant::group_count(params.num_draws, context->cull_local_size.x), 1, 1};
     draw_cull_data.pyramid_size = {params.depth_pyramid->width(), params.depth_pyramid->height()};
