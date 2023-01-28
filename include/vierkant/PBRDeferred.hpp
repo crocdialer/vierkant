@@ -350,7 +350,7 @@ private:
 
     vierkant::Renderer m_g_renderer_main, m_g_renderer_post;
 
-    vierkant::Renderer m_renderer_lighting, m_renderer_taa, m_renderer_post_fx;
+    vierkant::Renderer m_renderer_lighting, m_renderer_post_fx;
 
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;

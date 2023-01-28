@@ -85,7 +85,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     auto light_render_create_info = render_create_info;
     light_render_create_info.num_frames_in_flight = 2 * create_info.num_frames_in_flight;
     m_renderer_lighting = vierkant::Renderer(device, light_render_create_info);
-    m_renderer_taa = vierkant::Renderer(device, render_create_info);
 
     // create renderer for post-fx-passes
     constexpr size_t max_num_post_fx_passes = SemaphoreValue::MAX_VALUE - SemaphoreValue::LIGHTING;
@@ -165,8 +164,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         desc_taa_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_taa_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         desc_taa_ubo.buffers = {vierkant::Buffer::create(m_device, nullptr, sizeof(camera_params_t),
-                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                         VMA_MEMORY_USAGE_CPU_TO_GPU)};
+                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+                                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                         VMA_MEMORY_USAGE_GPU_ONLY)};
 
         m_drawable_taa.descriptors[1] = std::move(desc_taa_ubo);
 
@@ -964,34 +964,10 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     auto &frame_asset = m_frame_assets[frame_index];
     vierkant::ImagePtr output_img = color;
 
-    // TAA
-    if(frame_asset.settings.use_taa)
-    {
-        // assign history
-        auto history_color = m_frame_assets[last_frame_index].taa_buffer.color_attachment();
-        auto history_depth = m_frame_assets[last_frame_index].depth_map;
+    vierkant::staging_copy_context_t staging_context = {};
+    staging_context.command_buffer = frame_asset.cmd_post_fx.handle();
+    staging_context.staging_buffer = frame_asset.staging_post_fx;
 
-        auto drawable = m_drawable_taa;
-        drawable.descriptors[0].images = {output_img, depth,
-                                          frame_asset.g_buffer_post.color_attachment(G_BUFFER_MOTION), history_color,
-                                          history_depth};
-
-        if(!drawable.descriptors[1].buffers.empty())
-        {
-            drawable.descriptors[1].buffers.front()->set_data(&frame_asset.camera_params, sizeof(camera_params_t));
-        }
-        m_renderer_taa.stage_drawable(drawable);
-
-        frame_asset.timings_map[SemaphoreValue::TAA] = m_renderer_taa.last_frame_ms();
-        auto cmd = m_renderer_taa.render(frame_asset.taa_buffer);
-
-        vierkant::semaphore_submit_info_t taa_semaphore_info = {};
-        taa_semaphore_info.semaphore = frame_asset.timeline.handle();
-        taa_semaphore_info.signal_value = SemaphoreValue::TAA;
-        frame_asset.taa_buffer.submit({cmd}, m_queue, {taa_semaphore_info});
-        frame_asset.semaphore_value_done = SemaphoreValue::TAA;
-        output_img = frame_asset.taa_buffer.color_attachment();
-    }
     // lighting/TAA are optional for sync
     auto semaphore_wait_value = frame_asset.semaphore_value_done;
 
@@ -1006,7 +982,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
             -> vierkant::ImagePtr
     {
         const vierkant::Framebuffer *framebuffer = override_fb ? &override_fb :
-                                                   &frame_asset.post_fx_ping_pongs[buffer_index++ % 2].framebuffer;
+                                                   &frame_asset.post_fx_ping_pongs[buffer_index % 2].framebuffer;
+        if(!override_fb){ buffer_index++; }
         auto cmd = frame_asset.cmd_post_fx.handle();
         auto color_attachment = framebuffer->color_attachment();
 
@@ -1033,9 +1010,32 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     // begin command-buffer
     frame_asset.cmd_post_fx.begin(0);
 
-    // TODO: tmp until TAA is lined up as pingpong-render
-    vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                         frame_asset.query_pool.get(), SemaphoreValue::TAA);
+    // TAA
+    if(frame_asset.settings.use_taa)
+    {
+        // assign history
+        auto history_color = m_frame_assets[last_frame_index].taa_buffer.color_attachment();
+        auto history_depth = m_frame_assets[last_frame_index].depth_map;
+
+        auto drawable = m_drawable_taa;
+        drawable.descriptors[0].images = {output_img,
+                                          depth,
+                                          frame_asset.g_buffer_post.color_attachment(G_BUFFER_MOTION),
+                                          history_color,
+                                          history_depth};
+
+        if(!drawable.descriptors[1].buffers.empty())
+        {
+            vierkant::staging_copy_info_t staging_copy_info = {};
+            staging_copy_info.data = &frame_asset.camera_params;
+            staging_copy_info.num_bytes = sizeof(camera_params_t);
+            staging_copy_info.dst_buffer = drawable.descriptors[1].buffers.front();
+            staging_copy_info.dst_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+            staging_copy_info.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+            vierkant::staging_copy(staging_context, {staging_copy_info});
+        }
+        output_img = pingpong_render(drawable, SemaphoreValue::TAA, frame_asset.taa_buffer);
+    }
 
     // copy depthmap
     frame_asset.g_buffer_pre.depth_attachment()->copy_to(frame_asset.depth_map, frame_asset.cmd_post_fx.handle());
@@ -1107,7 +1107,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
             staging_copy_info.dst_buffer = drawable.descriptors[1].buffers.front();
             staging_copy_info.dst_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             staging_copy_info.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-            vierkant::staging_copy(frame_asset.cmd_post_fx.handle(), frame_asset.staging_post_fx, {staging_copy_info});
+            vierkant::staging_copy(staging_context, {staging_copy_info});
         }
         output_img = pingpong_render(drawable, SemaphoreValue::DEFOCUS_BLUR);
     }
@@ -1172,7 +1172,6 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     // TAA and post-FX potentially upscaled
     viewport.width = static_cast<float>(upscaling_size.width);
     viewport.height = static_cast<float>(upscaling_size.height);
-    m_renderer_taa.viewport = viewport;
     m_renderer_post_fx.viewport = viewport;
 
     // internal resolution changed

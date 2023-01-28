@@ -8,37 +8,35 @@
 namespace vierkant
 {
 
-size_t staging_copy(VkCommandBuffer command_buffer,
-                    const vierkant::BufferPtr& staging_buffer,
+size_t staging_copy(staging_copy_context_t &context,
                     const std::vector<staging_copy_info_t> &staging_copy_infos)
 {
-    assert(staging_buffer);
+    assert(context.staging_buffer);
 
     // resize staging-buffer if necessary
     size_t num_staging_bytes = 0;
     for(const auto &info: staging_copy_infos){ num_staging_bytes += info.num_bytes; }
     num_staging_bytes = std::max<size_t>(num_staging_bytes, 1UL << 20);
-    staging_buffer->set_data(nullptr, num_staging_bytes);
+    context.staging_buffer->set_data(nullptr, num_staging_bytes);
 
     std::vector<VkBufferMemoryBarrier2> barriers;
-
-    size_t offset = 0;
-    std::set<vierkant::Buffer*> buffer_set;
+    std::set<vierkant::Buffer *> buffer_set;
 
     for(const auto &info: staging_copy_infos)
     {
-        assert(staging_buffer->num_bytes() - info.num_bytes >= offset);
+        assert(context.staging_buffer->num_bytes() - info.num_bytes >= context.offset);
 
         // copy array into staging-buffer
-        auto staging_data = static_cast<uint8_t *>(staging_buffer->map()) + offset;
+        auto staging_data = static_cast<uint8_t *>(context.staging_buffer->map()) + context.offset;
         memcpy(staging_data, info.data, info.num_bytes);
 
         // resize if necessary
         info.dst_buffer->set_data(nullptr, info.num_bytes);
 
         // issue copy from staging-buffer to GPU-buffer
-        staging_buffer->copy_to(info.dst_buffer, command_buffer, offset, info.dst_offset, info.num_bytes);
-        offset += info.num_bytes;
+        context.staging_buffer->copy_to(info.dst_buffer, context.command_buffer, context.offset, info.dst_offset,
+                                        info.num_bytes);
+        context.offset += info.num_bytes;
 
         if(info.dst_stage && info.dst_access && !buffer_set.contains(info.dst_buffer.get()))
         {
@@ -64,7 +62,7 @@ size_t staging_copy(VkCommandBuffer command_buffer,
         dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
         dependency_info.bufferMemoryBarrierCount = barriers.size();
         dependency_info.pBufferMemoryBarriers = barriers.data();
-        vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+        vkCmdPipelineBarrier2(context.command_buffer, &dependency_info);
     }
     return num_staging_bytes;
 }

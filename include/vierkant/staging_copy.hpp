@@ -9,6 +9,7 @@
 namespace vierkant
 {
 
+//! staging_copy_info_t groups information for an individual staging-copy.
 struct staging_copy_info_t
 {
     const void *data = nullptr;
@@ -19,26 +20,23 @@ struct staging_copy_info_t
     VkAccessFlags2 dst_access = VK_ACCESS_2_NONE;
 };
 
+//! staging_copy_context_t provides a context for a serious of staging-copies.
 struct staging_copy_context_t
 {
     VkCommandBuffer command_buffer = VK_NULL_HANDLE;
     vierkant::BufferPtr staging_buffer;
-    std::vector<staging_copy_info_t> staging_copy_infos;
-    std::vector<VkBufferMemoryBarrier2> barriers;
     size_t offset = 0;
 };
 
 /**
  * @brief   staging_copy can be used to schedule a list of staging-copies,
- *          using provided commandbuffer and staging-buffer.
+ *          using a provided staging-context.
  *
- * @param   command_buffer      a provided command-buffer.
- * @param   staging_buffer      a provided host-visible buffer.
+ * @param   context             a provided context for stagin-copies
  * @param   staging_copy_infos  an array of copy-infos
- * @return  total number of bytes (size of staging-buffer)
+ * @return  total number of bytes (size of staging-buffer | context's current staging-offset)
  */
-size_t staging_copy(VkCommandBuffer command_buffer,
-                    const vierkant::BufferPtr& staging_buffer,
+size_t staging_copy(staging_copy_context_t &context,
                     const std::vector<staging_copy_info_t> &staging_copy_infos);
 
 }

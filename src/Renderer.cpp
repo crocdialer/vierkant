@@ -779,9 +779,10 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         add_staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT);
 
-        vierkant::staging_copy(frame_asset.staging_command_buffer.handle(),
-                               frame_asset.staging_buffer,
-                               staging_copies);
+        vierkant::staging_copy_context_t staging_context = {};
+        staging_context.command_buffer = frame_asset.staging_command_buffer.handle();
+        staging_context.staging_buffer = frame_asset.staging_buffer;
+        vierkant::staging_copy(staging_context, staging_copies);
 
         frame_asset.staging_command_buffer.submit(m_queue);
     }
