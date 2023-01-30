@@ -11,10 +11,10 @@ namespace vierkant
 size_t staging_copy(staging_copy_context_t &context,
                     const std::vector<staging_copy_info_t> &staging_copy_infos)
 {
-    assert(context.staging_buffer);
+    assert(context.command_buffer && context.staging_buffer);
 
     // resize staging-buffer if necessary
-    size_t num_staging_bytes = 0;
+    size_t num_staging_bytes = context.offset;
     for(const auto &info: staging_copy_infos){ num_staging_bytes += info.num_bytes; }
     num_staging_bytes = std::max<size_t>(num_staging_bytes, 1UL << 20);
     context.staging_buffer->set_data(nullptr, num_staging_bytes);
@@ -64,7 +64,7 @@ size_t staging_copy(staging_copy_context_t &context,
         dependency_info.pBufferMemoryBarriers = barriers.data();
         vkCmdPipelineBarrier2(context.command_buffer, &dependency_info);
     }
-    return num_staging_bytes;
+    return context.offset;
 }
 
 }

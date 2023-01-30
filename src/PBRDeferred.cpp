@@ -1037,12 +1037,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         output_img = pingpong_render(drawable, SemaphoreValue::TAA, frame_asset.taa_buffer);
     }
 
-    // copy depthmap
-    frame_asset.g_buffer_pre.depth_attachment()->copy_to(frame_asset.depth_map, frame_asset.cmd_post_fx.handle());
-    frame_asset.g_buffer_pre.depth_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                                                   frame_asset.cmd_post_fx.handle());
-    frame_asset.depth_map->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_post_fx.handle());
-
     // tonemap / bloom
     if(frame_asset.settings.tonemap)
     {
@@ -1111,6 +1105,13 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         }
         output_img = pingpong_render(drawable, SemaphoreValue::DEFOCUS_BLUR);
     }
+
+    // copy depthmap for next frame
+    frame_asset.g_buffer_pre.depth_attachment()->copy_to(frame_asset.depth_map, frame_asset.cmd_post_fx.handle());
+    frame_asset.g_buffer_pre.depth_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                                                                   frame_asset.cmd_post_fx.handle());
+    frame_asset.depth_map->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_post_fx.handle());
+
     frame_asset.cmd_post_fx.end();
 
     if(frame_asset.semaphore_value_done > SemaphoreValue::TAA)
