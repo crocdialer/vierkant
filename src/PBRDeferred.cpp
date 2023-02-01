@@ -1087,11 +1087,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
 
         if(!drawable.descriptors[1].buffers.empty())
         {
-            const auto &cam_params = cam->get_component<vierkant::projective_camera_params_t>();
+            const auto &cam_params = cam->get_component<vierkant::physical_camera_params_t>();
             depth_of_field_params_t dof_params = {};
             dof_params.focal_distance = cam_params.focal_distance;
-            dof_params.focal_length = cam_params.focal_length / 1000.f;
-            dof_params.sensor_width = cam_params.sensor_width / 1000.f;
+            dof_params.focal_length = cam_params.focal_length;
+            dof_params.sensor_width = cam_params.sensor_width;
             dof_params.aperture = static_cast<float>(cam_params.aperture_size());
             dof_params.near = cam_params.clipping_distances.x;
             dof_params.far = cam_params.clipping_distances.y;

@@ -564,7 +564,7 @@ void draw_scene_ui(const ScenePtr &scene,
         }
         if(ImGui::BeginTabItem("cameras"))
         {
-            auto view = scene->registry()->view<vierkant::Object3D *, vierkant::projective_camera_params_t>();
+            auto view = scene->registry()->view<vierkant::Object3D *, vierkant::physical_camera_params_t>();
 
             for(auto [entity, object, camera_params]: view.each())
             {
@@ -931,7 +931,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object,
         auto z_val = transform[3].z;
         ImGuizmo::SetOrthographic(is_ortho);
 
-        const auto &cam_params = camera->get_component<vierkant::projective_camera_params_t>();
+        const auto &cam_params = camera->get_component<vierkant::physical_camera_params_t>();
         float fovy = is_ortho ? 0.f : cam_params.fovy();
 
         auto sz = ImGui::GetIO().DisplaySize;
@@ -943,15 +943,25 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object,
     }
 }
 
-void draw_camera_param_ui(vierkant::projective_camera_params_t &camera_params)
+void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
 {
     scoped_child_window_t child_window("camera");
 
-    // focal-length / fov
-    ImGui::SliderFloat("focal-length (mm)", &camera_params.focal_length, 0.1f, 500.f);
+    // focal-length in mm
+    float focal_length_mm = 1000.f * camera_params.focal_length;
+    if(ImGui::SliderFloat("focal-length (mm)", &focal_length_mm, 0.1f, 500.f))
+    {
+        camera_params.focal_length = focal_length_mm / 1000.f;
+    }
+
+    // focal-length in mm
+    float sensor_width_mm = 1000.f * camera_params.sensor_width;
+    if(ImGui::InputFloat("sensor (mm)", &sensor_width_mm, 0.1f, 1000.f))
+    {
+        camera_params.sensor_width = sensor_width_mm / 1000.f;
+    }
 
     // clipping planes
-    ImGui::InputFloat("sensor (mm)", &camera_params.sensor_width, 0.1f, 1000.f);
     ImGui::InputFloat2("near/far", glm::value_ptr(camera_params.clipping_distances));
 
     ImGui::BulletText("hfov: %.1f", glm::degrees(camera_params.fovx()));

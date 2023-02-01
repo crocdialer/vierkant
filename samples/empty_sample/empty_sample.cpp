@@ -47,7 +47,7 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h)
     {
         create_graphics_pipeline();
-        m_camera->get_component<vierkant::projective_camera_params_t>().aspect = m_window->aspect_ratio();
+        m_camera->get_component<vierkant::physical_camera_params_t>().aspect = m_window->aspect_ratio();
     };
     window_delegate.close_fn = [this](){ running = false; };
     m_window->window_delegates[name()] = window_delegate;

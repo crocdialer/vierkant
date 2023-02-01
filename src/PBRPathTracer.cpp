@@ -346,7 +346,7 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals,
                                   m_storage_images.positions, m_storage_images.accumulated_radiance};
 
-    const auto& camera_params = cam->get_component<vierkant::projective_camera_params_t>();
+    const auto& camera_params = cam->get_component<vierkant::physical_camera_params_t>();
 
     camera_ubo_t camera_ubo = {};
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());

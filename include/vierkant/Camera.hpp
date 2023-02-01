@@ -21,13 +21,13 @@ DEFINE_CLASS_PTR(CubeCamera)
  */
 glm::vec2 clipping_distances(const glm::mat4 &projection);
 
-struct alignas(16) projective_camera_params_t
+struct alignas(16) physical_camera_params_t
 {
-    //! focal length in mm
-    float focal_length = 50.f;
+    //! focal length in m
+    float focal_length = 0.05f;
 
-    //! horizontal sensor-size in mm
-    float sensor_width = 36.f;
+    //! horizontal sensor-size in m
+    float sensor_width = 0.036f;
 
     //! sensor aspect-ratio (w/h)
     float aspect = 16.f / 9.f;
@@ -44,7 +44,7 @@ struct alignas(16) projective_camera_params_t
     //! aperture/lens size in m
     [[nodiscard]] inline double aperture_size() const
     {
-        return 0.001 * focal_length / fstop;
+        return focal_length / fstop;
     }
 
     //! horizontal field-of-view (fov) in radians
@@ -114,7 +114,7 @@ class PerspectiveCamera : public Camera
 public:
 
     static PerspectiveCameraPtr create(const std::shared_ptr<entt::registry> &registry,
-                                       const projective_camera_params_t params = {})
+                                       const physical_camera_params_t params = {})
     {
         auto ret = PerspectiveCameraPtr(new PerspectiveCamera(registry));
         ret->add_component(params);
@@ -125,9 +125,9 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override{ return get_component<projective_camera_params_t>().clipping_distances.x; };
+    float near() const override{ return get_component<physical_camera_params_t>().clipping_distances.x; };
 
-    float far() const override{ return get_component<projective_camera_params_t>().clipping_distances.y; };
+    float far() const override{ return get_component<physical_camera_params_t>().clipping_distances.y; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
