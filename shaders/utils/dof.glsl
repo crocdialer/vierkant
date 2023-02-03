@@ -1,5 +1,5 @@
 #include "../utils/random.glsl"
-#include "../renderer/bsdf_common.glsl"
+#include "../utils/bsdf.glsl"
 
 struct dof_params_t
 {

@@ -49,6 +49,8 @@ layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shad
 // builtin barycentric coords
 hitAttributeEXT vec2 attribs;
 
+float max3(vec3 v){ return v.x > v.y ? max(v.x, v.z) : max(v.y, v.z); }
+
 RayCone propagate(RayCone cone, float surface_spread_angle, float hitT)
 {
     RayCone new_cone;
@@ -238,7 +240,16 @@ void main()
 
     float cos_theta = abs(dot(payload.normal, payload.ray.direction));
 
-    if (bsdf_sample.pdf <= 0.0 || all(lessThan(payload.beta, vec3(0.01))))
+    // Russian roulette
+    if(max3(payload.beta) < 0.01 && payload.depth > 2)
+    {
+        float q = max(.05, 1.0 - max3(payload.beta));
+        if(rnd(rng_state) < q){ payload.stop = true; }
+        payload.beta /= (1.0 - q);
+        return;
+    }
+
+    if (bsdf_sample.pdf <= 0.0)
     {
         payload.stop = true;
         return;

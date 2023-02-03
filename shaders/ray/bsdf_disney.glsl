@@ -25,8 +25,8 @@
 // rnd(state)
 #include "../utils/random.glsl"
 
-// microfacet-math
-#include "../renderer/bsdf_common.glsl"
+// bsdf utils
+#include "../utils/bsdf.glsl"
 
 // for material_t
 #include "types.glsl"

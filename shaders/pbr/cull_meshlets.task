@@ -4,10 +4,8 @@
 #extension GL_KHR_shader_subgroup_ballot: require
 
 #include "../renderer/types.glsl"
+#include "../renderer/mesh_task_payload.glsl"
 #include "../utils/camera.glsl"
-
-//! nv-specific warp-value (use 64 for AMD)
-#define LOCAL_SIZE 32
 
 layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 {
@@ -51,10 +49,15 @@ void main()
     uint gid = gl_GlobalInvocationID.x;
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
 
-    uint ti = gl_LocalInvocationID.x;
-    uint mi = draw_command.base_meshlet + gid;
     uint object_index = draw_command.object_index;
+    uint meshlet_base_index = gl_WorkGroupID.x * LOCAL_SIZE + draw_command.base_meshlet;
+
+    uint ti = gl_LocalInvocationID.x;
+    uint mi = meshlet_base_index + ti;
+
+    // write payload base-indices
     task_payload.object_index = object_index;
+    task_payload.meshlet_base_index = meshlet_base_index;
 
 #if CULLING
     // transform bounding volume and normal-cone
@@ -75,13 +78,13 @@ void main()
     uint index = subgroupBallotExclusiveBitCount(ballot);
     uint count = subgroupBallotBitCount(ballot);
 
-    // write result
-    if (accept){ task_payload.meshlet_indices[index] = mi; }
+    // write payload delta-index
+    if (accept){ task_payload.meshlet_delta_indices[index] = uint8_t(ti); }
     EmitMeshTasksEXT(count, 1, 1);
 
 #else
-    task_payload.meshlet_indices[ti] = mi;
-    uint count = min(LOCAL_SIZE, draw_command.groupCountX - gl_WorkGroupID.x * LOCAL_SIZE);
+    task_payload.meshlet_delta_indices[ti] = uint8_t(ti);
+    uint count = draw_command.groupCountX * LOCAL_SIZE;
     EmitMeshTasksEXT(count, 1, 1);
 #endif
 }

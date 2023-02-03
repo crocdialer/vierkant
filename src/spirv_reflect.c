@@ -27,6 +27,12 @@
   #include <stdlib.h>
 #endif
 
+#if defined(__clang__)
+  #define FALLTHROUGH __attribute__((fallthrough))
+#else
+  #define FALLTHROUGH
+#endif
+
 #if defined(SPIRV_REFLECT_ENABLE_ASSERTS)
   #define SPV_REFLECT_ASSERT(COND) \
     assert(COND);
@@ -753,6 +759,7 @@ static SpvReflectResult ParseNodes(SpvReflectPrvParser* p_parser)
       case SpvOpTypeStruct:
       {
         p_node->member_count = p_node->word_count - 2;
+        FALLTHROUGH;
       } // Fall through
       case SpvOpTypeVoid:
       case SpvOpTypeBool:
@@ -919,6 +926,7 @@ static SpvReflectResult ParseNodes(SpvReflectPrvParser* p_parser)
           CHECKED_READU32(p_parser, p_func_node->word_offset + 2, p_func_node->result_id);
           ++(p_parser->function_count);
         }
+        FALLTHROUGH;
       } // Fall through
 
       case SpvOpFunctionEnd:
@@ -2272,6 +2280,7 @@ static SpvReflectResult ParseDescriptorBlockVariable(
         ApplyArrayTraits(p_member_type, &p_member_var->array);
       }
 
+      p_member_var->word_offset.offset = p_type_node->member_decorations[member_index].offset.word_offset;
       p_member_var->type_description = p_member_type;
     }
   }
@@ -3155,7 +3164,9 @@ static SpvReflectResult ParseEntryPoints(
       case SpvExecutionModelFragment               : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT; break;
       case SpvExecutionModelGLCompute              : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT; break;
       case SpvExecutionModelTaskNV                 : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_TASK_BIT_NV; break;
+      case SpvExecutionModelTaskEXT                : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_TASK_BIT_EXT; break;
       case SpvExecutionModelMeshNV                 : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_MESH_BIT_NV; break;
+      case SpvExecutionModelMeshEXT                : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_MESH_BIT_EXT; break;
       case SpvExecutionModelRayGenerationKHR       : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_RAYGEN_BIT_KHR; break;
       case SpvExecutionModelIntersectionKHR        : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_INTERSECTION_BIT_KHR; break;
       case SpvExecutionModelAnyHitKHR              : p_entry_point->shader_stage = SPV_REFLECT_SHADER_STAGE_ANY_HIT_BIT_KHR; break;

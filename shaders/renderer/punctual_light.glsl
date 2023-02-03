@@ -1,4 +1,4 @@
-#include "bsdf_common.glsl"
+#include "../utils/bsdf.glsl"
 
 #define LIGHT_TYPE_POINT 0
 #define LIGHT_TYPE_SPOT 1

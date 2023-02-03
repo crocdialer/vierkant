@@ -17,13 +17,16 @@ struct bsdf_sample_t
     bool transmission;
 };
 
-//! random point on a unit-disc
+//! sample uniformly distributed points on a unit-disc
 vec2 sample_unit_disc(vec2 Xi)
 {
+    // done to achieve uniform distribution on disc
+    float r = sqrt(Xi.x);
+
     // [0, 2pi]
     const float theta = 2.0 * PI * Xi.y;
 
-    return vec2(Xi.x * cos(theta), Xi.x * sin(theta));
+    return vec2(r * cos(theta), r * sin(theta));
 }
 
 //! random point on a unit-sphere

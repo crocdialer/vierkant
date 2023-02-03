@@ -1,4 +1,4 @@
-#include "bsdf_common.glsl"
+#include "../utils/bsdf.glsl"
 #include "../utils/random.glsl"
 
 float G1(float k, float NoV)

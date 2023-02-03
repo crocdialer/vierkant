@@ -9,10 +9,8 @@
 
 #include "../renderer/types.glsl"
 #include "../renderer/packed_vertex.glsl"
+#include "../renderer/mesh_task_payload.glsl"
 #include "../utils/camera.glsl"
-
-//! nv-specific warp-value (use 64 for AMD)
-#define LOCAL_SIZE 32
 
 layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = 124) out;
@@ -68,7 +66,7 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 void main()
 {
     uint ti = gl_LocalInvocationID.x;
-    uint mi = task_payload.meshlet_indices[gl_WorkGroupID.x];
+    uint mi = task_payload.meshlet_base_index + uint(task_payload.meshlet_delta_indices[gl_WorkGroupID.x]);
     SetMeshOutputsEXT(meshlets[mi].vertex_count, meshlets[mi].triangle_count);
 
     matrix_struct_t m = draws[task_payload.object_index].current_matrices;

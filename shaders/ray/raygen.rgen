@@ -3,7 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/random.glsl"
-#include "../renderer/bsdf_common.glsl"
+#include "../utils/bsdf.glsl"
 #include "ray_common.glsl"
 
 #define RADIANCE 0
@@ -91,8 +91,9 @@ trace_result_t trace(vec2 coord, vec2 size)
         vec3 path_radiance = vec3(0);
 
         // trace a path
-        for (int i = 0; i < push_constants.max_trace_depth; i++)
+        for (uint i = 0; i < push_constants.max_trace_depth; i++)
         {
+            payload.depth = i;
             payload.stop = false;
             payload.radiance = path_radiance;
             payload.beta = beta;

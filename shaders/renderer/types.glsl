@@ -163,12 +163,3 @@ struct meshlet_t
     vec3 cone_axis;
     float cone_cutoff;
 };
-
-//! nv-specific warp-value (use 64 for AMD)
-#define LOCAL_SIZE 32
-
-struct mesh_task_payload_t
-{
-    uint meshlet_indices[LOCAL_SIZE];
-    uint object_index;
-};

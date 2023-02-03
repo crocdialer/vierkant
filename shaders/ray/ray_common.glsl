@@ -27,6 +27,9 @@ struct payload_t
     // used to determine texture-LoD
     RayCone cone;
 
+    // current depth of path
+    uint depth;
+
     // terminate path
     bool stop;
 
