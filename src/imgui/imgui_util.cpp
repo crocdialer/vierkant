@@ -27,7 +27,10 @@ struct scoped_child_window_t
     {
         is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
 
-        if(is_child_window){ is_open = ImGui::BeginChild(window_name.c_str()); }
+        if(is_child_window)
+        {
+            is_open = ImGui::BeginChild(window_name.c_str(), ImVec2(0, 0), false, ImGuiWindowFlags_NoTitleBar);
+        }
         else{ is_open = ImGui::Begin(window_name.c_str()); }
     }
 
@@ -865,9 +868,6 @@ void draw_object_ui(const Object3DPtr &object)
     constexpr char window_name[] = "object";
     scoped_child_window_t child_window(window_name);
 
-    ImGui::BulletText("%s", window_name);
-    ImGui::Spacing();
-
     // name
     constexpr size_t buf_size = 4096;
     char text_buf[buf_size];
@@ -877,7 +877,7 @@ void draw_object_ui(const Object3DPtr &object)
     {
         object->name = text_buf;
     }
-
+    ImGui::BulletText("id: %d", object->id());
     ImGui::Separator();
 
     // transform
