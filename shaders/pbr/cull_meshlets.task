@@ -50,7 +50,7 @@ void main()
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
 
     uint object_index = draw_command.object_index;
-    uint meshlet_base_index = gl_WorkGroupID.x * LOCAL_SIZE + draw_command.base_meshlet;
+    uint meshlet_base_index = gl_WorkGroupID.x * gl_WorkGroupSize.x + draw_command.base_meshlet;
 
     uint ti = gl_LocalInvocationID.x;
     uint mi = meshlet_base_index + ti;
@@ -84,7 +84,7 @@ void main()
 
 #else
     task_payload.meshlet_delta_indices[ti] = uint8_t(ti);
-    uint count = draw_command.groupCountX * LOCAL_SIZE;
+    uint count = gl_WorkGroupSize.x;
     EmitMeshTasksEXT(count, 1, 1);
 #endif
 }
