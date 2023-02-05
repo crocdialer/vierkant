@@ -2,9 +2,9 @@
 // Created by crocdialer on 11/15/20.
 //
 
-#include <vierkant/RayBuilder.hpp>
-#include <unordered_set>
 #include "vierkant/Visitor.hpp"
+#include <unordered_set>
+#include <vierkant/RayBuilder.hpp>
 
 namespace vierkant
 {
@@ -17,10 +17,8 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
     return ret;
 }
 
-RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool) :
-        m_device(device),
-        m_queue(queue),
-        m_memory_pool(std::move(pool))
+RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool)
+    : m_device(device), m_queue(queue), m_memory_pool(std::move(pool))
 {
     m_properties = {};
     m_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
@@ -39,7 +37,7 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
 
     m_command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                   VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+                                                           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     // solid white color
     uint32_t v = 0xFFFFFFFF;
@@ -60,20 +58,19 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
     v = 0xFFFFFFFF;
     m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
 
-    m_placeholder_buffer = vierkant::Buffer::create(m_device, nullptr, 1,
-                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    m_placeholder_buffer = vierkant::Buffer::create(
+            m_device, nullptr, 1, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+            VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
-RayBuilder::build_result_t
-RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
+RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
 {
     // raytracing flags
     VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
                                                  VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
 
     // vertex skinned meshes need to update their AABBs
-    if(mesh->root_bone){ flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR; }
+    if(mesh->root_bone) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR; }
 
     // TODO: generate skin/morph vertex-buffer via compute-op
 
@@ -82,8 +79,8 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
     VkDeviceAddress index_base_address = mesh->index_buffer->device_address();
 
     // compaction requested?
-    bool enable_compaction = (flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR)
-                             == VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+    bool enable_compaction = (flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR) ==
+                             VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
 
     size_t num_entries = mesh->entries.size();
     std::vector<VkAccelerationStructureGeometryKHR> geometries(num_entries);
@@ -98,8 +95,7 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
     ret.build_command.begin();
 
     // used to query compaction sizes after building
-    ret.query_pool = create_query_pool(m_device, num_entries,
-                                       VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR);
+    ret.query_pool = create_query_pool(m_device, num_entries, VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR);
 
     // those will be stored
     std::vector<acceleration_asset_ptr> entry_assets(num_entries);
@@ -165,11 +161,10 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
 
         // Allocate the scratch buffers holding the temporary data of the
         // acceleration structure builder
-        acceleration_asset.scratch_buffer = vierkant::Buffer::create(m_device, nullptr, size_info.buildScratchSize,
-                                                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                                     VMA_MEMORY_USAGE_GPU_ONLY,
-                                                                     m_memory_pool);
+        acceleration_asset.scratch_buffer =
+                vierkant::Buffer::create(m_device, nullptr, size_info.buildScratchSize,
+                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                         VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
 
         // assign acceleration structure and scratch_buffer
         build_info.dstAccelerationStructure = acceleration_asset.structure.get();
@@ -187,10 +182,9 @@ RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
             barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
             barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
             barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
-            vkCmdPipelineBarrier(ret.build_command.handle(),
-                                 VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                                 VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
-                                 0, 1, &barrier, 0, nullptr, 0, nullptr);
+            vkCmdPipelineBarrier(ret.build_command.handle(), VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                                 VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0,
+                                 nullptr);
 
             VkAccelerationStructureKHR accel_structure = acceleration_asset.structure.get();
             vkCmdWriteAccelerationStructuresPropertiesKHR(ret.build_command.handle(), 1, &accel_structure,
@@ -217,9 +211,9 @@ void RayBuilder::compact(build_result_t &build_result) const
 
     // Get the size result back
     std::vector<VkDeviceSize> compact_sizes(build_result.acceleration_assets.size());
-    vkCheck(vkGetQueryPoolResults(m_device->handle(), build_result.query_pool.get(), 0,
-                                  (uint32_t) compact_sizes.size(), compact_sizes.size() * sizeof(VkDeviceSize),
-                                  compact_sizes.data(), sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT),
+    vkCheck(vkGetQueryPoolResults(m_device->handle(), build_result.query_pool.get(), 0, (uint32_t) compact_sizes.size(),
+                                  compact_sizes.size() * sizeof(VkDeviceSize), compact_sizes.data(),
+                                  sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT),
             "RayBuilder::add_mesh: could not query compacted acceleration-structure sizes");
 
     build_result.compact_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -261,20 +255,20 @@ void RayBuilder::compact(build_result_t &build_result) const
 
 void RayBuilder::set_function_pointers()
 {
-    vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkCmdBuildAccelerationStructuresKHR"));
-    vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkCreateAccelerationStructureKHR"));
-    vkDestroyAccelerationStructureKHR = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkDestroyAccelerationStructureKHR"));
-    vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkGetAccelerationStructureBuildSizesKHR"));
-    vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkGetAccelerationStructureDeviceAddressKHR"));
-    vkCmdWriteAccelerationStructuresPropertiesKHR = reinterpret_cast<PFN_vkCmdWriteAccelerationStructuresPropertiesKHR>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkCmdWriteAccelerationStructuresPropertiesKHR"));
-    vkCmdCopyAccelerationStructureKHR = reinterpret_cast<PFN_vkCmdCopyAccelerationStructureKHR>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkCmdCopyAccelerationStructureKHR"));
+    vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkCmdBuildAccelerationStructuresKHR"));
+    vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkCreateAccelerationStructureKHR"));
+    vkDestroyAccelerationStructureKHR = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkDestroyAccelerationStructureKHR"));
+    vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkGetAccelerationStructureBuildSizesKHR"));
+    vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkGetAccelerationStructureDeviceAddressKHR"));
+    vkCmdWriteAccelerationStructuresPropertiesKHR = reinterpret_cast<PFN_vkCmdWriteAccelerationStructuresPropertiesKHR>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkCmdWriteAccelerationStructuresPropertiesKHR"));
+    vkCmdCopyAccelerationStructureKHR = reinterpret_cast<PFN_vkCmdCopyAccelerationStructureKHR>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkCmdCopyAccelerationStructureKHR"));
 }
 
 RayBuilder::acceleration_asset_t
@@ -283,9 +277,8 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     RayBuilder::acceleration_asset_t acceleration_asset = {};
     acceleration_asset.buffer = vierkant::Buffer::create(m_device, nullptr, create_info.size,
                                                          VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                                         VMA_MEMORY_USAGE_GPU_ONLY,
-                                                         m_memory_pool);
+                                                                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                                         VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
 
     create_info.buffer = acceleration_asset.buffer->handle();
 
@@ -301,12 +294,9 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     address_info.accelerationStructure = handle;
     acceleration_asset.device_address = vkGetAccelerationStructureDeviceAddressKHR(m_device->handle(), &address_info);
 
-    acceleration_asset.structure = AccelerationStructurePtr(handle, [device = m_device,
-            buffer = acceleration_asset.buffer,
-            pFn = vkDestroyAccelerationStructureKHR](VkAccelerationStructureKHR s)
-    {
-        pFn(device->handle(), s, nullptr);
-    });
+    acceleration_asset.structure = AccelerationStructurePtr(
+            handle, [device = m_device, buffer = acceleration_asset.buffer, pFn = vkDestroyAccelerationStructureKHR](
+                            VkAccelerationStructureKHR s) { pFn(device->handle(), s, nullptr); });
     return acceleration_asset;
 }
 
@@ -365,12 +355,11 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             auto &animation_state = object->get_component<animation_state_t>();
             const auto &anim_state = animation_state;
 
-            if(!(mesh->root_bone || mesh->morph_buffer) &&
-               anim_state.index < mesh->node_animations.size())
+            if(!(mesh->root_bone || mesh->morph_buffer) && anim_state.index < mesh->node_animations.size())
             {
                 const auto &animation = mesh->node_animations[anim_state.index];
-                vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
-                                                         animation_state.current_time, node_matrices);
+                vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, animation_state.current_time,
+                                                         node_matrices);
             }
         }
 
@@ -383,19 +372,19 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             const auto &asset = acceleration_assets[i];
 
             // skip disabled entries
-            if(!mesh_entry.enabled){ continue; }
+            if(!mesh_entry.enabled) { continue; }
 
             // apply node-animation transform, if any
-            auto modelview = object->transform * (node_matrices.empty() ? mesh_entry.transform
-                                                                        : node_matrices[mesh_entry.node_index]);
+            auto modelview = mat4_cast(object->transform) *
+                             (node_matrices.empty() ? mesh_entry.transform : node_matrices[mesh_entry.node_index]);
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
             instance.transform = vk_transform_matrix(modelview);
 
             // instance flags
-            VkGeometryInstanceFlagsKHR instance_flags = mesh_material->two_sided
-                                                        ? VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR : 0;
+            VkGeometryInstanceFlagsKHR instance_flags =
+                    mesh_material->two_sided ? VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR : 0;
 
             // store next entry-index
             instance.instanceCustomIndex = entries.size();
@@ -479,11 +468,11 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     }
 
     // put instances into host-visible gpu-buffer
-    auto instance_buffer = vierkant::Buffer::create(m_device,
-                                                    instances,
-                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                    VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+    auto instance_buffer =
+            vierkant::Buffer::create(m_device, instances,
+                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                             VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     VkDeviceOrHostAddressConstKHR instance_data_device_address{};
     instance_data_device_address.deviceAddress = instance_buffer->device_address();
@@ -492,7 +481,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     acceleration_structure_geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
     acceleration_structure_geometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
     acceleration_structure_geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
-    acceleration_structure_geometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+    acceleration_structure_geometry.geometry.instances.sType =
+            VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
     acceleration_structure_geometry.geometry.instances.arrayOfPointers = VK_FALSE;
     acceleration_structure_geometry.geometry.instances.data = instance_data_device_address;
 
@@ -511,10 +501,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
 
     VkAccelerationStructureBuildSizesInfoKHR acceleration_structure_build_sizes_info{};
     acceleration_structure_build_sizes_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-    vkGetAccelerationStructureBuildSizesKHR(m_device->handle(),
-                                            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-                                            &acceleration_structure_build_geometry_info,
-                                            &num_primitives,
+    vkGetAccelerationStructureBuildSizesKHR(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                                            &acceleration_structure_build_geometry_info, &num_primitives,
                                             &acceleration_structure_build_sizes_info);
 
     // create the top-level structure
@@ -527,13 +515,11 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     auto top_level = create_acceleration_asset(create_info);
 
     // needed to access buffer/vertex/index/material in closest-hit shader
-    top_level.entry_buffer = vierkant::Buffer::create(m_device, entries,
-                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    top_level.entry_buffer = vierkant::Buffer::create(m_device, entries, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                       VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // material information for all entries
-    top_level.material_buffer = vierkant::Buffer::create(m_device, materials,
-                                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+    top_level.material_buffer = vierkant::Buffer::create(m_device, materials, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // move texture-assets
@@ -549,18 +535,17 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     top_level.index_buffer_offsets = std::move(index_buffer_offsets);
 
     // Create a small scratch buffer used during build of the top level acceleration structure
-    auto scratch_buffer = vierkant::Buffer::create(m_device, nullptr,
-                                                   acceleration_structure_build_sizes_info.buildScratchSize,
-                                                   VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
-                                                   m_memory_pool);
+    auto scratch_buffer =
+            vierkant::Buffer::create(m_device, nullptr, acceleration_structure_build_sizes_info.buildScratchSize,
+                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                     VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
 
     VkAccelerationStructureBuildGeometryInfoKHR acceleration_build_geometry_info{};
     acceleration_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
     acceleration_build_geometry_info.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
     acceleration_build_geometry_info.flags = build_flags;
-    acceleration_build_geometry_info.mode = last ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
-                                                 : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+    acceleration_build_geometry_info.mode =
+            last ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     acceleration_build_geometry_info.srcAccelerationStructure = last.get();
     acceleration_build_geometry_info.dstAccelerationStructure = top_level.structure.get();
     acceleration_build_geometry_info.geometryCount = 1;
@@ -590,7 +575,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     vkCmdBuildAccelerationStructuresKHR(commandbuffer, 1, &acceleration_build_geometry_info, &offset_ptr);
 
     // submit only if we created the command buffer
-    if(local_commandbuffer){ local_commandbuffer.submit(m_queue, true); }
+    if(local_commandbuffer) { local_commandbuffer.submit(m_queue, true); }
 
     return top_level;
 }

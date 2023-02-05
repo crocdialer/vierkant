@@ -4,13 +4,13 @@
 
 #include <crocore/gaussian.hpp>
 
+#include <vierkant/PBRDeferred.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/cubemap_utils.hpp>
 #include <vierkant/culling.hpp>
 #include <vierkant/punctual_light.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/staging_copy.hpp>
-#include <vierkant/PBRDeferred.hpp>
 
 namespace vierkant
 {
@@ -24,7 +24,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_command_pool = vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                   VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+                                                           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(device);
@@ -163,10 +163,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         vierkant::descriptor_t desc_taa_ubo = {};
         desc_taa_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_taa_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_taa_ubo.buffers = {vierkant::Buffer::create(m_device, nullptr, sizeof(camera_params_t),
-                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                         VMA_MEMORY_USAGE_GPU_ONLY)};
+        desc_taa_ubo.buffers = {vierkant::Buffer::create(
+                m_device, nullptr, sizeof(camera_params_t),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY)};
 
         m_drawable_taa.descriptors[1] = std::move(desc_taa_ubo);
 
@@ -184,10 +183,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         vierkant::descriptor_t desc_dof_ubo = {};
         desc_dof_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_dof_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_dof_ubo.buffers = {vierkant::Buffer::create(m_device, nullptr, sizeof(depth_of_field_params_t),
-                                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                                                         VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                         VMA_MEMORY_USAGE_GPU_ONLY)};
+        desc_dof_ubo.buffers = {vierkant::Buffer::create(
+                m_device, nullptr, sizeof(depth_of_field_params_t),
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY)};
 
         m_drawable_dof.descriptors[1] = std::move(desc_dof_ubo);
 
@@ -234,7 +232,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
 PBRDeferred::~PBRDeferred()
 {
-    for(auto &frame_asset: m_frame_assets){ frame_asset.timeline.wait(frame_asset.semaphore_value_done); }
+    for(auto &frame_asset: m_frame_assets) { frame_asset.timeline.wait(frame_asset.semaphore_value_done); }
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -253,11 +251,10 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
     size_t scene_hash = 0;
     auto object_view = scene->registry()->view<vierkant::Object3D *>();
-    object_view.each([&scene_hash](const auto &object)
-                     {
-                         crocore::hash_combine(scene_hash, object);
-                         crocore::hash_combine(scene_hash, object->enabled);
-                     });
+    object_view.each([&scene_hash](const auto &object) {
+        crocore::hash_combine(scene_hash, object);
+        crocore::hash_combine(scene_hash, object->enabled);
+    });
 
     auto mesh_view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
 
@@ -289,7 +286,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             auto it = m_entry_matrix_cache.find(key);
 
             size_t transform_hash = 0;
-            crocore::hash_combine(transform_hash, object->transform * entry.transform);
+            crocore::hash_combine(transform_hash, mat4_cast(object->transform) * entry.transform);
             transform_hashes[key] = transform_hash;
 
             auto hash_it = frame_asset.transform_hashes.find(key);
@@ -303,8 +300,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_asset.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_asset.cull_result.drawables[drawable_index];
-                drawable.matrices.modelview = node_matrices.empty() ? object->global_transform() * entry.transform :
-                                              object->global_transform() * node_matrices[entry.node_index];
+                drawable.matrices.modelview = node_matrices.empty()
+                                                      ? mat4_cast(object->global_transform()) * entry.transform
+                                                      : mat4_cast(object->global_transform()) * node_matrices[entry.node_index];
                 drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.last_matrices =
                         it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
@@ -327,7 +325,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         for(const auto &mat: mesh->materials)
         {
             auto h = mat->hash();
-            if(frame_asset.material_hashes[mat] != h){ materials_unchanged = false; }
+            if(frame_asset.material_hashes[mat] != h) { materials_unchanged = false; }
             frame_asset.material_hashes[mat] = h;
         }
     }
@@ -439,9 +437,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         if(mesh->root_bone)
         {
             std::vector<glm::mat4> bones_matrices;
-            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone,
-                                                     animation,
-                                                     animation_state.current_time,
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation, animation_state.current_time,
                                                      bones_matrices);
 
             // keep track of offset
@@ -481,14 +477,14 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         frame_asset.bone_buffer = vierkant::Buffer::create(
                 m_device, all_bones_matrices, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
-    else{ frame_asset.bone_buffer->set_data(all_bones_matrices); }
+    else { frame_asset.bone_buffer->set_data(all_bones_matrices); }
 
     if(!frame_asset.morph_param_buffer)
     {
         frame_asset.morph_param_buffer = vierkant::Buffer::create(
                 m_device, all_morph_params, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
-    else{ frame_asset.morph_param_buffer->set_data(all_morph_params); }
+    else { frame_asset.morph_param_buffer->set_data(all_morph_params); }
 
     if(!frame_asset.recycle_commands)
     {
@@ -500,7 +496,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             // search previous matrices
             id_entry_key_t key = {static_cast<uint32_t>(entity), drawable.entry_index};
             auto it = m_entry_matrix_cache.find(key);
-            if(it != m_entry_matrix_cache.end()){ drawable.last_matrices = it->second; }
+            if(it != m_entry_matrix_cache.end()) { drawable.last_matrices = it->second; }
 
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)
@@ -603,7 +599,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             uint32_t shader_flags = PROP_DEFAULT;
 
             // check if vertex-skinning is required
-            if(drawable.mesh->root_bone){ shader_flags |= PROP_SKIN; }
+            if(drawable.mesh->root_bone) { shader_flags |= PROP_SKIN; }
 
             // check if tangents are available
             if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT))
@@ -635,7 +631,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             }
 
             // check if morph-targets are available
-            if(drawable.mesh->morph_buffer){ shader_flags |= PROP_MORPH_TARGET; }
+            if(drawable.mesh->morph_buffer) { shader_flags |= PROP_MORPH_TARGET; }
 
             // select shader-stages from cache
             auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
@@ -645,7 +641,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 drawable.pipeline_format.shader_stages = stage_it->second;
             }
-            else{ drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT]; }
+            else { drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT]; }
 
             // set attachment count
             drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
@@ -664,7 +660,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         // stage drawables
         m_g_renderer_main.stage_drawables(cull_result.drawables);
-        if(use_gpu_culling){ m_g_renderer_post.stage_drawables(cull_result.drawables); }
+        if(use_gpu_culling) { m_g_renderer_post.stage_drawables(cull_result.drawables); }
     }
 
     // apply current settings for both renderers
@@ -675,8 +671,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     // draw last visible objects
     m_g_renderer_main.draw_indirect_delegate = [this, &frame_asset,
-            use_gpu_culling](Renderer::indirect_draw_bundle_t &params)
-    {
+                                                use_gpu_culling](Renderer::indirect_draw_bundle_t &params) {
         frame_asset.cmd_clear = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_clear.begin();
 
@@ -823,8 +818,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_asset.depth_pyramid = create_depth_pyramid(frame_asset.gpu_cull_context, depth_pyramid_params);
 
         // post-render will perform actual culling
-        m_g_renderer_post.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_bundle_t &params)
-        {
+        m_g_renderer_post.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_bundle_t &params) {
             resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
             params.draws_counts_out = frame_asset.indirect_draw_params_post.draws_counts_out;
             frame_asset.indirect_draw_params_post.mesh_draws = params.mesh_draws;
@@ -879,7 +873,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     auto &frame_asset = m_frame_assets[index];
 
     environment_lighting_ubo_t ubo = {};
-    ubo.camera_transform = cull_result.camera->global_transform();
+    ubo.camera_transform = mat4_cast(cull_result.camera->global_transform());
     ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
     ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
     ubo.environment_factor = frame_asset.settings.environment_factor;
@@ -951,9 +945,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     return frame_asset.lighting_buffer;
 }
 
-void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
-                               const CameraPtr &cam,
-                               const vierkant::ImagePtr &color,
+void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &cam, const vierkant::ImagePtr &color,
                                const vierkant::ImagePtr &depth)
 {
     size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
@@ -974,16 +966,12 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
     size_t buffer_index = 0;
 
     // get next set of pingpong assets, increment index
-    auto pingpong_render = [&frame_asset,
-            &buffer_index,
-            &renderer = m_renderer_post_fx](vierkant::drawable_t &drawable,
-                                            SemaphoreValue semaphore_value,
-                                            const vierkant::Framebuffer &override_fb = {})
-            -> vierkant::ImagePtr
-    {
-        const vierkant::Framebuffer *framebuffer = override_fb ? &override_fb :
-                                                   &frame_asset.post_fx_ping_pongs[buffer_index % 2].framebuffer;
-        if(!override_fb){ buffer_index++; }
+    auto pingpong_render = [&frame_asset, &buffer_index, &renderer = m_renderer_post_fx](
+                                   vierkant::drawable_t &drawable, SemaphoreValue semaphore_value,
+                                   const vierkant::Framebuffer &override_fb = {}) -> vierkant::ImagePtr {
+        const vierkant::Framebuffer *framebuffer =
+                override_fb ? &override_fb : &frame_asset.post_fx_ping_pongs[buffer_index % 2].framebuffer;
+        if(!override_fb) { buffer_index++; }
         auto cmd = frame_asset.cmd_post_fx.handle();
         auto color_attachment = framebuffer->color_attachment();
 
@@ -1018,10 +1006,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         auto history_depth = m_frame_assets[last_frame_index].depth_map;
 
         auto drawable = m_drawable_taa;
-        drawable.descriptors[0].images = {output_img,
-                                          depth,
-                                          frame_asset.g_buffer_post.color_attachment(G_BUFFER_MOTION),
-                                          history_color,
+        drawable.descriptors[0].images = {output_img, depth,
+                                          frame_asset.g_buffer_post.color_attachment(G_BUFFER_MOTION), history_color,
                                           history_depth};
 
         if(!drawable.descriptors[1].buffers.empty())
@@ -1068,7 +1054,6 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer,
         m_drawable_bloom.descriptors[0].images = {output_img, bloom_img, motion_img};
         m_drawable_bloom.descriptors[1].buffers = {frame_asset.composition_ubo};
         output_img = pingpong_render(m_drawable_bloom, SemaphoreValue::TONEMAP);
-
     }
 
     // fxaa
@@ -1148,8 +1133,7 @@ void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
     m_conv_ggx = ggx;
 }
 
-void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t &asset,
-                                           const glm::uvec2 &resolution,
+void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t &asset, const glm::uvec2 &resolution,
                                            const glm::uvec2 &out_resolution)
 {
     glm::uvec2 previous_size = {asset.g_buffer_post.extent().width, asset.g_buffer_post.extent().height};
@@ -1183,8 +1167,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
 
         auto renderpass_no_clear_depth =
                 vierkant::create_renderpass(m_device, asset.g_buffer_pre.attachments(), false, false);
-        asset.g_buffer_post = vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(),
-                                                    renderpass_no_clear_depth);
+        asset.g_buffer_post =
+                vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(), renderpass_no_clear_depth);
         asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
         auto depth_fmt = asset.g_buffer_pre.depth_attachment()->format();
@@ -1239,10 +1223,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
         asset.bloom = Bloom::create(m_device, bloom_info);
 
         m_logger->trace("output resolution: {} x {} -> {} x {}", previous_output_size.x, previous_output_size.y,
-                        out_resolution.x,
-                        out_resolution.y);
+                        out_resolution.x, out_resolution.y);
     }
-
 }
 
 void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params)
@@ -1255,7 +1237,7 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::ind
         params.draws_in = vierkant::Buffer::create(
                 m_device, nullptr, num_bytes,
                 VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
@@ -1265,7 +1247,7 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::ind
         params.draws_counts_out = vierkant::Buffer::create(
                 m_device, nullptr, max_batches * sizeof(uint32_t),
                 VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VMA_MEMORY_USAGE_GPU_ONLY);
     }
     params.num_draws = num_draws;
@@ -1284,13 +1266,12 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 
     auto timestamp_period = m_device->properties().limits.timestampPeriod;
 
-    auto millis = [&](SemaphoreValue val) -> std::optional<double_millisecond_t>
-    {
-        if(!timestamps[val]){ return {}; }
+    auto millis = [&](SemaphoreValue val) -> std::optional<double_millisecond_t> {
+        if(!timestamps[val]) { return {}; }
         auto rhs = timestamps[val - 1];
-        for(uint32_t v = val - 1; !rhs && v > 0; v--){ rhs = timestamps[v]; }
-        auto frame_ns = std::chrono::nanoseconds(
-                static_cast<uint64_t>(double(timestamps[val] - rhs) * timestamp_period));
+        for(uint32_t v = val - 1; !rhs && v > 0; v--) { rhs = timestamps[v]; }
+        auto frame_ns =
+                std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[val] - rhs) * timestamp_period));
         return std::chrono::duration_cast<double_millisecond_t>(frame_ns);
     };
 
@@ -1300,7 +1281,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
         {
             auto val = SemaphoreValue(i);
             auto measurement = millis(val);
-            if(measurement){ frame_asset.timings_map[val] = *measurement; };
+            if(measurement) { frame_asset.timings_map[val] = *measurement; };
         }
     }
 
@@ -1321,7 +1302,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     frame_asset.stats.timings = timings_result;
 
     m_statistics.push_back(frame_asset.stats);
-    while(m_statistics.size() > frame_asset.settings.timing_history_size){ m_statistics.pop_front(); }
+    while(m_statistics.size() > frame_asset.settings.timing_history_size) { m_statistics.pop_front(); }
 
     // reset query-pool
     vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, query_count);
@@ -1330,31 +1311,31 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)
 {
-    if(lhs.resolution != rhs.resolution){ return false; }
-    if(lhs.output_resolution != rhs.output_resolution){ return false; }
-    if(lhs.disable_material != rhs.disable_material){ return false; }
-    if(lhs.debug_draw_ids != rhs.debug_draw_ids){ return false; }
-    if(lhs.frustum_culling != rhs.frustum_culling){ return false; }
-    if(lhs.occlusion_culling != rhs.occlusion_culling){ return false; }
-    if(lhs.enable_lod != rhs.enable_lod){ return false; }
-    if(lhs.tesselation != rhs.tesselation){ return false; }
-    if(lhs.wireframe != rhs.wireframe){ return false; }
-    if(lhs.draw_skybox != rhs.draw_skybox){ return false; }
-    if(lhs.use_fxaa != rhs.use_fxaa){ return false; }
-    if(lhs.use_taa != rhs.use_taa){ return false; }
-    if(lhs.environment_factor != rhs.environment_factor){ return false; }
-    if(lhs.tonemap != rhs.tonemap){ return false; }
-    if(lhs.bloom != rhs.bloom){ return false; }
-    if(lhs.motionblur != rhs.motionblur){ return false; }
-    if(lhs.motionblur_gain != rhs.motionblur_gain){ return false; }
-    if(lhs.gamma != rhs.gamma){ return false; }
-    if(lhs.exposure != rhs.exposure){ return false; }
-    if(lhs.indirect_draw != rhs.indirect_draw){ return false; }
-    if(lhs.use_meshlet_pipeline != rhs.use_meshlet_pipeline){ return false; }
-    if(lhs.timing_history_size != rhs.timing_history_size){ return false; }
-    if(lhs.depth_of_field != rhs.depth_of_field){ return false; }
+    if(lhs.resolution != rhs.resolution) { return false; }
+    if(lhs.output_resolution != rhs.output_resolution) { return false; }
+    if(lhs.disable_material != rhs.disable_material) { return false; }
+    if(lhs.debug_draw_ids != rhs.debug_draw_ids) { return false; }
+    if(lhs.frustum_culling != rhs.frustum_culling) { return false; }
+    if(lhs.occlusion_culling != rhs.occlusion_culling) { return false; }
+    if(lhs.enable_lod != rhs.enable_lod) { return false; }
+    if(lhs.tesselation != rhs.tesselation) { return false; }
+    if(lhs.wireframe != rhs.wireframe) { return false; }
+    if(lhs.draw_skybox != rhs.draw_skybox) { return false; }
+    if(lhs.use_fxaa != rhs.use_fxaa) { return false; }
+    if(lhs.use_taa != rhs.use_taa) { return false; }
+    if(lhs.environment_factor != rhs.environment_factor) { return false; }
+    if(lhs.tonemap != rhs.tonemap) { return false; }
+    if(lhs.bloom != rhs.bloom) { return false; }
+    if(lhs.motionblur != rhs.motionblur) { return false; }
+    if(lhs.motionblur_gain != rhs.motionblur_gain) { return false; }
+    if(lhs.gamma != rhs.gamma) { return false; }
+    if(lhs.exposure != rhs.exposure) { return false; }
+    if(lhs.indirect_draw != rhs.indirect_draw) { return false; }
+    if(lhs.use_meshlet_pipeline != rhs.use_meshlet_pipeline) { return false; }
+    if(lhs.timing_history_size != rhs.timing_history_size) { return false; }
+    if(lhs.depth_of_field != rhs.depth_of_field) { return false; }
     return true;
-//    return memcmp(&lhs, &rhs, sizeof(PBRDeferred::settings_t)) == 0;
+    //    return memcmp(&lhs, &rhs, sizeof(PBRDeferred::settings_t)) == 0;
 }
 
 }// namespace vierkant

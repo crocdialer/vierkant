@@ -115,7 +115,8 @@ Object3DPtr Scene::pick(const Ray &ray) const
     {
         if(object == m_root.get()){ continue; }
 
-        if(auto ray_hit = vierkant::intersect(object->obb().transform(object->global_transform()), ray))
+        auto obb = object->obb().transform(vierkant::mat4_cast(object->global_transform()));
+        if(auto ray_hit = vierkant::intersect(obb, ray))
         {
             clicked_items.push_back({object, ray_hit.distance});
         }

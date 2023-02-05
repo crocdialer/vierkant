@@ -4,10 +4,11 @@
 
 #define TINYGLTF_IMPLEMENTATION
 
+#include <deque>
 #include <tiny_gltf.h>
 
 #include <vierkant/gltf.hpp>
-#include <deque>
+#include <vierkant/transform.hpp>
 
 namespace vierkant::model
 {
@@ -111,31 +112,25 @@ using joint_map_t = std::unordered_map<uint32_t, uint32_t>;
 
 glm::mat4 node_transform(const tinygltf::Node &tiny_node)
 {
-    if(tiny_node.matrix.size() == 16)
-    {
-        return *reinterpret_cast<const glm::dmat4 *>(tiny_node.matrix.data());
-    }
-
-    glm::dquat rotation(1, 0, 0, 0);
-    glm::dvec3 scale(1.);
-    glm::dvec3 translation(0.);
+    if(tiny_node.matrix.size() == 16) { return *reinterpret_cast<const glm::dmat4 *>(tiny_node.matrix.data()); }
+    vierkant::transform_t ret;
 
     if(tiny_node.translation.size() == 3)
     {
-        translation = glm::dvec3(tiny_node.translation[0], tiny_node.translation[1], tiny_node.translation[2]);
+        ret.translation = glm::dvec3(tiny_node.translation[0], tiny_node.translation[1], tiny_node.translation[2]);
     }
 
     if(tiny_node.scale.size() == 3)
     {
-        scale = glm::dvec3(tiny_node.scale[0], tiny_node.scale[1], tiny_node.scale[2]);
+        ret.scale = glm::dvec3(tiny_node.scale[0], tiny_node.scale[1], tiny_node.scale[2]);
     }
 
     if(tiny_node.rotation.size() == 4)
     {
-        rotation = glm::dquat(tiny_node.rotation[3], tiny_node.rotation[0], tiny_node.rotation[1],
-                              tiny_node.rotation[2]);
+        ret.rotation =
+                glm::dquat(tiny_node.rotation[3], tiny_node.rotation[0], tiny_node.rotation[1], tiny_node.rotation[2]);
     }
-    return glm::translate(glm::dmat4(1), translation) * glm::mat4_cast(rotation) * glm::scale(glm::dmat4(1), scale);
+    return vierkant::mat4_cast(ret);
 }
 
 glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
@@ -155,8 +150,7 @@ glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
         if(value.Has(ext_texture_offset))
         {
             const auto &offset_value = value.Get(ext_texture_offset);
-            offset = glm::dvec2(offset_value.Get(0).GetNumberAsDouble(),
-                                offset_value.Get(1).GetNumberAsDouble());
+            offset = glm::dvec2(offset_value.Get(0).GetNumberAsDouble(), offset_value.Get(1).GetNumberAsDouble());
         }
         if(value.Has(ext_texture_rotation))
         {
@@ -166,8 +160,7 @@ glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
         if(value.Has(ext_texture_scale))
         {
             const auto &scale_value = value.Get(ext_texture_scale);
-            scale = glm::dvec2(scale_value.Get(0).GetNumberAsDouble(),
-                               scale_value.Get(1).GetNumberAsDouble());
+            scale = glm::dvec2(scale_value.Get(0).GetNumberAsDouble(), scale_value.Get(1).GetNumberAsDouble());
         }
         ret = glm::translate(glm::mat4(1), glm::vec3(offset, 0.f)) *
               glm::rotate(glm::mat4(1), rotation, glm::vec3(0.f, 0.f, -1.f)) *
@@ -176,10 +169,8 @@ glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
     return ret;
 }
 
-vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
-                                      const tinygltf::Model &model,
-                                      const std::map<std::string, int> &attributes,
-                                      bool morph_target)
+vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, const tinygltf::Model &model,
+                                      const std::map<std::string, int> &attributes, bool morph_target)
 {
     auto geometry = vierkant::Geometry::create();
 
@@ -190,12 +181,12 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
         const auto &buffer_view = model.bufferViews[index_accessor.bufferView];
         const auto &buffer = model.buffers[buffer_view.buffer];
 
-        if(buffer_view.target == 0){ spdlog::warn("bufferView.target is zero"); }
+        if(buffer_view.target == 0) { spdlog::warn("bufferView.target is zero"); }
 
         assert(index_accessor.type == TINYGLTF_TYPE_SCALAR);
 
-        auto data = static_cast<const uint8_t *>(buffer.data.data() + index_accessor.byteOffset +
-                                                 buffer_view.byteOffset);
+        auto data =
+                static_cast<const uint8_t *>(buffer.data.data() + index_accessor.byteOffset + buffer_view.byteOffset);
 
 
         if(index_accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
@@ -213,7 +204,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
             const auto *ptr = reinterpret_cast<const uint32_t *>(data);
             geometry->indices = {ptr, ptr + index_accessor.count};
         }
-        else{ spdlog::error("unsupported index-type: {}", index_accessor.componentType); }
+        else { spdlog::error("unsupported index-type: {}", index_accessor.componentType); }
     }
 
     for(const auto &[attrib, accessor_idx]: attributes)
@@ -222,10 +213,9 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
         const auto &buffer_view = model.bufferViews[accessor.bufferView];
         const auto &buffer = model.buffers[buffer_view.buffer];
 
-        if(accessor.sparse.isSparse){ assert(false); }
+        if(accessor.sparse.isSparse) { assert(false); }
 
-        auto insert = [&accessor, &buffer_view](const tinygltf::Buffer &input, auto &array)
-        {
+        auto insert = [&accessor, &buffer_view](const tinygltf::Buffer &input, auto &array) {
             using elem_t = typename std::decay<decltype(array)>::type::value_type;
             constexpr size_t elem_size = sizeof(elem_t);
 
@@ -249,15 +239,15 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
                 auto dst = reinterpret_cast<uint8_t *>(array.data());
 
                 // stride copy
-                for(; ptr < end; ptr += stride, dst += elem_size){ std::memcpy(dst, ptr, elem_size); }
+                for(; ptr < end; ptr += stride, dst += elem_size) { std::memcpy(dst, ptr, elem_size); }
             }
         };
 
-        if(attrib == attrib_position){ insert(buffer, geometry->positions); }
-        else if(attrib == attrib_normal){ insert(buffer, geometry->normals); }
-        else if(attrib == attrib_tangent){ insert(buffer, geometry->tangents); }
-        else if(attrib == attrib_color){ insert(buffer, geometry->colors); }
-        else if(attrib == attrib_texcoord){ insert(buffer, geometry->tex_coords); }
+        if(attrib == attrib_position) { insert(buffer, geometry->positions); }
+        else if(attrib == attrib_normal) { insert(buffer, geometry->normals); }
+        else if(attrib == attrib_tangent) { insert(buffer, geometry->tangents); }
+        else if(attrib == attrib_color) { insert(buffer, geometry->colors); }
+        else if(attrib == attrib_texcoord) { insert(buffer, geometry->tex_coords); }
         else if(attrib == attrib_joints)
         {
             assert(accessor.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT);
@@ -279,8 +269,8 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
             geometry->indices.resize(geometry->positions.size());
             std::iota(geometry->indices.begin(), geometry->indices.end(), 0);
         }
-        if(geometry->normals.empty()){ geometry->compute_vertex_normals(); }
-        if(geometry->tangents.empty() && !geometry->tex_coords.empty()){ geometry->compute_tangents(); }
+        if(geometry->normals.empty()) { geometry->compute_vertex_normals(); }
+        if(geometry->tangents.empty() && !geometry->tex_coords.empty()) { geometry->compute_tangents(); }
     }
 
     // last resort is to fill with zeros here
@@ -291,8 +281,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive,
     return geometry;
 }
 
-model::material_t convert_material(const tinygltf::Material &tiny_mat,
-                                   const tinygltf::Model &model,
+model::material_t convert_material(const tinygltf::Material &tiny_mat, const tinygltf::Model &model,
                                    const std::map<uint32_t, crocore::ImagePtr> &image_cache)
 {
     model::material_t ret;
@@ -301,8 +290,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     ret.emission = *reinterpret_cast<const glm::dvec3 *>(tiny_mat.emissiveFactor.data());
 
     // blend_mode defaults to opaque
-    if(tiny_mat.alphaMode == blend_mode_blend){ ret.blend_mode = vierkant::Material::BlendMode::Blend; }
-    else if(tiny_mat.alphaMode == blend_mode_mask){ ret.blend_mode = vierkant::Material::BlendMode::Mask; }
+    if(tiny_mat.alphaMode == blend_mode_blend) { ret.blend_mode = vierkant::Material::BlendMode::Blend; }
+    else if(tiny_mat.alphaMode == blend_mode_mask) { ret.blend_mode = vierkant::Material::BlendMode::Mask; }
     ret.alpha_cutoff = static_cast<float>(tiny_mat.alphaCutoff);
 
     ret.metalness = static_cast<float>(tiny_mat.pbrMetallicRoughness.metallicFactor);
@@ -319,8 +308,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
     // ao / rough / metal
     if(tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0)
     {
-        ret.img_ao_roughness_metal = image_cache.at(
-                model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source);
+        ret.img_ao_roughness_metal =
+                image_cache.at(model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source);
 
         ret.roughness = ret.metalness = 1.f;
     }
@@ -374,7 +363,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
         // rough/metal was provided but no occlusion -> pad with 1.0
         constexpr size_t ao_offset = 0;
         auto dst = (uint8_t *) ret.img_ao_roughness_metal->data(), end = dst + ret.img_ao_roughness_metal->num_bytes();
-        for(; dst < end; dst += ret.img_ao_roughness_metal->num_components()){ dst[ao_offset] = 255; }
+        for(; dst < end; dst += ret.img_ao_roughness_metal->num_components()) { dst[ao_offset] = 255; }
     }
 
     for(const auto &[ext, value]: tiny_mat.extensions)
@@ -460,10 +449,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
         }
         else if(ext == KHR_materials_ior)
         {
-            if(value.Has("ior"))
-            {
-                ret.ior = static_cast<float>(value.Get("ior").GetNumberAsDouble());
-            }
+            if(value.Has("ior")) { ret.ior = static_cast<float>(value.Get("ior").GetNumberAsDouble()); }
         }
         else if(ext == KHR_materials_clearcoat)
         {
@@ -473,8 +459,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             }
             if(value.Has(ext_clearcoat_roughness_factor))
             {
-                ret.clearcoat_roughness_factor = static_cast<float>(value.Get(
-                        ext_clearcoat_roughness_factor).GetNumberAsDouble());
+                ret.clearcoat_roughness_factor =
+                        static_cast<float>(value.Get(ext_clearcoat_roughness_factor).GetNumberAsDouble());
             }
         }
         else if(ext == KHR_materials_sheen)
@@ -482,9 +468,9 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             if(value.Has(ext_sheen_color_factor))
             {
                 const auto &sheen_value = value.Get(ext_sheen_color_factor);
-                ret.sheen_color = glm::dvec3(sheen_value.Get(0).GetNumberAsDouble(),
-                                             sheen_value.Get(1).GetNumberAsDouble(),
-                                             sheen_value.Get(2).GetNumberAsDouble());
+                ret.sheen_color =
+                        glm::dvec3(sheen_value.Get(0).GetNumberAsDouble(), sheen_value.Get(1).GetNumberAsDouble(),
+                                   sheen_value.Get(2).GetNumberAsDouble());
             }
             if(value.Has(ext_sheen_roughness_factor))
             {
@@ -521,13 +507,13 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
             }
             if(value.Has(ext_iridescence_thickness_min))
             {
-                ret.iridescence_thickness_range.x = static_cast<float>(value.Get(
-                        ext_iridescence_thickness_min).GetNumberAsDouble());
+                ret.iridescence_thickness_range.x =
+                        static_cast<float>(value.Get(ext_iridescence_thickness_min).GetNumberAsDouble());
             }
             if(value.Has(ext_iridescence_thickness_max))
             {
-                ret.iridescence_thickness_range.y = static_cast<float>(value.Get(
-                        ext_iridescence_thickness_max).GetNumberAsDouble());
+                ret.iridescence_thickness_range.y =
+                        static_cast<float>(value.Get(ext_iridescence_thickness_max).GetNumberAsDouble());
             }
             if(value.Has(ext_iridescence_thickness_texture))
             {
@@ -546,29 +532,28 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat,
                         uint32_t c = img->num_components();
 
                         // iridescence-factor -> 1.0
-                        for(; ptr < end; ptr += c){ ptr[0] = 255; }
+                        for(; ptr < end; ptr += c) { ptr[0] = 255; }
                     }
                 }//} || img_iridescence_thickness == ret.img_iridescence);
             }
         }
     }
-    if(ret.img_diffuse){ ret.images.push_back(ret.img_diffuse); }
-    if(ret.img_emission){ ret.images.push_back(ret.img_emission); }
-    if(ret.img_normals){ ret.images.push_back(ret.img_normals); }
-    if(ret.img_ao_roughness_metal){ ret.images.push_back(ret.img_ao_roughness_metal); }
-    if(ret.img_thickness){ ret.images.push_back(ret.img_thickness); }
-    if(ret.img_transmission){ ret.images.push_back(ret.img_transmission); }
-    if(ret.img_clearcoat){ ret.images.push_back(ret.img_clearcoat); }
-    if(ret.img_sheen_color){ ret.images.push_back(ret.img_sheen_color); }
-    if(ret.img_sheen_roughness){ ret.images.push_back(ret.img_sheen_roughness); }
-    if(ret.img_specular){ ret.images.push_back(ret.img_specular); }
-    if(ret.img_specular_color){ ret.images.push_back(ret.img_specular_color); }
-    if(ret.img_iridescence){ ret.images.push_back(ret.img_iridescence); }
+    if(ret.img_diffuse) { ret.images.push_back(ret.img_diffuse); }
+    if(ret.img_emission) { ret.images.push_back(ret.img_emission); }
+    if(ret.img_normals) { ret.images.push_back(ret.img_normals); }
+    if(ret.img_ao_roughness_metal) { ret.images.push_back(ret.img_ao_roughness_metal); }
+    if(ret.img_thickness) { ret.images.push_back(ret.img_thickness); }
+    if(ret.img_transmission) { ret.images.push_back(ret.img_transmission); }
+    if(ret.img_clearcoat) { ret.images.push_back(ret.img_clearcoat); }
+    if(ret.img_sheen_color) { ret.images.push_back(ret.img_sheen_color); }
+    if(ret.img_sheen_roughness) { ret.images.push_back(ret.img_sheen_roughness); }
+    if(ret.img_specular) { ret.images.push_back(ret.img_specular); }
+    if(ret.img_specular_color) { ret.images.push_back(ret.img_specular_color); }
+    if(ret.img_iridescence) { ret.images.push_back(ret.img_iridescence); }
     return ret;
 }
 
-vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
-                                                   const tinygltf::Model &model,
+vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, const tinygltf::Model &model,
                                                    node_map_t &node_map)
 {
     vierkant::nodes::NodePtr root_bone;
@@ -577,10 +562,9 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
     std::vector<glm::mat4> inverse_binding_matrices;
 
     joint_map_t joint_map;
-    for(uint32_t i = 0; i < skin.joints.size(); ++i){ joint_map[skin.joints[i]] = i; }
+    for(uint32_t i = 0; i < skin.joints.size(); ++i) { joint_map[skin.joints[i]] = i; }
 
-    if(skin.inverseBindMatrices >= 0 &&
-       static_cast<uint32_t>(skin.inverseBindMatrices) < model.accessors.size())
+    if(skin.inverseBindMatrices >= 0 && static_cast<uint32_t>(skin.inverseBindMatrices) < model.accessors.size())
     {
         tinygltf::Accessor bind_matrix_accessor = model.accessors[skin.inverseBindMatrices];
 
@@ -591,8 +575,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
         const auto &buffer = model.buffers[buffer_view.buffer];
         assert(bind_matrix_accessor.ByteStride(buffer_view) == sizeof(glm::mat4));
 
-        auto data = reinterpret_cast<const glm::mat4 *>(buffer.data.data() +
-                                                        bind_matrix_accessor.byteOffset +
+        auto data = reinterpret_cast<const glm::mat4 *>(buffer.data.data() + bind_matrix_accessor.byteOffset +
                                                         buffer_view.byteOffset);
         inverse_binding_matrices = {data, data + bind_matrix_accessor.count};
     }
@@ -621,8 +604,8 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
 
             node_map[current_index] = bone_node;
 
-            if(!root_bone){ root_bone = bone_node; }
-            if(parent_node){ parent_node->children.push_back(bone_node); }
+            if(!root_bone) { root_bone = bone_node; }
+            if(parent_node) { parent_node->children.push_back(bone_node); }
 
             for(auto child_index: skeleton_node.children)
             {
@@ -634,8 +617,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin,
 }
 
 vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animation &tiny_animation,
-                                                        const tinygltf::Model &model,
-                                                        const node_map_t &node_map)
+                                                        const tinygltf::Model &model, const node_map_t &node_map)
 {
     spdlog::debug("animation: {}", tiny_animation.name);
 
@@ -668,8 +650,8 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 auto data = buffer.data.data() + accessor.byteOffset + buffer_view.byteOffset;
                 auto ptr = reinterpret_cast<const float *>(data);
                 input_times = {ptr, ptr + accessor.count};
-                animation.duration = std::max(animation.duration,
-                                              *std::max_element(input_times.begin(), input_times.end()));
+                animation.duration =
+                        std::max(animation.duration, *std::max_element(input_times.begin(), input_times.end()));
 
                 animation.interpolation_mode = vierkant::InterpolationMode::Linear;
 
@@ -702,11 +684,10 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 {
                     vierkant::animation_value_t<glm::vec3> animation_value = {};
                     animation_value.value = ptr[0];
-                    if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
+                    if(is_cubic_spline) { animation_value = {ptr[1], ptr[0], ptr[2]}; }
                     animation_keys.positions.insert({t, animation_value});
                     ptr += num_elems;
                 }
-
             }
             else if(channel.target_path == animation_target_rotation)
             {
@@ -740,7 +721,7 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
                 {
                     vierkant::animation_value_t<glm::vec3> animation_value = {};
                     animation_value.value = ptr[0];
-                    if(is_cubic_spline){ animation_value = {ptr[1], ptr[0], ptr[2]}; }
+                    if(is_cubic_spline) { animation_value = {ptr[1], ptr[0], ptr[2]}; }
                     animation_keys.scales.insert({t, animation_value});
                     ptr += num_elems;
                 }
@@ -788,13 +769,13 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     bool ret = false;
     auto ext_str = path.extension().string();
     std::transform(ext_str.begin(), ext_str.end(), ext_str.begin(), ::tolower);
-    if(ext_str == ".gltf"){ ret = loader.LoadASCIIFromFile(&model, &err, &warn, path.string()); }
+    if(ext_str == ".gltf") { ret = loader.LoadASCIIFromFile(&model, &err, &warn, path.string()); }
     else if(ext_str == ".glb") { ret = loader.LoadBinaryFromFile(&model, &err, &warn, path.string()); }
-    if(!warn.empty()){ spdlog::warn(warn); }
-    if(!err.empty()){ spdlog::error(err); }
-    if(!ret){ return {}; }
+    if(!warn.empty()) { spdlog::warn(warn); }
+    if(!err.empty()) { spdlog::error(err); }
+    if(!ret) { return {}; }
 
-    if(!model.extensionsUsed.empty()){ spdlog::debug("model using extensions: {}", model.extensionsUsed); }
+    if(!model.extensionsUsed.empty()) { spdlog::debug("model using extensions: {}", model.extensionsUsed); }
 
     const tinygltf::Scene &scene = model.scenes[model.defaultScene >= 0 ? model.defaultScene : 0];
 
@@ -808,19 +789,18 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     for(const auto &t: model.textures)
     {
-//        auto &sampler = model.samplers[t.sampler];
-//        spdlog::debug("loading image '{}' with sampler '{}'", t.name, sampler.name);
-//        sampler.magFilter
-//        sampler.minFilter
-//        sampler.wrapS
-//        sampler.wrapT
+        //        auto &sampler = model.samplers[t.sampler];
+        //        spdlog::debug("loading image '{}' with sampler '{}'", t.name, sampler.name);
+        //        sampler.magFilter
+        //        sampler.minFilter
+        //        sampler.wrapS
+        //        sampler.wrapT
 
         auto &tiny_image = model.images[t.source];
 
         if(!image_cache.count(t.source))
         {
-            auto img = crocore::Image_<uint8_t>::create(tiny_image.image.data(), tiny_image.width,
-                                                        tiny_image.height,
+            auto img = crocore::Image_<uint8_t>::create(tiny_image.image.data(), tiny_image.width, tiny_image.height,
                                                         tiny_image.component);
             image_cache[t.source] = img;
         }
@@ -837,10 +817,10 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     {
         lightsource_t l = {};
 
-        if(tiny_light.type == ext_light_spot){ l.type = LightType::Spot; }
-        else if(tiny_light.type == ext_light_directional){ l.type = LightType::Directional; }
+        if(tiny_light.type == ext_light_spot) { l.type = LightType::Spot; }
+        else if(tiny_light.type == ext_light_directional) { l.type = LightType::Directional; }
 
-        if(tiny_light.color.size() == 3){ l.color = {tiny_light.color[0], tiny_light.color[1], tiny_light.color[2]}; }
+        if(tiny_light.color.size() == 3) { l.color = {tiny_light.color[0], tiny_light.color[1], tiny_light.color[2]}; }
         l.intensity = static_cast<float>(tiny_light.intensity);
         l.range = static_cast<float>(tiny_light.range);
         l.inner_cone_angle = static_cast<float>(tiny_light.spot.innerConeAngle);
@@ -863,14 +843,12 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     std::map<geometry_key, vierkant::GeometryPtr> geometry_cache;
 
     auto get_geometry = [&geometry_cache, &model](const tinygltf::Primitive &primitive,
-                                                  const std::map<std::string,
-                                                          int> &attributes,
-                                                  bool morph_target = false)
-    {
+                                                  const std::map<std::string, int> &attributes,
+                                                  bool morph_target = false) {
         vierkant::GeometryPtr geometry;
         geometry_key geom_key = {primitive.indices, attributes};
         auto it = geometry_cache.find(geom_key);
-        if(!morph_target && it != geometry_cache.end()){ geometry = it->second; }
+        if(!morph_target && it != geometry_cache.end()) { geometry = it->second; }
         else
         {
             geometry = create_geometry(primitive, model, attributes, morph_target);
@@ -933,7 +911,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
                 out_assets.entry_create_infos.push_back(std::move(create_info));
 
             }// for all primitives
-        }// mesh
+        }    // mesh
 
         if(tiny_node.extensions.count(KHR_lights_punctual))
         {
@@ -975,4 +953,3 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 }
 
 }// namespace vierkant::model
-

@@ -2,8 +2,8 @@
 // Created by crocdialer on 6/14/20.
 //
 
-#include "vierkant/Visitor.hpp"
 #include "vierkant/culling.hpp"
+#include "vierkant/Visitor.hpp"
 
 namespace vierkant
 {
@@ -17,7 +17,10 @@ namespace vierkant
  */
 inline static bool check_tags(const std::set<std::string> &whitelist, const std::set<std::string> &obj_tags)
 {
-    for(const auto &t: obj_tags){ if(whitelist.count(t)){ return true; }}
+    for(const auto &t: obj_tags)
+    {
+        if(whitelist.count(t)) { return true; }
+    }
     return whitelist.empty();
 }
 
@@ -33,31 +36,26 @@ struct scoped_stack_push
 {
     std::stack<glm::mat4> &stack;
 
-    scoped_stack_push(std::stack<glm::mat4> &stack, const glm::mat4 &mat) : stack(stack){ stack.push(mat); }
+    scoped_stack_push(std::stack<glm::mat4> &stack, const glm::mat4 &mat) : stack(stack) { stack.push(mat); }
 
-    ~scoped_stack_push(){ stack.pop(); }
+    ~scoped_stack_push() { stack.pop(); }
 };
 
 class CullVisitor : public vierkant::Visitor
 {
 public:
-
-    CullVisitor(vierkant::CameraPtr cam,
-                bool check_intersection,
-                bool world_space) :
-            m_frustum(cam->frustum()),
-            m_camera(std::move(cam)),
-            m_check_intersection(check_intersection)
+    CullVisitor(vierkant::CameraPtr cam, bool check_intersection, bool world_space)
+        : m_frustum(cam->frustum()), m_camera(std::move(cam)), m_check_intersection(check_intersection)
     {
-        if(!world_space){ m_transform_stack.push(m_camera->view_matrix()); }
-        else{ m_transform_stack.push(glm::mat4(1)); }
+        if(!world_space) { m_transform_stack.push(m_camera->view_matrix()); }
+        else { m_transform_stack.push(glm::mat4(1)); }
     };
 
     void visit(vierkant::Object3D &object) override
     {
         if(should_visit(object))
         {
-            auto model_view = m_transform_stack.top() * object.transform;
+            auto model_view = m_transform_stack.top() * vierkant::mat4_cast(object.transform);
             vierkant::MeshConstPtr mesh;
 
             // keep track of meshes
@@ -98,8 +96,9 @@ public:
                 m_cull_result.lights.push_back(vierkant::convert_light(lightsource));
             }
 
-            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform);
-            for(Object3DPtr &child: object.children){ child->accept(*this); }
+            scoped_stack_push scoped_stack_push(m_transform_stack,
+                                                m_transform_stack.top() * mat4_cast(object.transform));
+            for(Object3DPtr &child: object.children) { child->accept(*this); }
         }
     }
 
@@ -110,7 +109,7 @@ public:
             if(m_check_intersection)
             {
                 // check intersection of aabb in eye-coords with view-frustum
-                auto aabb = object.aabb().transform(m_transform_stack.top() * object.transform);
+                auto aabb = object.aabb().transform(m_transform_stack.top() * mat4_cast(object.transform));
                 return vierkant::intersect(m_frustum, aabb);
             }
             return true;
@@ -140,4 +139,4 @@ cull_result_t cull(const cull_params_t &cull_params)
     return std::move(cull_visitor.m_cull_result);
 }
 
-}
+}// namespace vierkant

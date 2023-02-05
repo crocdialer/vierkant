@@ -10,6 +10,7 @@
 
 #include <entt/entity/registry.hpp>
 #include <crocore/crocore.hpp>
+#include <vierkant/transform.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/animation.hpp>
 
@@ -42,54 +43,11 @@ public:
 
     void remove_child(const Object3DPtr &child, bool recursive = false);
 
-    void set_position(const glm::vec3 &pos);
-
-    inline glm::vec3 position() const{ return transform[3].xyz(); }
-
-    inline glm::vec3 lookAt() const{ return normalize(-transform[2].xyz()); }
-
-    inline glm::vec3 side() const{ return normalize(transform[0].xyz()); }
-
-    inline glm::vec3 up() const{ return normalize(transform[1].xyz()); }
-
-    void set_rotation(const glm::quat &rot);
-
-    void set_rotation(const glm::mat3 &rot);
-
-    void set_rotation(float pitch, float yaw, float roll);
-
-    glm::quat rotation() const;
-
-    inline glm::vec3 scale()
-    {
-        return {length(transform[0]), length(transform[1]), length(transform[2])};
-    };
-
-    void set_scale(const glm::vec3 &s);
-
-    inline void set_scale(float s){ set_scale(glm::vec3(s)); }
-
-    void set_look_at(const glm::vec3 &lookAt, const glm::vec3 &up = glm::vec3(0, 1, 0));
-
-    void set_look_at(const Object3DPtr &lookAt);
-
     void set_parent(const Object3DPtr &parent);
 
-    glm::mat4 global_transform() const;
-
-    glm::vec3 global_position() const;
-
-    glm::quat global_rotation() const;
-
-    glm::vec3 global_scale() const;
+    vierkant::transform_t global_transform() const;
 
     void set_global_transform(const glm::mat4 &transform);
-
-    void set_global_position(const glm::vec3 &position);
-
-    void set_global_rotation(const glm::quat &rotation);
-
-    void set_global_scale(const glm::vec3 &scale);
 
     /**
      * @return the axis-aligned boundingbox (AABB) in object coords.
@@ -206,10 +164,10 @@ public:
     std::string name;
 
     //! enabled hint, can be used by Visitors
-    bool enabled;
+    bool enabled = true;
 
-    //! a transformation-matrix for this object
-    glm::mat4 transform = glm::mat4(1);
+    //! the transformation of this object
+    vierkant::transform_t transform = {};
 
     //! a list of child-objects
     std::list<Object3DPtr> children;

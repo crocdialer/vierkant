@@ -42,21 +42,17 @@ vec3 sample_unit_sphere(vec2 Xi)
     return vec3(r * cos(theta), r * sin(theta), u);
 }
 
-/*
- * Calculates local coordinate frame for a given normal
- */
+
+//! returns a local coordinate frame for a given normal
 mat3 local_frame(in vec3 normal)
 {
-//    vec3 up = abs(normal.z) < 0.999 ? vec3(0, 0, 1) : vec3(1, 0, 0);
-//    vec3 tangentX = normalize(cross(normal, up));
-//    vec3 tangentY = cross(normal, tangentX);
     float len2 = dot(normal.xy, normal.xy);
     vec3 tangentX = len2 > 0 ? vec3(-normal.y, normal.x, 0) / sqrt(len2) : vec3(1, 0, 0);
     vec3 tangentY = cross(normal, tangentX);
     return mat3(tangentX, tangentY, normal);
 }
 
-//! sample a Lambert-distribution
+//! sample a cosine-weighted hemisphere-distribution
 vec3 sample_cosine(vec2 Xi)
 {
     float cosTheta = sqrt(max(1.0 - Xi.y, 0.0));
@@ -67,7 +63,7 @@ vec3 sample_cosine(vec2 Xi)
     return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
 }
 
-// sample a GGX-distribution
+//! sample a GGX-distribution
 vec3 sample_GGX(vec2 Xi, float roughness)
 {
     float a = max(0.001, roughness);

@@ -883,22 +883,20 @@ void draw_object_ui(const Object3DPtr &object)
     // transform
     if(object && ImGui::TreeNode("transform"))
     {
-        glm::mat4 transform = object->transform;
-        glm::vec3 position = transform[3].xyz();
-        glm::vec3 rotation = glm::degrees(glm::eulerAngles(glm::quat_cast(transform)));
-        glm::vec3 scale = glm::vec3(length(transform[0]), length(transform[1]), length(transform[2]));
+        glm::vec3 position = object->transform.translation;
+        glm::vec3 rotation = glm::degrees(glm::eulerAngles(object->transform.rotation));
+        glm::vec3 scale = object->transform.scale;
 
         constexpr char fmt[] = "%.4f";
         bool changed = ImGui::InputFloat3("position", glm::value_ptr(position), fmt);
-        changed = ImGui::InputFloat3("rotation", glm::value_ptr(rotation), fmt) || changed;
+        changed = ImGui::InputFloat4("rotation", glm::value_ptr(rotation), fmt) || changed;
         changed = ImGui::InputFloat3("scale", glm::value_ptr(scale), fmt) || changed;
 
         if(changed)
         {
-            auto m = glm::mat4_cast(glm::quat(glm::radians(rotation)));
-            m[3] = glm::vec4(position, 1.f);
-            m = glm::scale(m, scale);
-            object->transform = m;
+            object->transform.translation = position;
+            object->transform.rotation = glm::quat(glm::radians(rotation));
+            object->transform.scale = scale;
         }
         ImGui::TreePop();
     }
@@ -926,7 +924,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object,
                 break;
             default: break;
         }
-        glm::mat4 transform = object->global_transform();
+        glm::mat4 transform = vierkant::mat4_cast(object->global_transform());
         bool is_ortho = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
         auto z_val = transform[3].z;
         ImGuizmo::SetOrthographic(is_ortho);
