@@ -68,9 +68,9 @@ template<typename T1 = double, typename T2>
 transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
 {
     transform_t_<T1> ret;
-    ret.translation = m[3].xyz();
-    ret.rotation = glm::quat_cast(m);
-    ret.scale = {glm::length(m[0].xyz()), glm::length(m[1].xyz()), glm::length(m[2].xyz())};
+    glm::vec<3, T1> skew;
+    glm::vec<4, T1> perspective;
+    glm::decompose(glm::mat<4, 4, T1>(m), ret.scale, ret.rotation, ret.translation, skew, perspective);
     return ret;
 }
 

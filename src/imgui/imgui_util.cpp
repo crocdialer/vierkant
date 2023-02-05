@@ -5,10 +5,10 @@
 #include <cmath>
 
 
-#include <vierkant/imgui/imgui_util.h>
+#include <vierkant/GBuffer.hpp>
 #include <vierkant/PBRDeferred.hpp>
 #include <vierkant/PBRPathTracer.hpp>
-#include <vierkant/GBuffer.hpp>
+#include <vierkant/imgui/imgui_util.h>
 
 #include "imgui_internal.h"
 #include "vierkant/Visitor.hpp"
@@ -31,13 +31,13 @@ struct scoped_child_window_t
         {
             is_open = ImGui::BeginChild(window_name.c_str(), ImVec2(0, 0), false, ImGuiWindowFlags_NoTitleBar);
         }
-        else{ is_open = ImGui::Begin(window_name.c_str()); }
+        else { is_open = ImGui::Begin(window_name.c_str()); }
     }
 
     ~scoped_child_window_t()
     {
-        if(is_child_window){ ImGui::EndChild(); }
-        else{ ImGui::End(); }
+        if(is_child_window) { ImGui::EndChild(); }
+        else { ImGui::End(); }
     }
 };
 
@@ -53,12 +53,10 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     bool v_sync = window->swapchain().v_sync();
     VkSampleCountFlagBits msaa_current = window->swapchain().sample_count();
 
-    auto create_swapchain = [app, window](VkSampleCountFlagBits sample_count, bool v_sync)
-    {
-        app->main_queue().post([window, sample_count, v_sync]()
-                               {
-                                   window->create_swapchain(window->swapchain().device(), sample_count, v_sync);
-                               });
+    auto create_swapchain = [app, window](VkSampleCountFlagBits sample_count, bool v_sync) {
+        app->main_queue().post([window, sample_count, v_sync]() {
+            window->create_swapchain(window->swapchain().device(), sample_count, v_sync);
+        });
     };
 
     ImGuiIO &io = ImGui::GetIO();
@@ -74,11 +72,11 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
         ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
         ImGui::SetNextWindowBgAlpha(bg_alpha);
 
-        ImGui::Begin("about: blank", &is_open, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar |
-                                               ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar |
-                                               ImGuiWindowFlags_AlwaysAutoResize |
-                                               ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
-                                               ImGuiWindowFlags_NoNav);
+        ImGui::Begin("about: blank", &is_open,
+                     ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize |
+                             ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_AlwaysAutoResize |
+                             ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+                             ImGuiWindowFlags_NoNav);
     }
 
     const char *log_items[] = {"Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
@@ -97,11 +95,10 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
     if(ImGui::Checkbox("fullscreen", &is_fullscreen))
     {
-        app->main_queue().post([window, is_fullscreen]()
-                               {
-                                   size_t monitor_index = window->monitor_index();
-                                   window->set_fullscreen(is_fullscreen, monitor_index);
-                               });
+        app->main_queue().post([window, is_fullscreen]() {
+            size_t monitor_index = window->monitor_index();
+            window->set_fullscreen(is_fullscreen, monitor_index);
+        });
     }
     ImGui::SameLine();
 
@@ -113,7 +110,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     if(!v_sync)
     {
         auto target_fps = static_cast<float>(app->target_loop_frequency);
-        if(ImGui::SliderFloat("fps", &target_fps, 0.f, 1000.f)){ app->target_loop_frequency = target_fps; }
+        if(ImGui::SliderFloat("fps", &target_fps, 0.f, 1000.f)) { app->target_loop_frequency = target_fps; }
     }
     ImGui::Spacing();
 
@@ -121,17 +118,17 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
     if(ImGui::ColorEdit4("clear color", clear_color.float32))
     {
-        for(auto &framebuffer: window->swapchain().framebuffers()){ framebuffer.clear_color = clear_color; }
+        for(auto &framebuffer: window->swapchain().framebuffers()) { framebuffer.clear_color = clear_color; }
     }
 
-    VkSampleCountFlagBits const msaa_levels[] = {VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT,
-                                                 VK_SAMPLE_COUNT_4_BIT, VK_SAMPLE_COUNT_8_BIT};
+    VkSampleCountFlagBits const msaa_levels[] = {VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT, VK_SAMPLE_COUNT_4_BIT,
+                                                 VK_SAMPLE_COUNT_8_BIT};
     const char *msaa_items[] = {"None", "MSAA 2x", "MSAA 4x", "MSAA 8x"};
     int msaa_index = 0;
 
     for(auto lvl: msaa_levels)
     {
-        if(msaa_current == lvl){ break; }
+        if(msaa_current == lvl) { break; }
         msaa_index++;
     }
 
@@ -144,7 +141,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     auto loop_time = app->current_loop_time();
     ImGui::Text("fps: %.1f (%.1f ms)", 1.f / loop_time, loop_time * 1000.f);
 
-    if(!is_child_window){ ImGui::End(); }
+    if(!is_child_window) { ImGui::End(); }
 }
 
 void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level_enum>> &items)
@@ -165,8 +162,7 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
     float min_width = is_minimized ? 100 : io.DisplaySize.x - 2 * DISTANCE;
     float max_height = 2 * io.DisplaySize.y / 3.f;
 
-    ImGui::SetNextWindowSizeConstraints(ImVec2(min_width, 0),
-                                        ImVec2(min_width, max_height));
+    ImGui::SetNextWindowSizeConstraints(ImVec2(min_width, 0), ImVec2(min_width, max_height));
     ImGui::SetNextWindowPos(window_pos, ImGuiCond_Always, window_pos_pivot);
 
     if(ImGui::Begin(window_name, nullptr,
@@ -185,17 +181,16 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
             {
                 const auto &[msg, log_level] = items[i];
                 uint32_t color = color_white;
-                if(log_level == spdlog::level::err){ color = color_error; }
-                else if(log_level == spdlog::level::warn){ color = color_warn; }
-                else if(log_level == spdlog::level::debug){ color = color_debug; }
+                if(log_level == spdlog::level::err) { color = color_error; }
+                else if(log_level == spdlog::level::warn) { color = color_warn; }
+                else if(log_level == spdlog::level::debug) { color = color_debug; }
 
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
                 ImGui::Text("%s", msg.c_str());
                 ImGui::PopStyleColor();
             }
-
         }
-        if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()){ ImGui::SetScrollHereY(); }
+        if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) { ImGui::SetScrollHereY(); }
     }
     ImGui::End();
 }
@@ -205,7 +200,7 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     constexpr char window_name[] = "textures";
     bool is_child_window = ImGui::GetCurrentContext()->CurrentWindowStack.Size > 1;
 
-    if(!is_child_window){ ImGui::Begin(window_name); }
+    if(!is_child_window) { ImGui::Begin(window_name); }
 
     const float w = ImGui::GetContentRegionAvail().x;
     const ImVec2 uv_0(0, 0), uv_1(1, 1);
@@ -222,10 +217,10 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
         }
     }
     // end window
-    if(!is_child_window){ ImGui::End(); }
+    if(!is_child_window) { ImGui::End(); }
 }
 
-void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const CameraPtr &/*cam*/)
+void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const CameraPtr & /*cam*/)
 {
     int res[2] = {static_cast<int>(pbr_renderer->settings.resolution.x),
                   static_cast<int>(pbr_renderer->settings.resolution.y)};
@@ -293,8 +288,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                     implot_colors[ImPlotCol_FrameBg] = ImVec4(0, 0, 0, bg_alpha);
 
                     uint32_t max_draws =
-                            (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs)
-                            {
+                            (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
                                 return lhs.draw_cull_result.draw_count < rhs.draw_cull_result.draw_count;
                             }))->draw_cull_result.draw_count;
 
@@ -307,8 +301,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                             reinterpret_cast<const uint32_t *>(
                                     (uint8_t *) values.data() +
                                     offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
-                            static_cast<int>(values.size()),
-                            0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
+                            static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
                     ImPlot::PlotShaded(
                             "occluded",
                             reinterpret_cast<const uint32_t *>(
@@ -332,10 +325,10 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             {
                 if(ImPlot::BeginPlot("##pbr_timings"))
                 {
-                    double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs)
-                    {
-                        return lhs.timings.total_ms < rhs.timings.total_ms;
-                    }))->timings.total_ms;
+                    double max_ms =
+                            (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                                return lhs.timings.total_ms < rhs.timings.total_ms;
+                            }))->timings.total_ms;
 
                     ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
                     ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_ms, ImPlotCond_Always);
@@ -385,12 +378,14 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     }
 }
 
-void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr &/*cam*/)
+void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr & /*cam*/)
 {
     int res[2] = {static_cast<int>(path_tracer->settings.resolution.x),
                   static_cast<int>(path_tracer->settings.resolution.y)};
-    if(ImGui::InputInt2("resolution", res) &&
-       res[0] > 0 && res[1] > 0){ path_tracer->settings.resolution = {res[0], res[1]}; }
+    if(ImGui::InputInt2("resolution", res) && res[0] > 0 && res[1] > 0)
+    {
+        path_tracer->settings.resolution = {res[0], res[1]};
+    }
 
     ImGui::Text("%s", (std::to_string(path_tracer->current_batch()) + " / ").c_str());
     ImGui::SameLine();
@@ -398,12 +393,18 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     int num_samples = static_cast<int>(path_tracer->settings.num_samples);
     int max_trace_depth = static_cast<int>(path_tracer->settings.max_trace_depth);
 
-    if(ImGui::InputInt("num batches", &max_num_batches) &&
-       max_num_batches >= 0){ path_tracer->settings.max_num_batches = max_num_batches; }
-    if(ImGui::InputInt("spp (samples/pixel)", &num_samples) &&
-       num_samples >= 0){ path_tracer->settings.num_samples = num_samples; }
-    if(ImGui::InputInt("max bounces", &max_trace_depth) &&
-       max_trace_depth >= 0){ path_tracer->settings.max_trace_depth = max_trace_depth; }
+    if(ImGui::InputInt("num batches", &max_num_batches) && max_num_batches >= 0)
+    {
+        path_tracer->settings.max_num_batches = max_num_batches;
+    }
+    if(ImGui::InputInt("spp (samples/pixel)", &num_samples) && num_samples >= 0)
+    {
+        path_tracer->settings.num_samples = num_samples;
+    }
+    if(ImGui::InputInt("max bounces", &max_trace_depth) && max_trace_depth >= 0)
+    {
+        path_tracer->settings.max_trace_depth = max_trace_depth;
+    }
 
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
@@ -446,41 +447,39 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     // push object id
     ImGui::PushID((int) obj->id());
     bool is_enabled = obj->enabled;
-    if(ImGui::Checkbox("", &is_enabled)){ obj->enabled = is_enabled; }
+    if(ImGui::Checkbox("", &is_enabled)) { obj->enabled = is_enabled; }
     ImGui::SameLine();
 
     const ImVec4 gray(.6f, .6f, .6f, 1.f);
-    if(!is_enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
+    if(!is_enabled) { ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
     if(obj->children.empty())
     {
-        node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen; // ImGuiTreeNodeFlags_Bullet
+        node_flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;// ImGuiTreeNodeFlags_Bullet
         ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj->name.c_str());
-        if(ImGui::IsItemClicked()){ ret = obj; }
+        if(ImGui::IsItemClicked()) { ret = obj; }
     }
     else
     {
-        bool is_open = ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s",
-                                         obj->name.c_str());
-        if(ImGui::IsItemClicked()){ ret = obj; }
+        bool is_open = ImGui::TreeNodeEx((void *) (uintptr_t) obj->id(), node_flags, "%s", obj->name.c_str());
+        if(ImGui::IsItemClicked()) { ret = obj; }
 
         if(is_open)
         {
             for(auto &c: obj->children)
             {
                 auto clicked_obj = draw_scenegraph_ui_helper(c, selection);
-                if(!ret){ ret = clicked_obj; }
+                if(!ret) { ret = clicked_obj; }
             }
             ImGui::TreePop();
         }
     }
-    if(!is_enabled){ ImGui::PopStyleColor(); }
+    if(!is_enabled) { ImGui::PopStyleColor(); }
     ImGui::PopID();
     return ret;
 }
 
-void draw_scene_ui(const ScenePtr &scene,
-                   std::set<vierkant::Object3DPtr> *selection)
+void draw_scene_ui(const ScenePtr &scene, std::set<vierkant::Object3DPtr> *selection)
 {
     constexpr char window_name[] = "scene";
     scoped_child_window_t scoped_child_window(window_name);
@@ -498,8 +497,8 @@ void draw_scene_ui(const ScenePtr &scene,
             {
                 if(ImGui::GetIO().KeyCtrl)
                 {
-                    if(selection->contains(clicked_obj)){ selection->erase(clicked_obj); }
-                    else{ selection->insert(clicked_obj); }
+                    if(selection->contains(clicked_obj)) { selection->erase(clicked_obj); }
+                    else { selection->insert(clicked_obj); }
                 }
                 else
                 {
@@ -508,7 +507,10 @@ void draw_scene_ui(const ScenePtr &scene,
                 }
             }
             ImGui::Separator();
-            if(selection){ for(auto &obj: *selection){ draw_object_ui(obj); }}
+            if(selection)
+            {
+                for(auto &obj: *selection) { draw_object_ui(obj); }
+            }
 
             ImGui::EndTabItem();
         }
@@ -589,8 +591,7 @@ void draw_material_ui(const MaterialPtr &material)
 {
     const float w = ImGui::GetContentRegionAvail().x;
 
-    auto draw_texture = [&material, w](vierkant::Material::TextureType type, const std::string &text)
-    {
+    auto draw_texture = [&material, w](vierkant::Material::TextureType type, const std::string &text) {
         auto it = material->textures.find(type);
 
         if(it != material->textures.end())
@@ -646,7 +647,7 @@ void draw_material_ui(const MaterialPtr &material)
 
     for(auto blend_mode: blend_modes)
     {
-        if(material->blend_mode == blend_mode){ break; }
+        if(material->blend_mode == blend_mode) { break; }
         blend_mode_index++;
     }
 
@@ -706,7 +707,7 @@ void draw_light_ui(vierkant::model::lightsource_t &light)
 
     for(auto type: light_types)
     {
-        if(light.type == type){ break; }
+        if(light.type == type) { break; }
         light_type_index++;
     }
 
@@ -723,7 +724,7 @@ void draw_light_ui(vierkant::model::lightsource_t &light)
 
 void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &mesh)
 {
-    if(!object || !mesh){ return; }
+    if(!object || !mesh) { return; }
 
     size_t num_vertices = 0, num_faces = 0;
 
@@ -755,7 +756,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
             ImGui::SameLine();
 
             const ImVec4 gray(.6f, .6f, .6f, 1.f);
-            if(!e.enabled){ ImGui::PushStyleColor(ImGuiCol_Text, gray); }
+            if(!e.enabled) { ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
             auto entry_name = e.name.empty() ? ("entry " + std::to_string(index)) : e.name;
 
@@ -781,7 +782,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
                 ImGui::TreePop();
             }
 
-            if(!e.enabled){ ImGui::PopStyleColor(); }
+            if(!e.enabled) { ImGui::PopStyleColor(); }
             ImGui::PopID();
             index++;
         }
@@ -817,7 +818,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
         int animation_index = static_cast<int>(animation_state.index);
 
         std::vector<const char *> animation_items;
-        for(auto &anim: mesh->node_animations){ animation_items.push_back(anim.name.c_str()); }
+        for(auto &anim: mesh->node_animations) { animation_items.push_back(anim.name.c_str()); }
 
         if(ImGui::Combo("name", &animation_index, animation_items.data(), static_cast<int>(animation_items.size())))
         {
@@ -828,9 +829,9 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
 
         // animation speed
         auto speed = static_cast<float>(animation_state.animation_speed);
-        if(ImGui::SliderFloat("speed", &speed, -3.f, 3.f)){ animation_state.animation_speed = speed; }
+        if(ImGui::SliderFloat("speed", &speed, -3.f, 3.f)) { animation_state.animation_speed = speed; }
         ImGui::SameLine();
-        if(ImGui::Checkbox("play", &animation_state.playing)){}
+        if(ImGui::Checkbox("play", &animation_state.playing)) {}
 
         // interpolation-mode
         const char *interpolation_mode_items[] = {"Linear", "Step", "CubicSpline"};
@@ -840,7 +841,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
 
         for(auto mode: interpolation_modes)
         {
-            if(animation.interpolation_mode == mode){ break; }
+            if(animation.interpolation_mode == mode) { break; }
             mode_index++;
         }
 
@@ -853,8 +854,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
         float duration = animation.duration / animation.ticks_per_sec;
 
         // animation current time / max time
-        if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(),
-                              &current_time, 0.f, duration))
+        if(ImGui::SliderFloat(("/ " + crocore::to_string(duration, 2) + " s").c_str(), &current_time, 0.f, duration))
         {
             animation_state.current_time = current_time * animation.ticks_per_sec;
         }
@@ -889,7 +889,7 @@ void draw_object_ui(const Object3DPtr &object)
 
         constexpr char fmt[] = "%.4f";
         bool changed = ImGui::InputFloat3("position", glm::value_ptr(position), fmt);
-        changed = ImGui::InputFloat4("rotation", glm::value_ptr(rotation), fmt) || changed;
+        changed = ImGui::InputFloat3("rotation", glm::value_ptr(rotation), fmt) || changed;
         changed = ImGui::InputFloat3("scale", glm::value_ptr(scale), fmt) || changed;
 
         if(changed)
@@ -902,12 +902,10 @@ void draw_object_ui(const Object3DPtr &object)
     }
 
     // cast to mesh
-    if(object->has_component<vierkant::MeshPtr>()){ draw_mesh_ui(object, object->get_component<vierkant::MeshPtr>()); }
+    if(object->has_component<vierkant::MeshPtr>()) { draw_mesh_ui(object, object->get_component<vierkant::MeshPtr>()); }
 }
 
-void draw_transform_guizmo(const vierkant::Object3DPtr &object,
-                           const vierkant::CameraConstPtr &camera,
-                           GuizmoType type)
+void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera, GuizmoType type)
 {
     // imguizmo drawing is in fact another window
     if(object && camera && type != GuizmoType::INACTIVE)
@@ -916,17 +914,14 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object,
 
         switch(type)
         {
-            case GuizmoType::TRANSLATE: current_gizmo = ImGuizmo::TRANSLATE;
-                break;
-            case GuizmoType::ROTATE: current_gizmo = ImGuizmo::ROTATE;
-                break;
-            case GuizmoType::SCALE: current_gizmo = ImGuizmo::SCALE;
-                break;
+            case GuizmoType::TRANSLATE: current_gizmo = ImGuizmo::TRANSLATE; break;
+            case GuizmoType::ROTATE: current_gizmo = ImGuizmo::ROTATE; break;
+            case GuizmoType::SCALE: current_gizmo = ImGuizmo::SCALE; break;
             default: break;
         }
-        glm::mat4 transform = vierkant::mat4_cast(object->global_transform());
+        glm::mat4 m = vierkant::mat4_cast(object->global_transform());
         bool is_ortho = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
-        auto z_val = transform[3].z;
+        auto z_val = m[3].z;
         ImGuizmo::SetOrthographic(is_ortho);
 
         const auto &cam_params = camera->get_component<vierkant::physical_camera_params_t>();
@@ -934,10 +929,11 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object,
 
         auto sz = ImGui::GetIO().DisplaySize;
         auto proj = glm::perspectiveRH(fovy, sz.x / sz.y, camera->near(), camera->far());
-        ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
-                             ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(transform));
-        if(is_ortho){ transform[3].z = z_val; }
-        object->set_global_transform(transform);
+
+        bool changed = ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
+                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
+        if(is_ortho) { m[3].z = z_val; }
+        if(changed) { object->set_global_transform(vierkant::transform_cast(m)); }
     }
 }
 
@@ -968,8 +964,8 @@ void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
     ImGui::Separator();
 
     // focal distance (dof)
-    ImGui::SliderFloat("focal distance (m)", &camera_params.focal_distance,
-                       camera_params.clipping_distances.x, camera_params.clipping_distances.y);
+    ImGui::SliderFloat("focal distance (m)", &camera_params.focal_distance, camera_params.clipping_distances.x,
+                       camera_params.clipping_distances.y);
 
     // f-stop/aperture
     constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
@@ -978,4 +974,3 @@ void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
 }
 
 }// namespace vierkant::gui
-

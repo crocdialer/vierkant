@@ -38,11 +38,17 @@ vierkant::transform_t Object3D::global_transform() const
     return ret;
 }
 
-void Object3D::set_global_transform(const glm::mat4 &transform_)
+void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    glm::mat4 parent_trans_inv =
-            parent() ? glm::inverse(vierkant::mat4_cast(parent()->global_transform())) : glm::mat4(1);
-    transform = vierkant::transform_cast(parent_trans_inv * transform_);
+    if(auto p = parent())
+    {
+        auto parent_transform = p->global_transform();
+        transform.translation = (t.translation * parent_transform.scale) - parent_transform.translation;
+        transform.rotation = t.rotation * glm::inverse(parent_transform.rotation);
+        transform.scale = t.scale / parent_transform.scale;
+    }
+    else
+    { transform = t; }
 }
 
 void Object3D::set_parent(const Object3DPtr &parent_object)

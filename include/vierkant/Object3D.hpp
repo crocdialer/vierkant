@@ -47,7 +47,7 @@ public:
 
     vierkant::transform_t global_transform() const;
 
-    void set_global_transform(const glm::mat4 &transform);
+    void set_global_transform(const vierkant::transform_t &t);
 
     /**
      * @return the axis-aligned boundingbox (AABB) in object coords.
