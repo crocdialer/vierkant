@@ -250,6 +250,8 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     frame_asset.dirty_drawable_indices.clear();
 
     size_t scene_hash = 0;
+    size_t transform_hash = std::hash<vierkant::transform_t>()(scene->root()->transform);
+
     auto object_view = scene->registry()->view<vierkant::Object3D *>();
     object_view.each([&scene_hash](const auto &object) {
         vierkant::hash_combine(scene_hash, object);
@@ -285,7 +287,6 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             id_entry_key_t key = {object->id(), i};
             auto it = m_entry_matrix_cache.find(key);
 
-            size_t transform_hash = 0;
             vierkant::hash_combine(transform_hash, object->transform * entry.transform);
             transform_hashes[key] = transform_hash;
 
