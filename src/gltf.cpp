@@ -102,7 +102,7 @@ constexpr char ext_light_directional[] = "directional";
 struct node_t
 {
     size_t index;
-    glm::mat4 world_transform;
+    vierkant::transform_t world_transform;
     vierkant::nodes::NodePtr node;
 };
 
@@ -110,9 +110,12 @@ using node_map_t = std::unordered_map<uint32_t, vierkant::nodes::NodePtr>;
 
 using joint_map_t = std::unordered_map<uint32_t, uint32_t>;
 
-glm::mat4 node_transform(const tinygltf::Node &tiny_node)
+vierkant::transform_t node_transform(const tinygltf::Node &tiny_node)
 {
-    if(tiny_node.matrix.size() == 16) { return *reinterpret_cast<const glm::dmat4 *>(tiny_node.matrix.data()); }
+    if(tiny_node.matrix.size() == 16)
+    {
+        return vierkant::transform_cast(*reinterpret_cast<const glm::dmat4 *>(tiny_node.matrix.data()));
+    }
     vierkant::transform_t ret;
 
     if(tiny_node.translation.size() == 3)
@@ -130,7 +133,7 @@ glm::mat4 node_transform(const tinygltf::Node &tiny_node)
         ret.rotation =
                 glm::dquat(tiny_node.rotation[3], tiny_node.rotation[0], tiny_node.rotation[1], tiny_node.rotation[2]);
     }
-    return vierkant::mat4_cast(ret);
+    return ret;
 }
 
 glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
@@ -584,7 +587,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
        !inverse_binding_matrices.empty())
     {
         std::deque<node_t> node_queue;
-        node_queue.push_back({static_cast<size_t>(skin.skeleton), glm::mat4(1), nullptr});
+        node_queue.push_back({static_cast<size_t>(skin.skeleton), {}, nullptr});
 
         while(!node_queue.empty())
         {
@@ -600,7 +603,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
             bone_node->name = skeleton_node.name;
             bone_node->index = joint_map[current_index];
             bone_node->offset = inverse_binding_matrices[joint_map[current_index]];
-            bone_node->transform = local_joint_transform;
+            bone_node->transform = mat4_cast(local_joint_transform);
 
             node_map[current_index] = bone_node;
 
@@ -833,7 +836,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
 
     for(int node_index: scene.nodes)
     {
-        node_queue.push_back({static_cast<size_t>(node_index), glm::mat4(1), out_assets.root_node});
+        node_queue.push_back({static_cast<size_t>(node_index), {}, out_assets.root_node});
     }
 
     node_map_t node_map;
@@ -863,18 +866,19 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         node_queue.pop_front();
 
         const tinygltf::Node &tiny_node = model.nodes[current_index];
+        auto local_transform = node_transform(tiny_node);
 
         // create vierkant::node
         auto current_node = std::make_shared<vierkant::nodes::node_t>();
         current_node->name = tiny_node.name;
         current_node->index = current_index;
         current_node->parent = parent_node;
-        current_node->transform = node_transform(tiny_node);
+        current_node->transform = mat4_cast(local_transform);
 
         assert(parent_node);
         parent_node->children.push_back(current_node);
 
-        world_transform = world_transform * current_node->transform;
+        world_transform = world_transform * local_transform;
 
         if(tiny_node.mesh >= 0 && static_cast<uint32_t>(tiny_node.mesh) < model.meshes.size())
         {
@@ -921,8 +925,10 @@ mesh_assets_t gltf(const std::filesystem::path &path)
             if(light_index < out_assets.lights.size())
             {
                 auto &l = out_assets.lights[light_index];
-                l.position = world_transform[3].xyz();
-                l.direction = -world_transform[2].xyz();
+                l.position = world_transform.translation;
+
+                auto m = glm::mat3_cast(world_transform.rotation);
+                l.direction = -m[2];
             }
         }
 

@@ -10,6 +10,7 @@
 #include "vierkant/Geometry.hpp"
 #include "vierkant/Material.hpp"
 #include <vierkant/vertex_attrib.hpp>
+#include <vierkant/transform.hpp>
 #include <vierkant/intersection.hpp>
 
 namespace vierkant
@@ -84,7 +85,7 @@ public:
     {
         std::string name;
         GeometryPtr geometry = nullptr;
-        glm::mat4 transform = glm::mat4(1);
+        vierkant::transform_t transform = {};
         uint32_t node_index = 0;
         uint32_t material_index = 0;
         std::vector<GeometryPtr> morph_targets;
@@ -102,7 +103,7 @@ public:
     struct entry_t
     {
         std::string name;
-        glm::mat4 transform = glm::mat4(1);
+        vierkant::transform_t transform = {};
         vierkant::AABB bounding_box;
         vierkant::Sphere bounding_sphere;
         uint32_t node_index = 0;

@@ -3,14 +3,13 @@
 //
 
 #include <vierkant/Material.hpp>
+#include <vierkant/hash.hpp>
 
 namespace vierkant
 {
 
 std::size_t Material::hash() const
 {
-    using crocore::hash_combine;
-
     size_t h = 0;
     hash_combine(h, name);
     hash_combine(h, color);

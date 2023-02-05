@@ -36,8 +36,8 @@ struct texture_index_hash_t
     size_t operator()(texture_index_key_t const &key) const
     {
         size_t h = 0;
-        crocore::hash_combine(h, key.mesh);
-        crocore::hash_combine(h, key.texture_hash);
+        vierkant::hash_combine(h, key.mesh);
+        vierkant::hash_combine(h, key.texture_hash);
         return h;
     }
 };
@@ -257,7 +257,7 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
     auto create_texture_hash = [](const std::vector<vierkant::ImagePtr> &textures) -> uint64_t
     {
         uint64_t texture_hash = 0;
-        for(const auto &tex: textures){ crocore::hash_combine(texture_hash, tex); }
+        for(const auto &tex: textures){ vierkant::hash_combine(texture_hash, tex); }
         return texture_hash;
     };
 
@@ -981,12 +981,12 @@ bool Renderer::descriptor_set_key_t::operator==(const Renderer::descriptor_set_k
 size_t Renderer::descriptor_set_key_hash_t::operator()(const Renderer::descriptor_set_key_t &key) const
 {
     size_t h = 0;
-    crocore::hash_combine(h, key.mesh);
+    vierkant::hash_combine(h, key.mesh);
 
     for(const auto &[binding, descriptor]: key.descriptors)
     {
-        crocore::hash_combine(h, binding);
-        crocore::hash_combine(h, descriptor);
+        vierkant::hash_combine(h, binding);
+        vierkant::hash_combine(h, descriptor);
     }
     return h;
 }

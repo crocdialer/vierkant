@@ -252,8 +252,8 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     size_t scene_hash = 0;
     auto object_view = scene->registry()->view<vierkant::Object3D *>();
     object_view.each([&scene_hash](const auto &object) {
-        crocore::hash_combine(scene_hash, object);
-        crocore::hash_combine(scene_hash, object->enabled);
+        vierkant::hash_combine(scene_hash, object);
+        vierkant::hash_combine(scene_hash, object->enabled);
     });
 
     auto mesh_view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
@@ -280,13 +280,13 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         for(uint32_t i = 0; i < mesh->entries.size(); ++i)
         {
             const auto &entry = mesh->entries[i];
-            crocore::hash_combine(scene_hash, entry.enabled);
+            vierkant::hash_combine(scene_hash, entry.enabled);
 
             id_entry_key_t key = {object->id(), i};
             auto it = m_entry_matrix_cache.find(key);
 
             size_t transform_hash = 0;
-            crocore::hash_combine(transform_hash, mat4_cast(object->transform) * entry.transform);
+            vierkant::hash_combine(transform_hash, object->transform * entry.transform);
             transform_hashes[key] = transform_hash;
 
             auto hash_it = frame_asset.transform_hashes.find(key);
@@ -300,9 +300,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_asset.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_asset.cull_result.drawables[drawable_index];
-                drawable.matrices.modelview = node_matrices.empty()
-                                                      ? mat4_cast(object->global_transform()) * entry.transform
-                                                      : mat4_cast(object->global_transform()) * node_matrices[entry.node_index];
+                drawable.matrices.modelview =
+                        node_matrices.empty() ? mat4_cast(object->global_transform() * entry.transform)
+                                              : mat4_cast(object->global_transform()) * node_matrices[entry.node_index];
                 drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.last_matrices =
                         it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <vierkant/math.hpp>
+#include <vierkant/hash.hpp>
 
 namespace vierkant
 {
@@ -74,3 +75,21 @@ transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
 }
 
 }// namespace vierkant
+
+namespace std
+{
+
+template<typename T>
+struct hash<vierkant::transform_t_<T>>
+{
+    size_t operator()(const vierkant::transform_t_<T> &t) const
+    {
+        size_t h = 0;
+        vierkant::hash_combine(h, t.translation);
+        vierkant::hash_combine(h, t.rotation);
+        vierkant::hash_combine(h, t.scale);
+        return h;
+    }
+};
+
+}

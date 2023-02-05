@@ -2,6 +2,7 @@
 // Created by crocdialer on 10/2/18.
 //
 
+#include "vierkant/hash.hpp"
 #include "vierkant/CommandBuffer.hpp"
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Image.hpp"
@@ -768,7 +769,7 @@ bool Image::Format::operator==(const Image::Format &other) const
 
 size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format const &fmt) const
 {
-    using crocore::hash_combine;
+    using vierkant::hash_combine;
 
     size_t h = 0;
     hash_combine(h, fmt.aspect);

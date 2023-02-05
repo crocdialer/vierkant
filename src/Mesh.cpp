@@ -642,14 +642,14 @@ size_t std::hash<vierkant::create_mesh_buffers_params_t>::operator()(
         vierkant::create_mesh_buffers_params_t const &params) const
 {
     size_t hash_val = 0;
-    crocore::hash_combine(hash_val, params.optimize_vertex_cache);
-    crocore::hash_combine(hash_val, params.generate_lods);
-    crocore::hash_combine(hash_val, params.max_num_lods);
-    crocore::hash_combine(hash_val, params.generate_meshlets);
-    crocore::hash_combine(hash_val, params.use_vertex_colors);
-    crocore::hash_combine(hash_val, params.pack_vertices);
-    crocore::hash_combine(hash_val, params.meshlet_max_vertices);
-    crocore::hash_combine(hash_val, params.meshlet_max_triangles);
-    crocore::hash_combine(hash_val, params.meshlet_cone_weight);
+    vierkant::hash_combine(hash_val, params.optimize_vertex_cache);
+    vierkant::hash_combine(hash_val, params.generate_lods);
+    vierkant::hash_combine(hash_val, params.max_num_lods);
+    vierkant::hash_combine(hash_val, params.generate_meshlets);
+    vierkant::hash_combine(hash_val, params.use_vertex_colors);
+    vierkant::hash_combine(hash_val, params.pack_vertices);
+    vierkant::hash_combine(hash_val, params.meshlet_max_vertices);
+    vierkant::hash_combine(hash_val, params.meshlet_max_triangles);
+    vierkant::hash_combine(hash_val, params.meshlet_cone_weight);
     return hash_val;
 }

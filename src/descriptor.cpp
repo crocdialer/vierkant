@@ -2,6 +2,7 @@
 // Created by crocdialer on 1/17/21.
 //
 
+#include <vierkant/hash.hpp>
 #include <vierkant/descriptor.hpp>
 
 namespace vierkant
@@ -281,7 +282,7 @@ bool descriptor_t::operator==(const descriptor_t &other) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-using crocore::hash_combine;
+using vierkant::hash_combine;
 
 size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_t &descriptor) const
 {

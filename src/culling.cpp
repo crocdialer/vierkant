@@ -2,6 +2,7 @@
 // Created by crocdialer on 6/14/20.
 //
 
+#include "vierkant/hash.hpp"
 #include "vierkant/culling.hpp"
 #include "vierkant/Visitor.hpp"
 
@@ -27,8 +28,8 @@ inline static bool check_tags(const std::set<std::string> &whitelist, const std:
 size_t vierkant::id_entry_key_hash_t::operator()(vierkant::id_entry_key_t const &key) const
 {
     size_t h = 0;
-    crocore::hash_combine(h, key.id);
-    crocore::hash_combine(h, key.entry);
+    vierkant::hash_combine(h, key.id);
+    vierkant::hash_combine(h, key.entry);
     return h;
 }
 

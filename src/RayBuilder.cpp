@@ -375,8 +375,9 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             if(!mesh_entry.enabled) { continue; }
 
             // apply node-animation transform, if any
-            auto modelview = mat4_cast(object->transform) *
-                             (node_matrices.empty() ? mesh_entry.transform : node_matrices[mesh_entry.node_index]);
+            auto modelview =
+                    mat4_cast(object->transform) *
+                    (node_matrices.empty() ? mat4_cast(mesh_entry.transform) : node_matrices[mesh_entry.node_index]);
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};

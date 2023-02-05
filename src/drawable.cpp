@@ -2,8 +2,8 @@
 // Created by crocdialer on 04.10.22.
 //
 
-#include <vierkant/drawable.hpp>
 #include <vierkant/Renderer.hpp>
+#include <vierkant/drawable.hpp>
 
 namespace vierkant
 {
@@ -12,7 +12,7 @@ namespace vierkant
 
 std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params_t &params)
 {
-    if(!params.mesh){ return {}; }
+    if(!params.mesh) { return {}; }
 
     // reserve space for one drawable per mesh-entry
     std::vector<vierkant::drawable_t> ret;
@@ -42,9 +42,9 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         const auto &lod_0 = params.mesh->entries[i].lods.front();
 
         // filter disabled entries, sanity check material-index
-        if(!params.entry_filter && !entry.enabled){ continue; }
-        if(params.entry_filter && !params.entry_filter(entry)){ continue; }
-        if(entry.material_index >= params.mesh->materials.size()){ continue; }
+        if(!params.entry_filter && !entry.enabled) { continue; }
+        if(params.entry_filter && !params.entry_filter(entry)) { continue; }
+        if(entry.material_index >= params.mesh->materials.size()) { continue; }
 
         const auto &material = params.mesh->materials[entry.material_index];
 
@@ -54,8 +54,8 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         drawable.entry_index = i;
 
         // combine mesh- with entry-transform
-        drawable.matrices.modelview =
-                params.model_view * (node_matrices.empty() ? entry.transform : node_matrices[entry.node_index]);
+        drawable.matrices.modelview = params.model_view * (node_matrices.empty() ? mat4_cast(entry.transform)
+                                                                                 : node_matrices[entry.node_index]);
         drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
         drawable.matrices.texture = material->texture_transform;
 
@@ -73,8 +73,8 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         drawable.vertex_offset = entry.vertex_offset;
         drawable.num_vertices = entry.num_vertices;
         drawable.morph_vertex_offset = entry.morph_vertex_offset;
-        drawable.morph_weights = (node_morph_weights.empty() ? entry.morph_weights
-                                                             : node_morph_weights[entry.node_index]);
+        drawable.morph_weights =
+                (node_morph_weights.empty() ? entry.morph_weights : node_morph_weights[entry.node_index]);
         drawable.base_meshlet = lod_0.base_meshlet;
         drawable.num_meshlets = lod_0.num_meshlets;
 
@@ -170,4 +170,4 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
     return ret;
 }
 
-}
+}// namespace vierkant

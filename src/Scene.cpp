@@ -40,7 +40,7 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
         for(const auto &entry: mesh->entries)
         {
             ret += entry.bounding_box.transform(
-                    (node_matrices.empty() ? entry.transform : node_matrices[entry.node_index]));
+                    (node_matrices.empty() ? mat4_cast(entry.transform) : node_matrices[entry.node_index]));
         }
         return ret;
     };
@@ -66,7 +66,7 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
         for(const auto &entry: mesh->entries)
         {
             ret.push_back(entry.bounding_box.transform(
-                    (node_matrices.empty() ? entry.transform : node_matrices[entry.node_index])));
+                    (node_matrices.empty() ? mat4_cast(entry.transform) : node_matrices[entry.node_index])));
         }
         return ret;
     };

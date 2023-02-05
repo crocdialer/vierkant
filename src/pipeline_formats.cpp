@@ -2,7 +2,7 @@
 // Created by crocdialer on 1/20/21.
 //
 
-#include <crocore/utils.hpp>
+#include <vierkant/hash.hpp>
 #include <vierkant/pipeline_formats.hpp>
 #include "vierkant/shaders.hpp"
 
@@ -293,7 +293,7 @@ bool compute_pipeline_info_t::operator==(const compute_pipeline_info_t &other) c
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-using crocore::hash_combine;
+using vierkant::hash_combine;
 
 namespace std
 {
