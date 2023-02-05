@@ -2,17 +2,17 @@
 // Created by crocdialer on 3/22/19.
 //
 
-#include <unordered_set>
 #include <crocore/Area.hpp>
+#include <unordered_set>
 #include <vierkant/Pipeline.hpp>
-#include <vierkant/staging_copy.hpp>
 #include <vierkant/Renderer.hpp>
+#include <vierkant/staging_copy.hpp>
 
 namespace vierkant
 {
 
-using std::chrono::steady_clock;
 using std::chrono::duration_cast;
+using std::chrono::steady_clock;
 using duration_t = std::chrono::duration<float>;
 
 //! number of gpu-queries (currently only start-/end-timestamps)
@@ -46,14 +46,10 @@ using texture_index_map_t = std::unordered_map<texture_index_key_t, size_t, text
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
-        m_device(std::move(device)),
-        m_random_engine(create_info.random_seed)
+Renderer::Renderer(DevicePtr device, const create_info_t &create_info)
+    : m_device(std::move(device)), m_random_engine(create_info.random_seed)
 {
-    if(!create_info.num_frames_in_flight)
-    {
-        throw std::runtime_error("could not create vierkant::Renderer");
-    }
+    if(!create_info.num_frames_in_flight) { throw std::runtime_error("could not create vierkant::Renderer"); }
 
     // VK_EXT_mesh_shading function pointers
     set_function_pointers();
@@ -70,32 +66,33 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
 
     m_queue = create_info.queue;
 
-    m_command_pool = create_info.command_pool ? create_info.command_pool :
-                     vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
-                                                   VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                   VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    m_command_pool = create_info.command_pool
+                             ? create_info.command_pool
+                             : vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
+                                                             VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                                                     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     for(auto &render_asset: m_frame_assets)
     {
         render_asset.staging_command_buffer =
                 vierkant::CommandBuffer(m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-        render_asset.command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get(),
-                                                              VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+        render_asset.command_buffer =
+                vierkant::CommandBuffer(m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
         render_asset.query_pool = vierkant::create_query_pool(m_device, query_count, VK_QUERY_TYPE_TIMESTAMP);
     }
 
-    if(create_info.descriptor_pool){ m_descriptor_pool = create_info.descriptor_pool; }
+    if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
     else
     {
         // create a DescriptorPool
         vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096},
-                                                          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         4096},
-                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         4096}};
+                                                          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4096},
+                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4096}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 4096);
     }
 
-    m_pipeline_cache = create_info.pipeline_cache ? create_info.pipeline_cache :
-                       vierkant::PipelineCache::create(m_device);
+    m_pipeline_cache =
+            create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(m_device);
 
     // push constant range
     m_push_constant_range.offset = 0;
@@ -105,11 +102,7 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info) :
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Renderer::Renderer(Renderer &&other) noexcept:
-        Renderer()
-{
-    swap(*this, other);
-}
+Renderer::Renderer(Renderer &&other) noexcept : Renderer() { swap(*this, other); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -123,7 +116,7 @@ Renderer &Renderer::operator=(Renderer other)
 
 void swap(Renderer &lhs, Renderer &rhs) noexcept
 {
-    if(&lhs == &rhs){ return; }
+    if(&lhs == &rhs) { return; }
     std::lock(lhs.m_staging_mutex, rhs.m_staging_mutex);
     std::lock_guard<std::mutex> lock_lhs(lhs.m_staging_mutex, std::adopt_lock);
     std::lock_guard<std::mutex> lock_rhs(rhs.m_staging_mutex, std::adopt_lock);
@@ -180,7 +173,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer, bool 
     if(recycle_commands && frame_assets.command_buffer)
     {
         // invoke delegate
-        if(draw_indirect_delegate){ draw_indirect_delegate(frame_assets.indirect_indexed_bundle); }
+        if(draw_indirect_delegate) { draw_indirect_delegate(frame_assets.indirect_indexed_bundle); }
         return frame_assets.command_buffer.handle();
     }
 
@@ -254,17 +247,15 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
 
     std::vector<vierkant::ImagePtr> textures;
 
-    auto create_texture_hash = [](const std::vector<vierkant::ImagePtr> &textures) -> uint64_t
-    {
+    auto create_texture_hash = [](const std::vector<vierkant::ImagePtr> &textures) -> uint64_t {
         uint64_t texture_hash = 0;
-        for(const auto &tex: textures){ vierkant::hash_combine(texture_hash, tex); }
+        for(const auto &tex: textures) { vierkant::hash_combine(texture_hash, tex); }
         return texture_hash;
     };
 
-    auto create_mesh_key = [create_texture_hash](const drawable_t &drawable) -> texture_index_key_t
-    {
+    auto create_mesh_key = [create_texture_hash](const drawable_t &drawable) -> texture_index_key_t {
         auto it = drawable.descriptors.find(BINDING_TEXTURES);
-        if(it == drawable.descriptors.end() || it->second.images.empty()){ return {drawable.mesh, {}}; }
+        if(it == drawable.descriptors.end() || it->second.images.empty()) { return {drawable.mesh, {}}; }
         const auto &drawable_textures = it->second.images;
         return {drawable.mesh, create_texture_hash(drawable_textures)};
     };
@@ -275,7 +266,7 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
     for(const auto &drawable: frame_assets.drawables)
     {
         auto it = drawable.descriptors.find(BINDING_TEXTURES);
-        if(it == drawable.descriptors.end() || it->second.images.empty()){ continue; }
+        if(it == drawable.descriptors.end() || it->second.images.empty()) { continue; }
 
         const auto &drawable_textures = it->second.images;
 
@@ -298,8 +289,8 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
     desc_texture.images = textures;
     bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
 
-    auto bindless_texture_layout = find_set_layout(bindless_texture_desc, frame_assets.descriptor_set_layouts,
-                                                   next_set_layouts);
+    auto bindless_texture_layout =
+            find_set_layout(bindless_texture_desc, frame_assets.descriptor_set_layouts, next_set_layouts);
 
     // create/resize draw_indirect buffers
     resize_draw_indirect_buffers(frame_assets.drawables.size(), frame_assets);
@@ -338,14 +329,13 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
         if(!drawable.descriptor_set_layout)
         {
             // TODO: improve condition here. idea is to only provide a global texture-array
-            if(indirect_draw){ drawable.descriptors.erase(BINDING_TEXTURES); }
+            if(indirect_draw) { drawable.descriptors.erase(BINDING_TEXTURES); }
 
-            indexed_drawable.descriptor_set_layout = find_set_layout(drawable.descriptors,
-                                                                     frame_assets.descriptor_set_layouts,
-                                                                     next_set_layouts);
+            indexed_drawable.descriptor_set_layout =
+                    find_set_layout(drawable.descriptors, frame_assets.descriptor_set_layouts, next_set_layouts);
             pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
-        else{ indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
+        else { indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
 
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
@@ -398,13 +388,12 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
                     }
                 }
 
-                auto descriptor_set = find_set(drawable->mesh, indexed_drawable.descriptor_set_layout,
-                                               drawable->descriptors,
-                                               frame_assets.descriptor_sets, next_descriptor_sets, false);
+                auto descriptor_set =
+                        find_set(drawable->mesh, indexed_drawable.descriptor_set_layout, drawable->descriptors,
+                                 frame_assets.descriptor_sets, next_descriptor_sets, false);
 
                 auto bindless_texture_set = find_set(drawable->mesh, bindless_texture_layout, bindless_texture_desc,
-                                                     frame_assets.descriptor_sets,
-                                                     next_descriptor_sets, true);
+                                                     frame_assets.descriptor_sets, next_descriptor_sets, true);
 
                 new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
 
@@ -415,9 +404,9 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
 
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
-                auto draw_command =
-                        static_cast<indexed_indirect_command_t *>(frame_assets.indirect_indexed_bundle.draws_in->map()) +
-                        frame_assets.indirect_indexed_bundle.num_draws++;
+                auto draw_command = static_cast<indexed_indirect_command_t *>(
+                                            frame_assets.indirect_indexed_bundle.draws_in->map()) +
+                                    frame_assets.indirect_indexed_bundle.num_draws++;
 
                 //! VkDrawIndexedIndirectCommand
                 *draw_command = {};
@@ -442,9 +431,8 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
             }
             else
             {
-                auto draw_command =
-                        static_cast<VkDrawIndirectCommand *>(frame_assets.indirect_bundle.draws_in->map()) +
-                        frame_assets.indirect_bundle.num_draws++;
+                auto draw_command = static_cast<VkDrawIndirectCommand *>(frame_assets.indirect_bundle.draws_in->map()) +
+                                    frame_assets.indirect_bundle.num_draws++;
 
                 draw_command->vertexCount = drawable->num_vertices;
                 draw_command->instanceCount = 1;
@@ -497,23 +485,20 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
             vkCmdPushConstants(command_buffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0, sizeof(push_constants_t),
                                &push_constants);
 
-            // feature enabled/available, mesh exists and contains a meshlet-buffer, skinning not supported yet
-            bool use_meshlets = vkCmdDrawMeshTasksEXT && use_mesh_shader && mesh && mesh->meshlets && !mesh->root_bone;
+            // feature enabled/available, mesh exists and contains a meshlet-buffer. skinning/morphing not supported
+            bool use_meshlets = vkCmdDrawMeshTasksEXT && use_mesh_shader && mesh && mesh->meshlets &&
+                                !mesh->root_bone && !mesh->morph_buffer;
 
             if(mesh && current_mesh != mesh)
             {
                 current_mesh = mesh;
-                if(!use_meshlets){ mesh->bind_buffers(command_buffer); }
+                if(!use_meshlets) { mesh->bind_buffers(command_buffer); }
             }
 
             // bind descriptor sets (uniforms, samplers)
-            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    pipeline->layout(),
-                                    0,
-                                    draw_asset.descriptor_set_handles.size(),
-                                    draw_asset.descriptor_set_handles.data(),
-                                    0,
-                                    nullptr);
+            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->layout(), 0,
+                                    draw_asset.descriptor_set_handles.size(), draw_asset.descriptor_set_handles.data(),
+                                    0, nullptr);
 
             if(dynamic_scissor)
             {
@@ -535,45 +520,39 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
                     {
                         if(use_meshlets)
                         {
-                            vkCmdDrawMeshTasksIndirectCountEXT(command_buffer,
-                                                               draw_buffer_indexed->handle(),
-                                                               mesh_draw_cmd_offset + indexed_indirect_cmd_stride *
-                                                                                      draw_asset.first_indexed_draw_index,
+                            vkCmdDrawMeshTasksIndirectCountEXT(command_buffer, draw_buffer_indexed->handle(),
+                                                               mesh_draw_cmd_offset +
+                                                                       indexed_indirect_cmd_stride *
+                                                                               draw_asset.first_indexed_draw_index,
                                                                draw_params.draws_counts_out->handle(),
                                                                draw_asset.count_buffer_offset * sizeof(uint32_t),
-                                                               draw_asset.num_draws,
-                                                               indexed_indirect_cmd_stride);
+                                                               draw_asset.num_draws, indexed_indirect_cmd_stride);
                         }
                         else
                         {
-                            vkCmdDrawIndexedIndirectCount(command_buffer,
-                                                          draw_buffer_indexed->handle(),
+                            vkCmdDrawIndexedIndirectCount(command_buffer, draw_buffer_indexed->handle(),
                                                           indexed_indirect_cmd_stride *
-                                                          draw_asset.first_indexed_draw_index,
+                                                                  draw_asset.first_indexed_draw_index,
                                                           draw_params.draws_counts_out->handle(),
                                                           draw_asset.count_buffer_offset * sizeof(uint32_t),
-                                                          draw_asset.num_draws,
-                                                          indexed_indirect_cmd_stride);
+                                                          draw_asset.num_draws, indexed_indirect_cmd_stride);
                         }
                     }
                     else
                     {
                         if(use_meshlets)
                         {
-                            vkCmdDrawMeshTasksIndirectEXT(command_buffer,
-                                                          draw_buffer_indexed->handle(),
-                                                          mesh_draw_cmd_offset + indexed_indirect_cmd_stride *
-                                                                                 draw_asset.first_indexed_draw_index,
-                                                          draw_asset.num_draws,
-                                                          indexed_indirect_cmd_stride);
+                            vkCmdDrawMeshTasksIndirectEXT(command_buffer, draw_buffer_indexed->handle(),
+                                                          mesh_draw_cmd_offset +
+                                                                  indexed_indirect_cmd_stride *
+                                                                          draw_asset.first_indexed_draw_index,
+                                                          draw_asset.num_draws, indexed_indirect_cmd_stride);
                         }
                         else
                         {
-                            vkCmdDrawIndexedIndirect(command_buffer,
-                                                     draw_buffer_indexed->handle(),
+                            vkCmdDrawIndexedIndirect(command_buffer, draw_buffer_indexed->handle(),
                                                      indexed_indirect_cmd_stride * draw_asset.first_indexed_draw_index,
-                                                     draw_asset.num_draws,
-                                                     indexed_indirect_cmd_stride);
+                                                     draw_asset.num_draws, indexed_indirect_cmd_stride);
                         }
                     }
                 }
@@ -581,10 +560,8 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
                 {
                     constexpr size_t indirect_cmd_stride = sizeof(VkDrawIndirectCommand);
 
-                    vkCmdDrawIndirect(command_buffer,
-                                      draw_buffer->handle(),
-                                      indirect_cmd_stride * draw_asset.first_draw_index,
-                                      draw_asset.num_draws,
+                    vkCmdDrawIndirect(command_buffer, draw_buffer->handle(),
+                                      indirect_cmd_stride * draw_asset.first_draw_index, draw_asset.num_draws,
                                       indirect_cmd_stride);
                 }
             }
@@ -594,9 +571,9 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
                 {
                     for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
                     {
-                        auto cmd =
-                                static_cast<indexed_indirect_command_t *>(frame_assets.indirect_indexed_bundle.draws_in->map()) +
-                                draw_asset.first_indexed_draw_index + i;
+                        auto cmd = static_cast<indexed_indirect_command_t *>(
+                                           frame_assets.indirect_indexed_bundle.draws_in->map()) +
+                                   draw_asset.first_indexed_draw_index + i;
 
                         vkCmdDrawMeshTasksEXT(command_buffer, cmd->vk_mesh_draw.groupCountX,
                                               cmd->vk_mesh_draw.groupCountY, cmd->vk_mesh_draw.groupCountZ);
@@ -606,27 +583,23 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
                 {
                     for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
                     {
-                        auto cmd =
-                                static_cast<indexed_indirect_command_t *>(frame_assets.indirect_indexed_bundle.draws_in->map()) +
-                                draw_asset.first_indexed_draw_index + i;
+                        auto cmd = static_cast<indexed_indirect_command_t *>(
+                                           frame_assets.indirect_indexed_bundle.draws_in->map()) +
+                                   draw_asset.first_indexed_draw_index + i;
 
                         vkCmdDrawIndexed(command_buffer, cmd->vk_draw.indexCount, cmd->vk_draw.instanceCount,
-                                         cmd->vk_draw.firstIndex,
-                                         cmd->vk_draw.vertexOffset, cmd->vk_draw.firstInstance);
+                                         cmd->vk_draw.firstIndex, cmd->vk_draw.vertexOffset,
+                                         cmd->vk_draw.firstInstance);
                     }
                 }
                 else
                 {
                     for(uint32_t i = 0; i < draw_asset.num_draws; ++i)
                     {
-                        auto cmd =
-                                static_cast<VkDrawIndirectCommand *>(frame_assets.indirect_bundle.draws_in->map()) +
-                                draw_asset.first_draw_index + i;
+                        auto cmd = static_cast<VkDrawIndirectCommand *>(frame_assets.indirect_bundle.draws_in->map()) +
+                                   draw_asset.first_draw_index + i;
 
-                        vkCmdDraw(command_buffer,
-                                  cmd->vertexCount,
-                                  cmd->instanceCount,
-                                  cmd->firstVertex,
+                        vkCmdDraw(command_buffer, cmd->vertexCount, cmd->instanceCount, cmd->firstVertex,
                                   cmd->firstInstance);
                     }
                 }
@@ -649,19 +622,19 @@ void Renderer::reset()
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_current_index = 0;
     m_staged_drawables.clear();
-    for(auto &frame_asset: m_frame_assets){ frame_asset = {}; }
+    for(auto &frame_asset: m_frame_assets) { frame_asset = {}; }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Renderer::set_function_pointers()
 {
-    vkCmdDrawMeshTasksEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksEXT>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkCmdDrawMeshTasksEXT"));
-    vkCmdDrawMeshTasksIndirectEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectEXT>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkCmdDrawMeshTasksIndirectEXT"));
-    vkCmdDrawMeshTasksIndirectCountEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectCountEXT>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkCmdDrawMeshTasksIndirectCountEXT"));
+    vkCmdDrawMeshTasksEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksEXT>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkCmdDrawMeshTasksEXT"));
+    vkCmdDrawMeshTasksIndirectEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectEXT>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkCmdDrawMeshTasksIndirectEXT"));
+    vkCmdDrawMeshTasksIndirectCountEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectCountEXT>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkCmdDrawMeshTasksIndirectCountEXT"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -701,7 +674,7 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
             }
-            else{ mesh_index = mesh_entry_it->second; }
+            else { mesh_index = mesh_entry_it->second; }
 
             mat = drawables[i].mesh->materials[drawables[i].mesh->entries[drawables[i].entry_index].material_index];
 
@@ -711,18 +684,17 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
                 material_data.push_back(drawables[i].material);
             }
         }
-        else{ material_data.push_back(drawables[i].material); }
+        else { material_data.push_back(drawables[i].material); }
 
         mesh_draws[i].current_matrices = drawables[i].matrices;
         mesh_draws[i].mesh_index = mesh_index;
         mesh_draws[i].material_index = material_index_map[mat];
 
-        if(drawables[i].last_matrices){ mesh_draws[i].last_matrices = *drawables[i].last_matrices; }
-        else{ mesh_draws[i].last_matrices = drawables[i].matrices; }
+        if(drawables[i].last_matrices) { mesh_draws[i].last_matrices = *drawables[i].last_matrices; }
+        else { mesh_draws[i].last_matrices = drawables[i].matrices; }
     }
 
-    auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer)
-    {
+    auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer) {
         // create/upload joined buffers
         if(!out_buffer)
         {
@@ -730,16 +702,14 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
         }
-        else{ out_buffer->set_data(array); }
+        else { out_buffer->set_data(array); }
     };
 
     std::vector<staging_copy_info_t> staging_copies;
 
-    auto add_staging_copy = [&staging_copies, device = m_device](const auto &array,
-                                                                 vierkant::BufferPtr &outbuffer,
+    auto add_staging_copy = [&staging_copies, device = m_device](const auto &array, vierkant::BufferPtr &outbuffer,
                                                                  VkPipelineStageFlags2 dst_stage,
-                                                                 VkAccessFlags2 dst_access)
-    {
+                                                                 VkAccessFlags2 dst_access) {
         using elem_t = typename std::decay<decltype(array)>::type::value_type;
         size_t num_bytes = array.size() * sizeof(elem_t);
 
@@ -747,10 +717,10 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
         {
             outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes,
                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                                  VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else{ outbuffer->set_data(nullptr, num_bytes); }
+        else { outbuffer->set_data(nullptr, num_bytes); }
 
         vierkant::staging_copy_info_t info = {};
         info.num_bytes = num_bytes;
@@ -765,9 +735,8 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
     {
         if(!frame_asset.staging_buffer)
         {
-            frame_asset.staging_buffer = vierkant::Buffer::create(m_device, nullptr, 1UL << 20,
-                                                                  VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                                  VMA_MEMORY_USAGE_CPU_ONLY);
+            frame_asset.staging_buffer = vierkant::Buffer::create(
+                    m_device, nullptr, 1UL << 20, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
         }
         frame_asset.staging_command_buffer.begin();
 
@@ -808,8 +777,8 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor]: descriptors)
     {
-        for(auto &img: descriptor.images){ img.reset(); }
-        for(auto &buf: descriptor.buffers){ buf.reset(); }
+        for(auto &img: descriptor.images) { img.reset(); }
+        for(auto &buf: descriptor.buffers) { buf.reset(); }
     }
 
     // retrieve set-layout
@@ -821,7 +790,7 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
         current.erase(set_it);
         set_it = new_it;
     }
-    else{ set_it = next.find(descriptors); }
+    else { set_it = next.find(descriptors); }
 
     // not found -> create and insert descriptor-set layout
     if(set_it == next.end())
@@ -832,12 +801,9 @@ DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
     return set_it->second;
 }
 
-DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh,
-                                    const DescriptorSetLayoutPtr &set_layout,
-                                    const descriptor_map_t &descriptors,
-                                    descriptor_set_map_t &current,
-                                    descriptor_set_map_t &next,
-                                    bool variable_count)
+DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh, const DescriptorSetLayoutPtr &set_layout,
+                                    const descriptor_map_t &descriptors, descriptor_set_map_t &current,
+                                    descriptor_set_map_t &next, bool variable_count)
 {
     // handle for a descriptor-set
     DescriptorSetPtr ret;
@@ -875,12 +841,11 @@ DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh,
         // insert all created assets and store in map
         next[key] = ret;
     }
-    else{ ret = descriptor_set_it->second; }
+    else { ret = descriptor_set_it->second; }
     return ret;
 }
 
-void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
-                                            frame_assets_t &frame_asset)
+void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_asset)
 {
     // reserve space for indirect drawing-commands
     size_t num_bytes_indexed = std::max<size_t>(num_drawables * sizeof(indexed_indirect_command_t), 1UL << 20);
@@ -889,24 +854,21 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
     if(!frame_asset.indirect_indexed_bundle.draws_in ||
        frame_asset.indirect_indexed_bundle.draws_in->num_bytes() < num_bytes_indexed)
     {
-        frame_asset.indirect_indexed_bundle.draws_in = vierkant::Buffer::create(m_device, nullptr, num_bytes_indexed,
-                                                                                VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                                                VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                                                VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_asset.indirect_indexed_bundle.draws_in =
+                vierkant::Buffer::create(m_device, nullptr, num_bytes_indexed,
+                                         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
-    else{ frame_asset.indirect_indexed_bundle.draws_in->set_data(nullptr, num_bytes_indexed); }
+    else { frame_asset.indirect_indexed_bundle.draws_in->set_data(nullptr, num_bytes_indexed); }
 
-    if(!frame_asset.indirect_bundle.draws_in ||
-       frame_asset.indirect_bundle.draws_in->num_bytes() < num_bytes)
+    if(!frame_asset.indirect_bundle.draws_in || frame_asset.indirect_bundle.draws_in->num_bytes() < num_bytes)
     {
-        frame_asset.indirect_bundle.draws_in = vierkant::Buffer::create(m_device, nullptr,
-                                                                        num_bytes,
-                                                                        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
-                                                                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                                        VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_asset.indirect_bundle.draws_in = vierkant::Buffer::create(
+                m_device, nullptr, num_bytes, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
-    else{ frame_asset.indirect_bundle.draws_in->set_data(nullptr, num_bytes); }
+    else { frame_asset.indirect_bundle.draws_in->set_data(nullptr, num_bytes); }
 
     //////////////////////////// indirect-draw GPU buffers /////////////////////////////////////////////////////////////
 
@@ -918,21 +880,20 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables,
             frame_asset.indirect_indexed_bundle.draws_out = vierkant::Buffer::create(
                     m_device, nullptr, num_bytes_indexed,
                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else{ frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed); }
+        else { frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed); }
 
-        if(!frame_asset.indirect_bundle.draws_out ||
-           frame_asset.indirect_bundle.draws_out->num_bytes() < num_bytes)
+        if(!frame_asset.indirect_bundle.draws_out || frame_asset.indirect_bundle.draws_out->num_bytes() < num_bytes)
         {
             frame_asset.indirect_bundle.draws_out = vierkant::Buffer::create(
                     m_device, nullptr, num_bytes,
                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else{ frame_asset.indirect_bundle.draws_out->set_data(nullptr, num_bytes); }
+        else { frame_asset.indirect_bundle.draws_out->set_data(nullptr, num_bytes); }
     }
 }
 
@@ -951,8 +912,7 @@ Renderer::frame_assets_t &Renderer::next_frame()
     uint64_t timestamps[query_count] = {};
 
     auto query_result = vkGetQueryPoolResults(m_device->handle(), frame_assets.query_pool.get(), 0, query_count,
-                                              sizeof(timestamps), timestamps, sizeof(uint64_t),
-                                              VK_QUERY_RESULT_64_BIT);
+                                              sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
 
     if(query_result == VK_SUCCESS)
     {
@@ -971,8 +931,8 @@ Renderer::frame_assets_t &Renderer::next_frame()
 
 bool Renderer::descriptor_set_key_t::operator==(const Renderer::descriptor_set_key_t &other) const
 {
-    if(mesh != other.mesh){ return false; }
-    if(descriptors != other.descriptors){ return false; }
+    if(mesh != other.mesh) { return false; }
+    if(descriptors != other.descriptors) { return false; }
     return true;
 }
 

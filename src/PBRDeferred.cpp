@@ -456,7 +456,8 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             {
                 const auto &entry = mesh->entries[i];
                 id_entry_key_t key = {static_cast<uint32_t>(entity), i};
-                const auto weights = node_morph_weights[entry.node_index];
+                std::vector<float> weights = {node_morph_weights[entry.node_index].begin(),
+                                              node_morph_weights[entry.node_index].end()};
 
                 morph_params_t p;
                 p.base_vertex = entry.morph_vertex_offset;
