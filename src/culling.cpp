@@ -2,9 +2,9 @@
 // Created by crocdialer on 6/14/20.
 //
 
-#include "vierkant/hash.hpp"
 #include "vierkant/culling.hpp"
 #include "vierkant/Visitor.hpp"
+#include "vierkant/hash.hpp"
 
 namespace vierkant
 {
@@ -35,9 +35,12 @@ size_t vierkant::id_entry_key_hash_t::operator()(vierkant::id_entry_key_t const 
 
 struct scoped_stack_push
 {
-    std::stack<glm::mat4> &stack;
+    std::stack<vierkant::transform_t> &stack;
 
-    scoped_stack_push(std::stack<glm::mat4> &stack, const glm::mat4 &mat) : stack(stack) { stack.push(mat); }
+    scoped_stack_push(std::stack<vierkant::transform_t> &stack, const vierkant::transform_t &t) : stack(stack)
+    {
+        stack.push(t);
+    }
 
     ~scoped_stack_push() { stack.pop(); }
 };
@@ -48,15 +51,15 @@ public:
     CullVisitor(vierkant::CameraPtr cam, bool check_intersection, bool world_space)
         : m_frustum(cam->frustum()), m_camera(std::move(cam)), m_check_intersection(check_intersection)
     {
-        if(!world_space) { m_transform_stack.push(m_camera->view_matrix()); }
-        else { m_transform_stack.push(glm::mat4(1)); }
+        if(!world_space) { m_transform_stack.push(vierkant::transform_cast(m_camera->view_matrix())); }
+        else { m_transform_stack.push({}); }
     };
 
     void visit(vierkant::Object3D &object) override
     {
         if(should_visit(object))
         {
-            auto model_view = m_transform_stack.top() * vierkant::mat4_cast(object.transform);
+            auto model_view = m_transform_stack.top() * object.transform;
             vierkant::MeshConstPtr mesh;
 
             // keep track of meshes
@@ -68,7 +71,7 @@ public:
                 // create drawables
                 vierkant::create_drawables_params_t drawable_params = {};
                 drawable_params.mesh = mesh;
-                drawable_params.model_view = model_view;
+                drawable_params.model_view = vierkant::mat4_cast(model_view);
 
                 if(object.has_component<animation_state_t>())
                 {
@@ -97,8 +100,7 @@ public:
                 m_cull_result.lights.push_back(vierkant::convert_light(lightsource));
             }
 
-            scoped_stack_push scoped_stack_push(m_transform_stack,
-                                                m_transform_stack.top() * mat4_cast(object.transform));
+            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform);
             for(Object3DPtr &child: object.children) { child->accept(*this); }
         }
     }
@@ -110,7 +112,7 @@ public:
             if(m_check_intersection)
             {
                 // check intersection of aabb in eye-coords with view-frustum
-                auto aabb = object.aabb().transform(m_transform_stack.top() * mat4_cast(object.transform));
+                auto aabb = object.aabb().transform(mat4_cast(m_transform_stack.top() * object.transform));
                 return vierkant::intersect(m_frustum, aabb);
             }
             return true;
@@ -126,7 +128,7 @@ public:
 
     bool m_check_intersection;
 
-    std::stack<glm::mat4> m_transform_stack;
+    std::stack<vierkant::transform_t> m_transform_stack;
 
     cull_result_t m_cull_result;
 };
