@@ -4,9 +4,10 @@
 
 #pragma once
 
-#include <vector>
 #include <map>
+#include <vector>
 #include <vierkant/math.hpp>
+#include <vierkant/transform.hpp>
 
 namespace vierkant
 {
@@ -66,14 +67,12 @@ struct animation_state_t
 };
 
 template<typename T>
-void update_animation(const animation_t<T> &animation,
-                      double time_delta,
-                      vierkant::animation_state_t &animation_state)
+void update_animation(const animation_t<T> &animation, double time_delta, vierkant::animation_state_t &animation_state)
 {
     if(animation_state.playing)
     {
         animation_state.current_time += time_delta * animation.ticks_per_sec * animation_state.animation_speed;
-        if(animation_state.current_time > animation.duration){ animation_state.current_time -= animation.duration; }
+        if(animation_state.current_time > animation.duration) { animation_state.current_time -= animation.duration; }
         animation_state.current_time += animation_state.current_time < 0.f ? animation.duration : 0.f;
     }
 }
@@ -87,12 +86,9 @@ void update_animation(const animation_t<T> &animation,
  *
  * @param   out_transform   ref to a mat4, used to write out an interpolated transformation.
  */
-void create_animation_transform(const animation_keys_t &keys,
-                                float time,
-                                InterpolationMode interpolation_mode,
-                                glm::mat4 &out_transform);
+void create_animation_transform(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode,
+                                vierkant::transform_t &out_transform);
 
-std::vector<double> create_morph_weights(const animation_keys_t &keys,
-                                         float time,
+std::vector<double> create_morph_weights(const animation_keys_t &keys, float time,
                                          InterpolationMode interpolation_mode);
-}
+}// namespace vierkant

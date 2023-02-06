@@ -20,17 +20,31 @@ struct transform_t_
 };
 using transform_t = transform_t_<float>;
 
+/**
+ * @brief   operator to apply a vierkant::transform_t to a 3d-vector.
+ *
+ * @param   t   a provided vierkant::transform_t
+ * @param   v   a provided vector
+ * @return  a transformed vector.
+ */
 template<typename T1, typename T2>
-inline glm::vec<3, T2> operator*(const transform_t_<T1> &transform, const glm::vec<3, T2> &p)
+inline glm::vec<3, T2> operator*(const transform_t_<T1> &transform, const glm::vec<3, T2> &v)
 {
     using vec3_t = typename std::decay<decltype(transform.translation)>::type;
-    vec3_t ret = p;
+    vec3_t ret = v;
     ret *= transform.scale;
     ret = glm::rotate(transform.rotation, ret);
     ret += transform.translation;
     return ret;
 }
 
+/**
+ * @brief   operator to combine/chain two vierkant::transform_t, analog to multiplying two mat4.
+ *
+ * @param   lhs     1st provided vierkant::transform_t
+ * @param   rhs     2nd provided vierkant::transform_t
+ * @return  a combined vierkant::transform.
+ */
 template<typename T>
 inline transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
@@ -64,6 +78,12 @@ inline bool epsilon_equal(const transform_t_<T> &lhs, const transform_t_<T> &rhs
            glm::all(glm::epsilonEqual(lhs.scale, rhs.scale, epsilon));
 }
 
+/**
+ * @brief   inverse can be used to inverse a vierkant::transform_t so that a * inverse(a) == identity.
+ *
+ * @param   t   a provided vierkant::transform_t
+ * @return  the inverted vierkant::transform.
+ */
 template<typename T>
 inline transform_t_<T> inverse(const transform_t_<T> &t)
 {

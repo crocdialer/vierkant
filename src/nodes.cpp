@@ -27,7 +27,7 @@ static inline void bfs(const NodeConstPtr &root, const std::function<void(const 
 
 //! recursion helper-routine
 void build_node_matrices_helper(const NodeConstPtr &node, const node_animation_t &animation, double animation_time,
-                                std::vector<glm::mat4> &matrices, glm::mat4 global_joint_transform);
+                                std::vector<glm::mat4> &matrices, vierkant::transform_t global_joint_transform);
 
 uint32_t num_nodes_in_hierarchy(const NodeConstPtr &root)
 {
@@ -77,15 +77,15 @@ void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &a
     if(!root) { return; }
     matrices.resize(num_nodes_in_hierarchy(root));
 
-    std::deque<std::pair<vierkant::nodes::NodeConstPtr, glm::mat4>> node_queue;
-    node_queue.emplace_back(root, glm::mat4(1));
+    std::deque<std::pair<vierkant::nodes::NodeConstPtr, vierkant::transform_t>> node_queue;
+    node_queue.emplace_back(root, vierkant::transform_t{});
 
     while(!node_queue.empty())
     {
         auto [node, global_joint_transform] = node_queue.front();
         node_queue.pop_front();
 
-        glm::mat4 node_transform = mat4_cast(node->transform);
+        auto node_transform = node->transform;
         auto it = animation.keys.find(node);
 
         if(it != animation.keys.end())
@@ -96,7 +96,7 @@ void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &a
         global_joint_transform = global_joint_transform * node_transform;
 
         // add final transform
-        matrices[node->index] = global_joint_transform * node->offset;
+        matrices[node->index] = mat4_cast(global_joint_transform * node->offset);
 
         // queue all children
         for(auto &child_node: node->children) { node_queue.emplace_back(child_node, global_joint_transform); }
@@ -108,13 +108,13 @@ void build_node_matrices(const NodeConstPtr &root, const node_animation_t &anima
 {
     if(!root) { return; }
     matrices.resize(num_nodes_in_hierarchy(root));
-    build_node_matrices_helper(root, animation, animation_time, matrices, glm::mat4(1));
+    build_node_matrices_helper(root, animation, animation_time, matrices, {});
 }
 
 void build_node_matrices_helper(const NodeConstPtr &node, const node_animation_t &animation, double animation_time,
-                                std::vector<glm::mat4> &matrices, glm::mat4 global_joint_transform)
+                                std::vector<glm::mat4> &matrices, vierkant::transform_t global_joint_transform)
 {
-    glm::mat4 node_transform = mat4_cast(node->transform);
+    auto node_transform = node->transform;
 
     auto it = animation.keys.find(node);
 
@@ -127,7 +127,7 @@ void build_node_matrices_helper(const NodeConstPtr &node, const node_animation_t
     global_joint_transform = global_joint_transform * node_transform;
 
     // add final transform
-    matrices[node->index] = global_joint_transform * node->offset;
+    matrices[node->index] = mat4_cast(global_joint_transform * node->offset);
 
     // recursion through all children
     for(auto &b: node->children)

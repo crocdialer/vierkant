@@ -187,16 +187,15 @@ void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer, const vierka
     std::vector<glm::vec3> lines;
     lines.reserve(256);
 
-    std::deque<std::pair<vierkant::nodes::NodeConstPtr, glm::mat4>> node_queue;
-    node_queue.emplace_back(root_node, glm::mat4(1));
+    std::deque<std::pair<vierkant::nodes::NodeConstPtr, vierkant::transform_t>> node_queue;
+    node_queue.emplace_back(root_node, vierkant::transform_t());
 
     while(!node_queue.empty())
     {
         auto [node, joint_transform] = node_queue.front();
         node_queue.pop_front();
 
-        glm::mat4 node_transform = mat4_cast(node->transform);
-
+        auto node_transform = node->transform;
         auto it = animation.keys.find(node);
 
         if(it != animation.keys.end())
@@ -210,9 +209,9 @@ void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer, const vierka
         for(auto &child_node: node->children)
         {
             // draw line from current to child
-            auto child_transform = joint_transform * mat4_cast(child_node->transform);
-            lines.push_back(joint_transform[3].xyz());
-            lines.push_back(child_transform[3].xyz());
+            auto child_transform = joint_transform * child_node->transform;
+            lines.push_back(joint_transform.translation);
+            lines.push_back(child_transform.translation);
 
             node_queue.emplace_back(child_node, joint_transform);
         }

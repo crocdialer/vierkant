@@ -602,7 +602,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
             bone_node->parent = parent_node;
             bone_node->name = skeleton_node.name;
             bone_node->index = joint_map[current_index];
-            bone_node->offset = inverse_binding_matrices[joint_map[current_index]];
+            bone_node->offset = vierkant::transform_cast(inverse_binding_matrices[joint_map[current_index]]);
             bone_node->transform = local_joint_transform;
 
             node_map[current_index] = bone_node;

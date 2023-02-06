@@ -21,7 +21,7 @@ struct node_t
 {
     std::string name;
     vierkant::transform_t transform = {};
-    glm::mat4 offset = glm::mat4(1);
+    vierkant::transform_t offset = {};
     uint32_t index = 0;
     NodePtr parent = nullptr;
     std::list<NodePtr> children;
