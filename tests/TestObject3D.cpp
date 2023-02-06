@@ -43,14 +43,14 @@ BOOST_AUTO_TEST_CASE(test_Object3D_hierarchy)
 
     a->transform.translation = {0, 100, 0};
     b->transform.translation = {0, 50, 0};
-    BOOST_CHECK(b->global_transform().translation == glm::dvec3(0, 150, 0));
+    BOOST_CHECK(glm::vec3(b->global_transform().translation) == glm::vec3(0, 150, 0));
 
     vierkant::transform_t t = {};
     t.translation = {1, 2, 3};
-    t.rotation = glm::angleAxis(glm::quarter_pi<double>(), glm::dvec3(0, 1, 0));
+    t.rotation = glm::angleAxis(glm::quarter_pi<float>(), glm::vec3(0, 1, 0));
     t.scale = glm::vec3(.5f);
     b->set_global_transform(t);
-    BOOST_CHECK(b->global_transform().translation == glm::dvec3(1, 2, 3));
+    BOOST_CHECK(glm::vec3(b->global_transform().translation) == glm::vec3(1, 2, 3));
 }
 
 BOOST_AUTO_TEST_CASE(test_Object3D_scene_entity)

@@ -10,7 +10,7 @@
 namespace vierkant
 {
 
-//! simple struct grouping data for a rigid transform (+ non-uniform scale, da fuck: no shear, no tear, non-projective)
+//! transform_t_ is a struct grouping data for rigid transforms with non-uniform scaling
 template<typename T>
 struct transform_t_
 {
@@ -18,7 +18,7 @@ struct transform_t_
     glm::qua<T> rotation = glm::qua<T>(1, 0, 0, 0);
     glm::vec<3, T> scale = glm::vec<3, T>(1);
 };
-using transform_t = transform_t_<double>;
+using transform_t = transform_t_<float>;
 
 template<typename T1, typename T2>
 inline glm::vec<3, T2> operator*(const transform_t_<T1> &transform, const glm::vec<3, T2> &p)
@@ -32,7 +32,7 @@ inline glm::vec<3, T2> operator*(const transform_t_<T1> &transform, const glm::v
 }
 
 template<typename T>
-inline transform_t operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
+inline transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
     transform_t_<T> ret = lhs;
     ret.translation += glm::rotate(lhs.rotation, rhs.translation * lhs.scale);
@@ -68,9 +68,9 @@ template<typename T>
 inline transform_t_<T> inverse(const transform_t_<T> &t)
 {
     transform_t_<T> ret;
-    ret.scale = 1.0 / t.scale;
+    ret.scale = T(1) / t.scale;
     ret.rotation = glm::inverse(t.rotation);
-    ret.translation = -(ret.rotation * (t.translation / t.scale));
+    ret.translation = -(ret.rotation * (t.translation * ret.scale));
     return ret;
 }
 
@@ -85,13 +85,23 @@ inline glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
     return tmp;
 }
 
-template<typename T1 = double, typename T2>
+template<typename T1 = float, typename T2>
 inline transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
 {
     transform_t_<T1> ret;
     glm::vec<3, T1> skew;
     glm::vec<4, T1> perspective;
     glm::decompose(glm::mat<4, 4, T1>(m), ret.scale, ret.rotation, ret.translation, skew, perspective);
+    return ret;
+}
+
+template<typename T, typename U>
+inline transform_t_<T> mix(const transform_t_<T> &lhs, const transform_t_<T> &rhs, U v)
+{
+    transform_t_<T> ret;
+    ret.translation = glm::mix(lhs.translation, rhs.translation, v);
+    ret.rotation = glm::slerp(lhs.rotation, rhs.rotation, v);
+    ret.scale = glm::mix(lhs.scale, rhs.scale, v);
     return ret;
 }
 
