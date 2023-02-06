@@ -456,8 +456,11 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             {
                 const auto &entry = mesh->entries[i];
                 id_entry_key_t key = {static_cast<uint32_t>(entity), i};
-                std::vector<float> weights = {node_morph_weights[entry.node_index].begin(),
-                                              node_morph_weights[entry.node_index].end()};
+
+                // ridiculous: seems the easiest way to express for MSVC without warnings!?
+                std::vector<float> weights(node_morph_weights[entry.node_index].size());
+                std::transform(node_morph_weights[entry.node_index].begin(), node_morph_weights[entry.node_index].end(),
+                               weights.begin(), [](double w) -> float { return static_cast<float>(w); });
 
                 morph_params_t p;
                 p.base_vertex = entry.morph_vertex_offset;
