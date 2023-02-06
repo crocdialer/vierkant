@@ -603,7 +603,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
             bone_node->name = skeleton_node.name;
             bone_node->index = joint_map[current_index];
             bone_node->offset = inverse_binding_matrices[joint_map[current_index]];
-            bone_node->transform = mat4_cast(local_joint_transform);
+            bone_node->transform = local_joint_transform;
 
             node_map[current_index] = bone_node;
 
@@ -873,7 +873,7 @@ mesh_assets_t gltf(const std::filesystem::path &path)
         current_node->name = tiny_node.name;
         current_node->index = current_index;
         current_node->parent = parent_node;
-        current_node->transform = mat4_cast(local_transform);
+        current_node->transform = local_transform;
 
         assert(parent_node);
         parent_node->children.push_back(current_node);
