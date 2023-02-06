@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <vierkant/math.hpp>
 #include <vierkant/hash.hpp>
+#include <vierkant/math.hpp>
 
 namespace vierkant
 {
@@ -23,8 +23,8 @@ using transform_t = transform_t_<double>;
 template<typename T1, typename T2>
 inline glm::vec<3, T2> operator*(const transform_t_<T1> &transform, const glm::vec<3, T2> &p)
 {
-    using elem_t = typename std::decay<decltype(transform.translation)>::type;
-    elem_t ret = p;
+    using vec3_t = typename std::decay<decltype(transform.translation)>::type;
+    vec3_t ret = p;
     ret *= transform.scale;
     ret = glm::rotate(transform.rotation, ret);
     ret += transform.translation;
@@ -51,10 +51,31 @@ inline bool operator==(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 }
 
 template<typename T>
-inline bool operator!=(const transform_t_<T> &lhs, const transform_t_<T> &rhs) { return !(lhs == rhs); }
+inline bool operator!=(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
+{
+    return !(lhs == rhs);
+}
+
+template<typename T>
+inline bool epsilon_equal(const transform_t_<T> &lhs, const transform_t_<T> &rhs, T epsilon)
+{
+    return glm::all(glm::epsilonEqual(lhs.translation, rhs.translation, epsilon)) &&
+           glm::all(glm::epsilonEqual(lhs.rotation, rhs.rotation, epsilon)) &&
+           glm::all(glm::epsilonEqual(lhs.scale, rhs.scale, epsilon));
+}
+
+template<typename T>
+inline transform_t_<T> inverse(const transform_t_<T> &t)
+{
+    transform_t_<T> ret;
+    ret.scale = 1.0 / t.scale;
+    ret.rotation = glm::inverse(t.rotation);
+    ret.translation = -(ret.rotation * (t.translation / t.scale));
+    return ret;
+}
 
 template<typename T1 = float, typename T2>
-glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
+inline glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
 {
     glm::mat<4, 4, T1> tmp = glm::mat4_cast(t.rotation);
     tmp[0] *= t.scale.x;
@@ -65,7 +86,7 @@ glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
 }
 
 template<typename T1 = double, typename T2>
-transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
+inline transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
 {
     transform_t_<T1> ret;
     glm::vec<3, T1> skew;
@@ -92,4 +113,4 @@ struct hash<vierkant::transform_t_<T>>
     }
 };
 
-}
+}// namespace std

@@ -86,4 +86,10 @@ BOOST_AUTO_TEST_CASE(test_rigid_transform)
     tc1 = a * b * c * p1;
     tc2 = mat4_cast<double>(a) * mat4_cast<double>(b) * mat4_cast<double>(c) * glm::dvec4(p1, 1.);
     BOOST_CHECK(glm::all(glm::epsilonEqual(tc1, tc2, epsilon)));
+
+    // check transform inversion
+    BOOST_CHECK(vierkant::epsilon_equal<double>(a * vierkant::inverse(a), identity, epsilon));
+    BOOST_CHECK(vierkant::epsilon_equal<double>(b * vierkant::inverse(b), identity, epsilon));
+    BOOST_CHECK(vierkant::epsilon_equal<double>(c * vierkant::inverse(c), identity, epsilon));
+    BOOST_CHECK(vierkant::epsilon_equal<double>(a * b * c * vierkant::inverse(a * b * c), identity, epsilon));
 }
