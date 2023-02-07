@@ -8,8 +8,12 @@
 namespace vierkant::nodes
 {
 
-static inline void bfs(const NodeConstPtr &root, const std::function<void(const NodeConstPtr &)> &fn)
+using traversal_fn = std::function<bool(const NodeConstPtr &)>;
+
+static inline void bfs(const NodeConstPtr &root, const traversal_fn &fn)
 {
+    if(!root) { return; }
+
     std::deque<vierkant::nodes::NodeConstPtr> node_queue;
     node_queue.emplace_back(root);
 
@@ -18,44 +22,45 @@ static inline void bfs(const NodeConstPtr &root, const std::function<void(const 
         auto node = std::move(node_queue.front());
         node_queue.pop_front();
 
-        if(fn) { fn(node); }
+        // evaluate traversal-function, optionally abort traversal
+        if(fn && !fn(node)) { return; }
 
         // queue all children
         for(auto &child_node: node->children) { node_queue.emplace_back(child_node); }
     }
 }
 
-//! recursion helper-routine
-void build_node_matrices_helper(const NodeConstPtr &node, const node_animation_t &animation, double animation_time,
-                                std::vector<glm::mat4> &matrices, vierkant::transform_t global_joint_transform);
-
 uint32_t num_nodes_in_hierarchy(const NodeConstPtr &root)
 {
-    if(!root) { return 0; }
-    uint32_t ret = 1;
-    for(const auto &b: root->children) { ret += num_nodes_in_hierarchy(b); }
+    uint32_t ret = 0;
+    bfs(root, [&ret](const NodeConstPtr &) {
+        ret++;
+        return true;
+    });
     return ret;
 }
 
-NodeConstPtr node_by_name(NodeConstPtr root, const std::string &name)
+NodeConstPtr node_by_name(const NodeConstPtr& root, const std::string &name)
 {
-    if(!root) { return nullptr; }
-    if(root->name == name) { return root; }
-    for(const auto &c: root->children)
-    {
-        auto b = node_by_name(c, name);
-        if(b) { return b; }
-    }
-    return nullptr;
+    NodeConstPtr ret;
+    bfs(root, [&name, &ret](const NodeConstPtr &node) {
+        if(node->name == name)
+        {
+            ret = node;
+            return false;
+        }
+        return true;
+    });
+    return ret;
 }
 
-void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, double animation_time,
+void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
                              std::vector<std::vector<double>> &morph_weights)
 {
     if(!root) { return; }
     morph_weights.resize(num_nodes_in_hierarchy(root));
 
-    bfs(root, [&morph_weights, &animation, animation_time](auto &node) {
+    bfs(root, [&morph_weights, &animation, time](auto &node) {
         auto it = animation.keys.find(node);
 
         if(it != animation.keys.end())
@@ -64,18 +69,18 @@ void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &a
 
             if(!animation_keys.morph_weights.empty())
             {
-                morph_weights[node->index] =
-                        create_morph_weights(animation_keys, animation_time, animation.interpolation_mode);
+                morph_weights[node->index] = create_morph_weights(animation_keys, time, animation.interpolation_mode);
             }
         }
+        return true;
     });
 }
 
-void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &animation, double animation_time,
-                             std::vector<glm::mat4> &matrices)
+void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                             std::vector<vierkant::transform_t> &transforms)
 {
     if(!root) { return; }
-    matrices.resize(num_nodes_in_hierarchy(root));
+    transforms.resize(num_nodes_in_hierarchy(root));
 
     std::deque<std::pair<vierkant::nodes::NodeConstPtr, vierkant::transform_t>> node_queue;
     node_queue.emplace_back(root, vierkant::transform_t{});
@@ -91,48 +96,15 @@ void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &a
         if(it != animation.keys.end())
         {
             const auto &animation_keys = it->second;
-            create_animation_transform(animation_keys, animation_time, animation.interpolation_mode, node_transform);
+            create_animation_transform(animation_keys, time, animation.interpolation_mode, node_transform);
         }
         global_joint_transform = global_joint_transform * node_transform;
 
         // add final transform
-        matrices[node->index] = mat4_cast(global_joint_transform * node->offset);
+        transforms[node->index] = global_joint_transform * node->offset;
 
         // queue all children
         for(auto &child_node: node->children) { node_queue.emplace_back(child_node, global_joint_transform); }
-    }
-}
-
-void build_node_matrices(const NodeConstPtr &root, const node_animation_t &animation, double animation_time,
-                         std::vector<glm::mat4> &matrices)
-{
-    if(!root) { return; }
-    matrices.resize(num_nodes_in_hierarchy(root));
-    build_node_matrices_helper(root, animation, animation_time, matrices, {});
-}
-
-void build_node_matrices_helper(const NodeConstPtr &node, const node_animation_t &animation, double animation_time,
-                                std::vector<glm::mat4> &matrices, vierkant::transform_t global_joint_transform)
-{
-    auto node_transform = node->transform;
-
-    auto it = animation.keys.find(node);
-
-    if(it != animation.keys.end())
-    {
-        const auto &animation_keys = it->second;
-        create_animation_transform(animation_keys, static_cast<float>(animation_time), animation.interpolation_mode,
-                                   node_transform);
-    }
-    global_joint_transform = global_joint_transform * node_transform;
-
-    // add final transform
-    matrices[node->index] = mat4_cast(global_joint_transform * node->offset);
-
-    // recursion through all children
-    for(auto &b: node->children)
-    {
-        build_node_matrices_helper(b, animation, animation_time, matrices, global_joint_transform);
     }
 }
 

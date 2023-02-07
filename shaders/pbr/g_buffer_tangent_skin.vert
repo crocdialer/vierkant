@@ -6,6 +6,7 @@
 
 #include "../renderer/types.glsl"
 #include "../renderer/packed_vertex.glsl"
+#include "../renderer/transform.glsl"
 #include "../utils/camera.glsl"
 
 layout(push_constant) uniform PushConstants {
@@ -32,14 +33,14 @@ layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBu
     mesh_draw_t draws[];
 };
 
-layout(std140, binding = BINDING_BONES) readonly buffer UBOBones
+layout(std140, binding = BINDING_BONES, scalar) readonly buffer UBOBones
 {
-    mat4 u_bones[];
+    transform_t u_bones[];
 };
 
-layout(std140, binding = BINDING_PREVIOUS_BONES) readonly buffer UBOPreviousBones
+layout(std140, binding = BINDING_PREVIOUS_BONES, scalar) readonly buffer UBOPreviousBones
 {
-    mat4 u_previous_bones[];
+    transform_t u_previous_bones[];
 };
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
@@ -77,13 +78,13 @@ void main()
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
-    vec4 current_vertex = vec4(0);
-    vec4 last_vertex = vec4(0);
+    vec3 current_vertex = vec3(0);
+    vec3 last_vertex = vec3(0);
 
     for (int i = 0; i < 4; i++)
     {
-        current_vertex += u_bones[bone_ids[i]] * vec4(v.position, 1.0) * bone_weights[i];
-        last_vertex += u_previous_bones[bone_ids[i]] * vec4(v.position, 1.0) * bone_weights[i];
+        current_vertex += apply_transform(u_bones[bone_ids[i]], v.position) * bone_weights[i];
+        last_vertex += apply_transform(u_previous_bones[bone_ids[i]], v.position) * bone_weights[i];
     }
 
     vertex_out.tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;

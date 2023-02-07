@@ -269,14 +269,14 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                                 object->has_component<animation_state_t>();
 
         // entry animation transforms
-        std::vector<glm::mat4> node_matrices;
+        std::vector<vierkant::transform_t> node_transforms;
 
         if(animation_update)
         {
             const auto &animation_state = object->get_component<animation_state_t>();
             const auto &animation = mesh->node_animations[animation_state.index];
-            vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, animation_state.current_time,
-                                                     node_matrices);
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
+                                                     static_cast<float>(animation_state.current_time), node_transforms);
         }
 
         for(uint32_t i = 0; i < mesh->entries.size(); ++i)
@@ -301,9 +301,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_asset.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_asset.cull_result.drawables[drawable_index];
-                drawable.matrices.modelview =
-                        node_matrices.empty() ? mat4_cast(object->global_transform() * entry.transform)
-                                              : mat4_cast(object->global_transform()) * node_matrices[entry.node_index];
+                drawable.matrices.modelview = mat4_cast(
+                        node_transforms.empty() ? object->global_transform() * entry.transform
+                                                : object->global_transform() * node_transforms[entry.node_index]);
                 drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.last_matrices =
                         it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
@@ -410,7 +410,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 
     // cache/collect bone-matrices
     std::unordered_map<entt::entity, size_t> bone_buffer_offsets;
-    std::vector<glm::mat4> all_bones_matrices;
+    std::vector<vierkant::transform_t> all_bone_transforms;
 
     // cache/collect morph-params
     //! morph_params_t contains information to access a morph-target buffer
@@ -437,20 +437,20 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 
         if(mesh->root_bone)
         {
-            std::vector<glm::mat4> bones_matrices;
-            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation, animation_state.current_time,
-                                                     bones_matrices);
+            std::vector<vierkant::transform_t> bones_transforms;
+            vierkant::nodes::build_node_matrices_bfs(
+                    mesh->root_bone, animation, static_cast<float>(animation_state.current_time), bones_transforms);
 
             // keep track of offset
-            bone_buffer_offsets[entity] = all_bones_matrices.size() * sizeof(glm::mat4);
-            all_bones_matrices.insert(all_bones_matrices.end(), bones_matrices.begin(), bones_matrices.end());
+            bone_buffer_offsets[entity] = all_bone_transforms.size() * sizeof(vierkant::transform_t);
+            all_bone_transforms.insert(all_bone_transforms.end(), bones_transforms.begin(), bones_transforms.end());
         }
         else if(mesh->morph_buffer)
         {
             // morph-target weights
             std::vector<std::vector<double>> node_morph_weights;
-            vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, animation_state.current_time,
-                                                     node_morph_weights);
+            vierkant::nodes::build_morph_weights_bfs(
+                    mesh->root_node, animation, static_cast<float>(animation_state.current_time), node_morph_weights);
 
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)
             {
@@ -480,9 +480,9 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     if(!frame_asset.bone_buffer)
     {
         frame_asset.bone_buffer = vierkant::Buffer::create(
-                m_device, all_bones_matrices, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+                m_device, all_bone_transforms, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     }
-    else { frame_asset.bone_buffer->set_data(all_bones_matrices); }
+    else { frame_asset.bone_buffer->set_data(all_bone_transforms); }
 
     if(!frame_asset.morph_param_buffer)
     {

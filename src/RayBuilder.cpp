@@ -348,7 +348,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
 
         // TODO: vertex-skin/morph animations: bake vertex-buffer per-frame in a compute-shader
         // entry animation transforms
-        std::vector<glm::mat4> node_matrices;
+        std::vector<vierkant::transform_t> node_transforms;
 
         if(object->has_component<animation_state_t>())
         {
@@ -358,8 +358,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             if(!(mesh->root_bone || mesh->morph_buffer) && anim_state.index < mesh->node_animations.size())
             {
                 const auto &animation = mesh->node_animations[anim_state.index];
-                vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, animation_state.current_time,
-                                                         node_matrices);
+                vierkant::nodes::build_node_matrices_bfs(
+                        mesh->root_node, animation, static_cast<float>(animation_state.current_time), node_transforms);
             }
         }
 
@@ -376,8 +376,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
 
             // apply node-animation transform, if any
             auto modelview =
-                    mat4_cast(object->transform) *
-                    (node_matrices.empty() ? mat4_cast(mesh_entry.transform) : node_matrices[mesh_entry.node_index]);
+                    mat4_cast(object->transform * (node_transforms.empty() ? mesh_entry.transform
+                                                                           : node_transforms[mesh_entry.node_index]));
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};

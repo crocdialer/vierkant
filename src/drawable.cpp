@@ -23,7 +23,7 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
     auto attribute_descriptions = vierkant::create_attribute_descriptions(params.mesh->vertex_attribs);
 
     // entry animation transforms
-    std::vector<glm::mat4> node_matrices;
+    std::vector<vierkant::transform_t> node_transforms;
 
     // morph-target weights
     std::vector<std::vector<double>> node_morph_weights;
@@ -32,7 +32,7 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
     {
         const auto &animation = params.mesh->node_animations[params.animation_index];
         vierkant::nodes::build_node_matrices_bfs(params.mesh->root_node, animation, params.animation_time,
-                                                 node_matrices);
+                                                 node_transforms);
         vierkant::nodes::build_morph_weights_bfs(params.mesh->root_node, animation, params.animation_time,
                                                  node_morph_weights);
     }
@@ -54,8 +54,9 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         drawable.entry_index = i;
 
         // combine mesh- with entry-transform
-        drawable.matrices.modelview = params.model_view * (node_matrices.empty() ? mat4_cast(entry.transform)
-                                                                                 : node_matrices[entry.node_index]);
+        drawable.matrices.modelview =
+                params.model_view *
+                mat4_cast(node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]);
         drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
         drawable.matrices.texture = material->texture_transform;
 
