@@ -191,9 +191,7 @@ std::vector<double> create_morph_weights(const animation_keys_t &keys, float tim
             auto &[start_time, start_value] = *it_lhs;
             auto &[end_time, end_value] = *it_rhs;
             double frac = std::max<double>((time - start_time) / (end_time - start_time), 0.0);
-
             out_weights.resize(start_value.value.size(), 0.f);
-
 
             for(uint32_t i = 0; i < out_weights.size(); ++i)
             {

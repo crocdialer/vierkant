@@ -40,7 +40,7 @@ uint32_t num_nodes_in_hierarchy(const NodeConstPtr &root)
     return ret;
 }
 
-NodeConstPtr node_by_name(const NodeConstPtr& root, const std::string &name)
+NodeConstPtr node_by_name(const NodeConstPtr &root, const std::string &name)
 {
     NodeConstPtr ret;
     bfs(root, [&name, &ret](const NodeConstPtr &node) {
@@ -54,8 +54,9 @@ NodeConstPtr node_by_name(const NodeConstPtr& root, const std::string &name)
     return ret;
 }
 
+template<typename T, typename>
 void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
-                             std::vector<std::vector<double>> &morph_weights)
+                             std::vector<std::vector<T>> &morph_weights)
 {
     if(!root) { return; }
     morph_weights.resize(num_nodes_in_hierarchy(root));
@@ -69,12 +70,22 @@ void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &a
 
             if(!animation_keys.morph_weights.empty())
             {
-                morph_weights[node->index] = create_morph_weights(animation_keys, time, animation.interpolation_mode);
+                auto tmp = create_morph_weights(animation_keys, time, animation.interpolation_mode);
+                morph_weights[node->index].resize(tmp.size());
+                std::transform(tmp.begin(), tmp.end(), morph_weights[node->index].begin(),
+                               [](double w) -> T { return static_cast<T>(w); });
             }
         }
         return true;
     });
 }
+
+// explicit template-specializations
+template void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                                      std::vector<std::vector<float>> &morph_weights);
+
+template void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
+                                      std::vector<std::vector<double>> &morph_weights);
 
 void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
                              std::vector<vierkant::transform_t> &transforms)

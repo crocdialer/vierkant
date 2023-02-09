@@ -53,12 +53,22 @@ NodeConstPtr node_by_name(const NodeConstPtr& root, const std::string &name);
  * @param   root        a root node of a node-hierarchy.
  * @param   animation   a const-ref for an animation_t object.
  * @param   time        current time.
- * @param   matrices    ref to an array of transformation-matrices. will be recursively populated by this function.
+ * @param   matrices    ref to an array of transformation-matrices. will be populated by this function.
  */
 void build_node_matrices_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
                              std::vector<vierkant::transform_t> &transforms);
 
+/**
+ * @brief   Create morph-weights, matching the provided node-hierarchy and animation.
+ *
+ * @tparam  T               scalar template type (float/double)
+ * @param   root            a root node of a node-hierarchy.
+ * @param   animation       a const-ref for an animation_t object.
+ * @param   time            current time.
+ * @param   morph_weights   ref to an array of morph-weights. will be populated by this function.
+ */
+template<typename T = float, typename = std::enable_if<std::is_floating_point_v<T>>>
 void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &animation, float time,
-                             std::vector<std::vector<double>> &morph_weights);
+                             std::vector<std::vector<T>> &morph_weights);
 
 }// namespace vierkant::nodes

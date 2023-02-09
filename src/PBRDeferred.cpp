@@ -413,14 +413,6 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     std::vector<vierkant::transform_t> all_bone_transforms;
 
     // cache/collect morph-params
-    //! morph_params_t contains information to access a morph-target buffer
-    struct alignas(16) morph_params_t
-    {
-        uint32_t morph_count = 0;
-        uint32_t base_vertex = 0;
-        uint32_t vertex_count = 0;
-        float weights[61] = {};
-    };
     using morph_buffer_offset_mapt_t = std::unordered_map<id_entry_key_t, size_t, id_entry_key_hash_t>;
     morph_buffer_offset_mapt_t morph_buffer_offsets;
     std::vector<morph_params_t> all_morph_params;
@@ -448,7 +440,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         else if(mesh->morph_buffer)
         {
             // morph-target weights
-            std::vector<std::vector<double>> node_morph_weights;
+            std::vector<std::vector<float>> node_morph_weights;
             vierkant::nodes::build_morph_weights_bfs(
                     mesh->root_node, animation, static_cast<float>(animation_state.current_time), node_morph_weights);
 
@@ -456,11 +448,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
             {
                 const auto &entry = mesh->entries[i];
                 id_entry_key_t key = {static_cast<uint32_t>(entity), i};
-
-                // ridiculous: seems the easiest way to express for MSVC without warnings!?
-                std::vector<float> weights(node_morph_weights[entry.node_index].size());
-                std::transform(node_morph_weights[entry.node_index].begin(), node_morph_weights[entry.node_index].end(),
-                               weights.begin(), [](double w) -> float { return static_cast<float>(w); });
+                const auto &weights = node_morph_weights[entry.node_index];
 
                 morph_params_t p;
                 p.base_vertex = entry.morph_vertex_offset;
