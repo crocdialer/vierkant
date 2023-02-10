@@ -25,13 +25,21 @@ layout(buffer_reference, std430) buffer DrawResultPtr{ draw_cull_result_t v; };
 struct draw_cull_data_t
 {
     mat4 view;
-    float P00, P11, znear, zfar;// symmetric projection parameters
-    vec4 frustum;// data for left/right/top/bottom frustum planes
 
+    //! symmetric projection parameters
+    float P00, P11, znear, zfar;
+
+    //! left/right/top/bottom frustum planes
+    vec4 frustum;
+
+    //! base screenspace-area for LoD-0
     float lod_base;
+
+    //! step/factor for LoD-selection
     float lod_step;
 
-    vec2 pyramid_size;// depth pyramid size in texels
+    //! depth pyramid size in texels
+    vec2 pyramid_size;
 
     uint num_draws;
 
@@ -55,21 +63,22 @@ struct draw_cull_data_t
 // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
 bool project_sphere(vec3 C, float r, float znear, float P00, float P11, out vec4 aabb)
 {
-    if (C.z < r + znear){ return false; }
+    if (-C.z < r + znear){ return false; }
 
-    vec2 cx = -C.xz;
+    vec2 cx = vec2(-C.x, C.z);
     vec2 vx = vec2(sqrt(dot(cx, cx) - r * r), r);
     vec2 minx = mat2(vx.x, vx.y, -vx.y, vx.x) * cx;
     vec2 maxx = mat2(vx.x, -vx.y, vx.y, vx.x) * cx;
 
-    vec2 cy = -C.yz;
+    vec2 cy = C.yz;
     vec2 vy = vec2(sqrt(dot(cy, cy) - r * r), r);
     vec2 miny = mat2(vy.x, vy.y, -vy.y, vy.x) * cy;
     vec2 maxy = mat2(vy.x, -vy.y, vy.y, vy.x) * cy;
 
     aabb = vec4(minx.x / minx.y * P00, miny.x / miny.y * P11, maxx.x / maxx.y * P00, maxy.x / maxy.y * P11);
-    aabb = aabb.xwzy * vec4(0.5f, -0.5f, 0.5f, -0.5f) + vec4(0.5f); // clip space -> uv space
 
+    // clip space -> uv space
+    aabb = aabb.xwzy * 0.5 + 0.5;
     return true;
 }
 
@@ -97,10 +106,7 @@ void main()
 
     // 2D-screenspace AABB for a 3D-boundingsphere
     vec4 aabb;
-
-    // some adjustment for handedness
-    vec3 center_adj = vec3(center.x, -center.y, -center.z);
-    bool sphere_visible = project_sphere(center_adj, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
+    bool sphere_visible = project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
 
     if(cull_data.frustum_cull)
     {
@@ -126,7 +132,7 @@ void main()
 
         // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
         float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
-        float depth_sphere = cull_data.znear / (center_adj.z - radius);
+        float depth_sphere = cull_data.znear / (-center.z - radius);
 
         visible = visible && (depth_sphere >= depth);
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
