@@ -8,6 +8,7 @@
 #include <vierkant/Mesh.hpp>
 #include "vierkant/Scene.hpp"
 #include <vierkant/descriptor.hpp>
+#include <vierkant/transform.hpp>
 
 namespace vierkant
 {
@@ -24,9 +25,8 @@ public:
     struct alignas(16) entry_t
     {
         // per entry
-        glm::mat4 modelview = glm::mat4(1);
-        glm::mat4 normal_matrix = glm::mat4(1);
         glm::mat4 texture_matrix = glm::mat4(1);
+        vierkant::transform_t transform;
         uint32_t material_index = 0;
 
         int32_t vertex_offset = 0;

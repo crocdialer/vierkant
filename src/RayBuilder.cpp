@@ -375,13 +375,12 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             if(!mesh_entry.enabled) { continue; }
 
             // apply node-animation transform, if any
-            auto modelview =
-                    mat4_cast(object->transform * (node_transforms.empty() ? mesh_entry.transform
-                                                                           : node_transforms[mesh_entry.node_index]));
+            auto transform = object->transform * (node_transforms.empty() ? mesh_entry.transform
+                                                                           : node_transforms[mesh_entry.node_index]);
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
-            instance.transform = vk_transform_matrix(modelview);
+            instance.transform = vk_transform_matrix(mat4_cast(transform));
 
             // instance flags
             VkGeometryInstanceFlagsKHR instance_flags =
@@ -448,8 +447,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             }
 
             RayBuilder::entry_t top_level_entry = {};
-            top_level_entry.modelview = modelview;
-            top_level_entry.normal_matrix = glm::inverseTranspose(modelview);
+            top_level_entry.transform = transform;
             top_level_entry.texture_matrix = mesh_material->texture_transform;
             top_level_entry.buffer_index = mesh_buffer_indices[mesh];
             top_level_entry.material_index = material_indices[mesh_material];

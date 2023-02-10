@@ -25,8 +25,12 @@ struct gpu_cull_params_t
     uint32_t distance_cull = false;
     uint32_t frustum_cull = true;
     uint32_t lod_enabled = true;
-    float lod_base = 15.f;
-    float lod_step = 1.5f;
+
+    //! base area in screensapce for LoD-0
+    float lod_base = 0.05f;
+
+    //! step/factor for LoD-selection
+    float lod_step = 2.f;
 
     VkQueue queue = VK_NULL_HANDLE;
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};

@@ -85,9 +85,9 @@ float lod_constant(Triangle t)
 {
     // transform vertices
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
-    t.v0.position = (entry.modelview * vec4(t.v0.position, 1.0)).xyz;
-    t.v1.position = (entry.modelview * vec4(t.v1.position, 1.0)).xyz;
-    t.v2.position = (entry.modelview * vec4(t.v2.position, 1.0)).xyz;
+    t.v0.position = apply_transform(entry.transform, t.v0.position);
+    t.v1.position = apply_transform(entry.transform, t.v1.position);
+    t.v2.position = apply_transform(entry.transform, t.v2.position);
 
     float p_a = length(cross(t.v1.position - t.v0.position, t.v2.position - t.v0.position));
     float t_a = abs((t.v1.tex_coord.x - t.v0.tex_coord.x) * (t.v2.tex_coord.y - t.v0.tex_coord.y) -
@@ -119,17 +119,20 @@ Vertex interpolate_vertex(Triangle t)
 
     // bring surfel into worldspace
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
-    out_vert.position = (entry.modelview * vec4(out_vert.position, 1.0)).xyz;
+    out_vert.position = apply_transform(entry.transform, out_vert.position);
     out_vert.tex_coord = (entry.texture_matrix * vec4(out_vert.tex_coord, 0.f, 1.0)).xy;
-    out_vert.normal = normalize((entry.normal_matrix * vec4(out_vert.normal, 1.0)).xyz);
-    out_vert.tangent = normalize((entry.normal_matrix * vec4(out_vert.tangent, 1.0)).xyz);
+
+    vec4 quat = vec4(entry.transform.rotation_x, entry.transform.rotation_y, entry.transform.rotation_z,
+                     entry.transform.rotation_w);
+    out_vert.normal = normalize(rotate_quat(quat, out_vert.normal));
+    out_vert.tangent = normalize(rotate_quat(quat, out_vert.tangent));
 
     return out_vert;
 }
 
 void main()
 {
-    uint rng_state = tea(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
+    uint rng_state = xxhash32(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 
     //    vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     Triangle triangle = get_triangle();

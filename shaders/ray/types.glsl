@@ -1,11 +1,11 @@
+#include "../renderer/transform.glsl"
 
 //! entry_t holds properties for geometric entries with common attributes
 struct entry_t
 {
     // per entry
-    mat4 modelview;
-    mat4 normal_matrix;
     mat4 texture_matrix;
+    transform_t transform;
     uint material_index;
     int vertex_offset;
     uint base_index;

@@ -87,13 +87,20 @@ void main()
     // simple pass-through
     indexed_indirect_command_t draw = cull_data.draws_in.v[gid];
 
-    bool visible = true;
-
     mesh_draw_t mesh_draw = cull_data.mesh_draws_in.v[draw.object_index];
     mesh_entry_t mesh_entry = cull_data.mesh_entries_in.v[mesh_draw.mesh_index];
 
     vec3 center = (cull_data.view * mesh_draw.current_matrices.modelview * vec4(mesh_entry.center, 1.0)).xyz;
     float radius = mesh_entry.radius * length(mesh_draw.current_matrices.modelview[0].xyz);
+
+    bool visible = true;
+
+    // 2D-screenspace AABB for a 3D-boundingsphere
+    vec4 aabb;
+
+    // some adjustment for handedness
+    vec3 center_adj = vec3(center.x, -center.y, -center.z);
+    bool sphere_visible = project_sphere(center_adj, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
 
     if(cull_data.frustum_cull)
     {
@@ -109,37 +116,27 @@ void main()
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_distance_culled, 1); }
     }
 
-    if(visible && cull_data.occlusion_cull)
+    if(visible && cull_data.occlusion_cull && sphere_visible)
     {
-        // 2D-screenspace AABB for a 3D-boundingsphere
-        vec4 aabb;
-
-        // some adjustment for handedness
-        center.yz *= -1;
-
         // get cracking with depth-pyramid
-        if(project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb))
-        {
-            float width = (aabb.z - aabb.x) * cull_data.pyramid_size.x;
-            float height = (aabb.w - aabb.y) * cull_data.pyramid_size.y;
+        float width = (aabb.z - aabb.x) * cull_data.pyramid_size.x;
+        float height = (aabb.w - aabb.y) * cull_data.pyramid_size.y;
 
-            float level = floor(log2(max(width, height)));
+        float level = floor(log2(max(width, height)));
 
-            // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-            float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
-            float depth_sphere = cull_data.znear / (center.z - radius);
+        // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+        float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+        float depth_sphere = cull_data.znear / (center_adj.z - radius);
 
-            visible = visible && (depth_sphere >= depth);
-            if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
-        }
+        visible = visible && (depth_sphere >= depth);
+        if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
     }
 
     // lod managment
     if(visible && cull_data.lod_enabled)
     {
-        // lod distance i = base * pow(step, i)
-        // i = log2(distance / base) / log2(step)
-        float lod_index_f = log2(length(center) / cull_data.lod_base) / log2(cull_data.lod_step);
+        float aabb_area = (aabb.z - aabb.x) * (aabb.w - aabb.y);
+        float lod_index_f = log2(cull_data.lod_base / aabb_area) / log2(cull_data.lod_step);
         uint lod_index = min(uint(max(lod_index_f + 1, 0)), mesh_entry.lod_count - 1);
 
         // select lod
