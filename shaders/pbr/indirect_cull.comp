@@ -14,6 +14,7 @@ struct draw_cull_result_t
     uint num_occlusion_culled;
     uint num_distance_culled;
     uint num_triangles;
+    uint num_meshlets;
 };
 
 layout(buffer_reference, std430) buffer DrawBufferPtr{ indexed_indirect_command_t v[]; };
@@ -167,6 +168,7 @@ void main()
     {
         atomicAdd(cull_data.draw_result.v.num_draws, 1);
         atomicAdd(cull_data.draw_result.v.num_triangles, draw.indexCount / 3);
+        atomicAdd(cull_data.draw_result.v.num_meshlets, draw.num_meshlets);
 
         // became visible this frame -> not drawn in 1st-pass
         if(!cull_data.draws_in.v[gid].visible)

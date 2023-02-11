@@ -316,6 +316,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 
             ImGui::BulletText("drawcount: %d", draw_result.draw_count);
             ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
+            ImGui::BulletText("num_meshlets: %d", draw_result.num_meshlets);
             ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
             ImGui::BulletText("num_occlusion_culled: %d", draw_result.num_occlusion_culled);
             ImGui::Separator();

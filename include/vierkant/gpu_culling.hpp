@@ -30,9 +30,9 @@ struct gpu_cull_params_t
     float lod_base = 0.05f;
 
     //! step/factor for LoD-selection
-    float lod_step = 2.f;
+    float lod_step = 2.2f;
 
-    //! limit the number of LoDs to use (0: no limit)
+    //! limit number of LoDs (0: no limit)
     uint32_t max_num_lods = 0;
 
     VkQueue queue = VK_NULL_HANDLE;
@@ -61,6 +61,7 @@ struct draw_cull_result_t
     uint32_t num_occlusion_culled = 0;
     uint32_t num_distance_culled = 0;
     uint32_t num_triangles = 0;
+    uint32_t num_meshlets = 0;
 };
 
 struct create_depth_pyramid_params_t

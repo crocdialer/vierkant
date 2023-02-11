@@ -34,3 +34,25 @@ Vertex unpack(packed_vertex_t v)
     ret.tangent = vec3(int(v.tangent_x), int(v.tangent_y), int(v.tangent_z)) / 127.0 - 1.0;
     return ret;
 }
+
+packed_vertex_t pack(Vertex v)
+{
+    packed_vertex_t ret;
+    ret.pos_x = v.position.x;
+    ret.pos_y = v.position.y;
+    ret.pos_z = v.position.z;
+
+    ret.normal_x = uint8_t(v.normal.x * 127.f + 127.5f);
+    ret.normal_y = uint8_t(v.normal.y * 127.f + 127.5f);
+    ret.normal_z = uint8_t(v.normal.z * 127.f + 127.5f);
+    ret.normal_w = uint8_t(0);
+
+    ret.tangent_x = uint8_t(v.tangent.x * 127.f + 127.5f);
+    ret.tangent_y = uint8_t(v.tangent.y * 127.f + 127.5f);
+    ret.tangent_z = uint8_t(v.tangent.z * 127.f + 127.5f);
+    ret.tangent_w = uint8_t(0);
+
+    ret.texcoord_x = float16_t(v.tex_coord.x);
+    ret.texcoord_y = float16_t(v.tex_coord.y);
+    return ret;
+}

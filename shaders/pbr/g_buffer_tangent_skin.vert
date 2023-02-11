@@ -79,17 +79,21 @@ void main()
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
     vec3 current_vertex = vec3(0);
+    vec3 current_normal = vec3(0);
+    vec3 current_tangent = vec3(0);
     vec3 last_vertex = vec3(0);
 
     for (int i = 0; i < 4; i++)
     {
         current_vertex += apply_transform(u_bones[bone_ids[i]], v.position) * bone_weights[i];
+        current_normal += apply_rotation(u_bones[bone_ids[i]], v.normal) * bone_weights[i];
+        current_tangent += apply_rotation(u_bones[bone_ids[i]], v.tangent) * bone_weights[i];
         last_vertex += apply_transform(u_previous_bones[bone_ids[i]], v.position) * bone_weights[i];
     }
 
     vertex_out.tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
-    vertex_out.normal = normalize(mat3(m.normal) * v.normal);
-    vertex_out.tangent = normalize(mat3(m.normal) * v.tangent);
+    vertex_out.normal = normalize(mat3(m.normal) * current_normal);
+    vertex_out.tangent = normalize(mat3(m.normal) * current_tangent);
 
     vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.xyz, 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_vertex.xyz, 1.0);
