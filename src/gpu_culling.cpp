@@ -40,13 +40,14 @@ struct alignas(16) draw_cull_data_t
     float P00, P11, znear, zfar; // symmetric projection parameters
     glm::vec4 frustum; // data for left/right/top/bottom frustum planes
 
+    uint32_t num_draws = 0;
+
     float lod_base = 15.f;
     float lod_step = 1.5f;
+    uint32_t max_num_lods = 0;
 
     // depth pyramid size in texels
     glm::vec2 pyramid_size = glm::vec2(0);
-
-    uint32_t num_draws = 0;
 
     VkBool32 frustum_cull = false;
     VkBool32 occlusion_cull = false;

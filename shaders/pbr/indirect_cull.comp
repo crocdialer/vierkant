@@ -32,16 +32,19 @@ struct draw_cull_data_t
     //! left/right/top/bottom frustum planes
     vec4 frustum;
 
+    uint num_draws;
+
     //! base screenspace-area for LoD-0
     float lod_base;
 
     //! step/factor for LoD-selection
     float lod_step;
 
+    //! limit the number of LoDs to use
+    uint max_num_lods;
+
     //! depth pyramid size in texels
     vec2 pyramid_size;
-
-    uint num_draws;
 
     bool frustum_cull;
     bool occlusion_cull;
@@ -76,9 +79,8 @@ bool project_sphere(vec3 C, float r, float znear, float P00, float P11, out vec4
     vec2 maxy = mat2(vy.x, -vy.y, vy.y, vy.x) * cy;
 
     aabb = vec4(minx.x / minx.y * P00, miny.x / miny.y * P11, maxx.x / maxx.y * P00, maxy.x / maxy.y * P11);
+    aabb = aabb * vec4(0.5f, -0.5f, 0.5f, -0.5f) + vec4(0.5f); // clip space -> uv space
 
-    // clip space -> uv space
-    aabb = aabb.xwzy * 0.5 + 0.5;
     return true;
 }
 
@@ -143,7 +145,10 @@ void main()
     {
         float aabb_area = (aabb.z - aabb.x) * (aabb.w - aabb.y);
         float lod_index_f = log2(cull_data.lod_base / aabb_area) / log2(cull_data.lod_step);
-        uint lod_index = min(uint(max(lod_index_f + 1, 0)), mesh_entry.lod_count - 1);
+
+        uint max_lod_index = (cull_data.max_num_lods > 0 ? min(cull_data.max_num_lods, mesh_entry.lod_count)
+                                                         : mesh_entry.lod_count) - 1;
+        uint lod_index = sphere_visible ? clamp(uint(lod_index_f + 1), 0, max_lod_index) : 0;
 
         // select lod
         lod_t lod = mesh_entry.lods[lod_index];

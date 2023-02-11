@@ -32,6 +32,9 @@ struct gpu_cull_params_t
     //! step/factor for LoD-selection
     float lod_step = 2.f;
 
+    //! limit the number of LoDs to use (0: no limit)
+    uint32_t max_num_lods = 0;
+
     VkQueue queue = VK_NULL_HANDLE;
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
 
