@@ -432,13 +432,13 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     auto previous_builds = std::move(frame_asset.build_results);
 
     // run compaction on structures from previous frame
-    for(auto &[id, result]: previous_builds)
+    for(auto &[anim_mesh, result]: previous_builds)
     {
         if(frame_asset.settings.compaction && result.compact && result.compacted_assets.empty())
         {
             // run compaction
             m_ray_builder.compact(result);
-            m_acceleration_assets[id] = result.compacted_assets;
+            //            m_acceleration_assets[id] = result.compacted_assets;
 
             vierkant::semaphore_submit_info_t wait_info = {};
             wait_info.semaphore = result.semaphore.handle();
@@ -446,7 +446,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             wait_info.wait_value = RayBuilder::SemaphoreValue::COMPACTED;
             semaphore_infos.push_back(wait_info);
 
-            frame_asset.build_results[id] = std::move(result);
+            frame_asset.build_results[anim_mesh] = std::move(result);
         }
     }
 
@@ -494,6 +494,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         vierkant::BufferPtr vertex_buffer = mesh->vertex_buffer;
         size_t vertex_buffer_offset = 0;
 
+        vierkant::animated_mesh_t build_key = {mesh};
         bool use_mesh_compute = mesh_compute_entities.contains(entity);
 
         // check if we need to override the default vertex-buffer
@@ -501,10 +502,11 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         {
             vertex_buffer = mesh_compute_result.result_buffer;
             vertex_buffer_offset = mesh_compute_result.vertex_buffer_offsets.at(object->id());
+            build_key = mesh_compute_entities.at(entity);
         }
 
         if((!use_mesh_compute && !m_acceleration_assets.contains(object->id())) ||
-           (use_mesh_compute && !frame_asset.build_results.contains(object->id())))
+           (use_mesh_compute && !frame_asset.build_results.contains(build_key)))
         {
             // create bottom-lvl
             vierkant::RayBuilder::create_mesh_structures_params_t create_mesh_structures_params = {};
@@ -520,7 +522,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
             auto result = m_ray_builder.create_mesh_structures(create_mesh_structures_params);
             if(!use_mesh_compute) { m_acceleration_assets[object->id()] = result.acceleration_assets; }
-            frame_asset.build_results[object->id()] = std::move(result);
+            frame_asset.build_results[build_key] = std::move(result);
         }
     }
 
@@ -537,7 +539,10 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     {
         if(!frame_asset.entity_assets.contains(object->id()))
         {
-            auto it = frame_asset.build_results.find(object->id());
+            vierkant::animated_mesh_t build_key = {mesh};
+            if(mesh_compute_entities.contains(entity)) { build_key = mesh_compute_entities.at(entity); }
+
+            auto it = frame_asset.build_results.find(build_key);
             if(it != frame_asset.build_results.end())
             {
                 frame_asset.entity_assets[object->id()] = it->second.compacted_assets.empty()

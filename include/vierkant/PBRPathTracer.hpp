@@ -150,7 +150,7 @@ private:
         std::map<uint64_t , std::vector<RayBuilder::acceleration_asset_ptr>> entity_assets;
 
         //! pending builds for this frame
-        std::map<uint64_t, RayBuilder::build_result_t> build_results;
+        std::unordered_map<vierkant::animated_mesh_t, RayBuilder::build_result_t> build_results;
 
         //! top-lvl structure
         vierkant::RayBuilder::acceleration_asset_t acceleration_asset;
