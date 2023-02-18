@@ -3,6 +3,7 @@
 //
 
 #include "vierkant/nodes.hpp"
+#include <algorithm>
 #include <deque>
 
 namespace vierkant::nodes
