@@ -484,8 +484,6 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     // updates of animated (skin/morph) assets
     if(!mesh_compute_params.mesh_compute_items.empty())
     {
-        spdlog::debug("mesh_compute_items: {}", mesh_compute_params.mesh_compute_items.size());
-
         mesh_compute_result = vierkant::mesh_compute(frame_asset.mesh_compute_context, mesh_compute_params);
         semaphore_wait_value = SemaphoreValue::MESH_COMPUTE;
     }
