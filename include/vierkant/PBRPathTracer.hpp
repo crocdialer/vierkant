@@ -244,8 +244,6 @@ private:
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
 
-    vierkant::RayBuilder::entity_asset_map_t m_acceleration_assets;
-
     size_t m_batch_index = 0;
 
     //! path-tracing storage images

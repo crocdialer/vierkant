@@ -429,6 +429,8 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
     std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
 
+    // clear left-overs
+    auto previous_entity_assets = std::move(frame_asset.entity_assets);
     auto previous_builds = std::move(frame_asset.build_results);
 
     // run compaction on structures from previous frame
@@ -438,7 +440,6 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         {
             // run compaction
             m_ray_builder.compact(result);
-            //            m_acceleration_assets[id] = result.compacted_assets;
 
             vierkant::semaphore_submit_info_t wait_info = {};
             wait_info.semaphore = result.semaphore.handle();
@@ -449,9 +450,6 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             frame_asset.build_results[anim_mesh] = std::move(result);
         }
     }
-
-    // clear left-overs
-    auto previous_entity_assets = std::move(frame_asset.entity_assets);
 
     auto view = scene->registry()->view<Object3D *, vierkant::MeshPtr>();
 
@@ -505,7 +503,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             build_key = mesh_compute_entities.at(entity);
         }
 
-        if((!use_mesh_compute && !m_acceleration_assets.contains(object->id())) ||
+        if((!use_mesh_compute && !previous_entity_assets.contains(object->id())) ||
            (use_mesh_compute && !frame_asset.build_results.contains(build_key)))
         {
             // create bottom-lvl
@@ -521,7 +519,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
 
             auto result = m_ray_builder.create_mesh_structures(create_mesh_structures_params);
-            if(!use_mesh_compute) { m_acceleration_assets[object->id()] = result.acceleration_assets; }
+            if(!use_mesh_compute) { frame_asset.entity_assets[object->id()] = result.acceleration_assets; }
             frame_asset.build_results[build_key] = std::move(result);
         }
     }
@@ -549,11 +547,10 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
                                                                   ? it->second.acceleration_assets
                                                                   : it->second.compacted_assets;
             }
-            else
+            else if(previous_entity_assets.contains(object->id()))
             {
                 // static mesh case
-                assert(m_acceleration_assets.contains(object->id()));
-                frame_asset.entity_assets[object->id()] = m_acceleration_assets[object->id()];
+                frame_asset.entity_assets[object->id()] = std::move(previous_entity_assets.at(object->id()));
             }
         }
     }

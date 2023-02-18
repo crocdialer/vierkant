@@ -112,9 +112,7 @@ public:
     //! shared acceleration_asset_t
     using acceleration_asset_ptr = std::shared_ptr<acceleration_asset_t>;
 
-    //    //! can be used to used to cache an array of shared (bottom-lvl) acceleration-structures per mesh
-    //    using acceleration_asset_map_t =
-    //            std::unordered_map<vierkant::animated_mesh_t, std::vector<acceleration_asset_ptr>>;
+    //! can be used to used to cache an array of shared (bottom-lvl) acceleration-structures per whatever
     using entity_asset_map_t = std::map<uint64_t, std::vector<RayBuilder::acceleration_asset_ptr>>;
 
     enum SemaphoreValue : uint64_t
