@@ -16,10 +16,7 @@ FencePtr create_fence(const vierkant::DevicePtr &device, bool signaled)
     fence_create_info.flags = signaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0;
     vkCreateFence(device->handle(), &fence_create_info, nullptr, &fence);
 
-    return FencePtr(fence, [device](VkFence f)
-    {
-        vkDestroyFence(device->handle(), f, nullptr);
-    });
+    return {fence, [device](VkFence f) { vkDestroyFence(device->handle(), f, nullptr); }};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -32,23 +29,19 @@ void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fen
     if(handle)
     {
         vkWaitForFences(device->handle(), 1, &handle, VK_TRUE, std::numeric_limits<uint64_t>::max());
-        if(reset){ vkResetFences(device->handle(), 1, &handle); }
+        if(reset) { vkResetFences(device->handle(), 1, &handle); }
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void submit(const vierkant::DevicePtr &device,
-            VkQueue queue,
-            const std::vector<VkCommandBuffer> &command_buffers,
-            bool wait_fence,
-            VkFence fence,
-            const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
+void submit(const vierkant::DevicePtr &device, VkQueue queue, const std::vector<VkCommandBuffer> &command_buffers,
+            bool wait_fence, VkFence fence, const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
     if(device && queue)
     {
         vierkant::FencePtr local_fence;
-        if(fence){ vkResetFences(device->handle(), 1, &fence); }
+        if(fence) { vkResetFences(device->handle(), 1, &fence); }
 
         std::vector<VkCommandBufferSubmitInfo> command_submit_infos(command_buffers.size());
         for(uint32_t i = 0; i < command_buffers.size(); ++i)
@@ -64,7 +57,7 @@ void submit(const vierkant::DevicePtr &device,
         submit_info.commandBufferInfoCount = command_submit_infos.size();
         submit_info.pCommandBufferInfos = command_submit_infos.data();
 
-        if(semaphore_infos.empty()){ vkQueueSubmit2(queue, 1, &submit_info, fence); }
+        if(semaphore_infos.empty()) { vkQueueSubmit2(queue, 1, &submit_info, fence); }
         else
         {
             // submit with synchronization-infos
@@ -134,19 +127,13 @@ CommandPoolPtr create_command_pool(const vierkant::DevicePtr &device, vierkant::
     vkCheck(vkCreateCommandPool(device->handle(), &pool_info, nullptr, &command_pool),
             "failed to create command pool!");
 
-    return vierkant::CommandPoolPtr(command_pool, [device](VkCommandPool pool)
-    {
-        vkDestroyCommandPool(device->handle(), pool, nullptr);
-    });
+    return {command_pool, [device](VkCommandPool pool) { vkDestroyCommandPool(device->handle(), pool, nullptr); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandBuffer::CommandBuffer(DevicePtr device, VkCommandPool command_pool, VkCommandBufferLevel level) :
-        m_device(std::move(device)),
-        m_handle(VK_NULL_HANDLE),
-        m_pool(command_pool),
-        m_recording(false)
+CommandBuffer::CommandBuffer(DevicePtr device, VkCommandPool command_pool, VkCommandBufferLevel level)
+    : m_device(std::move(device)), m_handle(VK_NULL_HANDLE), m_pool(command_pool), m_recording(false)
 {
     VkCommandBufferAllocateInfo alloc_info = {};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -163,11 +150,7 @@ CommandBuffer::CommandBuffer(DevicePtr device, VkCommandPool command_pool, VkCom
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-CommandBuffer::CommandBuffer(CommandBuffer &&other) noexcept:
-        CommandBuffer()
-{
-    swap(*this, other);
-}
+CommandBuffer::CommandBuffer(CommandBuffer &&other) noexcept : CommandBuffer() { swap(*this, other); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -175,9 +158,9 @@ CommandBuffer::~CommandBuffer()
 {
     if(m_device)
     {
-        if(m_recording){ end(); }
+        if(m_recording) { end(); }
         vkDestroyFence(m_device->handle(), m_fence, nullptr);
-        if(m_handle && m_pool){ vkFreeCommandBuffers(m_device->handle(), m_pool, 1, &m_handle); }
+        if(m_handle && m_pool) { vkFreeCommandBuffers(m_device->handle(), m_pool, 1, &m_handle); }
     }
 }
 
@@ -195,8 +178,10 @@ void CommandBuffer::begin(VkCommandBufferUsageFlags flags, VkCommandBufferInheri
 {
     if(m_handle)
     {
-        if(inheritance && inheritance->renderPass &&
-           inheritance->framebuffer){ flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT; }
+        if(inheritance && inheritance->renderPass && inheritance->framebuffer)
+        {
+            flags |= VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+        }
         VkCommandBufferBeginInfo begin_info = {};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         begin_info.flags = flags;
@@ -219,12 +204,10 @@ void CommandBuffer::end()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void CommandBuffer::submit(VkQueue queue,
-                           bool wait_fence,
-                           VkFence fence,
+void CommandBuffer::submit(VkQueue queue, bool wait_fence, VkFence fence,
                            const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
-    if(m_recording){ end(); }
+    if(m_recording) { end(); }
 
     if(m_handle && queue)
     {
@@ -252,10 +235,7 @@ void CommandBuffer::submit(VkQueue queue,
                 vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
             }
         }
-        else
-        {
-            vierkant::submit(m_device, queue, {m_handle}, wait_fence, fence, semaphore_infos);
-        }
+        else { vierkant::submit(m_device, queue, {m_handle}, wait_fence, fence, semaphore_infos); }
     }
 }
 
@@ -281,4 +261,4 @@ void swap(CommandBuffer &lhs, CommandBuffer &rhs)
     std::swap(lhs.m_recording, rhs.m_recording);
 }
 
-}//namespace vulkan
+}// namespace vierkant

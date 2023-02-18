@@ -5,9 +5,9 @@
 #include <set>
 
 #define VMA_IMPLEMENTATION
-
 #include <vk_mem_alloc.h>
 
+#include <vierkant/git_hash.h>
 #include <vierkant/Device.hpp>
 
 namespace vierkant

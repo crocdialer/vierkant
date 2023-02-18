@@ -64,15 +64,6 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
     auto &compute_asset = m_compute_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_compute_assets.size();
 
-    vierkant::CommandBuffer local_commandbuffer;
-
-    if(commandbuffer == VK_NULL_HANDLE)
-    {
-        local_commandbuffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        local_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-        commandbuffer = local_commandbuffer.handle();
-    }
-
     struct item_t
     {
         computable_t computable;
@@ -107,7 +98,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
                 VkPushConstantRange push_constant_range = {};
                 push_constant_range.offset = 0;
                 push_constant_range.size = computable.push_constants.size();
-                push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
+                push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
                 computable.pipeline_info.push_constant_ranges = {push_constant_range};
             }
 
@@ -134,7 +125,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
             if(!computable.push_constants.empty())
             {
                 // update push_constants
-                vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
+                vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0,
                                    computable.push_constants.size(), computable.push_constants.data());
             }
 
@@ -145,9 +136,6 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
 
     // keep-alive copy of cull_computable
     compute_asset.computables = std::move(computables);
-
-    // submit only if we created the command buffer
-    if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }
 }
 
 }//namespace vierkant

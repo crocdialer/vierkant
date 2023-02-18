@@ -212,4 +212,34 @@ std::vector<double> create_morph_weights(const animation_keys_t &keys, float tim
     return out_weights;
 }
 
+template<typename T>
+bool operator==(const animation_state_t_<T> &lhs, const animation_state_t_<T> &rhs)
+{
+    if(lhs.index != rhs.index) { return false; }
+    if(lhs.current_time != rhs.current_time) { return false; }
+    if(lhs.animation_speed != rhs.animation_speed) { return false; }
+    if(lhs.playing != rhs.playing) { return false; }
+    return true;
+}
+
+template bool operator==(const animation_state_t_<float> &lhs, const animation_state_t_<float> &rhs);
+template bool operator==(const animation_state_t_<double> &lhs, const animation_state_t_<double> &rhs);
+
 }// namespace vierkant
+
+template<typename T>
+size_t
+std::hash<vierkant::animation_state_t_<T>>::operator()(vierkant::animation_state_t_<T> const &animation_state) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, animation_state.index);
+    vierkant::hash_combine(h, animation_state.current_time);
+    vierkant::hash_combine(h, animation_state.animation_speed);
+    vierkant::hash_combine(h, animation_state.playing);
+    return h;
+}
+
+template size_t std::hash<vierkant::animation_state_t_<float>>::operator()(
+        vierkant::animation_state_t_<float> const &animation_state) const;
+template size_t std::hash<vierkant::animation_state_t_<double>>::operator()(
+        vierkant::animation_state_t_<double> const &animation_state) const;

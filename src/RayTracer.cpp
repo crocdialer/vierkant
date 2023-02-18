@@ -154,15 +154,6 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
 
     VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 
-    vierkant::CommandBuffer local_commandbuffer;
-
-    if(commandbuffer == VK_NULL_HANDLE)
-    {
-        local_commandbuffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        local_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-        commandbuffer = local_commandbuffer.handle();
-    }
-
     // bind raytracing pipeline
     pipeline->bind(commandbuffer);
 
@@ -187,9 +178,6 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
 
     // keep-alive copy of tracable
     trace_asset.tracable = std::move(tracable);
-
-    // submit only if we created the command buffer
-    if(local_commandbuffer){ local_commandbuffer.submit(m_device->queue(), true); }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

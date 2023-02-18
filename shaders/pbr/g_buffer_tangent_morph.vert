@@ -72,30 +72,29 @@ void main()
 {
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
     Vertex v = unpack(vertices[gl_VertexIndex]);
-
-    Vertex current_vertex;
-    current_vertex.position = v.position;
     vec3 last_position = v.position;
+
+    vec3 new_normal = vec3(0);
+    vec3 new_tangent = vec3(0);
 
     // apply morph-targets
     for(uint i = 0; i < morph_params.morph_count; ++i)
     {
         uint morph_index = morph_params.base_vertex + i * morph_params.vertex_count + gl_VertexIndex - draw_command.vertexOffset;
 
-        current_vertex.position += morph_vertices[morph_index].position * morph_params.weights[i];
-        current_vertex.normal = slerp(v.normal, v.normal + morph_vertices[morph_index].normal, morph_params.weights[i]);
-        current_vertex.tangent = slerp(v.tangent, v.tangent + morph_vertices[morph_index].normal, morph_params.weights[i]);
+        v.position += morph_vertices[morph_index].position * morph_params.weights[i];
+        new_normal += slerp(v.normal, v.normal + morph_vertices[morph_index].normal, morph_params.weights[i]);
+        new_tangent += slerp(v.tangent, v.tangent + morph_vertices[morph_index].tangent, morph_params.weights[i]);
 
         last_position += morph_vertices[morph_index].position * prev_morph_params.weights[i];
     }
-    current_vertex.normal = normalize(current_vertex.normal);
 
     indices.mesh_draw_index = draw_command.object_index;
     indices.material_index = draws[draw_command.object_index].material_index;
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
-    vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.position, 1.0);
+    vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_position, 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
@@ -103,6 +102,6 @@ void main()
     gl_Position = jittered_position;
 
     vertex_out.tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
-    vertex_out.normal = normalize(mat3(m.normal) * current_vertex.normal);
-    vertex_out.tangent = normalize(mat3(m.normal) * current_vertex.tangent);
+    vertex_out.normal = normalize(mat3(m.normal) * v.normal);
+    vertex_out.tangent = normalize(mat3(m.normal) * v.tangent);
 }

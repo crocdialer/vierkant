@@ -2,20 +2,19 @@
 // Created by crocdialer on 10.01.23.
 //
 
-#include <set>
 #include "vierkant/staging_copy.hpp"
+#include <set>
 
 namespace vierkant
 {
 
-size_t staging_copy(staging_copy_context_t &context,
-                    const std::vector<staging_copy_info_t> &staging_copy_infos)
+size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_copy_info_t> &staging_copy_infos)
 {
     assert(context.command_buffer && context.staging_buffer);
 
     // resize staging-buffer if necessary
     size_t num_staging_bytes = context.offset;
-    for(const auto &info: staging_copy_infos){ num_staging_bytes += info.num_bytes; }
+    for(const auto &info: staging_copy_infos) { num_staging_bytes += info.num_bytes; }
     num_staging_bytes = std::max<size_t>(num_staging_bytes, 1UL << 20);
     context.staging_buffer->set_data(nullptr, num_staging_bytes);
 
@@ -24,6 +23,7 @@ size_t staging_copy(staging_copy_context_t &context,
 
     for(const auto &info: staging_copy_infos)
     {
+        if(!info.data || !info.num_bytes) { continue; }
         assert(context.staging_buffer->num_bytes() - info.num_bytes >= context.offset);
 
         // copy array into staging-buffer
@@ -67,4 +67,4 @@ size_t staging_copy(staging_copy_context_t &context,
     return context.offset;
 }
 
-}
+}// namespace vierkant

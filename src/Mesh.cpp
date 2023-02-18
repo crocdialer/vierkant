@@ -653,3 +653,11 @@ size_t std::hash<vierkant::create_mesh_buffers_params_t>::operator()(
     vierkant::hash_combine(hash_val, params.meshlet_cone_weight);
     return hash_val;
 }
+
+size_t std::hash<vierkant::animated_mesh_t>::operator()(vierkant::animated_mesh_t const &key) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, key.mesh);
+    vierkant::hash_combine(h, key.animation_state);
+    return h;
+}

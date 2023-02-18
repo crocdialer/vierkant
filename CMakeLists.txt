@@ -16,8 +16,8 @@ execute_process(
         OUTPUT_VARIABLE GIT_COMMIT_DATE
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-add_definitions("-DGIT_COMMIT_HASH=\"${GIT_COMMIT_HASH}\"")
-add_definitions("-DGIT_COMMIT_DATE=\"${GIT_COMMIT_DATE}\"")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/include/vierkant/git_hash.h.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/include/vierkant/git_hash.h" @ONLY)
 
 ## request C++20
 set(CMAKE_CXX_STANDARD 20)

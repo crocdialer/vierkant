@@ -314,6 +314,17 @@ struct create_mesh_buffers_params_t
 mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
                                          const create_mesh_buffers_params_t &params);
 
+struct animated_mesh_t
+{
+    vierkant::MeshConstPtr mesh = {};
+    vierkant::animation_state_t animation_state = {};
+
+    inline bool operator==(const animated_mesh_t &k) const
+    {
+        return mesh == k.mesh && animation_state == k.animation_state;
+    }
+};
+
 }//namespace vierkant
 
 // template specializations for hashing
@@ -324,4 +335,11 @@ struct hash<vierkant::create_mesh_buffers_params_t>
 {
     size_t operator()(vierkant::create_mesh_buffers_params_t const &params) const;
 };
+
+template<>
+struct hash<vierkant::animated_mesh_t>
+{
+    size_t operator()(vierkant::animated_mesh_t const &key) const;
+};
+
 }

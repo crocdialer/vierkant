@@ -33,12 +33,12 @@ layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBu
     mesh_draw_t draws[];
 };
 
-layout(std140, binding = BINDING_BONES, scalar) readonly buffer UBOBones
+layout(set = 0, binding = BINDING_BONES, scalar) readonly buffer UBOBones
 {
     transform_t u_bones[];
 };
 
-layout(std140, binding = BINDING_PREVIOUS_BONES, scalar) readonly buffer UBOPreviousBones
+layout(set = 0, binding = BINDING_PREVIOUS_BONES, scalar) readonly buffer UBOPreviousBones
 {
     transform_t u_previous_bones[];
 };

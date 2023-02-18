@@ -16,10 +16,8 @@ PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTra
     return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info));
 }
 
-PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info) :
-        m_device(device),
-        m_pipeline_cache(create_info.pipeline_cache),
-        m_random_engine(create_info.seed)
+PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
+    : m_device(device), m_pipeline_cache(create_info.pipeline_cache), m_random_engine(create_info.seed)
 {
     settings = create_info.settings;
 
@@ -28,7 +26,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     m_command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                   VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+                                                           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     // memorypool
     VmaPoolCreateInfo pool_create_info = {};
@@ -36,10 +34,9 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     auto pool = vierkant::Buffer::create_pool(m_device,
                                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                              VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
-                                              VMA_MEMORY_USAGE_GPU_ONLY,
-                                              pool_create_info);
+                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                      VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+                                              VMA_MEMORY_USAGE_GPU_ONLY, pool_create_info);
 
     // create our raytracing-thingies
     vierkant::RayTracer::create_info_t ray_tracer_create_info = {};
@@ -58,9 +55,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     vierkant::Compute::computable_t denoise_computable = {};
     glm::uvec3 group_count;
-    denoise_computable.pipeline_info.shader_stage = vierkant::create_shader_module(m_device,
-                                                                                   vierkant::shaders::ray::denoise_comp,
-                                                                                   &group_count);
+    denoise_computable.pipeline_info.shader_stage =
+            vierkant::create_shader_module(m_device, vierkant::shaders::ray::denoise_comp, &group_count);
     denoise_computable.extent = size;
     denoise_computable.extent.width = vierkant::group_count(size.width, group_count.x);
     denoise_computable.extent.height = vierkant::group_count(size.height, group_count.y);
@@ -72,19 +68,22 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     {
         frame_asset.denoise_computable = denoise_computable;
 
-        frame_asset.composition_ubo = vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t),
-                                                               VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                               VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_asset.composition_ubo =
+                vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        frame_asset.ray_miss_ubo = vierkant::Buffer::create(device, &frame_asset.settings.environment_factor,
-                                                            sizeof(float),
-                                                            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                            VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_asset.ray_miss_ubo =
+                vierkant::Buffer::create(device, &frame_asset.settings.environment_factor, sizeof(float),
+                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         frame_asset.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
+
+        frame_asset.mesh_compute_context = vierkant::create_mesh_compute_context(device);
+        frame_asset.query_pool =
+                vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
     }
 
     auto raygen = vierkant::create_shader_module(m_device, vierkant::shaders::ray::raygen_rgen);
@@ -93,14 +92,14 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     auto ray_miss_env = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_environment_rmiss);
     auto ray_miss_shadow = vierkant::create_shader_module(m_device, vierkant::shaders::ray::shadow_rmiss);
 
-    m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR,      raygen},
-                       {VK_SHADER_STAGE_MISS_BIT_KHR,        ray_miss},
-                       {VK_SHADER_STAGE_MISS_BIT_KHR,        ray_miss_shadow},
+    m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
+                       {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss},
+                       {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_shadow},
                        {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
 
-    m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR,      raygen},
-                           {VK_SHADER_STAGE_MISS_BIT_KHR,        ray_miss_env},
-                           {VK_SHADER_STAGE_MISS_BIT_KHR,        ray_miss_shadow},
+    m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
+                           {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env},
+                           {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_shadow},
                            {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
 
     // create drawables for post-fx-pass
@@ -136,16 +135,17 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     m_empty_img = vierkant::Image::create(m_device, &v, fmt);
 }
 
-SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
-                                                           const SceneConstPtr &scene,
-                                                           const CameraPtr &cam,
-                                                           const std::set<std::string> &tags)
+SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &scene,
+                                                           const CameraPtr &cam, const std::set<std::string> &tags)
 {
     auto &frame_asset = m_frame_assets[renderer.current_index()];
 
     // sync and reset semaphore
     frame_asset.semaphore.wait(frame_asset.semaphore_value_done);
     frame_asset.semaphore = vierkant::Semaphore(m_device);
+
+    // reset query-pool
+    vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, SemaphoreValue::MAX_VALUE);
 
     // copy settings for next frame
     frame_asset.settings = settings;
@@ -165,7 +165,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
         // increase batch index
         m_batch_index = std::min<size_t>(m_batch_index + 1, frame_asset.settings.max_num_batches);
     }
-    else{ frame_asset.semaphore.signal(SemaphoreValue::RAYTRACING); }
+    else { frame_asset.semaphore.signal(SemaphoreValue::RAYTRACING); }
 
     // edge-aware atrous-wavelet denoiser
     denoise_pass(frame_asset);
@@ -178,7 +178,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     m_draw_context.draw_image_fullscreen(renderer, frame_asset.out_image);
 
     render_result_t ret;
-    for(const auto &[mesh, assets]: frame_asset.bottom_lvl_assets){ ret.num_draws += assets.size(); }
+    for(const auto &[id, assets]: frame_asset.entity_assets) { ret.num_draws += assets.size(); }
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
@@ -189,8 +189,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer,
     return ret;
 }
 
-void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset,
-                                    const vierkant::SceneConstPtr &scene,
+void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const vierkant::SceneConstPtr &scene,
                                     const CameraPtr &cam)
 {
     // push constants
@@ -206,10 +205,10 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset,
 
     frame_asset.cmd_build_toplvl.begin(0);
 
+    // TODO: enable/check updating from last frame
     // update top-level structure
-    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(scene,
-                                                                   frame_asset.bottom_lvl_assets,
-                                                                   frame_asset.cmd_build_toplvl.handle());
+    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(scene, frame_asset.entity_assets,
+                                                                   frame_asset.cmd_build_toplvl.handle(), nullptr);
     frame_asset.cmd_build_toplvl.end();
 
     vierkant::semaphore_submit_info_t semaphore_top_info = {};
@@ -244,8 +243,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     if(frame_asset.settings.denoising)
     {
         // transition storage image
-        frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
-                                                     frame_asset.cmd_denoise.handle());
+        frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_denoise.handle());
 
         // dispatch denoising-kernel
         m_compute.dispatch({frame_asset.denoise_computable}, frame_asset.cmd_denoise.handle());
@@ -259,8 +257,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
                                                                  frame_asset.cmd_denoise.handle());
     }
 
-    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
-                                                 frame_asset.cmd_denoise.handle());
+    frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_denoise.handle());
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
@@ -343,25 +340,23 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     auto &desc_storage_images = frame_asset.tracable.descriptors[1];
     desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals,
-                                  m_storage_images.positions, m_storage_images.accumulated_radiance};
+    desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals, m_storage_images.positions,
+                                  m_storage_images.accumulated_radiance};
 
-    const auto& camera_params = cam->get_component<vierkant::physical_camera_params_t>();
+    const auto &camera_params = cam->get_component<vierkant::physical_camera_params_t>();
 
     camera_ubo_t camera_ubo = {};
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
     camera_ubo.view_inverse = glm::inverse(cam->view_matrix());
     camera_ubo.fov = camera_params.fovy();
-    camera_ubo.aperture = frame_asset.settings.depth_of_field ? static_cast<float>(camera_params.aperture_size())
-                                                              : 0.f;
+    camera_ubo.aperture = frame_asset.settings.depth_of_field ? static_cast<float>(camera_params.aperture_size()) : 0.f;
     camera_ubo.focal_distance = camera_params.focal_distance;
 
     vierkant::descriptor_t &desc_matrices = frame_asset.tracable.descriptors[2];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_matrices.buffers = {vierkant::Buffer::create(m_device, &camera_ubo, sizeof(camera_ubo),
-                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                      VMA_MEMORY_USAGE_CPU_TO_GPU)};
+                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
 
     vierkant::descriptor_t &desc_vertex_buffers = frame_asset.tracable.descriptors[3];
     desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -423,8 +418,7 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
 }
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t &frame_asset,
-                                                   const SceneConstPtr &scene,
-                                                   const std::set<std::string> &/*tags*/)
+                                                   const SceneConstPtr &scene, const std::set<std::string> & /*tags*/)
 {
     // TODO: drop or use tags
 
@@ -438,13 +432,13 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     auto previous_builds = std::move(frame_asset.build_results);
 
     // run compaction on structures from previous frame
-    for(auto &[mesh, result]: previous_builds)
+    for(auto &[id, result]: previous_builds)
     {
-        if(frame_asset.settings.compaction && result.compacted_assets.empty())
+        if(frame_asset.settings.compaction && result.compact && result.compacted_assets.empty())
         {
             // run compaction
             m_ray_builder.compact(result);
-            m_acceleration_assets[mesh] = result.compacted_assets;
+            m_acceleration_assets[id] = result.compacted_assets;
 
             vierkant::semaphore_submit_info_t wait_info = {};
             wait_info.semaphore = result.semaphore.handle();
@@ -452,25 +446,83 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             wait_info.wait_value = RayBuilder::SemaphoreValue::COMPACTED;
             semaphore_infos.push_back(wait_info);
 
-            frame_asset.build_results[mesh] = std::move(result);
+            frame_asset.build_results[id] = std::move(result);
         }
     }
 
     // clear left-overs
-    frame_asset.bottom_lvl_assets.clear();
+    auto previous_entity_assets = std::move(frame_asset.entity_assets);
 
-    auto view = scene->registry()->view<vierkant::MeshPtr>();
+    auto view = scene->registry()->view<Object3D *, vierkant::MeshPtr>();
+
+    vierkant::mesh_compute_params_t mesh_compute_params = {};
+    mesh_compute_params.queue = m_queue;
+    mesh_compute_params.semaphore_submit_info.semaphore = frame_asset.semaphore.handle();
+    mesh_compute_params.semaphore_submit_info.signal_value = SemaphoreValue::MESH_COMPUTE;
+    mesh_compute_params.query_pool = frame_asset.query_pool;
+    mesh_compute_params.query_index = SemaphoreValue::MESH_COMPUTE;
+
+    uint64_t semaphore_wait_value = SemaphoreValue::INVALID;
+
+    std::unordered_map<entt::entity, vierkant::animated_mesh_t> mesh_compute_entities;
+
+    //  check for skin/morph meshes and schedule a mesh-compute operation
+    for(const auto &[entity, object, mesh]: view.each())
+    {
+        vierkant::animated_mesh_t key = {mesh};
+
+        if(object->has_component<vierkant::animation_state_t>() && (mesh->root_bone || mesh->morph_buffer))
+        {
+            key.animation_state = object->get_component<vierkant::animation_state_t>();
+            mesh_compute_entities[entity] = key;
+            mesh_compute_params.mesh_compute_items[object->id()] = key;
+        }
+    }
+
+    vierkant::mesh_compute_result_t mesh_compute_result = {};
+
+    // updates of animated (skin/morph) assets
+    if(!mesh_compute_params.mesh_compute_items.empty())
+    {
+        spdlog::debug("mesh_compute_items: {}", mesh_compute_params.mesh_compute_items.size());
+
+        mesh_compute_result = vierkant::mesh_compute(frame_asset.mesh_compute_context, mesh_compute_params);
+        semaphore_wait_value = SemaphoreValue::MESH_COMPUTE;
+    }
 
     //  cache-lookup / non-blocking build of acceleration structures
-    for(const auto &[entity, mesh]: view.each())
+    for(const auto &[entity, object, mesh]: view.each())
     {
-        // TODO: support updates of animated (skin/morph) assets
-        if(!m_acceleration_assets.contains(mesh))
+        vierkant::BufferPtr vertex_buffer = mesh->vertex_buffer;
+        size_t vertex_buffer_offset = 0;
+
+        bool use_mesh_compute = mesh_compute_entities.contains(entity);
+
+        // check if we need to override the default vertex-buffer
+        if(use_mesh_compute)
+        {
+            vertex_buffer = mesh_compute_result.result_buffer;
+            vertex_buffer_offset = mesh_compute_result.vertex_buffer_offsets.at(object->id());
+        }
+
+        if((!use_mesh_compute && !m_acceleration_assets.contains(object->id())) ||
+           (use_mesh_compute && !frame_asset.build_results.contains(object->id())))
         {
             // create bottom-lvl
-            auto result = m_ray_builder.create_mesh_structures(mesh);
-            m_acceleration_assets[mesh] = result.acceleration_assets;
-            frame_asset.build_results[mesh] = std::move(result);
+            vierkant::RayBuilder::create_mesh_structures_params_t create_mesh_structures_params = {};
+            create_mesh_structures_params.mesh = mesh;
+            create_mesh_structures_params.vertex_buffer = vertex_buffer;
+            create_mesh_structures_params.vertex_buffer_offset = vertex_buffer_offset;
+            create_mesh_structures_params.enable_compaction = !use_mesh_compute;
+            //            create_mesh_structures_params.update_assets = m_acceleration_assets[key];
+            create_mesh_structures_params.semaphore_info.semaphore = frame_asset.semaphore.handle();
+            create_mesh_structures_params.semaphore_info.wait_value = semaphore_wait_value;
+            create_mesh_structures_params.semaphore_info.wait_stage =
+                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+
+            auto result = m_ray_builder.create_mesh_structures(create_mesh_structures_params);
+            if(!use_mesh_compute) { m_acceleration_assets[object->id()] = result.acceleration_assets; }
+            frame_asset.build_results[object->id()] = std::move(result);
         }
     }
 
@@ -483,9 +535,24 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         semaphore_infos.push_back(wait_info);
     }
 
-    for(const auto &[entity, mesh]: view.each())
+    for(const auto &[entity, object, mesh]: view.each())
     {
-        frame_asset.bottom_lvl_assets[mesh] = m_acceleration_assets[mesh];
+        if(!frame_asset.entity_assets.contains(object->id()))
+        {
+            auto it = frame_asset.build_results.find(object->id());
+            if(it != frame_asset.build_results.end())
+            {
+                frame_asset.entity_assets[object->id()] = it->second.compacted_assets.empty()
+                                                                  ? it->second.acceleration_assets
+                                                                  : it->second.compacted_assets;
+            }
+            else
+            {
+                // static mesh case
+                assert(m_acceleration_assets.contains(object->id()));
+                frame_asset.entity_assets[object->id()] = m_acceleration_assets[object->id()];
+            }
+        }
     }
 
     vierkant::semaphore_submit_info_t signal_info = {};
@@ -496,15 +563,9 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, semaphore_infos);
 }
 
-void PBRPathTracer::reset_accumulator()
-{
-    m_batch_index = 0;
-}
+void PBRPathTracer::reset_accumulator() { m_batch_index = 0; }
 
-size_t PBRPathTracer::current_batch() const
-{
-    return m_batch_index;
-}
+size_t PBRPathTracer::current_batch() const { return m_batch_index; }
 
 void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2 &resolution)
 {
@@ -604,4 +665,3 @@ void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2
 }
 
 }// namespace vierkant
-

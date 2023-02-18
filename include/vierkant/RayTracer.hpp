@@ -63,7 +63,7 @@ public:
      *
      * @param   tracable
      */
-    void trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
+    void trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer);
 
     friend void swap(RayTracer &lhs, RayTracer &rhs) noexcept;
 

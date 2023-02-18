@@ -2,7 +2,6 @@
 // Created by crocdialer on 11/15/20.
 //
 
-#include "vierkant/Visitor.hpp"
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
 
@@ -63,26 +62,28 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
             VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
-RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::MeshConstPtr &mesh) const
+RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_structures_params_t &params) const
 {
     // raytracing flags
-    VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
-                                                 VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+    VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    if(params.enable_compaction) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR; }
 
-    // vertex skinned meshes need to update their AABBs
-    if(mesh->root_bone) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR; }
+    // vertex-skinned meshes need to update their AABBs
+    if(params.mesh->root_bone || params.mesh->morph_buffer)
+    {
+        flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+    }
 
-    // TODO: generate skin/morph vertex-buffer via compute-op
+    // optionally override mesh-vertexbuffer
+    const auto &vertex_attrib = params.mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
 
-    const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
-    VkDeviceAddress vertex_base_address = vertex_attrib.buffer->device_address() + vertex_attrib.offset;
-    VkDeviceAddress index_base_address = mesh->index_buffer->device_address();
+    const auto &vertex_buffer = params.vertex_buffer ? params.vertex_buffer : vertex_attrib.buffer;
+    size_t vertex_buffer_offset = params.vertex_buffer ? params.vertex_buffer_offset : 0;
 
-    // compaction requested?
-    bool enable_compaction = (flags & VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR) ==
-                             VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+    VkDeviceAddress vertex_base_address = vertex_buffer->device_address() + vertex_buffer_offset + vertex_attrib.offset;
+    VkDeviceAddress index_base_address = params.mesh->index_buffer->device_address();
 
-    size_t num_entries = mesh->entries.size();
+    size_t num_entries = params.mesh->entries.size();
     std::vector<VkAccelerationStructureGeometryKHR> geometries(num_entries);
     std::vector<VkAccelerationStructureBuildRangeInfoKHR> offsets(num_entries);
     std::vector<VkAccelerationStructureBuildGeometryInfoKHR> build_infos(num_entries);
@@ -90,7 +91,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::Me
     // timelinesemaphore to track builds
     build_result_t ret = {};
     ret.semaphore = vierkant::Semaphore(m_device);
-
+    ret.compact = params.enable_compaction;
     ret.build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret.build_command.begin();
 
@@ -99,13 +100,15 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::Me
 
     // those will be stored
     std::vector<acceleration_asset_ptr> entry_assets(num_entries);
+    bool update = params.update_assets.size() == num_entries;
 
     for(uint32_t i = 0; i < num_entries; ++i)
     {
-        const auto &entry = mesh->entries[i];
-        const auto &lod = entry.lods.front();
+        update = update && params.update_assets[i] && params.update_assets[i]->structure;
 
-        const auto &material = mesh->materials[entry.material_index];
+        const auto &entry = params.mesh->entries[i];
+        const auto &lod = entry.lods.front();
+        const auto &material = params.mesh->materials[entry.material_index];
 
         // throw on non-triangle entries
         if(entry.primitive_type != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
@@ -115,7 +118,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::Me
 
         VkAccelerationStructureGeometryTrianglesDataKHR triangles = {};
         triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
-        triangles.indexType = mesh->index_type;
+        triangles.indexType = params.mesh->index_type;
         triangles.indexData.deviceAddress = index_base_address + lod.base_index * sizeof(index_t);
         triangles.vertexFormat = vertex_attrib.format;
         triangles.vertexData.deviceAddress = vertex_base_address + entry.vertex_offset * vertex_attrib.stride;
@@ -142,7 +145,9 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::Me
         build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         build_info.geometryCount = 1;
         build_info.pGeometries = &geometry;
-        build_info.srcAccelerationStructure = VK_NULL_HANDLE;
+
+        // optionally use existing structure for update
+        build_info.srcAccelerationStructure = update ? params.update_assets[i]->structure.get() : VK_NULL_HANDLE;
 
         // query memory requirements
         VkAccelerationStructureBuildSizesInfoKHR size_info = {};
@@ -151,13 +156,19 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::Me
         vkGetAccelerationStructureBuildSizesKHR(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
                                                 &build_infos[i], &offsets[i].primitiveCount, &size_info);
 
+        // create new asset
         entry_assets[i] = std::make_shared<acceleration_asset_t>();
-        auto &acceleration_asset = *entry_assets[i];
         VkAccelerationStructureCreateInfoKHR create_info = {};
         create_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
         create_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         create_info.size = size_info.accelerationStructureSize;
-        acceleration_asset = create_acceleration_asset(create_info);
+        *entry_assets[i] = create_acceleration_asset(create_info);
+
+        auto &acceleration_asset = *entry_assets[i];
+
+        // track vertex-buffer + offset used
+        acceleration_asset.vertex_buffers = {vertex_buffer};
+        acceleration_asset.vertex_buffer_offsets = {vertex_buffer_offset};
 
         // Allocate the scratch buffers holding the temporary data of the
         // acceleration structure builder
@@ -175,7 +186,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::Me
         vkCmdBuildAccelerationStructuresKHR(ret.build_command.handle(), 1, &build_info, &offset_ptr);
 
         // Write compacted size to query number idx.
-        if(enable_compaction)
+        if(params.enable_compaction)
         {
             // barrier before reading back size
             VkMemoryBarrier barrier = {};
@@ -196,9 +207,10 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const vierkant::Me
     vierkant::semaphore_submit_info_t semaphore_build_info = {};
     semaphore_build_info.semaphore = ret.semaphore.handle();
     semaphore_build_info.signal_value = SemaphoreValue::BUILD;
-    ret.build_command.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_build_info});
+    ret.build_command.submit(m_queue, false, VK_NULL_HANDLE, {params.semaphore_info, semaphore_build_info});
 
     ret.acceleration_assets = std::move(entry_assets);
+    ret.update_assets = params.update_assets;
     return ret;
 }
 
@@ -301,7 +313,7 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
 }
 
 RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::SceneConstPtr &scene,
-                                                             const acceleration_asset_map_t &asset_map,
+                                                             const entity_asset_map_t &asset_map,
                                                              VkCommandBuffer commandbuffer,
                                                              const vierkant::AccelerationStructurePtr &last) const
 {
@@ -323,39 +335,55 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
 
-    std::unordered_map<MeshConstPtr, size_t> mesh_buffer_indices;
+    // vertex-buffer address -> index
+    std::unordered_map<VkDeviceAddress, size_t> mesh_buffer_indices;
+
     std::unordered_map<MaterialConstPtr, size_t> material_indices;
     auto view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
 
     for(const auto &[entity, object, mesh]: view.each())
     {
         assert(mesh);
-        assert(asset_map.contains(mesh));
 
-        const auto &acceleration_assets = asset_map.at(mesh);
+        if(!asset_map.contains(object->id()))
+        {
+            spdlog::warn("could not find required bottom-lvl structure, skipping ...");
+            continue;
+        }
+
+        const auto &acceleration_assets = asset_map.at(object->id());
         assert(mesh->entries.size() == acceleration_assets.size());
 
-        if(!mesh_buffer_indices.contains(mesh))
-        {
-            mesh_buffer_indices[mesh] = vertex_buffers.size();
+        const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+        const auto &vertex_buffer = acceleration_assets[0]->vertex_buffers.empty()
+                                            ? vertex_attrib.buffer
+                                            : acceleration_assets[0]->vertex_buffers[0];
+        size_t vertex_buffer_offset = acceleration_assets[0]->vertex_buffer_offsets.empty()
+                                              ? vertex_attrib.buffer_offset
+                                              : acceleration_assets[0]->vertex_buffer_offsets[0];
 
-            const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
-            vertex_buffers.push_back(vertex_attrib.buffer);
-            vertex_buffer_offsets.push_back(vertex_attrib.buffer_offset);
+        VkDeviceAddress vertex_buffer_address = vertex_buffer->device_address() + vertex_buffer_offset;
+
+        if(!mesh_buffer_indices.contains(vertex_buffer_address))
+        {
+            mesh_buffer_indices[vertex_buffer_address] = vertex_buffers.size();
+
+            vertex_buffers.push_back(vertex_buffer);
+            vertex_buffer_offsets.push_back(vertex_buffer_offset);
             index_buffers.push_back(mesh->index_buffer);
             index_buffer_offsets.push_back(mesh->index_buffer_offset);
         }
 
-        // TODO: vertex-skin/morph animations: bake vertex-buffer per-frame in a compute-shader
         // entry animation transforms
+        // NOTE: vertex-skin/morph animations use baked vertex-buffers and new bottom-level assets per frame instead
         std::vector<vierkant::transform_t> node_transforms;
 
-        if(object->has_component<animation_state_t>())
+        if(!(mesh->root_bone || mesh->morph_buffer) && object->has_component<animation_state_t>())
         {
             auto &animation_state = object->get_component<animation_state_t>();
             const auto &anim_state = animation_state;
 
-            if(!(mesh->root_bone || mesh->morph_buffer) && anim_state.index < mesh->node_animations.size())
+            if(anim_state.index < mesh->node_animations.size())
             {
                 const auto &animation = mesh->node_animations[anim_state.index];
                 vierkant::nodes::build_node_matrices_bfs(
@@ -375,8 +403,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             if(!mesh_entry.enabled) { continue; }
 
             // apply node-animation transform, if any
-            auto transform = object->transform * (node_transforms.empty() ? mesh_entry.transform
-                                                                           : node_transforms[mesh_entry.node_index]);
+            auto transform = object->transform *
+                             (node_transforms.empty() ? mesh_entry.transform : node_transforms[mesh_entry.node_index]);
 
             // per bottom-lvl instance
             VkAccelerationStructureInstanceKHR instance{};
@@ -449,7 +477,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
             RayBuilder::entry_t top_level_entry = {};
             top_level_entry.transform = transform;
             top_level_entry.texture_matrix = mesh_material->texture_transform;
-            top_level_entry.buffer_index = mesh_buffer_indices[mesh];
+            top_level_entry.buffer_index = mesh_buffer_indices[vertex_buffer_address];
             top_level_entry.material_index = material_indices[mesh_material];
             top_level_entry.vertex_offset = mesh_entry.vertex_offset;
             top_level_entry.base_index = lod.base_index;

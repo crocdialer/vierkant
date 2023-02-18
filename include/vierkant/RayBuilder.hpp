@@ -4,9 +4,9 @@
 
 #include <crocore/Cache.hpp>
 
+#include "vierkant/Scene.hpp"
 #include <vierkant/Device.hpp>
 #include <vierkant/Mesh.hpp>
-#include "vierkant/Scene.hpp"
 #include <vierkant/descriptor.hpp>
 #include <vierkant/transform.hpp>
 
@@ -21,7 +21,6 @@ namespace vierkant
 class RayBuilder
 {
 public:
-
     struct alignas(16) entry_t
     {
         // per entry
@@ -113,8 +112,10 @@ public:
     //! shared acceleration_asset_t
     using acceleration_asset_ptr = std::shared_ptr<acceleration_asset_t>;
 
-    //! can be used to used to cache an array of shared (bottom-lvl) acceleration-structures per mesh
-    using acceleration_asset_map_t = std::unordered_map<vierkant::MeshConstPtr, std::vector<acceleration_asset_ptr>>;
+    //    //! can be used to used to cache an array of shared (bottom-lvl) acceleration-structures per mesh
+    //    using acceleration_asset_map_t =
+    //            std::unordered_map<vierkant::animated_mesh_t, std::vector<acceleration_asset_ptr>>;
+    using entity_asset_map_t = std::map<uint64_t, std::vector<RayBuilder::acceleration_asset_ptr>>;
 
     enum SemaphoreValue : uint64_t
     {
@@ -125,9 +126,12 @@ public:
     struct build_result_t
     {
         std::vector<acceleration_asset_ptr> acceleration_assets;
+        std::vector<acceleration_asset_ptr> update_assets;
         std::vector<acceleration_asset_ptr> compacted_assets;
         vierkant::Semaphore semaphore;
         vierkant::QueryPoolPtr query_pool;
+
+        bool compact = true;
 
         //! bottom-lvl-build
         vierkant::CommandBuffer build_command;
@@ -136,19 +140,28 @@ public:
         vierkant::CommandBuffer compact_command;
     };
 
+    struct create_mesh_structures_params_t
+    {
+        vierkant::MeshConstPtr mesh = nullptr;
+        vierkant::semaphore_submit_info_t semaphore_info = {};
+        vierkant::BufferPtr vertex_buffer = nullptr;
+        size_t vertex_buffer_offset = 0;
+        bool enable_compaction = true;
+        std::vector<acceleration_asset_ptr> update_assets = {};
+    };
+
     RayBuilder() = default;
 
     explicit RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool = nullptr);
 
     /**
-     * @brief   add_mesh will create and cache a bottom-level acceleration structure for each mesh-entry.
-     *          if the mesh can be found in the cache, only the transformation will be updated.
-     *          TODO: update buffers for vertex-skinned meshes
+     * @brief   create_mesh_structures can be used to create new bottom-level acceleration structures
+     *          for each mesh-entry.
      *
      * @param   mesh        a provided vierkant::MeshConstPtr
      * @param   transform   a provided transformation-matrix
      */
-    [[nodiscard]] build_result_t create_mesh_structures(const vierkant::MeshConstPtr &mesh) const;
+    [[nodiscard]] build_result_t create_mesh_structures(const create_mesh_structures_params_t &params) const;
 
     void compact(build_result_t &build_result) const;
 
@@ -159,13 +172,12 @@ public:
      *
      * @param   last    an optional, existing toplevel-structure to perform an update to
      */
-    acceleration_asset_t create_toplevel(const vierkant::SceneConstPtr &scene,
-                                         const acceleration_asset_map_t &asset_map,
-                                         VkCommandBuffer commandbuffer = VK_NULL_HANDLE,
-                                         const vierkant::AccelerationStructurePtr &last = nullptr) const;
+    acceleration_asset_t
+    create_toplevel(const vierkant::SceneConstPtr &scene,
+                    const entity_asset_map_t &asset_map,
+                    VkCommandBuffer commandbuffer, const vierkant::AccelerationStructurePtr &last) const;
 
 private:
-
     void set_function_pointers();
 
     [[nodiscard]] acceleration_asset_t

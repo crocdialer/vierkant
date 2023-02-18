@@ -3,15 +3,16 @@
 //
 #pragma once
 
-#include <vierkant/SceneRenderer.hpp>
+#include <vierkant/Bloom.hpp>
+#include <vierkant/Compute.hpp>
+#include <vierkant/DrawContext.hpp>
+#include <vierkant/PipelineCache.hpp>
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/RayTracer.hpp>
-#include <vierkant/Compute.hpp>
+#include <vierkant/SceneRenderer.hpp>
 #include <vierkant/Semaphore.hpp>
 #include <vierkant/culling.hpp>
-#include <vierkant/PipelineCache.hpp>
-#include <vierkant/Bloom.hpp>
-#include <vierkant/DrawContext.hpp>
+#include <vierkant/mesh_compute.hpp>
 
 
 namespace vierkant
@@ -22,7 +23,6 @@ DEFINE_CLASS_PTR(PBRPathTracer);
 class PBRPathTracer : public vierkant::SceneRenderer
 {
 public:
-
     //! group settings
     struct settings_t
     {
@@ -101,10 +101,8 @@ public:
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
      * @return  a render_result_t object.
      */
-    render_result_t render_scene(vierkant::Renderer &renderer,
-                                 const vierkant::SceneConstPtr &scene,
-                                 const CameraPtr &cam,
-                                 const std::set<std::string> &tags) override;
+    render_result_t render_scene(vierkant::Renderer &renderer, const vierkant::SceneConstPtr &scene,
+                                 const CameraPtr &cam, const std::set<std::string> &tags) override;
 
     /**
      * @return the accumulator's current batch-index
@@ -120,16 +118,17 @@ public:
     settings_t settings;
 
 private:
-
     enum SemaphoreValue : uint64_t
     {
         INVALID = 0,
+        MESH_COMPUTE,
         UPDATE_BOTTOM,
         UPDATE_TOP,
         RAYTRACING,
         DENOISER,
         BLOOM,
-        TONEMAP
+        TONEMAP,
+        MAX_VALUE
     };
 
     struct frame_assets_t
@@ -144,11 +143,14 @@ private:
         //! re-usable command-buffers for all stages
         vierkant::CommandBuffer cmd_build_toplvl, cmd_trace, cmd_denoise, cmd_post_fx;
 
-        //! pending builds for this frame
-        std::unordered_map<MeshConstPtr, RayBuilder::build_result_t> build_results;
+        //! context for computing vertex-buffers for animated meshes
+        vierkant::mesh_compute_context_ptr mesh_compute_context = nullptr;
 
-        //! maps Mesh -> bottom-lvl structures
-        vierkant::RayBuilder::acceleration_asset_map_t bottom_lvl_assets;
+        //! map object-id/entity to a mesh-key
+        std::map<uint64_t , std::vector<RayBuilder::acceleration_asset_ptr>> entity_assets;
+
+        //! pending builds for this frame
+        std::map<uint64_t, RayBuilder::build_result_t> build_results;
 
         //! top-lvl structure
         vierkant::RayBuilder::acceleration_asset_t acceleration_asset;
@@ -170,6 +172,9 @@ private:
         };
         std::array<ping_pong_t, 2> post_fx_ping_pongs;
         vierkant::Renderer post_fx_renderer;
+
+        // gpu timings/statistics
+        vierkant::QueryPoolPtr query_pool;
     };
 
     struct push_constants_t
@@ -214,15 +219,12 @@ private:
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void update_acceleration_structures(frame_assets_t &frame_asset,
-                                        const SceneConstPtr &scene,
+    void update_acceleration_structures(frame_assets_t &frame_asset, const SceneConstPtr &scene,
                                         const std::set<std::string> &tags);
 
     void update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam);
 
-    void path_trace_pass(frame_assets_t &frame_asset,
-                         const vierkant::SceneConstPtr &scene,
-                         const CameraPtr &cam);
+    void path_trace_pass(frame_assets_t &frame_asset, const vierkant::SceneConstPtr &scene, const CameraPtr &cam);
 
     void denoise_pass(frame_assets_t &frame_asset);
 
@@ -242,7 +244,7 @@ private:
     //! build acceleration structures
     vierkant::RayBuilder m_ray_builder;
 
-    vierkant::RayBuilder::acceleration_asset_map_t m_acceleration_assets;
+    vierkant::RayBuilder::entity_asset_map_t m_acceleration_assets;
 
     size_t m_batch_index = 0;
 
@@ -280,5 +282,3 @@ private:
 };
 
 }// namespace vierkant
-
-

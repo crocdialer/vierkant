@@ -11,6 +11,16 @@
 namespace vierkant
 {
 
+//! default layout for a vertex-struct
+struct vertex_t
+{
+    glm::vec3 position;
+    glm::vec2 tex_coord;
+    glm::vec3 normal;
+    glm::vec3 tangent;
+};
+
+//! layout for a quantized and packed vertex
 struct packed_vertex_t
 {
     float pos_x, pos_y, pos_z;
@@ -19,6 +29,7 @@ struct packed_vertex_t
     uint8_t tangent_x, tangent_y, tangent_z, tangent_w;
 };
 
+//! layout for a quantized and packed bone-vertex
 struct bone_vertex_data_t
 {
     uint16_t index_x, index_y, index_z, index_w;
@@ -30,6 +41,7 @@ struct bone_vertex_data_t
 enum class VertexLayout
 {
     ADHOC,
+    DEFAULT,
     PACKED
 };
 

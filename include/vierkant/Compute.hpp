@@ -63,7 +63,7 @@ public:
      *
      * @param   tracable
      */
-    void dispatch(std::vector<computable_t> computables, VkCommandBuffer commandbuffer = VK_NULL_HANDLE);
+    void dispatch(std::vector<computable_t> computables, VkCommandBuffer commandbuffer);
 
     inline explicit operator bool() const{ return static_cast<bool>(m_device && !m_compute_assets.empty()); };
 

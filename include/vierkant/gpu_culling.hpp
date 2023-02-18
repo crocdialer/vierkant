@@ -27,7 +27,7 @@ struct gpu_cull_params_t
     uint32_t lod_enabled = true;
 
     //! base screenspace-area for LoD-0
-    float lod_base = 0.05f;
+    float lod_base = 0.025f;
 
     //! step/factor for LoD-selection
     float lod_step = 2.2f;

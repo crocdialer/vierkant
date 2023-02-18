@@ -58,13 +58,24 @@ struct animation_t
     InterpolationMode interpolation_mode = InterpolationMode::Linear;
 };
 
-struct animation_state_t
+template<typename T = float, typename = std::enable_if<std::is_floating_point_v<T>>>
+struct animation_state_t_
 {
     uint32_t index = 0;
     bool playing = true;
-    double animation_speed = 1.0;
-    double current_time = 0.0;
+    T animation_speed = 1.0;
+    T current_time = 0.0;
 };
+using animation_state_t = animation_state_t_<float>;
+
+template<typename T>
+bool operator==(const animation_state_t_<T> &lhs, const animation_state_t_<T> &rhs);
+
+template<typename T>
+inline bool operator!=(const animation_state_t_<T> &lhs, const animation_state_t_<T> &rhs)
+{
+    return !(lhs == rhs);
+}
 
 template<typename T>
 void update_animation(const animation_t<T> &animation, double time_delta, vierkant::animation_state_t &animation_state)
@@ -81,9 +92,7 @@ void update_animation(const animation_t<T> &animation, double time_delta, vierka
  * @brief   Evaluate provided animation-keys for a given time. If successful, write out transformation.
  *
  * @param   keys            the animation-keys to evaluate.
- *
  * @param   time            provided time for interpolation.
- *
  * @param   out_transform   ref to a mat4, used to write out an interpolated transformation.
  */
 void create_animation_transform(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode,
@@ -92,3 +101,14 @@ void create_animation_transform(const animation_keys_t &keys, float time, Interp
 std::vector<double> create_morph_weights(const animation_keys_t &keys, float time,
                                          InterpolationMode interpolation_mode);
 }// namespace vierkant
+
+namespace std
+{
+
+template<typename T>
+struct hash<vierkant::animation_state_t_<T>>
+{
+    size_t operator()(vierkant::animation_state_t_<T> const &animation_state) const;
+};
+
+}// namespace std
