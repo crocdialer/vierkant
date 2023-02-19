@@ -502,6 +502,21 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             vertex_buffer_offset = mesh_compute_result.vertex_buffer_offsets.at(object->id());
             build_key = mesh_compute_entities.at(entity);
         }
+        else if(!previous_entity_assets.contains(object->id()))
+        {
+            // no previous acceleration-structure, check other frames
+            for(const auto &asset: m_frame_assets)
+            {
+                if(&asset != &frame_asset)
+                {
+                    auto search_it = asset.entity_assets.find(object->id());
+                    if(search_it != asset.entity_assets.end())
+                    {
+                        previous_entity_assets[object->id()] = search_it->second;
+                    }
+                }
+            }
+        }
 
         if((!use_mesh_compute && !previous_entity_assets.contains(object->id())) ||
            (use_mesh_compute && !frame_asset.build_results.contains(build_key)))
