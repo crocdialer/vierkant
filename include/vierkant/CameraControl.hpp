@@ -4,7 +4,8 @@
 
 #pragma once
 
-#include "vierkant/Input.hpp"
+#include <vierkant/Input.hpp>
+#include <vierkant/transform.hpp>
 
 namespace vierkant
 {
@@ -14,10 +15,9 @@ DEFINE_CLASS_PTR(CameraControl)
 class CameraControl
 {
 public:
-
     virtual ~CameraControl() = default;
 
-    using transform_cb_t = std::function<void(const glm::mat4 &)>;
+    using transform_cb_t = std::function<void(const vierkant::transform_t &)>;
 
     bool enabled = true;
 
@@ -35,7 +35,7 @@ public:
 
     virtual vierkant::joystick_delegate_t joystick_delegate() = 0;
 
-    [[nodiscard]] virtual glm::mat4 transform() const = 0;
+    [[nodiscard]] virtual vierkant::transform_t transform() const = 0;
 };
 
 DEFINE_CLASS_PTR(OrbitCamera)
@@ -43,7 +43,6 @@ DEFINE_CLASS_PTR(OrbitCamera)
 class OrbitCamera : public CameraControl
 {
 public:
-
     glm::vec3 look_at = glm::vec3(0.f);
 
     // (theta, phi)
@@ -53,18 +52,17 @@ public:
 
     void update(double time_delta) override;
 
-    vierkant::key_delegate_t key_delegate() override{ return {}; };
+    vierkant::key_delegate_t key_delegate() override { return {}; };
 
     vierkant::mouse_delegate_t mouse_delegate() override;
 
     vierkant::joystick_delegate_t joystick_delegate() override;
 
-    [[nodiscard]] glm::mat4 transform() const override;
+    [[nodiscard]] vierkant::transform_t transform() const override;
 
-    static OrbitCameraUPtr create(){ return std::make_unique<OrbitCamera>(); }
+    static OrbitCameraUPtr create() { return std::make_unique<OrbitCamera>(); }
 
 private:
-
     void pan(const glm::vec2 &diff);
 
     void orbit(const glm::vec2 &diff);
@@ -73,7 +71,7 @@ private:
 
     void mouse_drag(const MouseEvent &e);
 
-    [[nodiscard]] inline glm::quat rotation() const{ return {glm::vec3(spherical_coords.yx(), 0.f)}; }
+    [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords.yx(), 0.f)}; }
 
     glm::ivec2 m_last_pos{};
 
@@ -85,7 +83,6 @@ DEFINE_CLASS_PTR(FlyCamera)
 class FlyCamera : public CameraControl
 {
 public:
-
     glm::vec3 position = {0.0f, 0.0f, 0.0f};
 
     // (theta, phi)
@@ -101,15 +98,14 @@ public:
 
     vierkant::joystick_delegate_t joystick_delegate() override;
 
-    glm::mat4 transform() const override;
+    vierkant::transform_t transform() const override;
 
-    static FlyCameraUPtr create(){ return std::make_unique<FlyCamera>(); }
+    static FlyCameraUPtr create() { return std::make_unique<FlyCamera>(); }
 
 private:
-
     void orbit(const glm::vec2 &diff);
 
-    [[nodiscard]] inline glm::quat rotation() const{ return {glm::vec3(spherical_coords.yx(), 0.f)}; }
+    [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords.yx(), 0.f)}; }
 
     std::unordered_map<int, bool> m_keys;
 

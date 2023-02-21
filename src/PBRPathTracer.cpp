@@ -347,7 +347,7 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
 
     camera_ubo_t camera_ubo = {};
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
-    camera_ubo.view_inverse = glm::inverse(cam->view_matrix());
+    camera_ubo.view_inverse = vierkant::mat4_cast(cam->global_transform());
     camera_ubo.fov = camera_params.fovy();
     camera_ubo.aperture = frame_asset.settings.depth_of_field ? static_cast<float>(camera_params.aperture_size()) : 0.f;
     camera_ubo.focal_distance = camera_params.focal_distance;

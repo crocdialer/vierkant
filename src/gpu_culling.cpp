@@ -211,7 +211,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.P11 = projection[1][1];
     draw_cull_data.znear = params.camera->near();
     draw_cull_data.zfar = params.camera->far();
-    draw_cull_data.view = params.camera->view_matrix();
+    draw_cull_data.view = vierkant::mat4_cast(params.camera->view_transform());
 
     glm::mat4 projectionT = transpose(projection);
     glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0

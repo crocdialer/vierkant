@@ -930,8 +930,8 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
 
         auto sz = ImGui::GetIO().DisplaySize;
         auto proj = glm::perspectiveRH(fovy, sz.x / sz.y, camera->near(), camera->far());
-
-        bool changed = ImGuizmo::Manipulate(glm::value_ptr(camera->view_matrix()), glm::value_ptr(proj),
+        auto view = vierkant::mat4_cast(camera->view_transform());
+        bool changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                             ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
         if(is_ortho) { m[3].z = z_val; }
         if(changed) { object->set_global_transform(vierkant::transform_cast(m)); }

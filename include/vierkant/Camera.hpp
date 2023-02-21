@@ -42,35 +42,22 @@ struct alignas(16) physical_camera_params_t
     float fstop = 2.8f;
 
     //! aperture/lens size in m
-    [[nodiscard]] inline double aperture_size() const
-    {
-        return focal_length / fstop;
-    }
+    [[nodiscard]] inline double aperture_size() const { return focal_length / fstop; }
 
     //! horizontal field-of-view (fov) in radians
-    [[nodiscard]] inline float fovx() const
-    {
-        return 2 * std::atan(0.5f * sensor_width / focal_length);
-    }
+    [[nodiscard]] inline float fovx() const { return 2 * std::atan(0.5f * sensor_width / focal_length); }
 
     //! horizontal field-of-view (fov) in radians
-    [[nodiscard]] inline float fovy() const
-    {
-        return fovx() / aspect;
-    }
+    [[nodiscard]] inline float fovy() const { return fovx() / aspect; }
 
     //! will adjust focal_length to match provided field-of-view (fov) in radians
-    inline void set_fov(float fov)
-    {
-        focal_length = 0.5f * sensor_width / std::tan(fov * 0.5f);
-    }
+    inline void set_fov(float fov) { focal_length = 0.5f * sensor_width / std::tan(fov * 0.5f); }
 };
 
 class Camera : virtual public Object3D
 {
 public:
-
-    glm::mat4 view_matrix() const;
+    vierkant::transform_t view_transform() const;
 
     virtual glm::mat4 projection_matrix() const = 0;
 
@@ -86,7 +73,6 @@ public:
 class OrthoCamera : public Camera
 {
 public:
-
     float left, right, bottom, top, near_, far_;
 
     static OrthoCameraPtr create(float left, float right, float bottom, float top, float near, float far);
@@ -95,24 +81,21 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override{ return near_; };
+    float near() const override { return near_; };
 
-    float far() const override{ return far_; };
+    float far() const override { return far_; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
 
 private:
-
-    OrthoCamera(float left, float right, float bottom, float top,
-                float near, float far);
+    OrthoCamera(float left, float right, float bottom, float top, float near, float far);
 };
 
 class PerspectiveCamera : public Camera
 {
 
 public:
-
     static PerspectiveCameraPtr create(const std::shared_ptr<entt::registry> &registry,
                                        const physical_camera_params_t params = {})
     {
@@ -125,21 +108,19 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override{ return get_component<physical_camera_params_t>().clipping_distances.x; };
+    float near() const override { return get_component<physical_camera_params_t>().clipping_distances.x; };
 
-    float far() const override{ return get_component<physical_camera_params_t>().clipping_distances.y; };
+    float far() const override { return get_component<physical_camera_params_t>().clipping_distances.y; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
 private:
-
     explicit PerspectiveCamera(const std::shared_ptr<entt::registry> &registry);
 };
 
 class CubeCamera : public Camera
 {
 public:
-
     static CubeCameraPtr create(float the_near, float the_far)
     {
         return CubeCameraPtr(new CubeCamera(the_near, the_far));
@@ -149,9 +130,9 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override{ return m_near; };
+    float near() const override { return m_near; };
 
-    float far() const override{ return m_far; };
+    float far() const override { return m_far; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
@@ -160,10 +141,9 @@ public:
     std::vector<glm::mat4> view_matrices() const;
 
 private:
-
     CubeCamera(float the_near, float the_far);
 
     float m_near, m_far;
 };
 
-}//namespace
+}// namespace vierkant

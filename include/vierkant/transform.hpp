@@ -28,14 +28,9 @@ using transform_t = transform_t_<float>;
  * @return  a transformed vector.
  */
 template<typename T1, typename T2>
-inline glm::vec<3, T2> operator*(const transform_t_<T1> &transform, const glm::vec<3, T2> &v)
+inline glm::vec<3, T2> operator*(const transform_t_<T1> &t, const glm::vec<3, T2> &v)
 {
-    using vec3_t = typename std::decay<decltype(transform.translation)>::type;
-    vec3_t ret = v;
-    ret *= transform.scale;
-    ret = glm::rotate(transform.rotation, ret);
-    ret += transform.translation;
-    return ret;
+    return glm::rotate(t.rotation, v * t.scale) + t.translation;
 }
 
 /**
@@ -87,8 +82,9 @@ inline bool epsilon_equal(const transform_t_<T> &lhs, const transform_t_<T> &rhs
 template<typename T>
 inline transform_t_<T> inverse(const transform_t_<T> &t)
 {
+    using vec3_t = typename std::decay<decltype(t.scale)>::type;
     transform_t_<T> ret;
-    ret.scale = T(1) / t.scale;
+    ret.scale = T(1) / (glm::all(glm::notEqual(t.scale, vec3_t(0))) ? t.scale : vec3_t(1));
     ret.rotation = glm::inverse(t.rotation);
     ret.translation = -(ret.rotation * (t.translation * ret.scale));
     return ret;

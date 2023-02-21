@@ -558,7 +558,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     // update camera/jitter ubo
     frame_asset.camera_params = {};
-    frame_asset.camera_params.view = cull_result.camera->view_matrix();
+    frame_asset.camera_params.view = vierkant::mat4_cast(cull_result.camera->view_transform());
     frame_asset.camera_params.projection = cull_result.camera->projection_matrix();
     frame_asset.camera_params.sample_offset = jitter_offset;
     frame_asset.camera_params.near = cull_result.camera->near();

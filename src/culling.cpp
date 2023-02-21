@@ -51,7 +51,7 @@ public:
     CullVisitor(vierkant::CameraPtr cam, bool check_intersection, bool world_space)
         : m_frustum(cam->frustum()), m_camera(std::move(cam)), m_check_intersection(check_intersection)
     {
-        if(!world_space) { m_transform_stack.push(vierkant::transform_cast(m_camera->view_matrix())); }
+        if(!world_space) { m_transform_stack.push(m_camera->view_transform()); }
         else { m_transform_stack.push({}); }
     };
 

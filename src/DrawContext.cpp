@@ -400,7 +400,7 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
 void DrawContext::draw_skybox(vierkant::Renderer &renderer, const vierkant::ImagePtr &environment,
                               const vierkant::CameraPtr &cam)
 {
-    glm::mat4 m = cam->view_matrix();
+    glm::mat4 m = vierkant::mat4_cast(cam->view_transform());
     m[3] = glm::vec4(0, 0, 0, 1);
     m = glm::scale(m, glm::vec3(cam->far() * .99f));
 
