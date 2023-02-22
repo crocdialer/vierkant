@@ -111,14 +111,20 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
     ret.result_buffer = context->result_buffer;
     ret.run_id = mesh_compute_run_id_t(context->run_id++);
 
+    // min alignment for storage-buffers
+    auto min_alignment = context->device->properties().limits.minStorageBufferOffsetAlignment;
+
     // determine total sizes, grow buffers if necessary
     {
         uint32_t num_vertex_bytes = 0, num_bone_bytes = 0;
         for(const auto &[id, item]: params.mesh_compute_items)
         {
             const auto &[mesh, animation_state] = item;
-            num_vertex_bytes += mesh->vertex_buffer->num_bytes();
-            num_bone_bytes += vierkant::nodes::num_nodes_in_hierarchy(mesh->root_bone) * sizeof(vierkant::transform_t);
+            auto num_mesh_bytes = mesh->vertex_buffer->num_bytes();
+            num_vertex_bytes += num_mesh_bytes + (num_mesh_bytes % min_alignment);
+            auto num_mesh_bone_bytes =
+                    vierkant::nodes::num_nodes_in_hierarchy(mesh->root_bone) * sizeof(vierkant::transform_t);
+            num_bone_bytes += num_mesh_bone_bytes + (num_mesh_bone_bytes % min_alignment);
         }
 
         context->result_buffer->set_data(nullptr, num_vertex_bytes);
@@ -134,7 +140,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
 
     std::unordered_map<vierkant::animated_mesh_t, VkDeviceSize> cached_offsets;
 
-    for(const auto &[id, item] : params.mesh_compute_items)
+    for(const auto &[id, item]: params.mesh_compute_items)
     {
         const auto &[mesh, animation_state] = item;
 
@@ -163,15 +169,14 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
             if(mesh->root_bone)
             {
                 // create array of bone-transformations for this mesh+animation-state
-                std::vector<vierkant::transform_t> bones_transforms;
+                std::vector<vierkant::transform_t> bone_transforms;
                 vierkant::nodes::build_node_matrices_bfs(
-                        mesh->root_bone, animation, static_cast<float>(animation_state.current_time), bones_transforms);
+                        mesh->root_bone, animation, static_cast<float>(animation_state.current_time), bone_transforms);
 
                 // keep track of offsets
                 size_t bone_offset = combined_bone_data.size() * sizeof(vierkant::transform_t);
                 uint64_t skin_param_buffer_offset = combined_skin_params.size() * sizeof(skin_compute_params_t);
-
-                combined_bone_data.insert(combined_bone_data.end(), bones_transforms.begin(), bones_transforms.end());
+                combined_bone_data.insert(combined_bone_data.end(), bone_transforms.begin(), bone_transforms.end());
 
                 uint32_t num_mesh_vertices = 0;
                 for(const auto &entry: mesh->entries) { num_mesh_vertices += entry.num_vertices; }
@@ -196,8 +201,9 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
                 desc_params.buffer_offsets = {skin_param_buffer_offset};
                 computables.push_back(std::move(computable));
 
-                // advance offset
+                // advance offset, respect alignment
                 vertex_offset += num_mesh_vertices * vertex_stride;
+                vertex_offset += vertex_offset % min_alignment;
             }
             else if(mesh->morph_buffer)
             {
@@ -239,8 +245,9 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
                     desc_params.buffer_offsets = {morph_param_buffer_offset};
                     computables.push_back(std::move(computable));
 
-                    // advance offset
+                    // advance offset, respect alignment
                     vertex_offset += entry.num_vertices * vertex_stride;
+                    vertex_offset += vertex_offset % min_alignment;
                 }
             }
         }

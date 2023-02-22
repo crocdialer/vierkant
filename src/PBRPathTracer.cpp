@@ -527,14 +527,14 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             create_mesh_structures_params.vertex_buffer = vertex_buffer;
             create_mesh_structures_params.vertex_buffer_offset = vertex_buffer_offset;
             create_mesh_structures_params.enable_compaction = !use_mesh_compute;
-            //            create_mesh_structures_params.update_assets = m_acceleration_assets[key];
+            create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
             create_mesh_structures_params.semaphore_info.semaphore = frame_asset.semaphore.handle();
             create_mesh_structures_params.semaphore_info.wait_value = semaphore_wait_value;
             create_mesh_structures_params.semaphore_info.wait_stage =
                     VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
 
             auto result = m_ray_builder.create_mesh_structures(create_mesh_structures_params);
-            if(!use_mesh_compute) { frame_asset.entity_assets[object->id()] = result.acceleration_assets; }
+            frame_asset.entity_assets[object->id()] = result.acceleration_assets;
             frame_asset.build_results[build_key] = std::move(result);
         }
     }
