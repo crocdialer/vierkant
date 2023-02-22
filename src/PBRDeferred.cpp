@@ -429,13 +429,18 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 
         if(mesh->root_bone)
         {
-            std::vector<vierkant::transform_t> bones_transforms;
-            vierkant::nodes::build_node_matrices_bfs(
-                    mesh->root_bone, animation, static_cast<float>(animation_state.current_time), bones_transforms);
+            std::vector<vierkant::transform_t> bone_transforms;
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation,
+                                                     static_cast<float>(animation_state.current_time), bone_transforms);
+
+            // min alignment for storage-buffers
+            auto min_alignment = m_device->properties().limits.minStorageBufferOffsetAlignment;
+            size_t num_bytes = bone_transforms.size() * sizeof(vierkant::transform_t);
+            if(num_bytes % min_alignment) { bone_transforms.push_back({}); }
 
             // keep track of offset
             bone_buffer_offsets[entity] = all_bone_transforms.size() * sizeof(vierkant::transform_t);
-            all_bone_transforms.insert(all_bone_transforms.end(), bones_transforms.begin(), bones_transforms.end());
+            all_bone_transforms.insert(all_bone_transforms.end(), bone_transforms.begin(), bone_transforms.end());
         }
         else if(mesh->morph_buffer)
         {
