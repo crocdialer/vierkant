@@ -45,7 +45,7 @@ public:
         bool draw_skybox = true;
 
         //! flag indicating if compaction shall be used for created acceleration-structures
-        bool compaction = true;
+        bool compaction = false;
 
         //! flag indicating if a denoising pass shall be performed
         bool denoising = false;
@@ -146,8 +146,11 @@ private:
         //! context for computing vertex-buffers for animated meshes
         vierkant::mesh_compute_context_ptr mesh_compute_context = nullptr;
 
-        //! map object-id/entity to a mesh-key
+        //! map object-id/entity to bottom-lvl structures
         std::map<uint64_t , std::vector<RayBuilder::acceleration_asset_ptr>> entity_assets;
+
+        //! map a vierkant::Mesh to bottom-lvl structures
+        std::map<vierkant::MeshConstPtr, std::vector<RayBuilder::acceleration_asset_ptr>> mesh_assets;
 
         //! pending builds for this frame
         std::unordered_map<vierkant::animated_mesh_t, RayBuilder::build_result_t> build_results;

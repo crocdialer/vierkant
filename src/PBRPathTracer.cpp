@@ -431,6 +431,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
     // clear left-overs
     auto previous_entity_assets = std::move(frame_asset.entity_assets);
+    auto previous_mesh_assets = std::move(frame_asset.mesh_assets);
     auto previous_builds = std::move(frame_asset.build_results);
 
     // run compaction on structures from previous frame
@@ -502,23 +503,25 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             vertex_buffer_offset = mesh_compute_result.vertex_buffer_offsets.at(object->id());
             build_key = mesh_compute_entities.at(entity);
         }
-        else if(!previous_entity_assets.contains(object->id()))
+        else
         {
-            // no previous acceleration-structure, check other frames
-            for(const auto &asset: m_frame_assets)
+            auto prev_it = previous_mesh_assets.find(mesh);
+            if(prev_it != previous_mesh_assets.end()) { frame_asset.mesh_assets[mesh] = prev_it->second; }
+            else
             {
-                if(&asset != &frame_asset)
+                // no previous acceleration-structure, check other frames
+                for(const auto &asset: m_frame_assets)
                 {
-                    auto search_it = asset.entity_assets.find(object->id());
-                    if(search_it != asset.entity_assets.end())
+                    if(&asset != &frame_asset)
                     {
-                        previous_entity_assets[object->id()] = search_it->second;
+                        auto mesh_it = asset.mesh_assets.find(mesh);
+                        if(mesh_it != asset.mesh_assets.end()) { frame_asset.mesh_assets[mesh] = mesh_it->second; }
                     }
                 }
             }
         }
 
-        if((!use_mesh_compute && !previous_entity_assets.contains(object->id())) ||
+        if((!use_mesh_compute && !frame_asset.mesh_assets.contains(mesh)) ||
            (use_mesh_compute && !frame_asset.build_results.contains(build_key)))
         {
             // create bottom-lvl
@@ -527,7 +530,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             create_mesh_structures_params.vertex_buffer = vertex_buffer;
             create_mesh_structures_params.vertex_buffer_offset = vertex_buffer_offset;
             create_mesh_structures_params.enable_compaction = !use_mesh_compute;
-            create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
+            //            create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
             create_mesh_structures_params.semaphore_info.semaphore = frame_asset.semaphore.handle();
             create_mesh_structures_params.semaphore_info.wait_value = semaphore_wait_value;
             create_mesh_structures_params.semaphore_info.wait_stage =
@@ -535,6 +538,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
 
             auto result = m_ray_builder.create_mesh_structures(create_mesh_structures_params);
             frame_asset.entity_assets[object->id()] = result.acceleration_assets;
+            if(!use_mesh_compute) { frame_asset.mesh_assets[mesh] = result.acceleration_assets; }
             frame_asset.build_results[build_key] = std::move(result);
         }
     }
@@ -548,6 +552,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
         semaphore_infos.push_back(wait_info);
     }
 
+    // this should make sure top-lvl building can find all required bottom-lvls
     for(const auto &[entity, object, mesh]: view.each())
     {
         if(!frame_asset.entity_assets.contains(object->id()))
@@ -562,10 +567,10 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
                                                                   ? it->second.acceleration_assets
                                                                   : it->second.compacted_assets;
             }
-            else if(previous_entity_assets.contains(object->id()))
+            else if(frame_asset.mesh_assets.contains(mesh))
             {
                 // static mesh case
-                frame_asset.entity_assets[object->id()] = std::move(previous_entity_assets.at(object->id()));
+                frame_asset.entity_assets[object->id()] = frame_asset.mesh_assets[mesh];
             }
         }
     }
