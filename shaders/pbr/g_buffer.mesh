@@ -12,8 +12,8 @@
 #include "../renderer/mesh_task_payload.glsl"
 #include "../utils/camera.glsl"
 
-layout(local_size_x = LOCAL_SIZE, local_size_y = 1, local_size_z = 1) in;
-layout(triangles, max_vertices = 64, max_primitives = 124) out;
+layout(local_size_x = MESH_WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
+layout(triangles, max_vertices = 64, max_primitives = 64) out;
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
@@ -72,7 +72,9 @@ void main()
     matrix_struct_t m = draws[task_payload.object_index].current_matrices;
     matrix_struct_t m_last = draws[task_payload.object_index].last_matrices;
 
-    for(uint i = ti; i < meshlets[mi].vertex_count; i += LOCAL_SIZE)
+    //    //! would work when MESH_WORKGROUP_SIZE >= max_vertices -> iff >=1 thread per vertex
+    //    if(ti < meshlets[mi].vertex_count)
+    for(uint i = ti; i < meshlets[mi].vertex_count; i += MESH_WORKGROUP_SIZE)
     {
         uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
         const Vertex v = unpack(vertices[vi]);
@@ -93,11 +95,17 @@ void main()
         vertex_out[i].tangent = normalize(mat3(m.normal) * v.tangent);
     }
 
-    for(uint i = ti; i < meshlets[mi].triangle_count; i += LOCAL_SIZE)
+    for(uint i = ti; i < meshlets[mi].triangle_count; i += MESH_WORKGROUP_SIZE)
+//    if(ti < meshlets[mi].triangle_count)
     {
         uint base_index = meshlets[mi].triangle_offset + 3 * i;
         gl_PrimitiveTriangleIndicesEXT[i] = uvec3(uint(meshlet_triangles[base_index]),
                                                   uint(meshlet_triangles[base_index + 1]),
                                                   uint(meshlet_triangles[base_index + 2]));
+
+        // TODO: check if this is a validation-bug:
+        // "The SPIR-V Capability (FragmentShadingRateKHR) was declared, but none of the requirements were met to use it"
+        //! triangle culling hook
+//        gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = bool(i % 2);
     }
 }

@@ -150,7 +150,7 @@ vierkant::MeshPtr Mesh::create_with_entries(const vierkant::DevicePtr &device,
                                             const std::vector<entry_create_info_t> &entry_create_infos,
                                             const create_info_t &create_info)
 {
-    if(entry_create_infos.empty()){ return nullptr; }
+    if(entry_create_infos.empty()) { return nullptr; }
 
     create_mesh_buffers_params_t params = {};
     params.optimize_vertex_cache = create_info.optimize_vertex_cache;
@@ -169,8 +169,7 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
                                            const vierkant::mesh_buffer_bundle_t &mesh_buffer_bundle,
                                            const create_info_t &create_info)
 {
-    constexpr auto num_array_bytes = [](const auto &array) -> size_t
-    {
+    constexpr auto num_array_bytes = [](const auto &array) -> size_t {
         using elem_t = typename std::decay<decltype(array)>::type::value_type;
         return array.size() * sizeof(elem_t);
     };
@@ -192,11 +191,10 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
         staging_buffer = vierkant::Buffer::create(device, nullptr, num_staging_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                   VMA_MEMORY_USAGE_CPU_ONLY);
     }
-    else{ staging_buffer->set_data(nullptr, num_staging_bytes); }
+    else { staging_buffer->set_data(nullptr, num_staging_bytes); }
 
     auto staging_copy = [num_array_bytes, staging_buffer, &staging_offset, command_buffer = create_info.command_buffer,
-            device](const auto &array, vierkant::BufferPtr &outbuffer, VkBufferUsageFlags flags)
-    {
+                         device](const auto &array, vierkant::BufferPtr &outbuffer, VkBufferUsageFlags flags) {
         flags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
         size_t num_bytes = num_array_bytes(array);
@@ -211,7 +209,7 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
         {
             outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes, flags, VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else{ outbuffer->set_data(nullptr, num_bytes); }
+        else { outbuffer->set_data(nullptr, num_bytes); }
 
         // issue copy from staging-buffer to GPU-buffer
         staging_buffer->copy_to(outbuffer, command_buffer, staging_offset, 0, num_bytes);
@@ -222,13 +220,13 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     vierkant::BufferPtr vertex_buffer;
     staging_copy(mesh_buffer_bundle.vertex_buffer, vertex_buffer,
                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                 create_info.buffer_usage_flags);
+                         create_info.buffer_usage_flags);
 
     auto mesh = vierkant::Mesh::create();
     mesh->vertex_buffer = vertex_buffer;
     mesh->vertex_attribs = mesh_buffer_bundle.vertex_attribs;
     mesh->entries = mesh_buffer_bundle.entries;
-    for(auto &[location, vertex_attrib]: mesh->vertex_attribs){ vertex_attrib.buffer = vertex_buffer; }
+    for(auto &[location, vertex_attrib]: mesh->vertex_attribs) { vertex_attrib.buffer = vertex_buffer; }
 
     auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
 
@@ -257,7 +255,7 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     }
 
     mesh->materials.resize(mesh_buffer_bundle.num_materials);
-    for(auto &m: mesh->materials){ m = vierkant::Material::create(); }
+    for(auto &m: mesh->materials) { m = vierkant::Material::create(); }
 
     return mesh;
 }
@@ -296,7 +294,7 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
                            offsets.data());
 
     // bind index buffer
-    if(index_buffer){ vkCmdBindIndexBuffer(command_buffer, index_buffer->handle(), index_buffer_offset, index_type); }
+    if(index_buffer) { vkCmdBindIndexBuffer(command_buffer, index_buffer->handle(), index_buffer_offset, index_type); }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -356,7 +354,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
         }
     }
 
-    if(pack_vertices){ spdlog::debug("using quantized/packed vertex-layout"); }
+    if(pack_vertices) { spdlog::debug("using quantized/packed vertex-layout"); }
     auto vertex_layout = pack_vertices ? VertexLayout::PACKED : VertexLayout::ADHOC;
 
     ret.vertex_buffer = splicer.create_vertex_buffer(vertex_layout);
@@ -445,11 +443,10 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
                 if(sloppy)
                 {
-                    num_indices = meshopt_simplifySloppy(lod_indices.data(), lod_indices.data(), lod_indices.size(),
-                                                         reinterpret_cast<const float *>(vertices),
-                                                         geom->positions.size(),
-                                                         ret.vertex_stride, target_index_count, target_error,
-                                                         &result_error);
+                    num_indices =
+                            meshopt_simplifySloppy(lod_indices.data(), lod_indices.data(), lod_indices.size(),
+                                                   reinterpret_cast<const float *>(vertices), geom->positions.size(),
+                                                   ret.vertex_stride, target_index_count, target_error, &result_error);
                 }
                 else
                 {
@@ -467,7 +464,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                               i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
 
                 // not getting any simpler
-                if(result_factor - shrink_factor > max_mismatch){ break; }
+                if(result_factor - shrink_factor > max_mismatch) { break; }
 
                 min_num = num_indices;
                 lod_indices.resize(num_indices);
@@ -511,7 +508,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                 // determine size
                 size_t max_meshlets = meshopt_buildMeshletsBound(lod.num_indices, params.meshlet_max_vertices,
                                                                  params.meshlet_max_triangles);
-                if(!max_meshlets){ break; }
+                if(!max_meshlets) { break; }
 
                 std::vector<meshopt_Meshlet> meshlets(max_meshlets);
                 std::vector<uint32_t> meshlet_vertices(max_meshlets * params.meshlet_max_vertices);
@@ -560,7 +557,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                 }
 
                 // add entry vertex-offset
-                for(uint32_t vi = 0; vi < vertex_count; ++vi){ meshlet_vertices[vi] += offsets.base_vertex; }
+                for(uint32_t vi = 0; vi < vertex_count; ++vi) { meshlet_vertices[vi] += offsets.base_vertex; }
 
                 ret.meshlet_vertices.insert(ret.meshlet_vertices.end(), meshlet_vertices.begin(),
                                             meshlet_vertices.begin() + int(vertex_count));
@@ -571,8 +568,10 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
         if(!ret.meshlets.empty())
         {
-            spdlog::debug("generate_meshlets: {} ({} mesh(es) - {} triangles - {} meshlets)",
-                          std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), splicer.offsets.size(),
+            spdlog::debug("generate_meshlets: {} (max_vertices: {} - max_triangles: {} - {} mesh(es) - {} triangles - "
+                          "{} meshlets)",
+                          std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()),
+                          params.meshlet_max_vertices, params.meshlet_max_triangles, splicer.offsets.size(),
                           ret.index_buffer.size() / 3, ret.meshlets.size());
         }
     }
@@ -624,15 +623,15 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
 bool create_mesh_buffers_params_t::operator==(const create_mesh_buffers_params_t &other) const
 {
-    if(optimize_vertex_cache != other.optimize_vertex_cache){ return false; }
-    if(generate_lods != other.generate_lods){ return false; }
-    if(max_num_lods != other.max_num_lods){ return false; }
-    if(generate_meshlets != other.generate_meshlets){ return false; }
-    if(use_vertex_colors != other.use_vertex_colors){ return false; }
-    if(pack_vertices != other.pack_vertices){ return false; }
-    if(meshlet_max_vertices != other.meshlet_max_vertices){ return false; }
-    if(meshlet_max_triangles != other.meshlet_max_triangles){ return false; }
-    if(meshlet_cone_weight != other.meshlet_cone_weight){ return false; }
+    if(optimize_vertex_cache != other.optimize_vertex_cache) { return false; }
+    if(generate_lods != other.generate_lods) { return false; }
+    if(max_num_lods != other.max_num_lods) { return false; }
+    if(generate_meshlets != other.generate_meshlets) { return false; }
+    if(use_vertex_colors != other.use_vertex_colors) { return false; }
+    if(pack_vertices != other.pack_vertices) { return false; }
+    if(meshlet_max_vertices != other.meshlet_max_vertices) { return false; }
+    if(meshlet_max_triangles != other.meshlet_max_triangles) { return false; }
+    if(meshlet_cone_weight != other.meshlet_cone_weight) { return false; }
     return true;
 }
 

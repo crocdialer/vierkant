@@ -5,6 +5,7 @@
 #extension GL_EXT_buffer_reference2: require
 
 #include "../renderer/types.glsl"
+#include "../renderer/mesh_task_payload.glsl"
 #include "../utils/camera.glsl"
 
 struct draw_cull_result_t
@@ -157,7 +158,7 @@ void main()
         draw.vertexOffset = int(mesh_entry.vertex_offset);
         draw.indexCount = lod.num_indices;
         draw.firstIndex = lod.base_index;
-        draw.groupCountX = (lod.num_meshlets + 31) / 32;
+        draw.groupCountX = (lod.num_meshlets + TASK_WORKGROUP_SIZE - 1) / TASK_WORKGROUP_SIZE;
         draw.groupCountY = draw.groupCountZ = 1;
         draw.base_meshlet = lod.base_meshlet;
         draw.num_meshlets = lod.num_meshlets;

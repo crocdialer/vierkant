@@ -530,7 +530,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
             create_mesh_structures_params.vertex_buffer = vertex_buffer;
             create_mesh_structures_params.vertex_buffer_offset = vertex_buffer_offset;
             create_mesh_structures_params.enable_compaction = !use_mesh_compute;
-            //            create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
+            create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
             create_mesh_structures_params.semaphore_info.semaphore = frame_asset.semaphore.handle();
             create_mesh_structures_params.semaphore_info.wait_value = semaphore_wait_value;
             create_mesh_structures_params.semaphore_info.wait_stage =

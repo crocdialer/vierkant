@@ -294,7 +294,7 @@ struct create_mesh_buffers_params_t
     size_t meshlet_max_vertices = 64;
 
     //! maximum number of triangles per meshlet
-    size_t meshlet_max_triangles = 124;
+    size_t meshlet_max_triangles = 64;
 
     //! cone-weight used during meshlet-generation. useful for cluster-culling
     float meshlet_cone_weight = 0.5f;
