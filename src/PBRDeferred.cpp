@@ -1277,8 +1277,8 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     }
 
     timings_result.g_buffer_pre_ms = frame_asset.timings_map[SemaphoreValue::G_BUFFER_LAST_VISIBLE].count();
-    timings_result.depth_pyramid_ms = frame_asset.timings_map[SemaphoreValue::DEPTH_PYRAMID].count();
-    timings_result.culling_ms = frame_asset.timings_map[SemaphoreValue::CULLING].count();
+    timings_result.depth_pyramid_ms = timing_millis[SemaphoreValue::DEPTH_PYRAMID];
+    timings_result.culling_ms = timing_millis[SemaphoreValue::CULLING];
     timings_result.g_buffer_post_ms = frame_asset.timings_map[SemaphoreValue::G_BUFFER_ALL].count();
     timings_result.lighting_ms = timing_millis[SemaphoreValue::LIGHTING];
     timings_result.taa_ms = timing_millis[SemaphoreValue::TAA];
