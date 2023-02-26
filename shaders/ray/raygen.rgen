@@ -45,7 +45,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     // The sum of the colors of all of the samples.
     trace_result.radiance = vec3(0);
 
-    float sample_offset = rnd(rng_state);
+    float sample_offset = 2 * rnd(rng_state) - 1;
 
     // cone spread_angle
     float spread_angle = atan(2.0 * tan(cam.fov / 2.0) / size.y);
@@ -140,7 +140,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     }
 
     trace_result.radiance /= float(push_constants.num_samples);
-    if(any(isinf(trace_result.radiance)) || any(isnan(trace_result.radiance))){ trace_result.radiance = vec3(0); }
+//    if(any(isinf(trace_result.radiance)) || any(isnan(trace_result.radiance))){ trace_result.radiance = vec3(0); }
     return trace_result;
 }
 

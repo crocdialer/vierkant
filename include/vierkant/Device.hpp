@@ -20,6 +20,8 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device,
                                uint32_t query_count,
                                VkQueryType query_type);
 
+double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp_period);
+
 using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
 
 class Device

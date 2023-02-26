@@ -675,7 +675,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         // base/first timestamp
         vkCmdWriteTimestamp2(frame_asset.cmd_clear.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                             frame_asset.query_pool.get(), 0);
+                             frame_asset.query_pool.get(), SemaphoreValue::INVALID);
 
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_main);
         frame_asset.indirect_draw_params_main.draws_out = params.draws_out;
@@ -1262,24 +1262,17 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     auto query_result = vkGetQueryPoolResults(m_device->handle(), frame_asset.query_pool.get(), 0, query_count,
                                               sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
 
-    auto timestamp_period = m_device->properties().limits.timestampPeriod;
-
-    auto millis = [&](SemaphoreValue val) -> std::optional<double_millisecond_t> {
-        if(!timestamps[val]) { return {}; }
-        auto rhs = timestamps[val - 1];
-        for(uint32_t v = val - 1; !rhs && v > 0; v--) { rhs = timestamps[v]; }
-        auto frame_ns =
-                std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[val] - rhs) * timestamp_period));
-        return std::chrono::duration_cast<double_millisecond_t>(frame_ns);
-    };
+    double timing_millis[SemaphoreValue::MAX_VALUE] = {};
 
     if(query_result == VK_SUCCESS || query_result == VK_NOT_READY)
     {
+        auto timestamp_period = m_device->properties().limits.timestampPeriod;
+
         for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= frame_asset.semaphore_value_done; ++i)
         {
             auto val = SemaphoreValue(i);
-            auto measurement = millis(val);
-            if(measurement) { frame_asset.timings_map[val] = *measurement; };
+            auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
+            timing_millis[i] = measurement;
         }
     }
 
@@ -1287,11 +1280,11 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     timings_result.depth_pyramid_ms = frame_asset.timings_map[SemaphoreValue::DEPTH_PYRAMID].count();
     timings_result.culling_ms = frame_asset.timings_map[SemaphoreValue::CULLING].count();
     timings_result.g_buffer_post_ms = frame_asset.timings_map[SemaphoreValue::G_BUFFER_ALL].count();
-    timings_result.lighting_ms = frame_asset.timings_map[SemaphoreValue::LIGHTING].count();
-    timings_result.taa_ms = frame_asset.timings_map[SemaphoreValue::TAA].count();
-    timings_result.fxaa_ms = frame_asset.timings_map[SemaphoreValue::FXAA].count();
-    timings_result.tonemap_bloom_ms = frame_asset.timings_map[SemaphoreValue::TONEMAP].count();
-    timings_result.depth_of_field_ms = frame_asset.timings_map[SemaphoreValue::DEFOCUS_BLUR].count();
+    timings_result.lighting_ms = timing_millis[SemaphoreValue::LIGHTING];
+    timings_result.taa_ms = timing_millis[SemaphoreValue::TAA];
+    timings_result.fxaa_ms = timing_millis[SemaphoreValue::FXAA];
+    timings_result.tonemap_bloom_ms = timing_millis[SemaphoreValue::TONEMAP];
+    timings_result.depth_of_field_ms = timing_millis[SemaphoreValue::DEFOCUS_BLUR];
 
     timings_result.total_ms = timings_result.g_buffer_pre_ms + timings_result.depth_pyramid_ms +
                               timings_result.culling_ms + timings_result.g_buffer_post_ms + timings_result.lighting_ms +

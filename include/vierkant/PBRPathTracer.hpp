@@ -69,6 +69,24 @@ public:
         bool depth_of_field = false;
     };
 
+    struct timings_t
+    {
+        double mesh_compute_ms = 0.0;
+        double update_bottom_ms = 0.0;
+        double update_top_ms = 0.0;
+        double raytrace_ms = 0.0;
+        double denoise_ms = 0.0;
+        double bloom_ms = 0.0;
+        double tonemap_ms = 0.0;
+        double total_ms = 0.0;
+    };
+
+    struct statistics_t
+    {
+        std::chrono::steady_clock::time_point timestamp;
+        timings_t timings;
+    };
+
     struct create_info_t
     {
         uint32_t num_frames_in_flight = 0;
@@ -131,7 +149,7 @@ private:
         MAX_VALUE
     };
 
-    struct frame_assets_t
+    struct frame_asset_t
     {
         settings_t settings;
 
@@ -141,13 +159,13 @@ private:
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
 
         //! re-usable command-buffers for all stages
-        vierkant::CommandBuffer cmd_build_toplvl, cmd_trace, cmd_denoise, cmd_post_fx;
+        vierkant::CommandBuffer cmd_pre_render, cmd_build_bottom, cmd_build_toplvl, cmd_trace, cmd_denoise, cmd_post_fx;
 
         //! context for computing vertex-buffers for animated meshes
         vierkant::mesh_compute_context_ptr mesh_compute_context = nullptr;
 
         //! map object-id/entity to bottom-lvl structures
-        std::map<uint64_t , std::vector<RayBuilder::acceleration_asset_ptr>> entity_assets;
+        std::map<uint64_t, std::vector<RayBuilder::acceleration_asset_ptr>> entity_assets;
 
         //! map a vierkant::Mesh to bottom-lvl structures
         std::map<vierkant::MeshConstPtr, std::vector<RayBuilder::acceleration_asset_ptr>> mesh_assets;
@@ -169,15 +187,12 @@ private:
         BloomUPtr bloom;
 
         //! ping-pong post-fx framebuffers
-        struct ping_pong_t
-        {
-            vierkant::Framebuffer framebuffer;
-        };
-        std::array<ping_pong_t, 2> post_fx_ping_pongs;
+        std::array<vierkant::Framebuffer, 2> post_fx_ping_pongs;
         vierkant::Renderer post_fx_renderer;
 
         // gpu timings/statistics
         vierkant::QueryPoolPtr query_pool;
+        statistics_t statistics = {};
     };
 
     struct push_constants_t
@@ -222,18 +237,20 @@ private:
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void update_acceleration_structures(frame_assets_t &frame_asset, const SceneConstPtr &scene,
+    void update_timing(frame_asset_t &frame_asset);
+
+    void update_acceleration_structures(frame_asset_t &frame_asset, const SceneConstPtr &scene,
                                         const std::set<std::string> &tags);
 
-    void update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam);
+    void update_trace_descriptors(frame_asset_t &frame_asset, const CameraPtr &cam);
 
-    void path_trace_pass(frame_assets_t &frame_asset, const vierkant::SceneConstPtr &scene, const CameraPtr &cam);
+    void path_trace_pass(frame_asset_t &frame_asset, const vierkant::SceneConstPtr &scene, const CameraPtr &cam);
 
-    void denoise_pass(frame_assets_t &frame_asset);
+    void denoise_pass(frame_asset_t &frame_asset);
 
-    void post_fx_pass(frame_assets_t &frame_asset);
+    void post_fx_pass(frame_asset_t &frame_asset);
 
-    void resize_storage(frame_assets_t &frame_asset, const glm::uvec2 &resolution);
+    void resize_storage(frame_asset_t &frame_asset, const glm::uvec2 &resolution);
 
     //! device
     vierkant::DevicePtr m_device;
@@ -267,7 +284,7 @@ private:
     //! information for a raytracing pipeline
     raytracing_shader_map_t m_shader_stages = {}, m_shader_stages_env = {};
 
-    std::vector<frame_assets_t> m_frame_assets;
+    std::vector<frame_asset_t> m_frame_assets;
 
     size_t m_frame_index = 0;
 

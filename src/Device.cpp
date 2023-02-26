@@ -7,8 +7,8 @@
 #define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 
-#include <vierkant/git_hash.h>
 #include <vierkant/Device.hpp>
+#include <vierkant/git_hash.h>
 
 namespace vierkant
 {
@@ -24,21 +24,33 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query
     pool_create_info.queryType = query_type;
 
     VkQueryPool handle = VK_NULL_HANDLE;
-    vkCheck(vkCreateQueryPool(device->handle(), &pool_create_info, nullptr, &handle),
-            "could not create VkQueryPool");
+    vkCheck(vkCreateQueryPool(device->handle(), &pool_create_info, nullptr, &handle), "could not create VkQueryPool");
     vkResetQueryPool(device->handle(), handle, 0, query_count);
-    return {handle, [device](VkQueryPool p){ vkDestroyQueryPool(device->handle(), p, nullptr); }};
+    return {handle, [device](VkQueryPool p) { vkDestroyQueryPool(device->handle(), p, nullptr); }};
 }
 
-////////////////////////////// VALIDATION LAYER ///////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp_period)
+{
+    using double_millisecond_t = std::chrono::duration<double, std::milli>;
+
+    if(!timestamps[idx]) { return 0.0; }
+    auto rhs = timestamps[idx - 1];
+    for(int32_t v = idx - 1; !rhs && v >= 0; v--) { rhs = timestamps[v]; }
+    auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[idx] - rhs) * timestamp_period));
+    return std::chrono::duration_cast<double_millisecond_t>(frame_ns).count();
+}
+
+////////////////////////////// VALIDATION LAYER ////////////////////////////////////////////////////////////////////////
 
 const std::vector<const char *> g_validation_layers = {"VK_LAYER_KHRONOS_validation"};
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const std::vector<VkQueue> g_empty_queue;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 VkSampleCountFlagBits max_usable_sample_count(VkPhysicalDevice physical_device)
 {
@@ -47,12 +59,12 @@ VkSampleCountFlagBits max_usable_sample_count(VkPhysicalDevice physical_device)
 
     VkSampleCountFlags counts = std::min(physicalDeviceProperties.limits.framebufferColorSampleCounts,
                                          physicalDeviceProperties.limits.framebufferDepthSampleCounts);
-    if(counts & VK_SAMPLE_COUNT_64_BIT){ return VK_SAMPLE_COUNT_64_BIT; }
-    if(counts & VK_SAMPLE_COUNT_32_BIT){ return VK_SAMPLE_COUNT_32_BIT; }
-    if(counts & VK_SAMPLE_COUNT_16_BIT){ return VK_SAMPLE_COUNT_16_BIT; }
-    if(counts & VK_SAMPLE_COUNT_8_BIT){ return VK_SAMPLE_COUNT_8_BIT; }
-    if(counts & VK_SAMPLE_COUNT_4_BIT){ return VK_SAMPLE_COUNT_4_BIT; }
-    if(counts & VK_SAMPLE_COUNT_2_BIT){ return VK_SAMPLE_COUNT_2_BIT; }
+    if(counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
+    if(counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
+    if(counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
+    if(counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
+    if(counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
+    if(counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
 
     return VK_SAMPLE_COUNT_1_BIT;
 }
@@ -78,14 +90,14 @@ std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysi
             {
                 indices[Device::Queue::GRAPHICS].index = i;
                 auto present_support = static_cast<VkBool32>(false);
-                if(surface){ vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support); }
+                if(surface) { vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support); }
 
                 if(present_support)
                 {
                     indices[Device::Queue::PRESENT].index = i;
                     indices[Device::Queue::PRESENT].num_queues = queueFamily.queueCount;
                 }
-                else{ indices[Device::Queue::PRESENT].num_queues = 0; }
+                else { indices[Device::Queue::PRESENT].num_queues = 0; }
                 indices[Device::Queue::GRAPHICS].num_queues = queueFamily.queueCount;
             }
             if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
@@ -106,18 +118,14 @@ std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysi
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-DevicePtr Device::create(const create_info_t &create_info)
-{
-    return DevicePtr(new Device(create_info));
-}
+DevicePtr Device::create(const create_info_t &create_info) { return DevicePtr(new Device(create_info)); }
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Device::Device(const create_info_t &create_info) :
-        m_physical_device(create_info.physical_device)
+Device::Device(const create_info_t &create_info) : m_physical_device(create_info.physical_device)
 {
-    if(!create_info.instance){ throw std::runtime_error("vierkant::Device::create_info_t::instance NOT set"); }
+    if(!create_info.instance) { throw std::runtime_error("vierkant::Device::create_info_t::instance NOT set"); }
     if(!create_info.physical_device)
     {
         throw std::runtime_error("vierkant::Device::create_info_t::physical_device NOT set");
@@ -158,8 +166,8 @@ Device::Device(const create_info_t &create_info) :
     device_features.multiDrawIndirect = true;
 
     std::vector<const char *> extensions;
-    for(const auto &ext: create_info.extensions){ extensions.push_back(ext); }
-    if(create_info.surface){ extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
+    for(const auto &ext: create_info.extensions) { extensions.push_back(ext); }
+    if(create_info.surface) { extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
 
     if(!vierkant::check_device_extension_support(create_info.physical_device, extensions))
     {
@@ -174,10 +182,9 @@ Device::Device(const create_info_t &create_info) :
     vkGetPhysicalDeviceQueueFamilyProperties(m_physical_device, &num_queue_families, family_props.data());
 
     std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
-    std::set<int> unique_queue_families = {m_queue_indices[Device::Queue::GRAPHICS].index,
-                                           m_queue_indices[Device::Queue::TRANSFER].index,
-                                           m_queue_indices[Device::Queue::COMPUTE].index,
-                                           m_queue_indices[Device::Queue::PRESENT].index};
+    std::set<int> unique_queue_families = {
+            m_queue_indices[Device::Queue::GRAPHICS].index, m_queue_indices[Device::Queue::TRANSFER].index,
+            m_queue_indices[Device::Queue::COMPUTE].index, m_queue_indices[Device::Queue::PRESENT].index};
     // helper to pass priorities
     std::vector<std::vector<float>> queue_priorities;
 
@@ -260,12 +267,11 @@ Device::Device(const create_info_t &create_info) :
 
     // check availability
     bool ray_features_available = acceleration_structure_features.accelerationStructure &&
-                                  ray_tracing_pipeline_features.rayTracingPipeline &&
-                                  ray_query_features.rayQuery;
+                                  ray_tracing_pipeline_features.rayTracingPipeline && ray_query_features.rayQuery;
 
     bool mesh_shader_available = mesh_shader_features.meshShader && mesh_shader_features.taskShader;
-    if(ray_features_available){ last_pNext = &ray_query_features.pNext; }
-    if(mesh_shader_available){ last_pNext = &mesh_shader_features.pNext; }
+    if(ray_features_available) { last_pNext = &ray_query_features.pNext; }
+    if(mesh_shader_available) { last_pNext = &mesh_shader_features.pNext; }
     *last_pNext = create_info.create_device_pNext;
 
     VkDeviceCreateInfo device_create_info = {};
@@ -284,15 +290,14 @@ Device::Device(const create_info_t &create_info) :
         device_create_info.enabledLayerCount = static_cast<uint32_t>(g_validation_layers.size());
         device_create_info.ppEnabledLayerNames = g_validation_layers.data();
     }
-    else{ device_create_info.enabledLayerCount = 0; }
+    else { device_create_info.enabledLayerCount = 0; }
 
     spdlog::debug("device-extensions: {}", extensions);
 
     vkCheck(vkCreateDevice(m_physical_device, &device_create_info, nullptr, &m_device),
             "failed to create logical device!");
 
-    auto get_all_queues = [this](Queue type)
-    {
+    auto get_all_queues = [this](Queue type) {
         if(m_queue_indices[type].index >= 0)
         {
             auto num_queues = m_queue_indices[type].num_queues;
@@ -301,13 +306,12 @@ Device::Device(const create_info_t &create_info) :
 
             for(uint32_t i = 0; i < num_queues; ++i)
             {
-                vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i,
-                                 &m_queues[type][i]);
+                vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i, &m_queues[type][i]);
             }
         }
     };
     Queue queue_types[] = {Queue::GRAPHICS, Queue::TRANSFER, Queue::COMPUTE, Queue::PRESENT};
-    for(auto q: queue_types){ get_all_queues(q); }
+    for(auto q: queue_types) { get_all_queues(q); }
 
     // command pools
     VkCommandPoolCreateInfo pool_info = {};
@@ -316,8 +320,7 @@ Device::Device(const create_info_t &create_info) :
     // regular command pool -> graphics queue
     pool_info.queueFamilyIndex = static_cast<uint32_t>(m_queue_indices[Queue::GRAPHICS].index);
     pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    vkCheck(vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool),
-            "failed to create command pool!");
+    vkCheck(vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool), "failed to create command pool!");
 
     // transient command pool -> graphics queue
     pool_info.queueFamilyIndex = static_cast<uint32_t>(m_queue_indices[Queue::GRAPHICS].index);
@@ -339,7 +342,10 @@ Device::Device(const create_info_t &create_info) :
     allocator_info.device = m_device;
 
     // optionally enable DEVICE_ADDRESS_BIT
-    if(device_features_12.bufferDeviceAddress){ allocator_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; }
+    if(device_features_12.bufferDeviceAddress)
+    {
+        allocator_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    }
 
 
     vmaCreateAllocator(&allocator_info, &m_vk_mem_allocator);
@@ -384,10 +390,7 @@ VkQueue Device::queue(Queue type) const
 {
     auto queue_it = m_queues.find(type);
 
-    if(queue_it != m_queues.end() && !queue_it->second.empty())
-    {
-        return queue_it->second.front();
-    }
+    if(queue_it != m_queues.end() && !queue_it->second.empty()) { return queue_it->second.front(); }
     return VK_NULL_HANDLE;
 }
 
@@ -397,9 +400,9 @@ const std::vector<VkQueue> &Device::queues(Queue type) const
 {
     auto queue_it = m_queues.find(type);
 
-    if(queue_it != m_queues.end()){ return queue_it->second; }
+    if(queue_it != m_queues.end()) { return queue_it->second; }
     return g_empty_queue;
 }
 
 
-}//namespace vulkan
+}// namespace vierkant

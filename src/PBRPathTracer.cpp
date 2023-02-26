@@ -76,6 +76,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                 vierkant::Buffer::create(device, &frame_asset.settings.environment_factor, sizeof(float),
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
+        frame_asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        frame_asset.cmd_build_bottom = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -139,13 +141,14 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, c
                                                            const CameraPtr &cam, const std::set<std::string> &tags)
 {
     auto &frame_asset = m_frame_assets[renderer.current_index()];
+    frame_asset.statistics.timestamp = std::chrono::steady_clock::now();
 
     // sync and reset semaphore
     frame_asset.semaphore.wait(frame_asset.semaphore_value_done);
     frame_asset.semaphore = vierkant::Semaphore(m_device);
 
-    // reset query-pool
-    vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, SemaphoreValue::MAX_VALUE);
+    // query-pool stuff
+    update_timing(frame_asset);
 
     // copy settings for next frame
     frame_asset.settings = settings;
@@ -189,7 +192,50 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, c
     return ret;
 }
 
-void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const vierkant::SceneConstPtr &scene,
+void PBRPathTracer::update_timing(PBRPathTracer::frame_asset_t &frame_asset)
+{
+    size_t query_count = SemaphoreValue::MAX_VALUE;
+    uint64_t timestamps[SemaphoreValue::MAX_VALUE] = {};
+    auto query_result = vkGetQueryPoolResults(m_device->handle(), frame_asset.query_pool.get(), 0, query_count,
+                                              sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+
+    double timing_millis[SemaphoreValue::MAX_VALUE] = {};
+
+    auto &timings = frame_asset.statistics.timings;
+    timings = {};
+
+    if(query_result == VK_SUCCESS || query_result == VK_NOT_READY)
+    {
+        auto timestamp_period = m_device->properties().limits.timestampPeriod;
+
+        for(uint32_t i = 1; i < SemaphoreValue::MAX_VALUE; ++i)
+        {
+            auto val = SemaphoreValue(i);
+            auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
+            timing_millis[val] = measurement;
+            timings.total_ms += measurement;
+        }
+    }
+
+    timings.mesh_compute_ms = timing_millis[SemaphoreValue::MESH_COMPUTE];
+    timings.update_bottom_ms = timing_millis[SemaphoreValue::UPDATE_BOTTOM];
+    timings.update_top_ms = timing_millis[SemaphoreValue::UPDATE_TOP];
+    timings.raytrace_ms = timing_millis[SemaphoreValue::RAYTRACING];
+    timings.bloom_ms = timing_millis[SemaphoreValue::DENOISER];
+    timings.tonemap_ms = timing_millis[SemaphoreValue::BLOOM];
+    timings.denoise_ms = timing_millis[SemaphoreValue::TONEMAP];
+
+    // reset query-pool
+    vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, SemaphoreValue::MAX_VALUE);
+
+    frame_asset.cmd_pre_render.begin(0);
+    vkCmdWriteTimestamp2(frame_asset.cmd_pre_render.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::INVALID);
+
+    frame_asset.cmd_pre_render.submit(m_queue);
+}
+
+void PBRPathTracer::path_trace_pass(frame_asset_t &frame_asset, const vierkant::SceneConstPtr &scene,
                                     const CameraPtr &cam)
 {
     // push constants
@@ -209,6 +255,9 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const vierkant:
     // update top-level structure
     frame_asset.acceleration_asset = m_ray_builder.create_toplevel(scene, frame_asset.entity_assets,
                                                                    frame_asset.cmd_build_toplvl.handle(), nullptr);
+    vkCmdWriteTimestamp2(frame_asset.cmd_build_toplvl.handle(),
+                         VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, frame_asset.query_pool.get(),
+                         SemaphoreValue::UPDATE_TOP);
     frame_asset.cmd_build_toplvl.end();
 
     vierkant::semaphore_submit_info_t semaphore_top_info = {};
@@ -225,6 +274,8 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const vierkant:
     // run path-tracer
     m_ray_tracer.trace_rays(frame_asset.tracable, frame_asset.cmd_trace.handle());
 
+    vkCmdWriteTimestamp2(frame_asset.cmd_trace.handle(), VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
+                         frame_asset.query_pool.get(), SemaphoreValue::RAYTRACING);
     frame_asset.cmd_trace.end();
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
@@ -236,7 +287,7 @@ void PBRPathTracer::path_trace_pass(frame_assets_t &frame_asset, const vierkant:
     frame_asset.semaphore_value_done = SemaphoreValue::RAYTRACING;
 }
 
-void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
+void PBRPathTracer::denoise_pass(PBRPathTracer::frame_asset_t &frame_asset)
 {
     frame_asset.cmd_denoise.begin(0);
 
@@ -264,11 +315,14 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_assets_t &frame_asset)
     semaphore_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     semaphore_info.wait_value = SemaphoreValue::RAYTRACING;
     semaphore_info.signal_value = SemaphoreValue::DENOISER;
+
+    vkCmdWriteTimestamp2(frame_asset.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+                         frame_asset.query_pool.get(), SemaphoreValue::DENOISER);
     frame_asset.cmd_denoise.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
     frame_asset.semaphore_value_done = SemaphoreValue::DENOISER;
 }
 
-void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
+void PBRPathTracer::post_fx_pass(frame_asset_t &frame_asset)
 {
     frame_asset.out_image = frame_asset.denoise_image;
 
@@ -281,15 +335,13 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
         // motion shortcut
         auto motion_img = m_empty_img;
 
+        frame_asset.cmd_post_fx.begin(0);
+
         if(frame_asset.settings.bloom)
         {
-            semaphore_submit_info_t bloom_submit = {};
-            bloom_submit.semaphore = frame_asset.semaphore.handle();
-            bloom_submit.wait_stage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            bloom_submit.wait_value = SemaphoreValue::DENOISER;
-            bloom_submit.signal_value = SemaphoreValue::BLOOM;
-            bloom_img = frame_asset.bloom->apply(frame_asset.out_image, m_queue, {bloom_submit});
-            frame_asset.semaphore_value_done = SemaphoreValue::BLOOM;
+            bloom_img = frame_asset.bloom->apply(frame_asset.out_image, frame_asset.cmd_post_fx.handle());
+            vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                                 frame_asset.query_pool.get(), SemaphoreValue::BLOOM);
         }
 
         composition_ubo_t comp_ubo = {};
@@ -303,17 +355,15 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
 
         vierkant::semaphore_submit_info_t tonemap_semaphore_info = {};
         tonemap_semaphore_info.semaphore = frame_asset.semaphore.handle();
-        tonemap_semaphore_info.wait_value = frame_asset.semaphore_value_done;
+        tonemap_semaphore_info.wait_value = SemaphoreValue::DENOISER;
         tonemap_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
         tonemap_semaphore_info.signal_value = SemaphoreValue::TONEMAP;
 
-        frame_asset.out_image = frame_asset.post_fx_ping_pongs[0].framebuffer.color_attachment();
+        frame_asset.out_image = frame_asset.post_fx_ping_pongs[0].color_attachment();
 
-        frame_asset.cmd_post_fx.begin(0);
-        bloom_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_post_fx.handle());
         vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
         begin_rendering_info.commandbuffer = frame_asset.cmd_post_fx.handle();
-        frame_asset.post_fx_ping_pongs[0].framebuffer.begin_rendering(begin_rendering_info);
+        frame_asset.post_fx_ping_pongs[0].begin_rendering(begin_rendering_info);
 
         vierkant::Renderer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = frame_asset.cmd_post_fx.handle();
@@ -322,12 +372,15 @@ void PBRPathTracer::post_fx_pass(frame_assets_t &frame_asset)
         frame_asset.post_fx_renderer.stage_drawable(drawable);
         frame_asset.post_fx_renderer.render(rendering_info);
         vkCmdEndRendering(frame_asset.cmd_post_fx.handle());
+
+        vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                             frame_asset.query_pool.get(), SemaphoreValue::TONEMAP);
         frame_asset.cmd_post_fx.submit(m_queue, false, VK_NULL_HANDLE, {tonemap_semaphore_info});
         frame_asset.semaphore_value_done = SemaphoreValue::TONEMAP;
     }
 }
 
-void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const CameraPtr &cam)
+void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const CameraPtr &cam)
 {
     frame_asset.tracable.descriptors.clear();
 
@@ -417,11 +470,9 @@ void PBRPathTracer::update_trace_descriptors(frame_assets_t &frame_asset, const 
     }
 }
 
-void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t &frame_asset,
+void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_asset_t &frame_asset,
                                                    const SceneConstPtr &scene, const std::set<std::string> & /*tags*/)
 {
-    // TODO: drop or use tags
-
     // set environment
     m_environment = scene->environment();
     bool use_environment = m_environment && frame_asset.settings.draw_skybox;
@@ -580,14 +631,18 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_assets_t
     signal_info.signal_value = SemaphoreValue::UPDATE_BOTTOM;
     semaphore_infos.push_back(signal_info);
 
-    vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, semaphore_infos);
+    frame_asset.cmd_build_bottom.begin(0);
+    vkCmdWriteTimestamp2(frame_asset.cmd_build_bottom.handle(),
+                         VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, frame_asset.query_pool.get(),
+                         SemaphoreValue::UPDATE_BOTTOM);
+    frame_asset.cmd_build_bottom.submit(m_queue, false, VK_NULL_HANDLE, semaphore_infos);
 }
 
 void PBRPathTracer::reset_accumulator() { m_batch_index = 0; }
 
 size_t PBRPathTracer::current_batch() const { return m_batch_index; }
 
-void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2 &resolution)
+void PBRPathTracer::resize_storage(frame_asset_t &frame_asset, const glm::uvec2 &resolution)
 {
     VkExtent3D size = {resolution.x, resolution.y, 1};
 
@@ -678,8 +733,8 @@ void PBRPathTracer::resize_storage(frame_assets_t &frame_asset, const glm::uvec2
         // create post_fx ping pong buffers and renderers
         for(auto &post_fx_ping_pong: frame_asset.post_fx_ping_pongs)
         {
-            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
-            post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+            post_fx_ping_pong = vierkant::Framebuffer(m_device, post_fx_buffer_info);
+            post_fx_ping_pong.clear_color = {{0.f, 0.f, 0.f, 0.f}};
         }
     }
 }
