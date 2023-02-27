@@ -1,5 +1,7 @@
 #version 460
+#extension GL_EXT_fragment_shading_rate : require
 #extension GL_EXT_mesh_shader : require
+
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_shader_8bit_storage: require
@@ -14,6 +16,8 @@
 
 layout(local_size_x = MESH_WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = 64) out;
+
+#define CULLING 0
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
@@ -63,6 +67,11 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
     vec4 last_position;
 } vertex_out[];
 
+#if CULLING
+// needs to match layout(max_vertices = 64)
+shared vec3 vertex_clip[64];
+#endif
+
 void main()
 {
     uint ti = gl_LocalInvocationID.x;
@@ -93,19 +102,51 @@ void main()
         vertex_out[i].tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
         vertex_out[i].normal = normalize(mat3(m.normal) * v.normal);
         vertex_out[i].tangent = normalize(mat3(m.normal) * v.tangent);
+
+#if CULLING
+        vertex_clip[i] = vec3((jittered_position.xy / jittered_position.w * 0.5 + vec2(0.5)) * context.size,
+                              jittered_position.w);
+#endif
     }
 
     for(uint i = ti; i < meshlets[mi].triangle_count; i += MESH_WORKGROUP_SIZE)
 //    if(ti < meshlets[mi].triangle_count)
     {
         uint base_index = meshlets[mi].triangle_offset + 3 * i;
-        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(uint(meshlet_triangles[base_index]),
-                                                  uint(meshlet_triangles[base_index + 1]),
-                                                  uint(meshlet_triangles[base_index + 2]));
 
-        // TODO: check if this is a validation-bug:
+        uint a = uint(meshlet_triangles[base_index]), b = uint(meshlet_triangles[base_index + 1]),
+        c = uint(meshlet_triangles[base_index + 2]);
+
+        gl_PrimitiveTriangleIndicesEXT[i] = uvec3(a, b, c);
+
+#if CULLING
+        bool culled = false;
+
+        vec2 pa = vertex_clip[a].xy, pb = vertex_clip[b].xy, pc = vertex_clip[c].xy;
+
+        // backface culling + zero-area culling
+        vec2 eb = pb - pa;
+        vec2 ec = pc - pa;
+
+        culled = culled || (eb.x * ec.y >= eb.y * ec.x);
+
+        // small primitive culling
+        vec2 bmin = min(pa, min(pb, pc));
+        vec2 bmax = max(pa, max(pb, pc));
+        float sbprec = 1.0 / 256.0; // note: this can be set to 1/2^subpixelPrecisionBits
+
+        // note: this is slightly imprecise (doesn't fully match hw behavior and is both too loose and too strict)
+        culled = culled || (round(bmin.x - sbprec) == round(bmax.x) || round(bmin.y) == round(bmax.y + sbprec));
+
+        // the computations above are only valid if all vertices are in front of perspective plane
+        culled = culled && (vertex_clip[a].z > 0 && vertex_clip[b].z > 0 && vertex_clip[c].z > 0);
+
+        gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = culled;
+
+        // TODO: causing validation-bug (https://github.com/KhronosGroup/glslang/issues/3103):
         // "The SPIR-V Capability (FragmentShadingRateKHR) was declared, but none of the requirements were met to use it"
         //! triangle culling hook
-//        gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = bool(i % 2);
+        gl_MeshPrimitivesEXT[i].gl_CullPrimitiveEXT = culled;//bool(i % 2);
+#endif
     }
 }

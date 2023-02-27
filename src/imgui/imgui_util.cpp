@@ -270,15 +270,20 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
 
         if(ImGui::TreeNode("statistics"))
         {
-            auto stats = pbr_renderer->statistics();
-
+            const auto &stats = pbr_renderer->statistics();
             const auto &draw_result = stats.back().draw_cull_result;
 
             std::vector<PBRDeferred::statistics_t> values(stats.begin(), stats.end());
             auto max_axis_x = static_cast<double>(pbr_renderer->settings.timing_history_size);
 
+            ImGui::BulletText("drawcount: %d", draw_result.draw_count);
+            ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
+            ImGui::BulletText("num_meshlets: %d", draw_result.num_meshlets);
+            ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
+            ImGui::BulletText("num_occlusion_culled: %d", draw_result.num_occlusion_culled);
+
             // drawcall/culling plots
-            if(ImGui::TreeNode("drawcalls"))
+            if(ImGui::TreeNode("culling-plots"))
             {
                 if(ImPlot::BeginPlot("##drawcalls"))
                 {
@@ -313,16 +318,22 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                 }
                 ImGui::TreePop();
             }
-
-            ImGui::BulletText("drawcount: %d", draw_result.draw_count);
-            ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
-            ImGui::BulletText("num_meshlets: %d", draw_result.num_meshlets);
-            ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
-            ImGui::BulletText("num_occlusion_culled: %d", draw_result.num_occlusion_culled);
             ImGui::Separator();
             ImGui::Spacing();
 
-            if(ImGui::TreeNode("timings"))
+            const auto &last = stats.back().timings;
+            ImGui::BulletText("g_buffer_pre: %.3f ms", last.g_buffer_pre_ms);
+            ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
+            ImGui::BulletText("culling: %.3f ms", last.culling_ms);
+            ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);
+            ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
+            ImGui::BulletText("taa: %.3f ms", last.taa_ms);
+            ImGui::BulletText("fxaa: %.3f ms", last.fxaa_ms);
+            ImGui::BulletText("composition: %.3f ms", last.tonemap_bloom_ms);
+            ImGui::BulletText("depth_of_field_ms: %.3f ms", last.depth_of_field_ms);
+            ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
+
+            if(ImGui::TreeNode("timing-plots"))
             {
                 if(ImPlot::BeginPlot("##pbr_timings"))
                 {
@@ -344,16 +355,6 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
                 }
                 ImGui::TreePop();
             }
-            const auto &last = stats.back().timings;
-            ImGui::BulletText("g_buffer_pre: %.3f ms", last.g_buffer_pre_ms);
-            ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
-            ImGui::BulletText("culling: %.3f ms", last.culling_ms);
-            ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);
-            ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
-            ImGui::BulletText("taa: %.3f ms", last.taa_ms);
-            ImGui::BulletText("fxaa: %.3f ms", last.fxaa_ms);
-            ImGui::BulletText("composition: %.3f ms", last.tonemap_bloom_ms);
-            ImGui::BulletText("depth-of-field: %.3f ms", last.depth_of_field_ms);
             ImGui::TreePop();
         }
 
@@ -421,6 +422,23 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
+    ImGui::Separator();
+
+    if(ImGui::TreeNode("statistics"))
+    {
+        PBRPathTracer::timings_t last = {};
+        if(!path_tracer->statistics().empty()) { last = path_tracer->statistics().back().timings; };
+        ImGui::BulletText("mesh_compute_ms: %.3f ms", last.mesh_compute_ms);
+        ImGui::BulletText("update_bottom_ms: %.3f ms", last.update_bottom_ms);
+        ImGui::BulletText("update_top_ms: %.3f ms", last.update_top_ms);
+        ImGui::BulletText("raytrace_ms: %.3f ms", last.raytrace_ms);
+        ImGui::BulletText("denoise_ms: %.3f ms", last.denoise_ms);
+        ImGui::BulletText("bloom_ms: %.3f ms", last.bloom_ms);
+        ImGui::BulletText("tonemap_ms: %.3f ms", last.tonemap_ms);
+        ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
+
+        ImGui::TreePop();
+    }
 }
 
 void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)

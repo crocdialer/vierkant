@@ -225,6 +225,9 @@ void PBRPathTracer::update_timing(PBRPathTracer::frame_asset_t &frame_asset)
     timings.tonemap_ms = timing_millis[SemaphoreValue::BLOOM];
     timings.denoise_ms = timing_millis[SemaphoreValue::TONEMAP];
 
+    m_statistics.push_back(frame_asset.statistics);
+    while(m_statistics.size() > frame_asset.settings.timing_history_size) { m_statistics.pop_front(); }
+
     // reset query-pool
     vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, SemaphoreValue::MAX_VALUE);
 

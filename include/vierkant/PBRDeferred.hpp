@@ -89,11 +89,11 @@ public:
         //! meshlet-based drawing (required for gpu-driven 'cluster' frustum/occlusion culling)
         bool use_meshlet_pipeline = true;
 
-        //! max number stored timing-values
-        uint32_t timing_history_size = 500;
-
         //! enable depth of field
         bool depth_of_field = false;
+
+        //! max number stored timing-values
+        uint32_t timing_history_size = 300;
     };
 
     struct timings_t

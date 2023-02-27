@@ -3,6 +3,7 @@
 //
 #pragma once
 
+#include <deque>
 #include <vierkant/Bloom.hpp>
 #include <vierkant/Compute.hpp>
 #include <vierkant/DrawContext.hpp>
@@ -67,6 +68,9 @@ public:
 
         //! enable depth of field
         bool depth_of_field = false;
+
+        //! max number stored timing-values
+        uint32_t timing_history_size = 300;
     };
 
     struct timings_t
@@ -131,6 +135,11 @@ public:
      * @brief   reset the accumulator
      */
     void reset_accumulator();
+
+    /**
+     * @return a queue of structs containing drawcall- and timing-results for past frames
+     */
+    const std::deque<statistics_t> &statistics() const { return m_statistics; }
 
     //! access to global settings
     settings_t settings;
@@ -297,6 +306,8 @@ private:
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 
     std::default_random_engine m_random_engine;
+
+    std::deque<statistics_t> m_statistics;
 };
 
 }// namespace vierkant
