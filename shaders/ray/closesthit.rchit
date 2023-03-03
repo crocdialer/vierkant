@@ -6,7 +6,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "ray_common.glsl"
-#include "../renderer/packed_vertex.glsl"
+#include "../utils/packed_vertex.glsl"
 
 //#include "bsdf_UE4.glsl"
 #include "bsdf_disney.glsl"
@@ -132,9 +132,8 @@ Vertex interpolate_vertex(Triangle t)
 
 void main()
 {
-    uint rng_state = xxhash32(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
-
     //    vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+    uint rng_state = payload.rng_state;
     Triangle triangle = get_triangle();
     Vertex v = interpolate_vertex(triangle);
     float triangle_lod = lod_constant(triangle);

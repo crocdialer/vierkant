@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "vierkant/Renderer.hpp"
-#include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
 #include "vierkant/Font.hpp"
+#include "vierkant/Renderer.hpp"
+#include "vierkant/Scene.hpp"
 
 namespace vierkant
 {
@@ -15,7 +15,6 @@ namespace vierkant
 class DrawContext
 {
 public:
-
     DrawContext() = default;
 
     DrawContext(const DrawContext &) = delete;
@@ -24,7 +23,7 @@ public:
 
     explicit DrawContext(vierkant::DevicePtr device);
 
-    DrawContext& operator=(DrawContext &&) = default;
+    DrawContext &operator=(DrawContext &&) = default;
 
     /**
      * @brief   Draws text in a 2D context.
@@ -54,11 +53,8 @@ public:
      * @param   renderer    a provided vierkant::Renderer.
      * @param   lines       a set of lines.
      */
-    void draw_lines(vierkant::Renderer &renderer,
-                    const std::vector<glm::vec3> &lines,
-                    const glm::vec4 &color,
-                    const glm::mat4 &model_view,
-                    const glm::mat4 &projection);
+    void draw_lines(vierkant::Renderer &renderer, const std::vector<glm::vec3> &lines, const glm::vec4 &color,
+                    const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
      * @brief   Draws an image in a 2D context.
@@ -68,21 +64,19 @@ public:
      * @param   depth       an optional vierkant::Image, assumed to contain a sampler2D with VK_ASPECT_DEPTH.
      * @param   depth_test  an optional flag to enable depth-testing. only used when a deph-buffer is provided.
      */
-    void draw_image_fullscreen(vierkant::Renderer &renderer,
-                               const vierkant::ImagePtr &image,
-                               const vierkant::ImagePtr &depth = nullptr,
-                               bool depth_test = false);
+    void draw_image_fullscreen(vierkant::Renderer &renderer, const vierkant::ImagePtr &image,
+                               const vierkant::ImagePtr &depth = nullptr, bool depth_test = false);
 
     /**
      * @brief   Draws an axis-aligned bounding box.
      *
      * @param   renderer    a provided vierkant::Renderer.
      * @param   aabb        a provided vierkant::AABB.
-     * @param   model_view  the modelview matrix to use for drawing.
+     * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      */
-    void draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb, const glm::mat4 &model_view,
-                          const glm::mat4 &projection);
+    void draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb,
+                          const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
      * @brief   Draws a grid of lines in the xz-plane.
@@ -90,10 +84,10 @@ public:
      * @param   renderer    a provided vierkant::Renderer.
      * @param   scale       the desired scaling-value.
      * @param   num_subs    the number of subdivisions.
-     * @param   model_view  the modelview matrix to use for drawing.
+     * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      */
-    void draw_grid(vierkant::Renderer &renderer, float scale, uint32_t num_subs, const glm::mat4 &model_view,
+    void draw_grid(vierkant::Renderer &renderer, float scale, uint32_t num_subs, const vierkant::transform_t &transform,
                    const glm::mat4 &projection);
 
     /**
@@ -101,11 +95,11 @@ public:
      *
      * @param   renderer    a provided vierkant::Renderer.
      * @param   mesh        a provided vierkant::MeshPtr.
-     * @param   model_view  the modelview matrix to use for drawing.
+     * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      * @param   shader_type the desired vierkant::ShaderType.
      */
-    void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
+    void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const vierkant::transform_t &transform,
                    const glm::mat4 &projection, vierkant::ShaderType shader_type);
 
     /**
@@ -115,15 +109,12 @@ public:
      * @param   node            a provided vierkant::nodes::NodeConstPtr.
      * @param   animation       an optional vierkant::nodes::node_animation_t
      * @param   animation_time  current animation-time
-     * @param   model_view      the modelview matrix to use for drawing.
+     * @param   transform   a modelview transform
      * @param   projection      the projection matrix to use for drawing.
      */
-    void draw_node_hierarchy(vierkant::Renderer &renderer,
-                             const vierkant::nodes::NodeConstPtr &node,
-                             const vierkant::nodes::node_animation_t &animation,
-                             float animation_time,
-                             const glm::mat4 &model_view,
-                             const glm::mat4 &projection);
+    void draw_node_hierarchy(vierkant::Renderer &renderer, const vierkant::nodes::NodeConstPtr &node,
+                             const vierkant::nodes::node_animation_t &animation, float animation_time,
+                             const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
      * @brief   Render a skybox.
@@ -136,7 +127,6 @@ public:
                      const vierkant::CameraPtr &cam);
 
 private:
-
     vierkant::DevicePtr m_device;
 
     enum class DrawableType
@@ -173,4 +163,4 @@ private:
     vierkant::VmaPoolPtr m_memory_pool;
 };
 
-}
+}// namespace vierkant

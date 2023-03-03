@@ -159,8 +159,9 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const glm::mat4 &model_view,
-                            const glm::mat4 &projection, vierkant::ShaderType shader_type)
+void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh,
+                            const vierkant::transform_t &transform, const glm::mat4 &projection,
+                            vierkant::ShaderType shader_type)
 {
     vierkant::create_drawables_params_t drawable_params = {};
     drawable_params.mesh = mesh;
@@ -169,7 +170,7 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
     for(auto &drawable: drawables)
     {
         drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(shader_type);
-        drawable.matrices.modelview = model_view * drawable.matrices.modelview;
+        drawable.matrices.transform = transform * drawable.matrices.transform;
         drawable.matrices.projection = projection;
         renderer.stage_drawable(std::move(drawable));
     }
@@ -179,7 +180,7 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
 
 void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer, const vierkant::nodes::NodeConstPtr &root_node,
                                       const vierkant::nodes::node_animation_t &animation, float animation_time,
-                                      const glm::mat4 &model_view, const glm::mat4 &projection)
+                                      const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     if(!root_node) { return; }
 
@@ -217,7 +218,7 @@ void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer, const vierka
         }
     }
 
-    draw_lines(renderer, lines, glm::vec4(1, 0, 0, 1), model_view, projection);
+    draw_lines(renderer, lines, glm::vec4(1, 0, 0, 1), transform, projection);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -241,7 +242,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
     drawable.mesh = mesh;
     drawable.matrices.projection =
             glm::orthoRH(0.f, renderer.viewport.width, 0.f, renderer.viewport.height, 0.0f, 1.0f);
-    drawable.matrices.modelview[3] = glm::vec4(pos.x, pos.y, 0, 1);
+    drawable.matrices.transform.translation = {pos.x, pos.y, 0};
     drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {font->glyph_texture()};
     drawable.num_indices = lod_0.num_indices;
     drawable.num_vertices = entry.num_vertices;
@@ -261,9 +262,9 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
     auto drawable = m_drawable_image;
     drawable.matrices.projection = glm::orthoRH(-1.f, 1.0f, -1.f, 1.0f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
-    drawable.matrices.modelview = glm::scale(glm::mat4(1), glm::vec3(scale, 1));
-    drawable.matrices.modelview[3] =
-            glm::vec4(area.x / renderer.viewport.width, -area.y / renderer.viewport.height, 0, 1);
+    drawable.matrices.transform.scale = glm::vec3(scale, 1);
+    drawable.matrices.transform.translation = glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
+                                                        static_cast<float>(-area.y) / renderer.viewport.height, 0);
 
     // set image
     drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {image};
@@ -275,7 +276,7 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_lines(vierkant::Renderer &renderer, const std::vector<glm::vec3> &lines, const glm::vec4 &color,
-                             const glm::mat4 &model_view, const glm::mat4 &projection)
+                             const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     // search drawable
     auto drawable_it = m_drawables.find(DrawableType::Lines);
@@ -335,7 +336,7 @@ void DrawContext::draw_lines(vierkant::Renderer &renderer, const std::vector<glm
     // line color via material
     drawable.material.color = color;
 
-    drawable.matrices.modelview = model_view;
+    drawable.matrices.transform = transform;
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }
@@ -372,11 +373,12 @@ void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &imag
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_grid(vierkant::Renderer &renderer, float scale, uint32_t /*num_subs*/,
-                            const glm::mat4 &model_view, const glm::mat4 &projection)
+                            const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     // TODO: map-lookup for requested num-subdivisions
     auto drawable = m_drawable_grid;
-    drawable.matrices.modelview = glm::scale(model_view, glm::vec3(scale));
+    drawable.matrices.transform = transform;
+    drawable.matrices.transform.scale = glm::vec3(scale);
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }
@@ -384,13 +386,13 @@ void DrawContext::draw_grid(vierkant::Renderer &renderer, float scale, uint32_t 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb,
-                                   const glm::mat4 &model_view, const glm::mat4 &projection)
+                                   const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     auto drawable = m_drawable_aabb;
-
-    glm::mat4 center_mat = glm::translate(glm::mat4(1), aabb.center());
-    glm::mat4 scale_mat = glm::scale(glm::mat4(1), glm::vec3(aabb.width(), aabb.height(), aabb.depth()));
-    drawable.matrices.modelview = model_view * center_mat * scale_mat;
+    vierkant::transform_t t = {};
+    t.translation = aabb.center();
+    t.scale = {aabb.width(), aabb.height(), aabb.depth()};
+    drawable.matrices.transform = transform * t;
     drawable.matrices.projection = projection;
     renderer.stage_drawable(std::move(drawable));
 }
@@ -400,12 +402,12 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
 void DrawContext::draw_skybox(vierkant::Renderer &renderer, const vierkant::ImagePtr &environment,
                               const vierkant::CameraPtr &cam)
 {
-    glm::mat4 m = vierkant::mat4_cast(cam->view_transform());
-    m[3] = glm::vec4(0, 0, 0, 1);
-    m = glm::scale(m, glm::vec3(cam->far() * .99f));
+    vierkant::transform_t t = {};
+    t.rotation = cam->view_transform().rotation;
+    t.scale = glm::vec3(cam->far() * .99f);
 
     auto drawable = m_drawable_skybox;
-    drawable.matrices.modelview = m;
+    drawable.matrices.transform = t;
     drawable.matrices.projection = cam->projection_matrix();
     drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {environment};
     drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_CUBE);

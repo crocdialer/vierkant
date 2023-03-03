@@ -61,7 +61,7 @@ void main()
 
 #if CULLING
     // transform bounding volume and normal-cone
-    mat4 m = camera.view * draws[object_index].current_matrices.modelview;
+    mat4 m = camera.view * mat4_cast(draws[object_index].current_matrices.transform);
     vec3 cone_axis = normalize(mat3(m) * meshlets[mi].cone_axis);
     float cone_cutoff = meshlets[mi].cone_cutoff;
     vec3 center = (m * vec4(meshlets[mi].sphere_center, 1.0)).xyz;

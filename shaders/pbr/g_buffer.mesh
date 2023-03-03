@@ -9,10 +9,10 @@
 
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 
-#include "../renderer/types.glsl"
-#include "../renderer/packed_vertex.glsl"
 #include "../renderer/mesh_task_payload.glsl"
+#include "../renderer/types.glsl"
 #include "../utils/camera.glsl"
+#include "../utils/packed_vertex.glsl"
 
 layout(local_size_x = MESH_WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = 64) out;
@@ -88,8 +88,8 @@ void main()
         uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
         const Vertex v = unpack(vertices[vi]);
 
-        vertex_out[i].current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
-        vertex_out[i].last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(v.position, 1.0);
+        vertex_out[i].current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, v.position), 1.0);
+        vertex_out[i].last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, v.position), 1.0);
 
         vec4 jittered_position = vertex_out[i].current_position;
         jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
@@ -100,8 +100,10 @@ void main()
         indices[i].meshlet_index = mi;
 
         vertex_out[i].tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
-        vertex_out[i].normal = normalize(mat3(m.normal) * v.normal);
-        vertex_out[i].tangent = normalize(mat3(m.normal) * v.tangent);
+//        vertex_out[i].normal = normalize(mat3(m.normal) * v.normal);
+//        vertex_out[i].tangent = normalize(mat3(m.normal) * v.tangent);
+        vertex_out[i].normal = normalize(apply_rotation(m.transform, v.normal));
+        vertex_out[i].tangent = normalize(apply_rotation(m.transform, v.tangent));
 
 #if CULLING
         vertex_clip[i] = vec3((jittered_position.xy / jittered_position.w * 0.5 + vec2(0.5)) * context.size,

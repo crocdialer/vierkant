@@ -4,7 +4,7 @@
 #extension GL_EXT_scalar_block_layout : enable
 
 #include "../renderer/types.glsl"
-#include "../renderer/packed_vertex.glsl"
+#include "../utils/packed_vertex.glsl"
 #include "../utils/camera.glsl"
 #include "../utils/slerp.glsl"
 
@@ -94,14 +94,14 @@ void main()
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
-    vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(v.position, 1.0);
-    vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_position, 1.0);
+    vertex_out.current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, v.position), 1.0);
+    vertex_out.last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, last_position), 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
     jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
     gl_Position = jittered_position;
 
     vertex_out.tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
-    vertex_out.normal = normalize(mat3(m.normal) * v.normal);
-    vertex_out.tangent = normalize(mat3(m.normal) * v.tangent);
+    vertex_out.normal = normalize(apply_rotation(m.transform, new_normal));
+    vertex_out.tangent = normalize(apply_rotation(m.transform, new_tangent));
 }

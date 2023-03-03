@@ -301,10 +301,10 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_asset.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_asset.cull_result.drawables[drawable_index];
-                drawable.matrices.modelview = mat4_cast(
+                drawable.matrices.transform =
                         node_transforms.empty() ? object->global_transform() * entry.transform
-                                                : object->global_transform() * node_transforms[entry.node_index]);
-                drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
+                                                : object->global_transform() * node_transforms[entry.node_index];
+//                drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.last_matrices =
                         it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
 

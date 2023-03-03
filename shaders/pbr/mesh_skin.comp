@@ -4,8 +4,8 @@
 #extension GL_EXT_scalar_block_layout : require
 #extension GL_EXT_buffer_reference2: require
 
-#include "../renderer/packed_vertex.glsl"
-#include "../renderer/transform.glsl"
+#include "../utils/packed_vertex.glsl"
+#include "../utils/transform.glsl"
 
 layout(buffer_reference, std430) buffer VertexBufferPtr{ packed_vertex_t v[]; };
 layout(buffer_reference, std430) buffer BoneVertexBufferPtr{ bone_vertex_data_t v[]; };

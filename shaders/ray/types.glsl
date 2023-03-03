@@ -1,4 +1,4 @@
-#include "../renderer/transform.glsl"
+#include "../utils/transform.glsl"
 
 //! entry_t holds properties for geometric entries with common attributes
 struct entry_t

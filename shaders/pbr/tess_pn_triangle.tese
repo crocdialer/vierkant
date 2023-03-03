@@ -125,8 +125,8 @@ void main(void)
     matrix_struct_t m = draws[object_index].current_matrices;
     matrix_struct_t m_last = draws[object_index].last_matrices;
 
-    vertex_out.current_position = camera.projection * camera.view * m.modelview * vertex_out.current_position;
-    vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vertex_out.last_position;
+    vertex_out.current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, vertex_out.current_position.xyz), 1.0);
+    vertex_out.last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, vertex_out.last_position.xyz), 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
     jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
@@ -134,6 +134,6 @@ void main(void)
 
     indices_out = indices_in[0];
     vertex_out.tex_coord = (m.texture * vec4(vertex_out.tex_coord, 0, 1)).xy;
-    vertex_out.normal = normalize(mat3(m.normal) * vertex_out.normal);
-    vertex_out.tangent = normalize(mat3(m.normal) * vertex_out.tangent);
+    vertex_out.normal = apply_rotation(m.transform, vertex_out.normal);
+    vertex_out.tangent = apply_rotation(m.transform, vertex_out.tangent);
 }

@@ -71,7 +71,7 @@ public:
                 // create drawables
                 vierkant::create_drawables_params_t drawable_params = {};
                 drawable_params.mesh = mesh;
-                drawable_params.model_view = vierkant::mat4_cast(model_view);
+                drawable_params.transform = model_view;
 
                 if(object.has_component<animation_state_t>())
                 {

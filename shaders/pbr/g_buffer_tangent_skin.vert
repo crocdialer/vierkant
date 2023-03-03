@@ -5,8 +5,7 @@
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 
 #include "../renderer/types.glsl"
-#include "../renderer/packed_vertex.glsl"
-#include "../renderer/transform.glsl"
+#include "../utils/packed_vertex.glsl"
 #include "../utils/camera.glsl"
 
 layout(push_constant) uniform PushConstants {
@@ -92,11 +91,11 @@ void main()
     }
 
     vertex_out.tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
-    vertex_out.normal = normalize(mat3(m.normal) * current_normal);
-    vertex_out.tangent = normalize(mat3(m.normal) * current_tangent);
+    vertex_out.normal = normalize(apply_rotation(m.transform, current_normal));
+    vertex_out.tangent = normalize(apply_rotation(m.transform, current_tangent));
 
-    vertex_out.current_position = camera.projection * camera.view * m.modelview * vec4(current_vertex.xyz, 1.0);
-    vertex_out.last_position = last_camera.projection * last_camera.view * m_last.modelview * vec4(last_vertex.xyz, 1.0);
+    vertex_out.current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, current_vertex), 1.0);
+    vertex_out.last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, last_vertex), 1.0);
 
     vec4 jittered_position = vertex_out.current_position;
     jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;

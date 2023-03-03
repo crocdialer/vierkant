@@ -27,6 +27,6 @@ void main()
     indices.mesh_draw_index = gl_InstanceIndex;
 
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
-    gl_Position = m.projection * m.modelview * vec4(a_position, 1.0);
+    gl_Position = m.projection * vec4(apply_transform(m.transform, a_position), 1.0);
     vertex_out.color = a_color;
 }

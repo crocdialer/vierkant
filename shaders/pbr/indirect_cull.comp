@@ -103,8 +103,10 @@ void main()
     mesh_draw_t mesh_draw = cull_data.mesh_draws_in.v[draw.object_index];
     mesh_entry_t mesh_entry = cull_data.mesh_entries_in.v[mesh_draw.mesh_index];
 
-    vec3 center = (cull_data.view * mesh_draw.current_matrices.modelview * vec4(mesh_entry.center, 1.0)).xyz;
-    float radius = mesh_entry.radius * length(mesh_draw.current_matrices.modelview[0].xyz);
+    vec3 center = (cull_data.view * vec4(apply_transform(mesh_draw.current_matrices.transform, mesh_entry.center), 1.0)).xyz;
+    float radius = mesh_entry.radius * max(max(abs(mesh_draw.current_matrices.transform.scale_x),
+                                               abs(mesh_draw.current_matrices.transform.scale_y)),
+                                           abs(mesh_draw.current_matrices.transform.scale_z));
 
     bool visible = true;
 

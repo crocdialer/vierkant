@@ -93,6 +93,9 @@ trace_result_t trace(vec2 coord, vec2 size)
         // trace a path
         for (uint i = 0; i < push_constants.max_trace_depth; i++)
         {
+            rng_state = xxhash32(rng_state, i);
+
+            payload.rng_state = rng_state;
             payload.depth = i;
             payload.stop = false;
             payload.radiance = path_radiance;

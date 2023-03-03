@@ -15,10 +15,9 @@ namespace vierkant
 
 struct alignas(16) matrix_struct_t
 {
-    glm::mat4 modelview = glm::mat4(1);
     glm::mat4 projection = glm::mat4(1);
-    glm::mat4 normal = glm::mat4(1);
     glm::mat4 texture = glm::mat4(1);
+    vierkant::transform_t transform = {};
 };
 
 struct alignas(16) material_struct_t
@@ -99,7 +98,7 @@ struct drawable_t
 struct create_drawables_params_t
 {
     MeshConstPtr mesh;
-    glm::mat4 model_view = glm::mat4(1);
+    vierkant::transform_t transform = {};
     std::function<bool(const Mesh::entry_t &entry)> entry_filter = {};
     uint32_t animation_index = 0;
     float animation_time = 0.f;

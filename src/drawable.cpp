@@ -54,10 +54,8 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
         drawable.entry_index = i;
 
         // combine mesh- with entry-transform
-        drawable.matrices.modelview =
-                params.model_view *
-                mat4_cast(node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]);
-        drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
+        drawable.matrices.transform =
+                params.transform * (node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]);
         drawable.matrices.texture = material->texture_transform;
 
         // material params
