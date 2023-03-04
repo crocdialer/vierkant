@@ -208,13 +208,12 @@ void main()
     payload.radiance += payload.beta * material.emission.rgb;
 
     // albedo
-    material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
-
     if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
     {
         material.color *= sample_texture_lod(u_albedos[material.texture_index],
                                              v.tex_coord, NoV, payload.cone.width, triangle_lod);
     }
+    material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
 
     // alpha-cutoff
     if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
