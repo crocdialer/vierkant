@@ -1,6 +1,6 @@
 # vierkant
 
-![Preview](https://crocdialer.com/wp-content/uploads/2022/10/2022-09-30-chessboard.jpg)
+![Preview](https://crocdialer.com/wp-content/uploads/2023/03/2023_02_24_pbr_viewer_cover.png)
 - vierkant is a Vulkan 1.3 based rendering library written in C++20.
 - ![example workflow](https://github.com/crocdialer/vierkant/actions/workflows/cmake_build.yml/badge.svg)
 
