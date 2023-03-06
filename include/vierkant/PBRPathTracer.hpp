@@ -246,7 +246,7 @@ private:
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void update_timing(frame_asset_t &frame_asset);
+    void pre_render(frame_asset_t &frame_asset);
 
     void update_acceleration_structures(frame_asset_t &frame_asset, const SceneConstPtr &scene,
                                         const std::set<std::string> &tags);

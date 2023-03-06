@@ -81,8 +81,6 @@ private:
 
     vierkant::DevicePtr m_device;
 
-    vierkant::CommandPoolPtr m_command_pool;
-
     vierkant::DescriptorPoolPtr m_descriptor_pool;
 
     vierkant::PipelineCachePtr m_pipeline_cache;

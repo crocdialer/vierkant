@@ -147,14 +147,11 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, c
     frame_asset.semaphore.wait(frame_asset.semaphore_value_done);
     frame_asset.semaphore = vierkant::Semaphore(m_device);
 
-    // query-pool stuff
-    update_timing(frame_asset);
+    // timing/query-pool, resize storage-assets
+    pre_render(frame_asset);
 
     // copy settings for next frame
     frame_asset.settings = settings;
-
-    // resize storage-assets if necessary
-    resize_storage(frame_asset, frame_asset.settings.resolution);
 
     // max num batches reached, bail out
     if(!frame_asset.settings.max_num_batches || m_batch_index < frame_asset.settings.max_num_batches)
@@ -192,7 +189,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, c
     return ret;
 }
 
-void PBRPathTracer::update_timing(PBRPathTracer::frame_asset_t &frame_asset)
+void PBRPathTracer::pre_render(PBRPathTracer::frame_asset_t &frame_asset)
 {
     size_t query_count = SemaphoreValue::MAX_VALUE;
     uint64_t timestamps[SemaphoreValue::MAX_VALUE] = {};
@@ -232,6 +229,10 @@ void PBRPathTracer::update_timing(PBRPathTracer::frame_asset_t &frame_asset)
     vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, SemaphoreValue::MAX_VALUE);
 
     frame_asset.cmd_pre_render.begin(0);
+
+    // resize storage-assets if necessary
+    resize_storage(frame_asset, frame_asset.settings.resolution);
+
     vkCmdWriteTimestamp2(frame_asset.cmd_pre_render.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
                          frame_asset.query_pool.get(), SemaphoreValue::INVALID);
 
@@ -658,6 +659,7 @@ void PBRPathTracer::resize_storage(frame_asset_t &frame_asset, const glm::uvec2 
         storage_format.format = VK_FORMAT_R32G32B32A32_SFLOAT;
         storage_format.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
         storage_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+        storage_format.initial_cmd_buffer = frame_asset.cmd_pre_render.handle();
 
         // shared path-tracer-storage for all frame-assets
         m_storage_images.radiance = vierkant::Image::create(m_device, storage_format);
@@ -690,6 +692,7 @@ void PBRPathTracer::resize_storage(frame_asset_t &frame_asset, const glm::uvec2 
         denoise_format.usage =
                 VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         denoise_format.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+        denoise_format.initial_cmd_buffer = frame_asset.cmd_pre_render.handle();
         frame_asset.denoise_image = vierkant::Image::create(m_device, denoise_format);
 
         // denoise-compute

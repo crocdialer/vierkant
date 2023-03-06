@@ -604,15 +604,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 shader_flags |= PROP_TANGENT_SPACE;
 
-                if(frame_asset.settings.tesselation)
-                {
-                    shader_flags |= PROP_TESSELATION;
-                    drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-                    drawable.pipeline_format.num_patch_control_points = 3;
-                    drawable.descriptors[Renderer::BINDING_MESH_DRAWS].stage_flags =
-                            VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-                    camera_desc.stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-                }
+//                if(frame_asset.settings.tesselation)
+//                {
+//                    shader_flags |= PROP_TESSELATION;
+//                    drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+//                    drawable.pipeline_format.num_patch_control_points = 3;
+//                    drawable.descriptors[Renderer::BINDING_MESH_DRAWS].stage_flags =
+//                            VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+//                    camera_desc.stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+//                }
             }
 
             // attribute/binding descriptions obsolete here
@@ -625,7 +625,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             if(use_meshlet_pipeline)
             {
                 shader_flags |= PROP_MESHLETS;
-                camera_desc.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+                camera_desc.stage_flags |= VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
             }
 
             // check if morph-targets are available

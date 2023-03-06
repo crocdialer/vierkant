@@ -30,7 +30,6 @@ void swap(Compute &lhs, Compute &rhs) noexcept
     if(&lhs == &rhs){ return; }
 
     std::swap(lhs.m_device, rhs.m_device);
-    std::swap(lhs.m_command_pool, rhs.m_command_pool);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_compute_assets, rhs.m_compute_assets);
@@ -47,9 +46,6 @@ Compute::Compute(const vierkant::DevicePtr &device, const create_info_t &create_
     if(!m_pipeline_cache){ m_pipeline_cache = vierkant::PipelineCache::create(device); }
 
     m_compute_assets.resize(create_info.num_frames_in_flight);
-
-    m_command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
-                                                   VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
     // we also need a DescriptorPool ...
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          256},
