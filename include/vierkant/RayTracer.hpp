@@ -21,7 +21,6 @@ namespace vierkant
 class RayTracer
 {
 public:
-
     struct tracable_t
     {
         //! information for a raytracing pipeline
@@ -56,7 +55,7 @@ public:
 
     RayTracer &operator=(RayTracer other);
 
-    const VkPhysicalDeviceRayTracingPipelinePropertiesKHR &properties() const{ return m_properties; };
+    const VkPhysicalDeviceRayTracingPipelinePropertiesKHR &properties() const { return m_properties; };
 
     /**
      * @brief   trace_rays invokes a raytracing pipeline.
@@ -68,13 +67,13 @@ public:
     friend void swap(RayTracer &lhs, RayTracer &rhs) noexcept;
 
 private:
-
     struct trace_assets_t
     {
         //! keep passed tracable
         tracable_t tracable;
 
-        crocore::Cache_<DescriptorSetLayoutPtr, DescriptorSetPtr> descriptor_sets;
+        //! cache used descriptor-sets
+        vierkant::descriptor_set_map_t descriptor_set_cache;
     };
 
     struct shader_binding_table_t
@@ -134,4 +133,3 @@ private:
 };
 
 }// namespace vierkant
-

@@ -17,7 +17,7 @@ struct mesh_compute_context_t
     vierkant::PipelineCachePtr pipeline_cache;
     vierkant::CommandBuffer cmd_buffer;
 
-    vierkant::Compute skin_compute, morph_compute;
+    vierkant::Compute compute;
     glm::uvec3 skin_compute_local_size{}, morph_compute_local_size{};
     vierkant::Compute::computable_t skin_computable, morph_computable;
     vierkant::BufferPtr staging_buffer, skin_param_buffer, bone_buffer, morph_param_buffer;
@@ -97,8 +97,7 @@ mesh_compute_context_ptr create_mesh_compute_context(const vierkant::DevicePtr &
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = ret->pipeline_cache;
     compute_info.command_pool = ret->command_pool;
-    ret->skin_compute = vierkant::Compute(device, compute_info);
-    ret->morph_compute = vierkant::Compute(device, compute_info);
+    ret->compute = vierkant::Compute(device, compute_info);
     ret->run_id = 0;
     return ret;
 }
@@ -135,7 +134,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
     std::vector<vierkant::transform_t> combined_bone_data;
     std::vector<skin_compute_params_t> combined_skin_params;
     std::vector<morph_compute_params_t> combined_morph_params;
-    std::vector<Compute::computable_t> skin_computables, morph_computables;
+    std::vector<Compute::computable_t> computables;
 
     VkDeviceSize vertex_offset = 0;
 
@@ -200,7 +199,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
                 desc_params.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
                 desc_params.buffers = {context->skin_param_buffer};
                 desc_params.buffer_offsets = {skin_param_buffer_offset};
-                skin_computables.push_back(std::move(computable));
+                computables.push_back(std::move(computable));
 
                 // advance offset, respect alignment
                 vertex_offset += num_mesh_vertices * vertex_stride;
@@ -244,7 +243,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
                     desc_params.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
                     desc_params.buffers = {context->morph_param_buffer};
                     desc_params.buffer_offsets = {morph_param_buffer_offset};
-                    morph_computables.push_back(std::move(computable));
+                    computables.push_back(std::move(computable));
 
                     // advance offset, respect alignment
                     vertex_offset += entry.num_vertices * vertex_stride;
@@ -288,8 +287,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
     vierkant::staging_copy(staging_context, staging_infos);
 
     // run compute-pipelines
-    context->skin_compute.dispatch(skin_computables, context->cmd_buffer.handle());
-    context->morph_compute.dispatch(morph_computables, context->cmd_buffer.handle());
+    context->compute.dispatch(computables, context->cmd_buffer.handle());
 
     // memory read-barrier
     VkBufferMemoryBarrier2 barrier = {};

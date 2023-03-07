@@ -6,13 +6,13 @@
 
 #include <mutex>
 
-#include "vierkant/Mesh.hpp"
-#include "vierkant/descriptor.hpp"
-#include "vierkant/Framebuffer.hpp"
-#include "vierkant/PipelineCache.hpp"
-#include "vierkant/Pipeline.hpp"
 #include "vierkant/Camera.hpp"
+#include "vierkant/Framebuffer.hpp"
 #include "vierkant/Material.hpp"
+#include "vierkant/Mesh.hpp"
+#include "vierkant/Pipeline.hpp"
+#include "vierkant/PipelineCache.hpp"
+#include "vierkant/descriptor.hpp"
 
 #include <vierkant/drawable.hpp>
 
@@ -35,7 +35,6 @@ using double_millisecond_t = std::chrono::duration<double, std::milli>;
 class Renderer
 {
 public:
-
     enum DescriptorBinding
     {
         BINDING_VERTICES = 0,
@@ -216,29 +215,28 @@ public:
     /**
      * @return  the current frame-index.
      */
-    [[nodiscard]] uint32_t current_index() const{ return m_current_index; }
+    [[nodiscard]] uint32_t current_index() const { return m_current_index; }
 
     /**
      * @return  the number of concurrent (in-flight) frames.
      */
-    [[nodiscard]] uint32_t num_concurrent_frames() const{ return static_cast<uint32_t>(m_frame_assets.size()); }
+    [[nodiscard]] uint32_t num_concurrent_frames() const { return static_cast<uint32_t>(m_frame_assets.size()); }
 
     /**
      * @return  last measured frame's millisecond-duration
      */
-    [[nodiscard]] double_millisecond_t last_frame_ms() const{ return m_frame_assets[m_current_index].frame_time; }
+    [[nodiscard]] double_millisecond_t last_frame_ms() const { return m_frame_assets[m_current_index].frame_time; }
 
     /**
      * @brief   Release all cached rendering assets.
      */
     void reset();
 
-    [[nodiscard]] const vierkant::DevicePtr &device() const{ return m_device; }
+    [[nodiscard]] const vierkant::DevicePtr &device() const { return m_device; }
 
     friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
 
 private:
-
     struct alignas(16) push_constants_t
     {
         //! current viewport-size
@@ -273,7 +271,8 @@ private:
         size_t operator()(const descriptor_set_key_t &key) const;
     };
 
-    using descriptor_set_map_t = std::unordered_map<descriptor_set_key_t, vierkant::DescriptorSetPtr, descriptor_set_key_hash_t>;
+    using descriptor_set_map_t =
+            std::unordered_map<descriptor_set_key_t, vierkant::DescriptorSetPtr, descriptor_set_key_hash_t>;
 
     struct frame_assets_t
     {
@@ -316,12 +315,9 @@ private:
                                            std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
                                            std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next);
 
-    DescriptorSetPtr find_set(const vierkant::MeshConstPtr &mesh,
-                              const DescriptorSetLayoutPtr &set_layout,
-                              const descriptor_map_t &descriptors,
-                              descriptor_set_map_t &current,
-                              descriptor_set_map_t &next,
-                              bool variable_count);
+    DescriptorSetPtr find_set(const vierkant::MeshConstPtr &mesh, const DescriptorSetLayoutPtr &set_layout,
+                              const descriptor_map_t &descriptors, descriptor_set_map_t &current,
+                              descriptor_set_map_t &next, bool variable_count);
 
     frame_assets_t &next_frame();
 

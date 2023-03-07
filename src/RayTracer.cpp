@@ -7,10 +7,7 @@
 namespace vierkant
 {
 
-inline uint32_t aligned_size(uint32_t size, uint32_t alignment)
-{
-    return (size + alignment - 1) & ~(alignment - 1);
-}
+inline uint32_t aligned_size(uint32_t size, uint32_t alignment) { return (size + alignment - 1) & ~(alignment - 1); }
 
 inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
 {
@@ -22,20 +19,14 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
 
 std::vector<const char *> RayTracer::required_extensions()
 {
-    return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-            VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-            VK_KHR_RAY_QUERY_EXTENSION_NAME,
-            VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME,
+    return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+            VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME,
             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-RayTracer::RayTracer(RayTracer &&other) noexcept:
-        RayTracer()
-{
-    swap(*this, other);
-}
+RayTracer::RayTracer(RayTracer &&other) noexcept : RayTracer() { swap(*this, other); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -49,7 +40,7 @@ RayTracer &RayTracer::operator=(RayTracer other)
 
 void swap(RayTracer &lhs, RayTracer &rhs) noexcept
 {
-    if(&lhs == &rhs){ return; }
+    if(&lhs == &rhs) { return; }
 
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_properties, rhs.m_properties);
@@ -67,11 +58,10 @@ void swap(RayTracer &lhs, RayTracer &rhs) noexcept
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &create_info) :
-        m_device(device),
-        m_pipeline_cache(create_info.pipeline_cache)
+RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &create_info)
+    : m_device(device), m_pipeline_cache(create_info.pipeline_cache)
 {
-    if(!m_pipeline_cache){ m_pipeline_cache = vierkant::PipelineCache::create(device); }
+    if(!m_pipeline_cache) { m_pipeline_cache = vierkant::PipelineCache::create(device); }
 
     m_trace_assets.resize(create_info.num_frames_in_flight);
 
@@ -87,14 +77,14 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
 
     m_command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                   VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+                                                           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     // we also need a DescriptorPool ...
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              32},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             128},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             256},
-                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     1024}};
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 32},
+                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 128},
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
+                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024}};
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
 }
 
@@ -102,11 +92,11 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
 
 void RayTracer::set_function_pointers()
 {
-    vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(vkGetDeviceProcAddr(
-            m_device->handle(), "vkGetRayTracingShaderGroupHandlesKHR"));
+    vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(
+            vkGetDeviceProcAddr(m_device->handle(), "vkGetRayTracingShaderGroupHandlesKHR"));
 
-    vkCmdTraceRaysKHR = reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(m_device->handle(),
-                                                                                    "vkCmdTraceRaysKHR"));
+    vkCmdTraceRaysKHR =
+            reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(m_device->handle(), "vkCmdTraceRaysKHR"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,8 +105,10 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
 {
     auto &trace_asset = m_trace_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_trace_assets.size();
+    vierkant::descriptor_set_map_t next_descriptor_set_cache;
 
-    auto descriptor_set_layout = vierkant::find_set_layout(m_device, tracable.descriptors, m_descriptor_set_layouts);
+    auto descriptor_set_layout =
+            vierkant::find_or_create_set_layout(m_device, tracable.descriptors, m_descriptor_set_layouts);
     tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
     // push constant range
@@ -132,23 +124,21 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     // create the binding table
     shader_binding_table_t binding_table = {};
 
-    try{ binding_table = m_binding_tables.get(pipeline->handle()); }
-    catch(std::out_of_range &e)
+    try
     {
-        binding_table = m_binding_tables.put(pipeline->handle(),
-                                             create_shader_binding_table(pipeline->handle(),
-                                                                         tracable.pipeline_info.shader_stages));
+        binding_table = m_binding_tables.get(pipeline->handle());
+    } catch(std::out_of_range &e)
+    {
+        binding_table = m_binding_tables.put(
+                pipeline->handle(),
+                create_shader_binding_table(pipeline->handle(), tracable.pipeline_info.shader_stages));
     }
 
     // fetch descriptor set
-    DescriptorSetPtr descriptor_set;
-    try{ descriptor_set = trace_asset.descriptor_sets.get(descriptor_set_layout); }
-    catch(std::out_of_range &e)
-    {
-        descriptor_set = trace_asset.descriptor_sets.put(descriptor_set_layout,
-                                                         vierkant::create_descriptor_set(m_device, m_descriptor_pool,
-                                                                                         descriptor_set_layout, false));
-    }
+    auto descriptor_set = vierkant::find_or_create_descriptor_set(m_device, descriptor_set_layout, tracable.descriptors,
+                                                                  m_descriptor_pool, trace_asset.descriptor_set_cache,
+                                                                  next_descriptor_set_cache);
+
     // update descriptor-set with actual descriptors
     vierkant::update_descriptor_set(m_device, descriptor_set, tracable.descriptors);
 
@@ -158,33 +148,29 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     pipeline->bind(commandbuffer);
 
     // bind descriptor set (acceleration-structure, uniforms, storage-buffers, samplers, storage-image)
-    vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->layout(),
-                            0, 1, &descriptor_set_handle, 0, nullptr);
+    vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline->layout(), 0, 1,
+                            &descriptor_set_handle, 0, nullptr);
 
     if(!tracable.push_constants.empty())
     {
         // update push_constants
-        vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0,
-                           tracable.push_constants.size(), tracable.push_constants.data());
+        vkCmdPushConstants(commandbuffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0, tracable.push_constants.size(),
+                           tracable.push_constants.data());
     }
 
     // finally record the tracing command
-    vkCmdTraceRaysKHR(commandbuffer,
-                      &binding_table.raygen,
-                      &binding_table.miss,
-                      &binding_table.hit,
-                      &binding_table.callable,
-                      tracable.extent.width, tracable.extent.height, tracable.extent.depth);
+    vkCmdTraceRaysKHR(commandbuffer, &binding_table.raygen, &binding_table.miss, &binding_table.hit,
+                      &binding_table.callable, tracable.extent.width, tracable.extent.height, tracable.extent.depth);
 
-    // keep-alive copy of tracable
+    // keep-alive of things in use
     trace_asset.tracable = std::move(tracable);
+    trace_asset.descriptor_set_cache = std::move(next_descriptor_set_cache);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 RayTracer::shader_binding_table_t
-RayTracer::create_shader_binding_table(VkPipeline pipeline,
-                                       const vierkant::raytracing_shader_map_t &shader_stages)
+RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::raytracing_shader_map_t &shader_stages)
 {
     // shader groups
     auto group_create_infos = vierkant::raytracing_shader_groups(shader_stages);
@@ -197,14 +183,13 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline,
     // retrieve the shader-handles into host-memory
     std::vector<uint8_t> shader_handle_data(group_count * handle_size);
     vkCheck(vkGetRayTracingShaderGroupHandlesKHR(m_device->handle(), pipeline, 0, group_count,
-                                                 shader_handle_data.size(),
-                                                 shader_handle_data.data()),
+                                                 shader_handle_data.size(), shader_handle_data.data()),
             "Raytracer::trace_rays: could not retrieve shader group handles");
 
     shader_binding_table_t binding_table = {};
     binding_table.buffer = vierkant::Buffer::create(m_device, nullptr, binding_table_size,
                                                     VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
-                                                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     // copy opaque shader-handles with proper stride (handle_size_aligned)
@@ -217,36 +202,27 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline,
 
     // this feels a bit silly but these groups do not correspond 1:1 to shader-stages.
     std::map<shader_binding_table_t::Group, size_t> group_elements;
-    for(const auto &[stage, shader] : shader_stages)
+    for(const auto &[stage, shader]: shader_stages)
     {
         switch(stage)
         {
-            case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
-                group_elements[shader_binding_table_t::Group::Raygen]++;
-                break;
+            case VK_SHADER_STAGE_RAYGEN_BIT_KHR: group_elements[shader_binding_table_t::Group::Raygen]++; break;
 
-            case VK_SHADER_STAGE_MISS_BIT_KHR:
-                group_elements[shader_binding_table_t::Group::Miss]++;
-                break;
+            case VK_SHADER_STAGE_MISS_BIT_KHR: group_elements[shader_binding_table_t::Group::Miss]++; break;
 
             case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
             case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
-            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
-                group_elements[shader_binding_table_t::Group::Hit]++;
-                break;
+            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR: group_elements[shader_binding_table_t::Group::Hit]++; break;
 
-            case VK_SHADER_STAGE_CALLABLE_BIT_KHR:
-                group_elements[shader_binding_table_t::Group::Callable]++;
-                break;
+            case VK_SHADER_STAGE_CALLABLE_BIT_KHR: group_elements[shader_binding_table_t::Group::Callable]++; break;
 
-            default:
-                break;
+            default: break;
         }
     }
 
     size_t buffer_offset = 0;
 
-    for(const auto &[group, num_elements] : group_elements)
+    for(const auto &[group, num_elements]: group_elements)
     {
         auto &address_region = binding_table.strided_address_region[group];
         address_region.deviceAddress = binding_table.buffer->device_address() + buffer_offset;

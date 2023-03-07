@@ -9,11 +9,7 @@ namespace vierkant
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Compute::Compute(Compute &&other) noexcept:
-        Compute()
-{
-    swap(*this, other);
-}
+Compute::Compute(Compute &&other) noexcept : Compute() { swap(*this, other); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -27,7 +23,7 @@ Compute &Compute::operator=(Compute other)
 
 void swap(Compute &lhs, Compute &rhs) noexcept
 {
-    if(&lhs == &rhs){ return; }
+    if(&lhs == &rhs) { return; }
 
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
@@ -39,18 +35,17 @@ void swap(Compute &lhs, Compute &rhs) noexcept
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Compute::Compute(const vierkant::DevicePtr &device, const create_info_t &create_info) :
-        m_device(device),
-        m_pipeline_cache(create_info.pipeline_cache)
+Compute::Compute(const vierkant::DevicePtr &device, const create_info_t &create_info)
+    : m_device(device), m_pipeline_cache(create_info.pipeline_cache)
 {
-    if(!m_pipeline_cache){ m_pipeline_cache = vierkant::PipelineCache::create(device); }
+    if(!m_pipeline_cache) { m_pipeline_cache = vierkant::PipelineCache::create(device); }
 
     m_compute_assets.resize(create_info.num_frames_in_flight);
 
     // we also need a DescriptorPool ...
-    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          256},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         128},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         256},
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 256},
+                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 128},
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
                                                       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256}};
     m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
 }
@@ -59,6 +54,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
 {
     auto &compute_asset = m_compute_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_compute_assets.size();
+    vierkant::descriptor_set_map_t next_descriptor_set_cache;
 
     struct item_t
     {
@@ -67,16 +63,16 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
     };
     std::unordered_map<vierkant::compute_pipeline_info_t, std::vector<item_t>> pipelines;
 
-    for(auto &computable : computables)
+    for(auto &computable: computables)
     {
-        auto descriptor_set_layout = vierkant::find_set_layout(m_device, computable.descriptors,
-                                                               m_descriptor_set_layouts);
+        auto descriptor_set_layout =
+                vierkant::find_or_create_set_layout(m_device, computable.descriptors, m_descriptor_set_layouts);
         computable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
         pipelines[computable.pipeline_info].push_back({computable, descriptor_set_layout});
     }
 
-    for(auto &[fmt, items] : pipelines)
+    for(auto &[fmt, items]: pipelines)
     {
         // create or retrieve an existing raytracing pipeline
         auto pipeline = m_pipeline_cache->pipeline(fmt);
@@ -84,7 +80,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
         // bind compute pipeline
         pipeline->bind(commandbuffer);
 
-        for(auto &item : items)
+        for(auto &item: items)
         {
             auto &[computable, set_layout] = item;
 
@@ -99,24 +95,18 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
             }
 
             // fetch descriptor set
-            DescriptorSetPtr descriptor_set;
-            try{ descriptor_set = compute_asset.descriptor_sets.get(set_layout); }
-            catch(std::out_of_range &e)
-            {
-                descriptor_set = compute_asset.descriptor_sets.put(set_layout,
-                                                                   vierkant::create_descriptor_set(m_device,
-                                                                                                   m_descriptor_pool,
-                                                                                                   set_layout,
-                                                                                                   false));
-            }
+            auto descriptor_set = vierkant::find_or_create_descriptor_set(
+                    m_device, set_layout, computable.descriptors, m_descriptor_pool, compute_asset.descriptor_set_cache,
+                    next_descriptor_set_cache);
+
             // update descriptor-set with actual descriptors
             vierkant::update_descriptor_set(m_device, descriptor_set, computable.descriptors);
 
             VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 
             // bind descriptor set (acceleration-structure, uniforms, storage-buffers, samplers, storage-image)
-            vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout(),
-                                    0, 1, &descriptor_set_handle, 0, nullptr);
+            vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->layout(), 0, 1,
+                                    &descriptor_set_handle, 0, nullptr);
 
             if(!computable.push_constants.empty())
             {
@@ -130,8 +120,9 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
         }
     }
 
-    // keep-alive copy of cull_computable
+    // keep the stuff in use
     compute_asset.computables = std::move(computables);
+    compute_asset.descriptor_set_cache = std::move(next_descriptor_set_cache);
 }
 
 }//namespace vierkant

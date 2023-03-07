@@ -4,8 +4,6 @@
 
 #pragma once
 
-#include <crocore/Cache.hpp>
-
 #include <vierkant/Device.hpp>
 #include <vierkant/PipelineCache.hpp>
 #include <vierkant/descriptor.hpp>
@@ -25,7 +23,6 @@ static inline uint32_t group_count(uint32_t thread_count, uint32_t local_size)
 class Compute
 {
 public:
-
     struct computable_t
     {
         //! information for a raytracing pipeline
@@ -65,18 +62,18 @@ public:
      */
     void dispatch(std::vector<computable_t> computables, VkCommandBuffer commandbuffer);
 
-    inline explicit operator bool() const{ return static_cast<bool>(m_device && !m_compute_assets.empty()); };
+    inline explicit operator bool() const { return static_cast<bool>(m_device && !m_compute_assets.empty()); };
 
     friend void swap(Compute &lhs, Compute &rhs) noexcept;
 
 private:
-
     struct compute_assets_t
     {
         //! keep passed computables
         std::vector<computable_t> computables;
 
-        crocore::Cache_<DescriptorSetLayoutPtr, DescriptorSetPtr> descriptor_sets;
+        //! cache used descriptor-sets
+        vierkant::descriptor_set_map_t descriptor_set_cache;
     };
 
     vierkant::DevicePtr m_device;
@@ -93,4 +90,3 @@ private:
 };
 
 }// namespace vierkant
-
