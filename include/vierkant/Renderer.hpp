@@ -258,22 +258,6 @@ private:
         uint32_t base_draw_index = 0;
     };
 
-    struct descriptor_set_key_t
-    {
-        vierkant::MeshConstPtr mesh;
-        descriptor_map_t descriptors;
-
-        bool operator==(const descriptor_set_key_t &other) const;
-    };
-
-    struct descriptor_set_key_hash_t
-    {
-        size_t operator()(const descriptor_set_key_t &key) const;
-    };
-
-    using descriptor_set_map_t =
-            std::unordered_map<descriptor_set_key_t, vierkant::DescriptorSetPtr, descriptor_set_key_hash_t>;
-
     struct frame_assets_t
     {
         std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_set_layouts;
@@ -310,15 +294,7 @@ private:
     //! create/resize draw_indirect buffers
     void resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_assets);
 
-    //! helper routine to find and move assets
-    DescriptorSetLayoutPtr find_set_layout(descriptor_map_t descriptors,
-                                           std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
-                                           std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next);
-
-    DescriptorSetPtr find_set(const vierkant::MeshConstPtr &mesh, const DescriptorSetLayoutPtr &set_layout,
-                              const descriptor_map_t &descriptors, descriptor_set_map_t &current,
-                              descriptor_set_map_t &next, bool variable_count);
-
+    //! increment counter, retrieve next frame-assets, update timings, ...
     frame_assets_t &next_frame();
 
     DevicePtr m_device;

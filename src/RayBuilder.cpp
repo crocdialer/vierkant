@@ -333,7 +333,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     std::vector<VkDeviceSize> index_buffer_offsets;
 
     // build flags
-    VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
+                                                       VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
 
     // vertex-buffer address -> index
     std::unordered_map<VkDeviceAddress, size_t> mesh_buffer_indices;
@@ -585,6 +586,8 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const vierkant::Sce
     acceleration_structure_build_range_info.firstVertex = 0;
     acceleration_structure_build_range_info.transformOffset = 0;
 
+    // keep-alives
+    top_level.update_structure = last;
     top_level.instance_buffer = instance_buffer;
     top_level.scratch_buffer = scratch_buffer;
 

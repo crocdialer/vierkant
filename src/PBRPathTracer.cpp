@@ -255,7 +255,7 @@ void PBRPathTracer::path_trace_pass(frame_asset_t &frame_asset, const vierkant::
 
     frame_asset.cmd_build_toplvl.begin(0);
 
-    // TODO: enable/check updating from last frame
+    // NOTE: updating toplevel still having issues but doesn't seem too important performance-wise
     // update top-level structure
     frame_asset.acceleration_asset = m_ray_builder.create_toplevel(scene, frame_asset.entity_assets,
                                                                    frame_asset.cmd_build_toplvl.handle(), nullptr);

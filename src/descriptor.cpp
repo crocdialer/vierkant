@@ -234,7 +234,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 
 DescriptorSetLayoutPtr
 find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
-                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &layout_map)
+                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
+                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next)
 {
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor]: descriptors)
@@ -245,13 +246,21 @@ find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t de
     }
 
     // retrieve set-layout
-    auto set_it = layout_map.find(descriptors);
+    auto set_it = current.find(descriptors);
+
+    if(set_it != current.end())
+    {
+        auto new_it = next.insert(std::move(*set_it)).first;
+        current.erase(set_it);
+        set_it = new_it;
+    }
+    else { set_it = next.find(descriptors); }
 
     // not found -> create and insert descriptor-set layout
-    if(set_it == layout_map.end())
+    if(set_it == next.end())
     {
         auto new_set = vierkant::create_descriptor_set_layout(device, descriptors);
-        set_it = layout_map.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
+        set_it = next.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
     }
     return set_it->second;
 }
@@ -262,7 +271,7 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
                                                const DescriptorSetLayoutPtr &set_layout,
                                                const descriptor_map_t &descriptors,
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
-                                               descriptor_set_map_t &current)
+                                               descriptor_set_map_t &current, bool variable_count)
 {
     // handle for a descriptor-set
     DescriptorSetPtr ret;
@@ -281,8 +290,6 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
         // not found in last assets
         if(current_assets_it == last.end())
         {
-            constexpr bool variable_count = false;
-
             // create a new descriptor set
             ret = vierkant::create_descriptor_set(device, pool, set_layout, variable_count);
         }

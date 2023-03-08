@@ -74,6 +74,9 @@ private:
 
         //! cache used descriptor-sets
         vierkant::descriptor_set_map_t descriptor_set_cache;
+
+        //! cache used descriptor-set-layouts
+        std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_layout_cache;
     };
 
     vierkant::DevicePtr m_device;
@@ -83,8 +86,6 @@ private:
     vierkant::PipelineCachePtr m_pipeline_cache;
 
     std::vector<compute_assets_t> m_compute_assets;
-
-    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> m_descriptor_set_layouts;
 
     uint32_t m_current_index = 0;
 };

@@ -289,8 +289,8 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
     desc_texture.images = textures;
     bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
 
-    auto bindless_texture_layout =
-            find_set_layout(bindless_texture_desc, frame_assets.descriptor_set_layouts, next_set_layouts);
+    auto bindless_texture_layout = vierkant::find_or_create_set_layout(
+            m_device, bindless_texture_desc, frame_assets.descriptor_set_layouts, next_set_layouts);
 
     // create/resize draw_indirect buffers
     resize_draw_indirect_buffers(frame_assets.drawables.size(), frame_assets);
@@ -331,8 +331,8 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
             // TODO: improve condition here. idea is to only provide a global texture-array
             if(indirect_draw) { drawable.descriptors.erase(BINDING_TEXTURES); }
 
-            indexed_drawable.descriptor_set_layout =
-                    find_set_layout(drawable.descriptors, frame_assets.descriptor_set_layouts, next_set_layouts);
+            indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(
+                    m_device, drawable.descriptors, frame_assets.descriptor_set_layouts, next_set_layouts);
             pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
         else { indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
@@ -388,12 +388,13 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
                     }
                 }
 
-                auto descriptor_set =
-                        find_set(drawable->mesh, indexed_drawable.descriptor_set_layout, drawable->descriptors,
-                                 frame_assets.descriptor_sets, next_descriptor_sets, false);
+                auto descriptor_set = vierkant::find_or_create_descriptor_set(
+                        m_device, indexed_drawable.descriptor_set_layout, drawable->descriptors, m_descriptor_pool,
+                        frame_assets.descriptor_sets, next_descriptor_sets, false);
 
-                auto bindless_texture_set = find_set(drawable->mesh, bindless_texture_layout, bindless_texture_desc,
-                                                     frame_assets.descriptor_sets, next_descriptor_sets, true);
+                auto bindless_texture_set = vierkant::find_or_create_descriptor_set(
+                        m_device, bindless_texture_layout, bindless_texture_desc, m_descriptor_pool,
+                        frame_assets.descriptor_sets, next_descriptor_sets, true);
 
                 new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
 
@@ -770,81 +771,6 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorSetLayoutPtr Renderer::find_set_layout(descriptor_map_t descriptors,
-                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
-                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next)
-{
-    // clean descriptor-map to enable sharing
-    for(auto &[binding, descriptor]: descriptors)
-    {
-        for(auto &img: descriptor.images) { img.reset(); }
-        for(auto &buf: descriptor.buffers) { buf.reset(); }
-    }
-
-    // retrieve set-layout
-    auto set_it = current.find(descriptors);
-
-    if(set_it != current.end())
-    {
-        auto new_it = next.insert(std::move(*set_it)).first;
-        current.erase(set_it);
-        set_it = new_it;
-    }
-    else { set_it = next.find(descriptors); }
-
-    // not found -> create and insert descriptor-set layout
-    if(set_it == next.end())
-    {
-        auto new_set = vierkant::create_descriptor_set_layout(m_device, descriptors);
-        set_it = next.insert(std::make_pair(std::move(descriptors), std::move(new_set))).first;
-    }
-    return set_it->second;
-}
-
-DescriptorSetPtr Renderer::find_set(const vierkant::MeshConstPtr &mesh, const DescriptorSetLayoutPtr &set_layout,
-                                    const descriptor_map_t &descriptors, descriptor_set_map_t &current,
-                                    descriptor_set_map_t &next, bool variable_count)
-{
-    // handle for a descriptor-set
-    DescriptorSetPtr ret;
-
-    // search/create descriptor set
-    descriptor_set_key_t key = {};
-    key.mesh = mesh;
-    key.descriptors = descriptors;
-
-    // start searching in next_assets
-    auto descriptor_set_it = next.find(key);
-
-    // not found in next assets
-    if(descriptor_set_it == next.end())
-    {
-        // search in current assets (might already been processed for this frame)
-        auto current_assets_it = current.find(key);
-
-        // not found in current assets
-        if(current_assets_it == current.end())
-        {
-            // create a new descriptor set
-            ret = vierkant::create_descriptor_set(m_device, m_descriptor_pool, set_layout, variable_count);
-        }
-        else
-        {
-            // use existing descriptor set
-            ret = std::move(current_assets_it->second);
-            current.erase(current_assets_it);
-        }
-
-        // update the descriptor set
-        vierkant::update_descriptor_set(m_device, ret, descriptors);
-
-        // insert all created assets and store in map
-        next[key] = ret;
-    }
-    else { ret = descriptor_set_it->second; }
-    return ret;
-}
-
 void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_asset)
 {
     // reserve space for indirect drawing-commands
@@ -926,31 +852,5 @@ Renderer::frame_assets_t &Renderer::next_frame()
     }
     return frame_assets;
 }
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool Renderer::descriptor_set_key_t::operator==(const Renderer::descriptor_set_key_t &other) const
-{
-    if(mesh != other.mesh) { return false; }
-    if(descriptors != other.descriptors) { return false; }
-    return true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-size_t Renderer::descriptor_set_key_hash_t::operator()(const Renderer::descriptor_set_key_t &key) const
-{
-    size_t h = 0;
-    vierkant::hash_combine(h, key.mesh);
-
-    for(const auto &[binding, descriptor]: key.descriptors)
-    {
-        vierkant::hash_combine(h, binding);
-        vierkant::hash_combine(h, descriptor);
-    }
-    return h;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 }//namespace vierkant

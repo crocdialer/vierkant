@@ -114,25 +114,27 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
  */
 DescriptorSetLayoutPtr
 find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
-                                       std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &layout_map);
+                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
+                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next);
 
 /**
  * @brief   find_or_create_descriptor_set can be used to search for an existing descriptor-set or create a new one.
  *          the result be will be returned and stored in a provided cache.
  *
- * @param   device      handle for a vierkant::Device to create new descriptor-sets
- * @param   set_layout  a provided set-layout.
- * @param   descriptors a provided descriptor-map
- * @param   pool        a provided descriptor-pool
- * @param   last        cache of previously used descriptor-sets.
- * @param   current     output cache of retrieved/created descriptor-sets.
+ * @param   device          handle for a vierkant::Device to create new descriptor-sets
+ * @param   set_layout      a provided set-layout.
+ * @param   descriptors     a provided descriptor-map
+ * @param   pool            a provided descriptor-pool
+ * @param   last            cache of previously used descriptor-sets.
+ * @param   current         output cache of retrieved/created descriptor-sets.
+ * @param   variable_count  flag indicating if a variable descriptror-count is desired.
  * @return  a retrieved or newly created, shared VkDescriptorSet.
  */
 DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device,
                                                const DescriptorSetLayoutPtr &set_layout,
                                                const descriptor_map_t &descriptors,
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
-                                               descriptor_set_map_t &current);
+                                               descriptor_set_map_t &current, bool variable_count);
 
 }//namespace vierkant
 

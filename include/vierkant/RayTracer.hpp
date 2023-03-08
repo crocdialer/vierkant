@@ -74,6 +74,9 @@ private:
 
         //! cache used descriptor-sets
         vierkant::descriptor_set_map_t descriptor_set_cache;
+
+        //! cache used descriptor-set-layouts
+        std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> descriptor_layout_cache;
     };
 
     struct shader_binding_table_t
@@ -121,8 +124,6 @@ private:
     crocore::Cache_<VkPipeline, shader_binding_table_t> m_binding_tables;
 
     std::vector<trace_assets_t> m_trace_assets;
-
-    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> m_descriptor_set_layouts;
 
     uint32_t m_current_index = 0;
 

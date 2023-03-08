@@ -107,6 +107,7 @@ public:
         //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;
         vierkant::BufferPtr scratch_buffer = nullptr;
+        vierkant::AccelerationStructurePtr update_structure = nullptr;
     };
 
     //! shared acceleration_asset_t

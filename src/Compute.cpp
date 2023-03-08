@@ -29,7 +29,6 @@ void swap(Compute &lhs, Compute &rhs) noexcept
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_compute_assets, rhs.m_compute_assets);
-    std::swap(lhs.m_descriptor_set_layouts, rhs.m_descriptor_set_layouts);
     std::swap(lhs.m_current_index, rhs.m_current_index);
 }
 
@@ -55,6 +54,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
     auto &compute_asset = m_compute_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_compute_assets.size();
     vierkant::descriptor_set_map_t next_descriptor_set_cache;
+    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> next_layout_cache;
 
     struct item_t
     {
@@ -65,8 +65,8 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
 
     for(auto &computable: computables)
     {
-        auto descriptor_set_layout =
-                vierkant::find_or_create_set_layout(m_device, computable.descriptors, m_descriptor_set_layouts);
+        auto descriptor_set_layout = vierkant::find_or_create_set_layout(
+                m_device, computable.descriptors, compute_asset.descriptor_layout_cache, next_layout_cache);
         computable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
         pipelines[computable.pipeline_info].push_back({computable, descriptor_set_layout});
@@ -97,7 +97,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
             // fetch descriptor set
             auto descriptor_set = vierkant::find_or_create_descriptor_set(
                     m_device, set_layout, computable.descriptors, m_descriptor_pool, compute_asset.descriptor_set_cache,
-                    next_descriptor_set_cache);
+                    next_descriptor_set_cache, false);
 
             // update descriptor-set with actual descriptors
             vierkant::update_descriptor_set(m_device, descriptor_set, computable.descriptors);
@@ -123,6 +123,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
     // keep the stuff in use
     compute_asset.computables = std::move(computables);
     compute_asset.descriptor_set_cache = std::move(next_descriptor_set_cache);
+    compute_asset.descriptor_layout_cache = std::move(next_layout_cache);
 }
 
 }//namespace vierkant

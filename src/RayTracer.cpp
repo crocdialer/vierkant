@@ -49,7 +49,6 @@ void swap(RayTracer &lhs, RayTracer &rhs) noexcept
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_binding_tables, rhs.m_binding_tables);
     std::swap(lhs.m_trace_assets, rhs.m_trace_assets);
-    std::swap(lhs.m_descriptor_set_layouts, rhs.m_descriptor_set_layouts);
     std::swap(lhs.m_current_index, rhs.m_current_index);
     std::swap(lhs.vkGetAccelerationStructureBuildSizesKHR, rhs.vkGetAccelerationStructureBuildSizesKHR);
     std::swap(lhs.vkCmdTraceRaysKHR, rhs.vkCmdTraceRaysKHR);
@@ -106,9 +105,10 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     auto &trace_asset = m_trace_assets[m_current_index];
     m_current_index = (m_current_index + 1) % m_trace_assets.size();
     vierkant::descriptor_set_map_t next_descriptor_set_cache;
+    std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> next_layout_cache;
 
-    auto descriptor_set_layout =
-            vierkant::find_or_create_set_layout(m_device, tracable.descriptors, m_descriptor_set_layouts);
+    auto descriptor_set_layout = vierkant::find_or_create_set_layout(
+            m_device, tracable.descriptors, trace_asset.descriptor_layout_cache, next_layout_cache);
     tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
     // push constant range
@@ -137,7 +137,7 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     // fetch descriptor set
     auto descriptor_set = vierkant::find_or_create_descriptor_set(m_device, descriptor_set_layout, tracable.descriptors,
                                                                   m_descriptor_pool, trace_asset.descriptor_set_cache,
-                                                                  next_descriptor_set_cache);
+                                                                  next_descriptor_set_cache, false);
 
     // update descriptor-set with actual descriptors
     vierkant::update_descriptor_set(m_device, descriptor_set, tracable.descriptors);
@@ -165,6 +165,7 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     // keep-alive of things in use
     trace_asset.tracable = std::move(tracable);
     trace_asset.descriptor_set_cache = std::move(next_descriptor_set_cache);
+    trace_asset.descriptor_layout_cache = std::move(next_layout_cache);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
