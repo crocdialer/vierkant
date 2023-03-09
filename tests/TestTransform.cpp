@@ -9,6 +9,7 @@
 #include "vierkant/transform.hpp"
 #include <boost/test/tools/floating_point_comparison.hpp>
 #include <boost/test/unit_test.hpp>
+#include <unordered_set>
 
 using namespace vierkant;
 //____________________________________________________________________________//
@@ -93,6 +94,16 @@ void check_transform(T epsilon)
     BOOST_CHECK(vierkant::epsilon_equal<T>(b * vierkant::inverse(b), identity, epsilon));
     BOOST_CHECK(vierkant::epsilon_equal<T>(c * vierkant::inverse(c), identity, epsilon));
     BOOST_CHECK(vierkant::epsilon_equal<T>(a * b * c * vierkant::inverse(a * b * c), identity, epsilon));
+
+    // hash transform
+    std::hash<vierkant::transform_t_<T>> hasher;
+    BOOST_CHECK(hasher(rotate));
+
+    // use transform as key in hashset
+    std::unordered_set<vierkant::transform_t_<T>> test_set = {rotate, scale};
+    BOOST_CHECK(test_set.contains(rotate));
+    BOOST_CHECK(test_set.contains(scale));
+    BOOST_CHECK(!test_set.contains(translate));
 
     // check mix-routine
     {
