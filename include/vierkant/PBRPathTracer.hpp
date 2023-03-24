@@ -267,6 +267,7 @@ private:
     VkQueue m_queue = VK_NULL_HANDLE;
 
     vierkant::CommandPoolPtr m_command_pool;
+    vierkant::DescriptorPoolPtr m_descriptor_pool;
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 

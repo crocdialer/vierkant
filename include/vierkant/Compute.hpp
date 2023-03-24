@@ -43,6 +43,7 @@ public:
         uint32_t num_frames_in_flight = 1;
         vierkant::CommandPoolPtr command_pool;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
+        vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
     };
 
     Compute() = default;

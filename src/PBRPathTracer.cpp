@@ -28,6 +28,13 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                            VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
+    // create a DescriptorPool
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32},
+                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
+                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
+    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
+
     // memorypool
     VmaPoolCreateInfo pool_create_info = {};
     pool_create_info.minAllocationAlignment = 128;
@@ -41,6 +48,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     // create our raytracing-thingies
     vierkant::RayTracer::create_info_t ray_tracer_create_info = {};
     ray_tracer_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
+    ray_tracer_create_info.command_pool = m_command_pool;
+    ray_tracer_create_info.descriptor_pool = m_descriptor_pool;
     ray_tracer_create_info.pipeline_cache = create_info.pipeline_cache;
     m_ray_tracer = vierkant::RayTracer(device, ray_tracer_create_info);
     m_ray_builder = vierkant::RayBuilder(device, m_queue, pool);
@@ -48,6 +57,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     // denoise compute
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.num_frames_in_flight = create_info.num_frames_in_flight;
+    compute_info.descriptor_pool = m_descriptor_pool;
+    compute_info.command_pool = m_command_pool;
     compute_info.pipeline_cache = create_info.pipeline_cache;
     m_compute = vierkant::Compute(device, compute_info);
 

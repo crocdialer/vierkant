@@ -84,11 +84,10 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info)
     if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
     else
     {
-        // create a DescriptorPool
-        vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4096},
-                                                          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4096},
-                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 4096}};
-        m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 4096);
+        vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
+                                                          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
+                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
+        m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
     }
 
     m_pipeline_cache =

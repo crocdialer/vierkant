@@ -261,7 +261,7 @@ private:
         vierkant::Framebuffer g_buffer_pre, g_buffer_post;
 
         vierkant::ImagePtr depth_map, depth_pyramid;
-        vierkant::CommandBuffer cmd_clear, cmd_lighting, cmd_post_fx;
+        vierkant::CommandBuffer cmd_pre_render, cmd_clear, cmd_lighting, cmd_post_fx;
 
         vierkant::gpu_cull_context_ptr gpu_cull_context;
 
@@ -344,6 +344,8 @@ private:
     VkFormat m_hdr_image_format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
 
     vierkant::CommandPoolPtr m_command_pool;
+
+    vierkant::DescriptorPoolPtr m_descriptor_pool;
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 

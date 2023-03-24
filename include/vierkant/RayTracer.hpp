@@ -40,6 +40,8 @@ public:
     {
         uint32_t num_frames_in_flight = 1;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
+        vierkant::CommandPoolPtr command_pool = nullptr;
+        vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
     };
 
     //! return an array listing all required device-extensions for a raytracing-pipeline.

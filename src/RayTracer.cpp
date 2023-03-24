@@ -74,17 +74,22 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
     deviceProps2.pNext = &m_properties;
     vkGetPhysicalDeviceProperties2(m_device->physical_device(), &deviceProps2);
 
-    m_command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
-                                                   VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    m_command_pool = create_info.command_pool
+                             ? create_info.command_pool
+                             : vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
+                                                             VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                                                     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    // we also need a DescriptorPool ...
-    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 32},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 128},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
-                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1024}};
-    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
+    if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
+    else
+    {
+        vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 32},
+                                                          {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 32},
+                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 128},
+                                                          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
+                                                          {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512}};
+        m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

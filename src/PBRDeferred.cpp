@@ -26,6 +26,12 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                            VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
+    // create a DescriptorPool
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
+                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
+    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
+
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(device);
 
@@ -72,6 +78,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.sample_count = create_info.sample_count;
     render_create_info.viewport.width = static_cast<float>(create_info.settings.resolution.x);
     render_create_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
+    render_create_info.descriptor_pool = m_descriptor_pool;
     render_create_info.pipeline_cache = m_pipeline_cache;
     render_create_info.indirect_draw = true;
     render_create_info.enable_mesh_shader = true;
@@ -301,10 +308,10 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_asset.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_asset.cull_result.drawables[drawable_index];
-                drawable.matrices.transform =
-                        node_transforms.empty() ? object->global_transform() * entry.transform
-                                                : object->global_transform() * node_transforms[entry.node_index];
-//                drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
+                drawable.matrices.transform = node_transforms.empty()
+                                                      ? object->global_transform() * entry.transform
+                                                      : object->global_transform() * node_transforms[entry.node_index];
+                //                drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.last_matrices =
                         it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
 
@@ -600,20 +607,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             if(drawable.mesh->root_bone) { shader_flags |= PROP_SKIN; }
 
             // check if tangents are available
-            if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT))
-            {
-                shader_flags |= PROP_TANGENT_SPACE;
-
-//                if(frame_asset.settings.tesselation)
-//                {
-//                    shader_flags |= PROP_TESSELATION;
-//                    drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
-//                    drawable.pipeline_format.num_patch_control_points = 3;
-//                    drawable.descriptors[Renderer::BINDING_MESH_DRAWS].stage_flags =
-//                            VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-//                    camera_desc.stage_flags = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-//                }
-            }
+            if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)) { shader_flags |= PROP_TANGENT_SPACE; }
 
             // attribute/binding descriptions obsolete here
             drawable.pipeline_format.attribute_descriptions.clear();

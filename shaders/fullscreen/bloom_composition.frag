@@ -54,6 +54,7 @@ void main()
 
     // additive blending + tone mapping
     vec3 result = tonemap_exposure(hdr_color + bloom, u_exposure);
+//    vec3 result = tonemap_aces(hdr_color + bloom);
 
     // gamma correction
     result = pow(result, vec3(1.0 / u_gamma));

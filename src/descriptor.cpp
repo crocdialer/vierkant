@@ -29,8 +29,7 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, cons
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     vkCheck(vkCreateDescriptorPool(device->handle(), &pool_info, nullptr, &descriptor_pool),
             "failed to create descriptor pool!");
-    return DescriptorPoolPtr(descriptor_pool,
-                             [device](VkDescriptorPool p) { vkDestroyDescriptorPool(device->handle(), p, nullptr); });
+    return {descriptor_pool, [device](VkDescriptorPool p) { vkDestroyDescriptorPool(device->handle(), p, nullptr); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -78,9 +77,8 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
     vkCheck(vkCreateDescriptorSetLayout(device->handle(), &layout_info, nullptr, &descriptor_set_layout),
             "failed to create descriptor set layout!");
 
-    return DescriptorSetLayoutPtr(descriptor_set_layout, [device](VkDescriptorSetLayout dl) {
-        vkDestroyDescriptorSetLayout(device->handle(), dl, nullptr);
-    });
+    return {descriptor_set_layout,
+            [device](VkDescriptorSetLayout dl) { vkDestroyDescriptorSetLayout(device->handle(), dl, nullptr); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,12 +104,13 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const 
     alloc_info.descriptorSetCount = 1;
     alloc_info.pSetLayouts = &layout_handle;
 
+    spdlog::info("create_descriptor_set - variable_count: {}", variable_count);
+
     vkCheck(vkAllocateDescriptorSets(device->handle(), &alloc_info, &descriptor_set),
             "failed to allocate descriptor sets!");
 
-    return DescriptorSetPtr(descriptor_set, [device, pool](VkDescriptorSet s) {
-        vkFreeDescriptorSets(device->handle(), pool.get(), 1, &s);
-    });
+    return {descriptor_set,
+            [device, pool](VkDescriptorSet s) { vkFreeDescriptorSets(device->handle(), pool.get(), 1, &s); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -232,10 +231,9 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorSetLayoutPtr
-find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
-                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
-                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next)
+DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
+                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
+                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next)
 {
     // clean descriptor-map to enable sharing
     for(auto &[binding, descriptor]: descriptors)

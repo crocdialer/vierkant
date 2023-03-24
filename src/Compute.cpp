@@ -41,12 +41,14 @@ Compute::Compute(const vierkant::DevicePtr &device, const create_info_t &create_
 
     m_compute_assets.resize(create_info.num_frames_in_flight);
 
-    // we also need a DescriptorPool ...
-    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 256},
-                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 128},
-                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
-                                                      {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256}};
-    m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 512);
+    if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
+    else
+    {
+        vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
+                                                          {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
+                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
+        m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
+    }
 }
 
 void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer commandbuffer)

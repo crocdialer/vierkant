@@ -12,6 +12,7 @@ struct gpu_cull_context_t
 {
     vierkant::DevicePtr device;
     vierkant::CommandPoolPtr command_pool;
+    vierkant::DescriptorPoolPtr descriptor_pool;
     vierkant::PipelineCachePtr pipeline_cache;
     vierkant::CommandBuffer cull_cmd_buffer;
 
@@ -115,6 +116,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = context->pipeline_cache;
     compute_info.command_pool = context->command_pool;
+    compute_info.descriptor_pool = context->descriptor_pool;
 
     for(uint32_t i = context->depth_pyramid_computes.size(); i < context->depth_pyramid_img->num_mip_levels(); ++i)
     {
@@ -322,6 +324,11 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const vier
     ret->command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                               VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
+                                                      {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
+                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
+    ret->descriptor_pool = vierkant::create_descriptor_pool(device, descriptor_counts, 128);
+
     ret->depth_pyramid_cmd_buffer = vierkant::CommandBuffer(device, ret->command_pool.get());
     ret->draw_cull_buffer = vierkant::Buffer::create(device, nullptr, sizeof(draw_cull_data_t),
                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
