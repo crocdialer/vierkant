@@ -29,6 +29,7 @@ struct gpu_cull_context_t
     //! depth-pyramid assets
     vierkant::CommandBuffer depth_pyramid_cmd_buffer;
     std::vector<vierkant::Compute> depth_pyramid_computes;
+    vierkant::BufferPtr depth_pyramid_ubo;
     glm::uvec3 depth_pyramid_local_size{};
     vierkant::Compute::computable_t depth_pyramid_computable;
     vierkant::ImagePtr depth_pyramid_img;
@@ -150,6 +151,10 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
                              params.query_pool.get(), params.query_index_start);
     }
 
+    // min alignment for uniform-buffers
+    auto min_alignment = context->device->properties().limits.minUniformBufferOffsetAlignment;
+    auto stride = sizeof(glm::vec2) + min_alignment - (sizeof(glm::vec2) % min_alignment);
+
     // transition all mips to general layout for writing
     context->depth_pyramid_img->transition_layout(VK_IMAGE_LAYOUT_GENERAL, context->depth_pyramid_cmd_buffer.handle());
 
@@ -167,10 +172,13 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
         computable.descriptors[1].images = {pyramid_images[lvl]};
         computable.descriptors[1].image_views = {pyramid_views[lvl]};
 
-        glm::vec2 image_size = {width, height};
-        auto ubo_buffer = vierkant::Buffer::create(context->device, &image_size, sizeof(glm::vec2),
-                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-        computable.descriptors[2].buffers = {ubo_buffer};
+        size_t ubo_offset_bytes = (lvl - 1) * stride;
+        glm::vec2 &image_size =
+                *reinterpret_cast<glm::vec2 *>((uint8_t *) context->depth_pyramid_ubo->map() + ubo_offset_bytes);
+        image_size = {width, height};
+
+        computable.descriptors[2].buffers = {context->depth_pyramid_ubo};
+        computable.descriptors[2].buffer_offsets = {ubo_offset_bytes};
 
         // dispatch compute shader
         context->depth_pyramid_computes[lvl - 1].dispatch({computable}, context->depth_pyramid_cmd_buffer.handle());
@@ -359,6 +367,12 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const vier
     auto shader_stage = vierkant::create_shader_module(device, vierkant::shaders::pbr::depth_min_reduce_comp,
                                                        &ret->depth_pyramid_local_size);
     ret->depth_pyramid_computable.pipeline_info.shader_stage = shader_stage;
+
+    constexpr size_t max_num_mips = 128;
+    auto min_alignment = device->properties().limits.minUniformBufferOffsetAlignment;
+    auto stride = sizeof(glm::vec2) + min_alignment - (sizeof(glm::vec2) % min_alignment);
+    ret->depth_pyramid_ubo = vierkant::Buffer::create(device, nullptr, max_num_mips * stride,
+                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     return ret;
 }

@@ -104,7 +104,7 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const 
     alloc_info.descriptorSetCount = 1;
     alloc_info.pSetLayouts = &layout_handle;
 
-    spdlog::info("create_descriptor_set - variable_count: {}", variable_count);
+    spdlog::trace("create_descriptor_set - variable_count: {}", variable_count);
 
     vkCheck(vkAllocateDescriptorSets(device->handle(), &alloc_info, &descriptor_set),
             "failed to allocate descriptor sets!");
