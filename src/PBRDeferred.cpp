@@ -1212,6 +1212,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
         // create bloom
         Bloom::create_info_t bloom_info = {};
         bloom_info.size = upscaling_size;
+        bloom_info.color_format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
         bloom_info.size.width = std::max(1U, bloom_info.size.width / 2);
         bloom_info.size.height = std::max(1U, bloom_info.size.height / 2);
         bloom_info.num_blur_iterations = 3;

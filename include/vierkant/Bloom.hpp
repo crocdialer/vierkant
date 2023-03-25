@@ -20,6 +20,9 @@ public:
         //! framebuffer size
         VkExtent3D size = {};
 
+        //! hdr-framebuffer format
+        VkFormat color_format = VK_FORMAT_R16G16B16A16_SFLOAT;
+
         //! brightness thresh
         glm::vec2 brightness_thresh = glm::vec2(.95f, 1.1f);
 

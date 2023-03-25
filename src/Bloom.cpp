@@ -26,11 +26,9 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
                                                      VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     }
 
-    VkFormat color_format = VK_FORMAT_R16G16B16A16_SFLOAT;
-
     vierkant::Framebuffer::create_info_t thresh_buffer_info = {};
     thresh_buffer_info.size = create_info.size;
-    thresh_buffer_info.color_attachment_format.format = color_format;
+    thresh_buffer_info.color_attachment_format.format = create_info.color_format;
     thresh_buffer_info.color_attachment_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     m_thresh_framebuffer = vierkant::Framebuffer(device, thresh_buffer_info);
 
@@ -41,6 +39,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
     thresh_render_info.viewport.height = static_cast<float>(create_info.size.height);
     thresh_render_info.viewport.maxDepth = 1;
     thresh_render_info.pipeline_cache = create_info.pipeline_cache;
+    thresh_render_info.descriptor_pool = create_info.descriptor_pool;
     thresh_render_info.command_pool = m_command_pool;
     m_thresh_renderer = vierkant::Renderer(device, thresh_render_info);
 
@@ -49,7 +48,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
     // create gaussian blur
     GaussianBlur::create_info_t gaussian_info = {};
     gaussian_info.size = create_info.size;
-    gaussian_info.color_format = color_format;
+    gaussian_info.color_format = create_info.color_format;
     gaussian_info.pipeline_cache = create_info.pipeline_cache;
     gaussian_info.command_pool = m_command_pool;
     gaussian_info.descriptor_pool = create_info.descriptor_pool;
