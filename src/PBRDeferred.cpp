@@ -1096,7 +1096,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
     frame_asset.cmd_post_fx.end();
 
-    if(frame_asset.semaphore_value_done > SemaphoreValue::TAA)
+    if(frame_asset.semaphore_value_done >= SemaphoreValue::TAA)
     {
         vierkant::semaphore_submit_info_t post_fx_semaphore_info = {};
         post_fx_semaphore_info.semaphore = frame_asset.timeline.handle();

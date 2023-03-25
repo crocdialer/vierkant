@@ -283,7 +283,7 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
 
     vierkant::descriptor_t desc_texture = {};
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_texture.variable_count = true;
+//    desc_texture.variable_count = true;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.images = textures;
     bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
@@ -393,7 +393,7 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
 
                 auto bindless_texture_set = vierkant::find_or_create_descriptor_set(
                         m_device, bindless_texture_layout, bindless_texture_desc, m_descriptor_pool,
-                        frame_assets.descriptor_sets, next_descriptor_sets, true);
+                        frame_assets.descriptor_sets, next_descriptor_sets, false);
 
                 new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
 
