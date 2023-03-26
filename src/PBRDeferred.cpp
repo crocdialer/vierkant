@@ -60,8 +60,16 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                 vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        asset.query_pool = vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 
+        vierkant::Buffer::create_info_t anim_buffer_info = {};
+        anim_buffer_info.device = m_device;
+        anim_buffer_info.num_bytes = 1U << 20U;
+        anim_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        anim_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        asset.bone_buffer = vierkant::Buffer::create(anim_buffer_info);
+        asset.morph_param_buffer = vierkant::Buffer::create(anim_buffer_info);
+
+        asset.query_pool = vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
         asset.gpu_cull_context = vierkant::create_gpu_cull_context(device, m_pipeline_cache);
 
         // create staging-buffers
@@ -71,8 +79,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         staging_buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         staging_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
         asset.staging_main = vierkant::Buffer::create(staging_buffer_info);
+        asset.staging_anim = vierkant::Buffer::create(staging_buffer_info);
         asset.staging_post_fx = vierkant::Buffer::create(staging_buffer_info);
 
+        asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
         asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
     }
 
@@ -482,19 +492,41 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
         }
     }
 
-    if(!frame_asset.bone_buffer)
-    {
-        frame_asset.bone_buffer = vierkant::Buffer::create(
-                m_device, all_bone_transforms, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-    else { frame_asset.bone_buffer->set_data(all_bone_transforms); }
+    frame_asset.cmd_pre_render.begin(0);
+    vierkant::staging_copy_context_t staging_context = {};
+    staging_context.staging_buffer = frame_asset.staging_anim;
+    staging_context.command_buffer = frame_asset.cmd_pre_render.handle();
 
-    if(!frame_asset.morph_param_buffer)
-    {
-        frame_asset.morph_param_buffer = vierkant::Buffer::create(
-                m_device, all_morph_params, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    }
-    else { frame_asset.morph_param_buffer->set_data(all_morph_params); }
+    vierkant::staging_copy_info_t copy_bones = {};
+    copy_bones.num_bytes = all_bone_transforms.size() * sizeof(vierkant::transform_t);
+    copy_bones.data = all_bone_transforms.data();
+    copy_bones.dst_buffer = frame_asset.bone_buffer;
+
+    vierkant::staging_copy_info_t copy_morphs = {};
+    copy_morphs.num_bytes = all_morph_params.size() * sizeof(morph_params_t);
+    copy_morphs.data = all_morph_params.data();
+    copy_morphs.dst_buffer = frame_asset.morph_param_buffer;
+
+    vierkant::staging_copy(staging_context, {copy_bones, copy_morphs});
+
+    vierkant::semaphore_submit_info_t semaphore_info = {};
+    semaphore_info.semaphore = frame_asset.timeline.handle();
+    semaphore_info.signal_value = SemaphoreValue::PRE_RENDER;
+    frame_asset.cmd_pre_render.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
+
+//    if(!frame_asset.bone_buffer)
+//    {
+//        frame_asset.bone_buffer = vierkant::Buffer::create(
+//                m_device, all_bone_transforms, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+//    }
+//    else { frame_asset.bone_buffer->set_data(all_bone_transforms); }
+//
+//    if(!frame_asset.morph_param_buffer)
+//    {
+//        frame_asset.morph_param_buffer = vierkant::Buffer::create(
+//                m_device, all_morph_params, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+//    }
+//    else { frame_asset.morph_param_buffer->set_data(all_morph_params); }
 
     if(!frame_asset.recycle_commands)
     {
@@ -795,6 +827,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     auto cmd_buffer_pre = m_g_renderer_main.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
+    g_buffer_semaphore_submit_info_pre.wait_value = SemaphoreValue::PRE_RENDER;
+    g_buffer_semaphore_submit_info_pre.wait_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
     g_buffer_semaphore_submit_info_pre.signal_value =
             use_gpu_culling ? SemaphoreValue::G_BUFFER_LAST_VISIBLE : SemaphoreValue::G_BUFFER_ALL;
     frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});

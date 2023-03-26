@@ -194,6 +194,7 @@ private:
     enum SemaphoreValue : uint64_t
     {
         INVALID = 0,
+        PRE_RENDER,
         G_BUFFER_LAST_VISIBLE,
         DEPTH_PYRAMID,
         CULLING,
@@ -269,7 +270,7 @@ private:
         vierkant::Framebuffer lighting_buffer, taa_buffer;
 
         // host-visible
-        vierkant::BufferPtr staging_main, staging_post_fx;
+        vierkant::BufferPtr staging_main, staging_anim, staging_post_fx;
         vierkant::BufferPtr bone_buffer;
         vierkant::BufferPtr morph_param_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;
