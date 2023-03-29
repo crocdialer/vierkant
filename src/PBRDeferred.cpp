@@ -410,7 +410,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     }
 
     // dof, bloom, anti-aliasing
-    post_fx_pass(renderer, cam, out_img, frame_asset.g_buffer_pre.depth_attachment());
+    post_fx_pass(renderer, cam, out_img, frame_asset.g_buffer_main.depth_attachment());
 
     SceneRenderer::render_result_t ret = {};
     ret.num_draws = frame_asset.cull_result.drawables.size();
@@ -514,19 +514,19 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     semaphore_info.signal_value = SemaphoreValue::PRE_RENDER;
     frame_asset.cmd_pre_render.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 
-//    if(!frame_asset.bone_buffer)
-//    {
-//        frame_asset.bone_buffer = vierkant::Buffer::create(
-//                m_device, all_bone_transforms, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-//    }
-//    else { frame_asset.bone_buffer->set_data(all_bone_transforms); }
-//
-//    if(!frame_asset.morph_param_buffer)
-//    {
-//        frame_asset.morph_param_buffer = vierkant::Buffer::create(
-//                m_device, all_morph_params, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-//    }
-//    else { frame_asset.morph_param_buffer->set_data(all_morph_params); }
+    //    if(!frame_asset.bone_buffer)
+    //    {
+    //        frame_asset.bone_buffer = vierkant::Buffer::create(
+    //                m_device, all_bone_transforms, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    //    }
+    //    else { frame_asset.bone_buffer->set_data(all_bone_transforms); }
+    //
+    //    if(!frame_asset.morph_param_buffer)
+    //    {
+    //        frame_asset.morph_param_buffer = vierkant::Buffer::create(
+    //                m_device, all_morph_params, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+    //    }
+    //    else { frame_asset.morph_param_buffer->set_data(all_morph_params); }
 
     if(!frame_asset.recycle_commands)
     {
@@ -824,20 +824,20 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // pre-render will repeat all previous draw-calls
     frame_asset.timings_map[G_BUFFER_LAST_VISIBLE] = m_g_renderer_main.last_frame_ms();
 
-    auto cmd_buffer_pre = m_g_renderer_main.render(frame_asset.g_buffer_pre, frame_asset.recycle_commands);
+    auto cmd_buffer_pre = m_g_renderer_main.render(frame_asset.g_buffer_main, frame_asset.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_asset.timeline.handle();
     g_buffer_semaphore_submit_info_pre.wait_value = SemaphoreValue::PRE_RENDER;
     g_buffer_semaphore_submit_info_pre.wait_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
     g_buffer_semaphore_submit_info_pre.signal_value =
             use_gpu_culling ? SemaphoreValue::G_BUFFER_LAST_VISIBLE : SemaphoreValue::G_BUFFER_ALL;
-    frame_asset.g_buffer_pre.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
+    frame_asset.g_buffer_main.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
 
     if(use_gpu_culling)
     {
         // generate depth-pyramid
         vierkant::create_depth_pyramid_params_t depth_pyramid_params = {};
-        depth_pyramid_params.depth_map = frame_asset.g_buffer_pre.depth_attachment();
+        depth_pyramid_params.depth_map = frame_asset.g_buffer_main.depth_attachment();
         depth_pyramid_params.queue = m_queue;
         depth_pyramid_params.query_pool = frame_asset.query_pool;
         depth_pyramid_params.query_index_start = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
@@ -927,6 +927,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     frame_asset.cmd_lighting = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_lighting.begin(0);
+    m_device->begin_label(frame_asset.cmd_lighting.handle(), "PBRDeferred::lighting_pass");
 
     // g-buffer done timestamp
     vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
@@ -972,6 +973,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     lighting_semaphore_info.wait_value = SemaphoreValue::G_BUFFER_ALL;
     lighting_semaphore_info.signal_value = SemaphoreValue::LIGHTING;
     frame_asset.semaphore_value_done = SemaphoreValue::LIGHTING;
+    m_device->end_label(frame_asset.cmd_lighting.handle());
     frame_asset.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE, {lighting_semaphore_info});
     return frame_asset.lighting_buffer;
 }
@@ -1028,6 +1030,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
     // begin command-buffer
     frame_asset.cmd_post_fx.begin(0);
+    m_device->begin_label(frame_asset.cmd_post_fx.handle(), "PBRDeferred::post_fx_pass");
 
     // TAA
     if(frame_asset.settings.use_taa)
@@ -1123,11 +1126,12 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
     }
 
     // copy depthmap for next frame
-    frame_asset.g_buffer_pre.depth_attachment()->copy_to(frame_asset.depth_map, frame_asset.cmd_post_fx.handle());
-    frame_asset.g_buffer_pre.depth_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                                                   frame_asset.cmd_post_fx.handle());
+    frame_asset.g_buffer_main.depth_attachment()->copy_to(frame_asset.depth_map, frame_asset.cmd_post_fx.handle());
+    frame_asset.g_buffer_main.depth_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
+                                                                    frame_asset.cmd_post_fx.handle());
     frame_asset.depth_map->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_post_fx.handle());
 
+    m_device->end_label(frame_asset.cmd_post_fx.handle());
     frame_asset.cmd_post_fx.end();
 
     if(frame_asset.semaphore_value_done >= SemaphoreValue::TAA)
@@ -1194,15 +1198,15 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     if(!asset.g_buffer_post || asset.g_buffer_post.color_attachment()->extent() != size)
     {
         // G-buffer (pre and post occlusion-culling)
-        asset.g_buffer_pre = create_g_buffer(m_device, size);
+        asset.g_buffer_main = create_g_buffer(m_device, size);
 
         auto renderpass_no_clear_depth =
-                vierkant::create_renderpass(m_device, asset.g_buffer_pre.attachments(), false, false);
+                vierkant::create_renderpass(m_device, asset.g_buffer_main.attachments(), false, false);
         asset.g_buffer_post =
-                vierkant::Framebuffer(m_device, asset.g_buffer_pre.attachments(), renderpass_no_clear_depth);
+                vierkant::Framebuffer(m_device, asset.g_buffer_main.attachments(), renderpass_no_clear_depth);
         asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
-        auto depth_fmt = asset.g_buffer_pre.depth_attachment()->format();
+        auto depth_fmt = asset.g_buffer_main.depth_attachment()->format();
         depth_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         asset.depth_map = vierkant::Image::create(m_device, depth_fmt);
 

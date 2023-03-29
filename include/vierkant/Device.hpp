@@ -5,8 +5,9 @@
 #pragma once
 
 #include <map>
-#include <vk_mem_alloc.h>
 #include <vierkant/Instance.hpp>
+#include <vierkant/math.hpp>
+#include <vk_mem_alloc.h>
 
 namespace vierkant
 {
@@ -16,9 +17,7 @@ DEFINE_CLASS_PTR(Device);
 //! define a shared handle for a VkQueryPool
 using QueryPoolPtr = std::shared_ptr<VkQueryPool_T>;
 
-QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device,
-                               uint32_t query_count,
-                               VkQueryType query_type);
+QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query_count, VkQueryType query_type);
 
 double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp_period);
 
@@ -27,7 +26,6 @@ using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
 class Device
 {
 public:
-
     struct create_info_t
     {
         //! handle for the vulkan-instance
@@ -39,6 +37,9 @@ public:
         //! enable validation layers
         bool use_validation = false;
 
+        //! use debug_utils extension
+        bool debug_labels = false;
+
         //! enable raytracing device-features
         bool use_raytracing = false;
 
@@ -47,10 +48,10 @@ public:
 
         VkPhysicalDeviceFeatures device_features = {};
 
-        std::vector<const char*> extensions;
+        std::vector<const char *> extensions;
 
         //! optional pointer that will be passed as 'pNext' during device-creation.
-        void* create_device_pNext = nullptr;
+        void *create_device_pNext = nullptr;
     };
 
     static DevicePtr create(const create_info_t &create_info);
@@ -65,7 +66,10 @@ public:
 
     enum class Queue
     {
-        GRAPHICS, TRANSFER, COMPUTE, PRESENT
+        GRAPHICS,
+        TRANSFER,
+        COMPUTE,
+        PRESENT
     };
 
     struct queue_family_info_t
@@ -77,17 +81,20 @@ public:
     /**
      * @return  the managed VkDevice
      */
-    [[nodiscard]] VkDevice handle() const{ return m_device; }
+    [[nodiscard]] VkDevice handle() const { return m_device; }
 
     /**
      * @return  the associated VkPhysicalDevice
      */
-    [[nodiscard]] VkPhysicalDevice physical_device() const{ return m_physical_device; }
+    [[nodiscard]] VkPhysicalDevice physical_device() const { return m_physical_device; }
 
     /**
      * @return the physical device properties
      */
-    [[nodiscard]] const VkPhysicalDeviceProperties &properties() const{ return m_physical_device_properties.properties; };
+    [[nodiscard]] const VkPhysicalDeviceProperties &properties() const
+    {
+        return m_physical_device_properties.properties;
+    };
 
     /**
      * @return  handle for the highest-priority-queue of a certain type
@@ -103,35 +110,35 @@ public:
     /**
      * @return  const ref to the used QueueFamilyIndices
      */
-    [[nodiscard]] const std::map<Queue, queue_family_info_t> &queue_family_indices() const{ return m_queue_indices; }
-
-    /**
-     * @return  handle for command pool
-     */
-    [[nodiscard]] VkCommandPool command_pool() const{ return m_command_pool; }
+    [[nodiscard]] const std::map<Queue, queue_family_info_t> &queue_family_indices() const { return m_queue_indices; }
 
     /**
      * @return  handle for transient command pool
      */
-    [[nodiscard]] VkCommandPool command_pool_transient() const{ return m_command_pool_transient; }
+    [[nodiscard]] VkCommandPool command_pool_transient() const { return m_command_pool_transient; }
 
     /**
      * @return  handle for transient command pool
      */
-    [[nodiscard]] VkCommandPool command_pool_transfer() const{ return m_command_pool_transfer; }
+    [[nodiscard]] VkCommandPool command_pool_transfer() const { return m_command_pool_transfer; }
 
     /**
      * @return  enum stating the maximum available number of samples for MSAA
      */
-    [[nodiscard]] VkSampleCountFlagBits max_usable_samples() const{ return m_max_usable_samples; }
+    [[nodiscard]] VkSampleCountFlagBits max_usable_samples() const { return m_max_usable_samples; }
 
     /**
      * @return  handle for memory allocator
      */
-    [[nodiscard]] VmaAllocator vk_mem_allocator() const{ return m_vk_mem_allocator; };
+    [[nodiscard]] VmaAllocator vk_mem_allocator() const { return m_vk_mem_allocator; };
+
+    void begin_label(VkCommandBuffer commandbuffer, const std::string &label,
+                     const glm::vec4 &color = {0.6f, 0.6f, 0.6f, 1.f});
+    void end_label(VkCommandBuffer commandbuffer);
+    void insert_label(VkCommandBuffer commandbuffer, const std::string &label,
+                      const glm::vec4 &color = {0.6f, 0.6f, 0.6f, 1.f});
 
 private:
-
     explicit Device(const create_info_t &create_info);
 
     // physical device
@@ -154,14 +161,16 @@ private:
     // keeps track of queue family indices
     std::map<Queue, queue_family_info_t> m_queue_indices;
 
-    // regular command pool (graphics queue)
-    VkCommandPool m_command_pool = VK_NULL_HANDLE;
-
     // transient command pool (graphics queue)
     VkCommandPool m_command_pool_transient = VK_NULL_HANDLE;
 
     // transient command pool (transfer queue)
     VkCommandPool m_command_pool_transfer = VK_NULL_HANDLE;
+
+    //! debug-labels (VK_EXT_debug_utils)
+    PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT = nullptr;
+    PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT = nullptr;
+    PFN_vkCmdInsertDebugUtilsLabelEXT vkCmdInsertDebugUtilsLabelEXT = nullptr;
 };
 
-}//namespace vulkan
+}// namespace vierkant

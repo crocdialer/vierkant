@@ -317,11 +317,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     VkCommandPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 
-    // regular command pool -> graphics queue
-    pool_info.queueFamilyIndex = static_cast<uint32_t>(m_queue_indices[Queue::GRAPHICS].index);
-    pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    vkCheck(vkCreateCommandPool(m_device, &pool_info, nullptr, &m_command_pool), "failed to create command pool!");
-
     // transient command pool -> graphics queue
     pool_info.queueFamilyIndex = static_cast<uint32_t>(m_queue_indices[Queue::GRAPHICS].index);
     pool_info.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
@@ -347,10 +342,18 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
         allocator_info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     }
 
-
     vmaCreateAllocator(&allocator_info, &m_vk_mem_allocator);
-
     m_max_usable_samples = max_usable_sample_count(m_physical_device);
+
+    if(create_info.debug_labels)
+    {
+        vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(
+                vkGetDeviceProcAddr(m_device, "vkCmdBeginDebugUtilsLabelEXT"));
+        vkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
+                vkGetDeviceProcAddr(m_device, "vkCmdEndDebugUtilsLabelEXT"));
+        vkCmdInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdInsertDebugUtilsLabelEXT>(
+                vkGetDeviceProcAddr(m_device, "vkCmdInsertDebugUtilsLabelEXT"));
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -366,11 +369,6 @@ Device::~Device()
     {
         vkDestroyCommandPool(m_device, m_command_pool_transient, nullptr);
         m_command_pool_transient = nullptr;
-    }
-    if(m_command_pool)
-    {
-        vkDestroyCommandPool(m_device, m_command_pool, nullptr);
-        m_command_pool = nullptr;
     }
     if(m_vk_mem_allocator)
     {
@@ -402,6 +400,32 @@ const std::vector<VkQueue> &Device::queues(Queue type) const
 
     if(queue_it != m_queues.end()) { return queue_it->second; }
     return g_empty_queue;
+}
+void Device::begin_label(VkCommandBuffer commandbuffer, const std::string &label, const glm::vec4 &color)
+{
+    if(vkCmdBeginDebugUtilsLabelEXT)
+    {
+        VkDebugUtilsLabelEXT debug_label = {};
+        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        *reinterpret_cast<glm::vec4 *>(debug_label.color) = color;
+        debug_label.pLabelName = label.c_str();
+        vkCmdBeginDebugUtilsLabelEXT(commandbuffer, &debug_label);
+    }
+}
+void Device::end_label(VkCommandBuffer commandbuffer)
+{
+    if(vkCmdEndDebugUtilsLabelEXT) { vkCmdEndDebugUtilsLabelEXT(commandbuffer); }
+}
+void Device::insert_label(VkCommandBuffer commandbuffer, const std::string &label, const glm::vec4 &color)
+{
+    if(vkCmdInsertDebugUtilsLabelEXT)
+    {
+        VkDebugUtilsLabelEXT debug_label = {};
+        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        *reinterpret_cast<glm::vec4 *>(debug_label.color) = color;
+        debug_label.pLabelName = label.c_str();
+        vkCmdInsertDebugUtilsLabelEXT(commandbuffer, &debug_label);
+    }
 }
 
 

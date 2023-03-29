@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "vierkant/Renderer.hpp"
 #include "vierkant/ImageEffect.hpp"
+#include "vierkant/Renderer.hpp"
 
 namespace vierkant
 {
@@ -14,7 +14,6 @@ template<uint32_t NUM_TAPS = 9>
 class GaussianBlur_ : public ImageEffect
 {
 public:
-
     static_assert(NUM_TAPS % 2, "gaussian kernel-size must be odd");
 
     struct create_info_t
@@ -44,11 +43,9 @@ public:
     vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkQueue queue,
                              const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos) override;
 
-    vierkant::ImagePtr apply(const vierkant::ImagePtr &image,
-                             VkCommandBuffer commandbuffer) override;
+    vierkant::ImagePtr apply(const vierkant::ImagePtr &image, VkCommandBuffer commandbuffer) override;
 
 private:
-
     //! used as data for specialization constant
     static constexpr uint32_t num_taps = NUM_TAPS;
 
@@ -76,6 +73,7 @@ private:
         vierkant::BufferPtr ubo;
         vierkant::drawable_t drawable;
     };
+    vierkant::DevicePtr m_device;
     std::array<ping_pong_t, 2> m_ping_pongs;
     vierkant::Renderer m_renderer;
 
@@ -87,26 +85,22 @@ private:
     vierkant::CommandBuffer m_command_buffer;
 };
 
-extern template
-class GaussianBlur_<5>;
+extern template class GaussianBlur_<5>;
 
-extern template
-class GaussianBlur_<7>;
+extern template class GaussianBlur_<7>;
 
-extern template
-class GaussianBlur_<9>;
+extern template class GaussianBlur_<9>;
 
-extern template
-class GaussianBlur_<11>;
+extern template class GaussianBlur_<11>;
 
-extern template
-class GaussianBlur_<13>;
+extern template class GaussianBlur_<13>;
 
-template<uint32_t NUM_TAPS> using GaussianBlurUPtr_ = std::unique_ptr<GaussianBlur_<NUM_TAPS>>;
-template<uint32_t NUM_TAPS> using GaussianBlurPtr_ = std::shared_ptr<GaussianBlur_<NUM_TAPS>>;
+template<uint32_t NUM_TAPS>
+using GaussianBlurUPtr_ = std::unique_ptr<GaussianBlur_<NUM_TAPS>>;
+template<uint32_t NUM_TAPS>
+using GaussianBlurPtr_ = std::shared_ptr<GaussianBlur_<NUM_TAPS>>;
 
 using GaussianBlur = GaussianBlur_<9>;
 using GaussianBlurPtr = std::shared_ptr<GaussianBlur>;
 
 }// namespace vierkant
-

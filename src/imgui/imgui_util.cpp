@@ -322,7 +322,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             ImGui::Spacing();
 
             const auto &last = stats.back().timings;
-            ImGui::BulletText("g_buffer_pre: %.3f ms", last.g_buffer_pre_ms);
+            ImGui::BulletText("g_buffer_main: %.3f ms", last.g_buffer_pre_ms);
             ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
             ImGui::BulletText("culling: %.3f ms", last.culling_ms);
             ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);

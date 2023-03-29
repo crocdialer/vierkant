@@ -72,6 +72,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
                                         const create_depth_pyramid_params_t &params)
 {
     context->depth_pyramid_cmd_buffer.begin(0);
+    context->device->begin_label(context->depth_pyramid_cmd_buffer.handle(), fmt::format("create_depth_pyramid"));
 
     auto extent_pyramid_lvl0 = params.depth_map->extent();
     extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
@@ -191,14 +192,18 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     vkCmdWriteTimestamp2(context->depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          params.query_pool.get(), params.query_index_end);
 
+    context->device->end_label(context->depth_pyramid_cmd_buffer.handle());
     context->depth_pyramid_cmd_buffer.submit(params.queue, false, VK_NULL_HANDLE, {params.semaphore_submit_info});
     return context->depth_pyramid_img;
 }
 
 draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const gpu_cull_params_t &params)
 {
-    draw_cull_data_t draw_cull_data = {};
+    // start command-buffer
+    context->cull_cmd_buffer.begin(0);
+    context->device->begin_label(context->cull_cmd_buffer.handle(), fmt::format("gpu_cull"));
 
+    draw_cull_data_t draw_cull_data = {};
     draw_cull_data.num_draws = params.num_draws;
     draw_cull_data.pyramid_size = {params.depth_pyramid->width(), params.depth_pyramid->height()};
     draw_cull_data.occlusion_cull = params.occlusion_cull;
@@ -247,10 +252,6 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     draw_cull_data_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     draw_cull_data_desc.buffers = {context->draw_cull_buffer};
-
-    // create / start a new command-buffer
-    context->cull_cmd_buffer = vierkant::CommandBuffer(context->device, context->command_pool.get());
-    context->cull_cmd_buffer.begin();
 
     // clear gpu-result-buffer with zeros
     vkCmdFillBuffer(context->cull_cmd_buffer.handle(), context->result_buffer->handle(), 0, VK_WHOLE_SIZE, 0);
@@ -318,6 +319,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
                              params.query_pool.get(), params.query_index);
     }
 
+    context->device->end_label(context->cull_cmd_buffer.handle());
     context->cull_cmd_buffer.submit(params.queue, false, VK_NULL_HANDLE, {params.semaphore_submit_info});
 
     // return results from host-buffer
@@ -332,6 +334,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const vier
     ret->command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                               VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    ret->cull_cmd_buffer = vierkant::CommandBuffer(ret->device, ret->command_pool.get());
     vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
                                                       {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
                                                       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};

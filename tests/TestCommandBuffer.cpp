@@ -21,19 +21,11 @@ BOOST_AUTO_TEST_CASE(TestCommandBuffer_Constructor)
 
 BOOST_AUTO_TEST_CASE(TestCommandBuffer_Submission)
 {
-    bool use_validation = true;
-    vierkant::Instance instance(use_validation, {});
-
-    BOOST_CHECK(instance);
-    BOOST_CHECK(instance.use_validation_layers() == use_validation);
-    BOOST_CHECK(!instance.physical_devices().empty());
-
     vulkan_test_context_t test_context;
     auto device = test_context.device;
 
     std::map<VkCommandPool, VkQueue> poolQueueMap =
             {
-                    {device->command_pool(),           device->queue(vierkant::Device::Queue::GRAPHICS)},
                     {device->command_pool_transient(), device->queue(vierkant::Device::Queue::GRAPHICS)},
                     {device->command_pool_transfer(),  device->queue(vierkant::Device::Queue::TRANSFER)}
             };

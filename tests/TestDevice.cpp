@@ -20,9 +20,8 @@ BOOST_AUTO_TEST_CASE(TestDevice)
     // we didn't order one, so this should be null
     BOOST_CHECK(device->queue(vierkant::Device::Queue::PRESENT) == nullptr);
 
-    BOOST_CHECK(device->command_pool() != nullptr);
-    BOOST_CHECK(device->command_pool_transient() != nullptr);
-    BOOST_CHECK(device->vk_mem_allocator() != nullptr);
+    BOOST_CHECK(device->command_pool_transient());
+    BOOST_CHECK(device->vk_mem_allocator());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

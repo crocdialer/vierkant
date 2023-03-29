@@ -2,8 +2,8 @@
 // Created by crocdialer on 10/28/20.
 //
 
-#include <vierkant/shaders.hpp>
 #include <vierkant/Bloom.hpp>
+#include <vierkant/shaders.hpp>
 
 namespace vierkant
 {
@@ -13,17 +13,16 @@ BloomUPtr Bloom::create(const DevicePtr &device, const Bloom::create_info_t &cre
     return vierkant::BloomUPtr(new Bloom(device, create_info));
 }
 
-Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
-        m_brightness_thresh(create_info.brightness_thresh)
+Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
+    : m_device(device), m_brightness_thresh(create_info.brightness_thresh)
 {
     m_command_pool = create_info.command_pool;
 
     if(!m_command_pool)
     {
-        m_command_pool = vierkant::create_command_pool(device,
-                                                     vierkant::Device::Queue::GRAPHICS,
-                                                     VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+        m_command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                                               VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     }
 
     vierkant::Framebuffer::create_info_t thresh_buffer_info = {};
@@ -89,8 +88,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info) :
     m_drawable.use_own_buffers = true;
 }
 
-vierkant::ImagePtr Bloom::apply(const ImagePtr &image,
-                                VkQueue queue,
+vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
                                 const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
     m_command_buffer.begin(0);
@@ -101,6 +99,9 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image,
 
 vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbuffer)
 {
+    // debug label
+    m_device->begin_label(commandbuffer, fmt::format("Bloom::apply"));
+
     // threshold
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
     begin_rendering_info.commandbuffer = commandbuffer;
@@ -116,7 +117,9 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbu
     vkCmdEndRendering(commandbuffer);
 
     // blur
-    return m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), commandbuffer);
+    auto blur = m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), commandbuffer);
+    m_device->end_label(commandbuffer);
+    return blur;
 }
 
 }// namespace vierkant

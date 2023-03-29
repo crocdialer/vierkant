@@ -2,31 +2,26 @@
 // Created by crocdialer on 10/17/20.
 //
 
-#include "crocore/gaussian.hpp"
 #include "vierkant/GaussianBlur.hpp"
+#include "crocore/gaussian.hpp"
 #include "vierkant/shaders.hpp"
 
 namespace vierkant
 {
 
-template
-class GaussianBlur_<5>;
+template class GaussianBlur_<5>;
 
-template
-class GaussianBlur_<7>;
+template class GaussianBlur_<7>;
 
-template
-class GaussianBlur_<9>;
+template class GaussianBlur_<9>;
 
-template
-class GaussianBlur_<11>;
+template class GaussianBlur_<11>;
 
-template
-class GaussianBlur_<13>;
+template class GaussianBlur_<13>;
 
 template<uint32_t NUM_TAPS>
-std::unique_ptr<GaussianBlur_<NUM_TAPS>>
-GaussianBlur_<NUM_TAPS>::create(const DevicePtr &device, const create_info_t &create_info)
+std::unique_ptr<GaussianBlur_<NUM_TAPS>> GaussianBlur_<NUM_TAPS>::create(const DevicePtr &device,
+                                                                         const create_info_t &create_info)
 {
     return std::unique_ptr<GaussianBlur_<NUM_TAPS>>(new GaussianBlur_<NUM_TAPS>(device, create_info));
 }
@@ -34,6 +29,7 @@ GaussianBlur_<NUM_TAPS>::create(const DevicePtr &device, const create_info_t &cr
 template<uint32_t NUM_TAPS>
 GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_info_t &create_info)
 {
+    m_device = device;
     m_num_iterations = create_info.num_iterations;
     m_color_format = create_info.color_format;
 
@@ -41,10 +37,9 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 
     if(!command_pool)
     {
-        command_pool = vierkant::create_command_pool(device,
-                                                     vierkant::Device::Queue::GRAPHICS,
+        command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+                                                             VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     }
 
     // create renderer for blur-passes
@@ -84,8 +79,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 
     auto size = glm::vec2(create_info.size.width, create_info.size.height);
 
-    auto create_weights = [&size](const auto &kernel, bool horizontal) -> ubo_t
-    {
+    auto create_weights = [&size](const auto &kernel, bool horizontal) -> ubo_t {
         // [-NUM_TAPS / 2, ..., NUM_TAPS / 2]
         std::array<float, NUM_TAPS> offsets;
         std::iota(offsets.begin(), offsets.end(), -static_cast<float>(NUM_TAPS / 2.f));
@@ -193,8 +187,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 }
 
 template<uint32_t NUM_TAPS>
-vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image,
-                                                  VkQueue queue,
+vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkQueue queue,
                                                   const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {
     m_command_buffer.begin(0);
@@ -208,6 +201,9 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
 {
     auto current_img = image;
     auto &ping = m_ping_pongs[0], &pong = m_ping_pongs[1];
+
+    // debug label
+    m_device->begin_label(commandbuffer, fmt::format("GaussianBlur_<{}>::apply>", NUM_TAPS));
 
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
     begin_rendering_info.commandbuffer = commandbuffer;
@@ -224,24 +220,23 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
         // horizontal pass
         m_renderer.stage_drawable(ping.drawable);
         current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, commandbuffer);
-        ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                                               commandbuffer);
+        ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, commandbuffer);
         ping.framebuffer.begin_rendering(begin_rendering_info);
         m_renderer.render(rendering_info);
         vkCmdEndRendering(commandbuffer);
 
         // vertical pass
         m_renderer.stage_drawable(pong.drawable);
-        ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
-                                                               commandbuffer);
-        pong.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL,
-                                                               commandbuffer);
+        ping.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, commandbuffer);
+        pong.framebuffer.color_attachment()->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, commandbuffer);
         pong.framebuffer.begin_rendering(begin_rendering_info);
         m_renderer.render(rendering_info);
         vkCmdEndRendering(commandbuffer);
         current_img = pong.framebuffer.color_attachment();
     }
     current_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, commandbuffer);
+
+    m_device->end_label(commandbuffer);
     return current_img;
 }
 

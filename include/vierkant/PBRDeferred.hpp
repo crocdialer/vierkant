@@ -260,7 +260,7 @@ private:
         camera_params_t camera_params;
 
         vierkant::Semaphore timeline;
-        vierkant::Framebuffer g_buffer_pre, g_buffer_post;
+        vierkant::Framebuffer g_buffer_main, g_buffer_post;
 
         vierkant::ImagePtr depth_map, depth_pyramid;
         vierkant::CommandBuffer cmd_pre_render, cmd_clear, cmd_lighting, cmd_post_fx;

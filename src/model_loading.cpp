@@ -16,14 +16,10 @@ VkFormat vk_format(const crocore::ImagePtr &img)
 
     switch(img->num_components())
     {
-        case 1:ret = VK_FORMAT_R8_UNORM;
-            break;
-        case 2:ret = VK_FORMAT_R8G8_UNORM;
-            break;
-        case 3:ret = VK_FORMAT_R8G8B8_UNORM;
-            break;
-        case 4:ret = VK_FORMAT_R8G8B8A8_UNORM;
-            break;
+        case 1: ret = VK_FORMAT_R8_UNORM; break;
+        case 2: ret = VK_FORMAT_R8G8_UNORM; break;
+        case 3: ret = VK_FORMAT_R8G8B8_UNORM; break;
+        case 4: ret = VK_FORMAT_R8G8B8A8_UNORM; break;
     }
     return ret;
 }
@@ -48,7 +44,7 @@ create_compressed_images(const std::vector<vierkant::model::material_t> &materia
                 bc7::compress_info_t compress_info = {};
                 compress_info.image = img;
                 compress_info.generate_mipmaps = true;
-                compress_info.delegate_fn = [&threadpool](auto fn){ return threadpool.post(fn); };
+                compress_info.delegate_fn = [&threadpool](auto fn) { return threadpool.post(fn); };
                 auto compress_result = bc7::compress(compress_info);
                 compress_total_duration += compress_result.duration;
                 num_pixels += img->width() * img->height();
@@ -58,13 +54,12 @@ create_compressed_images(const std::vector<vierkant::model::material_t> &materia
     }
     float mpx_per_sec =
             1.e-6f * static_cast<float>(num_pixels) / std::chrono::duration<float>(compress_total_duration).count();
-    spdlog::debug("compressed {} images in {} ms - avg. {:03.2f} Mpx/s", images.size(),
-                  compress_total_duration.count(), mpx_per_sec);
+    spdlog::debug("compressed {} images in {} ms - avg. {:03.2f} Mpx/s", images.size(), compress_total_duration.count(),
+                  mpx_per_sec);
     return ret;
 }
 
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
-                            const vierkant::model::mesh_assets_t &mesh_assets,
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets,
                             const std::optional<asset_bundle_t> &asset_bundle)
 {
     std::vector<vierkant::BufferPtr> staging_buffers;
@@ -75,13 +70,12 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
 
     auto cmd_buf = vierkant::CommandBuffer(params.device, command_pool.get());
 
-    auto mesh_staging_buf = vierkant::Buffer::create(params.device, nullptr, 1U << 20,
-                                                     VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    auto mesh_staging_buf = vierkant::Buffer::create(params.device, nullptr, 1U << 20, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                                     VMA_MEMORY_USAGE_CPU_ONLY);
 
-    auto create_texture = [device = params.device, cmd_buf_handle = cmd_buf.handle(), &staging_buffers](
-            const crocore::ImagePtr &img) -> vierkant::ImagePtr
-    {
-        if(!img){ return nullptr; }
+    auto create_texture = [device = params.device, cmd_buf_handle = cmd_buf.handle(),
+                           &staging_buffers](const crocore::ImagePtr &img) -> vierkant::ImagePtr {
+        if(!img) { return nullptr; }
 
         vierkant::Image::Format fmt;
         fmt.format = vk_format(img);
@@ -95,8 +89,8 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
         fmt.initial_cmd_buffer = cmd_buf_handle;
 
         auto vk_img = vierkant::Image::create(device, fmt);
-        auto buf = vierkant::Buffer::create(device, img->data(), img->num_bytes(),
-                                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+        auto buf = vierkant::Buffer::create(device, img->data(), img->num_bytes(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                            VMA_MEMORY_USAGE_CPU_ONLY);
         vk_img->copy_from(buf, cmd_buf_handle);
         staging_buffers.push_back(std::move(buf));
         return vk_img;
@@ -112,10 +106,10 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
     mesh_create_info.use_vertex_colors = false;
     mesh_create_info.command_buffer = cmd_buf.handle();
     mesh_create_info.staging_buffer = mesh_staging_buf;
-    auto mesh = asset_bundle
-                ? vierkant::Mesh::create_from_bundle(params.device, asset_bundle->mesh_buffer_bundle, mesh_create_info)
-                : vierkant::Mesh::create_with_entries(params.device, mesh_assets.entry_create_infos,
-                                                      mesh_create_info);
+    auto mesh = asset_bundle ? vierkant::Mesh::create_from_bundle(params.device, asset_bundle->mesh_buffer_bundle,
+                                                                  mesh_create_info)
+                             : vierkant::Mesh::create_with_entries(params.device, mesh_assets.entry_create_infos,
+                                                                   mesh_create_info);
 
     // skin + bones
     mesh->root_bone = mesh_assets.root_bone;
@@ -156,12 +150,11 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
 
     // cache textures
     std::unordered_map<crocore::ImagePtr, vierkant::ImagePtr> texture_cache;
-    auto cache_helper = [&params, &texture_cache, &create_texture, &compressed_images, &index_map](
-            const crocore::ImagePtr &img)
-    {
+    auto cache_helper = [&params, &texture_cache, &create_texture, &compressed_images,
+                         &index_map](const crocore::ImagePtr &img) {
         if(img && !texture_cache.count(img))
         {
-            if(!params.compress_textures){ texture_cache[img] = create_texture(img); }
+            if(!params.compress_textures) { texture_cache[img] = create_texture(img); }
             else
             {
                 vierkant::Image::Format fmt;
@@ -178,9 +171,9 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
 
     for(const auto &asset_mat: mesh_assets.materials)
     {
-        for(const auto &img : asset_mat.images)
+        for(const auto &img: asset_mat.images)
         {
-            if(img){ cache_helper(img); }
+            if(img) { cache_helper(img); }
         }
     }
 
@@ -222,18 +215,18 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
         auto sheen_img = mesh_assets.materials[i].img_sheen_color;
         auto iridescence_img = mesh_assets.materials[i].img_iridescence;
 
-        if(color_img){ material->textures[vierkant::Material::Color] = texture_cache[color_img]; }
-        if(emmission_img){ material->textures[vierkant::Material::Emission] = texture_cache[emmission_img]; }
-        if(normal_img){ material->textures[vierkant::Material::Normal] = texture_cache[normal_img]; }
+        if(color_img) { material->textures[vierkant::Material::Color] = texture_cache[color_img]; }
+        if(emmission_img) { material->textures[vierkant::Material::Emission] = texture_cache[emmission_img]; }
+        if(normal_img) { material->textures[vierkant::Material::Normal] = texture_cache[normal_img]; }
 
         if(ao_rough_metal_img)
         {
             material->textures[vierkant::Material::Ao_rough_metal] = texture_cache[ao_rough_metal_img];
         }
-        if(transmission_img){ material->textures[vierkant::Material::Transmission] = texture_cache[transmission_img]; }
-        if(thickness_img){ material->textures[vierkant::Material::Thickness] = texture_cache[thickness_img]; }
-        if(sheen_img){ material->textures[vierkant::Material::SheenColor] = texture_cache[sheen_img]; }
-        if(iridescence_img){ material->textures[vierkant::Material::Iridescence] = texture_cache[iridescence_img]; }
+        if(transmission_img) { material->textures[vierkant::Material::Transmission] = texture_cache[transmission_img]; }
+        if(thickness_img) { material->textures[vierkant::Material::Thickness] = texture_cache[thickness_img]; }
+        if(sheen_img) { material->textures[vierkant::Material::SheenColor] = texture_cache[sheen_img]; }
+        if(iridescence_img) { material->textures[vierkant::Material::Iridescence] = texture_cache[iridescence_img]; }
 
         material->texture_transform = mesh_assets.materials[i].texture_transform;
     }
@@ -246,11 +239,12 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
 
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bc7::compress_result_t &compression_result,
-                                             vierkant::Image::Format format,
-                                             VkQueue load_queue)
+                                             vierkant::Image::Format format, VkQueue load_queue)
 {
     // adhoc using global pool
-    auto command_buffer = vierkant::CommandBuffer(device, device->command_pool());
+    auto pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+                                              VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    auto command_buffer = vierkant::CommandBuffer(device, pool.get());
     command_buffer.begin();
 
     format.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -269,8 +263,7 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     for(uint32_t lvl = 0; lvl < compression_result.levels.size(); ++lvl)
     {
         level_buffers[lvl] = vierkant::Buffer::create(device, compression_result.levels[lvl],
-                                                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                      VMA_MEMORY_USAGE_CPU_ONLY);
+                                                      VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
         compressed_img->copy_from(level_buffers[lvl], command_buffer.handle(), 0, {}, {}, 0, lvl);
     }
     compressed_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, command_buffer.handle());

@@ -52,12 +52,19 @@ public:
      */
     static constexpr int api_version = VK_API_VERSION_1_3;
 
+    struct create_info_t
+    {
+        bool use_validation_layers = false;
+        bool use_debug_labels = false;
+        std::vector<const char *> extensions;
+    };
+
     /**
      * @brief   construct an initialized vulkan instance
      * @param   use_validation_layers       use validation layers (VK_LAYER_LUNARG_standard_validation) or not
      * @param   the_required_extensions     a list of required extensions (e.g. VK_KHR_SWAPCHAIN_EXTENSION_NAME)
      */
-    Instance(bool use_validation_layers, const std::vector<const char *> &the_required_extensions);
+    Instance(const create_info_t& create_info);
 
     Instance() = default;
 
@@ -104,7 +111,7 @@ private:
      * @param   use_validation_layers       use validation layers (VK_LAYER_LUNARG_standard_validation) or not
      * @param   the_required_extensions     a list of required extensions (e.g. VK_KHR_SWAPCHAIN_EXTENSION_NAME)
      */
-    bool init(bool use_validation_layers, const std::vector<const char *> &the_required_extensions);
+    bool init(const create_info_t& create_info);
 
     void setup_debug_callback();
 

@@ -10,8 +10,11 @@
 
 BOOST_AUTO_TEST_CASE(TestWindow)
 {
-    // init instance with required extensions for glfw (VK_KHR_swapchain, VK_KHR_surface)
-    vierkant::Instance instance(true, vierkant::Window::required_extensions());
+    vierkant::Instance::create_info_t instance_info = {};
+    instance_info.extensions = vierkant::Window::required_extensions();
+    instance_info.use_validation_layers = true;
+    auto instance = vierkant::Instance(instance_info);
+
     bool trigger_size = false;
 
     const auto window_size = glm::ivec2(1280, 720);

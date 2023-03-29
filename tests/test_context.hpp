@@ -30,8 +30,9 @@ public:
 
     explicit vulkan_test_context_t(const std::vector<const char *> &extensions = {})
     {
-        constexpr bool use_validation = true;
-        instance = vierkant::Instance(use_validation, extensions);
+        vierkant::Instance::create_info_t instance_info = {};
+        instance_info.use_validation_layers = true;
+        instance = vierkant::Instance(instance_info);
 
         // set a debug-function to intercept validation-warnings/errors
         instance.set_debug_fn([&](const char *msg, VkDebugReportFlagsEXT flags)
@@ -41,7 +42,7 @@ public:
                               });
 
         BOOST_CHECK_NE(instance.handle(), nullptr);
-        BOOST_CHECK_EQUAL(instance.use_validation_layers(), use_validation);
+        BOOST_CHECK_EQUAL(instance.use_validation_layers(), instance_info.use_validation_layers);
         BOOST_CHECK(!instance.physical_devices().empty());
 
         // use first device-index

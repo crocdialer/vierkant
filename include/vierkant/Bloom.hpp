@@ -47,6 +47,7 @@ private:
 
     Bloom(const DevicePtr &device, const create_info_t &create_info);
 
+    vierkant::DevicePtr m_device;
     vierkant::Framebuffer m_thresh_framebuffer;
     vierkant::CommandPoolPtr m_command_pool;
     vierkant::CommandBuffer m_command_buffer;
