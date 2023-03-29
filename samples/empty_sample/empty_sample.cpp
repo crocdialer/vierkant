@@ -25,7 +25,8 @@ void HelloTriangleApplication::create_context_and_window()
     vierkant::Instance::create_info_t instance_info = {};
     instance_info.extensions = vierkant::Window::required_extensions();
     instance_info.use_validation_layers = g_enable_validation_layers;
-    auto instance = vierkant::Instance(instance_info);
+    instance_info.use_debug_labels = g_enable_validation_layers;
+    m_instance = vierkant::Instance(instance_info);
 
     vierkant::Window::create_info_t window_info = {};
     window_info.instance = m_instance.handle();
