@@ -6,8 +6,8 @@
 
 #include <map>
 
-#include "vierkant/Semaphore.hpp"
 #include "vierkant/Image.hpp"
+#include "vierkant/Semaphore.hpp"
 
 namespace vierkant
 {
@@ -19,7 +19,9 @@ using RenderPassPtr = std::shared_ptr<VkRenderPass_T>;
  */
 enum class AttachmentType
 {
-    Color, Resolve, DepthStencil
+    Color,
+    Resolve,
+    DepthStencil
 };
 
 using attachment_map_t = std::map<AttachmentType, std::vector<vierkant::ImagePtr>>;
@@ -33,16 +35,13 @@ using attachment_map_t = std::map<AttachmentType, std::vector<vierkant::ImagePtr
  *
  * @return  the newly created RenderpassPtr
  */
-RenderPassPtr create_renderpass(const vierkant::DevicePtr &device,
-                                const attachment_map_t &attachments,
-                                bool clear_color,
-                                bool clear_depth,
+RenderPassPtr create_renderpass(const vierkant::DevicePtr &device, const attachment_map_t &attachments,
+                                bool clear_color, bool clear_depth,
                                 const std::vector<VkSubpassDependency2> &subpass_dependencies = {});
 
 class Framebuffer
 {
 public:
-
     /**
      * @brief   Framebuffer::Format groups information necessary to create a set of Image-Attachments
      */
@@ -59,6 +58,7 @@ public:
         vierkant::CommandPoolPtr command_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
         RenderPassPtr renderpass = nullptr;
+        std::string debug_label;
     };
 
     //! group parameters for  'begin_rendering'-routine
@@ -78,8 +78,7 @@ public:
      * @param   fmt
      * @return  a newly created AttachmentMap.
      */
-    static attachment_map_t create_attachments(const vierkant::DevicePtr &device,
-                                               create_info_t fmt);
+    static attachment_map_t create_attachments(const vierkant::DevicePtr &device, create_info_t fmt);
 
     /**
      * @brief   Construct a new Framebuffer. Will create all Image-attachments,
@@ -87,10 +86,9 @@ public:
      *
      * @param   device      handle for the vierkant::Device to create the Framebuffer with
      * @param   size        the desired size for the Framebuffer in pixels
-     * @param   format      an optional Framebuffer::Format object
+     * @param   create_info      an optional Framebuffer::Format object
      */
-    Framebuffer(DevicePtr device,
-                create_info_t format);
+    Framebuffer(DevicePtr device, create_info_t create_info);
 
     /**
      *
@@ -98,9 +96,7 @@ public:
      * @param   attachments     a Framebuffer::AttachmentMap holding the desired Image-attachments
      * @param   renderpass      an optional, shared RenderPass object to be used with the Framebuffer
      */
-    Framebuffer(DevicePtr device,
-                attachment_map_t attachments,
-                RenderPassPtr renderpass = nullptr);
+    Framebuffer(DevicePtr device, attachment_map_t attachments, RenderPassPtr renderpass = nullptr);
 
     Framebuffer() = default;
 
@@ -128,8 +124,7 @@ public:
      * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
      * @return  a fence that will be signaled when rendering is done.
      */
-    VkFence submit(const std::vector<VkCommandBuffer> &commandbuffers,
-                   VkQueue queue,
+    VkFence submit(const std::vector<VkCommandBuffer> &commandbuffers, VkQueue queue,
                    const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos = {});
 
     /**
@@ -149,7 +144,7 @@ public:
     /**
      * @return  the VkExtent3D used by the Image-Attachments
      */
-    const VkExtent3D &extent() const{ return m_extent; }
+    const VkExtent3D &extent() const { return m_extent; }
 
     /**
      *
@@ -161,7 +156,7 @@ public:
     /**
      * @return  const-ref to a map, holding the Image-Attachments
      */
-    const attachment_map_t &attachments() const{ return m_attachments; };
+    const attachment_map_t &attachments() const { return m_attachments; };
 
     /**
      * @return  the color-attachment for this index or nullptr if not found.
@@ -176,17 +171,17 @@ public:
     /**
      * @return  handle for the managed VkFramebuffer
      */
-    VkFramebuffer handle() const{ return m_framebuffer; }
+    VkFramebuffer handle() const { return m_framebuffer; }
 
     /**
      * @return  handle for the (possibly shared) VkRenderPass
      */
-    RenderPassPtr renderpass() const{ return m_renderpass; }
+    RenderPassPtr renderpass() const { return m_renderpass; }
 
     /**
      * @return  true if this Framebuffer is initialized
      */
-    inline explicit operator bool() const{ return m_framebuffer && m_renderpass; };
+    inline explicit operator bool() const { return m_framebuffer && m_renderpass; };
 
 
     friend void swap(Framebuffer &lhs, Framebuffer &rhs);
@@ -201,8 +196,10 @@ public:
      */
     VkClearDepthStencilValue clear_depth_stencil = {0.f, 0};
 
-private:
+    //! optional debug label. will be attached to renderpass-submissions
+    std::string debug_label;
 
+private:
     void init(attachment_map_t attachments, RenderPassPtr renderpass);
 
     /**

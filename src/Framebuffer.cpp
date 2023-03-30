@@ -24,21 +24,17 @@ inline bool is_stencil(VkFormat fmt)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline bool check_attachment(AttachmentType attachment,
-                             const attachment_map_t &map)
+inline bool check_attachment(AttachmentType attachment, const attachment_map_t &map)
 {
     return std::any_of(map.begin(), map.end(),
-                       [attachment](const auto &it){ return it.first == attachment && !it.second.empty(); });
+                       [attachment](const auto &it) { return it.first == attachment && !it.second.empty(); });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-RenderPassPtr
-create_renderpass(const vierkant::DevicePtr &device,
-                  const attachment_map_t &attachments,
-                  bool clear_color,
-                  bool clear_depth,
-                  const std::vector<VkSubpassDependency2> &subpass_dependencies)
+RenderPassPtr create_renderpass(const vierkant::DevicePtr &device, const attachment_map_t &attachments,
+                                bool clear_color, bool clear_depth,
+                                const std::vector<VkSubpassDependency2> &subpass_dependencies)
 {
     VkRenderPass renderpass = VK_NULL_HANDLE;
 
@@ -57,11 +53,13 @@ create_renderpass(const vierkant::DevicePtr &device,
 
         switch(type)
         {
-            case AttachmentType::Color:loadOp = clear_color ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
+            case AttachmentType::Color:
+                loadOp = clear_color ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                 storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 break;
 
-            case AttachmentType::Resolve:loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+            case AttachmentType::Resolve:
+                loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 break;
 
@@ -76,7 +74,7 @@ create_renderpass(const vierkant::DevicePtr &device,
                 }
                 break;
 
-            default:break;
+            default: break;
         }
 
         for(const auto &img: images)
@@ -100,8 +98,7 @@ create_renderpass(const vierkant::DevicePtr &device,
 
     auto color_it = attachments.find(AttachmentType::Color);
 
-    if(color_it !=
-       attachments.end()){ num_color_images = static_cast<uint32_t>(color_it->second.size()); }
+    if(color_it != attachments.end()) { num_color_images = static_cast<uint32_t>(color_it->second.size()); }
 
     for(uint32_t i = 0; i < num_color_images; ++i)
     {
@@ -139,8 +136,7 @@ create_renderpass(const vierkant::DevicePtr &device,
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = static_cast<uint32_t>(color_refs.size());
     subpass.pColorAttachments = color_refs.data();
-    subpass.pDepthStencilAttachment = depth_stencil_refs.empty() ? nullptr
-                                                                 : depth_stencil_refs.data();
+    subpass.pDepthStencilAttachment = depth_stencil_refs.empty() ? nullptr : depth_stencil_refs.data();
     subpass.pResolveAttachments = resolve_refs.empty() ? nullptr : resolve_refs.data();
 
     VkRenderPassCreateInfo2 render_pass_info = {};
@@ -155,20 +151,16 @@ create_renderpass(const vierkant::DevicePtr &device,
     vkCheck(vkCreateRenderPass2(device->handle(), &render_pass_info, nullptr, &renderpass),
             "failed to create render pass!");
 
-    return {renderpass, [device](VkRenderPass p)
-    {
-        vkDestroyRenderPass(device->handle(), p, nullptr);
-    }};
+    return {renderpass, [device](VkRenderPass p) { vkDestroyRenderPass(device->handle(), p, nullptr); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Framebuffer::Framebuffer(DevicePtr device, create_info_t format) :
-        m_device(std::move(device)),
-        m_extent(format.size),
-        m_command_pool(format.command_pool),
-        m_format(std::move(format))
+Framebuffer::Framebuffer(DevicePtr device, create_info_t create_info)
+    : m_device(std::move(device)), m_extent(create_info.size), m_command_pool(create_info.command_pool),
+      m_format(std::move(create_info))
 {
+    debug_label = m_format.debug_label;
     m_format.color_attachment_format.extent = m_extent;
 
     if(m_format.depth || m_format.stencil)
@@ -203,19 +195,14 @@ Framebuffer::Framebuffer(DevicePtr device, create_info_t format) :
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Framebuffer::Framebuffer(DevicePtr device, attachment_map_t attachments, RenderPassPtr renderpass)
-        :
-        m_device(std::move(device))
+    : m_device(std::move(device))
 {
     init(std::move(attachments), std::move(renderpass));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Framebuffer::Framebuffer(Framebuffer &&other) noexcept:
-        Framebuffer()
-{
-    swap(*this, other);
-}
+Framebuffer::Framebuffer(Framebuffer &&other) noexcept : Framebuffer() { swap(*this, other); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -246,8 +233,7 @@ Framebuffer &Framebuffer::operator=(Framebuffer other)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Framebuffer::begin_renderpass(VkCommandBuffer commandbuffer,
-                                   VkSubpassContents subpass_contents) const
+void Framebuffer::begin_renderpass(VkCommandBuffer commandbuffer, VkSubpassContents subpass_contents) const
 {
     if(*this && !m_active_commandbuffer)
     {
@@ -269,12 +255,10 @@ void Framebuffer::begin_renderpass(VkCommandBuffer commandbuffer,
 
                 switch(type)
                 {
-                    case AttachmentType::Color:v.color = clear_color;
-                        break;
-                    case AttachmentType::DepthStencil:v.depthStencil = clear_depth_stencil;
-                        break;
+                    case AttachmentType::Color: v.color = clear_color; break;
+                    case AttachmentType::DepthStencil: v.depthStencil = clear_depth_stencil; break;
 
-                    default:break;
+                    default: break;
                 }
                 clear_values.push_back(v);
             }
@@ -304,6 +288,7 @@ VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuf
 {
     // record commandbuffer
     m_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
+    if(!debug_label.empty()) { m_device->begin_label(m_commandbuffer.handle(), debug_label); }
 
     // begin the renderpass
     begin_renderpass(m_commandbuffer.handle(), VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
@@ -311,14 +296,14 @@ VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuf
     // execute secondary commandbuffers
     if(!commandbuffers.empty())
     {
-        vkCmdExecuteCommands(m_commandbuffer.handle(), commandbuffers.size(),
-                             commandbuffers.data());
+        vkCmdExecuteCommands(m_commandbuffer.handle(), commandbuffers.size(), commandbuffers.data());
     }
 
     // end renderpass
     end_renderpass();
 
     // end commandbuffer
+    if(!debug_label.empty()) { m_device->end_label(m_commandbuffer.handle()); }
     m_commandbuffer.end();
 
     return m_commandbuffer.handle();
@@ -331,8 +316,7 @@ VkFence Framebuffer::submit(const std::vector<VkCommandBuffer> &commandbuffers, 
 {
     // wait for prior fence
     VkFence fence = m_fence.get();
-    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE,
-                    std::numeric_limits<uint64_t>::max());
+    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     vkResetFences(m_device->handle(), 1, &fence);
 
     // record a renderpass into a primary commandbuffer
@@ -350,8 +334,7 @@ void Framebuffer::wait_fence()
 {
     // wait for prior fence
     VkFence fence = m_fence.get();
-    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE,
-                    std::numeric_limits<uint64_t>::max());
+    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -359,7 +342,7 @@ void Framebuffer::wait_fence()
 size_t Framebuffer::num_attachments(vierkant::AttachmentType type) const
 {
     auto attach_it = m_attachments.find(type);
-    if(attach_it != m_attachments.end()){ return attach_it->second.size(); }
+    if(attach_it != m_attachments.end()) { return attach_it->second.size(); }
     return 0;
 }
 
@@ -367,29 +350,25 @@ size_t Framebuffer::num_attachments(vierkant::AttachmentType type) const
 
 void Framebuffer::init(attachment_map_t attachments, RenderPassPtr renderpass)
 {
-    auto command_pool = m_command_pool ? m_command_pool :
-                        vierkant::create_command_pool(m_device,
-                                                      vierkant::Device::Queue::GRAPHICS,
-                                                      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                      VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    auto command_pool =
+            m_command_pool ? m_command_pool
+                           : vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
+                                                           VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
+                                                                   VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     m_commandbuffer = vierkant::CommandBuffer(m_device, command_pool.get());
     m_command_pool = command_pool;
     m_fence = vierkant::create_fence(m_device, true);
 
-    if(!renderpass){ renderpass = create_renderpass(m_device, attachments, true, true); }
+    if(!renderpass) { renderpass = create_renderpass(m_device, attachments, true, true); }
     m_renderpass = renderpass;
 
     VkExtent3D extent = {0, 0, 0};
 
-    auto is_extent_equal = [](const VkExtent3D &lhs, const VkExtent3D &rhs) -> bool
-    {
+    auto is_extent_equal = [](const VkExtent3D &lhs, const VkExtent3D &rhs) -> bool {
         return lhs.width == rhs.width && lhs.height == rhs.height && lhs.depth == rhs.depth;
     };
 
-    auto is_extent_zero = [](const VkExtent3D &e) -> bool
-    {
-        return !e.width && !e.height && !e.depth;
-    };
+    auto is_extent_zero = [](const VkExtent3D &e) -> bool { return !e.width && !e.height && !e.depth; };
 
     std::vector<VkImageView> attachment_views;
 
@@ -401,7 +380,7 @@ void Framebuffer::init(attachment_map_t attachments, RenderPassPtr renderpass)
             attachment_views.push_back(img->image_view());
 
             // get initial extent
-            if(is_extent_zero(extent)){ extent = img->extent(); }
+            if(is_extent_zero(extent)) { extent = img->extent(); }
             if(!is_extent_equal(extent, img->extent()))
             {
                 // image dimensions do not match
@@ -427,8 +406,7 @@ void Framebuffer::init(attachment_map_t attachments, RenderPassPtr renderpass)
     framebuffer_info.height = extent.height;
     framebuffer_info.layers = m_format.color_attachment_format.num_layers;
 
-    vkCheck(vkCreateFramebuffer(m_device->handle(), &framebuffer_info, nullptr,
-                                &m_framebuffer),
+    vkCheck(vkCreateFramebuffer(m_device->handle(), &framebuffer_info, nullptr, &m_framebuffer),
             "failed to create framebuffer!");
 
     // now move attachments
@@ -438,8 +416,7 @@ void Framebuffer::init(attachment_map_t attachments, RenderPassPtr renderpass)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-attachment_map_t Framebuffer::create_attachments(const vierkant::DevicePtr &device,
-                                                 Framebuffer::create_info_t fmt)
+attachment_map_t Framebuffer::create_attachments(const vierkant::DevicePtr &device, Framebuffer::create_info_t fmt)
 {
     vierkant::CommandBuffer cmd_buf;
 
@@ -481,21 +458,15 @@ attachment_map_t Framebuffer::create_attachments(const vierkant::DevicePtr &devi
     }
 
     // if we were provided a queue, submit + sync
-    if(cmd_buf){ cmd_buf.submit(fmt.queue, true); }
+    if(cmd_buf) { cmd_buf.submit(fmt.queue, true); }
 
     attachment_map_t attachments;
-    if(!color_attachments.empty())
-    {
-        attachments[AttachmentType::Color] = std::move(color_attachments);
-    }
+    if(!color_attachments.empty()) { attachments[AttachmentType::Color] = std::move(color_attachments); }
     if(!depth_stencil_attachments.empty())
     {
         attachments[AttachmentType::DepthStencil] = std::move(depth_stencil_attachments);
     }
-    if(!resolve_attachments.empty())
-    {
-        attachments[AttachmentType::Resolve] = std::move(resolve_attachments);
-    }
+    if(!resolve_attachments.empty()) { attachments[AttachmentType::Resolve] = std::move(resolve_attachments); }
     return attachments;
 }
 
@@ -505,7 +476,7 @@ vierkant::ImagePtr Framebuffer::color_attachment(uint32_t index) const
 {
     // check for resolve-attachment, fallback to color-attachment
     auto it = m_attachments.find(AttachmentType::Resolve);
-    if(it == m_attachments.end()){ it = m_attachments.find(AttachmentType::Color); }
+    if(it == m_attachments.end()) { it = m_attachments.find(AttachmentType::Color); }
 
     if(it != m_attachments.end())
     {
@@ -530,7 +501,7 @@ vierkant::ImagePtr Framebuffer::depth_attachment() const
     {
         auto &depth_attachments = it->second;
 
-        if(!depth_attachments.empty()){ return depth_attachments.front(); }
+        if(!depth_attachments.empty()) { return depth_attachments.front(); }
     }
     return nullptr;
 }
@@ -578,8 +549,8 @@ void Framebuffer::begin_rendering(const begin_rendering_info_t &info) const
                 depth_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                 depth_attachment.imageView = depth->image_view();
                 depth_attachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-                depth_attachment.loadOp = info.clear_depth_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                                                      : VK_ATTACHMENT_LOAD_OP_LOAD;
+                depth_attachment.loadOp =
+                        info.clear_depth_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                 depth_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 depth_attachment.imageView = depth->image_view();
                 depth_attachment.clearValue.depthStencil = clear_depth_stencil;
@@ -591,8 +562,8 @@ void Framebuffer::begin_rendering(const begin_rendering_info_t &info) const
                 color_attachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
                 color_attachment.imageView = img->image_view();
                 color_attachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
-                color_attachment.loadOp = info.clear_color_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR
-                                                                      : VK_ATTACHMENT_LOAD_OP_LOAD;
+                color_attachment.loadOp =
+                        info.clear_color_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                 color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
                 color_attachment.clearValue.color = clear_color;
 
@@ -620,7 +591,7 @@ void Framebuffer::begin_rendering(const begin_rendering_info_t &info) const
     pass_info.pDepthAttachment = depth_attachments.empty() ? nullptr : depth_attachments.data();
 
     // TODO: check actual VK_FORMAT and figure our if stencil is required
-//    pass_info.pStencilAttachment = depth_attachments.empty() ? nullptr : depth_attachments.data();
+    //    pass_info.pStencilAttachment = depth_attachments.empty() ? nullptr : depth_attachments.data();
     vkCmdBeginRendering(info.commandbuffer, &pass_info);
 }
 

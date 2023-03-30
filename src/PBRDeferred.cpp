@@ -514,20 +514,6 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     semaphore_info.signal_value = SemaphoreValue::PRE_RENDER;
     frame_asset.cmd_pre_render.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 
-    //    if(!frame_asset.bone_buffer)
-    //    {
-    //        frame_asset.bone_buffer = vierkant::Buffer::create(
-    //                m_device, all_bone_transforms, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    //    }
-    //    else { frame_asset.bone_buffer->set_data(all_bone_transforms); }
-    //
-    //    if(!frame_asset.morph_param_buffer)
-    //    {
-    //        frame_asset.morph_param_buffer = vierkant::Buffer::create(
-    //                m_device, all_morph_params, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-    //    }
-    //    else { frame_asset.morph_param_buffer->set_data(all_morph_params); }
-
     if(!frame_asset.recycle_commands)
     {
         // insert previous matrices from cache, if any
@@ -1199,11 +1185,13 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     {
         // G-buffer (pre and post occlusion-culling)
         asset.g_buffer_main = create_g_buffer(m_device, size);
+        asset.g_buffer_main.debug_label = "g_buffer_main";
 
         auto renderpass_no_clear_depth =
                 vierkant::create_renderpass(m_device, asset.g_buffer_main.attachments(), false, false);
         asset.g_buffer_post =
                 vierkant::Framebuffer(m_device, asset.g_buffer_main.attachments(), renderpass_no_clear_depth);
+        asset.g_buffer_post.debug_label = "g_buffer_post";
         asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
         auto depth_fmt = asset.g_buffer_main.depth_attachment()->format();
