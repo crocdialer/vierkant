@@ -132,9 +132,31 @@ public:
      */
     [[nodiscard]] VmaAllocator vk_mem_allocator() const { return m_vk_mem_allocator; };
 
+    /**
+     * @brief   'begin_label' can be used to mark the start of a labeled section within a commandbuffer.
+     *
+     * @param   commandbuffer   a provided commandbuffer
+     * @param   label           a string-label.
+     * @param   color           an optional color to use for the label.
+     */
     void begin_label(VkCommandBuffer commandbuffer, const std::string &label,
                      const glm::vec4 &color = {0.6f, 0.6f, 0.6f, 1.f});
+
+    /**
+     * @brief   'end_label' needs to be used after previous calls to 'begin_label',
+     *          to  mark the end of a labeled section within a commandbuffer.
+     *
+     * @param   commandbuffer   a provided commandbuffer.
+     */
     void end_label(VkCommandBuffer commandbuffer);
+
+    /**
+     * @brief   insert_label can be used to insert a singular label into a commandbuffer.
+     *
+     * @param   commandbuffer   a provided commandbuffer
+     * @param   label           a string-label.
+     * @param   color           an optional color to use for the label.
+     */
     void insert_label(VkCommandBuffer commandbuffer, const std::string &label,
                       const glm::vec4 &color = {0.6f, 0.6f, 0.6f, 1.f});
 

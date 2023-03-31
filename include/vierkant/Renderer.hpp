@@ -131,6 +131,7 @@ public:
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
         uint32_t random_seed = 0;
+        std::string debug_label;
     };
 
     //! struct grouping information for direct-rendering
@@ -163,6 +164,9 @@ public:
 
     //! optional flag to visualize object/meshlet indices
     bool debug_draw_ids = false;
+
+    //! optional label for frame-debugging
+    std::string debug_label;
 
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;

@@ -401,9 +401,10 @@ const std::vector<VkQueue> &Device::queues(Queue type) const
     if(queue_it != m_queues.end()) { return queue_it->second; }
     return g_empty_queue;
 }
+
 void Device::begin_label(VkCommandBuffer commandbuffer, const std::string &label, const glm::vec4 &color)
 {
-    if(vkCmdBeginDebugUtilsLabelEXT)
+    if(vkCmdBeginDebugUtilsLabelEXT && !label.empty())
     {
         VkDebugUtilsLabelEXT debug_label = {};
         debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
@@ -412,13 +413,15 @@ void Device::begin_label(VkCommandBuffer commandbuffer, const std::string &label
         vkCmdBeginDebugUtilsLabelEXT(commandbuffer, &debug_label);
     }
 }
+
 void Device::end_label(VkCommandBuffer commandbuffer)
 {
     if(vkCmdEndDebugUtilsLabelEXT) { vkCmdEndDebugUtilsLabelEXT(commandbuffer); }
 }
+
 void Device::insert_label(VkCommandBuffer commandbuffer, const std::string &label, const glm::vec4 &color)
 {
-    if(vkCmdInsertDebugUtilsLabelEXT)
+    if(vkCmdInsertDebugUtilsLabelEXT && !label.empty())
     {
         VkDebugUtilsLabelEXT debug_label = {};
         debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;

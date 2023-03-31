@@ -93,6 +93,8 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info)
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(m_device);
 
+    debug_label = create_info.debug_label;
+
     // push constant range
     m_push_constant_range.offset = 0;
     m_push_constant_range.size = sizeof(push_constants_t);
@@ -124,6 +126,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
     std::swap(lhs.scissor, rhs.scissor);
     std::swap(lhs.disable_material, rhs.disable_material);
     std::swap(lhs.debug_draw_ids, rhs.debug_draw_ids);
+    std::swap(lhs.debug_label, rhs.debug_label);
     std::swap(lhs.indirect_draw, rhs.indirect_draw);
     std::swap(lhs.draw_indirect_delegate, rhs.draw_indirect_delegate);
     std::swap(lhs.m_device, rhs.m_device);
@@ -283,7 +286,7 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
 
     vierkant::descriptor_t desc_texture = {};
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-//    desc_texture.variable_count = true;
+    //    desc_texture.variable_count = true;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.images = textures;
     bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
@@ -457,7 +460,9 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
     push_constants.disable_material = disable_material;
     push_constants.debug_draw_ids = debug_draw_ids;
 
+
     // record start-timestamp
+    if(!debug_label.empty()) { m_device->begin_label(command_buffer, debug_label); }
     vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_assets.query_pool.get(), 0);
 
     // grouped by pipelines
@@ -609,6 +614,7 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
 
     // record end-timestamp
     vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_assets.query_pool.get(), 1);
+    if(!debug_label.empty()) { m_device->end_label(command_buffer); }
 
     // keep the stuff in use
     frame_assets.descriptor_set_layouts = std::move(next_set_layouts);
