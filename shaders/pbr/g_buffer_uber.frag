@@ -65,6 +65,7 @@ void main()
     if(!context.disable_material)
     {
         out_color = material.color;
+        out_color.a *= 1.0 - material.transmission;
 
         if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
         {

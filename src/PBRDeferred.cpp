@@ -375,7 +375,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     if(!frame_asset.recycle_commands)
     {
         // flush outdated transform-cache
-        m_entry_matrix_cache.clear();
+//        m_entry_matrix_cache.clear();
 
         vierkant::cull_params_t cull_params = {};
         cull_params.scene = scene;

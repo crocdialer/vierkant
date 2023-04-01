@@ -78,6 +78,12 @@ struct material_struct_t
     float ambient;
     uint blend_mode;
     float alpha_cutoff;
+    float transmission;
+    float ior;
+    float attenuation_distance;
+    vec4 attenuation_color;
+    float clearcoat_factor;
+    float clearcoat_roughness_factor;
     float iridescence_factor;
     float iridescence_ior;
     vec2 iridescence_thickness_range;

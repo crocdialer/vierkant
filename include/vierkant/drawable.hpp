@@ -36,11 +36,21 @@ struct alignas(16) material_struct_t
 
     float alpha_cutoff = 0.5f;
 
+    float transmission = 0.f;
+
+    float ior = 1.5f;
+
+    float attenuation_distance = std::numeric_limits<float>::infinity();
+
+    glm::vec4 attenuation_color = glm::vec4(1.f);
+
+    float clearcoat_factor = 0.f;
+
+    float clearcoat_roughness_factor = 0.f;
+
     float iridescence_factor = 0.f;
 
     float iridescence_ior = 1.3f;
-
-    uint32_t padding[1];
 
     // range of thin-film thickness in nanometers (nm)
     glm::vec2 iridescence_thickness_range = {100.f, 400.f};
