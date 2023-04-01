@@ -168,7 +168,8 @@ private:
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
 
         //! re-usable command-buffers for all stages
-        vierkant::CommandBuffer cmd_pre_render, cmd_build_bottom, cmd_build_toplvl, cmd_trace, cmd_denoise, cmd_post_fx;
+        vierkant::CommandBuffer cmd_pre_render, cmd_build_bottom_start, cmd_build_bottom_end, cmd_build_toplvl,
+                cmd_trace, cmd_denoise, cmd_post_fx;
 
         //! context for computing vertex-buffers for animated meshes
         vierkant::mesh_compute_context_ptr mesh_compute_context = nullptr;

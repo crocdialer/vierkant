@@ -65,14 +65,16 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
 RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_structures_params_t &params) const
 {
     // raytracing flags
-    VkBuildAccelerationStructureFlagsKHR flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    VkBuildAccelerationStructureFlagsKHR flags = 0;
     if(params.enable_compaction) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR; }
 
     // vertex-skinned meshes need to update their AABBs
     if(params.mesh->root_bone || params.mesh->morph_buffer)
     {
-        flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
+        flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
+                 VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
     }
+    else { flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR; }
 
     // optionally override mesh-vertexbuffer
     const auto &vertex_attrib = params.mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
