@@ -329,7 +329,8 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
             ImGui::BulletText("taa: %.3f ms", last.taa_ms);
             ImGui::BulletText("fxaa: %.3f ms", last.fxaa_ms);
-            ImGui::BulletText("composition: %.3f ms", last.tonemap_bloom_ms);
+            ImGui::BulletText("bloom: %.3f ms", last.bloom_ms);
+            ImGui::BulletText("tonemap/composition: %.3f ms", last.tonemap_ms);
             ImGui::BulletText("depth_of_field_ms: %.3f ms", last.depth_of_field_ms);
             ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
 

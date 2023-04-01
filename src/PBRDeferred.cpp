@@ -994,7 +994,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         auto cmd = frame_asset.cmd_post_fx.handle();
         auto color_attachment = framebuffer->color_attachment();
 
-        vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_asset.query_pool.get(),
+        vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, frame_asset.query_pool.get(),
                              2 * semaphore_value);
 
         drawable.pipeline_format.scissor.extent.width = color_attachment->width();
@@ -1011,7 +1011,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         renderer.render(rendering_info);
         vkCmdEndRendering(cmd);
 
-        vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_asset.query_pool.get(),
+        vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, frame_asset.query_pool.get(),
                              2 * semaphore_value + 1);
         frame_asset.semaphore_value_done = semaphore_value;
         color_attachment->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd);
@@ -1055,7 +1055,11 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         // generate bloom image
         if(frame_asset.settings.bloom)
         {
+            vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                 frame_asset.query_pool.get(), 2 * SemaphoreValue::BLOOM);
             bloom_img = frame_asset.bloom->apply(output_img, frame_asset.cmd_post_fx.handle());
+            vkCmdWriteTimestamp2(frame_asset.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+                                 frame_asset.query_pool.get(), 2 * SemaphoreValue::BLOOM + 1);
             frame_asset.semaphore_value_done = SemaphoreValue::BLOOM;
         }
 
@@ -1313,12 +1317,13 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     timings_result.lighting_ms = timing_millis[SemaphoreValue::LIGHTING];
     timings_result.taa_ms = timing_millis[SemaphoreValue::TAA];
     timings_result.fxaa_ms = timing_millis[SemaphoreValue::FXAA];
-    timings_result.tonemap_bloom_ms = timing_millis[SemaphoreValue::TONEMAP];
+    timings_result.bloom_ms = timing_millis[SemaphoreValue::BLOOM];
+    timings_result.tonemap_ms = timing_millis[SemaphoreValue::TONEMAP];
     timings_result.depth_of_field_ms = timing_millis[SemaphoreValue::DEFOCUS_BLUR];
 
     timings_result.total_ms = timings_result.g_buffer_pre_ms + timings_result.depth_pyramid_ms +
                               timings_result.culling_ms + timings_result.g_buffer_post_ms + timings_result.lighting_ms +
-                              timings_result.taa_ms + timings_result.tonemap_bloom_ms;
+                              timings_result.taa_ms + timings_result.bloom_ms + +timings_result.tonemap_ms;
 
     frame_asset.stats.timings = timings_result;
 

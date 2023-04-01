@@ -105,7 +105,8 @@ public:
         double lighting_ms = 0.0;
         double taa_ms = 0.0;
         double fxaa_ms = 0.0;
-        double tonemap_bloom_ms = 0.0;
+        double bloom_ms = 0.0;
+        double tonemap_ms = 0.0;
         double depth_of_field_ms = 0.0;
         double total_ms = 0.0;
     };
