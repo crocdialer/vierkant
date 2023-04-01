@@ -69,7 +69,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.bone_buffer = vierkant::Buffer::create(anim_buffer_info);
         asset.morph_param_buffer = vierkant::Buffer::create(anim_buffer_info);
 
-        asset.query_pool = vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
+        asset.query_pool =
+                vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE * 2, VK_QUERY_TYPE_TIMESTAMP);
         asset.gpu_cull_context = vierkant::create_gpu_cull_context(device, m_pipeline_cache);
 
         // create staging-buffers
@@ -375,7 +376,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     if(!frame_asset.recycle_commands)
     {
         // flush outdated transform-cache
-//        m_entry_matrix_cache.clear();
+        //        m_entry_matrix_cache.clear();
 
         vierkant::cull_params_t cull_params = {};
         cull_params.scene = scene;
@@ -690,9 +691,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_asset.cmd_clear = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_clear.begin();
 
-        // base/first timestamp
-        vkCmdWriteTimestamp2(frame_asset.cmd_clear.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                             frame_asset.query_pool.get(), SemaphoreValue::INVALID);
+        //        // base/first timestamp
+        //        vkCmdWriteTimestamp2(frame_asset.cmd_clear.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        //                             frame_asset.query_pool.get(), SemaphoreValue::INVALID);
 
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_main);
         frame_asset.indirect_draw_params_main.draws_out = params.draws_out;
@@ -826,8 +827,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         depth_pyramid_params.depth_map = frame_asset.g_buffer_main.depth_attachment();
         depth_pyramid_params.queue = m_queue;
         depth_pyramid_params.query_pool = frame_asset.query_pool;
-        depth_pyramid_params.query_index_start = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
-        depth_pyramid_params.query_index_end = SemaphoreValue::DEPTH_PYRAMID;
+        depth_pyramid_params.query_index_start = 2 * SemaphoreValue::DEPTH_PYRAMID;
+        depth_pyramid_params.query_index_end = 2 * SemaphoreValue::DEPTH_PYRAMID + 1;
         depth_pyramid_params.semaphore_submit_info.semaphore = frame_asset.timeline.handle();
         depth_pyramid_params.semaphore_submit_info.wait_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
         depth_pyramid_params.semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
@@ -846,7 +847,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.camera = frame_asset.cull_result.camera;
             gpu_cull_params.queue = m_queue;
             gpu_cull_params.query_pool = frame_asset.query_pool;
-            gpu_cull_params.query_index = SemaphoreValue::CULLING;
+            gpu_cull_params.query_index_start = 2 * SemaphoreValue::CULLING;
+            gpu_cull_params.query_index_end = 2 * SemaphoreValue::CULLING + 1;
             gpu_cull_params.frustum_cull = frame_asset.settings.frustum_culling;
             gpu_cull_params.occlusion_cull = frame_asset.settings.occlusion_culling;
             gpu_cull_params.lod_enabled = frame_asset.settings.enable_lod;
@@ -914,10 +916,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     frame_asset.cmd_lighting = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_lighting.begin(0);
     m_device->begin_label(frame_asset.cmd_lighting.handle(), "PBRDeferred::lighting_pass");
-
-    // g-buffer done timestamp
-    vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                         frame_asset.query_pool.get(), SemaphoreValue::G_BUFFER_ALL);
+    vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                         frame_asset.query_pool.get(), 2 * SemaphoreValue::LIGHTING);
 
     // stage, render, submit
     m_renderer_lighting.stage_drawable(drawable);
@@ -950,8 +950,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
             vkCmdEndRendering(frame_asset.cmd_lighting.handle());
         }
     }
-    vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                         frame_asset.query_pool.get(), SemaphoreValue::LIGHTING);
+    vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+                         frame_asset.query_pool.get(), 2 * SemaphoreValue::LIGHTING + 1);
 
     vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
     lighting_semaphore_info.semaphore = frame_asset.timeline.handle();
@@ -994,6 +994,9 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         auto cmd = frame_asset.cmd_post_fx.handle();
         auto color_attachment = framebuffer->color_attachment();
 
+        vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_asset.query_pool.get(),
+                             2 * semaphore_value);
+
         drawable.pipeline_format.scissor.extent.width = color_attachment->width();
         drawable.pipeline_format.scissor.extent.height = color_attachment->height();
 
@@ -1008,7 +1011,8 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         renderer.render(rendering_info);
         vkCmdEndRendering(cmd);
 
-        vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_asset.query_pool.get(), semaphore_value);
+        vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, frame_asset.query_pool.get(),
+                             2 * semaphore_value + 1);
         frame_asset.semaphore_value_done = semaphore_value;
         color_attachment->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd);
         return color_attachment;
@@ -1282,9 +1286,9 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     timings_t &timings_result = frame_asset.stats.timings;
     frame_asset.stats.timestamp = frame_asset.timestamp;
 
-    const size_t query_count = frame_asset.semaphore_value_done + 1;
+    const size_t query_count = 2 * SemaphoreValue::MAX_VALUE;
 
-    uint64_t timestamps[SemaphoreValue::MAX_VALUE] = {};
+    uint64_t timestamps[query_count] = {};
     auto query_result = vkGetQueryPoolResults(m_device->handle(), frame_asset.query_pool.get(), 0, query_count,
                                               sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
 

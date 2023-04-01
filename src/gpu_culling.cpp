@@ -202,6 +202,8 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     // start command-buffer
     context->cull_cmd_buffer.begin(0);
     context->device->begin_label(context->cull_cmd_buffer.handle(), fmt::format("gpu_cull"));
+    vkCmdWriteTimestamp2(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                         params.query_pool.get(), params.query_index_start);
 
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.num_draws = params.num_draws;
@@ -316,7 +318,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     {
         // culling done timestamp
         vkCmdWriteTimestamp2(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-                             params.query_pool.get(), params.query_index);
+                             params.query_pool.get(), params.query_index_end);
     }
 
     context->device->end_label(context->cull_cmd_buffer.handle());

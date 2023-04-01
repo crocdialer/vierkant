@@ -26,7 +26,7 @@ struct mesh_compute_params_t
     std::unordered_map<uint64_t, vierkant::animated_mesh_t> mesh_compute_items = {};
 
     vierkant::QueryPoolPtr query_pool = nullptr;
-    uint32_t query_index = 0;
+    uint32_t query_index_start = 0, query_index_end = 0;
 };
 
 //! define a typesafe identifier for individual mesh-compute runs

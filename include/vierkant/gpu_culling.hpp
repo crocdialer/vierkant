@@ -51,7 +51,7 @@ struct gpu_cull_params_t
     vierkant::ImagePtr depth_pyramid;
 
     vierkant::QueryPoolPtr query_pool;
-    uint32_t query_index = 0;
+    uint32_t query_index_start = 0, query_index_end = 0;
 };
 
 struct draw_cull_result_t

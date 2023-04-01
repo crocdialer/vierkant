@@ -254,6 +254,8 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
     }
 
     context->cmd_buffer.begin(0);
+    vkCmdWriteTimestamp2(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                         params.query_pool.get(), params.query_index_start);
 
     // staging copies of bones + params
     vierkant::staging_copy_context_t staging_context = {};
@@ -312,9 +314,8 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
 
     if(params.query_pool)
     {
-        // culling done timestamp
-        vkCmdWriteTimestamp2(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-                             params.query_pool.get(), params.query_index);
+        vkCmdWriteTimestamp2(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+                             params.query_pool.get(), params.query_index_end);
     }
     context->cmd_buffer.submit(params.queue, false, VK_NULL_HANDLE, {params.semaphore_submit_info});
     return ret;
