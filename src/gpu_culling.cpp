@@ -148,7 +148,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     // pre depth-pyramid timestamp
     if(params.query_pool)
     {
-        vkCmdWriteTimestamp2(context->depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        vkCmdWriteTimestamp2(context->depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                              params.query_pool.get(), params.query_index_start);
     }
 
@@ -189,7 +189,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     }
 
     // depth-pyramid timestamp
-    vkCmdWriteTimestamp2(context->depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+    vkCmdWriteTimestamp2(context->depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
                          params.query_pool.get(), params.query_index_end);
 
     context->device->end_label(context->depth_pyramid_cmd_buffer.handle());
@@ -315,7 +315,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     if(params.query_pool)
     {
         // culling done timestamp
-        vkCmdWriteTimestamp2(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+        vkCmdWriteTimestamp2(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
                              params.query_pool.get(), params.query_index);
     }
 
