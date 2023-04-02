@@ -94,9 +94,9 @@ template<typename T1 = float, typename T2>
 inline glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
 {
     glm::mat<4, 4, T1> tmp = glm::mat4_cast(t.rotation);
-    tmp[0] *= t.scale.x;
-    tmp[1] *= t.scale.y;
-    tmp[2] *= t.scale.z;
+    tmp[0] *= static_cast<T1>(t.scale.x);
+    tmp[1] *= static_cast<T1>(t.scale.y);
+    tmp[2] *= static_cast<T1>(t.scale.z);
     tmp[3] = glm::vec<4, T1>(t.translation, 1);
     return tmp;
 }

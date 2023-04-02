@@ -84,8 +84,8 @@ BOOST_AUTO_TEST_CASE(test_Object3D_scene_entity)
     std::set<vierkant::Object3D*> foo_objects;
     for(auto [entity, object, foo]: view.each()){ foo_objects.insert(object); }
     BOOST_CHECK_EQUAL(foo_objects.size(), 2);
-    foo_objects.contains(a.get());
-    foo_objects.contains(b.get());
+    BOOST_CHECK(foo_objects.contains(a.get()));
+    BOOST_CHECK(foo_objects.contains(b.get()));
 
     // destruction
     bool destructed = false;
