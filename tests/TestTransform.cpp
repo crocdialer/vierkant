@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(test_rigid_transform)
 {
     // empiric minimal epsilons until test breaks
     constexpr double double_epsilon = 1.e-14;
-    constexpr float float_epsilon = 1.e-5;
+    constexpr float float_epsilon = 1.e-5f;
 
     check_transform<float>(float_epsilon);
     check_transform<double>(double_epsilon);
