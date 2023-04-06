@@ -64,8 +64,8 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
     auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
 
     vierkant::graphics_pipeline_info_t fmt;
-    fmt.viewport.width = framebuffer.extent().width;
-    fmt.viewport.height = framebuffer.extent().height;
+    fmt.viewport.width = static_cast<float>(framebuffer.extent().width);
+    fmt.viewport.height = static_cast<float>(framebuffer.extent().height);
     fmt.renderpass = framebuffer.renderpass().get();
     fmt.shader_stages = vierkant::create_shader_stages(test_context.device, vierkant::ShaderType::UNLIT_TEXTURE);
     auto pipeline = vierkant::Pipeline::create(test_context.device, fmt);
@@ -89,8 +89,8 @@ BOOST_AUTO_TEST_CASE(TestPipelineCache)
     auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
 
     vierkant::graphics_pipeline_info_t fmt;
-    fmt.viewport.width = framebuffer.extent().width;
-    fmt.viewport.height = framebuffer.extent().height;
+    fmt.viewport.width = static_cast<float>(framebuffer.extent().width);
+    fmt.viewport.height = static_cast<float>(framebuffer.extent().height);
     fmt.renderpass = framebuffer.renderpass().get();
     fmt.shader_stages = vierkant::create_shader_stages(test_context.device, vierkant::ShaderType::UNLIT_TEXTURE);
 

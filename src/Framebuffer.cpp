@@ -288,7 +288,7 @@ VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuf
 {
     // record commandbuffer
     m_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
-    if(!debug_label.empty()) { m_device->begin_label(m_commandbuffer.handle(), debug_label); }
+    if(debug_label) { m_device->begin_label(m_commandbuffer.handle(), *debug_label); }
 
     // begin the renderpass
     begin_renderpass(m_commandbuffer.handle(), VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
@@ -303,7 +303,7 @@ VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuf
     end_renderpass();
 
     // end commandbuffer
-    if(!debug_label.empty()) { m_device->end_label(m_commandbuffer.handle()); }
+    if(debug_label) { m_device->end_label(m_commandbuffer.handle()); }
     m_commandbuffer.end();
 
     return m_commandbuffer.handle();

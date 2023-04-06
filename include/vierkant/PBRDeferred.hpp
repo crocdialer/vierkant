@@ -5,14 +5,14 @@
 
 #include <deque>
 
+#include "vierkant/Bloom.hpp"
+#include "vierkant/DrawContext.hpp"
+#include "vierkant/PipelineCache.hpp"
+#include "vierkant/SceneRenderer.hpp"
 #include <vierkant/Compute.hpp>
 #include <vierkant/GBuffer.hpp>
 #include <vierkant/culling.hpp>
 #include <vierkant/gpu_culling.hpp>
-#include "vierkant/PipelineCache.hpp"
-#include "vierkant/DrawContext.hpp"
-#include "vierkant/SceneRenderer.hpp"
-#include "vierkant/Bloom.hpp"
 
 namespace vierkant
 {
@@ -22,7 +22,6 @@ DEFINE_CLASS_PTR(PBRDeferred);
 class PBRDeferred : public vierkant::SceneRenderer
 {
 public:
-
     //! group settings
     struct settings_t
     {
@@ -159,18 +158,16 @@ public:
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
      * @return  a render_result_t object.
      */
-    render_result_t render_scene(vierkant::Renderer &renderer,
-                                 const vierkant::SceneConstPtr &scene,
-                                 const CameraPtr &cam,
-                                 const std::set<std::string> &tags) override;
+    render_result_t render_scene(vierkant::Renderer &renderer, const vierkant::SceneConstPtr &scene,
+                                 const CameraPtr &cam, const std::set<std::string> &tags) override;
 
     void set_environment(const vierkant::ImagePtr &lambert, const vierkant::ImagePtr &ggx);
 
-    vierkant::ImagePtr environment_lambert() const{ return m_conv_lambert; };
+    vierkant::ImagePtr environment_lambert() const { return m_conv_lambert; };
 
-    vierkant::ImagePtr environment_ggx() const{ return m_conv_ggx; };
+    vierkant::ImagePtr environment_ggx() const { return m_conv_ggx; };
 
-    vierkant::ImagePtr bsdf_lut() const{ return m_brdf_lut; }
+    vierkant::ImagePtr bsdf_lut() const { return m_brdf_lut; }
 
     /**
      * @return a const ref to the g-buffer used for last rendering.
@@ -185,13 +182,12 @@ public:
     /**
      * @return a queue of structs containing drawcall- and timing-results for past frames
      */
-    const std::deque<statistics_t>& statistics() const { return m_statistics; }
+    const std::deque<statistics_t> &statistics() const { return m_statistics; }
 
     //! settings struct
     settings_t settings;
 
 private:
-
     enum SemaphoreValue : uint64_t
     {
         INVALID = 0,
@@ -289,11 +285,7 @@ private:
         statistics_t stats;
 
         //! ping-pong post-fx framebuffers
-        struct ping_pong_t
-        {
-            vierkant::Framebuffer framebuffer;
-        };
-        std::array<ping_pong_t, 2> post_fx_ping_pongs;
+        std::array<vierkant::Framebuffer, 2> post_fx_ping_pongs;
 
         BloomUPtr bloom;
     };
@@ -321,8 +313,7 @@ private:
 
     void update_timing(frame_asset_t &frame_asset);
 
-    void update_recycling(const SceneConstPtr &scene,
-                          const CameraPtr &cam, frame_asset_t &frame_asset);
+    void update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset);
 
     void update_matrix_history(frame_asset_t &frame_asset);
 
@@ -332,13 +323,10 @@ private:
 
     vierkant::Framebuffer &lighting_pass(const vierkant::cull_result_t &cull_result);
 
-    void post_fx_pass(vierkant::Renderer &renderer,
-                      const CameraPtr &cam,
-                      const vierkant::ImagePtr &color,
-                      const vierkant::ImagePtr &depth);
+    vierkant::ImagePtr post_fx_pass(const CameraPtr &cam, const vierkant::ImagePtr &color,
+                                    const vierkant::ImagePtr &depth);
 
-    void resize_indirect_draw_buffers(uint32_t num_draws,
-                                      Renderer::indirect_draw_bundle_t &params);
+    void resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params);
 
     vierkant::DevicePtr m_device;
 
@@ -375,8 +363,8 @@ private:
     // convolved specular irradiance cube mipmaps
     vierkant::ImagePtr m_conv_ggx;
 
-    // helper, empty image
-    vierkant::ImagePtr m_empty_img;
+    // helper, empty b/w images
+    vierkant::ImagePtr m_util_img_black, m_util_img_white;
 
     vierkant::drawable_t m_drawable_lighting_env, m_drawable_fxaa, m_drawable_dof, m_drawable_bloom, m_drawable_taa;
 
@@ -391,8 +379,6 @@ private:
 
 extern bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs);
 
-inline bool operator!=(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs){ return !(lhs == rhs); }
+inline bool operator!=(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs) { return !(lhs == rhs); }
 
 }// namespace vierkant
-
-

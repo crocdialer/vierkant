@@ -351,6 +351,12 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
                 vkGetDeviceProcAddr(m_device, "vkCmdEndDebugUtilsLabelEXT"));
         vkCmdInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdInsertDebugUtilsLabelEXT>(
                 vkGetDeviceProcAddr(m_device, "vkCmdInsertDebugUtilsLabelEXT"));
+        vkQueueBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueBeginDebugUtilsLabelEXT>(
+                vkGetDeviceProcAddr(m_device, "vkQueueBeginDebugUtilsLabelEXT"));
+        vkQueueEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueEndDebugUtilsLabelEXT>(
+                vkGetDeviceProcAddr(m_device, "vkQueueEndDebugUtilsLabelEXT"));
+        vkQueueInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueInsertDebugUtilsLabelEXT>(
+                vkGetDeviceProcAddr(m_device, "vkQueueInsertDebugUtilsLabelEXT"));
     }
 }
 
@@ -400,14 +406,14 @@ const std::vector<VkQueue> &Device::queues(Queue type) const
     return g_empty_queue;
 }
 
-void Device::begin_label(VkCommandBuffer commandbuffer, const std::string &label, const glm::vec4 &color)
+void Device::begin_label(VkCommandBuffer commandbuffer, const debug_label_t &label)
 {
-    if(vkCmdBeginDebugUtilsLabelEXT && !label.empty())
+    if(vkCmdBeginDebugUtilsLabelEXT && !label.text.empty())
     {
         VkDebugUtilsLabelEXT debug_label = {};
         debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = color;
-        debug_label.pLabelName = label.c_str();
+        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
+        debug_label.pLabelName = label.text.c_str();
         vkCmdBeginDebugUtilsLabelEXT(commandbuffer, &debug_label);
     }
 }
@@ -417,17 +423,44 @@ void Device::end_label(VkCommandBuffer commandbuffer)
     if(vkCmdEndDebugUtilsLabelEXT) { vkCmdEndDebugUtilsLabelEXT(commandbuffer); }
 }
 
-void Device::insert_label(VkCommandBuffer commandbuffer, const std::string &label, const glm::vec4 &color)
+void Device::insert_label(VkCommandBuffer commandbuffer, const debug_label_t &label)
 {
-    if(vkCmdInsertDebugUtilsLabelEXT && !label.empty())
+    if(vkCmdInsertDebugUtilsLabelEXT && !label.text.empty())
     {
         VkDebugUtilsLabelEXT debug_label = {};
         debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = color;
-        debug_label.pLabelName = label.c_str();
+        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
+        debug_label.pLabelName = label.text.c_str();
         vkCmdInsertDebugUtilsLabelEXT(commandbuffer, &debug_label);
     }
 }
 
+void Device::begin_label(VkQueue queue, const Device::debug_label_t &label)
+{
+    if(vkCmdBeginDebugUtilsLabelEXT && !label.text.empty())
+    {
+        VkDebugUtilsLabelEXT debug_label = {};
+        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
+        debug_label.pLabelName = label.text.c_str();
+        vkQueueBeginDebugUtilsLabelEXT(queue, &debug_label);
+    }
+}
+void Device::end_label(VkQueue queue)
+{
+    if(vkQueueEndDebugUtilsLabelEXT) { vkQueueEndDebugUtilsLabelEXT(queue); }
+}
+
+void Device::insert_label(VkQueue queue, const debug_label_t &label)
+{
+    if(vkQueueInsertDebugUtilsLabelEXT && !label.text.empty())
+    {
+        VkDebugUtilsLabelEXT debug_label = {};
+        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
+        debug_label.pLabelName = label.text.c_str();
+        vkQueueInsertDebugUtilsLabelEXT(queue, &debug_label);
+    }
+}
 
 }// namespace vierkant

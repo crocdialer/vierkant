@@ -100,7 +100,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
 vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbuffer)
 {
     // debug label
-    m_device->begin_label(commandbuffer, fmt::format("Bloom::apply"));
+    m_device->begin_label(commandbuffer, {fmt::format("Bloom::apply")});
 
     // threshold
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};

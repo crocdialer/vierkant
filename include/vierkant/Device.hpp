@@ -26,6 +26,13 @@ using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
 class Device
 {
 public:
+
+    struct debug_label_t
+    {
+        std::string text;
+        glm::vec4 color = {0.6f, 0.6f, 0.6f, 1.f};
+    };
+
     struct create_info_t
     {
         //! handle for the vulkan-instance
@@ -136,29 +143,49 @@ public:
      * @brief   'begin_label' can be used to mark the start of a labeled section within a commandbuffer.
      *
      * @param   commandbuffer   a provided commandbuffer
-     * @param   label           a string-label.
-     * @param   color           an optional color to use for the label.
+     * @param   label           a debug-label object.
      */
-    void begin_label(VkCommandBuffer commandbuffer, const std::string &label,
-                     const glm::vec4 &color = {0.6f, 0.6f, 0.6f, 1.f});
+    void begin_label(VkCommandBuffer commandbuffer, const debug_label_t &label);
+
+    /**
+     * @brief   'begin_label' can be used to mark the start of a labeled section within a queue.
+     *
+     * @param   queue   a provided queue
+     * @param   label   a debug-label object.
+     */
+    void begin_label(VkQueue queue, const debug_label_t &label);
 
     /**
      * @brief   'end_label' needs to be used after previous calls to 'begin_label',
-     *          to  mark the end of a labeled section within a commandbuffer.
+     *          to mark the end of a labeled section within a commandbuffer.
      *
      * @param   commandbuffer   a provided commandbuffer.
      */
     void end_label(VkCommandBuffer commandbuffer);
 
     /**
+     * @brief   'end_label' needs to be used after previous calls to 'begin_label',
+     *          to mark the end of a labeled section within a queue.
+     *
+     * @param   queue   a provided queue.
+     */
+    void end_label(VkQueue queue);
+
+    /**
      * @brief   insert_label can be used to insert a singular label into a commandbuffer.
      *
      * @param   commandbuffer   a provided commandbuffer
-     * @param   label           a string-label.
-     * @param   color           an optional color to use for the label.
+     * @param   label           a debug-label object.
      */
-    void insert_label(VkCommandBuffer commandbuffer, const std::string &label,
-                      const glm::vec4 &color = {0.6f, 0.6f, 0.6f, 1.f});
+    void insert_label(VkCommandBuffer commandbuffer, const debug_label_t &label);
+
+    /**
+     * @brief   insert_label can be used to insert a singular label into a queue.
+     *
+     * @param   queue   a provided queue
+     * @param   label   a debug-label object.
+     */
+    void insert_label(VkQueue queue, const debug_label_t &label);
 
 private:
     explicit Device(const create_info_t &create_info);
@@ -193,6 +220,9 @@ private:
     PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT = nullptr;
     PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT = nullptr;
     PFN_vkCmdInsertDebugUtilsLabelEXT vkCmdInsertDebugUtilsLabelEXT = nullptr;
+    PFN_vkQueueBeginDebugUtilsLabelEXT vkQueueBeginDebugUtilsLabelEXT = nullptr;
+    PFN_vkQueueEndDebugUtilsLabelEXT vkQueueEndDebugUtilsLabelEXT = nullptr;
+    PFN_vkQueueInsertDebugUtilsLabelEXT vkQueueInsertDebugUtilsLabelEXT = nullptr;
 };
 
 }// namespace vierkant

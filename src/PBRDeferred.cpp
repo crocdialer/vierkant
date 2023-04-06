@@ -237,12 +237,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_draw_context = vierkant::DrawContext(device);
 
-    // solid black color
-    uint32_t v = 0x00000000;
+    // solid black/white colors
+    uint32_t v = 0xFF000000;
     vierkant::Image::Format fmt;
     fmt.extent = {1, 1, 1};
     fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
-    m_empty_img = vierkant::Image::create(m_device, &v, fmt);
+    m_util_img_black = vierkant::Image::create(m_device, &v, fmt);
+    v = 0xFFFFFFFF;
+    m_util_img_white = vierkant::Image::create(m_device, &v, fmt);
 
     // populate a 2,3 halton sequence
     m_sample_offsets.resize(8);
@@ -327,7 +329,6 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 drawable.matrices.transform = node_transforms.empty()
                                                       ? object->global_transform() * entry.transform
                                                       : object->global_transform() * node_transforms[entry.node_index];
-                //                drawable.matrices.normal = glm::inverseTranspose(drawable.matrices.modelview);
                 drawable.last_matrices =
                         it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
 
@@ -402,6 +403,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
 
     // default to color image
     auto out_img = albedo_map;
+    auto depth_img = frame_asset.g_buffer_main.depth_attachment();
 
     // lighting-pass
     if(m_conv_lambert && m_conv_ggx)
@@ -411,7 +413,10 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     }
 
     // dof, bloom, anti-aliasing
-    post_fx_pass(renderer, cam, out_img, frame_asset.g_buffer_main.depth_attachment());
+    out_img = post_fx_pass(cam, out_img, depth_img);
+
+    // draw final color+depth with provided renderer
+    m_draw_context.draw_image_fullscreen(renderer, out_img, depth_img, true);
 
     SceneRenderer::render_result_t ret = {};
     ret.num_draws = frame_asset.cull_result.drawables.size();
@@ -429,8 +434,6 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
 
 void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
 {
-    matrix_cache_t new_entry_matrix_cache;
-
     // cache/collect bone-matrices
     std::unordered_map<entt::entity, size_t> bone_buffer_offsets;
     std::vector<vierkant::transform_t> all_bone_transforms;
@@ -502,11 +505,15 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
     copy_bones.num_bytes = all_bone_transforms.size() * sizeof(vierkant::transform_t);
     copy_bones.data = all_bone_transforms.data();
     copy_bones.dst_buffer = frame_asset.bone_buffer;
+    copy_bones.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+    copy_bones.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
 
     vierkant::staging_copy_info_t copy_morphs = {};
     copy_morphs.num_bytes = all_morph_params.size() * sizeof(morph_params_t);
     copy_morphs.data = all_morph_params.data();
     copy_morphs.dst_buffer = frame_asset.morph_param_buffer;
+    copy_morphs.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+    copy_morphs.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
 
     vierkant::staging_copy(staging_context, {copy_bones, copy_morphs});
 
@@ -567,11 +574,7 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
                 }
                 drawable.descriptors[Renderer::BINDING_PREVIOUS_MORPH_PARAMS] = desc_morph_params;
             }
-
-            // store current matrices
-            new_entry_matrix_cache[key] = drawable.matrices;
         }
-        m_entry_matrix_cache = std::move(new_entry_matrix_cache);
     }
 }
 
@@ -691,10 +694,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_asset.cmd_clear = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_clear.begin();
 
-        //        // base/first timestamp
-        //        vkCmdWriteTimestamp2(frame_asset.cmd_clear.handle(), VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-        //                             frame_asset.query_pool.get(), SemaphoreValue::INVALID);
-
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_main);
         frame_asset.indirect_draw_params_main.draws_out = params.draws_out;
         frame_asset.indirect_draw_params_main.mesh_draws = params.mesh_draws;
@@ -702,13 +701,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         std::vector<VkBufferMemoryBarrier2> barriers;
 
+        vierkant::staging_copy_context_t staging_context = {};
+        staging_context.staging_buffer = frame_asset.staging_main;
+        staging_context.command_buffer = frame_asset.cmd_clear.handle();
+
         if(params.num_draws && !frame_asset.recycle_commands)
         {
             auto drawbuffer = use_gpu_culling ? frame_asset.indirect_draw_params_main.draws_in
                                               : frame_asset.indirect_draw_params_main.draws_out;
             params.draws_in->copy_to(drawbuffer, frame_asset.cmd_clear.handle());
-
-            frame_asset.staging_main->set_data(nullptr, params.mesh_draws->num_bytes());
 
             VkBufferMemoryBarrier2 barrier = {};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
@@ -731,79 +732,45 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 barrier.buffer = frame_asset.indirect_draw_params_main.draws_counts_out->handle();
                 barriers.push_back(barrier);
             }
+
+            VkDependencyInfo dependency_info = {};
+            dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+            dependency_info.bufferMemoryBarrierCount = barriers.size();
+            dependency_info.pBufferMemoryBarriers = barriers.data();
+            vkCmdPipelineBarrier2(frame_asset.cmd_clear.handle(), &dependency_info);
         }
         else if(params.num_draws && !frame_asset.dirty_drawable_indices.empty())
         {
             constexpr size_t stride = sizeof(Renderer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
-            const size_t num_staging_bytes = std::max(staging_stride * frame_asset.dirty_drawable_indices.size(),
-                                                      frame_asset.staging_main->num_bytes());
-            frame_asset.staging_main->set_data(nullptr, num_staging_bytes);
-            size_t staging_offset = 0;
-
-            auto staging_ptr = static_cast<uint8_t *>(frame_asset.staging_main->map());
-            assert(staging_ptr);
-            std::vector<VkBufferCopy2> copy_regions;
-            copy_regions.reserve(frame_asset.dirty_drawable_indices.size());
+            std::vector<vierkant::matrix_struct_t> matrix_data(2 * frame_asset.dirty_drawable_indices.size());
+            std::vector<vierkant::staging_copy_info_t> copy_transforms;
+            uint32_t i = 0;
 
             for(auto idx: frame_asset.dirty_drawable_indices)
             {
                 assert(idx < frame_asset.cull_result.drawables.size());
                 const auto &drawable = frame_asset.cull_result.drawables[idx];
 
-                VkBufferCopy2 copy = {};
-                copy.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
-                copy.size = staging_stride;
-                copy.srcOffset = staging_offset;
-                copy.dstOffset = stride * idx;
-                copy_regions.push_back(copy);
+                matrix_data[2 * i] = drawable.matrices;
+                matrix_data[2 * i + 1] = drawable.last_matrices ? *drawable.last_matrices : drawable.matrices;
 
-                vierkant::matrix_struct_t matrices[2] = {};
-                matrices[0] = drawable.matrices;
-                matrices[1] = drawable.last_matrices ? *drawable.last_matrices : drawable.matrices;
-                memcpy(staging_ptr + staging_offset, matrices, sizeof(matrices));
-                staging_offset += staging_stride;
+                vierkant::staging_copy_info_t copy_transform = {};
+                copy_transform.num_bytes = staging_stride;
+                copy_transform.data = matrix_data.data() + 2 * i;
+                copy_transform.dst_buffer = params.mesh_draws;
+                copy_transform.dst_offset = stride * idx;
+                copy_transform.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+                copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+                copy_transforms.push_back(copy_transform);
+
+                // extra copy into post-meshdraws, not most elegant way
+                copy_transform.dst_buffer = frame_asset.indirect_draw_params_post.mesh_draws;
+                copy_transforms.push_back(copy_transform);
+                i++;
             }
-            frame_asset.staging_main->unmap();
-
-            VkCopyBufferInfo2 copy_info2 = {};
-            copy_info2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
-            copy_info2.srcBuffer = frame_asset.staging_main->handle();
-            copy_info2.dstBuffer = params.mesh_draws->handle();
-            copy_info2.regionCount = copy_regions.size();
-            copy_info2.pRegions = copy_regions.data();
-            vkCmdCopyBuffer2(frame_asset.cmd_clear.handle(), &copy_info2);
-
-            VkBufferMemoryBarrier2 barrier = {};
-            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-            barrier.buffer = params.mesh_draws->handle();
-            barrier.offset = 0;
-            barrier.size = VK_WHOLE_SIZE;
-            barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            barrier.dstStageMask = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-            barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-            barriers.push_back(barrier);
-
-            // TODO: improve placement, maybe try to share one(1) meshdraw-buffer for main/post rendering
-            if(frame_asset.indirect_draw_params_post.mesh_draws)
-            {
-                copy_info2.dstBuffer = frame_asset.indirect_draw_params_post.mesh_draws->handle();
-                vkCmdCopyBuffer2(frame_asset.cmd_clear.handle(), &copy_info2);
-                barrier.buffer = frame_asset.indirect_draw_params_post.mesh_draws->handle();
-                barriers.push_back(barrier);
-            }
-        }
-
-        if(!barriers.empty())
-        {
-            VkDependencyInfo dependency_info = {};
-            dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-            dependency_info.bufferMemoryBarrierCount = barriers.size();
-            dependency_info.pBufferMemoryBarriers = barriers.data();
-            vkCmdPipelineBarrier2(frame_asset.cmd_clear.handle(), &dependency_info);
+            vierkant::staging_copy(staging_context, copy_transforms);
         }
         frame_asset.cmd_clear.submit(m_queue);
     };
@@ -915,7 +882,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     frame_asset.cmd_lighting = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_lighting.begin(0);
-    m_device->begin_label(frame_asset.cmd_lighting.handle(), "PBRDeferred::lighting_pass");
+    m_device->begin_label(frame_asset.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
     vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          frame_asset.query_pool.get(), 2 * SemaphoreValue::LIGHTING);
 
@@ -964,8 +931,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     return frame_asset.lighting_buffer;
 }
 
-void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &cam, const vierkant::ImagePtr &color,
-                               const vierkant::ImagePtr &depth)
+vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkant::ImagePtr &color,
+                                             const vierkant::ImagePtr &depth)
 {
     size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
                          m_g_renderer_main.num_concurrent_frames();
@@ -989,7 +956,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
                                    vierkant::drawable_t &drawable, SemaphoreValue semaphore_value,
                                    const vierkant::Framebuffer &override_fb = {}) -> vierkant::ImagePtr {
         const vierkant::Framebuffer *framebuffer =
-                override_fb ? &override_fb : &frame_asset.post_fx_ping_pongs[buffer_index % 2].framebuffer;
+                override_fb ? &override_fb : &frame_asset.post_fx_ping_pongs[buffer_index % 2];
         if(!override_fb) { buffer_index++; }
         auto cmd = frame_asset.cmd_post_fx.handle();
         auto color_attachment = framebuffer->color_attachment();
@@ -1020,7 +987,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
 
     // begin command-buffer
     frame_asset.cmd_post_fx.begin(0);
-    m_device->begin_label(frame_asset.cmd_post_fx.handle(), "PBRDeferred::post_fx_pass");
+    m_device->begin_label(frame_asset.cmd_post_fx.handle(), {"PBRDeferred::post_fx_pass"});
 
     // TAA
     if(frame_asset.settings.use_taa)
@@ -1050,7 +1017,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
     // tonemap / bloom
     if(frame_asset.settings.tonemap)
     {
-        auto bloom_img = m_empty_img;
+        auto bloom_img = m_util_img_black;
 
         // generate bloom image
         if(frame_asset.settings.bloom)
@@ -1064,7 +1031,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         }
 
         // motionblur
-        auto motion_img = m_empty_img;
+        auto motion_img = m_util_img_black;
         if(frame_asset.settings.motionblur)
         {
             motion_img = frame_asset.g_buffer_post.color_attachment(G_BUFFER_MOTION);
@@ -1137,9 +1104,7 @@ void PBRDeferred::post_fx_pass(vierkant::Renderer &renderer, const CameraPtr &ca
         post_fx_semaphore_info.signal_value = frame_asset.semaphore_value_done;
         frame_asset.cmd_post_fx.submit(m_queue, false, VK_NULL_HANDLE, {post_fx_semaphore_info});
     }
-
-    // draw final color+depth with provided renderer
-    m_draw_context.draw_image_fullscreen(renderer, output_img, depth, true);
+    return output_img;
 }
 
 const vierkant::Framebuffer &PBRDeferred::g_buffer() const
@@ -1193,13 +1158,13 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     {
         // G-buffer (pre and post occlusion-culling)
         asset.g_buffer_main = create_g_buffer(m_device, size);
-        asset.g_buffer_main.debug_label = "g_buffer_main";
+        asset.g_buffer_main.debug_label = {"g_buffer_main"};
 
         auto renderpass_no_clear_depth =
                 vierkant::create_renderpass(m_device, asset.g_buffer_main.attachments(), false, false);
         asset.g_buffer_post =
                 vierkant::Framebuffer(m_device, asset.g_buffer_main.attachments(), renderpass_no_clear_depth);
-        asset.g_buffer_post.debug_label = "g_buffer_post";
+        asset.g_buffer_post.debug_label = {"g_buffer_post"};
         asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
         auto depth_fmt = asset.g_buffer_main.depth_attachment()->format();
@@ -1239,8 +1204,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
         // create post_fx ping pong buffers and renderers
         for(auto &post_fx_ping_pong: asset.post_fx_ping_pongs)
         {
-            post_fx_ping_pong.framebuffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
-            post_fx_ping_pong.framebuffer.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+            post_fx_ping_pong = vierkant::Framebuffer(m_device, post_fx_buffer_info);
+            post_fx_ping_pong.clear_color = {{0.f, 0.f, 0.f, 0.f}};
         }
 
         // create bloom
@@ -1323,7 +1288,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 
     timings_result.total_ms = timings_result.g_buffer_pre_ms + timings_result.depth_pyramid_ms +
                               timings_result.culling_ms + timings_result.g_buffer_post_ms + timings_result.lighting_ms +
-                              timings_result.taa_ms + timings_result.bloom_ms + +timings_result.tonemap_ms;
+                              timings_result.taa_ms + timings_result.bloom_ms + timings_result.tonemap_ms;
 
     frame_asset.stats.timings = timings_result;
 

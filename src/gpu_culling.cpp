@@ -72,7 +72,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
                                         const create_depth_pyramid_params_t &params)
 {
     context->depth_pyramid_cmd_buffer.begin(0);
-    context->device->begin_label(context->depth_pyramid_cmd_buffer.handle(), fmt::format("create_depth_pyramid"));
+    context->device->begin_label(context->depth_pyramid_cmd_buffer.handle(), {fmt::format("create_depth_pyramid")});
 
     auto extent_pyramid_lvl0 = params.depth_map->extent();
     extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
@@ -201,7 +201,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
 {
     // start command-buffer
     context->cull_cmd_buffer.begin(0);
-    context->device->begin_label(context->cull_cmd_buffer.handle(), fmt::format("gpu_cull"));
+    context->device->begin_label(context->cull_cmd_buffer.handle(), {fmt::format("gpu_cull")});
     vkCmdWriteTimestamp2(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          params.query_pool.get(), params.query_index_start);
 

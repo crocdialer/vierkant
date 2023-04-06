@@ -460,9 +460,8 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
     push_constants.disable_material = disable_material;
     push_constants.debug_draw_ids = debug_draw_ids;
 
-
     // record start-timestamp
-    if(!debug_label.empty()) { m_device->begin_label(command_buffer, debug_label); }
+    if(debug_label) { m_device->begin_label(command_buffer, *debug_label); }
     vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, frame_assets.query_pool.get(), 0);
 
     // grouped by pipelines
@@ -614,7 +613,7 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
 
     // record end-timestamp
     vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, frame_assets.query_pool.get(), 1);
-    if(!debug_label.empty()) { m_device->end_label(command_buffer); }
+    if(debug_label) { m_device->end_label(command_buffer); }
 
     // keep the stuff in use
     frame_assets.descriptor_set_layouts = std::move(next_set_layouts);

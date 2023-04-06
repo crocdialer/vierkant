@@ -203,7 +203,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
     auto &ping = m_ping_pongs[0], &pong = m_ping_pongs[1];
 
     // debug label
-    m_device->begin_label(commandbuffer, fmt::format("GaussianBlur_<{}>::apply>", NUM_TAPS));
+    m_device->begin_label(commandbuffer, {fmt::format("GaussianBlur_<{}>::apply>", NUM_TAPS)});
 
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
     begin_rendering_info.commandbuffer = commandbuffer;
