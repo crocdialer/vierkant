@@ -2,8 +2,8 @@
 // Created by crocdialer on 7/2/20.
 //
 
-#include <vierkant/shaders.hpp>
 #include "vierkant/cubemap_utils.hpp"
+#include <vierkant/shaders.hpp>
 
 namespace vierkant
 {
@@ -17,12 +17,10 @@ struct img_copy_assets_t
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size,
-                                         VkQueue queue,
-                                         bool mipmap,
-                                         VkFormat format)
+vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size, VkQueue queue,
+                                         bool mipmap, VkFormat format)
 {
-    if(!panorama_img){ return nullptr; }
+    if(!panorama_img) { return nullptr; }
 
     auto device = panorama_img->device();
 
@@ -113,11 +111,8 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device,
-                                              const ImagePtr &cubemap,
-                                              uint32_t size,
-                                              VkFormat format,
-                                              VkQueue queue)
+vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size,
+                                              VkFormat format, VkQueue queue)
 {
     // create a cube-pipeline
     auto cube = vierkant::create_cube_pipeline(device, size, format, queue, false, VK_IMAGE_USAGE_SAMPLED_BIT);
@@ -145,11 +140,8 @@ vierkant::ImagePtr create_convolution_lambert(const DevicePtr &device,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device,
-                                          const ImagePtr &cubemap,
-                                          uint32_t size,
-                                          VkFormat format,
-                                          VkQueue queue)
+vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePtr &cubemap, uint32_t size,
+                                          VkFormat format, VkQueue queue)
 {
     size = crocore::next_pow_2(size);
 
@@ -172,6 +164,10 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device,
     auto command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 64},
+                                                      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 32}};
+    auto descriptor_pool = vierkant::create_descriptor_pool(device, descriptor_counts, 64);
+
     std::vector<img_copy_assets_t> image_copy_assets(num_mips);
 
     // collect fences for all operations
@@ -185,7 +181,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device,
 
         // create a cube-pipeline
         cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_B10G11R11_UFLOAT_PACK32, queue, false,
-                                              VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+                                              VK_IMAGE_USAGE_TRANSFER_SRC_BIT, descriptor_pool);
 
         cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = frag_module;
 
@@ -237,8 +233,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device,
         cube.color_image->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                             image_copy_asset.command_buffer.handle());
 
-        ret->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               image_copy_asset.command_buffer.handle());
+        ret->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, image_copy_asset.command_buffer.handle());
 
         // actual copy command
         vkCmdCopyImage(image_copy_asset.command_buffer.handle(), cube.color_image->image(),
@@ -259,8 +254,8 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device,
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t size, VkFormat color_format,
-                                     VkQueue queue,
-                                     bool depth, VkImageUsageFlags usage_flags)
+                                     VkQueue queue, bool depth, VkImageUsageFlags usage_flags,
+                                     const vierkant::DescriptorPoolPtr &descriptor_pool)
 {
     auto command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
@@ -287,12 +282,13 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
 
     // render
     vierkant::Renderer::create_info_t cuber_render_create_info = {};
-//    cuber_render_create_info.renderpass = cube_fb.renderpass();
+    //    cuber_render_create_info.renderpass = cube_fb.renderpass();
     cuber_render_create_info.num_frames_in_flight = 1;
     cuber_render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     cuber_render_create_info.viewport.width = static_cast<float>(cube_fb.extent().width);
     cuber_render_create_info.viewport.height = static_cast<float>(cube_fb.extent().height);
     cuber_render_create_info.viewport.maxDepth = static_cast<float>(cube_fb.extent().depth);
+    cuber_render_create_info.descriptor_pool = descriptor_pool;
     auto cube_render = vierkant::Renderer(device, cuber_render_create_info);
 
     // create a drawable
@@ -313,8 +309,8 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
 
     vierkant::Mesh::create_info_t mesh_create_info = {};
     mesh_create_info.command_buffer = cmd_buffer.handle();
-    mesh_create_info.staging_buffer = vierkant::Buffer::create(device, nullptr, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                                               VMA_MEMORY_USAGE_CPU_ONLY);
+    mesh_create_info.staging_buffer =
+            vierkant::Buffer::create(device, nullptr, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
     drawable.mesh = vierkant::Mesh::create_from_geometry(device, box, mesh_create_info);
     cmd_buffer.submit(queue, true);
@@ -326,10 +322,10 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     drawable.vertex_offset = mesh_entry.vertex_offset;
     drawable.num_vertices = mesh_entry.num_vertices;
 
-    drawable.pipeline_format.binding_descriptions = vierkant::create_binding_descriptions(
-            drawable.mesh->vertex_attribs);
-    drawable.pipeline_format.attribute_descriptions = vierkant::create_attribute_descriptions(
-            drawable.mesh->vertex_attribs);
+    drawable.pipeline_format.binding_descriptions =
+            vierkant::create_binding_descriptions(drawable.mesh->vertex_attribs);
+    drawable.pipeline_format.attribute_descriptions =
+            vierkant::create_attribute_descriptions(drawable.mesh->vertex_attribs);
     drawable.pipeline_format.primitive_topology = mesh_entry.primitive_type;
     drawable.pipeline_format.blend_state.blendEnable = false;
     drawable.pipeline_format.depth_test = false;

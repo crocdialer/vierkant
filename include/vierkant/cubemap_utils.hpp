@@ -31,7 +31,9 @@ struct cube_pipeline_t
  */
 cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t size, VkFormat color_format,
                                      VkQueue queue,
-                                     bool depth = false, VkImageUsageFlags usage_flags = 0);
+                                     bool depth = false,
+                                     VkImageUsageFlags usage_flags = 0,
+                                     const vierkant::DescriptorPoolPtr &descriptor_pool = nullptr);
 
 /**
  * @brief   Create a cubemap from an equi-recangular panorama image.
