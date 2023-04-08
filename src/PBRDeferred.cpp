@@ -66,7 +66,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         anim_buffer_info.num_bytes = 1U << 20U;
         anim_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         anim_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        anim_buffer_info.name = "bone_buffer";
         asset.bone_buffer = vierkant::Buffer::create(anim_buffer_info);
+        anim_buffer_info.name = "morph_param_buffer";
         asset.morph_param_buffer = vierkant::Buffer::create(anim_buffer_info);
 
         asset.query_pool =
@@ -79,8 +81,11 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         staging_buffer_info.num_bytes = 1U << 20U;
         staging_buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         staging_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
+        staging_buffer_info.name = "staging_main";
         asset.staging_main = vierkant::Buffer::create(staging_buffer_info);
+        staging_buffer_info.name = "staging_anim";
         asset.staging_anim = vierkant::Buffer::create(staging_buffer_info);
+        staging_buffer_info.name = "staging_post_fx";
         asset.staging_post_fx = vierkant::Buffer::create(staging_buffer_info);
 
         asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());

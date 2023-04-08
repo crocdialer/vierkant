@@ -24,6 +24,7 @@ public:
         VkBufferUsageFlags usage = 0;
         VmaMemoryUsage mem_usage = VMA_MEMORY_USAGE_UNKNOWN;
         VmaPoolPtr pool;
+        std::string name;
     };
 
     /**
@@ -38,11 +39,7 @@ public:
     static VmaPoolPtr create_pool(const DevicePtr &device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
                                   VmaPoolCreateInfo pool_create_info = {});
 
-    static BufferPtr create(const create_info_t &create_info)
-    {
-        return create(create_info.device, create_info.data, create_info.num_bytes, create_info.usage,
-                      create_info.mem_usage, create_info.pool);
-    };
+    static BufferPtr create(const create_info_t &create_info);
 
     static BufferPtr create(DevicePtr device, const void *data, size_t num_bytes,
                             VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
@@ -159,7 +156,9 @@ private:
 
     VmaPoolPtr m_pool = nullptr;
 
-    Buffer(DevicePtr the_device, VkBufferUsageFlags the_usage_flags, VmaMemoryUsage mem_usage, VmaPoolPtr pool);
+    std::string m_name;
+
+    Buffer(const create_info_t &create_info);
 };
 
 }//namespace vulkan

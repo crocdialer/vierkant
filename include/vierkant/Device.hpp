@@ -184,6 +184,15 @@ public:
      */
     void insert_label(VkQueue queue, const debug_label_t &label);
 
+    /**
+     * @brief   set_object_name can be used to set a name for an object.
+     *
+     * @param   handle  an arbitrary vulkan-handle
+     * @param   type    an object-type identifier
+     * @param   name    a name to use for this object
+     */
+    void set_object_name(VkDeviceAddress handle, VkObjectType type, const std::string &name);
+
 private:
     explicit Device(const create_info_t &create_info);
 
@@ -220,6 +229,7 @@ private:
     PFN_vkQueueBeginDebugUtilsLabelEXT vkQueueBeginDebugUtilsLabelEXT = nullptr;
     PFN_vkQueueEndDebugUtilsLabelEXT vkQueueEndDebugUtilsLabelEXT = nullptr;
     PFN_vkQueueInsertDebugUtilsLabelEXT vkQueueInsertDebugUtilsLabelEXT = nullptr;
+    PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT = nullptr;
 };
 
 }// namespace vierkant

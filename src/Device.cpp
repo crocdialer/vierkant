@@ -347,6 +347,8 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
                 vkGetDeviceProcAddr(m_device, "vkQueueEndDebugUtilsLabelEXT"));
         vkQueueInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueInsertDebugUtilsLabelEXT>(
                 vkGetDeviceProcAddr(m_device, "vkQueueInsertDebugUtilsLabelEXT"));
+        vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
+                vkGetDeviceProcAddr(m_device, "vkSetDebugUtilsObjectNameEXT"));
     }
 }
 
@@ -450,6 +452,18 @@ void Device::insert_label(VkQueue queue, const debug_label_t &label)
         *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
         debug_label.pLabelName = label.text.c_str();
         vkQueueInsertDebugUtilsLabelEXT(queue, &debug_label);
+    }
+}
+void Device::set_object_name(VkDeviceAddress handle, VkObjectType type, const std::string &name)
+{
+    if(vkSetDebugUtilsObjectNameEXT)
+    {
+        VkDebugUtilsObjectNameInfoEXT object_name_info = {};
+        object_name_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        object_name_info.objectType = type;
+        object_name_info.objectHandle = handle;
+        object_name_info.pObjectName = name.c_str();
+        vkSetDebugUtilsObjectNameEXT(m_device, &object_name_info);
     }
 }
 

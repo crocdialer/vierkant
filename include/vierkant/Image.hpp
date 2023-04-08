@@ -60,6 +60,7 @@ public:
         VmaMemoryUsage memory_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         VmaPoolPtr memory_pool = nullptr;
         VkCommandBuffer initial_cmd_buffer = VK_NULL_HANDLE;
+        std::string name;
 
         bool operator==(const Format &other) const;
 

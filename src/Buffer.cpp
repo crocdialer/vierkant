@@ -1,18 +1,16 @@
 #include "vierkant/Buffer.hpp"
 
-namespace vierkant {
+#include <utility>
+
+namespace vierkant
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void copy_to_helper(const DevicePtr &device,
-                    Buffer *src,
-                    Buffer *dst,
-                    VkCommandBuffer cmd_handle = VK_NULL_HANDLE,
-                    size_t src_offset = 0,
-                    size_t dst_offset = 0,
-                    size_t num_bytes = 0)
+void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommandBuffer cmd_handle = VK_NULL_HANDLE,
+                    size_t src_offset = 0, size_t dst_offset = 0, size_t num_bytes = 0)
 {
-    if(!num_bytes){ num_bytes = src->num_bytes(); }
+    if(!num_bytes) { num_bytes = src->num_bytes(); }
 
     assert(src_offset + num_bytes <= src->num_bytes());
 
@@ -50,9 +48,7 @@ void copy_to_helper(const DevicePtr &device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VmaPoolPtr Buffer::create_pool(const DevicePtr& device,
-                               VkBufferUsageFlags usage_flags,
-                               VmaMemoryUsage mem_usage,
+VmaPoolPtr Buffer::create_pool(const DevicePtr &device, VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
                                VmaPoolCreateInfo pool_create_info)
 {
     VkBufferCreateInfo dummy_buf_create_info = {};
@@ -78,25 +74,34 @@ VmaPoolPtr Buffer::create_pool(const DevicePtr& device,
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BufferPtr
-Buffer::create(DevicePtr device, const void *data, size_t num_bytes, VkBufferUsageFlags usage_flags,
-               VmaMemoryUsage mem_usage, VmaPoolPtr pool)
+BufferPtr Buffer::create(const create_info_t &create_info)
 {
-    auto ret = BufferPtr(new Buffer(std::move(device), usage_flags, mem_usage, std::move(pool)));
+    auto ret = BufferPtr(new Buffer(create_info));
+    ret->set_data(create_info.data, create_info.num_bytes);
+    return ret;
+}
+
+BufferPtr Buffer::create(DevicePtr device, const void *data, size_t num_bytes, VkBufferUsageFlags usage_flags,
+                         VmaMemoryUsage mem_usage, VmaPoolPtr pool)
+{
+    Buffer::create_info_t info = {};
+    info.device = std::move(device);
+    info.data = data;
+    info.num_bytes = num_bytes;
+    info.usage = usage_flags;
+    info.mem_usage = mem_usage;
+    info.pool = std::move(pool);
+    auto ret = BufferPtr(new Buffer(info));
     ret->set_data(data, num_bytes);
     return ret;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Buffer::Buffer(DevicePtr the_device, uint32_t the_usage_flags, VmaMemoryUsage mem_usage, VmaPoolPtr pool) :
-        m_device(std::move(the_device)),
-        m_usage(the_usage_flags),
-        m_mem_usage(mem_usage),
-        m_pool(std::move(pool))
-{
-
-}
+Buffer::Buffer(const create_info_t &create_info)
+    : m_device(create_info.device), m_usage(create_info.usage), m_mem_usage(create_info.mem_usage),
+      m_pool(create_info.pool), m_name(create_info.name)
+{}
 
 Buffer::~Buffer()
 {
@@ -104,7 +109,7 @@ Buffer::~Buffer()
     unmap();
 
     // destroy buffer
-    if(m_buffer){ vmaDestroyBuffer(m_device->vk_mem_allocator(), m_buffer, m_allocation); }
+    if(m_buffer) { vmaDestroyBuffer(m_device->vk_mem_allocator(), m_buffer, m_allocation); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -119,7 +124,7 @@ bool Buffer::is_host_visible() const
 
 void *Buffer::map()
 {
-    if(m_mapped_data){ return m_mapped_data; }
+    if(m_mapped_data) { return m_mapped_data; }
     else if(is_host_visible() && vmaMapMemory(m_device->vk_mem_allocator(), m_allocation, &m_mapped_data) == VK_SUCCESS)
     {
         return m_mapped_data;
@@ -140,28 +145,19 @@ void Buffer::unmap()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkBuffer Buffer::handle() const
-{
-    return m_buffer;
-}
+VkBuffer Buffer::handle() const { return m_buffer; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkBufferUsageFlags Buffer::usage_flags() const
-{
-    return m_usage;
-}
+VkBufferUsageFlags Buffer::usage_flags() const { return m_usage; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-size_t Buffer::num_bytes() const
-{
-    return m_num_bytes;
-}
+size_t Buffer::num_bytes() const { return m_num_bytes; }
 
 void Buffer::set_data(const void *data, size_t num_bytes)
 {
-    if(!num_bytes){ return; }
+    if(!num_bytes) { return; }
 
     if(m_num_bytes < num_bytes)
     {
@@ -176,7 +172,7 @@ void Buffer::set_data(const void *data, size_t num_bytes)
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         buffer_info.size = num_bytes;
         buffer_info.usage = m_usage;
-        if(!is_host_visible() && data){ buffer_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT; }
+        if(!is_host_visible() && data) { buffer_info.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT; }
         buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
         VmaAllocationCreateInfo alloc_info = {};
@@ -185,6 +181,9 @@ void Buffer::set_data(const void *data, size_t num_bytes)
 
         vmaCreateBuffer(m_device->vk_mem_allocator(), &buffer_info, &alloc_info, &m_buffer, &m_allocation,
                         &m_allocation_info);
+
+        //! set optional name for debugging
+        if(!m_name.empty()) { m_device->set_object_name(uint64_t(m_buffer), VK_OBJECT_TYPE_BUFFER, m_name); }
 
         // the actually allocated num_bytes might be bigger
         m_num_bytes = num_bytes;
@@ -207,7 +206,8 @@ void Buffer::set_data(const void *data, size_t num_bytes)
         {
             memcpy(buf_data, data, num_bytes);
             unmap();
-        }else
+        }
+        else
         {
             // create staging buffer
             auto staging_buffer = Buffer::create(m_device, data, num_bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -221,13 +221,10 @@ void Buffer::set_data(const void *data, size_t num_bytes)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Buffer::copy_to(const BufferPtr& dst,
-                     VkCommandBuffer cmdBufferHandle,
-                     size_t src_offset,
-                     size_t dst_offset,
+void Buffer::copy_to(const BufferPtr &dst, VkCommandBuffer cmdBufferHandle, size_t src_offset, size_t dst_offset,
                      size_t num_bytes)
 {
     copy_to_helper(m_device, this, dst.get(), cmdBufferHandle, src_offset, dst_offset, num_bytes);
 }
 
-}//namespace vulkan
+}// namespace vierkant

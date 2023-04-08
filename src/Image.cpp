@@ -2,10 +2,10 @@
 // Created by crocdialer on 10/2/18.
 //
 
-#include "vierkant/hash.hpp"
-#include "vierkant/CommandBuffer.hpp"
-#include "vierkant/Buffer.hpp"
 #include "vierkant/Image.hpp"
+#include "vierkant/Buffer.hpp"
+#include "vierkant/CommandBuffer.hpp"
+#include "vierkant/hash.hpp"
 
 namespace vierkant
 {
@@ -18,17 +18,17 @@ VkDeviceSize num_bytes(VkFormat format)
     {
         case VK_FORMAT_BC7_UNORM_BLOCK:
         case VK_FORMAT_BC7_SRGB_BLOCK:
-        case VK_FORMAT_R8_UNORM:return 1;
+        case VK_FORMAT_R8_UNORM: return 1;
 
-        case VK_FORMAT_R8G8B8A8_UNORM:return 4;
-        case VK_FORMAT_R8G8B8_UNORM:return 3;
-        case VK_FORMAT_R32G32B32A32_SFLOAT:return 16;
-        case VK_FORMAT_R32G32B32_SFLOAT:return 12;
-        case VK_FORMAT_R32_SFLOAT:return 4;
-        case VK_FORMAT_R16_SFLOAT:return 2;
-        case VK_FORMAT_R16G16B16A16_SFLOAT:return 8;
-        case VK_FORMAT_R16G16B16_SFLOAT:return 6;
-        default:throw std::runtime_error("num_bytes: format not handled");
+        case VK_FORMAT_R8G8B8A8_UNORM: return 4;
+        case VK_FORMAT_R8G8B8_UNORM: return 3;
+        case VK_FORMAT_R32G32B32A32_SFLOAT: return 16;
+        case VK_FORMAT_R32G32B32_SFLOAT: return 12;
+        case VK_FORMAT_R32_SFLOAT: return 4;
+        case VK_FORMAT_R16_SFLOAT: return 2;
+        case VK_FORMAT_R16G16B16A16_SFLOAT: return 8;
+        case VK_FORMAT_R16G16B16_SFLOAT: return 6;
+        default: throw std::runtime_error("num_bytes: format not handled");
     }
 }
 
@@ -36,20 +36,16 @@ VkDeviceSize num_bytes(VkIndexType index_type)
 {
     switch(index_type)
     {
-        case VK_INDEX_TYPE_UINT16:return 2;
-        case VK_INDEX_TYPE_UINT32:return 4;
-        default:return 0;
+        case VK_INDEX_TYPE_UINT16: return 2;
+        case VK_INDEX_TYPE_UINT32: return 4;
+        default: return 0;
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void transition_image_layout(VkCommandBuffer command_buffer,
-                             VkImage image,
-                             VkImageLayout old_layout,
-                             VkImageLayout new_layout,
-                             uint32_t num_layers,
-                             uint32_t num_mip_levels,
+void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout,
+                             VkImageLayout new_layout, uint32_t num_layers, uint32_t num_mip_levels,
                              VkImageAspectFlags aspectMask)
 {
     VkImageMemoryBarrier2 barrier = {};
@@ -69,26 +65,31 @@ void transition_image_layout(VkCommandBuffer command_buffer,
 
     switch(old_layout)
     {
-        case VK_IMAGE_LAYOUT_UNDEFINED:barrier.srcAccessMask = VK_ACCESS_2_NONE;
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+            barrier.srcAccessMask = VK_ACCESS_2_NONE;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
             break;
 
             // TODO: check if this makes sense
-        case VK_IMAGE_LAYOUT_GENERAL:barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_GENERAL:
+            barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
             barrier.srcStageMask =
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
             break;
 
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             break;
 
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
+            barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             break;
 
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             break;
 
@@ -107,20 +108,22 @@ void transition_image_layout(VkCommandBuffer command_buffer,
                 barrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
             }
         }
-            break;
+        break;
 
-        default:break;
+        default: break;
     }
 
     switch(new_layout)
     {
-        case VK_IMAGE_LAYOUT_GENERAL:barrier.dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-            barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-                                   VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+        case VK_IMAGE_LAYOUT_GENERAL:
+            barrier.dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+            barrier.dstStageMask =
+                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
             break;
 
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+        case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
+            barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             break;
 
@@ -141,15 +144,18 @@ void transition_image_layout(VkCommandBuffer command_buffer,
             break;
         }
 
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             break;
 
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             break;
 
-        default:barrier.dstAccessMask = VK_ACCESS_2_NONE;
+        default:
+            barrier.dstAccessMask = VK_ACCESS_2_NONE;
             barrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
             break;
     }
@@ -195,7 +201,7 @@ VmaPoolPtr Image::create_pool(const DevicePtr &device, const Image::Format &form
     vmaCreatePool(device->vk_mem_allocator(), &pool_create_info, &pool);
 
     // return self-destructing VmaPoolPtr
-    return {pool, [device](VmaPool p){ vmaDestroyPool(device->vk_mem_allocator(), p); }};
+    return {pool, [device](VmaPool p) { vmaDestroyPool(device->vk_mem_allocator(), p); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -221,9 +227,8 @@ ImagePtr Image::create(DevicePtr device, const VkImagePtr &shared_image, Format 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format) :
-        m_device(std::move(device)),
-        m_format(std::move(format))
+Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format)
+    : m_device(std::move(device)), m_format(std::move(format))
 {
     init(data, shared_image);
 }
@@ -232,8 +237,8 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
 
 Image::~Image()
 {
-    if(m_sampler){ vkDestroySampler(m_device->handle(), m_sampler, nullptr); }
-    if(m_image_view){ vkDestroyImageView(m_device->handle(), m_image_view, nullptr); }
+    if(m_sampler) { vkDestroySampler(m_device->handle(), m_sampler, nullptr); }
+    if(m_image_view) { vkDestroyImageView(m_device->handle(), m_image_view, nullptr); }
 
     for(uint32_t i = 0; i < m_num_mip_levels; ++i)
     {
@@ -255,7 +260,7 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
     VkImageUsageFlags img_usage = m_format.usage;
 
     // we expect a transfer
-    if(data){ img_usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT; }
+    if(data) { img_usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT; }
 
     m_num_mip_levels = 1;
 
@@ -266,7 +271,7 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
 
         // BC7 has blocks >= 4 pixels and thus 2 levels less
         bool compressed = m_format.format == VK_FORMAT_BC7_UNORM_BLOCK || m_format.format == VK_FORMAT_BC7_SRGB_BLOCK;
-        if(compressed){ m_num_mip_levels = std::max(static_cast<int32_t>(m_num_mip_levels) - 2, 1); }
+        if(compressed) { m_num_mip_levels = std::max(static_cast<int32_t>(m_num_mip_levels) - 2, 1); }
 
         // in order to generate mipmaps we need to be able to transfer from base mip-level
         img_usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -306,21 +311,18 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
         vmaCreateImage(m_device->vk_mem_allocator(), &image_create_info, &alloc_info, &image, &m_allocation,
                        &m_allocation_info);
 
-        m_image = VkImagePtr(image, [this](VkImage img)
-        {
-            vmaDestroyImage(m_device->vk_mem_allocator(), img, m_allocation);
-        });
+        // debug name
+        if(!m_format.name.empty()) { m_device->set_object_name(uint64_t(image), VK_OBJECT_TYPE_IMAGE, m_format.name); }
+        m_image = VkImagePtr(image,
+                             [this](VkImage img) { vmaDestroyImage(m_device->vk_mem_allocator(), img, m_allocation); });
     }
 
     ////////////////////////////////////////// copy contents ///////////////////////////////////////////////////////////
 
     if(data)
     {
-        auto staging_buffer = Buffer::create(m_device, data,
-                                             width() * height() * depth() *
-                                             num_bytes(m_format.format),
-                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                             VMA_MEMORY_USAGE_CPU_ONLY);
+        auto staging_buffer = Buffer::create(m_device, data, width() * height() * depth() * num_bytes(m_format.format),
+                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
         // copy and sync with local commandbuffer
         copy_from(staging_buffer);
@@ -423,27 +425,19 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
             localCommandBuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
             cmd_buffer = localCommandBuffer.handle();
         }
-        transition_image_layout(cmd_buffer, m_image.get(), m_image_layout, new_layout,
-                                m_format.num_layers, m_num_mip_levels, m_format.aspect);
+        transition_image_layout(cmd_buffer, m_image.get(), m_image_layout, new_layout, m_format.num_layers,
+                                m_num_mip_levels, m_format.aspect);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
-        if(localCommandBuffer)
-        {
-            localCommandBuffer.submit(m_device->queue(), true);
-        }
+        if(localCommandBuffer) { localCommandBuffer.submit(m_device->queue(), true); }
         m_image_layout = new_layout;
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_from(const BufferPtr &src,
-                      VkCommandBuffer cmd_buffer_handle,
-                      size_t buf_offset,
-                      VkOffset3D img_offset,
-                      VkExtent3D extent,
-                      uint32_t layer,
-                      uint32_t level)
+void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle, size_t buf_offset, VkOffset3D img_offset,
+                      VkExtent3D extent, uint32_t layer, uint32_t level)
 {
     if(src)
     {
@@ -487,28 +481,20 @@ void Image::copy_from(const BufferPtr &src,
         vkCmdCopyBufferToImage2(cmd_buffer_handle, &copy_info);
 
         // generate new mipmaps after copying
-        if(m_format.use_mipmap && m_format.autogenerate_mipmaps){ generate_mipmaps(cmd_buffer_handle); }
+        if(m_format.use_mipmap && m_format.autogenerate_mipmaps) { generate_mipmaps(cmd_buffer_handle); }
 
-        if(localCommandBuffer)
-        {
-            localCommandBuffer.submit(m_device->queue(), true);
-        }
+        if(localCommandBuffer) { localCommandBuffer.submit(m_device->queue(), true); }
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_to(const BufferPtr &dst,
-                    VkCommandBuffer command_buffer,
-                    size_t buf_offset,
-                    VkOffset3D img_offset,
-                    VkExtent3D extent,
-                    uint32_t layer,
-                    uint32_t level)
+void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, size_t buf_offset, VkOffset3D img_offset,
+                    VkExtent3D extent, uint32_t layer, uint32_t level)
 {
     if(dst)
     {
-        if(!extent.width || !extent.height || !extent.depth){ extent = m_format.extent; }
+        if(!extent.width || !extent.height || !extent.depth) { extent = m_format.extent; }
 
         // assure dst buffer has correct size, no-op if already the case
         dst->set_data(nullptr, num_bytes(m_format.format) * extent.width * extent.height * extent.depth);
@@ -545,24 +531,18 @@ void Image::copy_to(const BufferPtr &dst,
         copy_info.dstBuffer = dst->handle();
         vkCmdCopyImageToBuffer2(command_buffer, &copy_info);
 
-        if(local_command_buffer)
-        {
-            local_command_buffer.submit(m_device->queue(), true);
-        }
+        if(local_command_buffer) { local_command_buffer.submit(m_device->queue(), true); }
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::copy_to(const ImagePtr &dst,
-                    VkCommandBuffer command_buffer,
-                    VkOffset3D src_offset,
-                    VkOffset3D dst_offset,
+void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffset3D src_offset, VkOffset3D dst_offset,
                     VkExtent3D extent)
 {
     if(dst)
     {
-        if(!extent.width || !extent.height || !extent.depth){ extent = m_format.extent; }
+        if(!extent.width || !extent.height || !extent.depth) { extent = m_format.extent; }
 
         vierkant::CommandBuffer local_command_buffer;
 
@@ -607,7 +587,7 @@ void Image::copy_to(const ImagePtr &dst,
         // actual copy command
         vkCmdCopyImage2(command_buffer, &copy_info);
 
-        if(local_command_buffer){ local_command_buffer.submit(m_device->queue(), true); }
+        if(local_command_buffer) { local_command_buffer.submit(m_device->queue(), true); }
     }
 }
 
@@ -724,10 +704,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
     vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 
-    if(local_command_buffer)
-    {
-        local_command_buffer.submit(m_device->queue(), true);
-    }
+    if(local_command_buffer) { local_command_buffer.submit(m_device->queue(), true); }
     m_image_layout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
 }
 
@@ -735,33 +712,34 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
 bool Image::Format::operator==(const Image::Format &other) const
 {
-    if(aspect != other.aspect){ return false; }
-    if(format != other.format){ return false; }
-    if(memcmp(&extent, &other.extent, sizeof(VkExtent3D)) != 0){ return false; }
-    if(initial_layout != other.initial_layout){ return false; }
-    if(tiling != other.tiling){ return false; }
-    if(image_type != other.image_type){ return false; }
-    if(sharing_mode != other.sharing_mode){ return false; }
-    if(view_type != other.view_type){ return false; }
-    if(usage != other.usage){ return false; }
-    if(address_mode_u != other.address_mode_u){ return false; }
-    if(address_mode_v != other.address_mode_v){ return false; }
-    if(address_mode_w != other.address_mode_w){ return false; }
-    if(min_filter != other.min_filter){ return false; }
-    if(mag_filter != other.mag_filter){ return false; }
-    if(reduction_mode != other.reduction_mode){ return false; }
-    if(memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) != 0){ return false; }
-    if(max_anisotropy != other.max_anisotropy){ return false; }
-    if(initial_layout_transition != other.initial_layout_transition){ return false; }
-    if(use_mipmap != other.use_mipmap){ return false; }
-    if(autogenerate_mipmaps != other.autogenerate_mipmaps){ return false; }
-    if(mipmap_mode != other.mipmap_mode){ return false; }
-    if(normalized_coords != other.normalized_coords){ return false; }
-    if(sample_count != other.sample_count){ return false; }
-    if(num_layers != other.num_layers){ return false; }
-    if(memory_usage != other.memory_usage){ return false; }
-    if(memory_pool != other.memory_pool){ return false; }
-    if(initial_cmd_buffer != other.initial_cmd_buffer){ return false; }
+    if(aspect != other.aspect) { return false; }
+    if(format != other.format) { return false; }
+    if(memcmp(&extent, &other.extent, sizeof(VkExtent3D)) != 0) { return false; }
+    if(initial_layout != other.initial_layout) { return false; }
+    if(tiling != other.tiling) { return false; }
+    if(image_type != other.image_type) { return false; }
+    if(sharing_mode != other.sharing_mode) { return false; }
+    if(view_type != other.view_type) { return false; }
+    if(usage != other.usage) { return false; }
+    if(address_mode_u != other.address_mode_u) { return false; }
+    if(address_mode_v != other.address_mode_v) { return false; }
+    if(address_mode_w != other.address_mode_w) { return false; }
+    if(min_filter != other.min_filter) { return false; }
+    if(mag_filter != other.mag_filter) { return false; }
+    if(reduction_mode != other.reduction_mode) { return false; }
+    if(memcmp(&component_swizzle, &other.component_swizzle, sizeof(VkComponentMapping)) != 0) { return false; }
+    if(max_anisotropy != other.max_anisotropy) { return false; }
+    if(initial_layout_transition != other.initial_layout_transition) { return false; }
+    if(use_mipmap != other.use_mipmap) { return false; }
+    if(autogenerate_mipmaps != other.autogenerate_mipmaps) { return false; }
+    if(mipmap_mode != other.mipmap_mode) { return false; }
+    if(normalized_coords != other.normalized_coords) { return false; }
+    if(sample_count != other.sample_count) { return false; }
+    if(num_layers != other.num_layers) { return false; }
+    if(memory_usage != other.memory_usage) { return false; }
+    if(memory_pool != other.memory_pool) { return false; }
+    if(initial_cmd_buffer != other.initial_cmd_buffer) { return false; }
+    if(name != other.name) { return false; }
     return true;
 }
 
@@ -804,5 +782,6 @@ size_t std::hash<vierkant::Image::Format>::operator()(vierkant::Image::Format co
     hash_combine(h, fmt.memory_usage);
     hash_combine(h, fmt.memory_pool);
     hash_combine(h, fmt.initial_cmd_buffer);
+    hash_combine(h, fmt.name);
     return h;
 }

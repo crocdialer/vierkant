@@ -19,6 +19,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     color_format.format = VK_FORMAT_R8G8B8A8_UNORM;
     color_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     color_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    color_format.name = "albedo";
     g_buffer_attachments[G_BUFFER_ALBEDO] = vierkant::Image::create(device, color_format);
     g_buffer_attachments[G_BUFFER_AO_ROUGH_METAL] = vierkant::Image::create(device, color_format);
 
@@ -28,6 +29,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     emission_format.format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
     emission_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     emission_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    emission_format.name = "emission";
     g_buffer_attachments[G_BUFFER_EMISSION] = vierkant::Image::create(device, emission_format);
 
     // normals
@@ -36,6 +38,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     normal_format.format = VK_FORMAT_R16G16B16A16_SFLOAT;
     normal_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     normal_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    normal_format.name = "normals";
     g_buffer_attachments[G_BUFFER_NORMAL] = vierkant::Image::create(device, normal_format);
 
     // motion
@@ -43,7 +46,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     motion_format.extent = extent;
     motion_format.format = VK_FORMAT_R16G16_SFLOAT;
     motion_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    motion_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    motion_format.name = "motion";
     g_buffer_attachments[G_BUFFER_MOTION] = vierkant::Image::create(device, motion_format);
 
     vierkant::attachment_map_t attachments;
@@ -58,6 +61,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     depth_attachment_format.usage =
             VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
     depth_attachment_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    depth_attachment_format.name = "depth";
     attachments[AttachmentType::DepthStencil] = {vierkant::Image::create(device, depth_attachment_format)};
 
     auto ret = vierkant::Framebuffer(device, attachments, renderpass);
