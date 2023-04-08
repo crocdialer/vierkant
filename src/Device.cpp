@@ -230,14 +230,11 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {};
     ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
 
-    if(create_info.use_raytracing)
-    {
-        // append to pNext-chain
-        *last_pNext = &acceleration_structure_features;
-        acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
-        ray_tracing_pipeline_features.pNext = &ray_query_features;
-        last_pNext = &ray_query_features.pNext;
-    }
+    // append to pNext-chain
+    *last_pNext = &acceleration_structure_features;
+    acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
+    ray_tracing_pipeline_features.pNext = &ray_query_features;
+    last_pNext = &ray_query_features.pNext;
 
     //------------------------------------ mesh-shader feature ---------------------------------------------------------
     VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader_features = {};
@@ -263,13 +260,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     query_features.pNext = &device_features_11;
     vkGetPhysicalDeviceFeatures2(m_physical_device, &query_features);
 
-    // check availability
-    bool ray_features_available = acceleration_structure_features.accelerationStructure &&
-                                  ray_tracing_pipeline_features.rayTracingPipeline && ray_query_features.rayQuery;
-
-    bool mesh_shader_available = mesh_shader_features.meshShader && mesh_shader_features.taskShader;
-    if(ray_features_available) { last_pNext = &ray_query_features.pNext; }
-    if(mesh_shader_available) { last_pNext = &mesh_shader_features.pNext; }
     *last_pNext = create_info.create_device_pNext;
 
     VkDeviceCreateInfo device_create_info = {};

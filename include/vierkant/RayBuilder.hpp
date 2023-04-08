@@ -149,6 +149,9 @@ public:
         std::vector<acceleration_asset_ptr> update_assets = {};
     };
 
+    //! return an array listing required device-extensions for raytracing-accelration structures.
+    static std::vector<const char *> required_extensions();
+
     RayBuilder() = default;
 
     explicit RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool = nullptr);

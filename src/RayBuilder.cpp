@@ -16,6 +16,11 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
     return ret;
 }
 
+std::vector<const char *> RayBuilder::required_extensions()
+{
+    return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
+}
+
 RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool)
     : m_device(device), m_queue(queue), m_memory_pool(std::move(pool))
 {

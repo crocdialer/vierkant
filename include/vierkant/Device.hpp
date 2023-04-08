@@ -47,9 +47,6 @@ public:
         //! use debug_utils extension
         bool debug_labels = false;
 
-        //! enable raytracing device-features
-        bool use_raytracing = false;
-
         //! optional VkSurface
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 

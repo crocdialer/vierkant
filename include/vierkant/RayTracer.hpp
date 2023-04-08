@@ -44,7 +44,7 @@ public:
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
     };
 
-    //! return an array listing all required device-extensions for a raytracing-pipeline.
+    //! return an array listing required device-extensions for a raytracing-pipeline.
     static std::vector<const char *> required_extensions();
 
     RayTracer() = default;

@@ -23,7 +23,6 @@ public:
         VkResult result = VK_ERROR_UNKNOWN;
         VkSemaphore image_available = VK_NULL_HANDLE;
         VkSemaphore render_finished = VK_NULL_HANDLE;
-        VkFence image_fence = VK_NULL_HANDLE;
     };
 
     SwapChain() = default;
