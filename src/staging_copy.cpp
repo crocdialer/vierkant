@@ -19,7 +19,7 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
     context.staging_buffer->set_data(nullptr, num_staging_bytes);
 
     std::vector<VkBufferMemoryBarrier2> barriers;
-    std::set<vierkant::Buffer *> buffer_set;
+    std::map<vierkant::Buffer*, std::vector<VkBufferCopy2>> buffer_copies;
 
     for(const auto &info: staging_copy_infos)
     {
@@ -33,15 +33,17 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
         // resize if necessary
         info.dst_buffer->set_data(nullptr, info.num_bytes);
 
-        // issue copy from staging-buffer to GPU-buffer
-        context.staging_buffer->copy_to(info.dst_buffer, context.command_buffer, context.offset, info.dst_offset,
-                                        info.num_bytes);
+        VkBufferCopy2 copy_region = {};
+        copy_region.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
+        copy_region.size = info.num_bytes;
+        copy_region.srcOffset = context.offset;
+        copy_region.dstOffset = info.dst_offset;
+        buffer_copies[info.dst_buffer.get()].push_back(copy_region);
+
         context.offset += info.num_bytes;
 
-        if(info.dst_stage && info.dst_access && !buffer_set.contains(info.dst_buffer.get()))
+        if(info.dst_stage && info.dst_access && !buffer_copies.contains(info.dst_buffer.get()))
         {
-            buffer_set.insert(info.dst_buffer.get());
-
             VkBufferMemoryBarrier2 barrier = {};
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
             barrier.buffer = info.dst_buffer->handle();
@@ -54,6 +56,17 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
             barrier.dstAccessMask = info.dst_access;
             barriers.push_back(barrier);
         }
+    }
+
+    for(const auto &[buf, copies] : buffer_copies)
+    {
+        VkCopyBufferInfo2 copy_info2 = {};
+        copy_info2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
+        copy_info2.srcBuffer = context.staging_buffer->handle();
+        copy_info2.dstBuffer = buf->handle();
+        copy_info2.regionCount = copies.size();
+        copy_info2.pRegions = copies.data();
+        vkCmdCopyBuffer2(context.command_buffer, &copy_info2);
     }
 
     if(!barriers.empty())
