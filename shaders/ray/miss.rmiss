@@ -73,19 +73,19 @@ vec2 march(Ray ray)
 // low-life skycolor routine
 vec3 sky_color(vec3 direction)
 {
+    // sun angular diameter
+    const float sun_angle =  0.524167 *  PI / 180.0;
+    const vec3 sun_color = vec3(1.0, 0.5, 0.1);
+    const float sun_intensity = 60.0;
     const vec3 color_up = vec3(0.25f, 0.5f, 1.0f) * 1;
 
-    vec3 col = mix(vec3(0.9f), color_up, abs(direction.y));
+    vec3 col = mix(vec3(0.9f), color_up, max(vec3(0), direction.y));
 
     const vec3 sun_dir = normalize(vec3(.4, 1.0, 0.7));
     float sun = clamp(dot(direction, sun_dir), 0.0, 1.0);
 
-    // sun angular diameter
-    const float sun_angle =  0.524167 *  PI / 180.0;
-    const vec3 sun_color = vec3(1.0, 0.5, 0.1);
-    col += cos(sun_angle) < sun ? 60 * sun_color : vec3(0);
-
-    return col;
+    col += cos(sun_angle) < sun ? sun_intensity * sun_color : vec3(0);
+    return max(vec3(0.0), col);
 }
 
 void main()
@@ -99,8 +99,9 @@ void main()
     vec3 p = payload.ray.origin + payload.ray.direction * d;
     vec3 n = calc_normal(p, 0.0);
 
-    vec3 col = d < 10.0 ? mix(sky_color(reflect(payload.ray.direction, n)), n / 2.0 + .5 + vec3(0.04), 0.99) :
-                                  sky_color(payload.ray.direction);
+//    vec3 col = d < 10.0 ? mix(sky_color(reflect(payload.ray.direction, n)), n / 2.0 + .5 + vec3(0.04), 0.99) :
+//                                  sky_color(payload.ray.direction);
 
+    vec3 col = sky_color(payload.ray.direction);
     payload.radiance += ubo.environment_factor * payload.beta * col;//sky_color(payload.ray.direction);
 }
