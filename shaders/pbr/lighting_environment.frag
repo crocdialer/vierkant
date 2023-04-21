@@ -24,11 +24,12 @@ layout(std140, binding = 0) uniform ubo_t
 #define NORMAL 1
 #define EMISSION 2
 #define AO_ROUGH_METAL 3
-#define MOTION 4
-#define DEPTH 5
-#define BRDF_LUT 6
+#define OCCLUSION 4
+#define MOTION 5
+#define DEPTH 6
+#define BRDF_LUT 7
 
-layout(binding = 1) uniform sampler2D u_sampler_2D[7];
+layout(binding = 1) uniform sampler2D u_sampler_2D[8];
 
 #define ENV_DIFFUSE 0
 #define ENV_SPEC 1
@@ -93,8 +94,10 @@ void main()
     vec3 normal = normalize(texture(u_sampler_2D[NORMAL], vertex_in.tex_coord).xyz);
     vec3 ao_rough_metal = texture(u_sampler_2D[AO_ROUGH_METAL], vertex_in.tex_coord).rgb;
     vec3 emission = texture(u_sampler_2D[EMISSION], vertex_in.tex_coord).rgb;
+    float occlusion = texture(u_sampler_2D[OCCLUSION], vertex_in.tex_coord).x;
 
     vec3 env_color = compute_enviroment_lighting(V, normal, albedo.rgb, ao_rough_metal.g, ao_rough_metal.b, ao_rough_metal.r);
+    env_color *= occlusion;
 
     vec3 punctial_light_color = vec3(0);
 

@@ -390,37 +390,12 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
                     }
                 }
 
-                vierkant::DescriptorSetPtr descriptor_set, bindless_texture_set;
-
-                if(!frame_assets.descriptor_sets.contains(drawable->descriptors) &&
-                   !next_descriptor_sets.contains(drawable->descriptors))
-                {
-                    for(const auto &asset: m_frame_assets)
-                    {
-                        if(&asset != &frame_assets)
-                        {
-                            auto it = asset.descriptor_sets.find(drawable->descriptors);
-                            if(it != asset.descriptor_sets.end()) { descriptor_set = it->second; }
-                            auto bindless_it = asset.descriptor_sets.find(bindless_texture_desc);
-                            if(it != asset.descriptor_sets.end()) { bindless_texture_set = bindless_it->second; }
-                            if(descriptor_set && bindless_texture_set) { break; }
-                        }
-                    }
-                }
-
-                if(!descriptor_set)
-                {
-                    descriptor_set = vierkant::find_or_create_descriptor_set(
-                            m_device, indexed_drawable.descriptor_set_layout, drawable->descriptors, m_descriptor_pool,
-                            frame_assets.descriptor_sets, next_descriptor_sets, false);
-                }
-
-                if(!bindless_texture_set)
-                {
-                    bindless_texture_set = vierkant::find_or_create_descriptor_set(
-                            m_device, bindless_texture_layout, bindless_texture_desc, m_descriptor_pool,
-                            frame_assets.descriptor_sets, next_descriptor_sets, false);
-                }
+                auto descriptor_set = vierkant::find_or_create_descriptor_set(
+                        m_device, indexed_drawable.descriptor_set_layout, drawable->descriptors, m_descriptor_pool,
+                        frame_assets.descriptor_sets, next_descriptor_sets, false);
+                auto bindless_texture_set = vierkant::find_or_create_descriptor_set(
+                        m_device, bindless_texture_layout, bindless_texture_desc, m_descriptor_pool,
+                        frame_assets.descriptor_sets, next_descriptor_sets, false);
 
                 new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
 

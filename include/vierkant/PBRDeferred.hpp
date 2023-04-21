@@ -13,6 +13,7 @@
 #include <vierkant/GBuffer.hpp>
 #include <vierkant/culling.hpp>
 #include <vierkant/gpu_culling.hpp>
+#include <vierkant/ambient_occlusion.hpp>
 
 namespace vierkant
 {
@@ -65,6 +66,9 @@ public:
         float environment_factor = 1.f;
 
         //! use tonemapping
+        bool ambient_occlusion = false;
+
+        //! use tonemapping
         bool tonemap = true;
 
         //! use bloom
@@ -102,6 +106,7 @@ public:
         double culling_ms = 0.0;
         double g_buffer_post_ms = 0.0;
         double lighting_ms = 0.0;
+        double ambient_occlusion_ms = 0.0;
         double taa_ms = 0.0;
         double fxaa_ms = 0.0;
         double bloom_ms = 0.0;
@@ -196,6 +201,7 @@ private:
         DEPTH_PYRAMID,
         CULLING,
         G_BUFFER_ALL,
+        AMBIENT_OCCLUSION,
         LIGHTING,
         TAA,
         BLOOM,
@@ -275,6 +281,9 @@ private:
         // lighting
         vierkant::BufferPtr lighting_param_ubo;
         vierkant::BufferPtr lights_ubo;
+
+        // ambient occlusion
+        vierkant::ambient_occlusion_context_ptr ambient_occlusion_context;
 
         // tonemap
         vierkant::BufferPtr composition_ubo;

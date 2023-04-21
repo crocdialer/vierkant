@@ -250,6 +250,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("taa", &pbr_renderer->settings.use_taa);
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
     ImGui::SliderFloat("environment", &pbr_renderer->settings.environment_factor, 0.f, 5.f);
+    ImGui::Checkbox("ambient occlusion", &pbr_renderer->settings.ambient_occlusion);
     ImGui::Checkbox("tonemap", &pbr_renderer->settings.tonemap);
     ImGui::Checkbox("bloom", &pbr_renderer->settings.bloom);
     ImGui::Checkbox("motionblur", &pbr_renderer->settings.motionblur);
@@ -326,6 +327,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
             ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
             ImGui::BulletText("culling: %.3f ms", last.culling_ms);
             ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);
+            ImGui::BulletText("ambient_occlusion: %.3f ms", last.ambient_occlusion_ms);
             ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
             ImGui::BulletText("taa: %.3f ms", last.taa_ms);
             ImGui::BulletText("fxaa: %.3f ms", last.fxaa_ms);
