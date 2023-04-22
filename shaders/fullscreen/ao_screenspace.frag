@@ -81,10 +81,13 @@ float screenspace_occlusion(sampler2D depth_sampler, vec2 coord, vec3 eye_normal
 
 void main()
 {
+    // init random number generator.
+    uint rng_state = xxhash32(context.random_seed, uint(context.size.x * gl_FragCoord.y + gl_FragCoord.x));
+
     // bring normal from world- to eye-coords
     vec3 eye_normal = texture(u_sampler_2D[NORMAL], vertex_in.tex_coord).xyz;
     eye_normal = apply_rotation(ubo.view_transform, eye_normal);
 
     out_occlusion = screenspace_occlusion(u_sampler_2D[DEPTH], vertex_in.tex_coord, eye_normal, ubo.ssao_radius,
-                                          context.random_seed);
+                                          rng_state);
 }
