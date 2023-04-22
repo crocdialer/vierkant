@@ -25,6 +25,7 @@ layout(binding = 0, scalar) readonly buffer ParamsBuffer
     float near;
     float far;
     float ssao_radius;
+    uint random_seed;
 } ubo;
 
 layout(binding = 1) uniform sampler2D u_sampler_2D[2];
@@ -82,7 +83,7 @@ float screenspace_occlusion(sampler2D depth_sampler, vec2 coord, vec3 eye_normal
 void main()
 {
     // init random number generator.
-    uint rng_state = xxhash32(context.random_seed, uint(context.size.x * gl_FragCoord.y + gl_FragCoord.x));
+    uint rng_state = xxhash32(ubo.random_seed, uint(context.size.x * gl_FragCoord.y + gl_FragCoord.x));
 
     // bring normal from world- to eye-coords
     vec3 eye_normal = texture(u_sampler_2D[NORMAL], vertex_in.tex_coord).xyz;

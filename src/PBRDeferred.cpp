@@ -1213,8 +1213,9 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
         asset.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments);
 
         // resize ambient occlusion context
+        auto ao_resolution = glm::max(glm::vec2(asset.settings.resolution) / 2.f, glm::vec2(1.f));
         asset.ambient_occlusion_context =
-                vierkant::create_ambient_occlusion_context(m_device, asset.settings.resolution, m_pipeline_cache);
+                vierkant::create_ambient_occlusion_context(m_device, ao_resolution, m_pipeline_cache);
 
         m_logger->trace("internal resolution: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
                         resolution.y);

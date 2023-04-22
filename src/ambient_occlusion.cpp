@@ -21,26 +21,28 @@ struct ambient_occlusion_context_t
     vierkant::drawable_t drawable_ssao, drawable_rtao;
     vierkant::Framebuffer framebuffer;
     vierkant::Renderer renderer;
+    std::default_random_engine random_engine;
 };
 
 struct alignas(16) ssao_params_t
 {
-    glm::mat4 projection;
-    glm::mat4 inverse_projection;
+    glm::mat4 projection{};
+    glm::mat4 inverse_projection{};
     transform_t view_transform;
-    float near;
-    float far;
-    float ssao_radius;
+    float near = 0.f;
+    float far = 0.f;
+    float ssao_radius = 0.f;
+    uint32_t random_seed = 0;
 };
 
 struct alignas(16) rtao_params_t
 {
     transform_t camera_transform;
-    glm::mat4 inverse_projection;
-    float near;
-    float far;
-    uint32_t num_rays;
-    float max_distance;
+    glm::mat4 inverse_projection{};
+    float near{};
+    float far{};
+    uint32_t num_rays{};
+    float max_distance{};
 };
 
 ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::DevicePtr &device, const glm::vec2 &size,
@@ -128,6 +130,9 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
 vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &context,
                                      const ambient_occlusion_params_t &params)
 {
+    assert(context);
+    if(params.random_seed) { context->random_engine.seed(*params.random_seed); }
+
     // debug label
     context->device->begin_label(params.commandbuffer, {fmt::format("ambient_occlusion")});
 
@@ -163,12 +168,13 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
         drawable.descriptors[1].images = {params.depth_img, params.normal_img};
 
         ssao_params_t ssao_params = {};
-        ssao_params.near = params.near;
-        ssao_params.far = params.far;
         ssao_params.projection = params.projection;
         ssao_params.inverse_projection = glm::inverse(params.projection);
-        ssao_params.ssao_radius = params.max_distance;
         ssao_params.view_transform = vierkant::inverse(params.camera_transform);
+        ssao_params.near = params.near;
+        ssao_params.far = params.far;
+        ssao_params.ssao_radius = params.max_distance;
+        ssao_params.random_seed = context->random_engine();
 
         vierkant::staging_copy_info_t copy_params = {};
         copy_params.num_bytes = sizeof(ssao_params_t);

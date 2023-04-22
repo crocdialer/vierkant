@@ -26,6 +26,7 @@ struct ambient_occlusion_params_t
     vierkant::ImagePtr normal_img;
     vierkant::AccelerationStructurePtr top_level;
     VkCommandBuffer commandbuffer;
+    std::optional<uint32_t> random_seed;
 };
 
 ambient_occlusion_context_ptr
