@@ -251,6 +251,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     ImGui::Checkbox("fxaa", &pbr_renderer->settings.use_fxaa);
     ImGui::SliderFloat("environment", &pbr_renderer->settings.environment_factor, 0.f, 5.f);
     ImGui::Checkbox("ambient occlusion", &pbr_renderer->settings.ambient_occlusion);
+    ImGui::SliderFloat("max_ao_distance", &pbr_renderer->settings.max_ao_distance, 0.01f, 1.f);
     ImGui::Checkbox("tonemap", &pbr_renderer->settings.tonemap);
     ImGui::Checkbox("bloom", &pbr_renderer->settings.bloom);
     ImGui::Checkbox("motionblur", &pbr_renderer->settings.motionblur);

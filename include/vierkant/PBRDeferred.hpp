@@ -65,8 +65,11 @@ public:
         //! factor multiplied with environment-light
         float environment_factor = 1.f;
 
-        //! use tonemapping
+        //! use ambient occlusion
         bool ambient_occlusion = false;
+
+        //! factor multiplied with environment-light
+        float max_ao_distance = .1f;
 
         //! use tonemapping
         bool tonemap = true;

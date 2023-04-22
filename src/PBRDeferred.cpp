@@ -881,7 +881,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         ambient_occlusion_params.far = cull_result.camera->far();
         ambient_occlusion_params.normal_img = frame_asset.g_buffer_post.color_attachment(G_BUFFER_NORMAL);
         ambient_occlusion_params.depth_img = frame_asset.g_buffer_post.depth_attachment();
-        ambient_occlusion_params.max_distance = .02f;
+        ambient_occlusion_params.max_distance = frame_asset.settings.max_ao_distance;
         ambient_occlusion_params.num_rays = 5;
         ambient_occlusion_params.commandbuffer = frame_asset.cmd_lighting.handle();
         occlusion_img = vierkant::ambient_occlusion(frame_asset.ambient_occlusion_context, ambient_occlusion_params);
@@ -1349,6 +1349,7 @@ bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_
     if(lhs.use_taa != rhs.use_taa) { return false; }
     if(lhs.environment_factor != rhs.environment_factor) { return false; }
     if(lhs.ambient_occlusion != rhs.ambient_occlusion) { return false; }
+    if(lhs.max_ao_distance != rhs.max_ao_distance) { return false; }
     if(lhs.tonemap != rhs.tonemap) { return false; }
     if(lhs.bloom != rhs.bloom) { return false; }
     if(lhs.motionblur != rhs.motionblur) { return false; }
