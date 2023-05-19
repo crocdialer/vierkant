@@ -19,10 +19,8 @@ layout(set = 0, binding = 1) uniform sampler2D u_sampler_2D[2];
 
 layout(std140, binding = 2) uniform ubo_t
 {
-    transform_t camera_transform;
     mat4 inverse_projection;
-    float near;
-    float far;
+    transform_t camera_transform;
     uint num_rays;
     float max_distance;
 } ubo;

@@ -1,3 +1,6 @@
+#ifndef GAUSSIAN_BLUR_GLSL
+#define GAUSSIAN_BLUR_GLSL
+
 //! specialization constant for number of taps
 layout (constant_id = 0) const uint num_taps = 9;
 
@@ -37,3 +40,5 @@ vec4 gaussian_blur(in sampler2D the_texture, in vec2 tex_coord, in gaussian_ubo_
     }
     return color;
 }
+
+#endif // GAUSSIAN_BLUR_GLSL

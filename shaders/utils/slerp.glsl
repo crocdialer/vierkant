@@ -1,3 +1,6 @@
+#ifndef UTILS_SLERP_GLSL
+#define UTILS_SLERP_GLSL
+
 //! spherical linear interpolation
 vec3 slerp(vec3 x, vec3 y, float a)
 {
@@ -19,3 +22,5 @@ vec3 slerp(vec3 x, vec3 y, float a)
     // interpolate src vectors
     return x * t1 + y * t2;
 }
+
+#endif // UTILS_SLERP_GLSL

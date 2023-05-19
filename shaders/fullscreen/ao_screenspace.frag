@@ -22,8 +22,6 @@ layout(binding = 0, scalar) readonly buffer ParamsBuffer
     mat4 projection;
     mat4 inverse_projection;
     transform_t view_transform;
-    float near;
-    float far;
     float ssao_radius;
     uint random_seed;
 } ubo;

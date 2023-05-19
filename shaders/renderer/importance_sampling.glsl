@@ -1,3 +1,6 @@
+#ifndef RENDERER_IMPORTANCE_SAMPLING_GLSL
+#define RENDERER_IMPORTANCE_SAMPLING_GLSL
+
 #include "../utils/bsdf.glsl"
 #include "../utils/random.glsl"
 
@@ -132,3 +135,5 @@ vec2 IntegrateBRDF(float roughness, float NoV)
     }
     return vec2(A, B) / float(numSamples);
 }
+
+#endif // RENDERER_IMPORTANCE_SAMPLING_GLSL

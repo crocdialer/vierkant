@@ -1,3 +1,6 @@
+#ifndef POISSON_BLUR_GLSL
+#define POISSON_BLUR_GLSL
+
 // blur using a random poisson-disk sampling pattern
 
 const int NUM_TAPS = 12;
@@ -33,3 +36,5 @@ vec4 poisson_blur(in sampler2D the_texture, in vec2 tex_coord, in vec2 size)
     }
     return color_sum / NUM_TAPS;
 }
+
+#endif // POISSON_BLUR_GLSL

@@ -1,3 +1,6 @@
+#ifndef UTILS_RANDOM_GLSL
+#define UTILS_RANDOM_GLSL
+
 #extension GL_EXT_control_flow_attributes : require
 
 // Generate a random unsigned int from two unsigned int values, using 16 pairs
@@ -82,3 +85,5 @@ vec2 Hammersley(uint i, uint N)
     float vdc = float(bitfieldReverse(i)) * 2.3283064365386963e-10; // Van der Corput
     return vec2(float(i) / float(N), vdc);
 }
+
+#endif // UTILS_RANDOM_GLSL

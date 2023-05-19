@@ -1,3 +1,6 @@
+#ifndef UTILS_TAA_GLSL
+#define UTILS_TAA_GLSL
+
 #include "color_ycc.glsl"
 #include "camera.glsl"
 
@@ -180,3 +183,5 @@ vec4 taa(vec2 in_coord,
 //    return mix(color, vec4(1, 0, 0, 1), depth_reject);
     return max(color, 0);
 }
+
+#endif // UTILS_TAA_GLSL

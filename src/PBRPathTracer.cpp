@@ -88,14 +88,14 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         frame_asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        frame_asset.cmd_build_bottom_start = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        frame_asset.cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        frame_asset.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
+
         frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
-        frame_asset.mesh_compute_context = vierkant::create_mesh_compute_context(device);
+        frame_asset.bottom_lvl_context = m_ray_builder.create_scene_acceleration_context();
+//        frame_asset.bottom_lvl_context.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
+
         frame_asset.query_pool =
                 vierkant::create_query_pool(m_device, 2 * SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
     }
@@ -190,7 +190,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, c
     m_draw_context.draw_image_fullscreen(renderer, frame_asset.out_image);
 
     render_result_t ret;
-    for(const auto &[id, assets]: frame_asset.entity_assets) { ret.num_draws += assets.size(); }
+//    for(const auto &[id, assets]: frame_asset.bottom_lvl_context.entity_assets) { ret.num_draws += assets.size(); }
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
@@ -248,7 +248,7 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_asset_t &frame_asset)
     frame_asset.cmd_pre_render.submit(m_queue);
 }
 
-void PBRPathTracer::path_trace_pass(frame_asset_t &frame_asset, const vierkant::SceneConstPtr &scene,
+void PBRPathTracer::path_trace_pass(frame_asset_t &frame_asset, const vierkant::SceneConstPtr & /*scene*/,
                                     const CameraPtr &cam)
 {
     // push constants
@@ -261,26 +261,6 @@ void PBRPathTracer::path_trace_pass(frame_asset_t &frame_asset, const vierkant::
     push_constants.max_trace_depth = frame_asset.settings.max_trace_depth;
     push_constants.disable_material = frame_asset.settings.disable_material;
     push_constants.random_seed = m_random_engine();
-
-    frame_asset.cmd_build_toplvl.begin(0);
-
-    vkCmdWriteTimestamp2(frame_asset.cmd_build_toplvl.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                         frame_asset.query_pool.get(), 2 * SemaphoreValue::UPDATE_TOP);
-
-    // NOTE: updating toplevel still having issues but doesn't seem too important performance-wise
-    // update top-level structure
-    frame_asset.acceleration_asset = m_ray_builder.create_toplevel(scene, frame_asset.entity_assets,
-                                                                   frame_asset.cmd_build_toplvl.handle(), nullptr);
-    vkCmdWriteTimestamp2(frame_asset.cmd_build_toplvl.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-                         frame_asset.query_pool.get(), 2 * SemaphoreValue::UPDATE_TOP + 1);
-    frame_asset.cmd_build_toplvl.end();
-
-    vierkant::semaphore_submit_info_t semaphore_top_info = {};
-    semaphore_top_info.semaphore = frame_asset.semaphore.handle();
-    semaphore_top_info.wait_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
-    semaphore_top_info.wait_value = SemaphoreValue::UPDATE_BOTTOM;
-    semaphore_top_info.signal_value = SemaphoreValue::UPDATE_TOP;
-    frame_asset.cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_top_info});
 
     update_trace_descriptors(frame_asset, cam);
 
@@ -502,172 +482,13 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_asset_t 
     bool use_environment = m_environment && frame_asset.settings.draw_skybox;
     frame_asset.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
 
-    std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
+    auto result = m_ray_builder.build_scene_acceleration(frame_asset.bottom_lvl_context, scene);
 
-    // clear left-overs
-    auto previous_entity_assets = std::move(frame_asset.entity_assets);
-    auto previous_mesh_assets = std::move(frame_asset.mesh_assets);
-    auto previous_builds = std::move(frame_asset.build_results);
-
-    // run compaction on structures from previous frame
-    for(auto &[anim_mesh, result]: previous_builds)
-    {
-        if(frame_asset.settings.compaction && result.compact && result.compacted_assets.empty())
-        {
-            // run compaction
-            m_ray_builder.compact(result);
-
-            vierkant::semaphore_submit_info_t wait_info = {};
-            wait_info.semaphore = result.semaphore.handle();
-            wait_info.wait_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
-            wait_info.wait_value = RayBuilder::SemaphoreValue::COMPACTED;
-            semaphore_infos.push_back(wait_info);
-
-            frame_asset.build_results[anim_mesh] = std::move(result);
-        }
-    }
-
-    auto view = scene->registry()->view<Object3D *, vierkant::MeshPtr>();
-
-    vierkant::mesh_compute_params_t mesh_compute_params = {};
-    mesh_compute_params.queue = m_queue;
-    mesh_compute_params.semaphore_submit_info.semaphore = frame_asset.semaphore.handle();
-    mesh_compute_params.semaphore_submit_info.signal_value = SemaphoreValue::MESH_COMPUTE;
-    mesh_compute_params.query_pool = frame_asset.query_pool;
-    mesh_compute_params.query_index_start = 2 * SemaphoreValue::MESH_COMPUTE;
-    mesh_compute_params.query_index_end = 2 * SemaphoreValue::MESH_COMPUTE + 1;
-
-    uint64_t semaphore_wait_value = SemaphoreValue::INVALID;
-
-    std::unordered_map<entt::entity, vierkant::animated_mesh_t> mesh_compute_entities;
-
-    //  check for skin/morph meshes and schedule a mesh-compute operation
-    for(const auto &[entity, object, mesh]: view.each())
-    {
-        vierkant::animated_mesh_t key = {mesh};
-
-        if(object->has_component<vierkant::animation_state_t>() && (mesh->root_bone || mesh->morph_buffer))
-        {
-            key.animation_state = object->get_component<vierkant::animation_state_t>();
-            mesh_compute_entities[entity] = key;
-            mesh_compute_params.mesh_compute_items[object->id()] = key;
-        }
-    }
-
-    vierkant::mesh_compute_result_t mesh_compute_result = {};
-
-    // updates of animated (skin/morph) assets
-    if(!mesh_compute_params.mesh_compute_items.empty())
-    {
-        mesh_compute_result = vierkant::mesh_compute(frame_asset.mesh_compute_context, mesh_compute_params);
-        semaphore_wait_value = SemaphoreValue::MESH_COMPUTE;
-    }
-
-    frame_asset.cmd_build_bottom_start.begin(0);
-    vkCmdWriteTimestamp2(frame_asset.cmd_build_bottom_start.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                         frame_asset.query_pool.get(), 2 * SemaphoreValue::UPDATE_BOTTOM);
-    vierkant::semaphore_submit_info_t build_bottom_semaphore_info = {};
-    build_bottom_semaphore_info.semaphore = frame_asset.semaphore.handle();
-    build_bottom_semaphore_info.wait_value = semaphore_wait_value;
-    frame_asset.cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
-
-    //  cache-lookup / non-blocking build of acceleration structures
-    for(const auto &[entity, object, mesh]: view.each())
-    {
-        vierkant::BufferPtr vertex_buffer = mesh->vertex_buffer;
-        size_t vertex_buffer_offset = 0;
-
-        vierkant::animated_mesh_t build_key = {mesh};
-        bool use_mesh_compute = mesh_compute_entities.contains(entity);
-
-        // check if we need to override the default vertex-buffer
-        if(use_mesh_compute)
-        {
-            vertex_buffer = mesh_compute_result.result_buffer;
-            vertex_buffer_offset = mesh_compute_result.vertex_buffer_offsets.at(object->id());
-            build_key = mesh_compute_entities.at(entity);
-        }
-        else
-        {
-            auto prev_it = previous_mesh_assets.find(mesh);
-            if(prev_it != previous_mesh_assets.end()) { frame_asset.mesh_assets[mesh] = prev_it->second; }
-            else
-            {
-                // no previous acceleration-structure, check other frames
-                for(const auto &asset: m_frame_assets)
-                {
-                    if(&asset != &frame_asset)
-                    {
-                        auto mesh_it = asset.mesh_assets.find(mesh);
-                        if(mesh_it != asset.mesh_assets.end()) { frame_asset.mesh_assets[mesh] = mesh_it->second; }
-                    }
-                }
-            }
-        }
-
-        if((!use_mesh_compute && !frame_asset.mesh_assets.contains(mesh)) ||
-           (use_mesh_compute && !frame_asset.build_results.contains(build_key)))
-        {
-            // create bottom-lvl
-            vierkant::RayBuilder::create_mesh_structures_params_t create_mesh_structures_params = {};
-            create_mesh_structures_params.mesh = mesh;
-            create_mesh_structures_params.vertex_buffer = vertex_buffer;
-            create_mesh_structures_params.vertex_buffer_offset = vertex_buffer_offset;
-            create_mesh_structures_params.enable_compaction = !use_mesh_compute;
-            create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
-            create_mesh_structures_params.semaphore_info.semaphore = frame_asset.semaphore.handle();
-            create_mesh_structures_params.semaphore_info.wait_value = semaphore_wait_value;
-            create_mesh_structures_params.semaphore_info.wait_stage =
-                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
-
-            auto result = m_ray_builder.create_mesh_structures(create_mesh_structures_params);
-            frame_asset.entity_assets[object->id()] = result.acceleration_assets;
-            if(!use_mesh_compute) { frame_asset.mesh_assets[mesh] = result.acceleration_assets; }
-            frame_asset.build_results[build_key] = std::move(result);
-        }
-    }
-
-    for(auto &[mesh, result]: frame_asset.build_results)
-    {
-        vierkant::semaphore_submit_info_t wait_info = {};
-        wait_info.semaphore = result.semaphore.handle();
-        wait_info.wait_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-        wait_info.wait_value = RayBuilder::SemaphoreValue::BUILD;
-        semaphore_infos.push_back(wait_info);
-    }
-
-    // this should make sure top-lvl building can find all required bottom-lvls
-    for(const auto &[entity, object, mesh]: view.each())
-    {
-        if(!frame_asset.entity_assets.contains(object->id()))
-        {
-            vierkant::animated_mesh_t build_key = {mesh};
-            if(mesh_compute_entities.contains(entity)) { build_key = mesh_compute_entities.at(entity); }
-
-            auto it = frame_asset.build_results.find(build_key);
-            if(it != frame_asset.build_results.end())
-            {
-                frame_asset.entity_assets[object->id()] = it->second.compacted_assets.empty()
-                                                                  ? it->second.acceleration_assets
-                                                                  : it->second.compacted_assets;
-            }
-            else if(frame_asset.mesh_assets.contains(mesh))
-            {
-                // static mesh case
-                frame_asset.entity_assets[object->id()] = frame_asset.mesh_assets[mesh];
-            }
-        }
-    }
-
+    frame_asset.acceleration_asset = std::move(result.acceleration_asset);
     vierkant::semaphore_submit_info_t signal_info = {};
     signal_info.semaphore = frame_asset.semaphore.handle();
-    signal_info.signal_value = SemaphoreValue::UPDATE_BOTTOM;
-    semaphore_infos.push_back(signal_info);
-
-    frame_asset.cmd_build_bottom_end.begin(0);
-    vkCmdWriteTimestamp2(frame_asset.cmd_build_bottom_end.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-                         frame_asset.query_pool.get(), 2 * SemaphoreValue::UPDATE_BOTTOM + 1);
-    frame_asset.cmd_build_bottom_end.submit(m_queue, false, VK_NULL_HANDLE, semaphore_infos);
+    signal_info.signal_value = SemaphoreValue::UPDATE_TOP;
+    vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, {result.semaphore_info, signal_info});
 }
 
 void PBRPathTracer::reset_accumulator() { m_batch_index = 0; }

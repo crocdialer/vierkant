@@ -1,3 +1,6 @@
+#ifndef UTILS_TONEMAP_GLSL
+#define UTILS_TONEMAP_GLSL
+
 /*
  * major portions of the code code adapted from: https://github.com/dmnsgn/glsl-tone-map
 
@@ -239,3 +242,5 @@ float tonemap_unreal(float x)
 {
    return x / (x + 0.155) * 1.019;
 }
+
+#endif // UTILS_TONEMAP_GLSL

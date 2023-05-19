@@ -1,3 +1,6 @@
+#ifndef RENDERER_POINT_LIGHT_GLSL
+#define RENDERER_POINT_LIGHT_GLSL
+
 #include "../utils/bsdf.glsl"
 
 #define LIGHT_TYPE_POINT 0
@@ -59,3 +62,5 @@ vec3 shade(in lightsource_t light, in vec3 V, in vec3 normal, in vec3 position, 
     vec3 specular = F * D * G;
     return (diffuse + specular) * nDotL * Ir * att;
 }
+
+#endif // RENDERER_POINT_LIGHT_GLSL

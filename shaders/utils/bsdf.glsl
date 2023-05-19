@@ -1,3 +1,6 @@
+#ifndef UTILS_BSDF_GLSL
+#define UTILS_BSDF_GLSL
+
 #define PI 3.1415926535897932384626433832795
 #define ONE_OVER_PI 0.31830988618379067153776752674503
 
@@ -339,3 +342,5 @@ vec3 transmittance(vec3 attenuation_color, float attenuation_distance, float dis
 {
     return exp(log(attenuation_color) / attenuation_distance * distance);
 }
+
+#endif // UTILS_BSDF_GLSL

@@ -1,3 +1,6 @@
+#ifndef UTILS_TRANSFORM_GLSL
+#define UTILS_TRANSFORM_GLSL
+
 struct transform_t
 {
     float translation_x, translation_y, translation_z;
@@ -89,3 +92,5 @@ mat4 mat4_cast(transform_t t)
     ret[3] = vec4(t.translation_x, t.translation_y, t.translation_z, 1.0);
     return ret;
 }
+
+#endif // UTILS_TRANSFORM_GLSL

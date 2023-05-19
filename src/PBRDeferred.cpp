@@ -877,8 +877,6 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         vierkant::ambient_occlusion_params_t ambient_occlusion_params = {};
         ambient_occlusion_params.projection = cull_result.camera->projection_matrix();
         ambient_occlusion_params.camera_transform = cull_result.camera->transform;
-        ambient_occlusion_params.near = cull_result.camera->near();
-        ambient_occlusion_params.far = cull_result.camera->far();
         ambient_occlusion_params.normal_img = frame_asset.g_buffer_post.color_attachment(G_BUFFER_NORMAL);
         ambient_occlusion_params.depth_img = frame_asset.g_buffer_post.depth_attachment();
         ambient_occlusion_params.max_distance = frame_asset.settings.max_ao_distance;

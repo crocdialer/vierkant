@@ -242,7 +242,7 @@ void main()
     float cos_theta = abs(dot(payload.normal, payload.ray.direction));
 
     // Russian roulette
-    if(max3(payload.beta) < 0.01 && payload.depth > 2)
+    if(max3(payload.beta) <= 0.05 && payload.depth > 2)
     {
         float q = max(.05, 1.0 - max3(payload.beta));
         if(rnd(rng_state) < q){ payload.stop = true; }

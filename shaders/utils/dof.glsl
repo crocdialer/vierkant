@@ -1,3 +1,6 @@
+#ifndef DOF_GLSL
+#define DOF_GLSL
+
 #include "../utils/random.glsl"
 #include "../utils/bsdf.glsl"
 
@@ -67,3 +70,5 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 v
     color /= num_taps;
     return vec4(color, 1.0);
 }
+
+#endif // DOF_GLSL

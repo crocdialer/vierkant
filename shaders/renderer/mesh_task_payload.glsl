@@ -1,3 +1,6 @@
+#ifndef RENDERER_MESH_TASK_PAYLOAD_GLSL
+#define RENDERER_MESH_TASK_PAYLOAD_GLSL
+
 #extension GL_EXT_shader_explicit_arithmetic_types_int8: require
 
 //! these mesh/task workgroup sizes are still vendor-specific (NV -> 32, AMD -> 64)
@@ -10,3 +13,5 @@ struct mesh_task_payload_t
     uint8_t meshlet_delta_indices[MESH_WORKGROUP_SIZE];
     uint object_index;
 };
+
+#endif // RENDERER_MESH_TASK_PAYLOAD_GLSL

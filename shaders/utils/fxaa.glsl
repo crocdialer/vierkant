@@ -1,3 +1,6 @@
+#ifndef FXAA_GLSL
+#define FXAA_GLSL
+
 struct fxaa_settings_t
 {
     float luma_thresh;
@@ -89,3 +92,5 @@ vec4 fxaa(sampler2D tex, vec2 coord, fxaa_settings_t settings)
     if(settings.show_edges){ ret.r = 1.0; }
     return ret;
 }
+
+#endif //FXAA_GLSL

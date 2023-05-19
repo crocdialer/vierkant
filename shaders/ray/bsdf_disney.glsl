@@ -1,3 +1,6 @@
+#ifndef RAY_BSDF_DISNEY_GLSL
+#define RAY_BSDF_DISNEY_GLSL
+
 /*
  * MIT License
  *
@@ -364,3 +367,5 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
 //
 //    return mix(brdf, bsdf, trans_weight);
 //}
+
+#endif // RAY_BSDF_DISNEY_GLSL

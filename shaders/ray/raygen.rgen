@@ -160,7 +160,7 @@ void main()
     }
 
 //    imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.radiance, 1.0));
-//    imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
+    imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
 //    imageStore(out_images[POSITIONS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.position, 0.0));
     imageStore(out_images[ACCUMULATED_RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
 }

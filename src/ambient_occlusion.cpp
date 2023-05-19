@@ -29,18 +29,14 @@ struct alignas(16) ssao_params_t
     glm::mat4 projection{};
     glm::mat4 inverse_projection{};
     transform_t view_transform;
-    float near = 0.f;
-    float far = 0.f;
     float ssao_radius = 0.f;
     uint32_t random_seed = 0;
 };
 
 struct alignas(16) rtao_params_t
 {
-    transform_t camera_transform;
     glm::mat4 inverse_projection{};
-    float near{};
-    float far{};
+    transform_t camera_transform;
     uint32_t num_rays{};
     float max_distance{};
 };
@@ -147,8 +143,6 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
         drawable.descriptors[2].buffers = {context->param_buffer};
 
         rtao_params_t rtao_params = {};
-        rtao_params.near = params.near;
-        rtao_params.far = params.far;
         rtao_params.num_rays = params.num_rays;
         rtao_params.max_distance = params.max_distance;
         rtao_params.camera_transform = params.camera_transform;
@@ -171,8 +165,6 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
         ssao_params.projection = params.projection;
         ssao_params.inverse_projection = glm::inverse(params.projection);
         ssao_params.view_transform = vierkant::inverse(params.camera_transform);
-        ssao_params.near = params.near;
-        ssao_params.far = params.far;
         ssao_params.ssao_radius = params.max_distance;
         ssao_params.random_seed = context->random_engine();
 

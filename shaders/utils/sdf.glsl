@@ -1,3 +1,6 @@
+#ifndef UTILS_SDF_GLSL
+#define UTILS_SDF_GLSL
+
 // http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 float sd_sphere(in vec3 p, in float r)
 {
@@ -52,3 +55,5 @@ float sdCappedCylinder(vec3 p, vec3 a, vec3 b, float r)
     float d = (max(x, y)<0.0)?-min(x2, y2):(((x>0.0)?x2:0.0)+((y>0.0)?y2:0.0));
     return sign(d)*sqrt(abs(d))/baba;
 }
+
+#endif // UTILS_SDF_GLSL

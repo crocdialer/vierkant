@@ -1,3 +1,6 @@
+#ifndef RENDERER_TYPES_GLSL
+#define RENDERER_TYPES_GLSL
+
 #include "../utils/transform.glsl"
 
 //! groups transformation matrices
@@ -170,3 +173,5 @@ struct meshlet_t
     vec3 cone_axis;
     float cone_cutoff;
 };
+
+#endif // RENDERER_TYPES_GLSL

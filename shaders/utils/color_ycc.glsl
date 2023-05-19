@@ -1,3 +1,6 @@
+#ifndef COLOR_YCC_GLSL
+#define COLOR_YCC_GLSL
+
 // NTSC brightness factors
 const vec3 LuminanceNTSC = { 0.298999994993, 0.587000012398, 0.114000000060 };
 
@@ -18,3 +21,5 @@ const mat3 RGB2YUV = mat3(0.298999994993, 0.499812960625, -0.168635994196,
 const mat3 RGB2YCoCg = mat3(0.25, 0.5, -0.25, 0.5, 0.0, 0.5, 0.25, -0.5, -0.25);
 
 const mat3 YCoCg2RGB = mat3(1.0, 1.0, 1.0, 1.0, 0.0, -1.0, -1.0, 1.0, -1.0);
+
+#endif // COLOR_YCC_GLSL

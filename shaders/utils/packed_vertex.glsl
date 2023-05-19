@@ -1,3 +1,6 @@
+#ifndef PACKED_VERTEX_GLSL
+#define PACKED_VERTEX_GLSL
+
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 
 //! Vertex defines the layout for a vertex-struct
@@ -56,3 +59,5 @@ packed_vertex_t pack(Vertex v)
     ret.texcoord_y = float16_t(v.tex_coord.y);
     return ret;
 }
+
+#endif // PACKED_VERTEX_GLSL

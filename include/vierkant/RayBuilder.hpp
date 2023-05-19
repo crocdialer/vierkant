@@ -4,10 +4,11 @@
 
 #include <crocore/Cache.hpp>
 
-#include "vierkant/Scene.hpp"
 #include <vierkant/Device.hpp>
 #include <vierkant/Mesh.hpp>
+#include <vierkant/Scene.hpp>
 #include <vierkant/descriptor.hpp>
+#include <vierkant/mesh_compute.hpp>
 #include <vierkant/transform.hpp>
 
 namespace vierkant
@@ -116,7 +117,56 @@ public:
     //! can be used to used to cache an array of shared (bottom-lvl) acceleration-structures per whatever
     using entity_asset_map_t = std::map<uint64_t, std::vector<RayBuilder::acceleration_asset_ptr>>;
 
-    enum SemaphoreValue : uint64_t
+    enum UpdateSemaphoreValue : uint64_t
+    {
+        INVALID = 0,
+        MESH_COMPUTE,
+        UPDATE_BOTTOM,
+        UPDATE_TOP,
+        MAX_VALUE,
+    };
+
+    //! opaque handle owning a scene_acceleration_context_t
+    struct scene_acceleration_context_t;
+    using scene_acceleration_context_ptr =
+            std::unique_ptr<scene_acceleration_context_t, std::function<void(scene_acceleration_context_t *)>>;
+
+    //! return an array listing required device-extensions for raytracing-acceleration structures.
+    static std::vector<const char *> required_extensions();
+
+    RayBuilder() = default;
+
+    explicit RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool = nullptr);
+
+    /**
+     * @brief   create_scene_acceleration_context is a factory to create a
+     *          context for building acceleration structures for a scene.
+     *
+     * @return  a populated bottom_lvl_context_t.
+     */
+    scene_acceleration_context_ptr create_scene_acceleration_context();
+
+    //! struct grouping return values of 'build_scene_acceleration'-routine.
+    struct build_scene_acceleration_result_t
+    {
+        acceleration_asset_t acceleration_asset;
+        vierkant::semaphore_submit_info_t semaphore_info;
+    };
+
+    /**
+     * @brief   build_scene_acceleration can be used to create assets required for raytracing a scene.
+     *
+     * internally it will bake vertex-buffers for animated meshes if necessary, build bottom- and top-level structures,
+     * and provide all index/vertex-buffers/textures/materials for all objects if requested.
+     *
+     * @param   context an opaque context handle.
+     * @param   scene   a provided scene.
+     */
+    build_scene_acceleration_result_t build_scene_acceleration(const scene_acceleration_context_ptr &context,
+                                                               const SceneConstPtr &scene);
+
+private:
+    enum SemaphoreValueBuild : uint64_t
     {
         BUILD = 1,
         COMPACTED,
@@ -143,18 +193,14 @@ public:
     {
         vierkant::MeshConstPtr mesh = nullptr;
         vierkant::semaphore_submit_info_t semaphore_info = {};
+
+        //! optional override for vertex-buffer
         vierkant::BufferPtr vertex_buffer = nullptr;
         size_t vertex_buffer_offset = 0;
+
         bool enable_compaction = true;
         std::vector<acceleration_asset_ptr> update_assets = {};
     };
-
-    //! return an array listing required device-extensions for raytracing-accelration structures.
-    static std::vector<const char *> required_extensions();
-
-    RayBuilder() = default;
-
-    explicit RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool = nullptr);
 
     /**
      * @brief   create_mesh_structures can be used to create new bottom-level acceleration structures
@@ -167,19 +213,16 @@ public:
 
     void compact(build_result_t &build_result) const;
 
-
     /**
      * @brief   create_toplevel will create a toplevel acceleration structure,
      *          instancing all cached bottom-levels.
      *
      * @param   last    an optional, existing toplevel-structure to perform an update to
      */
-    acceleration_asset_t
-    create_toplevel(const vierkant::SceneConstPtr &scene,
-                    const entity_asset_map_t &asset_map,
-                    VkCommandBuffer commandbuffer, const vierkant::AccelerationStructurePtr &last) const;
+    [[nodiscard]] acceleration_asset_t create_toplevel(const scene_acceleration_context_ptr &context,
+                                                       const vierkant::SceneConstPtr &scene,
+                                                       const vierkant::AccelerationStructurePtr &last) const;
 
-private:
     void set_function_pointers();
 
     [[nodiscard]] acceleration_asset_t

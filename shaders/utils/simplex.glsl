@@ -1,3 +1,6 @@
+#ifndef UTILS_SIMPLEX_GLSL
+#define UTILS_SIMPLEX_GLSL
+
 //
 // Description : Array and textureless GLSL 2D/3D/4D simplex
 //               noise functions.
@@ -95,3 +98,5 @@ float simplex(vec3 v)
     return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1),
     dot(p2,x2), dot(p3,x3) ) );
 }
+
+#endif // UTILS_SIMPLEX_GLSL
