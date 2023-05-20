@@ -131,6 +131,13 @@ public:
     using scene_acceleration_context_ptr =
             std::unique_ptr<scene_acceleration_context_t, std::function<void(scene_acceleration_context_t *)>>;
 
+    struct timings_t
+    {
+        double mesh_compute_ms = 0.0;
+        double update_bottom_ms = 0.0;
+        double update_top_ms = 0.0;
+    };
+
     //! return an array listing required device-extensions for raytracing-acceleration structures.
     static std::vector<const char *> required_extensions();
 
@@ -142,7 +149,7 @@ public:
      * @brief   create_scene_acceleration_context is a factory to create a
      *          context for building acceleration structures for a scene.
      *
-     * @return  a populated bottom_lvl_context_t.
+     * @return  a populated scene_acceleration_context_t.
      */
     scene_acceleration_context_ptr create_scene_acceleration_context();
 
@@ -154,7 +161,7 @@ public:
     };
 
     /**
-     * @brief   build_scene_acceleration can be used to create assets required for raytracing a scene.
+     * @brief   'build_scene_acceleration' can be used to create assets required for raytracing a scene.
      *
      * internally it will bake vertex-buffers for animated meshes if necessary, build bottom- and top-level structures,
      * and provide all index/vertex-buffers/textures/materials for all objects if requested.
@@ -164,6 +171,14 @@ public:
      */
     build_scene_acceleration_result_t build_scene_acceleration(const scene_acceleration_context_ptr &context,
                                                                const SceneConstPtr &scene);
+
+    /**
+     * @brief   'timings' can be used to query gpu-timings for a recent run.
+     *
+     * @param   context an opaque context handle, used for the run to query timings
+     * @return  a struct ggrouping timing-values.
+     */
+    timings_t timings(const scene_acceleration_context_ptr &context);
 
 private:
     enum SemaphoreValueBuild : uint64_t

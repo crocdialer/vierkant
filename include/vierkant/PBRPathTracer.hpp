@@ -75,9 +75,11 @@ public:
 
     struct timings_t
     {
-        double mesh_compute_ms = 0.0;
-        double update_bottom_ms = 0.0;
-        double update_top_ms = 0.0;
+//        double mesh_compute_ms = 0.0;
+//        double update_bottom_ms = 0.0;
+//        double update_top_ms = 0.0;
+        RayBuilder::timings_t raybuilder_timings;
+
         double raytrace_ms = 0.0;
         double denoise_ms = 0.0;
         double bloom_ms = 0.0;
@@ -148,8 +150,6 @@ private:
     enum SemaphoreValue : uint64_t
     {
         INVALID = 0,
-        MESH_COMPUTE,
-        UPDATE_BOTTOM,
         UPDATE_TOP,
         RAYTRACING,
         DENOISER,
@@ -172,7 +172,7 @@ private:
                 cmd_trace, cmd_denoise, cmd_post_fx;
 
         //! context for providing bottom-lvl acceleration structures
-        RayBuilder::scene_acceleration_context_ptr bottom_lvl_context;
+        RayBuilder::scene_acceleration_context_ptr scene_acceleration_context;
 
         //! top-lvl structure
         vierkant::RayBuilder::acceleration_asset_t acceleration_asset;

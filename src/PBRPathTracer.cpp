@@ -93,8 +93,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
-        frame_asset.bottom_lvl_context = m_ray_builder.create_scene_acceleration_context();
-//        frame_asset.bottom_lvl_context.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        frame_asset.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
+//        frame_asset.scene_acceleration_context.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
         frame_asset.query_pool =
                 vierkant::create_query_pool(m_device, 2 * SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
@@ -190,7 +190,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, c
     m_draw_context.draw_image_fullscreen(renderer, frame_asset.out_image);
 
     render_result_t ret;
-//    for(const auto &[id, assets]: frame_asset.bottom_lvl_context.entity_assets) { ret.num_draws += assets.size(); }
+//    for(const auto &[id, assets]: frame_asset.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
@@ -226,9 +226,8 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_asset_t &frame_asset)
         }
     }
 
-    timings.mesh_compute_ms = timing_millis[SemaphoreValue::MESH_COMPUTE];
-    timings.update_bottom_ms = timing_millis[SemaphoreValue::UPDATE_BOTTOM];
-    timings.update_top_ms = timing_millis[SemaphoreValue::UPDATE_TOP];
+    timings.raybuilder_timings = m_ray_builder.timings(frame_asset.scene_acceleration_context);
+
     timings.raytrace_ms = timing_millis[SemaphoreValue::RAYTRACING];
     timings.bloom_ms = timing_millis[SemaphoreValue::DENOISER];
     timings.tonemap_ms = timing_millis[SemaphoreValue::BLOOM];
@@ -482,7 +481,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_asset_t 
     bool use_environment = m_environment && frame_asset.settings.draw_skybox;
     frame_asset.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
 
-    auto result = m_ray_builder.build_scene_acceleration(frame_asset.bottom_lvl_context, scene);
+    auto result = m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, scene);
 
     frame_asset.acceleration_asset = std::move(result.acceleration_asset);
     vierkant::semaphore_submit_info_t signal_info = {};

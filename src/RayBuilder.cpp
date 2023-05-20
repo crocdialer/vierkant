@@ -860,4 +860,34 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     return ret;
 }
 
+RayBuilder::timings_t RayBuilder::timings(const scene_acceleration_context_ptr &context)
+{
+    timings_t ret;
+    constexpr size_t query_count = 2 * UpdateSemaphoreValue::MAX_VALUE;
+    uint64_t timestamps[query_count] = {};
+    auto query_result = vkGetQueryPoolResults(m_device->handle(), context->query_pool.get(), 0, query_count,
+                                              sizeof(timestamps), timestamps, sizeof(uint64_t), VK_QUERY_RESULT_64_BIT);
+    // reset query-pool
+    vkResetQueryPool(m_device->handle(), context->query_pool.get(), 0, query_count);
+
+    double timing_millis[UpdateSemaphoreValue::MAX_VALUE] = {};
+
+
+    if(query_result == VK_SUCCESS || query_result == VK_NOT_READY)
+    {
+        auto timestamp_period = m_device->properties().limits.timestampPeriod;
+
+        for(uint32_t i = 1; i < UpdateSemaphoreValue::MAX_VALUE; ++i)
+        {
+            auto val = UpdateSemaphoreValue(i);
+            auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
+            timing_millis[val] = measurement;
+        }
+    }
+    ret.mesh_compute_ms = timing_millis[UpdateSemaphoreValue::MESH_COMPUTE];
+    ret.update_bottom_ms = timing_millis[UpdateSemaphoreValue::UPDATE_BOTTOM];
+    ret.update_top_ms = timing_millis[UpdateSemaphoreValue::UPDATE_TOP];
+    return ret;
+}
+
 }//namespace vierkant

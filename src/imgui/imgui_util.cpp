@@ -220,7 +220,7 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     if(!is_child_window) { ImGui::End(); }
 }
 
-void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const CameraPtr & /*cam*/)
+void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
 {
     int res[2] = {static_cast<int>(pbr_renderer->settings.resolution.x),
                   static_cast<int>(pbr_renderer->settings.resolution.y)};
@@ -384,7 +384,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer, const Cam
     }
 }
 
-void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const CameraPtr & /*cam*/)
+void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer)
 {
     int res[2] = {static_cast<int>(path_tracer->settings.resolution.x),
                   static_cast<int>(path_tracer->settings.resolution.y)};
@@ -432,9 +432,9 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     {
         PBRPathTracer::timings_t last = {};
         if(!path_tracer->statistics().empty()) { last = path_tracer->statistics().back().timings; };
-        ImGui::BulletText("mesh_compute_ms: %.3f ms", last.mesh_compute_ms);
-        ImGui::BulletText("update_bottom_ms: %.3f ms", last.update_bottom_ms);
-        ImGui::BulletText("update_top_ms: %.3f ms", last.update_top_ms);
+        ImGui::BulletText("mesh_compute_ms: %.3f ms", last.raybuilder_timings.mesh_compute_ms);
+        ImGui::BulletText("update_bottom_ms: %.3f ms", last.raybuilder_timings.update_bottom_ms);
+        ImGui::BulletText("update_top_ms: %.3f ms", last.raybuilder_timings.update_top_ms);
         ImGui::BulletText("raytrace_ms: %.3f ms", last.raytrace_ms);
         ImGui::BulletText("denoise_ms: %.3f ms", last.denoise_ms);
         ImGui::BulletText("bloom_ms: %.3f ms", last.bloom_ms);
@@ -445,18 +445,18 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer, const Ca
     }
 }
 
-void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer, const CameraPtr &cam)
+void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer)
 {
     constexpr char window_name[] = "scene_renderer";
     scoped_child_window_t child_window(window_name);
 
     if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
     {
-        draw_scene_renderer_ui_intern(pbr_renderer, cam);
+        draw_scene_renderer_ui_intern(pbr_renderer);
     }
     else if(auto path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer))
     {
-        draw_scene_renderer_ui_intern(path_tracer, cam);
+        draw_scene_renderer_ui_intern(path_tracer);
     }
 }
 
@@ -502,7 +502,7 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     return ret;
 }
 
-void draw_scene_ui(const ScenePtr &scene, std::set<vierkant::Object3DPtr> *selection)
+void draw_scene_ui(const ScenePtr &scene, std::set<vierkant::Object3DPtr> *selection, const CameraPtr &cam)
 {
     constexpr char window_name[] = "scene";
     scoped_child_window_t scoped_child_window(window_name);
@@ -596,6 +596,17 @@ void draw_scene_ui(const ScenePtr &scene, std::set<vierkant::Object3DPtr> *selec
 
             for(auto [entity, object, camera_params]: view.each())
             {
+                bool enabled = object == cam.get();
+
+                // push object id
+                ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D*>()(object)));
+                if(ImGui::Checkbox("", &enabled))
+                {
+                    // TODO: set active camera
+                }
+                ImGui::PopID();
+                ImGui::SameLine();
+
                 if(ImGui::TreeNode((void *) (entity), "%s", object->name.c_str()))
                 {
                     ImGui::Separator();
