@@ -118,7 +118,7 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
     desc_texture_rtao.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture_rtao.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     auto &desc_params_rtao = ret->drawable_rtao.descriptors[2];
-    desc_params_rtao.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_params_rtao.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_params_rtao.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     ret->drawable_rtao.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = ray_ao_frag;
     return ret;

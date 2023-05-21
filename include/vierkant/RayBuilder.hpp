@@ -1,6 +1,7 @@
 //
 // Created by crocdialer on 1/26/21.
 //
+#pragma once
 
 #include <crocore/Cache.hpp>
 

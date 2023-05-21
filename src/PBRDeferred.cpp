@@ -40,6 +40,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(device);
 
+    if(create_info.settings.use_ray_queries) { m_ray_builder = vierkant::RayBuilder(device, m_queue); }
+
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
     for(auto &asset: m_frame_assets)
@@ -90,6 +92,11 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
         asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
+
+        if(create_info.settings.use_ray_queries)
+        {
+            asset.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
+        }
     }
 
     // create renderer for g-buffer-pass
@@ -870,11 +877,19 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     if(frame_asset.settings.ambient_occlusion)
     {
+        RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
+        build_scene_params.scene = cull_result.scene;
+        build_scene_params.use_compaction = true;
+        build_scene_params.use_scene_assets = false;
+        frame_asset.scene_ray_acceleration =
+                m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
+
         vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                              frame_asset.query_pool.get(), 2 * SemaphoreValue::AMBIENT_OCCLUSION);
 
         // ambient occlusion (optional)
         vierkant::ambient_occlusion_params_t ambient_occlusion_params = {};
+        ambient_occlusion_params.top_level = frame_asset.scene_ray_acceleration.top_lvl.structure;
         ambient_occlusion_params.projection = cull_result.camera->projection_matrix();
         ambient_occlusion_params.camera_transform = cull_result.camera->transform;
         ambient_occlusion_params.normal_img = frame_asset.g_buffer_post.color_attachment(G_BUFFER_NORMAL);
@@ -953,7 +968,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     lighting_semaphore_info.signal_value = SemaphoreValue::LIGHTING;
     frame_asset.semaphore_value_done = SemaphoreValue::LIGHTING;
     m_device->end_label(frame_asset.cmd_lighting.handle());
-    frame_asset.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE, {lighting_semaphore_info});
+    frame_asset.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE, {frame_asset.scene_ray_acceleration.semaphore_info, lighting_semaphore_info});
     return frame_asset.lighting_buffer;
 }
 
@@ -1357,6 +1372,7 @@ bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_
     if(lhs.exposure != rhs.exposure) { return false; }
     if(lhs.indirect_draw != rhs.indirect_draw) { return false; }
     if(lhs.use_meshlet_pipeline != rhs.use_meshlet_pipeline) { return false; }
+    if(lhs.use_ray_queries != rhs.use_ray_queries) { return false; }
     if(lhs.timing_history_size != rhs.timing_history_size) { return false; }
     if(lhs.depth_of_field != rhs.depth_of_field) { return false; }
     return true;

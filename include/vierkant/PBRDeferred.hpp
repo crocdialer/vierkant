@@ -5,15 +5,16 @@
 
 #include <deque>
 
-#include "vierkant/Bloom.hpp"
-#include "vierkant/DrawContext.hpp"
-#include "vierkant/PipelineCache.hpp"
-#include "vierkant/SceneRenderer.hpp"
+#include <vierkant/RayBuilder.hpp>
+#include <vierkant/Bloom.hpp>
+#include <vierkant/DrawContext.hpp>
+#include <vierkant/PipelineCache.hpp>
+#include <vierkant/SceneRenderer.hpp>
 #include <vierkant/Compute.hpp>
 #include <vierkant/GBuffer.hpp>
+#include <vierkant/ambient_occlusion.hpp>
 #include <vierkant/culling.hpp>
 #include <vierkant/gpu_culling.hpp>
-#include <vierkant/ambient_occlusion.hpp>
 
 namespace vierkant
 {
@@ -97,6 +98,9 @@ public:
 
         //! enable depth of field
         bool depth_of_field = false;
+
+        //! enable ray-query support
+        bool use_ray_queries = true;
 
         //! max number stored timing-values
         uint32_t timing_history_size = 300;
@@ -273,6 +277,12 @@ private:
 
         vierkant::gpu_cull_context_ptr gpu_cull_context;
 
+        //! context for providing bottom-lvl acceleration structures
+        RayBuilder::scene_acceleration_context_ptr scene_acceleration_context;
+
+        //! top-lvl structure
+        vierkant::RayBuilder::scene_acceleration_data_t scene_ray_acceleration;
+
         vierkant::Framebuffer lighting_buffer, taa_buffer;
 
         // host-visible
@@ -387,6 +397,8 @@ private:
     std::shared_ptr<spdlog::logger> m_logger;
 
     std::deque<statistics_t> m_statistics;
+
+    vierkant::RayBuilder m_ray_builder;
 };
 
 extern bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs);

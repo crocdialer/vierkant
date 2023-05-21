@@ -94,7 +94,6 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
         frame_asset.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
-//        frame_asset.scene_acceleration_context.cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
         frame_asset.query_pool =
                 vierkant::create_query_pool(m_device, 2 * SemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
@@ -190,7 +189,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, c
     m_draw_context.draw_image_fullscreen(renderer, frame_asset.out_image);
 
     render_result_t ret;
-//    for(const auto &[id, assets]: frame_asset.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
+    //    for(const auto &[id, assets]: frame_asset.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
@@ -274,12 +273,12 @@ void PBRPathTracer::path_trace_pass(frame_asset_t &frame_asset, const vierkant::
                          frame_asset.query_pool.get(), 2 * SemaphoreValue::RAYTRACING + 1);
     frame_asset.cmd_trace.end();
 
+    // wait for raybuilder, signal main semaphore
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_asset.semaphore.handle();
-    semaphore_info.wait_stage = VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR;
-    semaphore_info.wait_value = SemaphoreValue::UPDATE_TOP;
     semaphore_info.signal_value = SemaphoreValue::RAYTRACING;
-    frame_asset.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
+    frame_asset.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE,
+                                 {frame_asset.scene_ray_acceleration.semaphore_info, semaphore_info});
     frame_asset.semaphore_value_done = SemaphoreValue::RAYTRACING;
 }
 
@@ -485,13 +484,8 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_asset_t 
     build_scene_params.scene = scene;
     build_scene_params.use_compaction = frame_asset.settings.compaction;
     build_scene_params.use_scene_assets = true;
-    auto result = m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
-
-    vierkant::semaphore_submit_info_t signal_info = {};
-    signal_info.semaphore = frame_asset.semaphore.handle();
-    signal_info.signal_value = SemaphoreValue::UPDATE_TOP;
-    vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, {result.semaphore_info, signal_info});
-    frame_asset.scene_ray_acceleration = std::move(result);
+    frame_asset.scene_ray_acceleration =
+            m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
 }
 
 void PBRPathTracer::reset_accumulator() { m_batch_index = 0; }

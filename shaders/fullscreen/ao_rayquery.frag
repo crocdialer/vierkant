@@ -17,7 +17,7 @@
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 layout(set = 0, binding = 1) uniform sampler2D u_sampler_2D[2];
 
-layout(std140, binding = 2) uniform ubo_t
+layout(std140, binding = 2) readonly buffer ParamsBuffer
 {
     mat4 inverse_projection;
     transform_t camera_transform;

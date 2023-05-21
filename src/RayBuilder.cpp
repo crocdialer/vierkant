@@ -16,6 +16,8 @@ struct RayBuilder::scene_acceleration_context_t
     //! queries timings for meshcompute and bs/as building
     vierkant::QueryPoolPtr query_pool;
 
+    //! command- pool and buffers
+    vierkant::CommandPoolPtr command_pool;
     vierkant::CommandBuffer cmd_build_bottom_start, cmd_build_bottom_end, cmd_build_toplvl;
 
     //! context for computing vertex-buffers for animated meshes
@@ -850,7 +852,7 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
 {
     auto ret = scene_acceleration_context_ptr(new scene_acceleration_context_t,
                                               std::default_delete<scene_acceleration_context_t>());
-
+    ret->command_pool = m_command_pool;
     ret->cmd_build_bottom_start = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
