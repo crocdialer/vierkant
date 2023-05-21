@@ -502,7 +502,7 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     return ret;
 }
 
-void draw_scene_ui(const ScenePtr &scene, std::set<vierkant::Object3DPtr> *selection, const CameraPtr &cam)
+void draw_scene_ui(const ScenePtr &scene, CameraPtr &cam, std::set<vierkant::Object3DPtr> *selection)
 {
     constexpr char window_name[] = "scene";
     scoped_child_window_t scoped_child_window(window_name);
@@ -604,8 +604,9 @@ void draw_scene_ui(const ScenePtr &scene, std::set<vierkant::Object3DPtr> *selec
 
                 // push object id
                 ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D*>()(object)));
-                if(ImGui::Checkbox("", &enabled))
+                if(ImGui::Checkbox("", &enabled) && enabled)
                 {
+                    cam = std::dynamic_pointer_cast<vierkant::Camera>(object->shared_from_this());
                     // TODO: set active camera
                 }
                 ImGui::PopID();
