@@ -592,6 +592,10 @@ void draw_scene_ui(const ScenePtr &scene, std::set<vierkant::Object3DPtr> *selec
         }
         if(ImGui::BeginTabItem("cameras"))
         {
+            if(ImGui::Button("add camera"))
+            {
+                scene->add_object(vierkant::PerspectiveCamera::create(scene->registry()));
+            }
             auto view = scene->registry()->view<vierkant::Object3D *, vierkant::physical_camera_params_t>();
 
             for(auto [entity, object, camera_params]: view.each())
@@ -609,8 +613,9 @@ void draw_scene_ui(const ScenePtr &scene, std::set<vierkant::Object3DPtr> *selec
 
                 if(ImGui::TreeNode((void *) (entity), "%s", object->name.c_str()))
                 {
-                    ImGui::Separator();
                     vierkant::gui::draw_camera_param_ui(camera_params);
+                    ImGui::Spacing();
+                    ImGui::Separator();
                     ImGui::TreePop();
                 }
             }
@@ -973,8 +978,6 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
 
 void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
 {
-    scoped_child_window_t child_window("camera");
-
     // focal-length in mm
     float focal_length_mm = 1000.f * camera_params.focal_length;
     if(ImGui::SliderFloat("focal-length (mm)", &focal_length_mm, 0.1f, 500.f))
@@ -1003,8 +1006,8 @@ void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
 
     // f-stop/aperture
     constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
-    ImGui::SliderFloat("f-stop", &camera_params.fstop, f_stop_min, f_stop_max);
     ImGui::BulletText("aperture: %.1f mm", camera_params.aperture_size() * 1000);
+    ImGui::SliderFloat("f-stop", &camera_params.fstop, f_stop_min, f_stop_max);
 }
 
 }// namespace vierkant::gui

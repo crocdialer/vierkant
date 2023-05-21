@@ -200,8 +200,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         auto &acceleration_asset = *entry_assets[i];
 
         // track vertex-buffer + offset used
-        acceleration_asset.vertex_buffers = {vertex_buffer};
-        acceleration_asset.vertex_buffer_offsets = {vertex_buffer_offset};
+        acceleration_asset.vertex_buffer = vertex_buffer;
+        acceleration_asset.vertex_buffer_offset = vertex_buffer_offset;
 
         // Allocate the scratch buffers holding the temporary data of the
         // acceleration structure builder
@@ -345,9 +345,9 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     return acceleration_asset;
 }
 
-RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const scene_acceleration_context_ptr &context,
-                                                             const vierkant::SceneConstPtr &scene,
-                                                             const vierkant::AccelerationStructurePtr &last) const
+void RayBuilder::create_toplevel(const scene_acceleration_context_ptr &context,
+                                 const build_scene_acceleration_params_t &params, scene_acceleration_data_t &result,
+                                 const vierkant::AccelerationStructurePtr &last) const
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
 
@@ -372,7 +372,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const scene_acceler
     std::unordered_map<VkDeviceAddress, size_t> mesh_buffer_indices;
 
     std::unordered_map<MaterialConstPtr, size_t> material_indices;
-    auto view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
+    auto view = params.scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
 
     for(const auto &[entity, object, mesh]: view.each())
     {
@@ -388,12 +388,11 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const scene_acceler
         assert(mesh->entries.size() == acceleration_assets.size());
 
         const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
-        const auto &vertex_buffer = acceleration_assets[0]->vertex_buffers.empty()
-                                            ? vertex_attrib.buffer
-                                            : acceleration_assets[0]->vertex_buffers[0];
-        size_t vertex_buffer_offset = acceleration_assets[0]->vertex_buffer_offsets.empty()
-                                              ? vertex_attrib.buffer_offset
-                                              : acceleration_assets[0]->vertex_buffer_offsets[0];
+        const auto &vertex_buffer =
+                acceleration_assets[0]->vertex_buffer ? acceleration_assets[0]->vertex_buffer : vertex_attrib.buffer;
+        size_t vertex_buffer_offset = acceleration_assets[0]->vertex_buffer
+                                              ? acceleration_assets[0]->vertex_buffer_offset
+                                              : vertex_attrib.buffer_offset;
 
         VkDeviceAddress vertex_buffer_address = vertex_buffer->device_address() + vertex_buffer_offset;
 
@@ -572,27 +571,30 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const scene_acceler
     create_info.size = acceleration_structure_build_sizes_info.accelerationStructureSize;
 
     // create/collect our stuff
-    auto top_level = create_acceleration_asset(create_info);
+    result.top_lvl = create_acceleration_asset(create_info);
 
-    // needed to access buffer/vertex/index/material in closest-hit shader
-    top_level.entry_buffer = vierkant::Buffer::create(m_device, entries, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                      VMA_MEMORY_USAGE_CPU_TO_GPU);
+    if(params.use_scene_assets)
+    {
+        // needed to access buffer/vertex/index/material in closest-hit shader
+        result.entry_buffer = vierkant::Buffer::create(m_device, entries, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                       VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    // material information for all entries
-    top_level.material_buffer = vierkant::Buffer::create(m_device, materials, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
+        // material information for all entries
+        result.material_buffer = vierkant::Buffer::create(m_device, materials, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-    // move texture-assets
-    top_level.textures = std::move(textures);
-    top_level.normalmaps = std::move(normalmaps);
-    top_level.emissions = std::move(emissions);
-    top_level.ao_rough_metal_maps = std::move(ao_rough_metal_maps);
+        // move texture-assets
+        result.textures = std::move(textures);
+        result.normalmaps = std::move(normalmaps);
+        result.emissions = std::move(emissions);
+        result.ao_rough_metal_maps = std::move(ao_rough_metal_maps);
 
-    // move buffers
-    top_level.vertex_buffers = std::move(vertex_buffers);
-    top_level.vertex_buffer_offsets = std::move(vertex_buffer_offsets);
-    top_level.index_buffers = std::move(index_buffers);
-    top_level.index_buffer_offsets = std::move(index_buffer_offsets);
+        // move buffers
+        result.vertex_buffers = std::move(vertex_buffers);
+        result.vertex_buffer_offsets = std::move(vertex_buffer_offsets);
+        result.index_buffers = std::move(index_buffers);
+        result.index_buffer_offsets = std::move(index_buffer_offsets);
+    }
 
     // Create a small scratch buffer used during build of the top level acceleration structure
     auto scratch_buffer =
@@ -607,7 +609,7 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const scene_acceler
     acceleration_build_geometry_info.mode =
             last ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     acceleration_build_geometry_info.srcAccelerationStructure = last.get();
-    acceleration_build_geometry_info.dstAccelerationStructure = top_level.structure.get();
+    acceleration_build_geometry_info.dstAccelerationStructure = result.top_lvl.structure.get();
     acceleration_build_geometry_info.geometryCount = 1;
     acceleration_build_geometry_info.pGeometries = &acceleration_structure_geometry;
     acceleration_build_geometry_info.scratchData.deviceAddress = scratch_buffer->device_address();
@@ -619,20 +621,19 @@ RayBuilder::acceleration_asset_t RayBuilder::create_toplevel(const scene_acceler
     acceleration_structure_build_range_info.transformOffset = 0;
 
     // keep-alives
-    top_level.update_structure = last;
-    top_level.instance_buffer = instance_buffer;
-    top_level.scratch_buffer = scratch_buffer;
+    result.top_lvl.update_structure = last;
+    result.top_lvl.instance_buffer = instance_buffer;
+    result.top_lvl.scratch_buffer = scratch_buffer;
 
     // build the AS
     const VkAccelerationStructureBuildRangeInfoKHR *offset_ptr = &acceleration_structure_build_range_info;
     vkCmdBuildAccelerationStructuresKHR(context->cmd_build_toplvl.handle(), 1, &acceleration_build_geometry_info,
                                         &offset_ptr);
-
-    return top_level;
 }
 
-RayBuilder::build_scene_acceleration_result_t
-RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &context, const SceneConstPtr &scene)
+RayBuilder::scene_acceleration_data_t
+RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &context,
+                                     const build_scene_acceleration_params_t &params)
 {
     context->semaphore.wait(UpdateSemaphoreValue::UPDATE_TOP);
     context->semaphore = vierkant::Semaphore(m_device);
@@ -641,7 +642,6 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     constexpr size_t query_count = 2 * UpdateSemaphoreValue::MAX_VALUE;
     vkResetQueryPool(m_device->handle(), context->query_pool.get(), 0, query_count);
 
-    bool use_compaction = true;
     uint64_t semaphore_wait_value = UpdateSemaphoreValue::INVALID;
 
     std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
@@ -654,7 +654,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     // run compaction on structures from previous frame
     for(auto &[anim_mesh, result]: previous_builds)
     {
-        if(use_compaction && result.compact && result.compacted_assets.empty())
+        if(params.use_compaction && result.compact && result.compacted_assets.empty())
         {
             // run compaction
             compact(result);
@@ -669,7 +669,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         }
     }
 
-    auto view = scene->registry()->view<Object3D *, vierkant::MeshPtr>();
+    auto view = params.scene->registry()->view<Object3D *, vierkant::MeshPtr>();
 
     std::unordered_map<entt::entity, vierkant::animated_mesh_t> mesh_compute_entities;
     vierkant::mesh_compute_result_t mesh_compute_result = {};
@@ -819,16 +819,16 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
                          context->query_pool.get(), 2 * UpdateSemaphoreValue::UPDATE_BOTTOM + 1);
     context->cmd_build_bottom_end.submit(m_queue, false, VK_NULL_HANDLE, semaphore_infos);
 
-    build_scene_acceleration_result_t ret;
+    scene_acceleration_data_t ret;
 
     // top-lvl build
     context->cmd_build_toplvl.begin(0);
     vkCmdWriteTimestamp2(context->cmd_build_toplvl.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          context->query_pool.get(), 2 * UpdateSemaphoreValue::UPDATE_TOP);
+    create_toplevel(context, params, ret, nullptr);
 
     // NOTE: updating toplevel still having issues but doesn't seem too important performance-wise
     // update top-level structure
-    ret.acceleration_asset = create_toplevel(context, scene, nullptr);
     vkCmdWriteTimestamp2(context->cmd_build_toplvl.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
                          context->query_pool.get(), 2 * UpdateSemaphoreValue::UPDATE_TOP + 1);
     context->cmd_build_toplvl.end();

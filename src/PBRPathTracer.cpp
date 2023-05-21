@@ -391,7 +391,7 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     auto &desc_acceleration_structure = frame_asset.tracable.descriptors[0];
     desc_acceleration_structure.type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     desc_acceleration_structure.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_acceleration_structure.acceleration_structure = frame_asset.acceleration_asset.structure;
+    desc_acceleration_structure.acceleration_structure = frame_asset.scene_ray_acceleration.top_lvl.structure;
 
     auto &desc_storage_images = frame_asset.tracable.descriptors[1];
     desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -417,44 +417,44 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     vierkant::descriptor_t &desc_vertex_buffers = frame_asset.tracable.descriptors[3];
     desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_vertex_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_vertex_buffers.buffers = frame_asset.acceleration_asset.vertex_buffers;
-    desc_vertex_buffers.buffer_offsets = frame_asset.acceleration_asset.vertex_buffer_offsets;
+    desc_vertex_buffers.buffers = frame_asset.scene_ray_acceleration.vertex_buffers;
+    desc_vertex_buffers.buffer_offsets = frame_asset.scene_ray_acceleration.vertex_buffer_offsets;
 
     vierkant::descriptor_t &desc_index_buffers = frame_asset.tracable.descriptors[4];
     desc_index_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_index_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_index_buffers.buffers = frame_asset.acceleration_asset.index_buffers;
-    desc_index_buffers.buffer_offsets = frame_asset.acceleration_asset.index_buffer_offsets;
+    desc_index_buffers.buffers = frame_asset.scene_ray_acceleration.index_buffers;
+    desc_index_buffers.buffer_offsets = frame_asset.scene_ray_acceleration.index_buffer_offsets;
 
     vierkant::descriptor_t &desc_entries = frame_asset.tracable.descriptors[5];
     desc_entries.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_entries.buffers = {frame_asset.acceleration_asset.entry_buffer};
+    desc_entries.buffers = {frame_asset.scene_ray_acceleration.entry_buffer};
 
     vierkant::descriptor_t &desc_materials = frame_asset.tracable.descriptors[6];
     desc_materials.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_materials.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_materials.buffers = {frame_asset.acceleration_asset.material_buffer};
+    desc_materials.buffers = {frame_asset.scene_ray_acceleration.material_buffer};
 
     vierkant::descriptor_t &desc_textures = frame_asset.tracable.descriptors[7];
     desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_textures.images = frame_asset.acceleration_asset.textures;
+    desc_textures.images = frame_asset.scene_ray_acceleration.textures;
 
     vierkant::descriptor_t &desc_normalmaps = frame_asset.tracable.descriptors[8];
     desc_normalmaps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_normalmaps.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_normalmaps.images = frame_asset.acceleration_asset.normalmaps;
+    desc_normalmaps.images = frame_asset.scene_ray_acceleration.normalmaps;
 
     vierkant::descriptor_t &desc_emissions = frame_asset.tracable.descriptors[9];
     desc_emissions.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_emissions.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_emissions.images = frame_asset.acceleration_asset.emissions;
+    desc_emissions.images = frame_asset.scene_ray_acceleration.emissions;
 
     vierkant::descriptor_t &desc_ao_rough_metal_maps = frame_asset.tracable.descriptors[10];
     desc_ao_rough_metal_maps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_ao_rough_metal_maps.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_ao_rough_metal_maps.images = frame_asset.acceleration_asset.ao_rough_metal_maps;
+    desc_ao_rough_metal_maps.images = frame_asset.scene_ray_acceleration.ao_rough_metal_maps;
 
     // comman ubo for miss-shaders
     vierkant::descriptor_t &desc_ray_miss_ubo = frame_asset.tracable.descriptors[11];
@@ -481,13 +481,17 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_asset_t 
     bool use_environment = m_environment && frame_asset.settings.draw_skybox;
     frame_asset.tracable.pipeline_info.shader_stages = use_environment ? m_shader_stages_env : m_shader_stages;
 
-    auto result = m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, scene);
+    RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
+    build_scene_params.scene = scene;
+    build_scene_params.use_compaction = frame_asset.settings.compaction;
+    build_scene_params.use_scene_assets = true;
+    auto result = m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
 
-    frame_asset.acceleration_asset = std::move(result.acceleration_asset);
     vierkant::semaphore_submit_info_t signal_info = {};
     signal_info.semaphore = frame_asset.semaphore.handle();
     signal_info.signal_value = SemaphoreValue::UPDATE_TOP;
     vierkant::submit(m_device, m_queue, {}, false, VK_NULL_HANDLE, {result.semaphore_info, signal_info});
+    frame_asset.scene_ray_acceleration = std::move(result);
 }
 
 void PBRPathTracer::reset_accumulator() { m_batch_index = 0; }

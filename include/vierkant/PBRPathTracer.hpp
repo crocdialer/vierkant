@@ -175,7 +175,7 @@ private:
         RayBuilder::scene_acceleration_context_ptr scene_acceleration_context;
 
         //! top-lvl structure
-        vierkant::RayBuilder::acceleration_asset_t acceleration_asset;
+        vierkant::RayBuilder::scene_acceleration_data_t scene_ray_acceleration;
 
         vierkant::RayTracer::tracable_t tracable = {};
 

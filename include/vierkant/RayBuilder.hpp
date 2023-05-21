@@ -91,19 +91,9 @@ public:
         VkDeviceAddress device_address = 0;
         vierkant::BufferPtr buffer = nullptr;
 
-        //! buffer containing entry-information
-        vierkant::BufferPtr entry_buffer = nullptr;
-
-        //! buffer containing material-information
-        vierkant::BufferPtr material_buffer = nullptr;
-
-        std::vector<vierkant::ImagePtr> textures, normalmaps, emissions, ao_rough_metal_maps;
-
         //! vertex- and index-buffers for the entire scene
-        std::vector<vierkant::BufferPtr> vertex_buffers;
-        std::vector<vierkant::BufferPtr> index_buffers;
-        std::vector<VkDeviceSize> vertex_buffer_offsets;
-        std::vector<VkDeviceSize> index_buffer_offsets;
+        vierkant::BufferPtr vertex_buffer;
+        VkDeviceSize vertex_buffer_offset;
 
         //! keep-alives, used during toplevel builds
         vierkant::BufferPtr instance_buffer = nullptr;
@@ -154,10 +144,37 @@ public:
     scene_acceleration_context_ptr create_scene_acceleration_context();
 
     //! struct grouping return values of 'build_scene_acceleration'-routine.
-    struct build_scene_acceleration_result_t
+    struct scene_acceleration_data_t
     {
-        acceleration_asset_t acceleration_asset;
+        acceleration_asset_t top_lvl;
         vierkant::semaphore_submit_info_t semaphore_info;
+
+        //! buffer containing entry-information
+        vierkant::BufferPtr entry_buffer = nullptr;
+
+        //! buffer containing material-information
+        vierkant::BufferPtr material_buffer = nullptr;
+
+        std::vector<vierkant::ImagePtr> textures, normalmaps, emissions, ao_rough_metal_maps;
+
+        //! vertex- and index-buffers for the entire scene
+        std::vector<vierkant::BufferPtr> vertex_buffers;
+        std::vector<vierkant::BufferPtr> index_buffers;
+        std::vector<VkDeviceSize> vertex_buffer_offsets;
+        std::vector<VkDeviceSize> index_buffer_offsets;
+    };
+
+    //! struct grouping return values of 'build_scene_acceleration'-routine.
+    struct build_scene_acceleration_params_t
+    {
+        //! provided scene
+        SceneConstPtr scene;
+
+        //! enable compaction for bottom-lvl structures
+        bool use_compaction = true;
+
+        //! request to provide all vertex/index/material-buffers and textures.
+        bool use_scene_assets = true;
     };
 
     /**
@@ -169,8 +186,8 @@ public:
      * @param   context an opaque context handle.
      * @param   scene   a provided scene.
      */
-    build_scene_acceleration_result_t build_scene_acceleration(const scene_acceleration_context_ptr &context,
-                                                               const SceneConstPtr &scene);
+    scene_acceleration_data_t build_scene_acceleration(const scene_acceleration_context_ptr &context,
+                                                       const build_scene_acceleration_params_t &params);
 
     /**
      * @brief   'timings' can be used to query gpu-timings for a recent run.
@@ -234,9 +251,8 @@ private:
      *
      * @param   last    an optional, existing toplevel-structure to perform an update to
      */
-    [[nodiscard]] acceleration_asset_t create_toplevel(const scene_acceleration_context_ptr &context,
-                                                       const vierkant::SceneConstPtr &scene,
-                                                       const vierkant::AccelerationStructurePtr &last) const;
+    void create_toplevel(const scene_acceleration_context_ptr &context, const build_scene_acceleration_params_t &params,
+                         scene_acceleration_data_t &result, const vierkant::AccelerationStructurePtr &last) const;
 
     void set_function_pointers();
 
