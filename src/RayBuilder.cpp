@@ -208,7 +208,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         // Allocate the scratch buffers holding the temporary data of the
         // acceleration structure builder
         acceleration_asset.scratch_buffer =
-                vierkant::Buffer::create(m_device, nullptr, size_info.buildScratchSize,
+                vierkant::Buffer::create(m_device, nullptr, std::max<uint64_t>(size_info.buildScratchSize, 1 << 12U),
                                          VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
 
@@ -837,13 +837,13 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = context->semaphore.handle();
-    semaphore_info.wait_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
     semaphore_info.wait_value = RayBuilder::UpdateSemaphoreValue::UPDATE_BOTTOM;
     semaphore_info.signal_value = UpdateSemaphoreValue::UPDATE_TOP;
     context->cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 
     ret.semaphore_info.semaphore = context->semaphore.handle();
-    ret.semaphore_info.wait_stage = VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+    ret.semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
     ret.semaphore_info.wait_value = RayBuilder::UpdateSemaphoreValue::UPDATE_TOP;
     return ret;
 }
