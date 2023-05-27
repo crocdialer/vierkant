@@ -676,7 +676,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     std::unordered_map<entt::entity, vierkant::animated_mesh_t> mesh_compute_entities;
     vierkant::mesh_compute_result_t mesh_compute_result = {};
 
-    if(context->mesh_compute_context)
+    if(context->mesh_compute_context && params.use_mesh_compute)
     {
         vierkant::mesh_compute_params_t mesh_compute_params = {};
         mesh_compute_params.queue = m_queue;

@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_ray_query : enable
+#extension GL_EXT_scalar_block_layout : enable
 
 #include "../renderer/types.glsl"
 
@@ -17,7 +18,7 @@
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 layout(set = 0, binding = 1) uniform sampler2D u_sampler_2D[2];
 
-layout(std140, binding = 2) readonly buffer ParamsBuffer
+layout(binding = 2, scalar) readonly buffer ParamsBuffer
 {
     mat4 inverse_projection;
     transform_t camera_transform;

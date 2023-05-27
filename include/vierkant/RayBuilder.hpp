@@ -171,6 +171,9 @@ public:
         //! provided scene
         SceneConstPtr scene;
 
+        //! enable mesh-compute for baking animated meshes per frame
+        bool use_mesh_compute = true;
+
         //! enable compaction for bottom-lvl structures
         bool use_compaction = true;
 
