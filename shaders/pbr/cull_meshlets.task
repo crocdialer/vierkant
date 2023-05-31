@@ -42,12 +42,13 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
     return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
 }
 
-#define CULLING 1
+#define CULLING 0
 
 void main()
 {
     uint gid = gl_GlobalInvocationID.x;
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
+    if(gid >= draw_command.num_meshlets){ return; }
 
     uint object_index = draw_command.object_index;
     uint meshlet_base_index = gl_WorkGroupID.x * gl_WorkGroupSize.x + draw_command.base_meshlet;
@@ -68,7 +69,7 @@ void main()
     float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
 
     // backface-culling
-    bool accept = (gid < draw_command.num_meshlets) && !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
+    bool accept = !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
 
     // frustum-culling
     accept = accept && !frustum_cull(center, radius, camera.frustum);
