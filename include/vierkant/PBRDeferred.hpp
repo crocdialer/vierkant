@@ -175,26 +175,46 @@ public:
 
     void set_environment(const vierkant::ImagePtr &lambert, const vierkant::ImagePtr &ggx);
 
-    vierkant::ImagePtr environment_lambert() const { return m_conv_lambert; };
+//    vierkant::ImagePtr environment_lambert() const { return m_conv_lambert; };
+//
+//    vierkant::ImagePtr environment_ggx() const { return m_conv_ggx; };
+//
+//    vierkant::ImagePtr bsdf_lut() const { return m_brdf_lut; }
 
-    vierkant::ImagePtr environment_ggx() const { return m_conv_ggx; };
-
-    vierkant::ImagePtr bsdf_lut() const { return m_brdf_lut; }
-
-    /**
-     * @return a const ref to the g-buffer used for last rendering.
-     */
-    const vierkant::Framebuffer &g_buffer() const;
-
-    /**
-     * @return a const ref to the lighting-buffer used for last rendering.
-     */
-    const vierkant::Framebuffer &lighting_buffer() const;
+//    /**
+//     * @return a const ref to the g-buffer used for last rendering.
+//     */
+//    const vierkant::Framebuffer &g_buffer() const;
+//
+//    /**
+//     * @return a const ref to the lighting-buffer used for last rendering.
+//     */
+//    const vierkant::Framebuffer &lighting_buffer() const;
 
     /**
      * @return a queue of structs containing drawcall- and timing-results for past frames
      */
     const std::deque<statistics_t> &statistics() const { return m_statistics; }
+
+    struct images_t
+    {
+        //! g-buffer
+        vierkant::ImagePtr albedo;
+        vierkant::ImagePtr normals;
+        vierkant::ImagePtr emission;
+        vierkant::ImagePtr ao_rough_metal;
+        vierkant::ImagePtr motion;
+        vierkant::ImagePtr depth;
+
+        //! lighting / occlusion
+        vierkant::ImagePtr lighting;
+        vierkant::ImagePtr occlusion;
+        vierkant::ImagePtr environment_diffuse;
+        vierkant::ImagePtr environment_specular;
+        vierkant::ImagePtr bsdf_lut;
+    };
+
+    const images_t& images() const;
 
     //! settings struct
     settings_t settings;
@@ -305,6 +325,9 @@ private:
         vierkant::QueryPoolPtr query_pool;
         std::map<SemaphoreValue, double_millisecond_t> timings_map;
         statistics_t stats;
+
+        // group used images for this frame
+        images_t internal_images;
 
         //! ping-pong post-fx framebuffers
         std::array<vierkant::Framebuffer, 2> post_fx_ping_pongs;

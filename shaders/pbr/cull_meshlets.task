@@ -42,7 +42,7 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
     return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
 }
 
-#define CULLING 0
+#define CULLING 1
 
 void main()
 {
@@ -74,6 +74,8 @@ void main()
     // frustum-culling
     accept = accept && !frustum_cull(center, radius, camera.frustum);
 
+    // TODO: occlusion-culling / visibility recording
+
     // determine indices/count via ballot
     uvec4 ballot = subgroupBallot(accept);
     uint index = subgroupBallotExclusiveBitCount(ballot);
@@ -85,6 +87,8 @@ void main()
 
 #else
     task_payload.meshlet_delta_indices[ti] = uint8_t(ti);
+
+    // TODO: wonky, emitting too many meshlets in last workgroup
     uint count = gl_WorkGroupSize.x;
     EmitMeshTasksEXT(count, 1, 1);
 #endif

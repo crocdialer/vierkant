@@ -900,6 +900,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         occlusion_img = vierkant::ambient_occlusion(frame_asset.ambient_occlusion_context, ambient_occlusion_params);
         vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
                              frame_asset.query_pool.get(), 2 * SemaphoreValue::AMBIENT_OCCLUSION + 1);
+
+        frame_asset.internal_images.occlusion = occlusion_img;
     }
 
     environment_lighting_ubo_t ubo = {};
@@ -1148,20 +1150,6 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
     return output_img;
 }
 
-const vierkant::Framebuffer &PBRDeferred::g_buffer() const
-{
-    size_t last_index = (m_g_renderer_main.num_concurrent_frames() + m_g_renderer_main.current_index() - 1) %
-                        m_g_renderer_main.num_concurrent_frames();
-    return m_frame_assets[last_index].g_buffer_post;
-}
-
-const vierkant::Framebuffer &PBRDeferred::lighting_buffer() const
-{
-    size_t last_index = (m_g_renderer_main.num_concurrent_frames() + m_g_renderer_main.current_index() - 1) %
-                        m_g_renderer_main.num_concurrent_frames();
-    return m_frame_assets[last_index].lighting_buffer;
-}
-
 void PBRDeferred::set_environment(const ImagePtr &lambert, const ImagePtr &ggx)
 {
     m_conv_lambert = lambert;
@@ -1268,6 +1256,17 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
         m_logger->trace("output resolution: {} x {} -> {} x {}", previous_output_size.x, previous_output_size.y,
                         out_resolution.x, out_resolution.y);
     }
+
+    asset.internal_images.albedo = asset.g_buffer_main.color_attachment(G_BUFFER_ALBEDO);
+    asset.internal_images.normals = asset.g_buffer_main.color_attachment(G_BUFFER_NORMAL);
+    asset.internal_images.emission = asset.g_buffer_main.color_attachment(G_BUFFER_EMISSION);
+    asset.internal_images.ao_rough_metal = asset.g_buffer_main.color_attachment(G_BUFFER_AO_ROUGH_METAL);
+    asset.internal_images.motion = asset.g_buffer_main.color_attachment(G_BUFFER_MOTION);
+    asset.internal_images.lighting = asset.lighting_buffer.color_attachment();
+
+    asset.internal_images.bsdf_lut = m_brdf_lut;
+    asset.internal_images.environment_diffuse = m_conv_lambert;
+    asset.internal_images.environment_specular = m_conv_ggx;
 }
 
 void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params)
@@ -1345,6 +1344,14 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     // reset query-pool
     vkResetQueryPool(m_device->handle(), frame_asset.query_pool.get(), 0, query_count);
     frame_asset.timings_map.clear();
+}
+
+const PBRDeferred::images_t& PBRDeferred::images() const
+{
+    size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
+                         m_g_renderer_main.num_concurrent_frames();
+    auto &frame_asset = m_frame_assets[frame_index];
+    return frame_asset.internal_images;
 }
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)

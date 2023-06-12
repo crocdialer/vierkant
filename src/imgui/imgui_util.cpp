@@ -268,7 +268,9 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
 
     if(pbr_renderer)
     {
-        auto extent = pbr_renderer->lighting_buffer().extent();
+        const auto &pbr_images = pbr_renderer->images();
+
+        auto extent = pbr_images.albedo->extent();
 
         if(ImGui::TreeNode("statistics"))
         {
@@ -364,21 +366,13 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
 
         if(ImGui::TreeNode("g-buffer", "g-buffer (%d)", vierkant::G_BUFFER_SIZE))
         {
-            std::vector<vierkant::ImagePtr> images(vierkant::G_BUFFER_SIZE);
-
-            for(uint32_t i = 0; i < vierkant::G_BUFFER_SIZE; ++i)
-            {
-                images[i] = pbr_renderer->g_buffer().color_attachment(i);
-            }
-            vierkant::gui::draw_images_ui(images);
-
+            vierkant::gui::draw_images_ui(
+                    {pbr_images.albedo, pbr_images.normals, pbr_images.emission, pbr_images.motion});
             ImGui::TreePop();
         }
         if(ImGui::TreeNode("lighting buffer", "lighting buffer (%d x %d)", extent.width, extent.height))
         {
-            vierkant::gui::draw_images_ui({pbr_renderer->bsdf_lut()});
-            vierkant::gui::draw_images_ui({pbr_renderer->lighting_buffer().color_attachment()});
-
+            vierkant::gui::draw_images_ui({pbr_images.lighting, pbr_images.occlusion});
             ImGui::TreePop();
         }
     }
@@ -603,7 +597,7 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &cam, std::set<vierkant::Obj
                 bool enabled = object == cam.get();
 
                 // push object id
-                ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D*>()(object)));
+                ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(object)));
                 if(ImGui::Checkbox("", &enabled) && enabled)
                 {
                     cam = std::dynamic_pointer_cast<vierkant::Camera>(object->shared_from_this());

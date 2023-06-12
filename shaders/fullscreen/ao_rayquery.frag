@@ -48,7 +48,8 @@ float raytraced_occlusion(vec3 position, vec3 world_normal, float max_distance, 
     for(uint i = 0; i < num_rays; ++i)
     {
         vec2 Xi = fract(Hammersley(i, num_rays) + vec2(sample_offset));
-        vec3 direction = frame * sample_cosine(Xi);
+        vec3 cos_dir = sample_cosine(Xi);
+        vec3 direction = frame * cos_dir;
 
         rayQueryEXT query;
         rayQueryInitializeEXT(query, topLevelAS, gl_RayFlagsTerminateOnFirstHitEXT, 0xFF, position, tmin, direction, tmax);
@@ -61,7 +62,7 @@ float raytraced_occlusion(vec3 position, vec3 world_normal, float max_distance, 
         }
 
         float ao = min(dist, max_distance);
-        float factor = 1.0;//0.2 + 0.8 * z * z;// weighting not required since we sampled cosine(!?)
+        float factor = 0.2 + 0.8 * cos_dir.z * cos_dir.z;// weighting not required since we sampled cosine(!?)
         accumulated_factor += factor;
         accumulated_ao += ao * factor;
     }
