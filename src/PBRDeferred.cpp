@@ -880,7 +880,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
         build_scene_params.scene = cull_result.scene;
         build_scene_params.use_compaction = true;
-        build_scene_params.use_scene_assets = false;
+        build_scene_params.use_scene_assets = true;
         frame_asset.scene_ray_acceleration =
                 m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
 
@@ -1346,7 +1346,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     frame_asset.timings_map.clear();
 }
 
-const PBRDeferred::images_t& PBRDeferred::images() const
+const PBRDeferred::image_bundle_t & PBRDeferred::image_bundle() const
 {
     size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
                          m_g_renderer_main.num_concurrent_frames();

@@ -599,10 +599,10 @@ void RayBuilder::create_toplevel(const scene_acceleration_context_ptr &context,
     }
 
     // Create a small scratch buffer used during build of the top level acceleration structure
-    auto scratch_buffer =
-            vierkant::Buffer::create(m_device, nullptr, acceleration_structure_build_sizes_info.buildScratchSize,
-                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
+    auto scratch_buffer = vierkant::Buffer::create(
+            m_device, nullptr, std::max<uint64_t>(acceleration_structure_build_sizes_info.buildScratchSize, 1U << 12U),
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
+            m_memory_pool);
 
     VkAccelerationStructureBuildGeometryInfoKHR acceleration_build_geometry_info{};
     acceleration_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -843,7 +843,8 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     context->cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 
     ret.semaphore_info.semaphore = context->semaphore.handle();
-    ret.semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+    ret.semaphore_info.wait_stage =
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
     ret.semaphore_info.wait_value = RayBuilder::UpdateSemaphoreValue::UPDATE_TOP;
     return ret;
 }

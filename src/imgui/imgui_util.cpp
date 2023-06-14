@@ -268,7 +268,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
 
     if(pbr_renderer)
     {
-        const auto &pbr_images = pbr_renderer->images();
+        const auto &pbr_images = pbr_renderer->image_bundle();
 
         auto extent = pbr_images.albedo->extent();
 
@@ -366,8 +366,8 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
 
         if(ImGui::TreeNode("g-buffer", "g-buffer (%d)", vierkant::G_BUFFER_SIZE))
         {
-            vierkant::gui::draw_images_ui(
-                    {pbr_images.albedo, pbr_images.normals, pbr_images.emission, pbr_images.motion});
+            vierkant::gui::draw_images_ui({pbr_images.albedo, pbr_images.normals, pbr_images.emission,
+                                           pbr_images.ao_rough_metal, pbr_images.motion});
             ImGui::TreePop();
         }
         if(ImGui::TreeNode("lighting buffer", "lighting buffer (%d x %d)", extent.width, extent.height))

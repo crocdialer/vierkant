@@ -17,7 +17,7 @@
 layout(local_size_x = MESH_WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = 64) out;
 
-#define CULLING 1
+#define CULLING 0
 
 layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
 {
