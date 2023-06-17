@@ -46,7 +46,7 @@ VkDeviceSize num_bytes(VkIndexType index_type)
 
 void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout,
                              VkImageLayout new_layout, uint32_t num_layers, uint32_t num_mip_levels,
-                             VkImageAspectFlags aspectMask)
+                             VkImageAspectFlags aspectMask, VkDependencyFlags dependency_flags)
 {
     VkImageMemoryBarrier2 barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
@@ -163,7 +163,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
     dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
     dependency_info.imageMemoryBarrierCount = 1;
     dependency_info.pImageMemoryBarriers = &barrier;
-    dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+    dependency_info.dependencyFlags = dependency_flags;
     vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 }
 
@@ -413,7 +413,8 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer)
+void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer,
+                              VkDependencyFlags dependency_flags)
 {
     if(new_layout != m_image_layout)
     {
@@ -426,7 +427,7 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
             cmd_buffer = localCommandBuffer.handle();
         }
         transition_image_layout(cmd_buffer, m_image.get(), m_image_layout, new_layout, m_format.num_layers,
-                                m_num_mip_levels, m_format.aspect);
+                                m_num_mip_levels, m_format.aspect, dependency_flags);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
         if(localCommandBuffer) { localCommandBuffer.submit(m_device->queue(), true); }

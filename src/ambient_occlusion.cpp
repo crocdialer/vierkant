@@ -198,7 +198,7 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     context->renderer.render(rendering_info);
     vkCmdEndRendering(params.commandbuffer);
 
-    ao_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, params.commandbuffer);
+    ao_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, params.commandbuffer, 0);
     context->device->end_label(params.commandbuffer);
     return ao_img;
 }
