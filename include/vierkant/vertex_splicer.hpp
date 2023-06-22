@@ -24,9 +24,9 @@ struct vertex_t
 struct packed_vertex_t
 {
     float pos_x, pos_y, pos_z;
-    uint8_t normal_x, normal_y, normal_z, normal_w;
+    uint32_t normal;
+    uint32_t tangent;
     uint16_t texcoord_x, texcoord_y;
-    uint8_t tangent_x, tangent_y, tangent_z, tangent_w;
 };
 
 //! layout for a quantized and packed bone-vertex

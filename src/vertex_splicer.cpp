@@ -3,6 +3,7 @@
 //
 
 #include <meshoptimizer.h>
+#include <vierkant/octahedral_map.hpp>
 #include <vierkant/vertex_splicer.hpp>
 
 namespace vierkant
@@ -82,15 +83,9 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
                 v->pos_y = meshopt_quantizeFloat(pos.y, num_mantissa_bits);
                 v->pos_z = meshopt_quantizeFloat(pos.z, num_mantissa_bits);
 
-                v->normal_x = uint8_t(normal.x * 127.f + 127.5f);
-                v->normal_y = uint8_t(normal.y * 127.f + 127.5f);
-                v->normal_z = uint8_t(normal.z * 127.f + 127.5f);
-                v->normal_w = 0;
-
-                v->tangent_x = uint8_t(tangent.x * 127.f + 127.5f);
-                v->tangent_y = uint8_t(tangent.y * 127.f + 127.5f);
-                v->tangent_z = uint8_t(tangent.z * 127.f + 127.5f);
-                v->tangent_w = 0;
+                // store directions in packed octhedral mapping
+                v->normal = vierkant::pack_snorm_2x16(vierkant::normalized_vector_to_octahedral_mapping(normal));
+                v->tangent = vierkant::pack_snorm_2x16(vierkant::normalized_vector_to_octahedral_mapping(tangent));
 
                 v->texcoord_x = meshopt_quantizeHalf(texcoord.x);
                 v->texcoord_y = meshopt_quantizeHalf(texcoord.y);
@@ -128,7 +123,7 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
 
         auto &normal_attrib = ret[Mesh::AttribLocation::ATTRIB_NORMAL];
         normal_attrib.format = VK_FORMAT_R8G8B8A8_UINT;
-        normal_attrib.offset = offsetof(packed_vertex_t, normal_x);
+        normal_attrib.offset = offsetof(packed_vertex_t, normal);
         normal_attrib.stride = sizeof(packed_vertex_t);
 
         auto &texcoord_attrib = ret[Mesh::AttribLocation::ATTRIB_TEX_COORD];
@@ -138,7 +133,7 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
 
         auto &tangent_attrib = ret[Mesh::AttribLocation::ATTRIB_TANGENT];
         tangent_attrib.format = VK_FORMAT_R8G8B8A8_UINT;
-        tangent_attrib.offset = offsetof(packed_vertex_t, tangent_x);
+        tangent_attrib.offset = offsetof(packed_vertex_t, tangent);
         tangent_attrib.stride = sizeof(packed_vertex_t);
     }
     return ret;

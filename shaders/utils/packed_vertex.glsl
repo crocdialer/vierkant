@@ -3,6 +3,8 @@
 
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 
+#include "octahedral_map.glsl"
+
 //! Vertex defines the layout for a vertex-struct
 struct Vertex
 {
@@ -15,9 +17,9 @@ struct Vertex
 struct packed_vertex_t
 {
     float pos_x, pos_y, pos_z;
-    uint8_t normal_x, normal_y, normal_z, normal_w;
+    uint normal;
+    uint tangent;
     float16_t texcoord_x, texcoord_y;
-    uint8_t tangent_x, tangent_y, tangent_z, tangent_w;
 };
 
 struct bone_vertex_data_t
@@ -33,8 +35,8 @@ Vertex unpack(packed_vertex_t v)
     Vertex ret;
     ret.position = vec3(v.pos_x, v.pos_y, v.pos_z);
     ret.tex_coord = vec2(v.texcoord_x, v.texcoord_y);
-    ret.normal = vec3(int(v.normal_x), int(v.normal_y), int(v.normal_z)) / 127.0 - 1.0;
-    ret.tangent = vec3(int(v.tangent_x), int(v.tangent_y), int(v.tangent_z)) / 127.0 - 1.0;
+    ret.normal = octahedral_mapping_to_normalized_vector(unpack_snorm_2x16(v.normal));
+    ret.tangent = octahedral_mapping_to_normalized_vector(unpack_snorm_2x16(v.tangent));
     return ret;
 }
 
@@ -45,15 +47,8 @@ packed_vertex_t pack(Vertex v)
     ret.pos_y = v.position.y;
     ret.pos_z = v.position.z;
 
-    ret.normal_x = uint8_t(v.normal.x * 127.f + 127.5f);
-    ret.normal_y = uint8_t(v.normal.y * 127.f + 127.5f);
-    ret.normal_z = uint8_t(v.normal.z * 127.f + 127.5f);
-    ret.normal_w = uint8_t(0);
-
-    ret.tangent_x = uint8_t(v.tangent.x * 127.f + 127.5f);
-    ret.tangent_y = uint8_t(v.tangent.y * 127.f + 127.5f);
-    ret.tangent_z = uint8_t(v.tangent.z * 127.f + 127.5f);
-    ret.tangent_w = uint8_t(0);
+    ret.normal = pack_snorm_2x16(normalized_vector_to_octahedral_mapping(v.normal));
+    ret.tangent = pack_snorm_2x16(normalized_vector_to_octahedral_mapping(v.tangent));
 
     ret.texcoord_x = float16_t(v.tex_coord.x);
     ret.texcoord_y = float16_t(v.tex_coord.y);

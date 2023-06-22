@@ -34,4 +34,24 @@ vec3 octahedral_mapping_to_normalized_vector(vec2 p)
     return normalize(n);
 }
 
+// Unpack two 16-bit snorm values from the lo/hi bits of a dword.
+//  - packed: Two 16-bit snorm in low/high bits.
+//  - returns: Two float values in [-1,1].
+vec2 unpack_snorm_2x16(uint packed)
+{
+    ivec2 bits = ivec2(packed << 16, packed) >> 16;
+    vec2 unpacked = max(vec2(bits) / 32767.0, -1.0);
+    return unpacked;
+}
+
+// Pack two floats into 16-bit snorm values in the lo/hi bits of a dword.
+//  - returns: Two 16-bit snorm in low/high bits.
+uint pack_snorm_2x16(vec2 v)
+{
+    v = any(isnan(v)) ? vec2(0, 0) : clamp(v, -1.0, 1.0);
+    ivec2 iv = ivec2(round(v * 32767.0));
+    uint packed = (iv.x & 0x0000ffff) | (iv.y << 16);
+    return packed;
+}
+
 #endif // OCTAHEDRAL_MAP_GLSL
