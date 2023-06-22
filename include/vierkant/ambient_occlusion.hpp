@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+#include <vierkant/transform.hpp>
 #include <vierkant/Image.hpp>
 #include <vierkant/PipelineCache.hpp>
 #include <vierkant/descriptor.hpp>
@@ -24,7 +26,8 @@ struct ambient_occlusion_params_t
     vierkant::ImagePtr depth_img;
     vierkant::ImagePtr normal_img;
     vierkant::AccelerationStructurePtr top_level;
-    VkCommandBuffer commandbuffer;
+    bool use_ray_queries = false;
+    VkCommandBuffer commandbuffer = VK_NULL_HANDLE;
     std::optional<uint32_t> random_seed;
 };
 

@@ -740,7 +740,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
                 auto &prev_accleration_assets = prev_it->second;
 
                 // reset scratch-buffers for acceleration-assets we keep
-                for(auto &acceleration_asset: prev_accleration_assets) { acceleration_asset->scratch_buffer.reset(); }
+//                for(auto &acceleration_asset: prev_accleration_assets) { acceleration_asset->scratch_buffer.reset(); }
                 context->mesh_assets[mesh] = prev_accleration_assets;
             }
             //            else

@@ -5,10 +5,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_GOOGLE_include_directive : enable
 
-#include "ray_common.glsl"
 #include "../utils/packed_vertex.glsl"
-
-//#include "bsdf_UE4.glsl"
+#include "ray_common.glsl"
 #include "bsdf_disney.glsl"
 
 //! Triangle groups triangle vertices
@@ -132,7 +130,6 @@ Vertex interpolate_vertex(Triangle t)
 
 void main()
 {
-    //    vec3 worldPos = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
     uint rng_state = payload.rng_state;
     Triangle triangle = get_triangle();
     Vertex v = interpolate_vertex(triangle);
@@ -159,7 +156,8 @@ void main()
 
         // sample normalmap
         vec3 normal = normalize(2.0 * (sample_texture_lod(u_normalmaps[material.normalmap_index],
-        v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz - vec3(0.5)));
+                                                          v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz -
+                                       vec3(0.5)));
 
         // normal, tangent, bi-tangent
         vec3 b = normalize(cross(v.normal, v.tangent));
@@ -182,27 +180,6 @@ void main()
     // absorption in media
     payload.beta *= exp(-payload.absorption * gl_HitTEXT);
     payload.absorption = vec3(0);
-
-    // test-code for shadow-rays
-//    Ray ray = Ray(payload.position + EPS * payload.ff_normal, normalize(vec3(0.7, 0.9, 0.3)));
-//    const uint ray_flags =  gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT | gl_RayFlagsOpaqueEXT;
-//    float tmin = 0.0001;
-//    float tmax = 10000.0;
-//    payload_shadow.shadow = true;
-//
-//    traceRayEXT(topLevelAS,         // acceleration structure
-//                ray_flags,          // rayflags
-//                0xff,               // cullMask
-//                0,                  // sbtRecordOffset
-//                0,                  // sbtRecordStride
-//                MISS_INDEX_SHADOW,  // missIndex
-//                ray.origin,         // ray origin
-//                tmin,               // ray min range
-//                ray.direction,      // ray direction
-//                tmax,               // ray max range
-//                MISS_INDEX_SHADOW); // payload-location
-//
-//    payload.radiance += payload.beta * (payload_shadow.shadow ? vec3(0) : vec3(.1));
 
     // add radiance from emission
     payload.radiance += payload.beta * material.emission.rgb;
@@ -233,22 +210,48 @@ void main()
 
     payload.ior = payload.inside_media ? material.ior : 1.0;
 
-    // TODO: compile-time toggle BSDF
-//    bsdf_sample_t bsdf_sample = sample_UE4(material, payload.ff_normal, V, eta, rng_state);
-    bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
+#if 1
+    // test-code for shadow-rays
 
-    payload.ray.direction = bsdf_sample.direction;
+    // sun angular diameter
+    const float sun_angle =  0.524167 *  PI / 180.0;
+    const vec3 sun_dir = normalize(vec3(.4, 1.0, 0.7));
 
-    float cos_theta = abs(dot(payload.normal, payload.ray.direction));
+    // uniform sample sun-area
+    vec3 L_light = local_frame(sun_dir) * sample_unit_sphere_cap(vec2(rnd(rng_state), rnd(rng_state)), sun_angle);
+    const vec3 sun_color = vec3(1.0, 0.6, 0.4);
+    const float sun_intensity = 10.0;
+    Ray ray = Ray(payload.position + EPS * payload.ff_normal, L_light);
+    const uint ray_flags =  gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT | gl_RayFlagsOpaqueEXT;
+    float tmin = 0.0001;
+    float tmax = 10000.0;
+    payload_shadow.shadow = true;
 
-    // Russian roulette
-    if(max3(payload.beta) <= 0.05 && payload.depth > 2)
+    traceRayEXT(topLevelAS,         // acceleration structure
+                ray_flags,          // rayflags
+                0xff,               // cullMask
+                0,                  // sbtRecordOffset
+                0,                  // sbtRecordStride
+                MISS_INDEX_SHADOW,  // missIndex
+                ray.origin,         // ray origin
+                tmin,               // ray min range
+                ray.direction,      // ray direction
+                tmax,               // ray max range
+                MISS_INDEX_SHADOW); // payload-location
+
+    // eval light
+    if(!payload_shadow.shadow)
     {
-        float q = max(.05, 1.0 - max3(payload.beta));
-        if(rnd(rng_state) < q){ payload.stop = true; }
-        payload.beta /= (1.0 - q);
-        return;
+        float pdf = 0.0;
+        float cos_theta = abs(dot(payload.normal, L_light));
+        vec3 F = DisneyEval(material, L_light, payload.ff_normal, V, eta, pdf);
+        vec3 radiance_L = sun_color * sun_intensity * clamp(F * cos_theta / (pdf + EPS), 0.0, 1.0);
+        payload.radiance += payload.beta * (payload_shadow.shadow ? vec3(0) : radiance_L);
     }
+#endif
+
+    // take sample from burley/disney BSDF
+    bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
 
     if (bsdf_sample.pdf <= 0.0)
     {
@@ -256,9 +259,28 @@ void main()
         return;
     }
 
-    payload.beta = clamp(payload.beta * bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS), 0.0, 1.0);
+    payload.ray.direction = bsdf_sample.direction;
+    float cos_theta = abs(dot(payload.normal, payload.ray.direction));
+
+    payload.beta *= clamp(bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS), 0.0, 1.0);
     payload.inside_media = bsdf_sample.transmission ? !payload.inside_media : payload.inside_media;
+
+    // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
+//    payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
 
     payload.absorption = payload.inside_media ?
                          -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS) : vec3(0);
+
+    // Russian roulette
+    if(max3(payload.beta) <= 0.05 && payload.depth >= 2)
+    {
+        float q = 1.0 - max3(payload.beta);
+
+        if(rnd(rng_state) < q)
+        {
+            payload.stop = true;
+            return;
+        }
+        payload.beta /= (1.0 - q);
+    }
 }

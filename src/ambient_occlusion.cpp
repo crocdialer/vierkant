@@ -129,14 +129,17 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     assert(context);
     if(params.random_seed) { context->random_engine.seed(*params.random_seed); }
 
+    // use ray-queries / RTAO if requested and available
+    bool use_rtao = params.use_ray_queries && params.top_level;
+
     // debug label
     context->device->begin_label(params.commandbuffer, {fmt::format("ambient_occlusion")});
 
-    auto drawable = params.top_level ? context->drawable_rtao : context->drawable_ssao;
+    auto drawable = use_rtao ? context->drawable_rtao : context->drawable_ssao;
     std::vector<vierkant::staging_copy_info_t> staging_copy_infos;
 
     // RTAO
-    if(params.top_level)
+    if(use_rtao)
     {
         drawable.descriptors[0].acceleration_structure = params.top_level;
         drawable.descriptors[1].images = {params.depth_img, params.normal_img};
