@@ -15,7 +15,7 @@ namespace vierkant
  * @param   n   a normalized direction.
  * @return  position in octahedral map in [-1,1] for each component.
  */
-inline glm::vec2 normalized_vector_to_octahedral_mapping(glm::vec3 n)
+inline glm::vec2 normalized_vector_to_octahedral_mapping(const glm::vec3 &n)
 {
     // project sphere onto octahedron (|x|+|y|+|z| = 1) and then onto xy-plane.
     glm::vec2 p = glm::vec2(n.x, n.y) * (1.f / (std::abs(n.x) + std::abs(n.y) + std::abs(n.z)));
@@ -33,9 +33,9 @@ inline glm::vec2 normalized_vector_to_octahedral_mapping(glm::vec3 n)
  * @brief   converts a point on the octahedral map to a normalized direction (non-equal area, signed normalized).
  *
  * @param   p   position in octahedral map in [-1,1] for each component.
- * @return  a rormalized direction
+ * @return  a normalized direction
  */
-inline glm::vec3 octahedral_mapping_to_normalized_vector(glm::vec2 p)
+inline glm::vec3 octahedral_mapping_to_normalized_vector(const glm::vec2 &p)
 {
     glm::vec3 n = glm::vec3(p.x, p.y, 1.0 - std::abs(p.x) - std::abs(p.y));
 

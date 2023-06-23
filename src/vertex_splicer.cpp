@@ -83,7 +83,7 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
                 v->pos_y = meshopt_quantizeFloat(pos.y, num_mantissa_bits);
                 v->pos_z = meshopt_quantizeFloat(pos.z, num_mantissa_bits);
 
-                // store directions in packed octhedral mapping
+                // store directions in packed octahedral mapping
                 v->normal = vierkant::pack_snorm_2x16(vierkant::normalized_vector_to_octahedral_mapping(normal));
                 v->tangent = vierkant::pack_snorm_2x16(vierkant::normalized_vector_to_octahedral_mapping(tangent));
 

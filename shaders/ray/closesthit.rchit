@@ -210,7 +210,7 @@ void main()
 
     payload.ior = payload.inside_media ? material.ior : 1.0;
 
-#if 0
+#if 1
     // test-code for shadow-rays
 
     // sun angular diameter
