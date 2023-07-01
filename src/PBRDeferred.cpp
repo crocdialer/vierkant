@@ -880,10 +880,14 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     if(frame_asset.settings.ambient_occlusion)
     {
+        size_t last_index = (index - 1) % m_g_renderer_main.num_concurrent_frames();
+        auto &last_frame_asset = m_frame_assets[last_index];
+
         RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
         build_scene_params.scene = cull_result.scene;
         build_scene_params.use_compaction = false;
         build_scene_params.use_scene_assets = false;
+        build_scene_params.previous_context = last_frame_asset.scene_acceleration_context.get();
         frame_asset.scene_ray_acceleration =
                 m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
 
@@ -892,6 +896,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
         // ambient occlusion (optional)
         vierkant::ambient_occlusion_params_t ambient_occlusion_params = {};
+        ambient_occlusion_params.use_ray_queries = frame_asset.settings.use_ray_queries;
         ambient_occlusion_params.top_level = frame_asset.scene_ray_acceleration.top_lvl.structure;
         ambient_occlusion_params.projection = cull_result.camera->projection_matrix();
         ambient_occlusion_params.camera_transform = cull_result.camera->transform;
