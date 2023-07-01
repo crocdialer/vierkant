@@ -53,7 +53,7 @@ vec3 sample_unit_sphere_cap(vec2 Xi, float sigma)
 }
 
 //! random point on a unit-hemisphere
-vec3 sample_unit_hemisphere(vec2 Xi)
+vec3 sample_hemisphere_uniform(vec2 Xi)
 {
     // [0, 2pi]
     const float theta = 2.0 * PI * Xi.y;
@@ -66,7 +66,7 @@ vec3 sample_unit_hemisphere(vec2 Xi)
 }
 
 //! sample a cosine-weighted hemisphere-distribution
-vec3 sample_cosine(vec2 Xi)
+vec3 sample_hemisphere_cosine(vec2 Xi)
 {
     float cosTheta = sqrt(max(1.0 - Xi.y, 0.0));
     float sinTheta = sqrt(max(1.0 - cosTheta * cosTheta, 0.0));

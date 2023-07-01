@@ -179,6 +179,9 @@ public:
 
         //! request to provide all vertex/index/material-buffers and textures.
         bool use_scene_assets = true;
+
+        //! optionally provide a handle to a previous context, in order to re-use existing acceleration-assets.
+        const scene_acceleration_context_t* previous_context = nullptr;
     };
 
     /**

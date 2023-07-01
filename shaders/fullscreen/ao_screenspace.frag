@@ -59,7 +59,7 @@ float screenspace_occlusion(sampler2D depth_sampler, vec2 coord, vec3 eye_normal
     {
         // sample a direction from cosine distribution
         vec2 Xi = fract(Hammersley(i, SSAO_KERNEL_SIZE) + vec2(sample_offset));
-        vec3 direction = frame * sample_cosine(Xi);
+        vec3 direction = frame * sample_hemisphere_cosine(Xi);
 
         // project
         vec3 new_pos = position + direction * ssao_radius;

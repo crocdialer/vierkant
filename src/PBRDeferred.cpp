@@ -1,6 +1,7 @@
 //
 // Created by crocdialer on 6/19/20.
 //
+//#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
 
 #include <crocore/gaussian.hpp>
 
@@ -18,6 +19,8 @@ namespace vierkant
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) : m_device(device)
 {
     m_logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
+//    m_logger->set_pattern("[%Y-%m-%d %H:%M:%S %z] %v [%! | %s:%#]");
+//    SPDLOG_LOGGER_DEBUG(m_logger, "PBRDeferred initialized");
     m_logger->debug("PBRDeferred initialized");
 
     m_queue = create_info.queue ? create_info.queue : device->queue();

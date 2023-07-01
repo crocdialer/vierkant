@@ -66,6 +66,16 @@ public:
      */
     void trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer);
 
+    /**
+     * @return  the current frame-index.
+     */
+    [[nodiscard]] uint32_t current_index() const { return m_current_index; }
+
+    /**
+     * @return  the number of concurrent (in-flight) frames.
+     */
+    [[nodiscard]] uint32_t num_concurrent_frames() const { return static_cast<uint32_t>(m_trace_assets.size()); }
+
     friend void swap(RayTracer &lhs, RayTracer &rhs) noexcept;
 
 private:

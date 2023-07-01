@@ -48,7 +48,7 @@ float raytraced_occlusion(vec3 position, vec3 world_normal, float max_distance, 
     for(uint i = 0; i < num_rays; ++i)
     {
         vec2 Xi = fract(Hammersley(i, num_rays) + vec2(sample_offset));
-        vec3 cos_dir = sample_cosine(Xi);
+        vec3 cos_dir = sample_hemisphere_cosine(Xi);
         vec3 direction = frame * cos_dir;
 
         rayQueryEXT query;

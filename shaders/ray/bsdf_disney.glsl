@@ -243,7 +243,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         // reflection - diffuse
         if (rnd(rng_state) < diffuseRatio)
         {
-            ret.direction = frame * sample_cosine(Xi);
+            ret.direction = frame * sample_hemisphere_cosine(Xi);
 
             H = normalize(ret.direction + V);
 

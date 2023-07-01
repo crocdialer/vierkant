@@ -31,7 +31,7 @@ vec3 ImportanceSampleDiffuse(vec3 N, samplerCube cubemap)
     for (uint i = 0; i < numSamples; ++i)
     {
         vec2 Xi = Hammersley(i, numSamples);
-        vec3 L = local_frame * sample_cosine(Xi);
+        vec3 L = local_frame * sample_hemisphere_cosine(Xi);
 
         float NoL = max(dot(N, L), 0.0);
 

@@ -740,21 +740,19 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
                 auto &prev_accleration_assets = prev_it->second;
 
                 // reset scratch-buffers for acceleration-assets we keep
-//                for(auto &acceleration_asset: prev_accleration_assets) { acceleration_asset->scratch_buffer.reset(); }
+                for(auto &acceleration_asset: prev_accleration_assets) { acceleration_asset->scratch_buffer.reset(); }
                 context->mesh_assets[mesh] = prev_accleration_assets;
             }
-            //            else
-            //            {
-            //                // no previous acceleration-structure, check other frames
-            //                for(const auto &asset: m_frame_assets)
-            //                {
-            //                    if(&asset != &frame_asset)
-            //                    {
-            //                        auto mesh_it = asset.mesh_assets.find(mesh);
-            //                        if(mesh_it != asset.mesh_assets.end()) { frame_asset.mesh_assets[mesh] = mesh_it->second; }
-            //                    }
-            //                }
-            //            }
+            else if(params.previous_context)
+            {
+                // optionally try re-using existing assets from a previous context
+                auto prev_context_it = params.previous_context->mesh_assets.find(mesh);
+
+                if(prev_context_it != params.previous_context->mesh_assets.end())
+                {
+                    context->mesh_assets[mesh] = prev_context_it->second;
+                }
+            }
         }
 
         if((!use_mesh_compute && !context->mesh_assets.contains(mesh)) ||

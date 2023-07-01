@@ -475,6 +475,10 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_asset_t &frame_asset,
                                                    const SceneConstPtr &scene, const std::set<std::string> & /*tags*/)
 {
+    size_t last_index = (m_ray_tracer.current_index() + m_ray_tracer.num_concurrent_frames() - 1) %
+                        m_ray_tracer.num_concurrent_frames();
+    const auto &last_context = m_frame_assets[last_index].scene_acceleration_context;
+
     // set environment
     m_environment = scene->environment();
     bool use_environment = m_environment && frame_asset.settings.draw_skybox;
@@ -484,6 +488,7 @@ void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_asset_t 
     build_scene_params.scene = scene;
     build_scene_params.use_compaction = frame_asset.settings.compaction;
     build_scene_params.use_scene_assets = true;
+    build_scene_params.previous_context = last_context.get();
     frame_asset.scene_ray_acceleration =
             m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
 }
