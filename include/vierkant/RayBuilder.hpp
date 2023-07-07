@@ -165,7 +165,7 @@ public:
         std::vector<VkDeviceSize> index_buffer_offsets;
     };
 
-    //! struct grouping return values of 'build_scene_acceleration'-routine.
+    //! struct grouping parameters for 'build_scene_acceleration'-routine.
     struct build_scene_acceleration_params_t
     {
         //! provided scene
@@ -181,7 +181,7 @@ public:
         bool use_scene_assets = true;
 
         //! optionally provide a handle to a previous context, in order to re-use existing acceleration-assets.
-        const scene_acceleration_context_t* previous_context = nullptr;
+        const scene_acceleration_context_t *previous_context = nullptr;
     };
 
     /**
@@ -253,13 +253,17 @@ private:
     void compact(build_result_t &build_result) const;
 
     /**
-     * @brief   create_toplevel will create a toplevel acceleration structure,
-     *          instancing all cached bottom-levels.
+     * @brief   create_toplevel will create a bundle containing a toplevel acceleration structure and all scene-assets.
+     *          assuming required bottom-levels are already contained in the provided context.
      *
-     * @param   last    an optional, existing toplevel-structure to perform an update to
+     * @param   context a provided scene_acceleration_context_ptr.
+     * @param   params  provided params.
+     * @param   last    optionally provide an existing acceleration-structure to update.
+     * @return  a populated scene_acceleration_data_t bundle.
      */
-    void create_toplevel(const scene_acceleration_context_ptr &context, const build_scene_acceleration_params_t &params,
-                         scene_acceleration_data_t &result, const vierkant::AccelerationStructurePtr &last) const;
+    [[nodiscard]] scene_acceleration_data_t create_toplevel(const scene_acceleration_context_ptr &context,
+                                                            const build_scene_acceleration_params_t &params,
+                                                            const vierkant::AccelerationStructurePtr &last) const;
 
     void set_function_pointers();
 

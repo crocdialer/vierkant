@@ -325,7 +325,8 @@ private:
 
     std::default_random_engine m_random_engine;
 
-    uint32_t m_mesh_task_count = 32;
+    VkPhysicalDeviceMeshShaderPropertiesEXT m_mesh_shader_properties = {};
+    uint32_t m_mesh_task_count = 0;
 
     //! function pointers for optional mesh-shader support
     PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT = nullptr;

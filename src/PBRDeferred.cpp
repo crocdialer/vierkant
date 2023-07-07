@@ -19,8 +19,8 @@ namespace vierkant
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) : m_device(device)
 {
     m_logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
-//    m_logger->set_pattern("[%Y-%m-%d %H:%M:%S %z] %v [%! | %s:%#]");
-//    SPDLOG_LOGGER_DEBUG(m_logger, "PBRDeferred initialized");
+    //    m_logger->set_pattern("[%Y-%m-%d %H:%M:%S %z] %v [%! | %s:%#]");
+    //    SPDLOG_LOGGER_DEBUG(m_logger, "PBRDeferred initialized");
     m_logger->debug("PBRDeferred initialized");
 
     m_queue = create_info.queue ? create_info.queue : device->queue();
@@ -43,7 +43,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(device);
 
-    if(create_info.settings.use_ray_queries) { m_ray_builder = vierkant::RayBuilder(device, m_queue); }
+    m_ray_builder = vierkant::RayBuilder(device, m_queue);
 
     m_frame_assets.resize(create_info.num_frames_in_flight);
 
@@ -95,11 +95,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
         asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
-
-        if(create_info.settings.use_ray_queries)
-        {
-            asset.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
-        }
     }
 
     // create renderer for g-buffer-pass
@@ -883,13 +878,21 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         size_t last_index = (index - 1) % m_g_renderer_main.num_concurrent_frames();
         auto &last_frame_asset = m_frame_assets[last_index];
 
-        RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
-        build_scene_params.scene = cull_result.scene;
-        build_scene_params.use_compaction = false;
-        build_scene_params.use_scene_assets = false;
-        build_scene_params.previous_context = last_frame_asset.scene_acceleration_context.get();
-        frame_asset.scene_ray_acceleration =
-                m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
+        if(frame_asset.settings.use_ray_queries)
+        {
+            if(!frame_asset.scene_acceleration_context)
+            {
+                frame_asset.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
+            }
+
+            RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
+            build_scene_params.scene = cull_result.scene;
+            build_scene_params.use_compaction = false;
+            build_scene_params.use_scene_assets = false;
+            build_scene_params.previous_context = last_frame_asset.scene_acceleration_context.get();
+            frame_asset.scene_ray_acceleration =
+                    m_ray_builder.build_scene_acceleration(frame_asset.scene_acceleration_context, build_scene_params);
+        }
 
         vkCmdWriteTimestamp2(frame_asset.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                              frame_asset.query_pool.get(), 2 * SemaphoreValue::AMBIENT_OCCLUSION);
@@ -978,7 +981,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     lighting_semaphore_info.signal_value = SemaphoreValue::LIGHTING;
     frame_asset.semaphore_value_done = SemaphoreValue::LIGHTING;
     m_device->end_label(frame_asset.cmd_lighting.handle());
-    frame_asset.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE, {frame_asset.scene_ray_acceleration.semaphore_info, lighting_semaphore_info});
+    frame_asset.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE,
+                                    {frame_asset.scene_ray_acceleration.semaphore_info, lighting_semaphore_info});
     return frame_asset.lighting_buffer;
 }
 
@@ -1354,7 +1358,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
     frame_asset.timings_map.clear();
 }
 
-const PBRDeferred::image_bundle_t & PBRDeferred::image_bundle() const
+const PBRDeferred::image_bundle_t &PBRDeferred::image_bundle() const
 {
     size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
                          m_g_renderer_main.num_concurrent_frames();

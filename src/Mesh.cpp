@@ -439,7 +439,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
                 auto target_index_count = static_cast<size_t>(static_cast<float>(num_indices) * shrink_factor);
 
-                constexpr bool sloppy = false;
+                constexpr bool sloppy = true;
 
                 if(sloppy)
                 {

@@ -20,6 +20,9 @@ struct RayBuilder::scene_acceleration_context_t
     vierkant::CommandPoolPtr command_pool;
     vierkant::CommandBuffer cmd_build_bottom_start, cmd_build_bottom_end, cmd_build_toplvl;
 
+    //! scratch buffer used during build of top-level acceleration structure
+    vierkant::BufferPtr scratch_buffer_top;
+
     //! context for computing vertex-buffers for animated meshes
     vierkant::mesh_compute_context_ptr mesh_compute_context = nullptr;
 
@@ -347,9 +350,9 @@ RayBuilder::create_acceleration_asset(VkAccelerationStructureCreateInfoKHR creat
     return acceleration_asset;
 }
 
-void RayBuilder::create_toplevel(const scene_acceleration_context_ptr &context,
-                                 const build_scene_acceleration_params_t &params, scene_acceleration_data_t &result,
-                                 const vierkant::AccelerationStructurePtr &last) const
+RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_acceleration_context_ptr &context,
+                                                                  const build_scene_acceleration_params_t &params,
+                                                                  const vierkant::AccelerationStructurePtr &last) const
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
 
@@ -573,36 +576,34 @@ void RayBuilder::create_toplevel(const scene_acceleration_context_ptr &context,
     create_info.size = acceleration_structure_build_sizes_info.accelerationStructureSize;
 
     // create/collect our stuff
-    result.top_lvl = create_acceleration_asset(create_info);
+    RayBuilder::scene_acceleration_data_t ret;
+    ret.top_lvl = create_acceleration_asset(create_info);
 
     if(params.use_scene_assets)
     {
         // needed to access buffer/vertex/index/material in closest-hit shader
-        result.entry_buffer = vierkant::Buffer::create(m_device, entries, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                       VMA_MEMORY_USAGE_CPU_TO_GPU);
+        ret.entry_buffer = vierkant::Buffer::create(m_device, entries, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         // material information for all entries
-        result.material_buffer = vierkant::Buffer::create(m_device, materials, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
+        ret.material_buffer = vierkant::Buffer::create(m_device, materials, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                                       VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         // move texture-assets
-        result.textures = std::move(textures);
-        result.normalmaps = std::move(normalmaps);
-        result.emissions = std::move(emissions);
-        result.ao_rough_metal_maps = std::move(ao_rough_metal_maps);
+        ret.textures = std::move(textures);
+        ret.normalmaps = std::move(normalmaps);
+        ret.emissions = std::move(emissions);
+        ret.ao_rough_metal_maps = std::move(ao_rough_metal_maps);
 
         // move buffers
-        result.vertex_buffers = std::move(vertex_buffers);
-        result.vertex_buffer_offsets = std::move(vertex_buffer_offsets);
-        result.index_buffers = std::move(index_buffers);
-        result.index_buffer_offsets = std::move(index_buffer_offsets);
+        ret.vertex_buffers = std::move(vertex_buffers);
+        ret.vertex_buffer_offsets = std::move(vertex_buffer_offsets);
+        ret.index_buffers = std::move(index_buffers);
+        ret.index_buffer_offsets = std::move(index_buffer_offsets);
     }
 
-    // Create a small scratch buffer used during build of the top level acceleration structure
-    auto scratch_buffer = vierkant::Buffer::create(
-            m_device, nullptr, std::max<uint64_t>(acceleration_structure_build_sizes_info.buildScratchSize, 1U << 12U),
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
-            m_memory_pool);
+    // resize scratch buffer, if necessary
+    context->scratch_buffer_top->set_data(nullptr, acceleration_structure_build_sizes_info.buildScratchSize);
 
     VkAccelerationStructureBuildGeometryInfoKHR acceleration_build_geometry_info{};
     acceleration_build_geometry_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -611,10 +612,10 @@ void RayBuilder::create_toplevel(const scene_acceleration_context_ptr &context,
     acceleration_build_geometry_info.mode =
             last ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
     acceleration_build_geometry_info.srcAccelerationStructure = last.get();
-    acceleration_build_geometry_info.dstAccelerationStructure = result.top_lvl.structure.get();
+    acceleration_build_geometry_info.dstAccelerationStructure = ret.top_lvl.structure.get();
     acceleration_build_geometry_info.geometryCount = 1;
     acceleration_build_geometry_info.pGeometries = &acceleration_structure_geometry;
-    acceleration_build_geometry_info.scratchData.deviceAddress = scratch_buffer->device_address();
+    acceleration_build_geometry_info.scratchData.deviceAddress = context->scratch_buffer_top->device_address();
 
     VkAccelerationStructureBuildRangeInfoKHR acceleration_structure_build_range_info{};
     acceleration_structure_build_range_info.primitiveCount = instances.size();
@@ -623,20 +624,45 @@ void RayBuilder::create_toplevel(const scene_acceleration_context_ptr &context,
     acceleration_structure_build_range_info.transformOffset = 0;
 
     // keep-alives
-    result.top_lvl.update_structure = last;
-    result.top_lvl.instance_buffer = instance_buffer;
-    result.top_lvl.scratch_buffer = scratch_buffer;
+    ret.top_lvl.update_structure = last;
+    ret.top_lvl.instance_buffer = instance_buffer;
+    ret.top_lvl.scratch_buffer = context->scratch_buffer_top;
+
+    context->cmd_build_toplvl.begin(0);
+    vkCmdWriteTimestamp2(context->cmd_build_toplvl.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                         context->query_pool.get(), 2 * UpdateSemaphoreValue::UPDATE_TOP);
 
     // build the AS
     const VkAccelerationStructureBuildRangeInfoKHR *offset_ptr = &acceleration_structure_build_range_info;
     vkCmdBuildAccelerationStructuresKHR(context->cmd_build_toplvl.handle(), 1, &acceleration_build_geometry_info,
                                         &offset_ptr);
+
+    // NOTE: updating toplevel still having issues but doesn't seem too important performance-wise
+    // update top-level structure
+    vkCmdWriteTimestamp2(context->cmd_build_toplvl.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+                         context->query_pool.get(), 2 * UpdateSemaphoreValue::UPDATE_TOP + 1);
+    context->cmd_build_toplvl.end();
+
+    vierkant::semaphore_submit_info_t semaphore_info = {};
+    semaphore_info.semaphore = context->semaphore.handle();
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+    semaphore_info.wait_value = RayBuilder::UpdateSemaphoreValue::UPDATE_BOTTOM;
+    semaphore_info.signal_value = UpdateSemaphoreValue::UPDATE_TOP;
+    context->cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
+
+    // provide semaphore wait-info
+    ret.semaphore_info.semaphore = context->semaphore.handle();
+    ret.semaphore_info.wait_stage =
+            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+    ret.semaphore_info.wait_value = RayBuilder::UpdateSemaphoreValue::UPDATE_TOP;
+    return ret;
 }
 
 RayBuilder::scene_acceleration_data_t
 RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &context,
                                      const build_scene_acceleration_params_t &params)
 {
+    assert(context);
     context->semaphore.wait(UpdateSemaphoreValue::UPDATE_TOP);
     context->semaphore = vierkant::Semaphore(m_device);
 
@@ -819,32 +845,8 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
                          context->query_pool.get(), 2 * UpdateSemaphoreValue::UPDATE_BOTTOM + 1);
     context->cmd_build_bottom_end.submit(m_queue, false, VK_NULL_HANDLE, semaphore_infos);
 
-    scene_acceleration_data_t ret;
-
     // top-lvl build
-    context->cmd_build_toplvl.begin(0);
-    vkCmdWriteTimestamp2(context->cmd_build_toplvl.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                         context->query_pool.get(), 2 * UpdateSemaphoreValue::UPDATE_TOP);
-    create_toplevel(context, params, ret, nullptr);
-
-    // NOTE: updating toplevel still having issues but doesn't seem too important performance-wise
-    // update top-level structure
-    vkCmdWriteTimestamp2(context->cmd_build_toplvl.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-                         context->query_pool.get(), 2 * UpdateSemaphoreValue::UPDATE_TOP + 1);
-    context->cmd_build_toplvl.end();
-
-    vierkant::semaphore_submit_info_t semaphore_info = {};
-    semaphore_info.semaphore = context->semaphore.handle();
-    semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
-    semaphore_info.wait_value = RayBuilder::UpdateSemaphoreValue::UPDATE_BOTTOM;
-    semaphore_info.signal_value = UpdateSemaphoreValue::UPDATE_TOP;
-    context->cmd_build_toplvl.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
-
-    ret.semaphore_info.semaphore = context->semaphore.handle();
-    ret.semaphore_info.wait_stage =
-            VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
-    ret.semaphore_info.wait_value = RayBuilder::UpdateSemaphoreValue::UPDATE_TOP;
-    return ret;
+    return create_toplevel(context, params, context->top_lvl);
 }
 
 RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration_context()
@@ -858,6 +860,12 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device);
     ret->query_pool =
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
+
+    // Create a small scratch buffer used during build of the top level acceleration structure
+    ret->scratch_buffer_top =
+            vierkant::Buffer::create(m_device, nullptr, 1U << 12U,
+                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                                     VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
     return ret;
 }
 

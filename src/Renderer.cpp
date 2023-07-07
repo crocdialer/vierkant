@@ -51,7 +51,16 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info)
 {
     if(!create_info.num_frames_in_flight) { throw std::runtime_error("could not create vierkant::Renderer"); }
 
-    // VK_EXT_mesh_shading function pointers
+    // VK_EXT_mesh_shading properties
+    m_mesh_shader_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
+    {
+        VkPhysicalDeviceProperties2 props = {};
+        props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        props.pNext = &m_mesh_shader_properties;
+        vkGetPhysicalDeviceProperties2(m_device->physical_device(), &props);
+    }
+
+    // VK_EXT_mesh_shading function and pointers
     set_function_pointers();
     use_mesh_shader = create_info.enable_mesh_shader && vkCmdDrawMeshTasksEXT;
     m_mesh_task_count = create_info.mesh_task_count;
