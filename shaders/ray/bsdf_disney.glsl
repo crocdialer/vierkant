@@ -292,7 +292,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
     return ret;
 }
     
-vec3 DisneyEval(in material_t material, vec3 L, vec3 N, vec3 V, float eta, inout float pdf)
+vec3 eval_disney(in material_t material, vec3 L, vec3 N, vec3 V, float eta, inout float pdf)
 {
     bool refl = dot(N, L) > 0.0;
     vec3 H = normalize(refl ? L + V : L + V * eta);

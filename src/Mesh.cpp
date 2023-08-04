@@ -320,8 +320,6 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     };
     std::map<vierkant::GeometryConstPtr, extra_offset_t> extra_offset_map;
 
-    bool pack_vertices = params.pack_vertices;
-
     for(auto &ci: entry_create_infos)
     {
         if(!splicer.insert(ci.geometry))
@@ -354,8 +352,13 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
         }
     }
 
-    if(pack_vertices) { spdlog::debug("using quantized/packed vertex-layout"); }
-    auto vertex_layout = pack_vertices ? VertexLayout::PACKED : VertexLayout::ADHOC;
+    auto vertex_layout = VertexLayout::ADHOC;
+
+    if(params.pack_vertices)
+    {
+        vertex_layout = VertexLayout::PACKED;
+        spdlog::debug("using quantized/packed vertex-layout");
+    }
 
     ret.vertex_buffer = splicer.create_vertex_buffer(vertex_layout);
     ret.index_buffer = splicer.index_buffer;
@@ -430,7 +433,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
             for(uint32_t i = 0; i < params.max_num_lods; ++i)
             {
-                // shrink num_indices to 60%
+                // shrink num_indices to 50%
                 constexpr float shrink_factor = .5f;
                 constexpr float max_mismatch = .1f;
                 constexpr float target_error = 0.05f;
@@ -439,7 +442,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
                 auto target_index_count = static_cast<size_t>(static_cast<float>(num_indices) * shrink_factor);
 
-                constexpr bool sloppy = true;
+                constexpr bool sloppy = false;
 
                 if(sloppy)
                 {

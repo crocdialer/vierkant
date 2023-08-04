@@ -22,7 +22,7 @@ T hermite(T const &v1, T const &t1, T const &v2, T const &t2, T const &s)
     return f1 * v1 + f2 * v2 + f3 * t1 + f4 * t2;
 }
 
-void create_animation_transform(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode,
+bool create_animation_transform(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode,
                                 vierkant::transform_t &out_transform)
 {
     // translation
@@ -160,12 +160,12 @@ void create_animation_transform(const animation_keys_t &keys, float time, Interp
             out_transform.scale = scale;
         }
     }
+    return !keys.positions.empty() || !keys.rotations.empty() || !keys.scales.empty();
 }
 
-std::vector<double> create_morph_weights(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode)
+bool create_morph_weights(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode,
+                          std::vector<double> &out_weights)
 {
-    std::vector<double> out_weights;
-
     if(!keys.morph_weights.empty())
     {
         // find a key with equal or greater time
@@ -208,8 +208,9 @@ std::vector<double> create_morph_weights(const animation_keys_t &keys, float tim
                 }
             }
         }
+        return true;
     }
-    return out_weights;
+    return false;
 }
 
 template<typename T>

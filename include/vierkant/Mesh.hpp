@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <optional>
+#include <set>
 #include "vierkant/Device.hpp"
 #include "vierkant/Buffer.hpp"
 #include "vierkant/Image.hpp"
@@ -117,8 +119,6 @@ public:
         VkPrimitiveTopology primitive_type = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         uint32_t morph_vertex_offset = 0;
         std::vector<double> morph_weights;
-
-        bool enabled = true;
     };
 
     struct alignas(16) meshlet_t
@@ -323,6 +323,15 @@ struct animated_mesh_t
     {
         return mesh == k.mesh && animation_state == k.animation_state;
     }
+};
+
+struct mesh_component_t
+{
+    //! handle to a mesh, containing buffers and a list of entries
+    vierkant::MeshConstPtr mesh;
+
+    //! optional set of used entry-indices.
+    std::optional<std::set<uint32_t>> entry_indices = {};
 };
 
 }//namespace vierkant

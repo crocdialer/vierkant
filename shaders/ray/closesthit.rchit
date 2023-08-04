@@ -6,6 +6,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/packed_vertex.glsl"
+#include "reservoir.glsl"
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
 
@@ -210,7 +211,7 @@ void main()
 
     payload.ior = payload.inside_media ? material.ior : 1.0;
 
-#if 1
+#if 0
     // test-code for shadow-rays
 
     // sun angular diameter
@@ -223,7 +224,7 @@ void main()
     const float sun_intensity = 10.0;
     Ray ray = Ray(payload.position + EPS * payload.ff_normal, L_light);
     const uint ray_flags =  gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT | gl_RayFlagsOpaqueEXT;
-    float tmin = 0.0001;
+    float tmin = 0.0;
     float tmax = 10000.0;
     payload_shadow.shadow = true;
 
@@ -244,7 +245,7 @@ void main()
     {
         float pdf = 0.0;
         float cos_theta = abs(dot(payload.normal, L_light));
-        vec3 F = DisneyEval(material, L_light, payload.ff_normal, V, eta, pdf);
+        vec3 F = eval_disney(material, L_light, payload.ff_normal, V, eta, pdf);
         vec3 radiance_L = sun_color * sun_intensity * clamp(F * cos_theta / (pdf + EPS), 0.0, 1.0);
         payload.radiance += payload.beta * (payload_shadow.shadow ? vec3(0) : radiance_L);
     }
@@ -266,7 +267,7 @@ void main()
     payload.inside_media = bsdf_sample.transmission ? !payload.inside_media : payload.inside_media;
 
     // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
-//    payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
+    payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
 
     payload.absorption = payload.inside_media ?
                          -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS) : vec3(0);

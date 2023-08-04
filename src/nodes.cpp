@@ -71,9 +71,10 @@ void build_morph_weights_bfs(const NodeConstPtr &root, const node_animation_t &a
 
             if(!animation_keys.morph_weights.empty())
             {
-                auto tmp = create_morph_weights(animation_keys, time, animation.interpolation_mode);
-                morph_weights[node->index].resize(tmp.size());
-                std::transform(tmp.begin(), tmp.end(), morph_weights[node->index].begin(),
+                std::vector<double> tmp_weights;
+                create_morph_weights(animation_keys, time, animation.interpolation_mode, tmp_weights);
+                morph_weights[node->index].resize(tmp_weights.size());
+                std::transform(tmp_weights.begin(), tmp_weights.end(), morph_weights[node->index].begin(),
                                [](double w) -> T { return static_cast<T>(w); });
             }
         }

@@ -377,10 +377,11 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     std::unordered_map<VkDeviceAddress, size_t> mesh_buffer_indices;
 
     std::unordered_map<MaterialConstPtr, size_t> material_indices;
-    auto view = params.scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
+    auto view = params.scene->registry()->view<vierkant::Object3D *, vierkant::mesh_component_t>();
 
-    for(const auto &[entity, object, mesh]: view.each())
+    for(const auto &[entity, object, mesh_component]: view.each())
     {
+        const auto &mesh = mesh_component.mesh;
         assert(mesh);
 
         if(!context->entity_assets.contains(object->id()))
@@ -428,16 +429,16 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             }
         }
 
-        for(uint32_t i = 0; i < acceleration_assets.size(); ++i)
+        for(uint32_t i = 0; i < mesh->entries.size(); ++i)
         {
+            // skip partial set of entries
+            if(mesh_component.entry_indices && !mesh_component.entry_indices->contains(i)) { continue; }
+
             const auto &mesh_entry = mesh->entries[i];
             const auto &lod = mesh_entry.lods.front();
             const auto &mesh_material = mesh->materials[mesh_entry.material_index];
 
             const auto &asset = acceleration_assets[i];
-
-            // skip disabled entries
-            if(!mesh_entry.enabled) { continue; }
 
             // apply node-animation transform, if any
             auto transform = object->transform *
@@ -697,7 +698,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         }
     }
 
-    auto view = params.scene->registry()->view<Object3D *, vierkant::MeshPtr>();
+    auto view = params.scene->registry()->view<Object3D *, mesh_component_t>();
 
     std::unordered_map<entt::entity, vierkant::animated_mesh_t> mesh_compute_entities;
     vierkant::mesh_compute_result_t mesh_compute_result = {};
@@ -713,8 +714,9 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         mesh_compute_params.query_index_end = 2 * UpdateSemaphoreValue::MESH_COMPUTE + 1;
 
         //  check for skin/morph meshes and schedule a mesh-compute operation
-        for(const auto &[entity, object, mesh]: view.each())
+        for(const auto &[entity, object, mesh_component]: view.each())
         {
+            const auto &mesh = mesh_component.mesh;
             vierkant::animated_mesh_t key = {mesh};
 
             if(object->has_component<vierkant::animation_state_t>() && (mesh->root_bone || mesh->morph_buffer))
@@ -742,8 +744,9 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     context->cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
 
     //  cache-lookup / non-blocking build of acceleration structures
-    for(const auto &[entity, object, mesh]: view.each())
+    for(const auto &[entity, object, mesh_component]: view.each())
     {
+        const auto &mesh = mesh_component.mesh;
         vierkant::BufferPtr vertex_buffer = mesh->vertex_buffer;
         size_t vertex_buffer_offset = 0;
 
@@ -813,8 +816,10 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     }
 
     // this should make sure top-lvl building can find all required bottom-lvls
-    for(const auto &[entity, object, mesh]: view.each())
+    for(const auto &[entity, object, mesh_component]: view.each())
     {
+        const auto &mesh = mesh_component.mesh;
+
         if(!context->entity_assets.contains(object->id()))
         {
             vierkant::animated_mesh_t build_key = {mesh};

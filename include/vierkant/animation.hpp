@@ -94,12 +94,21 @@ void update_animation(const animation_t<T> &animation, double time_delta, vierka
  * @param   keys            the animation-keys to evaluate.
  * @param   time            provided time for interpolation.
  * @param   out_transform   ref to a mat4, used to write out an interpolated transformation.
+ * @return  true if a transformation was successfully written.
  */
-void create_animation_transform(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode,
+bool create_animation_transform(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode,
                                 vierkant::transform_t &out_transform);
 
-std::vector<double> create_morph_weights(const animation_keys_t &keys, float time,
-                                         InterpolationMode interpolation_mode);
+/**
+ * @brief   Evaluate provided animation-keys for a given time. If successful, write out transformation.
+ *
+ * @param   keys            the animation-keys to evaluate.
+ * @param   time            provided time for interpolation.
+ * @param   out_transform   ref to an vector to store calculated weights.
+ * @return  true if any morph-weights were written.
+ */
+bool create_morph_weights(const animation_keys_t &keys, float time, InterpolationMode interpolation_mode,
+                          std::vector<double> &out_weights);
 }// namespace vierkant
 
 namespace std

@@ -123,8 +123,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     {
         // unit cube
         auto geom = vierkant::Geometry::BoxOutline();
-        drawable_params.mesh = vierkant::Mesh::create_from_geometry(m_device, geom, {});
-        m_drawable_aabb = vierkant::create_drawables(drawable_params).front();
+        m_drawable_aabb = vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, {})}, drawable_params).front();
         m_drawable_aabb.pipeline_format.shader_stages =
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
     }
@@ -134,8 +133,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         // unit grid
         auto geom = vierkant::Geometry::Grid();
         geom->tex_coords.clear();
-        drawable_params.mesh = vierkant::Mesh::create_from_geometry(m_device, geom, {});
-        m_drawable_grid = vierkant::create_drawables(drawable_params).front();
+        m_drawable_grid = vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, {})}, drawable_params).front();
         m_drawable_grid.pipeline_format.shader_stages =
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
     }
@@ -147,13 +145,13 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         box->tex_coords.clear();
         box->tangents.clear();
         box->normals.clear();
-        drawable_params.mesh = vierkant::Mesh::create_from_geometry(m_device, box, {});
-        auto &mat = drawable_params.mesh->materials.front();
+        vierkant::mesh_component_t mesh_component = {vierkant::Mesh::create_from_geometry(m_device, box, {})};
+        auto &mat = mesh_component.mesh->materials.front();
         mat->depth_write = false;
         mat->depth_test = true;
         mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
         mat->textures[vierkant::Material::TextureType::Environment] = {};
-        m_drawable_skybox = vierkant::create_drawables(drawable_params).front();
+        m_drawable_skybox = vierkant::create_drawables(mesh_component, drawable_params).front();
     }
 }
 
@@ -164,8 +162,7 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
                             vierkant::ShaderType shader_type)
 {
     vierkant::create_drawables_params_t drawable_params = {};
-    drawable_params.mesh = mesh;
-    auto drawables = vierkant::create_drawables(drawable_params);
+    auto drawables = vierkant::create_drawables({mesh}, drawable_params);
 
     for(auto &drawable: drawables)
     {

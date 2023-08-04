@@ -16,6 +16,30 @@
 namespace vierkant
 {
 
+const char* PBRDeferred::to_string(PBRDeferred::SemaphoreValue v)
+{
+    switch(v)
+    {
+
+        case INVALID: return "INVALID";
+        case PRE_RENDER: return "PRE_RENDER";
+        case G_BUFFER_LAST_VISIBLE: return "G_BUFFER_LAST_VISIBLE";
+        case DEPTH_PYRAMID: return "DEPTH_PYRAMID";
+        case CULLING: return "CULLING";
+        case G_BUFFER_ALL: return "G_BUFFER_ALL";
+        case AMBIENT_OCCLUSION: return "AMBIENT_OCCLUSION";
+        case LIGHTING: return "LIGHTING";
+        case TAA: return "TAA";
+        case BLOOM: return "BLOOM";
+        case TONEMAP: return "TONEMAP";
+        case FXAA: return "FXAA";
+        case DEFOCUS_BLUR: return "DEFOCUS_BLUR";
+        case MAX_VALUE: break;
+    }
+    assert(false);
+    return "";
+}
+
 PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) : m_device(device)
 {
     m_logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
@@ -293,12 +317,13 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         vierkant::hash_combine(scene_hash, object->enabled);
     });
 
-    auto mesh_view = scene->registry()->view<vierkant::Object3D *, vierkant::MeshPtr>();
+    auto mesh_view = scene->registry()->view<vierkant::Object3D *, vierkant::mesh_component_t>();
 
-    for(const auto &[entity, object, mesh]: mesh_view.each())
+    for(const auto &[entity, object, mesh_component]: mesh_view.each())
     {
+        const auto &mesh = mesh_component.mesh;
         bool transform_update = false;
-        meshes.insert(mesh);
+        meshes.insert(mesh_component.mesh);
 
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
                                 object->has_component<animation_state_t>();
@@ -316,8 +341,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
         for(uint32_t i = 0; i < mesh->entries.size(); ++i)
         {
+            bool entry_enabled = !mesh_component.entry_indices || mesh_component.entry_indices->contains(i);
+            vierkant::hash_combine(scene_hash, entry_enabled);
             const auto &entry = mesh->entries[i];
-            vierkant::hash_combine(scene_hash, entry.enabled);
 
             id_entry_key_t key = {object->id(), i};
             auto it = m_entry_matrix_cache.find(key);
@@ -386,9 +412,6 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
 
     if(!frame_asset.recycle_commands)
     {
-        // flush outdated transform-cache
-        //        m_entry_matrix_cache.clear();
-
         vierkant::cull_params_t cull_params = {};
         cull_params.scene = scene;
         cull_params.camera = cam;
@@ -457,10 +480,11 @@ void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
                         m_g_renderer_main.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
-    auto view = frame_asset.cull_result.scene->registry()->view<vierkant::MeshPtr, vierkant::animation_state_t>();
+    auto view = frame_asset.cull_result.scene->registry()->view<vierkant::mesh_component_t, vierkant::animation_state_t>();
 
-    for(const auto &[entity, mesh, animation_state]: view.each())
+    for(const auto &[entity, mesh_component, animation_state]: view.each())
     {
+        const auto &mesh = mesh_component.mesh;
         const auto &animation = mesh->node_animations[animation_state.index];
 
         if(mesh->root_bone)
@@ -1007,7 +1031,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
     size_t buffer_index = 0;
 
     // get next set of pingpong assets, increment index
-    auto pingpong_render = [&frame_asset, &buffer_index, &renderer = m_renderer_post_fx](
+    auto pingpong_render = [&frame_asset, &buffer_index, &renderer = m_renderer_post_fx, &device = m_device](
                                    vierkant::drawable_t &drawable, SemaphoreValue semaphore_value,
                                    const vierkant::Framebuffer &override_fb = {}) -> vierkant::ImagePtr {
         const vierkant::Framebuffer *framebuffer =
@@ -1016,6 +1040,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
         auto cmd = frame_asset.cmd_post_fx.handle();
         auto color_attachment = framebuffer->color_attachment();
 
+        device->begin_label(cmd, {crocore::to_lower(to_string(semaphore_value))});
         vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, frame_asset.query_pool.get(),
                              2 * semaphore_value);
 
@@ -1035,6 +1060,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
 
         vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, frame_asset.query_pool.get(),
                              2 * semaphore_value + 1);
+        device->end_label(cmd);
         frame_asset.semaphore_value_done = semaphore_value;
         color_attachment->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd);
         return color_attachment;

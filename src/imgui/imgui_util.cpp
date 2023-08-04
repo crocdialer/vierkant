@@ -757,8 +757,10 @@ void draw_light_ui(vierkant::model::lightsource_t &light)
     ImGui::InputFloat("outer_cone_angle", &light.outer_cone_angle);
 }
 
-void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &mesh)
+void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_t &mesh_component)
 {
+    const auto &mesh = mesh_component.mesh;
+
     if(!object || !mesh) { return; }
 
     size_t num_vertices = 0, num_faces = 0;
@@ -776,38 +778,44 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
     ImGui::Spacing();
 
     // entries
-    if(!mesh->entries.empty() && ImGui::TreeNode("entries", "entries (%zu)", mesh->entries.size()))
+    if(ImGui::TreeNode("entries", "entries (%zu)", mesh->entries.size()))
     {
-        size_t index = 0;
-        std::hash<vierkant::MeshPtr> hash;
+        size_t entry_idx = 0;
+        std::hash<vierkant::MeshConstPtr> hash;
 
         for(auto &e: mesh->entries)
         {
+            bool entry_enabled = !mesh_component.entry_indices || mesh_component.entry_indices->contains(entry_idx);
             int mesh_id = static_cast<int>(hash(mesh));
 
             // push object id
-            ImGui::PushID(static_cast<int>(mesh_id + index));
-            ImGui::Checkbox("", &e.enabled);
+            ImGui::PushID(static_cast<int>(mesh_id + entry_idx));
+            if(ImGui::Checkbox("", &entry_enabled))
+            {
+                if(!mesh_component.entry_indices)
+                {
+                    mesh_component.entry_indices = std::set<uint32_t>();
+                    for(uint32_t i = 0; i < mesh->entries.size(); ++i) { mesh_component.entry_indices->insert(i); }
+                }
+                if(entry_enabled) { mesh_component.entry_indices->insert(entry_idx); }
+                else { mesh_component.entry_indices->erase(entry_idx); }
+                if(mesh_component.entry_indices->size() == mesh->entries.size()) { mesh_component.entry_indices = {}; }
+            }
             ImGui::SameLine();
 
             const ImVec4 gray(.6f, .6f, .6f, 1.f);
-            if(!e.enabled) { ImGui::PushStyleColor(ImGuiCol_Text, gray); }
+            if(!entry_enabled) { ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
-            auto entry_name = e.name.empty() ? ("entry " + std::to_string(index)) : e.name;
+            auto entry_name = e.name.empty() ? ("entry " + std::to_string(entry_idx)) : e.name;
 
-            if(ImGui::TreeNodeEx((void *) (mesh_id + index), 0, "%s", entry_name.c_str()))
+            if(ImGui::TreeNodeEx((void *) (mesh_id + entry_idx), 0, "%s", entry_name.c_str()))
             {
                 std::stringstream ss;
                 ss << "positions: " << std::to_string(e.num_vertices) << "\n";
                 ss << "faces: " << std::to_string(e.lods.empty() ? 0 : e.lods[0].num_indices / 3);
                 ss << "lods: " << std::to_string(e.lods.size());
+                ss << "material_index: " << std::to_string(e.material_index);
                 ImGui::Text("%s", ss.str().c_str());
-
-                int material_index = static_cast<int>(e.material_index);
-                if(ImGui::InputInt("material-index", &material_index))
-                {
-                    e.material_index = std::min<uint32_t>(material_index, mesh->materials.size() - 1);
-                }
 
                 ImGui::Separator();
 
@@ -817,9 +825,9 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
                 ImGui::TreePop();
             }
 
-            if(!e.enabled) { ImGui::PopStyleColor(); }
+            if(!entry_enabled) { ImGui::PopStyleColor(); }
             ImGui::PopID();
-            index++;
+            entry_idx++;
         }
         ImGui::Separator();
         ImGui::TreePop();
@@ -882,7 +890,8 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, const vierkant::MeshPtr &
 
         if(ImGui::Combo("interpolation", &mode_index, interpolation_mode_items, IM_ARRAYSIZE(interpolation_mode_items)))
         {
-            animation.interpolation_mode = interpolation_modes[mode_index];
+//            animation.interpolation_mode = interpolation_modes[mode_index];
+            spdlog::error("cannot assign interpolation-mode here -> FIX");
         }
 
         float current_time = static_cast<float>(animation_state.current_time) / animation.ticks_per_sec;
@@ -936,8 +945,11 @@ void draw_object_ui(const Object3DPtr &object)
         ImGui::TreePop();
     }
 
-    // cast to mesh
-    if(object->has_component<vierkant::MeshPtr>()) { draw_mesh_ui(object, object->get_component<vierkant::MeshPtr>()); }
+    // check fo a mesh-component
+    if(object->has_component<vierkant::mesh_component_t>())
+    {
+        draw_mesh_ui(object, object->get_component<vierkant::mesh_component_t>());
+    }
 }
 
 void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera, GuizmoType type)

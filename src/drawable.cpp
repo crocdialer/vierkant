@@ -10,17 +10,19 @@ namespace vierkant
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params_t &params)
+std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_component_t &mesh_component,
+                                                   const create_drawables_params_t &params)
 {
-    if(!params.mesh) { return {}; }
+    const auto &mesh = mesh_component.mesh;
+    if(!mesh) { return {}; }
 
     // reserve space for one drawable per mesh-entry
     std::vector<vierkant::drawable_t> ret;
-    ret.reserve(params.mesh->entries.size());
+    ret.reserve(mesh->entries.size());
 
     // same for all entries
-    auto binding_descriptions = vierkant::create_binding_descriptions(params.mesh->vertex_attribs);
-    auto attribute_descriptions = vierkant::create_attribute_descriptions(params.mesh->vertex_attribs);
+    auto binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
+    auto attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
 
     // entry animation transforms
     std::vector<vierkant::transform_t> node_transforms;
@@ -28,29 +30,26 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
     // morph-target weights
     std::vector<std::vector<double>> node_morph_weights;
 
-    if(!params.mesh->root_bone && params.animation_index < params.mesh->node_animations.size())
+    if(!mesh->root_bone && params.animation_index < mesh->node_animations.size())
     {
-        const auto &animation = params.mesh->node_animations[params.animation_index];
-        vierkant::nodes::build_node_matrices_bfs(params.mesh->root_node, animation, params.animation_time,
-                                                 node_transforms);
-        vierkant::nodes::build_morph_weights_bfs(params.mesh->root_node, animation, params.animation_time,
-                                                 node_morph_weights);
+        const auto &animation = mesh->node_animations[params.animation_index];
+        vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, params.animation_time, node_transforms);
+        vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, params.animation_time, node_morph_weights);
     }
-    for(uint32_t i = 0; i < params.mesh->entries.size(); ++i)
+    for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
-        const auto &entry = params.mesh->entries[i];
-        const auto &lod_0 = params.mesh->entries[i].lods.front();
+        if(mesh_component.entry_indices && !mesh_component.entry_indices->contains(i)) { continue; }
+        const auto &entry = mesh->entries[i];
+        const auto &lod_0 = mesh->entries[i].lods.front();
 
-        // filter disabled entries, sanity check material-index
-        if(!params.entry_filter && !entry.enabled) { continue; }
-        if(params.entry_filter && !params.entry_filter(entry)) { continue; }
-        if(entry.material_index >= params.mesh->materials.size()) { continue; }
+        // sanity check material-index
+        if(entry.material_index >= mesh->materials.size()) { continue; }
 
-        const auto &material = params.mesh->materials[entry.material_index];
+        const auto &material = mesh->materials[entry.material_index];
 
         // acquire ref for mesh-drawable
         vierkant::drawable_t drawable = {};
-        drawable.mesh = params.mesh;
+        drawable.mesh = mesh;
         drawable.entry_index = i;
 
         // combine mesh- with entry-transform
@@ -130,17 +129,17 @@ std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params
                 auto &desc_meshlets = drawable.descriptors[Renderer::BINDING_MESHLETS];
                 desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_meshlets.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_meshlets.buffers = {params.mesh->meshlets};
+                desc_meshlets.buffers = {mesh->meshlets};
 
                 auto &desc_meshlet_vertices = drawable.descriptors[Renderer::BINDING_MESHLET_VERTICES];
                 desc_meshlet_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_meshlet_vertices.stage_flags = VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_meshlet_vertices.buffers = {params.mesh->meshlet_vertices};
+                desc_meshlet_vertices.buffers = {mesh->meshlet_vertices};
 
                 auto &desc_meshlet_triangles = drawable.descriptors[Renderer::BINDING_MESHLET_TRIANGLES];
                 desc_meshlet_triangles.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_meshlet_triangles.buffers = {params.mesh->meshlet_triangles};
+                desc_meshlet_triangles.buffers = {mesh->meshlet_triangles};
             }
         }
 

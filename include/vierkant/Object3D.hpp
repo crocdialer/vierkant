@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include <set>
 #include <list>
 #include <optional>
+#include <set>
 
-#include <entt/entity/registry.hpp>
 #include <crocore/crocore.hpp>
-#include <vierkant/transform.hpp>
-#include <vierkant/intersection.hpp>
+#include <entt/entity/registry.hpp>
 #include <vierkant/animation.hpp>
+#include <vierkant/intersection.hpp>
+#include <vierkant/transform.hpp>
 
 namespace vierkant
 {
@@ -22,22 +22,20 @@ DEFINE_CLASS_PTR(Object3D);
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
-
     //! signature for a function to retrieve a combined AABB
     using aabb_fn_t = std::function<vierkant::AABB(const std::optional<vierkant::animation_state_t> &)>;
 
     //! signature for a function to retrieve all sub-AABBs
-    using sub_aabb_fn_t = std::function<std::vector<vierkant::AABB>(
-            const std::optional<vierkant::animation_state_t> &)>;
+    using sub_aabb_fn_t =
+            std::function<std::vector<vierkant::AABB>(const std::optional<vierkant::animation_state_t> &)>;
 
-    static Object3DPtr create(const std::shared_ptr<entt::registry> &registry = {},
-                              std::string name = "");
+    static Object3DPtr create(const std::shared_ptr<entt::registry> &registry = {}, std::string name = "");
 
     virtual ~Object3D() noexcept;
 
-    inline uint32_t id() const{ return static_cast<uint32_t>(m_entity); };
+    inline uint32_t id() const { return static_cast<uint32_t>(m_entity); };
 
-    inline Object3DPtr parent() const{ return m_parent.lock(); }
+    inline Object3DPtr parent() const { return m_parent.lock(); }
 
     void add_child(const Object3DPtr &child);
 
@@ -56,8 +54,11 @@ public:
     {
         auto aabb_fn_ptr = get_component_ptr<aabb_fn_t>();
         auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
-        std::optional<vierkant::animation_state_t> dummy;
-        if(aabb_fn_ptr){ return (*aabb_fn_ptr)(animation_state_ptr ? *animation_state_ptr : dummy); }
+        if(aabb_fn_ptr)
+        {
+            return (*aabb_fn_ptr)(animation_state_ptr ? *animation_state_ptr
+                                                      : std::optional<vierkant::animation_state_t>());
+        }
         auto aabb_ptr = get_component_ptr<vierkant::AABB>();
         return aabb_ptr ? *aabb_ptr : AABB();
     };
@@ -69,7 +70,7 @@ public:
         auto sub_aabb_fn_ptr = get_component_ptr<sub_aabb_fn_t>();
         auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
         std::optional<vierkant::animation_state_t> dummy;
-        if(sub_aabb_fn_ptr){ return (*sub_aabb_fn_ptr)(animation_state_ptr ? *animation_state_ptr : dummy); }
+        if(sub_aabb_fn_ptr) { return (*sub_aabb_fn_ptr)(animation_state_ptr ? *animation_state_ptr : dummy); }
         return {};
     }
 
@@ -85,10 +86,7 @@ public:
     template<typename T>
     inline T &add_component(const T &component = {})
     {
-        if(auto reg = m_registry.lock())
-        {
-            return reg->template emplace<T>(m_entity, component);
-        }
+        if(auto reg = m_registry.lock()) { return reg->template emplace<T>(m_entity, component); }
         throw std::runtime_error("error adding component: no registry defined");
     }
 
@@ -99,7 +97,10 @@ public:
      * @return  true, if a component of the provided type exists.
      */
     template<typename T>
-    inline bool has_component() const{ return get_component_ptr<T>(); }
+    inline bool has_component() const
+    {
+        return get_component_ptr<T>();
+    }
 
     /**
      * @brief   'get_component_ptr' can be used to retrieve a pointer to an object's component, if existing.
@@ -138,7 +139,7 @@ public:
     inline T &get_component()
     {
         auto ptr = get_component_ptr<T>();
-        if(ptr){ return *ptr; }
+        if(ptr) { return *ptr; }
         throw std::runtime_error("component does not exist");
     }
 
@@ -153,7 +154,7 @@ public:
     inline const T &get_component() const
     {
         auto ptr = get_component_ptr<T>();
-        if(ptr){ return *ptr; }
+        if(ptr) { return *ptr; }
         throw std::runtime_error("component does not exist");
     }
 
@@ -173,11 +174,9 @@ public:
     std::list<Object3DPtr> children;
 
 protected:
-    explicit Object3D(const std::shared_ptr<entt::registry> &registry,
-                      std::string name = "");
+    explicit Object3D(const std::shared_ptr<entt::registry> &registry, std::string name = "");
 
 private:
-
     std::weak_ptr<Object3D> m_parent;
 
     std::weak_ptr<entt::registry> m_registry;
@@ -185,4 +184,4 @@ private:
     entt::entity m_entity;
 };
 
-}//namespace
+}// namespace vierkant

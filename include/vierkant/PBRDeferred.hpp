@@ -340,6 +340,8 @@ private:
         float motionblur_gain = 1.f;
     };
 
+    static const char* to_string(SemaphoreValue v);
+
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
     void update_timing(frame_asset_t &frame_asset);

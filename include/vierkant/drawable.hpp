@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <optional>
 #include <crocore/NamedId.hpp>
+#include <optional>
 
 #include <vierkant/Mesh.hpp>
 #include <vierkant/descriptor.hpp>
@@ -107,9 +107,7 @@ struct drawable_t
 
 struct create_drawables_params_t
 {
-    MeshConstPtr mesh;
     vierkant::transform_t transform = {};
-    std::function<bool(const Mesh::entry_t &entry)> entry_filter = {};
     uint32_t animation_index = 0;
     float animation_time = 0.f;
 };
@@ -120,6 +118,7 @@ struct create_drawables_params_t
  * @param   params  a struct containing a mesh and other params for drawable-creation.
  * @return  an array of drawables for the mesh-entries.
  */
-std::vector<vierkant::drawable_t> create_drawables(const create_drawables_params_t &params);
+std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_component_t &mesh_component,
+                                                   const create_drawables_params_t &params);
 
-}
+}// namespace vierkant

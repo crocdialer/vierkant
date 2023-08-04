@@ -114,8 +114,7 @@ void HelloTriangleApplication::load_model()
     m_mesh = vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info);
 
     vierkant::create_drawables_params_t drawable_params = {};
-    drawable_params.mesh = m_mesh;
-    m_drawable = vierkant::create_drawables(drawable_params).front();
+    m_drawable = vierkant::create_drawables({m_mesh}, drawable_params).front();
     m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device,
                                                                               vierkant::ShaderType::UNLIT_COLOR);
 }
