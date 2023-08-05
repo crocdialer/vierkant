@@ -42,8 +42,7 @@ BOOST_AUTO_TEST_CASE(TestPBRDeferred)
     BOOST_CHECK(cam);
 
     auto scene = vierkant::Scene::create();
-    auto mesh_node = vierkant::Object3D::create(scene->registry());
-    mesh_node->add_component(mesh);
+    auto mesh_node = vierkant::create_mesh_object(scene->registry(), {mesh});
     BOOST_CHECK(mesh_node);
 
     scene->add_object(mesh_node);

@@ -26,7 +26,7 @@ jobs:
         uses: johnwason/vcpkg-action@v4
         id: vcpkg
         with:
-          pkgs: curl boost
+          pkgs: curl boost-asio boost-test
           triplet: x64-windows-release
           token: ${{ github.token }}
 
