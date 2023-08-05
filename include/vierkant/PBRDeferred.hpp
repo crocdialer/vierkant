@@ -151,7 +151,7 @@ public:
 
     struct create_info_t
     {
-        uint32_t num_frames_in_flight = 0;
+        uint32_t num_frames_in_flight = 1;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
@@ -348,7 +348,7 @@ private:
 
     void update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset);
 
-    void update_matrix_history(frame_asset_t &frame_asset);
+    void update_animation_transforms(frame_asset_t &frame_asset);
 
     void resize_storage(frame_asset_t &frame_asset, const glm::uvec2 &resolution, const glm::uvec2 &out_resolution);
 

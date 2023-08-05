@@ -33,6 +33,7 @@ struct trace_result_t
     vec3 radiance;
     vec3 normal;
     vec3 position;
+    uint depth;
 };
 
 trace_result_t trace(vec2 coord, vec2 size)
@@ -140,6 +141,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         }
 
         trace_result.radiance += path_radiance;
+        trace_result.depth = payload.depth;
     }
 
     trace_result.radiance /= float(push_constants.num_samples);
@@ -153,7 +155,8 @@ trace_result_t trace(vec2 coord, vec2 size)
 void main()
 {
     trace_result_t trace_result = trace(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
-    vec4 accumulated_radiance = vec4(trace_result.radiance, 1);
+    vec4 accumulated_radiance = push_constants.draw_skybox || trace_result.depth > 0 ?
+                                vec4(trace_result.radiance, 1) : vec4(0);
 
     if (push_constants.batch_index != 0)
     {

@@ -109,17 +109,17 @@ void Scene::remove_object(const Object3DPtr &object) { m_root->remove_child(obje
 
 void Scene::clear()
 {
-    //    m_registry = std::make_shared<entt::registry>();
     m_root = vierkant::Object3D::create(m_registry, "scene root");
 }
 
 void Scene::update(double time_delta)
 {
-    auto mesh_animations_view = m_registry->view<animation_state_t, vierkant::MeshPtr>();
+    auto mesh_animations_view = m_registry->view<animation_state_t, vierkant::mesh_component_t>();
 
-    for(const auto &[entity, animation_state, mesh]: mesh_animations_view.each())
+    for(const auto &[entity, animation_state, mesh_component]: mesh_animations_view.each())
     {
-        vierkant::update_animation(mesh->node_animations[animation_state.index], time_delta, animation_state);
+        vierkant::update_animation(mesh_component.mesh->node_animations[animation_state.index], time_delta,
+                                   animation_state);
     }
 }
 

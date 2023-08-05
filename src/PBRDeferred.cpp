@@ -343,6 +343,8 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         {
             bool entry_enabled = !mesh_component.entry_indices || mesh_component.entry_indices->contains(i);
             vierkant::hash_combine(scene_hash, entry_enabled);
+            if(!entry_enabled){ continue; }
+
             const auto &entry = mesh->entries[i];
 
             id_entry_key_t key = {object->id(), i};
@@ -428,7 +430,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     resize_storage(frame_asset, settings.resolution, settings.output_resolution);
 
     // apply+update transform history
-    update_matrix_history(frame_asset);
+    update_animation_transforms(frame_asset);
 
     // create g-buffer
     auto &g_buffer = geometry_pass(frame_asset.cull_result);
@@ -465,7 +467,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, con
     return ret;
 }
 
-void PBRDeferred::update_matrix_history(frame_asset_t &frame_asset)
+void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
 {
     // cache/collect bone-matrices
     std::unordered_map<entt::entity, size_t> bone_buffer_offsets;

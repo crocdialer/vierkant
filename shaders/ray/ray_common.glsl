@@ -82,6 +82,9 @@ struct push_constants_t
     //! override albedo colors
     bool disable_material;
 
+    //! enable skybox/background rendering
+    bool draw_skybox;
+
     //! a provided random seed
     uint random_seed;
 };

@@ -381,6 +381,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
     for(const auto &[entity, object, mesh_component]: view.each())
     {
+        // skip disabled objects
+        if(!object->enabled) { continue; }
+
         const auto &mesh = mesh_component.mesh;
         assert(mesh);
 
@@ -431,7 +434,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
         for(uint32_t i = 0; i < mesh->entries.size(); ++i)
         {
-            // skip partial set of entries
+            // skip disabled entries
             if(mesh_component.entry_indices && !mesh_component.entry_indices->contains(i)) { continue; }
 
             const auto &mesh_entry = mesh->entries[i];

@@ -75,9 +75,6 @@ public:
 
     struct timings_t
     {
-//        double mesh_compute_ms = 0.0;
-//        double update_bottom_ms = 0.0;
-//        double update_top_ms = 0.0;
         RayBuilder::timings_t raybuilder_timings;
 
         double raytrace_ms = 0.0;
@@ -95,7 +92,7 @@ public:
 
     struct create_info_t
     {
-        uint32_t num_frames_in_flight = 0;
+        uint32_t num_frames_in_flight = 1;
 
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
 
@@ -168,8 +165,7 @@ private:
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
 
         //! re-usable command-buffers for all stages
-        vierkant::CommandBuffer cmd_pre_render, /*cmd_build_bottom_start, cmd_build_bottom_end, cmd_build_toplvl,*/
-                cmd_trace, cmd_denoise, cmd_post_fx;
+        vierkant::CommandBuffer cmd_pre_render, cmd_trace, cmd_denoise, cmd_post_fx;
 
         //! context for providing bottom-lvl acceleration structures
         RayBuilder::scene_acceleration_context_ptr scene_acceleration_context;
@@ -212,6 +208,9 @@ private:
 
         //! override albedo colors
         uint32_t disable_material = 0;
+
+        //! enable skybox/background rendering
+        uint32_t draw_skybox = true;
 
         //! a provided random seed
         uint32_t random_seed = 0;
@@ -287,8 +286,6 @@ private:
     raytracing_shader_map_t m_shader_stages = {}, m_shader_stages_env = {};
 
     std::vector<frame_asset_t> m_frame_assets;
-
-    size_t m_frame_index = 0;
 
     vierkant::DrawContext m_draw_context;
 

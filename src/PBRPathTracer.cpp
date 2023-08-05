@@ -258,6 +258,7 @@ void PBRPathTracer::path_trace_pass(frame_asset_t &frame_asset, const vierkant::
     push_constants.num_samples = frame_asset.settings.num_samples;
     push_constants.max_trace_depth = frame_asset.settings.max_trace_depth;
     push_constants.disable_material = frame_asset.settings.disable_material;
+    push_constants.draw_skybox = frame_asset.settings.draw_skybox;
     push_constants.random_seed = m_random_engine();
 
     update_trace_descriptors(frame_asset, cam);
