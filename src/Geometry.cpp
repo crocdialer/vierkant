@@ -1,17 +1,16 @@
-#include <unordered_map>
-#include <crocore/Timer.hpp>
 #include "vierkant/Geometry.hpp"
 #include "vierkant/intersection.hpp"
+#include <unordered_map>
 
 namespace vierkant
 {
 
 namespace
 {
-inline uint64_t pack(uint64_t a, uint64_t b){ return (a << 32U) | b; }
+inline uint64_t pack(uint64_t a, uint64_t b) { return (a << 32U) | b; }
 
-inline uint64_t swizzle(uint64_t a){ return ((a & 0xFFFFFFFFU) << 32U) | (a >> 32U); }
-}
+inline uint64_t swizzle(uint64_t a) { return ((a & 0xFFFFFFFFU) << 32U) | (a >> 32U); }
+}// namespace
 
 std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
 {
@@ -21,8 +20,7 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
         return {};
     }
 
-    crocore::Stopwatch timer;
-    timer.start();
+    spdlog::stopwatch timer;
 
     std::vector<HalfEdge> ret(3 * geom->indices.size());
     std::unordered_map<uint64_t, HalfEdge *> edge_table;
@@ -55,7 +53,7 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
     // populate the twin pointers by iterating over the edge_table
     int boundaryCount = 0;
 
-    for(const auto &[key, current_edge] : edge_table)
+    for(const auto &[key, current_edge]: edge_table)
     {
         // try to find twin edge in map
         auto it = edge_table.find(swizzle(key));
@@ -66,14 +64,12 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
             twin_edge->twin = current_edge;
             current_edge->twin = twin_edge;
         }
-        else{ ++boundaryCount; }
+        else { ++boundaryCount; }
     }
 
-    if(boundaryCount > 0)
-    {
-        spdlog::debug("mesh is not watertight. contains {} boundary edges.", boundaryCount);
-    }
-    spdlog::trace("half-edge computation took {} ms", (int) std::round(timer.time_elapsed() * 1000.0));
+    if(boundaryCount > 0) { spdlog::debug("mesh is not watertight. contains {} boundary edges.", boundaryCount); }
+    spdlog::trace("half-edge computation took {} ms",
+                  std::chrono::duration_cast<std::chrono::milliseconds>(timer.elapsed()).count());
     return ret;
 }
 
@@ -81,7 +77,7 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
 
 void Geometry::compute_face_normals()
 {
-    if(indices.empty()){ return; }
+    if(indices.empty()) { return; }
 
     normals.resize(positions.size());
 
@@ -99,7 +95,7 @@ void Geometry::compute_face_normals()
 
 void Geometry::compute_vertex_normals()
 {
-    if(indices.size() < 3){ return; }
+    if(indices.size() < 3) { return; }
 
     // assert correct size
     if(normals.size() != positions.size())
@@ -107,7 +103,7 @@ void Geometry::compute_vertex_normals()
         normals.clear();
         normals.resize(positions.size(), glm::vec3(0));
     }
-    else{ std::fill(normals.begin(), normals.end(), glm::vec3(0)); }
+    else { std::fill(normals.begin(), normals.end(), glm::vec3(0)); }
 
     // iterate faces and sum normals for all positions
     for(size_t i = 0; i < indices.size(); i += 3)
@@ -124,15 +120,15 @@ void Geometry::compute_vertex_normals()
     }
 
     // normalize vertexNormals
-    for(auto &n : normals){ n = glm::normalize(n); }
+    for(auto &n: normals) { n = glm::normalize(n); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Geometry::compute_tangents()
 {
-    if(indices.size() % 3){ return; }
-    if(tex_coords.size() != positions.size()){ return; }
+    if(indices.size() % 3) { return; }
+    if(tex_coords.size() != positions.size()) { return; }
 
     std::vector<glm::vec3> tangents_tmp, bitangents_tmp;
 
@@ -191,10 +187,7 @@ void Geometry::compute_tangents()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-GeometryPtr Geometry::create()
-{
-    return GeometryPtr(new Geometry());
-}
+GeometryPtr Geometry::create() { return GeometryPtr(new Geometry()); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -214,8 +207,8 @@ GeometryPtr Geometry::Grid(float width, float depth, uint32_t numSegments_W, uin
     glm::vec4 color;
     for(uint32_t x = 0; x <= numSegments_W; ++x)
     {
-        if(x == 0){ color = color_blue; }
-        else{ color = color_gray; }
+        if(x == 0) { color = color_blue; }
+        else { color = color_gray; }
 
         // line Z
         vertices.emplace_back(-w2 + x * stepX, 0.f, -h2);
@@ -224,12 +217,11 @@ GeometryPtr Geometry::Grid(float width, float depth, uint32_t numSegments_W, uin
         colors.push_back(color);
         tex_coords.emplace_back(x / (float) numSegments_W, 0.f);
         tex_coords.emplace_back(x / (float) numSegments_W, 1.f);
-
     }
     for(uint32_t z = 0; z <= numSegments_D; ++z)
     {
-        if(z == 0){ color = color_red; }
-        else{ color = color_gray; }
+        if(z == 0) { color = color_red; }
+        else { color = color_gray; }
 
         // line X
         vertices.emplace_back(-w2, 0.f, -h2 + z * stepZ);
@@ -311,23 +303,22 @@ GeometryPtr Geometry::Box(const glm::vec3 &half_extents)
     auto &tex_coords = geom->tex_coords;
     auto &indices = geom->indices;
 
-    glm::vec3 base_vertices[8] =
-            {
-                    glm::vec3(-half_extents.x, -half_extents.y, half_extents.z),// bottom left front
-                    glm::vec3(half_extents.x, -half_extents.y, half_extents.z),// bottom right front
-                    glm::vec3(half_extents.x, -half_extents.y, -half_extents.z),// bottom right back
-                    glm::vec3(-half_extents.x, -half_extents.y, -half_extents.z),// bottom left back
-                    glm::vec3(-half_extents.x, half_extents.y, half_extents.z),// top left front
-                    glm::vec3(half_extents.x, half_extents.y, half_extents.z),// top right front
-                    glm::vec3(half_extents.x, half_extents.y, -half_extents.z),// top right back
-                    glm::vec3(-half_extents.x, half_extents.y, -half_extents.z),// top left back
-            };
+    glm::vec3 base_vertices[8] = {
+            glm::vec3(-half_extents.x, -half_extents.y, half_extents.z), // bottom left front
+            glm::vec3(half_extents.x, -half_extents.y, half_extents.z),  // bottom right front
+            glm::vec3(half_extents.x, -half_extents.y, -half_extents.z), // bottom right back
+            glm::vec3(-half_extents.x, -half_extents.y, -half_extents.z),// bottom left back
+            glm::vec3(-half_extents.x, half_extents.y, half_extents.z),  // top left front
+            glm::vec3(half_extents.x, half_extents.y, half_extents.z),   // top right front
+            glm::vec3(half_extents.x, half_extents.y, -half_extents.z),  // top right back
+            glm::vec3(-half_extents.x, half_extents.y, -half_extents.z), // top left back
+    };
     glm::vec4 base_colors[6] = {glm::vec4(1, 0, 0, 1), glm::vec4(0, 1, 0, 1), glm::vec4(0, 0, 1, 1),
                                 glm::vec4(1, 1, 0, 1), glm::vec4(0, 1, 1, 1), glm::vec4(1, 0, 1, 1)};
 
     glm::vec2 base_tex_coords[4] = {glm::vec2(0, 1), glm::vec2(1, 1), glm::vec2(1, 0), glm::vec2(0, 0)};
 
-    glm::vec3 base_normals[6] = {glm::vec3(0, 0, 1), glm::vec3(1, 0, 0), glm::vec3(0, 0, -1),
+    glm::vec3 base_normals[6] = {glm::vec3(0, 0, 1),  glm::vec3(1, 0, 0),  glm::vec3(0, 0, -1),
                                  glm::vec3(-1, 0, 0), glm::vec3(0, -1, 0), glm::vec3(0, 1, 0)};
 
     //front - bottom left - 0
@@ -473,28 +464,24 @@ GeometryPtr Geometry::BoxOutline(const glm::vec3 &half_extents)
 
     auto bb = vierkant::AABB(-half_extents, half_extents);
 
-    vertices =
-            {
-                    // botton
-                    bb.min, glm::vec3(bb.min.x, bb.min.y, bb.max.z),
-                    glm::vec3(bb.min.x, bb.min.y, bb.max.z), glm::vec3(bb.max.x, bb.min.y, bb.max.z),
-                    glm::vec3(bb.max.x, bb.min.y, bb.max.z), glm::vec3(bb.max.x, bb.min.y, bb.min.z),
-                    glm::vec3(bb.max.x, bb.min.y, bb.min.z), bb.min,
+    vertices = {// botton
+                bb.min, glm::vec3(bb.min.x, bb.min.y, bb.max.z), glm::vec3(bb.min.x, bb.min.y, bb.max.z),
+                glm::vec3(bb.max.x, bb.min.y, bb.max.z), glm::vec3(bb.max.x, bb.min.y, bb.max.z),
+                glm::vec3(bb.max.x, bb.min.y, bb.min.z), glm::vec3(bb.max.x, bb.min.y, bb.min.z), bb.min,
 
-                    // top
-                    glm::vec3(bb.min.x, bb.max.y, bb.min.z), glm::vec3(bb.min.x, bb.max.y, bb.max.z),
-                    glm::vec3(bb.min.x, bb.max.y, bb.max.z), glm::vec3(bb.max.x, bb.max.y, bb.max.z),
-                    glm::vec3(bb.max.x, bb.max.y, bb.max.z), glm::vec3(bb.max.x, bb.max.y, bb.min.z),
-                    glm::vec3(bb.max.x, bb.max.y, bb.min.z), glm::vec3(bb.min.x, bb.max.y, bb.min.z),
+                // top
+                glm::vec3(bb.min.x, bb.max.y, bb.min.z), glm::vec3(bb.min.x, bb.max.y, bb.max.z),
+                glm::vec3(bb.min.x, bb.max.y, bb.max.z), glm::vec3(bb.max.x, bb.max.y, bb.max.z),
+                glm::vec3(bb.max.x, bb.max.y, bb.max.z), glm::vec3(bb.max.x, bb.max.y, bb.min.z),
+                glm::vec3(bb.max.x, bb.max.y, bb.min.z), glm::vec3(bb.min.x, bb.max.y, bb.min.z),
 
-                    //sides
-                    glm::vec3(bb.min.x, bb.min.y, bb.min.z), glm::vec3(bb.min.x, bb.max.y, bb.min.z),
-                    glm::vec3(bb.min.x, bb.min.y, bb.max.z), glm::vec3(bb.min.x, bb.max.y, bb.max.z),
-                    glm::vec3(bb.max.x, bb.min.y, bb.max.z), glm::vec3(bb.max.x, bb.max.y, bb.max.z),
-                    glm::vec3(bb.max.x, bb.min.y, bb.min.z), glm::vec3(bb.max.x, bb.max.y, bb.min.z)
-            };
+                //sides
+                glm::vec3(bb.min.x, bb.min.y, bb.min.z), glm::vec3(bb.min.x, bb.max.y, bb.min.z),
+                glm::vec3(bb.min.x, bb.min.y, bb.max.z), glm::vec3(bb.min.x, bb.max.y, bb.max.z),
+                glm::vec3(bb.max.x, bb.min.y, bb.max.z), glm::vec3(bb.max.x, bb.max.y, bb.max.z),
+                glm::vec3(bb.max.x, bb.min.y, bb.min.z), glm::vec3(bb.max.x, bb.max.y, bb.min.z)};
     colors.resize(vertices.size(), glm::vec4(1.f));
     return geom;
 }
 
-}// namespace
+}// namespace vierkant
