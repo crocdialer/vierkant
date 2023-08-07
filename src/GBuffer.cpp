@@ -21,6 +21,7 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     color_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
     color_format.name = "albedo";
     g_buffer_attachments[G_BUFFER_ALBEDO] = vierkant::Image::create(device, color_format);
+    color_format.name = "ao_rough_metal";
     g_buffer_attachments[G_BUFFER_AO_ROUGH_METAL] = vierkant::Image::create(device, color_format);
 
     // emission

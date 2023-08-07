@@ -44,10 +44,45 @@ VkIndexType index_type();
 template<typename T>
 VkFormat format();
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct mesh_buffer_params_t
+{
+    //! flag indicating if the vertex/index-order should be optimized
+    bool optimize_vertex_cache = false;
+
+    //! flag indicating if a cascade of simplified meshes (LODs) shall be generated.
+    bool generate_lods = false;
+
+    //! maximum number of lods to be generated
+    uint32_t max_num_lods = 7;
+
+    //! flag indicating if meshlet/cluster information shall be generated.
+    bool generate_meshlets = false;
+
+    //! flag indicating if oldschoold vertex-colors shall be respected.
+    bool use_vertex_colors = false;
+
+    //! flag indicating if a packed vertex-layout should be used
+    bool pack_vertices = false;
+
+    //! maximum number of vertices per meshlet
+    size_t meshlet_max_vertices = 64;
+
+    //! maximum number of triangles per meshlet
+    size_t meshlet_max_triangles = 64;
+
+    //! cone-weight used during meshlet-generation. useful for cluster-culling
+    float meshlet_cone_weight = 0.5f;
+
+    bool operator==(const mesh_buffer_params_t &other) const;
+    inline bool operator!=(const mesh_buffer_params_t &other) const { return !(*this == other); };
+};
 
 //! mesh_buffer_bundle_t is a helper-struct to group buffer-data and other information.
 struct mesh_buffer_bundle_t;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DEFINE_CLASS_PTR(Mesh)
 
@@ -76,11 +111,7 @@ public:
         VkCommandBuffer command_buffer = VK_NULL_HANDLE;
         vierkant::BufferPtr staging_buffer = nullptr;
         VkBufferUsageFlags buffer_usage_flags = 0;
-        bool optimize_vertex_cache = false;
-        bool generate_lods = false;
-        bool generate_meshlets = false;
-        bool use_vertex_colors = true;
-        bool pack_vertices = false;
+        mesh_buffer_params_t mesh_buffer_params = {};
     };
 
     struct entry_create_info_t
@@ -270,39 +301,6 @@ struct mesh_buffer_bundle_t
     std::vector<uint8_t> meshlet_triangles;
 };
 
-struct create_mesh_buffers_params_t
-{
-    //! flag indicating if the vertex/index-order should be optimized
-    bool optimize_vertex_cache = false;
-
-    //! flag indicating if a cascade of simplified meshes (LODs) shall be generated.
-    bool generate_lods = false;
-
-    //! maximum number of lods to be generated
-    uint32_t max_num_lods = 7;
-
-    //! flag indicating if meshlet/cluster information shall be generated.
-    bool generate_meshlets = false;
-
-    //! flag indicating if oldschoold vertex-colors shall be respected.
-    bool use_vertex_colors = false;
-
-    //! flag indicating if a packed vertex-layout should be used
-    bool pack_vertices = false;
-
-    //! maximum number of vertices per meshlet
-    size_t meshlet_max_vertices = 64;
-
-    //! maximum number of triangles per meshlet
-    size_t meshlet_max_triangles = 64;
-
-    //! cone-weight used during meshlet-generation. useful for cluster-culling
-    float meshlet_cone_weight = 0.5f;
-
-    bool operator==(const create_mesh_buffers_params_t &other) const;
-    inline bool operator!=(const create_mesh_buffers_params_t &other) const { return !(*this == other); };
-};
-
 /**
  * @brief   create_mesh_buffers 'can' be used to create combined and interleaved vertex/index/meshlet-buffers
  *          for a list of geometries. helpful during GPU-mesh/buffer creation.
@@ -312,7 +310,7 @@ struct create_mesh_buffers_params_t
  * @return  a intermediate mesh_buffer_bundle_t.
  */
 mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
-                                         const create_mesh_buffers_params_t &params);
+                                         const mesh_buffer_params_t &params);
 
 struct animated_mesh_t
 {
@@ -340,9 +338,9 @@ struct mesh_component_t
 namespace std
 {
 template<>
-struct hash<vierkant::create_mesh_buffers_params_t>
+struct hash<vierkant::mesh_buffer_params_t>
 {
-    size_t operator()(vierkant::create_mesh_buffers_params_t const &params) const;
+    size_t operator()(vierkant::mesh_buffer_params_t const &params) const;
 };
 
 template<>

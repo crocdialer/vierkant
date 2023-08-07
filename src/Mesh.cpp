@@ -151,15 +151,7 @@ vierkant::MeshPtr Mesh::create_with_entries(const vierkant::DevicePtr &device,
                                             const create_info_t &create_info)
 {
     if(entry_create_infos.empty()) { return nullptr; }
-
-    create_mesh_buffers_params_t params = {};
-    params.optimize_vertex_cache = create_info.optimize_vertex_cache;
-    params.generate_lods = create_info.generate_lods;
-    params.generate_meshlets = create_info.generate_meshlets;
-    params.use_vertex_colors = create_info.use_vertex_colors;
-    params.pack_vertices = create_info.pack_vertices;
-
-    mesh_buffer_bundle_t buffers = create_mesh_buffers(entry_create_infos, params);
+    mesh_buffer_bundle_t buffers = create_mesh_buffers(entry_create_infos, create_info.mesh_buffer_params);
     return create_from_bundle(device, buffers, create_info);
 }
 
@@ -300,7 +292,7 @@ void Mesh::bind_buffers(VkCommandBuffer command_buffer) const
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_info_t> &entry_create_infos,
-                                         const create_mesh_buffers_params_t &params)
+                                         const mesh_buffer_params_t &params)
 {
     mesh_buffer_bundle_t ret = {};
 
@@ -624,7 +616,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     return ret;
 }
 
-bool create_mesh_buffers_params_t::operator==(const create_mesh_buffers_params_t &other) const
+bool mesh_buffer_params_t::operator==(const mesh_buffer_params_t &other) const
 {
     if(optimize_vertex_cache != other.optimize_vertex_cache) { return false; }
     if(generate_lods != other.generate_lods) { return false; }
@@ -640,8 +632,8 @@ bool create_mesh_buffers_params_t::operator==(const create_mesh_buffers_params_t
 
 }//namespace vierkant
 
-size_t std::hash<vierkant::create_mesh_buffers_params_t>::operator()(
-        vierkant::create_mesh_buffers_params_t const &params) const
+size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(
+        vierkant::mesh_buffer_params_t const &params) const
 {
     size_t hash_val = 0;
     vierkant::hash_combine(hash_val, params.optimize_vertex_cache);

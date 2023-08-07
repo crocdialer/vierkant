@@ -21,6 +21,8 @@ std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePt
 
     // use sub-entry information to create a mesh (owns a combined + interleaved vertex-buffer)
     vierkant::Mesh::create_info_t mesh_create_info = {};
+    mesh_create_info.mesh_buffer_params.pack_vertices = false;
+    mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
     auto mesh = vierkant::Mesh::create_with_entries(device, mesh_assets.entry_create_infos, mesh_create_info);
 
     BOOST_CHECK_EQUAL(mesh_assets.entry_create_infos.size(), mesh->entries.size());

@@ -60,7 +60,8 @@ struct alignas(16) material_struct_t
     uint32_t texture_type_flags = 0;
 };
 
-using DrawableId = crocore::NamedId<struct DrawableIdParam>;
+//! define a strong id-type for drawables
+DEFINE_NAMED_ID(DrawableId);
 
 /**
  * @brief   drawable_t groups all necessary information for a drawable object.

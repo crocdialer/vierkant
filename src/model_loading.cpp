@@ -62,6 +62,7 @@ create_compressed_images(const std::vector<vierkant::model::material_t> &materia
 vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets,
                             const std::optional<asset_bundle_t> &asset_bundle)
 {
+    assert(params.device);
     std::vector<vierkant::BufferPtr> staging_buffers;
 
     // command pool for background transfer
@@ -100,10 +101,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
 
     vierkant::Mesh::create_info_t mesh_create_info = {};
     mesh_create_info.buffer_usage_flags = params.buffer_flags;
-    mesh_create_info.optimize_vertex_cache = params.optimize_vertex_cache;
-    mesh_create_info.generate_lods = params.generate_lods;
-    mesh_create_info.generate_meshlets = params.generate_meshlets;
-    mesh_create_info.use_vertex_colors = false;
+    mesh_create_info.mesh_buffer_params = params.mesh_buffers_params;
     mesh_create_info.command_buffer = cmd_buf.handle();
     mesh_create_info.staging_buffer = mesh_staging_buf;
     auto mesh = asset_bundle ? vierkant::Mesh::create_from_bundle(params.device, asset_bundle->mesh_buffer_bundle,
@@ -232,8 +230,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     }
 
     // submit transfer and sync
-    cmd_buf.submit(params.load_queue, true);
-
+    cmd_buf.submit(params.load_queue ? params.load_queue : params.device->queue(), true);
     return mesh;
 }
 

@@ -144,10 +144,11 @@ struct load_mesh_params_t
     //! handle to a vierkant::Device
     vierkant::DevicePtr device;
 
+    //! parameters for creation of vertex-buffers
+    mesh_buffer_params_t mesh_buffers_params = {};
+
+    //! request texture-compression
     bool compress_textures = false;
-    bool optimize_vertex_cache = true;
-    bool generate_lods = false;
-    bool generate_meshlets = false;
 
     //! a VkQueue used for required buffer/image-transfers.
     VkQueue load_queue = VK_NULL_HANDLE;
