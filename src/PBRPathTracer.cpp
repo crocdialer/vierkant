@@ -300,9 +300,9 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_asset_t &frame_asset)
     else
     {
         // actual copy command
-        m_storage_images.accumulated_radiance->copy_to(frame_asset.denoise_image, frame_asset.cmd_denoise.handle());
+        m_storage_images.radiance->copy_to(frame_asset.denoise_image, frame_asset.cmd_denoise.handle());
 
-        m_storage_images.accumulated_radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
+        m_storage_images.radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
                                                                  frame_asset.cmd_denoise.handle());
     }
 
@@ -396,8 +396,7 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     auto &desc_storage_images = frame_asset.tracable.descriptors[1];
     desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals, m_storage_images.positions,
-                                  m_storage_images.accumulated_radiance};
+    desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals};
 
     const auto &camera_params = cam->get_component<vierkant::physical_camera_params_t>();
 
@@ -516,8 +515,6 @@ void PBRPathTracer::resize_storage(frame_asset_t &frame_asset, const glm::uvec2 
         // shared path-tracer-storage for all frame-assets
         m_storage_images.radiance = vierkant::Image::create(m_device, storage_format);
         m_storage_images.normals = vierkant::Image::create(m_device, storage_format);
-        m_storage_images.positions = vierkant::Image::create(m_device, storage_format);
-        m_storage_images.accumulated_radiance = vierkant::Image::create(m_device, storage_format);
 
         m_batch_index = 0;
     }
@@ -551,8 +548,7 @@ void PBRPathTracer::resize_storage(frame_asset_t &frame_asset, const glm::uvec2 
         vierkant::descriptor_t desc_denoise_input = {};
         desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_input.images = {m_storage_images.accumulated_radiance, m_storage_images.normals,
-                                     m_storage_images.positions};
+        desc_denoise_input.images = {m_storage_images.radiance, m_storage_images.normals};
         frame_asset.denoise_computable.descriptors[0] = desc_denoise_input;
 
         vierkant::descriptor_t desc_denoise_output = {};

@@ -8,12 +8,10 @@
 
 #define RADIANCE 0
 #define NORMALS 1
-#define POSITIONS 2
-#define ACCUMULATED_RADIANCE 3
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
-layout(binding = 1, set = 0, rgba32f) uniform image2D out_images[4];
+layout(binding = 1, set = 0, rgba32f) uniform image2D out_images[2];
 
 layout(binding = 2, set = 0) uniform CameraProperties
 {
@@ -161,12 +159,10 @@ void main()
     if (push_constants.batch_index != 0)
     {
         uint size = push_constants.batch_index;
-        accumulated_radiance += size * imageLoad(out_images[ACCUMULATED_RADIANCE], ivec2(gl_LaunchIDEXT.xy));
+        accumulated_radiance += size * imageLoad(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy));
         accumulated_radiance /= size + 1;
     }
 
-//    imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.radiance, 1.0));
+    imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
     imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
-//    imageStore(out_images[POSITIONS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.position, 0.0));
-    imageStore(out_images[ACCUMULATED_RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
 }

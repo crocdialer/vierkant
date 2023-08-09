@@ -272,8 +272,6 @@ private:
     {
         vierkant::ImagePtr radiance;
         vierkant::ImagePtr normals;
-        vierkant::ImagePtr positions;
-        vierkant::ImagePtr accumulated_radiance;
     } m_storage_images;
 
     //! owns raytracing pipelines and shader-bindingtables
