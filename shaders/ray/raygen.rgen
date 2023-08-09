@@ -29,9 +29,9 @@ layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shad
 struct trace_result_t
 {
     vec3 radiance;
+    float coverage;
     vec3 normal;
     vec3 position;
-    uint depth;
 };
 
 trace_result_t trace(vec2 coord, vec2 size)
@@ -41,8 +41,9 @@ trace_result_t trace(vec2 coord, vec2 size)
     // init random number generator.
     uint rng_state = xxhash32(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 
-    // The sum of the colors of all of the samples.
+    // sum radiance and coverage for all samples.
     trace_result.radiance = vec3(0);
+    trace_result.coverage = 0;
 
     float sample_offset = 2 * rnd(rng_state) - 1;
 
@@ -60,7 +61,8 @@ trace_result_t trace(vec2 coord, vec2 size)
     for (int sampleIdx = 0; sampleIdx < push_constants.num_samples; sampleIdx++)
     {
         // random+stratified sampling
-        const vec2 randomPixelCenter = coord + fract(Hammersley(sampleIdx, push_constants.num_samples) + vec2(sample_offset));
+        const vec2 randomPixelCenter = coord + fract(Hammersley(sampleIdx,
+                                                                push_constants.num_samples) + vec2(sample_offset));
         const vec2 inUV = randomPixelCenter / size;
         vec2 d = inUV * 2.0 - 1.0;
 
@@ -139,10 +141,10 @@ trace_result_t trace(vec2 coord, vec2 size)
         }
 
         trace_result.radiance += path_radiance;
-        trace_result.depth = payload.depth;
+        trace_result.coverage += payload.depth > 0 ? 1.0 : 0.0;
     }
-
     trace_result.radiance /= float(push_constants.num_samples);
+    trace_result.coverage /= float(push_constants.num_samples);
 
     // error on the side of caution!?
     // TODO: check if that helps with artifacts on older nvidia hardware, i.e. 1060
@@ -153,8 +155,8 @@ trace_result_t trace(vec2 coord, vec2 size)
 void main()
 {
     trace_result_t trace_result = trace(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
-    vec4 accumulated_radiance = push_constants.draw_skybox || trace_result.depth > 0 ?
-                                vec4(trace_result.radiance, 1) : vec4(0);
+    if(!push_constants.draw_skybox){ trace_result.radiance *= trace_result.coverage * trace_result.coverage; }
+    vec4 accumulated_radiance = vec4(trace_result.radiance, trace_result.coverage);
 
     if (push_constants.batch_index != 0)
     {
@@ -162,7 +164,6 @@ void main()
         accumulated_radiance += size * imageLoad(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy));
         accumulated_radiance /= size + 1;
     }
-
     imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
     imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
 }
