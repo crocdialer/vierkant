@@ -341,7 +341,7 @@ void DrawContext::draw_lines(vierkant::Renderer &renderer, const std::vector<glm
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth,
-                                        bool depth_test)
+                                        bool depth_test, bool blend)
 {
     // create image-drawable
     vierkant::drawable_t drawable;
@@ -360,6 +360,7 @@ void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &imag
         drawable.pipeline_format.depth_test = depth_test;
         drawable.descriptors[0].images = {image};
     }
+    drawable.pipeline_format.blend_state.blendEnable = blend;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
     drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
 

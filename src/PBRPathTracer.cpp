@@ -186,7 +186,8 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, c
 
     // stage final output
     // TODO: add depth-buffer
-    m_draw_context.draw_image_fullscreen(renderer, frame_asset.out_image);
+    m_draw_context.draw_image_fullscreen(renderer, frame_asset.out_image, nullptr, false,
+                                         !frame_asset.settings.draw_skybox);
 
     render_result_t ret;
     //    for(const auto &[id, assets]: frame_asset.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
@@ -302,8 +303,7 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_asset_t &frame_asset)
         // actual copy command
         m_storage_images.radiance->copy_to(frame_asset.denoise_image, frame_asset.cmd_denoise.handle());
 
-        m_storage_images.radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL,
-                                                                 frame_asset.cmd_denoise.handle());
+        m_storage_images.radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_denoise.handle());
     }
 
     frame_asset.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_denoise.handle());
