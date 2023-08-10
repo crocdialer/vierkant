@@ -28,18 +28,18 @@ layout(location = 0) in VertexData
 
 layout(location = 0) out vec4 out_color;
 
-vec3 sample_motion_blur(sampler2D tex, vec2 coord, vec2 motion)
+vec4 sample_motion_blur(sampler2D tex, vec2 coord, vec2 motion)
 {
     const uint max_num_taps = 8;
     float pixel_motion = length(motion * textureSize(tex, 0));
     uint num_taps = clamp(uint(pixel_motion + 0.5), 1, max_num_taps);
 
-    vec3 color = texture(tex, coord).rgb;
+    vec4 color = texture(tex, coord);
 
     for(uint i = 1; i < num_taps; ++i)
     {
         vec2 offset = motion * (float(i) / (num_taps - 1) - 0.5);
-        color += texture(tex, coord + offset).rgb;
+        color += texture(tex, coord + offset);
     }
     return color / num_taps;
 }
@@ -49,14 +49,14 @@ void main()
     float gain = u_motionblur_gain * clamp(u_time_delta / u_shutter_time, 0.0, 2.0);
     vec2 motion = gain * texture(u_sampler_2D[MOTION], vertex_in.tex_coord).rg;
 
-    vec3 hdr_color = sample_motion_blur(u_sampler_2D[COLOR], vertex_in.tex_coord, motion);
+    vec4 hdr_color = sample_motion_blur(u_sampler_2D[COLOR], vertex_in.tex_coord, motion);
     vec3 bloom = texture(u_sampler_2D[BLOOM], vertex_in.tex_coord).rgb;
 
     // additive blending + tone mapping
-    vec3 result = tonemap_exposure(hdr_color + bloom, u_exposure);
+    vec3 result = tonemap_exposure(hdr_color.rgb + bloom, u_exposure);
 //    vec3 result = tonemap_aces(hdr_color + bloom);
 
     // gamma correction
     result = pow(result, vec3(1.0 / u_gamma));
-    out_color = vec4(result, 1.0);
+    out_color = vec4(result, hdr_color.a);
 }

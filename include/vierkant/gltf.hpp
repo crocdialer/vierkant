@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <crocore/ThreadPool.hpp>
 #include <vierkant/model_loading.hpp>
 
 namespace vierkant::model
@@ -17,6 +18,6 @@ namespace vierkant::model
  *
  *  @return a struct grouping the loaded assets.
  */
-mesh_assets_t gltf(const std::filesystem::path &path);
+mesh_assets_t gltf(const std::filesystem::path &path, crocore::ThreadPool* pool = nullptr);
 
 }// namespace vierkant::model

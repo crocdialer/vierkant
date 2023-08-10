@@ -762,12 +762,46 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+struct load_image_context_t
+{
+    // cache created images
+    //    std::map<uint32_t, crocore::ImagePtr> image_cache;
+    std::map<uint32_t, std::future<crocore::ImagePtr>> image_cache;
 
-mesh_assets_t gltf(const std::filesystem::path &path)
+    crocore::ThreadPool *pool = nullptr;
+};
+
+bool LoadImageDataFunction(tinygltf::Image */*tiny_image*/, const int image_idx, std::string *err, std::string * /*warn*/,
+                           int /*req_width*/, int /*req_height*/, const unsigned char *bytes, int size, void *user_data)
+{
+    assert(user_data && bytes && size);
+    auto &img_context = *reinterpret_cast<load_image_context_t *>(user_data);
+    assert(img_context.pool);
+
+    try
+    {
+        // create and cache image
+        std::vector<unsigned char> data(bytes, bytes + size);
+        img_context.image_cache[image_idx] =
+                img_context.pool->post([data = std::move(data)] { return crocore::create_image_from_data(data, 4); });
+    } catch(std::exception &e)
+    {
+        if(err) { *err = e.what(); }
+        return false;
+    }
+    return true;
+}
+
+mesh_assets_t gltf(const std::filesystem::path &path, crocore::ThreadPool *const pool)
 {
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
     std::string err, warn;
+
+    load_image_context_t img_context;
+    img_context.pool = pool;
+
+    if(pool) { loader.SetImageLoader(&LoadImageDataFunction, &img_context); }
 
     bool ret = false;
     auto ext_str = path.extension().string();
@@ -790,22 +824,24 @@ mesh_assets_t gltf(const std::filesystem::path &path)
     // create images
     std::map<uint32_t, crocore::ImagePtr> image_cache;
 
-    for(const auto &t: model.textures)
+    if(pool)
     {
-        //        auto &sampler = model.samplers[t.sampler];
-        //        spdlog::debug("loading image '{}' with sampler '{}'", t.name, sampler.name);
-        //        sampler.magFilter
-        //        sampler.minFilter
-        //        sampler.wrapS
-        //        sampler.wrapT
-
-        auto &tiny_image = model.images[t.source];
-
-        if(!image_cache.count(t.source))
+        // wait for image-futures
+        for(auto &[idx, img_future]: img_context.image_cache) { image_cache[idx] = img_future.get(); }
+    }
+    else
+    {
+        for(const auto &t: model.textures)
         {
-            auto img = crocore::Image_<uint8_t>::create(tiny_image.image.data(), tiny_image.width, tiny_image.height,
-                                                        tiny_image.component);
-            image_cache[t.source] = img;
+            //auto &sampler = model.samplers[t.sampler];
+            auto &tiny_image = model.images[t.source];
+
+            if(!image_cache.count(t.source))
+            {
+                auto img = crocore::Image_<uint8_t>::create(tiny_image.image.data(), tiny_image.width,
+                                                            tiny_image.height, tiny_image.component);
+                image_cache[t.source] = img;
+            }
         }
     }
 
