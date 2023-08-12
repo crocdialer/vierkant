@@ -771,24 +771,26 @@ struct load_image_context_t
     crocore::ThreadPool *pool = nullptr;
 };
 
-bool LoadImageDataFunction(tinygltf::Image */*tiny_image*/, const int image_idx, std::string *err, std::string * /*warn*/,
-                           int /*req_width*/, int /*req_height*/, const unsigned char *bytes, int size, void *user_data)
+bool LoadImageDataFunction(tinygltf::Image * /*tiny_image*/, const int image_idx, std::string * /*err*/,
+                           std::string * /*warn*/, int /*req_width*/, int /*req_height*/, const unsigned char *bytes,
+                           int size, void *user_data)
 {
     assert(user_data && bytes && size);
     auto &img_context = *reinterpret_cast<load_image_context_t *>(user_data);
     assert(img_context.pool);
 
-    try
-    {
-        // create and cache image
-        std::vector<unsigned char> data(bytes, bytes + size);
-        img_context.image_cache[image_idx] =
-                img_context.pool->post([data = std::move(data)] { return crocore::create_image_from_data(data, 4); });
-    } catch(std::exception &e)
-    {
-        if(err) { *err = e.what(); }
-        return false;
-    }
+    // create and cache image
+    std::vector<unsigned char> data(bytes, bytes + size);
+    img_context.image_cache[image_idx] = img_context.pool->post([data = std::move(data)]() -> crocore::ImagePtr {
+        try
+        {
+            return crocore::create_image_from_data(data, 4);
+        } catch(std::exception &e)
+        {
+            spdlog::error(e.what());
+            return nullptr;
+        }
+    });
     return true;
 }
 
@@ -826,8 +828,15 @@ mesh_assets_t gltf(const std::filesystem::path &path, crocore::ThreadPool *const
 
     if(pool)
     {
-        // wait for image-futures
-        for(auto &[idx, img_future]: img_context.image_cache) { image_cache[idx] = img_future.get(); }
+        // wait for image-futures, check for nullptr
+        for(auto &[idx, img_future]: img_context.image_cache)
+        {
+            auto img = img_future.get();
+
+            // fail to load image, bail out
+            if(!img) { return {}; }
+            image_cache[idx] = std::move(img);
+        }
     }
     else
     {
