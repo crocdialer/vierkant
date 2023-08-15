@@ -83,47 +83,20 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE_DEPTH);
     }
 
-    // fonts
-    {
-        // pipeline format
-        vierkant::graphics_pipeline_info_t pipeline_fmt = {};
-        pipeline_fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
-        pipeline_fmt.depth_write = false;
-        pipeline_fmt.depth_test = false;
-        pipeline_fmt.blend_state.blendEnable = true;
-        pipeline_fmt.cull_mode = VK_CULL_MODE_BACK_BIT;
-        pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
-
-        // descriptors
-        vierkant::descriptor_t desc_matrix = {};
-        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        m_drawable_text.descriptors[vierkant::Renderer::BINDING_MESH_DRAWS] = desc_matrix;
-
-        vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_text.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
-
-        vierkant::descriptor_t desc_texture = {};
-        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_text.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
-
-        m_drawable_text.pipeline_format = std::move(pipeline_fmt);
-
-        m_drawable_text.descriptor_set_layout =
-                vierkant::create_descriptor_set_layout(m_device, m_drawable_text.descriptors);
-        m_drawable_text.pipeline_format.descriptor_set_layouts = {m_drawable_text.descriptor_set_layout.get()};
-    }
-
     vierkant::create_drawables_params_t drawable_params = {};
+
+    // request vertex-colors
+    vierkant::Mesh::create_info_t mesh_create_info = {};
+    mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
 
     // aabb
     {
         // unit cube
         auto geom = vierkant::Geometry::BoxOutline();
-        m_drawable_aabb = vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, {})}, drawable_params).front();
+        m_drawable_aabb =
+                vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info)},
+                                           drawable_params)
+                        .front();
         m_drawable_aabb.pipeline_format.shader_stages =
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
     }
@@ -133,7 +106,10 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         // unit grid
         auto geom = vierkant::Geometry::Grid();
         geom->tex_coords.clear();
-        m_drawable_grid = vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, {})}, drawable_params).front();
+        m_drawable_grid =
+                vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info)},
+                                           drawable_params)
+                        .front();
         m_drawable_grid.pipeline_format.shader_stages =
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
     }
@@ -227,15 +203,48 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
     const auto &entry = mesh->entries.front();
     const auto &lod_0 = entry.lods.front();
 
-    if(m_drawable_text.pipeline_format.attribute_descriptions.empty())
+    // search drawable
+    auto drawable_it = m_drawables.find(DrawableType::Text);
+
+    if(drawable_it == m_drawables.end())
     {
-        m_drawable_text.pipeline_format.attribute_descriptions =
-                vierkant::create_attribute_descriptions(mesh->vertex_attribs);
-        m_drawable_text.pipeline_format.binding_descriptions =
-                vierkant::create_binding_descriptions(mesh->vertex_attribs);
+        vierkant::drawable_t drawable = {};
+
+        // pipeline format
+        vierkant::graphics_pipeline_info_t pipeline_fmt = {};
+        pipeline_fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
+        pipeline_fmt.depth_write = false;
+        pipeline_fmt.depth_test = false;
+        pipeline_fmt.blend_state.blendEnable = true;
+        pipeline_fmt.cull_mode = VK_CULL_MODE_BACK_BIT;
+        pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
+        drawable.pipeline_format = std::move(pipeline_fmt);
+
+        // descriptors
+        vierkant::descriptor_t desc_matrix = {};
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        drawable.descriptors[vierkant::Renderer::BINDING_MESH_DRAWS] = desc_matrix;
+
+        vierkant::descriptor_t desc_material = {};
+        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        drawable.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
+
+        vierkant::descriptor_t desc_texture = {};
+        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
+
+        drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, drawable.descriptors);
+        drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
+        drawable_it = m_drawables.insert({DrawableType::Lines, std::move(drawable)}).first;
     }
 
-    auto drawable = m_drawable_text;
+    auto drawable = drawable_it->second;
+    drawable.pipeline_format.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
+    drawable.pipeline_format.binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
+
     drawable.mesh = mesh;
     drawable.matrices.projection =
             glm::orthoRH(0.f, renderer.viewport.width, 0.f, renderer.viewport.height, 0.0f, 1.0f);

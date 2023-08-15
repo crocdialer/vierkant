@@ -145,8 +145,6 @@ private:
 
     std::unordered_map<DrawableType, vierkant::drawable_t> m_drawables;
 
-    vierkant::drawable_t m_drawable_text = {};
-
     vierkant::drawable_t m_drawable_image = {};
 
     vierkant::drawable_t m_drawable_image_fullscreen = {};
