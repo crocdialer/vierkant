@@ -39,17 +39,17 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         vierkant::descriptor_t desc_matrix = {};
         desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        m_drawable_image.descriptors[vierkant::Renderer::BINDING_MESH_DRAWS] = desc_matrix;
+        m_drawable_image.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_image.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
+        m_drawable_image.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
 
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_image.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
+        m_drawable_image.descriptors[vierkant::Rasterizer::BINDING_TEXTURES] = desc_texture;
 
         m_drawable_image.mesh = mesh;
         m_drawable_image.num_indices = lod.num_indices;
@@ -133,7 +133,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh,
+void DrawContext::draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh,
                             const vierkant::transform_t &transform, const glm::mat4 &projection,
                             vierkant::ShaderType shader_type)
 {
@@ -151,7 +151,7 @@ void DrawContext::draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPt
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer, const vierkant::nodes::NodeConstPtr &root_node,
+void DrawContext::draw_node_hierarchy(vierkant::Rasterizer &renderer, const vierkant::nodes::NodeConstPtr &root_node,
                                       const vierkant::nodes::node_animation_t &animation, float animation_time,
                                       const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
@@ -196,7 +196,7 @@ void DrawContext::draw_node_hierarchy(vierkant::Renderer &renderer, const vierka
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &text, const FontPtr &font,
+void DrawContext::draw_text(vierkant::Rasterizer &renderer, const std::string &text, const FontPtr &font,
                             const glm::vec2 &pos, const glm::vec4 &color)
 {
     auto mesh = font->create_mesh(text, color);
@@ -224,17 +224,17 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
         vierkant::descriptor_t desc_matrix = {};
         desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[vierkant::Renderer::BINDING_MESH_DRAWS] = desc_matrix;
+        drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
+        drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
 
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
+        drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES] = desc_texture;
 
         drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, drawable.descriptors);
         drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
@@ -249,7 +249,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
     drawable.matrices.projection =
             glm::orthoRH(0.f, renderer.viewport.width, 0.f, renderer.viewport.height, 0.0f, 1.0f);
     drawable.matrices.transform.translation = {pos.x, pos.y, 0};
-    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {font->glyph_texture()};
+    drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {font->glyph_texture()};
     drawable.num_indices = lod_0.num_indices;
     drawable.num_vertices = entry.num_vertices;
     renderer.stage_drawable(std::move(drawable));
@@ -257,7 +257,7 @@ void DrawContext::draw_text(vierkant::Renderer &renderer, const std::string &tex
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::ImagePtr &image,
+void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                              const crocore::Area_<int> &area)
 {
     float w = area.width ? area.width : renderer.viewport.width;
@@ -273,7 +273,7 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
                                                         static_cast<float>(-area.y) / renderer.viewport.height, 0);
 
     // set image
-    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {image};
+    drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {image};
 
     // stage image drawable
     renderer.stage_drawable(std::move(drawable));
@@ -281,7 +281,7 @@ void DrawContext::draw_image(vierkant::Renderer &renderer, const vierkant::Image
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_lines(vierkant::Renderer &renderer, const std::vector<glm::vec3> &lines, const glm::vec4 &color,
+void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<glm::vec3> &lines, const glm::vec4 &color,
                              const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     // search drawable
@@ -302,12 +302,12 @@ void DrawContext::draw_lines(vierkant::Renderer &renderer, const std::vector<glm
         vierkant::descriptor_t desc_matrix = {};
         desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[vierkant::Renderer::BINDING_MESH_DRAWS] = desc_matrix;
+        drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
+        drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
 
         auto mesh = vierkant::Mesh::create();
 
@@ -349,7 +349,7 @@ void DrawContext::draw_lines(vierkant::Renderer &renderer, const std::vector<glm
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth,
+void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth,
                                         bool depth_test, bool blend)
 {
     // create image-drawable
@@ -379,7 +379,7 @@ void DrawContext::draw_image_fullscreen(Renderer &renderer, const ImagePtr &imag
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_grid(vierkant::Renderer &renderer, float scale, uint32_t /*num_subs*/,
+void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float scale, uint32_t /*num_subs*/,
                             const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     // TODO: map-lookup for requested num-subdivisions
@@ -392,7 +392,7 @@ void DrawContext::draw_grid(vierkant::Renderer &renderer, float scale, uint32_t 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb,
+void DrawContext::draw_boundingbox(vierkant::Rasterizer &renderer, const vierkant::AABB &aabb,
                                    const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     auto drawable = m_drawable_aabb;
@@ -406,7 +406,7 @@ void DrawContext::draw_boundingbox(vierkant::Renderer &renderer, const vierkant:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_skybox(vierkant::Renderer &renderer, const vierkant::ImagePtr &environment,
+void DrawContext::draw_skybox(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &environment,
                               const vierkant::CameraPtr &cam)
 {
     vierkant::transform_t t = {};
@@ -416,7 +416,7 @@ void DrawContext::draw_skybox(vierkant::Renderer &renderer, const vierkant::Imag
     auto drawable = m_drawable_skybox;
     drawable.matrices.transform = t;
     drawable.matrices.projection = cam->projection_matrix();
-    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {environment};
+    drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {environment};
     drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_CUBE);
 
     renderer.stage_drawable(drawable);

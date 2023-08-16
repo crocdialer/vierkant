@@ -33,7 +33,7 @@ public:
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
      * @return  ta render_result_t object.
      */
-    render_result_t render_scene(vierkant::Renderer &renderer,
+    render_result_t render_scene(vierkant::Rasterizer &renderer,
                                  const vierkant::SceneConstPtr &scene,
                                  const CameraPtr &cam,
                                  const std::set<std::string> &tags) override;

@@ -5,7 +5,7 @@
 #pragma once
 
 #include "vierkant/ImageEffect.hpp"
-#include "vierkant/Renderer.hpp"
+#include "vierkant/Rasterizer.hpp"
 
 namespace vierkant
 {
@@ -75,7 +75,7 @@ private:
     };
     vierkant::DevicePtr m_device;
     std::array<ping_pong_t, 2> m_ping_pongs;
-    vierkant::Renderer m_renderer;
+    vierkant::Rasterizer m_renderer;
 
     VkSpecializationInfo m_specialization_info = {};
     VkSpecializationMapEntry m_specialization_entry = {};

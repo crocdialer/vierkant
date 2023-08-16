@@ -281,7 +281,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     // create cube pipeline with vertex- + geometry-stages
 
     // render
-    vierkant::Renderer::create_info_t cuber_render_create_info = {};
+    vierkant::Rasterizer::create_info_t cuber_render_create_info = {};
     //    cuber_render_create_info.renderpass = cube_fb.renderpass();
     cuber_render_create_info.num_frames_in_flight = 1;
     cuber_render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
@@ -289,7 +289,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     cuber_render_create_info.viewport.height = static_cast<float>(cube_fb.extent().height);
     cuber_render_create_info.viewport.maxDepth = static_cast<float>(cube_fb.extent().depth);
     cuber_render_create_info.descriptor_pool = descriptor_pool;
-    auto cube_render = vierkant::Renderer(device, cuber_render_create_info);
+    auto cube_render = vierkant::Rasterizer(device, cuber_render_create_info);
 
     // create a drawable
     vierkant::drawable_t drawable = {};
@@ -381,13 +381,13 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
     auto framebuffer = vierkant::Framebuffer(device, fb_create_info);
 
     // render
-    vierkant::Renderer::create_info_t render_create_info = {};
+    vierkant::Rasterizer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = 1;
     render_create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     render_create_info.viewport.width = static_cast<float>(framebuffer.extent().width);
     render_create_info.viewport.height = static_cast<float>(framebuffer.extent().height);
     render_create_info.viewport.maxDepth = static_cast<float>(framebuffer.extent().depth);
-    auto renderer = vierkant::Renderer(device, render_create_info);
+    auto renderer = vierkant::Rasterizer(device, render_create_info);
 
     // create a drawable
     vierkant::drawable_t drawable = {};

@@ -12,13 +12,13 @@ BOOST_AUTO_TEST_CASE(TestPBRDeferred)
 
     const glm::vec2 res(1920, 1080);
 
-    vierkant::Renderer::create_info_t create_info = {};
+    vierkant::Rasterizer::create_info_t create_info = {};
     create_info.num_frames_in_flight = 1;
     create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     create_info.viewport = {0.f, 0.f, res.x,
                             res.y, 0.f, 1.f};
 
-    auto renderer = vierkant::Renderer(test_context.device, create_info);
+    auto renderer = vierkant::Rasterizer(test_context.device, create_info);
 
     // create some drawables for a template-shape
     vierkant::Mesh::entry_create_info_t entry_info = {};

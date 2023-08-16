@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "vierkant/Renderer.hpp"
 #include "vierkant/Framebuffer.hpp"
+#include "vierkant/Rasterizer.hpp"
 
 namespace vierkant
 {
@@ -14,7 +14,7 @@ struct cube_pipeline_t
 {
     vierkant::CommandPoolPtr command_pool;
     vierkant::Framebuffer framebuffer;
-    vierkant::Renderer renderer;
+    vierkant::Rasterizer renderer;
     vierkant::drawable_t drawable;
     vierkant::ImagePtr color_image;
     vierkant::ImagePtr depth_image;

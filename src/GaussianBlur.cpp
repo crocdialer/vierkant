@@ -43,7 +43,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     }
 
     // create renderer for blur-passes
-    vierkant::Renderer::create_info_t post_render_info = {};
+    vierkant::Rasterizer::create_info_t post_render_info = {};
     post_render_info.indirect_draw = false;
     post_render_info.num_frames_in_flight = 2 * create_info.num_iterations;
     post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
@@ -53,7 +53,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     post_render_info.pipeline_cache = create_info.pipeline_cache;
     post_render_info.command_pool = command_pool;
     post_render_info.descriptor_pool = create_info.descriptor_pool;
-    m_renderer = vierkant::Renderer(device, post_render_info);
+    m_renderer = vierkant::Rasterizer(device, post_render_info);
 
     // init framebuffers
     vierkant::attachment_map_t fb_attachments_ping, fb_attachments_pong;
@@ -213,7 +213,7 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
         ping.drawable.descriptors[0].images = {current_img};
         pong.drawable.descriptors[0].images = {ping.framebuffer.color_attachment()};
 
-        vierkant::Renderer::rendering_info_t rendering_info = {};
+        vierkant::Rasterizer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = commandbuffer;
         rendering_info.color_attachment_formats = {m_color_format};
 

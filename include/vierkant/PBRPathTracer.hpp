@@ -122,7 +122,7 @@ public:
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
      * @return  a render_result_t object.
      */
-    render_result_t render_scene(vierkant::Renderer &renderer, const vierkant::SceneConstPtr &scene,
+    render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
                                  const CameraPtr &cam, const std::set<std::string> &tags) override;
 
     /**
@@ -185,7 +185,7 @@ private:
 
         //! ping-pong post-fx framebuffers
         std::array<vierkant::Framebuffer, 2> post_fx_ping_pongs;
-        vierkant::Renderer post_fx_renderer;
+        vierkant::Rasterizer post_fx_renderer;
 
         // gpu timings/statistics
         vierkant::QueryPoolPtr query_pool;

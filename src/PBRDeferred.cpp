@@ -122,7 +122,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     }
 
     // create renderer for g-buffer-pass
-    vierkant::Renderer::create_info_t render_create_info = {};
+    vierkant::Rasterizer::create_info_t render_create_info = {};
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
     render_create_info.queue = create_info.queue;
     render_create_info.sample_count = create_info.sample_count;
@@ -132,8 +132,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.pipeline_cache = m_pipeline_cache;
     render_create_info.indirect_draw = true;
     render_create_info.enable_mesh_shader = true;
-    m_g_renderer_main = vierkant::Renderer(device, render_create_info);
-    m_g_renderer_post = vierkant::Renderer(device, render_create_info);
+    m_g_renderer_main = vierkant::Rasterizer(device, render_create_info);
+    m_g_renderer_post = vierkant::Rasterizer(device, render_create_info);
 
     // create renderer for lighting-pass
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
@@ -141,12 +141,12 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.indirect_draw = false;
     auto light_render_create_info = render_create_info;
     light_render_create_info.num_frames_in_flight = 2 * create_info.num_frames_in_flight;
-    m_renderer_lighting = vierkant::Renderer(device, light_render_create_info);
+    m_renderer_lighting = vierkant::Rasterizer(device, light_render_create_info);
 
     // create renderer for post-fx-passes
     constexpr size_t max_num_post_fx_passes = SemaphoreValue::MAX_VALUE - SemaphoreValue::LIGHTING;
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight * max_num_post_fx_passes;
-    m_renderer_post_fx = vierkant::Renderer(m_device, render_create_info);
+    m_renderer_post_fx = vierkant::Rasterizer(m_device, render_create_info);
 
     // create drawable for environment lighting-pass
     {
@@ -399,7 +399,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     frame_asset.settings = settings;
 }
 
-SceneRenderer::render_result_t PBRDeferred::render_scene(Renderer &renderer, const SceneConstPtr &scene,
+SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, const SceneConstPtr &scene,
                                                          const CameraPtr &cam, const std::set<std::string> &tags)
 {
     // reference to current frame-assets
@@ -580,14 +580,14 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
                 desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
                 desc_bones.buffers = {frame_asset.bone_buffer};
                 desc_bones.buffer_offsets = {buffer_offset};
-                drawable.descriptors[Renderer::BINDING_BONES] = desc_bones;
+                drawable.descriptors[Rasterizer::BINDING_BONES] = desc_bones;
 
                 if(last_frame_asset.bone_buffer &&
                    last_frame_asset.bone_buffer->num_bytes() == frame_asset.bone_buffer->num_bytes())
                 {
                     desc_bones.buffers = {last_frame_asset.bone_buffer};
                 }
-                drawable.descriptors[Renderer::BINDING_PREVIOUS_BONES] = desc_bones;
+                drawable.descriptors[Rasterizer::BINDING_PREVIOUS_BONES] = desc_bones;
             }
 
             if(drawable.mesh && drawable.mesh->morph_buffer)
@@ -601,14 +601,14 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
                 desc_morph_params.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
                 desc_morph_params.buffers = {frame_asset.morph_param_buffer};
                 desc_morph_params.buffer_offsets = {buffer_offset};
-                drawable.descriptors[Renderer::BINDING_MORPH_PARAMS] = desc_morph_params;
+                drawable.descriptors[Rasterizer::BINDING_MORPH_PARAMS] = desc_morph_params;
 
                 if(last_frame_asset.morph_param_buffer &&
                    last_frame_asset.morph_param_buffer->num_bytes() == frame_asset.morph_param_buffer->num_bytes())
                 {
                     desc_morph_params.buffers = {last_frame_asset.morph_param_buffer};
                 }
-                drawable.descriptors[Renderer::BINDING_PREVIOUS_MORPH_PARAMS] = desc_morph_params;
+                drawable.descriptors[Rasterizer::BINDING_PREVIOUS_MORPH_PARAMS] = desc_morph_params;
             }
         }
     }
@@ -711,7 +711,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                     frame_asset.settings.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
 
             // add descriptor for a jitter-offset
-            drawable.descriptors[Renderer::BINDING_JITTER_OFFSET] = camera_desc;
+            drawable.descriptors[Rasterizer::BINDING_JITTER_OFFSET] = camera_desc;
         }
         // stage drawables
         m_g_renderer_main.stage_drawables(cull_result.drawables);
@@ -726,7 +726,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     // draw last visible objects
     m_g_renderer_main.draw_indirect_delegate = [this, &frame_asset,
-                                                use_gpu_culling](Renderer::indirect_draw_bundle_t &params) {
+                                                use_gpu_culling](Rasterizer::indirect_draw_bundle_t &params) {
         frame_asset.cmd_clear = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_clear.begin();
 
@@ -777,7 +777,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         else if(params.num_draws && !frame_asset.dirty_drawable_indices.empty())
         {
-            constexpr size_t stride = sizeof(Renderer::mesh_draw_t);
+            constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
             std::vector<vierkant::matrix_struct_t> matrix_data(2 * frame_asset.dirty_drawable_indices.size());
@@ -839,7 +839,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_asset.depth_pyramid = create_depth_pyramid(frame_asset.gpu_cull_context, depth_pyramid_params);
 
         // post-render will perform actual culling
-        m_g_renderer_post.draw_indirect_delegate = [this, &frame_asset](Renderer::indirect_draw_bundle_t &params) {
+        m_g_renderer_post.draw_indirect_delegate = [this, &frame_asset](Rasterizer::indirect_draw_bundle_t &params) {
             resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_post);
             params.draws_counts_out = frame_asset.indirect_draw_params_post.draws_counts_out;
             frame_asset.indirect_draw_params_post.mesh_draws = params.mesh_draws;
@@ -967,7 +967,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // stage, render, submit
     m_renderer_lighting.stage_drawable(drawable);
 
-    vierkant::Renderer::rendering_info_t rendering_info = {};
+    vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = frame_asset.cmd_lighting.handle();
     rendering_info.color_attachment_formats = {frame_asset.lighting_buffer.color_attachment()->format().format};
     rendering_info.depth_attachment_format = frame_asset.lighting_buffer.depth_attachment()->format().format;
@@ -1054,7 +1054,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
         framebuffer->begin_rendering(begin_rendering_info);
         renderer.stage_drawable(drawable);
 
-        vierkant::Renderer::rendering_info_t rendering_info = {};
+        vierkant::Rasterizer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = cmd;
         rendering_info.color_attachment_formats = {color_attachment->format().format};
         renderer.render(rendering_info);
@@ -1309,10 +1309,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     asset.internal_images.environment_specular = m_conv_ggx;
 }
 
-void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params)
+void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Rasterizer::indirect_draw_bundle_t &params)
 {
     // reserve space for indirect drawing-commands
-    const size_t num_bytes = std::max<size_t>(num_draws * sizeof(Renderer::indexed_indirect_command_t), 1ul << 20);
+    const size_t num_bytes = std::max<size_t>(num_draws * sizeof(Rasterizer::indexed_indirect_command_t), 1ul << 20);
 
     if(!params.draws_in || params.draws_in->num_bytes() < num_bytes)
     {

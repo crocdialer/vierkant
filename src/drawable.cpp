@@ -2,7 +2,7 @@
 // Created by crocdialer on 04.10.22.
 //
 
-#include <vierkant/Renderer.hpp>
+#include <vierkant/Rasterizer.hpp>
 #include <vierkant/drawable.hpp>
 
 namespace vierkant
@@ -85,23 +85,23 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         if(!drawable.use_own_buffers)
         {
             // descriptors
-            auto &desc_draws = drawable.descriptors[Renderer::BINDING_DRAW_COMMANDS];
+            auto &desc_draws = drawable.descriptors[Rasterizer::BINDING_DRAW_COMMANDS];
             desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             desc_draws.stage_flags =
                     VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
 
-            auto &desc_mesh_draws = drawable.descriptors[Renderer::BINDING_MESH_DRAWS];
+            auto &desc_mesh_draws = drawable.descriptors[Rasterizer::BINDING_MESH_DRAWS];
             desc_mesh_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             desc_mesh_draws.stage_flags =
                     VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
 
-            auto &desc_material = drawable.descriptors[Renderer::BINDING_MATERIAL];
+            auto &desc_material = drawable.descriptors[Rasterizer::BINDING_MATERIAL];
             desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
             if(drawable.mesh->vertex_buffer)
             {
-                auto &desc_vertices = drawable.descriptors[Renderer::BINDING_VERTICES];
+                auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_VERTICES];
                 desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
                 desc_vertices.buffers = {drawable.mesh->vertex_buffer};
@@ -109,7 +109,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
 
             if(drawable.mesh->bone_vertex_buffer)
             {
-                auto &desc_vertices = drawable.descriptors[Renderer::BINDING_BONE_VERTEX_DATA];
+                auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_BONE_VERTEX_DATA];
                 desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
                 desc_vertices.buffers = {drawable.mesh->bone_vertex_buffer};
@@ -118,7 +118,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
             if(drawable.mesh->morph_buffer)
             {
                 // add descriptors for morph- buffer_params
-                vierkant::descriptor_t &desc_morph_buffer = drawable.descriptors[Renderer::BINDING_MORPH_TARGETS];
+                vierkant::descriptor_t &desc_morph_buffer = drawable.descriptors[Rasterizer::BINDING_MORPH_TARGETS];
                 desc_morph_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
                 desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
@@ -126,17 +126,17 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
 
             if(drawable.mesh->meshlets && drawable.mesh->meshlet_vertices && drawable.mesh->meshlet_triangles)
             {
-                auto &desc_meshlets = drawable.descriptors[Renderer::BINDING_MESHLETS];
+                auto &desc_meshlets = drawable.descriptors[Rasterizer::BINDING_MESHLETS];
                 desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_meshlets.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
                 desc_meshlets.buffers = {mesh->meshlets};
 
-                auto &desc_meshlet_vertices = drawable.descriptors[Renderer::BINDING_MESHLET_VERTICES];
+                auto &desc_meshlet_vertices = drawable.descriptors[Rasterizer::BINDING_MESHLET_VERTICES];
                 desc_meshlet_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_meshlet_vertices.stage_flags = VK_SHADER_STAGE_MESH_BIT_EXT;
                 desc_meshlet_vertices.buffers = {mesh->meshlet_vertices};
 
-                auto &desc_meshlet_triangles = drawable.descriptors[Renderer::BINDING_MESHLET_TRIANGLES];
+                auto &desc_meshlet_triangles = drawable.descriptors[Rasterizer::BINDING_MESHLET_TRIANGLES];
                 desc_meshlet_triangles.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
                 desc_meshlet_triangles.stage_flags = VK_SHADER_STAGE_MESH_BIT_EXT;
                 desc_meshlet_triangles.buffers = {mesh->meshlet_triangles};
@@ -162,7 +162,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
                     desc_texture.images.push_back(tex);
                 }
             }
-            drawable.descriptors[Renderer::BINDING_TEXTURES] = desc_texture;
+            drawable.descriptors[Rasterizer::BINDING_TEXTURES] = desc_texture;
         }
 
         // push drawable to vector

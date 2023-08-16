@@ -90,15 +90,15 @@ void HelloTriangleApplication::create_graphics_pipeline()
     const auto &framebuffers = m_window->swapchain().framebuffers();
     auto fb_extent = framebuffers.front().extent();
 
-    vierkant::Renderer::create_info_t create_info = {};
+    vierkant::Rasterizer::create_info_t create_info = {};
     create_info.num_frames_in_flight = static_cast<uint32_t>(framebuffers.size());
     create_info.sample_count = m_window->swapchain().sample_count();
     create_info.viewport = {0.f, 0.f, static_cast<float>(fb_extent.width),
                             static_cast<float>(fb_extent.height), 0.f,
                             static_cast<float>(fb_extent.depth)};
 
-    m_renderer = vierkant::Renderer(m_device, create_info);
-    m_gui_renderer = vierkant::Renderer(m_device, create_info);
+    m_renderer = vierkant::Rasterizer(m_device, create_info);
+    m_gui_renderer = vierkant::Rasterizer(m_device, create_info);
 }
 
 void HelloTriangleApplication::load_model()

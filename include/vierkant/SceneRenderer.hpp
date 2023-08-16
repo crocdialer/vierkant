@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "vierkant/Semaphore.hpp"
-#include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
-#include "vierkant/Renderer.hpp"
+#include "vierkant/Rasterizer.hpp"
+#include "vierkant/Scene.hpp"
+#include "vierkant/Semaphore.hpp"
 
 namespace vierkant
 {
@@ -37,7 +37,7 @@ public:
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
      * @return  a render_result_t object.
      */
-    virtual render_result_t render_scene(vierkant::Renderer &renderer,
+    virtual render_result_t render_scene(vierkant::Rasterizer &renderer,
                                          const vierkant::SceneConstPtr &scene,
                                          const CameraPtr &cam,
                                          const std::set<std::string> &tags) = 0;

@@ -190,7 +190,7 @@ public:
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
      * @return  a render_result_t object.
      */
-    render_result_t render_scene(vierkant::Renderer &renderer, const vierkant::SceneConstPtr &scene,
+    render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
                                  const CameraPtr &cam, const std::set<std::string> &tags) override;
 
     void set_environment(const vierkant::ImagePtr &lambert, const vierkant::ImagePtr &ggx);
@@ -272,7 +272,7 @@ private:
         bool recycle_commands = false;
 
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
-        Renderer::indirect_draw_bundle_t indirect_draw_params_main = {}, indirect_draw_params_post = {};
+        Rasterizer::indirect_draw_bundle_t indirect_draw_params_main = {}, indirect_draw_params_post = {};
         camera_params_t camera_params;
 
         vierkant::Semaphore timeline;
@@ -359,7 +359,7 @@ private:
     vierkant::ImagePtr post_fx_pass(const CameraPtr &cam, const vierkant::ImagePtr &color,
                                     const vierkant::ImagePtr &depth);
 
-    void resize_indirect_draw_buffers(uint32_t num_draws, Renderer::indirect_draw_bundle_t &params);
+    void resize_indirect_draw_buffers(uint32_t num_draws, Rasterizer::indirect_draw_bundle_t &params);
 
     vierkant::DevicePtr m_device;
 
@@ -383,9 +383,9 @@ private:
 
     vierkant::DrawContext m_draw_context;
 
-    vierkant::Renderer m_g_renderer_main, m_g_renderer_post;
+    vierkant::Rasterizer m_g_renderer_main, m_g_renderer_post;
 
-    vierkant::Renderer m_renderer_lighting, m_renderer_post_fx;
+    vierkant::Rasterizer m_renderer_lighting, m_renderer_post_fx;
 
     // 2d brdf lookup-table
     vierkant::ImagePtr m_brdf_lut;

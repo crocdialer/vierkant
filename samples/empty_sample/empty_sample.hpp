@@ -68,7 +68,7 @@ private:
 
     vierkant::drawable_t m_drawable;
 
-    vierkant::Renderer m_renderer, m_gui_renderer;
+    vierkant::Rasterizer m_renderer, m_gui_renderer;
 
     vierkant::gui::Context m_gui_context;
 

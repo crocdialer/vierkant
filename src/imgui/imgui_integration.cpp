@@ -237,7 +237,7 @@ Context &Context::operator=(Context other)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Context::draw_gui(vierkant::Renderer &renderer)
+void Context::draw_gui(vierkant::Rasterizer &renderer)
 {
     ImGui::SetCurrentContext(m_imgui_context);
     ImPlot::SetCurrentContext(m_implot_context);
@@ -309,7 +309,7 @@ void Context::draw_gui(vierkant::Renderer &renderer)
                 auto drawable = m_imgui_assets.drawable;
                 drawable.mesh = mesh_assets[n].mesh;
                 drawable.matrices = matrices;
-                drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES].images = {tex};
+                drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {tex};
                 drawable.vertex_offset = static_cast<int32_t>(pcmd->VtxOffset);
                 drawable.base_index = base_index;
                 drawable.num_indices = pcmd->ElemCount;
@@ -397,17 +397,17 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     vierkant::descriptor_t desc_matrix = {};
     desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    drawable.descriptors[vierkant::Renderer::BINDING_MESH_DRAWS] = desc_matrix;
+    drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
 
     vierkant::descriptor_t desc_material = {};
     desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    drawable.descriptors[vierkant::Renderer::BINDING_MATERIAL] = desc_material;
+    drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
 
     vierkant::descriptor_t desc_texture = {};
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    drawable.descriptors[vierkant::Renderer::BINDING_TEXTURES] = desc_texture;
+    drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES] = desc_texture;
 
     drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
     drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};

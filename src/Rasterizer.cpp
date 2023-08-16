@@ -5,7 +5,7 @@
 #include <crocore/Area.hpp>
 #include <unordered_set>
 #include <vierkant/Pipeline.hpp>
-#include <vierkant/Renderer.hpp>
+#include <vierkant/Rasterizer.hpp>
 #include <vierkant/staging_copy.hpp>
 
 namespace vierkant
@@ -46,7 +46,7 @@ using texture_index_map_t = std::unordered_map<texture_index_key_t, size_t, text
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Renderer::Renderer(DevicePtr device, const create_info_t &create_info)
+Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
     : m_device(std::move(device)), m_random_engine(create_info.random_seed)
 {
     if(!create_info.num_frames_in_flight) { throw std::runtime_error("could not create vierkant::Renderer"); }
@@ -112,11 +112,11 @@ Renderer::Renderer(DevicePtr device, const create_info_t &create_info)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Renderer::Renderer(Renderer &&other) noexcept : Renderer() { swap(*this, other); }
+Rasterizer::Rasterizer(Rasterizer &&other) noexcept : Rasterizer() { swap(*this, other); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Renderer &Renderer::operator=(Renderer other)
+Rasterizer &Rasterizer::operator=(Rasterizer other)
 {
     swap(*this, other);
     return *this;
@@ -124,7 +124,7 @@ Renderer &Renderer::operator=(Renderer other)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void swap(Renderer &lhs, Renderer &rhs) noexcept
+void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
 {
     if(&lhs == &rhs) { return; }
     std::lock(lhs.m_staging_mutex, rhs.m_staging_mutex);
@@ -159,7 +159,7 @@ void swap(Renderer &lhs, Renderer &rhs) noexcept
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::stage_drawable(drawable_t drawable)
+void Rasterizer::stage_drawable(drawable_t drawable)
 {
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_staged_drawables[m_current_index].push_back(std::move(drawable));
@@ -167,7 +167,7 @@ void Renderer::stage_drawable(drawable_t drawable)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::stage_drawables(std::vector<drawable_t> drawables)
+void Rasterizer::stage_drawables(std::vector<drawable_t> drawables)
 {
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     std::move(drawables.begin(), drawables.end(), std::back_inserter(m_staged_drawables[m_current_index]));
@@ -175,7 +175,7 @@ void Renderer::stage_drawables(std::vector<drawable_t> drawables)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer, bool recycle_commands)
+VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, bool recycle_commands)
 {
     // increment asset-index, retrieve current assets
     auto &frame_assets = next_frame();
@@ -215,7 +215,7 @@ VkCommandBuffer Renderer::render(const vierkant::Framebuffer &framebuffer, bool 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::render(const rendering_info_t &rendering_info)
+void Rasterizer::render(const rendering_info_t &rendering_info)
 {
     // increment asset-index, retrieve current assets
     auto &frame_assets = next_frame();
@@ -237,7 +237,7 @@ void Renderer::render(const rendering_info_t &rendering_info)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_assets)
+void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_assets)
 {
     // (re-)create assets and commands
     frame_assets.indirect_bundle.num_draws = frame_assets.indirect_indexed_bundle.num_draws = 0;
@@ -630,7 +630,7 @@ void Renderer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_asse
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::reset()
+void Rasterizer::reset()
 {
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
     m_current_index = 0;
@@ -640,7 +640,7 @@ void Renderer::reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::set_function_pointers()
+void Rasterizer::set_function_pointers()
 {
     vkCmdDrawMeshTasksEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksEXT>(
             vkGetDeviceProcAddr(m_device->handle(), "vkCmdDrawMeshTasksEXT"));
@@ -652,7 +652,7 @@ void Renderer::set_function_pointers()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer::frame_assets_t &frame_asset)
+void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Rasterizer::frame_assets_t &frame_asset)
 {
     std::vector<mesh_entry_t> mesh_entries;
     std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
@@ -783,7 +783,7 @@ void Renderer::update_buffers(const std::vector<drawable_t> &drawables, Renderer
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_asset)
+void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_asset)
 {
     // reserve space for indirect drawing-commands
     size_t num_bytes_indexed = std::max<size_t>(num_drawables * sizeof(indexed_indirect_command_t), 1UL << 20);
@@ -835,7 +835,7 @@ void Renderer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets
     }
 }
 
-Renderer::frame_assets_t &Renderer::next_frame()
+Rasterizer::frame_assets_t &Rasterizer::next_frame()
 {
     uint32_t current_index;
     {

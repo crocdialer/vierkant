@@ -8,7 +8,7 @@
 namespace vierkant
 {
 
-SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Renderer &renderer,
+SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Rasterizer &renderer,
                                                           const vierkant::SceneConstPtr &scene,
                                                           const vierkant::CameraPtr &cam,
                                                           const std::set<std::string> &tags)
@@ -26,7 +26,7 @@ SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Renderer &re
         vierkant::ShaderType shader_type;
 
         // check for presence of a color-texture
-        auto it = drawable.descriptors.find(vierkant::Renderer::BINDING_TEXTURES);
+        auto it = drawable.descriptors.find(vierkant::Rasterizer::BINDING_TEXTURES);
         bool has_texture = it != drawable.descriptors.end() && !it->second.images.empty();
 
         // check if vertex-skinning is required

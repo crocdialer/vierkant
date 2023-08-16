@@ -6,7 +6,7 @@
 
 #include "vierkant/Camera.hpp"
 #include "vierkant/Font.hpp"
-#include "vierkant/Renderer.hpp"
+#include "vierkant/Rasterizer.hpp"
 #include "vierkant/Scene.hpp"
 
 namespace vierkant
@@ -34,7 +34,7 @@ public:
      * @param   pos         the desired position for the text's origin (top-left corner).
      * @param   color       the desired color for the text.
      */
-    void draw_text(vierkant::Renderer &renderer, const std::string &text, const FontPtr &font, const glm::vec2 &pos,
+    void draw_text(vierkant::Rasterizer &renderer, const std::string &text, const FontPtr &font, const glm::vec2 &pos,
                    const glm::vec4 &color = glm::vec4(1));
 
     /**
@@ -44,7 +44,7 @@ public:
      * @param   image       a provided vierkant::Image, assumed to contain a sampler2D.
      * @param   area        the desired area to cover.
      */
-    void draw_image(vierkant::Renderer &renderer, const vierkant::ImagePtr &image,
+    void draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                     const crocore::Area_<int> &area = {});
 
     /**
@@ -53,7 +53,7 @@ public:
      * @param   renderer    a provided vierkant::Renderer.
      * @param   lines       a set of lines.
      */
-    void draw_lines(vierkant::Renderer &renderer, const std::vector<glm::vec3> &lines, const glm::vec4 &color,
+    void draw_lines(vierkant::Rasterizer &renderer, const std::vector<glm::vec3> &lines, const glm::vec4 &color,
                     const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
@@ -65,7 +65,7 @@ public:
      * @param   depth_test  an optional flag to enable depth-testing. only used when a deph-buffer is provided.
      * @param   blend       an optional flag to enable alpha-blending.
      */
-    void draw_image_fullscreen(vierkant::Renderer &renderer, const vierkant::ImagePtr &image,
+    void draw_image_fullscreen(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                                const vierkant::ImagePtr &depth = nullptr, bool depth_test = false, bool blend = true);
 
     /**
@@ -76,7 +76,7 @@ public:
      * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      */
-    void draw_boundingbox(vierkant::Renderer &renderer, const vierkant::AABB &aabb,
+    void draw_boundingbox(vierkant::Rasterizer &renderer, const vierkant::AABB &aabb,
                           const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
@@ -88,7 +88,7 @@ public:
      * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      */
-    void draw_grid(vierkant::Renderer &renderer, float scale, uint32_t num_subs, const vierkant::transform_t &transform,
+    void draw_grid(vierkant::Rasterizer &renderer, float scale, uint32_t num_subs, const vierkant::transform_t &transform,
                    const glm::mat4 &projection);
 
     /**
@@ -100,7 +100,7 @@ public:
      * @param   projection  the projection matrix to use for drawing.
      * @param   shader_type the desired vierkant::ShaderType.
      */
-    void draw_mesh(vierkant::Renderer &renderer, const vierkant::MeshPtr &mesh, const vierkant::transform_t &transform,
+    void draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh, const vierkant::transform_t &transform,
                    const glm::mat4 &projection, vierkant::ShaderType shader_type);
 
     /**
@@ -113,7 +113,7 @@ public:
      * @param   transform   a modelview transform
      * @param   projection      the projection matrix to use for drawing.
      */
-    void draw_node_hierarchy(vierkant::Renderer &renderer, const vierkant::nodes::NodeConstPtr &node,
+    void draw_node_hierarchy(vierkant::Rasterizer &renderer, const vierkant::nodes::NodeConstPtr &node,
                              const vierkant::nodes::node_animation_t &animation, float animation_time,
                              const vierkant::transform_t &transform, const glm::mat4 &projection);
 
@@ -124,7 +124,7 @@ public:
      * @param   environment a provided vierkant::Image, assumed to contain a samplerCube.
      * @param   cam         a vierkant::Camera
      */
-    void draw_skybox(vierkant::Renderer &renderer, const vierkant::ImagePtr &environment,
+    void draw_skybox(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &environment,
                      const vierkant::CameraPtr &cam);
 
 private:

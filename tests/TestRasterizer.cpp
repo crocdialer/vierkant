@@ -43,11 +43,11 @@ BOOST_AUTO_TEST_CASE(TestRenderer_renderpass_API)
 
     const glm::vec2 res(1920, 1080);
 
-    vierkant::Renderer::create_info_t create_info = {};
+    vierkant::Rasterizer::create_info_t create_info = {};
     create_info.num_frames_in_flight = 1;
     create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     create_info.viewport = {0.f, 0.f, res.x, res.y, 0.f, 1.f};
-    auto renderer = vierkant::Renderer(test_context.device, create_info);
+    auto renderer = vierkant::Rasterizer(test_context.device, create_info);
     auto drawables = create_test_drawables(test_context.device);
 
     // create a framebuffer to submit to
@@ -76,13 +76,13 @@ BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
     const glm::vec2 res(1920, 1080);
 
     auto command_pool = vierkant::create_command_pool(test_context.device, vierkant::Device::Queue::GRAPHICS, 0);
-    vierkant::Renderer::create_info_t create_info = {};
+    vierkant::Rasterizer::create_info_t create_info = {};
     create_info.num_frames_in_flight = 1;
     create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     create_info.viewport = {0.f, 0.f, res.x, res.y, 0.f, 1.f};
     create_info.command_pool = command_pool;
 
-    auto renderer = vierkant::Renderer(test_context.device, create_info);
+    auto renderer = vierkant::Rasterizer(test_context.device, create_info);
     auto drawables = create_test_drawables(test_context.device);
 
     // create a framebuffer to submit to
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
     begin_rendering_info.commandbuffer = cmd_buffer.handle();
     framebuffer.begin_rendering(begin_rendering_info);
 
-    vierkant::Renderer::rendering_info_t rendering_info = {};
+    vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = cmd_buffer.handle();
     rendering_info.color_attachment_formats = {framebuffer_info.color_attachment_format.format};
 

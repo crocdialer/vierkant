@@ -148,7 +148,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     m_empty_img = vierkant::Image::create(m_device, &v, fmt);
 }
 
-SceneRenderer::render_result_t PBRPathTracer::render_scene(Renderer &renderer, const SceneConstPtr &scene,
+SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer, const SceneConstPtr &scene,
                                                            const CameraPtr &cam, const std::set<std::string> &tags)
 {
     auto &frame_asset = m_frame_assets[renderer.current_index()];
@@ -368,7 +368,7 @@ void PBRPathTracer::post_fx_pass(frame_asset_t &frame_asset)
         begin_rendering_info.commandbuffer = frame_asset.cmd_post_fx.handle();
         frame_asset.post_fx_ping_pongs[0].begin_rendering(begin_rendering_info);
 
-        vierkant::Renderer::rendering_info_t rendering_info = {};
+        vierkant::Rasterizer::rendering_info_t rendering_info = {};
         rendering_info.command_buffer = frame_asset.cmd_post_fx.handle();
         rendering_info.color_attachment_formats = {frame_asset.out_image->format().format};
 
@@ -570,13 +570,13 @@ void PBRPathTracer::resize_storage(frame_asset_t &frame_asset, const glm::uvec2 
         viewport.maxDepth = 1;
 
         // create renderer for post-fx-passes
-        vierkant::Renderer::create_info_t post_render_info = {};
+        vierkant::Rasterizer::create_info_t post_render_info = {};
         post_render_info.num_frames_in_flight = 1;
         post_render_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
         post_render_info.viewport = viewport;
         post_render_info.pipeline_cache = m_pipeline_cache;
         post_render_info.command_pool = m_command_pool;
-        frame_asset.post_fx_renderer = vierkant::Renderer(m_device, post_render_info);
+        frame_asset.post_fx_renderer = vierkant::Rasterizer(m_device, post_render_info);
 
         vierkant::Framebuffer::create_info_t post_fx_buffer_info = {};
         post_fx_buffer_info.size = size;

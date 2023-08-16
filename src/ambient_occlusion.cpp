@@ -2,7 +2,7 @@
 // Created by crocdialer on 13.04.23.
 //
 
-#include <vierkant/Renderer.hpp>
+#include <vierkant/Rasterizer.hpp>
 #include <vierkant/ambient_occlusion.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/staging_copy.hpp>
@@ -20,7 +20,7 @@ struct ambient_occlusion_context_t
     vierkant::BufferPtr staging_buffer;
     vierkant::drawable_t drawable_ssao, drawable_rtao;
     vierkant::Framebuffer framebuffer;
-    vierkant::Renderer renderer;
+    vierkant::Rasterizer renderer;
     std::default_random_engine random_engine;
 };
 
@@ -63,7 +63,7 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
     ret->framebuffer = vierkant::Framebuffer(device, framebuffer_info);
 
     // create renderer for thresh-pass
-    vierkant::Renderer::create_info_t renderer_info = {};
+    vierkant::Rasterizer::create_info_t renderer_info = {};
     renderer_info.num_frames_in_flight = 1;
     renderer_info.viewport.width = size.x;
     renderer_info.viewport.height = size.y;
@@ -71,7 +71,7 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
     renderer_info.pipeline_cache = pipeline_cache;
     renderer_info.descriptor_pool = nullptr;
     renderer_info.command_pool = ret->command_pool;
-    ret->renderer = vierkant::Renderer(device, renderer_info);
+    ret->renderer = vierkant::Rasterizer(device, renderer_info);
 
     vierkant::Buffer::create_info_t internal_buffer_info = {};
     internal_buffer_info.device = device;
@@ -193,7 +193,7 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     begin_rendering_info.commandbuffer = params.commandbuffer;
     context->framebuffer.begin_rendering(begin_rendering_info);
 
-    vierkant::Renderer::rendering_info_t rendering_info = {};
+    vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = params.commandbuffer;
     rendering_info.color_attachment_formats = {context->framebuffer.color_attachment()->format().format};
 

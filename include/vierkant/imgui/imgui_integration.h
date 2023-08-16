@@ -1,9 +1,9 @@
-#include <filesystem>
-#include "vierkant/Window.hpp"
-#include "vierkant/Renderer.hpp"
 #include "imgui.h"
 #include "implot.h"
 #include "ImGuizmo.h"
+#include "vierkant/Rasterizer.hpp"
+#include "vierkant/Window.hpp"
+#include <filesystem>
 
 namespace vierkant::gui
 {
@@ -54,7 +54,7 @@ public:
      *
      * @param   renderer    a vierkant::Renderer that is used to stage drawables for the gui.
      */
-    void draw_gui(vierkant::Renderer &renderer);
+    void draw_gui(vierkant::Rasterizer &renderer);
 
     [[nodiscard]] const vierkant::mouse_delegate_t &mouse_delegate() const;
 

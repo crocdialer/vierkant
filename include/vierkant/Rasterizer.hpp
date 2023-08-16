@@ -22,7 +22,7 @@ namespace vierkant
 using double_millisecond_t = std::chrono::duration<double, std::milli>;
 
 /**
- * @brief   Renderer can be used to run arbitrary rasterization/graphics pipelines.
+ * @brief   Rasterizer can be used to run arbitrary rasterization/graphics pipelines.
  *
  *          It will not render anything on its own, only record secondary command-buffers,
  *          meant to be executed within an existing renderpass.
@@ -32,7 +32,7 @@ using double_millisecond_t = std::chrono::duration<double, std::milli>;
  *
  *          Renderer is NOT thread-safe, with the exception of stage_drawables(...).
  */
-class Renderer
+class Rasterizer
 {
 public:
     enum DescriptorBinding
@@ -171,20 +171,20 @@ public:
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;
 
-    Renderer() = default;
+    Rasterizer() = default;
 
     /**
      * @brief   Construct a new Renderer object
      * @param   device          handle for the vk::Device to create the Renderer
      * @param   create_info     a create_info_t object
      */
-    Renderer(DevicePtr device, const create_info_t &create_info);
+    Rasterizer(DevicePtr device, const create_info_t &create_info);
 
-    Renderer(Renderer &&other) noexcept;
+    Rasterizer(Rasterizer &&other) noexcept;
 
-    Renderer(const Renderer &) = delete;
+    Rasterizer(const Rasterizer &) = delete;
 
-    Renderer &operator=(Renderer other);
+    Rasterizer &operator=(Rasterizer other);
 
     /**
      * @brief   Stage a drawable to be rendered.
@@ -238,7 +238,7 @@ public:
 
     [[nodiscard]] const vierkant::DevicePtr &device() const { return m_device; }
 
-    friend void swap(Renderer &lhs, Renderer &rhs) noexcept;
+    friend void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept;
 
 private:
     struct alignas(16) push_constants_t

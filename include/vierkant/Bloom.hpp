@@ -56,7 +56,7 @@ private:
 
     vierkant::drawable_t m_drawable;
 
-    vierkant::Renderer m_thresh_renderer;
+    vierkant::Rasterizer m_thresh_renderer;
     glm::vec2 m_brightness_thresh;
 
     VkSpecializationInfo m_specialization_info = {};

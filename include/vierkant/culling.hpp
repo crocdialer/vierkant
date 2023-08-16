@@ -6,9 +6,9 @@
 
 #include <unordered_set>
 
-#include "vierkant/Scene.hpp"
 #include "vierkant/Camera.hpp"
-#include "vierkant/Renderer.hpp"
+#include "vierkant/Rasterizer.hpp"
+#include "vierkant/Scene.hpp"
 #include "vierkant/punctual_light.hpp"
 
 namespace vierkant

@@ -32,7 +32,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     m_thresh_framebuffer = vierkant::Framebuffer(device, thresh_buffer_info);
 
     // create renderer for thresh-pass
-    vierkant::Renderer::create_info_t thresh_render_info = {};
+    vierkant::Rasterizer::create_info_t thresh_render_info = {};
     thresh_render_info.num_frames_in_flight = 1;
     thresh_render_info.viewport.width = static_cast<float>(create_info.size.width);
     thresh_render_info.viewport.height = static_cast<float>(create_info.size.height);
@@ -40,7 +40,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     thresh_render_info.pipeline_cache = create_info.pipeline_cache;
     thresh_render_info.descriptor_pool = create_info.descriptor_pool;
     thresh_render_info.command_pool = m_command_pool;
-    m_thresh_renderer = vierkant::Renderer(device, thresh_render_info);
+    m_thresh_renderer = vierkant::Rasterizer(device, thresh_render_info);
 
     m_command_buffer = vierkant::CommandBuffer(device, m_command_pool.get());
 
@@ -107,7 +107,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbu
     begin_rendering_info.commandbuffer = commandbuffer;
     m_thresh_framebuffer.begin_rendering(begin_rendering_info);
 
-    vierkant::Renderer::rendering_info_t rendering_info = {};
+    vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = commandbuffer;
     rendering_info.color_attachment_formats = {m_thresh_framebuffer.color_attachment()->format().format};
 
