@@ -45,7 +45,9 @@ class Instance
 {
 public:
 
-    using debug_fn_t = std::function<void(const char *msg, VkDebugReportFlagsEXT flags)>;
+    using debug_fn_t = std::function<void(VkDebugUtilsMessageSeverityFlagBitsEXT,
+                                          VkDebugUtilsMessageTypeFlagsEXT,
+                                          const VkDebugUtilsMessengerCallbackDataEXT*)>;
 
     /**
      * @brief the vulkan-api version used
@@ -64,7 +66,7 @@ public:
      * @param   use_validation_layers       use validation layers (VK_LAYER_LUNARG_standard_validation) or not
      * @param   the_required_extensions     a list of required extensions (e.g. VK_KHR_SWAPCHAIN_EXTENSION_NAME)
      */
-    Instance(const create_info_t& create_info);
+    explicit Instance(const create_info_t& create_info);
 
     Instance() = default;
 
@@ -79,7 +81,7 @@ public:
     /**
      * @return  true if validation layers are in use, false otherwise
      */
-    [[nodiscard]] bool use_validation_layers() const{ return m_debug_callback; }
+    [[nodiscard]] bool use_validation_layers() const{ return m_debug_messenger; }
 
     /**
      * @brief   set a debug-callback, containing output from validation-layers.
@@ -124,7 +126,7 @@ private:
     std::vector<VkPhysicalDevice> m_physical_devices;
 
     // debug callback
-    VkDebugReportCallbackEXT m_debug_callback = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT m_debug_messenger = VK_NULL_HANDLE;
 
     // optional debug-function
     debug_fn_t m_debug_fn;

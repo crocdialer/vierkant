@@ -73,7 +73,7 @@ BOOST_AUTO_TEST_CASE(TestPipeline_SingleColorDepth)
 
     // TODO: expected error here, make this obsolete
     BOOST_CHECK(test_context.validation_data.num_errors);
-    test_context.validation_data.reset();
+    test_context.validation_data = {};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -103,5 +103,5 @@ BOOST_AUTO_TEST_CASE(TestPipelineCache)
 
     // TODO: expected error here, make this obsolete
     BOOST_CHECK(test_context.validation_data.num_errors);
-    test_context.validation_data.reset();
+    test_context.validation_data = {};
 }

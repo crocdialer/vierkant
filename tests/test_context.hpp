@@ -15,12 +15,6 @@ public:
     {
         size_t num_errors = 0;
         std::ostringstream errorMsgStream;
-
-        void reset()
-        {
-            num_errors = 0;
-            errorMsgStream = std::ostringstream{};
-        }
     };
 
     ValidationData validation_data;
@@ -35,10 +29,12 @@ public:
         instance = vierkant::Instance(instance_info);
 
         // set a debug-function to intercept validation-warnings/errors
-        instance.set_debug_fn([&](const char *msg, VkDebugReportFlagsEXT flags)
+        instance.set_debug_fn([&](VkDebugUtilsMessageSeverityFlagBitsEXT,
+                                  VkDebugUtilsMessageTypeFlagsEXT,
+                                  const VkDebugUtilsMessengerCallbackDataEXT *data)
                               {
                                   validation_data.num_errors++;
-                                  validation_data.errorMsgStream << "\nError:\n" << msg << "\n";
+                                  validation_data.errorMsgStream << "\nError:\n" << data->pMessage << "\n";
                               });
 
         BOOST_CHECK_NE(instance.handle(), nullptr);

@@ -4,8 +4,36 @@
 
 #include "vierkant/Window.hpp"
 
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
 namespace vierkant
 {
+
+//! unused
+//static void glfw_resize_cb(GLFWwindow *window, int width, int height);
+//
+//static void glfw_monitor_cb(GLFWmonitor *the_monitor, int);
+
+static void glfw_close_cb(GLFWwindow *window);
+
+static void glfw_error_cb(int error_code, const char *error_msg);
+
+static void glfw_refresh_cb(GLFWwindow *window);
+
+static void glfw_mouse_move_cb(GLFWwindow *window, double x, double y);
+
+static void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int modifier_mask);
+
+static void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y);
+
+static void glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, int modifier_mask);
+
+static void glfw_char_cb(GLFWwindow *window, unsigned int key);
+
+static void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths);
+
+static void glfw_joystick_cb(int joy, int event);
 
 /**
  * @brief RAII Helper for glfw initialization and termination
@@ -153,17 +181,17 @@ void Window::init_handles(int width, int height, const std::string &title, GLFWm
     glfwSetWindowUserPointer(m_handle, this);
 
     // init callbacks
-    glfwSetErrorCallback(&Window::glfw_error_cb);
+    glfwSetErrorCallback(&glfw_error_cb);
 //    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
-    glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
-    glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
-    glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
-    glfwSetScrollCallback(m_handle, &Window::glfw_mouse_wheel_cb);
-    glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
-    glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
-    glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
-    glfwSetJoystickCallback(&Window::glfw_joystick_cb);
-    glfwSetWindowRefreshCallback(m_handle, &Window::glfw_refresh_cb);
+    glfwSetWindowCloseCallback(m_handle, &glfw_close_cb);
+    glfwSetMouseButtonCallback(m_handle, &glfw_mouse_button_cb);
+    glfwSetCursorPosCallback(m_handle, &glfw_mouse_move_cb);
+    glfwSetScrollCallback(m_handle, &glfw_mouse_wheel_cb);
+    glfwSetKeyCallback(m_handle, &glfw_key_cb);
+    glfwSetCharCallback(m_handle, &glfw_char_cb);
+    glfwSetDropCallback(m_handle, &glfw_file_drop_cb);
+    glfwSetJoystickCallback(&glfw_joystick_cb);
+    glfwSetWindowRefreshCallback(m_handle, &glfw_refresh_cb);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -416,14 +444,14 @@ bool Window::should_close() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_resize_cb(GLFWwindow */*window*/, int /*width*/, int /*height*/)
-{
-
-}
+//void glfw_resize_cb(GLFWwindow */*window*/, int /*width*/, int /*height*/)
+//{
+//
+//}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_close_cb(GLFWwindow *window)
+void glfw_close_cb(GLFWwindow *window)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -435,21 +463,21 @@ void Window::glfw_close_cb(GLFWwindow *window)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_error_cb(int error_code, const char *error_msg)
+void glfw_error_cb(int error_code, const char *error_msg)
 {
     spdlog::error("{} ({})", error_msg, error_code);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_refresh_cb(GLFWwindow */*window*/)
+void glfw_refresh_cb(GLFWwindow */*window*/)
 {
     // like resizing!?
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
+void glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -471,7 +499,7 @@ void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int /*modifier_mask*/)
+void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int /*modifier_mask*/)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -510,7 +538,7 @@ void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, in
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
+void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -533,7 +561,7 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int action, int /*modifier_mask*/)
+void glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int action, int /*modifier_mask*/)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -564,7 +592,7 @@ void Window::glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int acti
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_char_cb(GLFWwindow *window, unsigned int key)
+void glfw_char_cb(GLFWwindow *window, unsigned int key)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -577,7 +605,7 @@ void Window::glfw_char_cb(GLFWwindow *window, unsigned int key)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
+void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -602,16 +630,16 @@ void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **p
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_monitor_cb(GLFWmonitor *the_monitor, int status)
-{
-    std::string name = glfwGetMonitorName(the_monitor);
-    if(status == GLFW_CONNECTED){ spdlog::debug("monitor connected: {}", name); }
-    else if(status == GLFW_DISCONNECTED){ spdlog::debug("monitor disconnected: {}", name); }
-}
+//void glfw_monitor_cb(GLFWmonitor *the_monitor, int status)
+//{
+//    std::string name = glfwGetMonitorName(the_monitor);
+//    if(status == GLFW_CONNECTED){ spdlog::debug("monitor connected: {}", name); }
+//    else if(status == GLFW_DISCONNECTED){ spdlog::debug("monitor disconnected: {}", name); }
+//}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_joystick_cb(int joy, int event)
+void glfw_joystick_cb(int joy, int event)
 {
     if(event == GLFW_CONNECTED){ spdlog::debug("{} connected ({})", glfwGetJoystickName(joy), joy); }
     else if(event == GLFW_DISCONNECTED){ spdlog::debug("disconnected joystick ({})", joy); }

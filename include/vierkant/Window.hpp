@@ -4,20 +4,19 @@
 
 #pragma once
 
-#include <vulkan/vulkan.h>
-
-#define GLFW_INCLUDE_NONE
-#include <GLFW/glfw3.h>
-
 #include "vierkant/Instance.hpp"
 #include "vierkant/Semaphore.hpp"
 #include "vierkant/SwapChain.hpp"
 #include "vierkant/intersection.hpp"
 #include "vierkant/Input.hpp"
 
+struct GLFWwindow;
+struct GLFWmonitor;
+
 namespace vierkant
 {
 
+class glfw_init_t;
 DEFINE_CLASS_PTR(Window)
 
 struct window_delegate_t
@@ -205,10 +204,10 @@ public:
      */
     bool should_close() const;
 
-    /**
-     * @return  the managed GLFWwindow handle
-     */
-    inline GLFWwindow *handle(){ return m_handle; }
+//    /**
+//     * @return  the managed GLFWwindow handle
+//     */
+//    inline GLFWwindow *handle(){ return m_handle; }
 
     /**
      * @return  the VkSurfaceKHR handle for this Window
@@ -256,30 +255,6 @@ private:
 
     // keep track of previous joystick-states
     std::vector<vierkant::Joystick> m_joysticks;
-
-    static void glfw_resize_cb(GLFWwindow *window, int width, int height);
-
-    static void glfw_close_cb(GLFWwindow *window);
-
-    static void glfw_error_cb(int error_code, const char *error_msg);
-
-    static void glfw_refresh_cb(GLFWwindow *window);
-
-    static void glfw_mouse_move_cb(GLFWwindow *window, double x, double y);
-
-    static void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int modifier_mask);
-
-    static void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y);
-
-    static void glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, int modifier_mask);
-
-    static void glfw_char_cb(GLFWwindow *window, unsigned int key);
-
-    static void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths);
-
-    static void glfw_monitor_cb(GLFWmonitor *the_monitor, int);
-
-    static void glfw_joystick_cb(int joy, int event);
 };
 
 }//namespace vulkan

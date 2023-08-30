@@ -17,7 +17,7 @@ void HelloTriangleApplication::teardown()
 
 void HelloTriangleApplication::poll_events()
 {
-    glfwPollEvents();
+    m_window->poll_events();
 }
 
 void HelloTriangleApplication::create_context_and_window()
@@ -111,9 +111,11 @@ void HelloTriangleApplication::load_model()
                     glm::vec4(0.f, 1.f, 0.f, 1.f),
                     glm::vec4(0.f, 0.f, 1.f, 1.f)};
     vierkant::Mesh::create_info_t mesh_create_info = {};
+    mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
     m_mesh = vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info);
 
     vierkant::create_drawables_params_t drawable_params = {};
+
     m_drawable = vierkant::create_drawables({m_mesh}, drawable_params).front();
     m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device,
                                                                               vierkant::ShaderType::UNLIT_COLOR);

@@ -21,12 +21,20 @@ QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query
 
 double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp_period);
 
+/**
+ * @brief   device_info can be used to retrieve a descriptive string about a physical device,
+ *          including information about used vulkan and vierkant-versions
+ *
+ * @param   physical_device         provided handle to a VkPhysicalDevice.
+ * @return  a descriptive string
+ */
+std::string device_info(VkPhysicalDevice physical_device);
+
 using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
 
 class Device
 {
 public:
-
     struct debug_label_t
     {
         std::string text;

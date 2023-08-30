@@ -39,38 +39,58 @@ bool check_validation_layer_support()
     return true;
 }
 
-VkResult CreateDebugReportCallbackEXT(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT *pCreateInfo,
-                                      const VkAllocationCallbacks *pAllocator, VkDebugReportCallbackEXT *pCallback)
+VkResult CreateDebugUtilMessenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
+                                  const VkAllocationCallbacks *pAllocator, VkDebugUtilsMessengerEXT *pCallback)
 {
-    auto func = (PFN_vkCreateDebugReportCallbackEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT");
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if(func) { return func(instance, pCreateInfo, pAllocator, pCallback); }
     else { return VK_ERROR_EXTENSION_NOT_PRESENT; }
 }
 
-void DestroyDebugReportCallbackEXT(VkInstance instance, VkDebugReportCallbackEXT callback,
-                                   const VkAllocationCallbacks *pAllocator)
+void DestroyDebugUtilMessenger(VkInstance instance, VkDebugUtilsMessengerEXT callback,
+                               const VkAllocationCallbacks *pAllocator)
 {
     auto func =
-            (PFN_vkDestroyDebugReportCallbackEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugReportCallbackEXT");
+            (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if(func) { func(instance, callback, pAllocator); }
 }
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugReportFlagsEXT flags,
-                                                     VkDebugReportObjectTypeEXT /*obj_type*/, uint64_t /*obj*/,
-                                                     size_t /*location*/, int32_t /*code*/,
-                                                     const char * /*layer_prefix*/, const char *msg, void *user_data)
+static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msg_severity,
+                                                     VkDebugUtilsMessageTypeFlagsEXT type_flags,
+                                                     const VkDebugUtilsMessengerCallbackDataEXT *data, void *user_data)
 {
-    if(user_data)
+    if(user_data && data)
     {
         Instance::debug_fn_t &debug_fn = *reinterpret_cast<Instance::debug_fn_t *>(user_data);
-        if(debug_fn) { debug_fn(msg, flags); }
+        if(debug_fn) { debug_fn(msg_severity, type_flags, data); }
     }
-    else { spdlog::error(msg); }
+    else if(data) { spdlog::error(data->pMessage); }
     return VK_FALSE;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+void Instance::setup_debug_callback()
+{
+    if(m_debug_messenger)
+    {
+        DestroyDebugUtilMessenger(m_handle, m_debug_messenger, nullptr);
+        m_debug_messenger = nullptr;
+    }
+
+    VkDebugUtilsMessengerCreateInfoEXT debug_utils_create_info = {};
+    debug_utils_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debug_utils_create_info.messageSeverity =
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+    debug_utils_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+    debug_utils_create_info.pfnUserCallback = debug_callback;
+    debug_utils_create_info.pUserData = m_debug_fn ? &m_debug_fn : nullptr;
+
+    vkCheck(CreateDebugUtilMessenger(m_handle, &debug_utils_create_info, nullptr, &m_debug_messenger),
+            "failed to set up debug callback!");
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool check_device_extension_support(VkPhysicalDevice device, const std::vector<const char *> &extensions)
 {
@@ -136,10 +156,10 @@ Instance::Instance(Instance &&other) noexcept : Instance() { swap(*this, other);
 
 Instance::~Instance()
 {
-    if(m_debug_callback)
+    if(m_debug_messenger)
     {
-        DestroyDebugReportCallbackEXT(m_handle, m_debug_callback, nullptr);
-        m_debug_callback = nullptr;
+        DestroyDebugUtilMessenger(m_handle, m_debug_messenger, nullptr);
+        m_debug_messenger = nullptr;
     }
     if(m_handle)
     {
@@ -164,8 +184,10 @@ Instance &Instance::operator=(Instance other)
 bool Instance::init(const create_info_t &create_info)
 {
     auto used_extensions = create_info.extensions;
-    if(create_info.use_validation_layers) { used_extensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME); }
-    if(create_info.use_debug_labels) { used_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); }
+    if(create_info.use_validation_layers || create_info.use_debug_labels)
+    {
+        used_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
 
     // check support for validation-layers
     if(create_info.use_validation_layers && !check_validation_layer_support())
@@ -200,15 +222,29 @@ bool Instance::init(const create_info_t &create_info)
     // extensions
     instance_create_info.enabledExtensionCount = used_extensions.size();
     instance_create_info.ppEnabledExtensionNames = used_extensions.data();
-    instance_create_info.enabledLayerCount = create_info.use_validation_layers ? static_cast<uint32_t>(g_validation_layers.size()) : 0;
+    instance_create_info.enabledLayerCount =
+            create_info.use_validation_layers ? static_cast<uint32_t>(g_validation_layers.size()) : 0;
     instance_create_info.ppEnabledLayerNames = create_info.use_validation_layers ? g_validation_layers.data() : nullptr;
+
+    VkDebugUtilsMessengerCreateInfoEXT debug_utils_create_info = {};
+    debug_utils_create_info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debug_utils_create_info.messageSeverity =
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT;
+    debug_utils_create_info.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+    debug_utils_create_info.pfnUserCallback = debug_callback;
+
+    // request debug_utils only if validation was requested
+    instance_create_info.pNext = create_info.use_validation_layers ? &debug_utils_create_info : nullptr;
 
     // create the vulkan instance
     vkCheck(vkCreateInstance(&instance_create_info, nullptr, &m_handle), "failed to create instance!");
 
-    if(create_info.use_validation_layers) { setup_debug_callback(); }
+    if(create_info.use_validation_layers)
+    {
+        vkCheck(CreateDebugUtilMessenger(m_handle, &debug_utils_create_info, nullptr, &m_debug_messenger),
+                "failed to create 'VkDebugUtilsMessengerEXT'");
+    }
     m_extensions = used_extensions;
-
     uint32_t num_devices = 0;
     vkEnumeratePhysicalDevices(m_handle, &num_devices, nullptr);
 
@@ -218,12 +254,14 @@ bool Instance::init(const create_info_t &create_info)
     vkEnumeratePhysicalDevices(m_handle, &num_devices, m_physical_devices.data());
 
     // attach logger for debug-output
-    set_debug_fn([](const char *msg, VkDebugReportFlagsEXT flags) {
-        if(flags & VK_DEBUG_REPORT_ERROR_BIT_EXT) { spdlog::error(msg); }
-        else if(flags & VK_DEBUG_REPORT_WARNING_BIT_EXT) { spdlog::warn(msg); }
-        else if(flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT || flags & VK_DEBUG_REPORT_DEBUG_BIT_EXT)
+    set_debug_fn([](VkDebugUtilsMessageSeverityFlagBitsEXT msg_severity, VkDebugUtilsMessageTypeFlagsEXT type_flags,
+                    const VkDebugUtilsMessengerCallbackDataEXT *data) {
+        if(type_flags & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT ||
+           type_flags & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
         {
-            spdlog::debug(msg);
+            if(msg_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) { spdlog::error(data->pMessage); }
+            else if(msg_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) { spdlog::warn(data->pMessage); }
+            else if(msg_severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) { spdlog::debug(data->pMessage); }
         }
     });
 
@@ -243,33 +281,12 @@ void Instance::set_debug_fn(Instance::debug_fn_t debug_fn)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Instance::setup_debug_callback()
-{
-    if(m_debug_callback)
-    {
-        DestroyDebugReportCallbackEXT(m_handle, m_debug_callback, nullptr);
-        m_debug_callback = nullptr;
-    }
-
-    VkDebugReportCallbackCreateInfoEXT create_info = {};
-    create_info.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
-    create_info.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT |
-                        VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT;// | VK_DEBUG_REPORT_DEBUG_BIT_EXT
-    create_info.pUserData = m_debug_fn ? &m_debug_fn : nullptr;
-    create_info.pfnCallback = debug_callback;
-
-    vkCheck(CreateDebugReportCallbackEXT(m_handle, &create_info, nullptr, &m_debug_callback),
-            "failed to set up debug callback!");
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 void swap(Instance &lhs, Instance &rhs)
 {
     std::swap(lhs.m_extensions, rhs.m_extensions);
     std::swap(lhs.m_handle, rhs.m_handle);
     std::swap(lhs.m_physical_devices, rhs.m_physical_devices);
-    std::swap(lhs.m_debug_callback, rhs.m_debug_callback);
+    std::swap(lhs.m_debug_messenger, rhs.m_debug_messenger);
     std::swap(lhs.m_debug_fn, rhs.m_debug_fn);
 }
 
