@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <vierkant/math.hpp>
-#include <vierkant/model_loading.hpp>
+#include "vierkant/model/model_loading.hpp"
 #include <limits>
+#include <vierkant/math.hpp>
 
 namespace vierkant
 {

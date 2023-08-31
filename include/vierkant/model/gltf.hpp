@@ -4,8 +4,7 @@
 
 #pragma once
 
-#include <crocore/ThreadPool.hpp>
-#include <vierkant/model_loading.hpp>
+#include <vierkant/model/model_loading.hpp>
 
 namespace vierkant::model
 {

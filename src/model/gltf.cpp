@@ -7,7 +7,7 @@
 #include <deque>
 #include <tiny_gltf.h>
 
-#include <vierkant/gltf.hpp>
+#include <vierkant/model/gltf.hpp>
 #include <vierkant/transform.hpp>
 
 namespace vierkant::model

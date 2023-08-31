@@ -4,8 +4,9 @@
 
 #include <set>
 
-#include <crocore/ThreadPool.hpp>
-#include <vierkant/model_loading.hpp>
+#include <vierkant/model/model_loading.hpp>
+#include <vierkant/model/gltf.hpp>
+#include <vierkant/model/wavefront_obj.hpp>
 
 namespace vierkant::model
 {
@@ -268,6 +269,15 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     // submit and sync
     command_buffer.submit(load_queue, true);
     return compressed_img;
+}
+
+std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool *pool)
+{
+    auto ext_str = path.extension().string();
+    std::transform(ext_str.begin(), ext_str.end(), ext_str.begin(), ::tolower);
+    if(ext_str == ".gltf" || ext_str == ".glb") { return gltf(path, pool); }
+    else if(ext_str == ".obj") { return wavefront_obj(path, pool); }
+    return {};
 }
 
 }// namespace vierkant::model

@@ -16,7 +16,6 @@ struct GLFWmonitor;
 namespace vierkant
 {
 
-class glfw_init_t;
 DEFINE_CLASS_PTR(Window)
 
 struct window_delegate_t
@@ -151,7 +150,7 @@ public:
     float aspect_ratio() const
     {
         auto sz = size();
-        return sz.x / (float) sz.y;
+        return (float) sz.x / (float) sz.y;
     }
 
     /**
@@ -203,11 +202,6 @@ public:
      * @return  true if this Window was requested to be closed
      */
     bool should_close() const;
-
-//    /**
-//     * @return  the managed GLFWwindow handle
-//     */
-//    inline GLFWwindow *handle(){ return m_handle; }
 
     /**
      * @return  the VkSurfaceKHR handle for this Window

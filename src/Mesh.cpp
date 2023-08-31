@@ -360,6 +360,9 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     ret.num_morph_targets = num_morph_targets;
     ret.morph_buffer = morph_splice.create_vertex_buffer();
 
+    // bail out on empty vertex-buffer
+    if(ret.vertex_buffer.empty()) { return {}; }
+
     // optional vertex/cache/fetch optimization here
     if(params.optimize_vertex_cache)
     {
@@ -632,8 +635,7 @@ bool mesh_buffer_params_t::operator==(const mesh_buffer_params_t &other) const
 
 }//namespace vierkant
 
-size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(
-        vierkant::mesh_buffer_params_t const &params) const
+size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(vierkant::mesh_buffer_params_t const &params) const
 {
     size_t hash_val = 0;
     vierkant::hash_combine(hash_val, params.optimize_vertex_cache);

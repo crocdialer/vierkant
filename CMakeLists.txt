@@ -67,8 +67,9 @@ set(LIBS ${LIBS} glfw)
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glm)
 
-# tinygltf, suppress warnings from 3rd party header
+# tinygltf/tinyobj, suppress warnings from 3rd party headers
 include_directories(BEFORE SYSTEM "submodules/tinygltf")
+include_directories(BEFORE SYSTEM "submodules/tinyobjloader")
 
 # zeux/meshoptimizer
 add_subdirectory(submodules/meshoptimizer EXCLUDE_FROM_ALL)

@@ -2,9 +2,9 @@
 
 #include "test_context.hpp"
 
-#include "vierkant/vierkant.hpp"
-#include "vierkant/model_loading.hpp"
 #include "vierkant/PBRDeferred.hpp"
+#include "vierkant/model/model_loading.hpp"
+#include "vierkant/vierkant.hpp"
 
 BOOST_AUTO_TEST_CASE(TestPBRDeferred)
 {

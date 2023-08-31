@@ -3,13 +3,15 @@
 //
 #pragma once
 
+#include <crocore/Image.hpp>
+#include <crocore/ThreadPool.hpp>
+
+#include <vierkant/Geometry.hpp>
+#include <vierkant/Material.hpp>
+#include <vierkant/Mesh.hpp>
+#include <vierkant/bc7.hpp>
 #include <filesystem>
 #include <optional>
-#include <crocore/Image.hpp>
-#include <vierkant/Geometry.hpp>
-#include <vierkant/Mesh.hpp>
-#include <vierkant/Material.hpp>
-#include <vierkant/bc7.hpp>
 
 namespace vierkant::model
 {
@@ -156,6 +158,15 @@ struct load_mesh_params_t
     //! additional buffer-flags for all created vierkant::Buffers.
     VkBufferUsageFlags buffer_flags = 0;
 };
+
+/**
+ *  @brief  model-loading facade-routine, delegating depending on file-type
+ *
+ *  @param  path    path to a supported model-file.
+ *
+ *  @return a struct grouping the loaded assets.
+ */
+std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool* pool = nullptr);
 
 /**
  * @brief   load_mesh can be used to load assets into gpu-buffers

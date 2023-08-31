@@ -61,8 +61,9 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
         {
             num_bytes += geom->positions.size() * sizeof(packed_vertex_t);
 
-            if(geom->positions.empty() || geom->normals.empty() || geom->tangents.empty() || geom->tex_coords.empty())
+            if(geom->positions.empty() || geom->normals.empty())
             {
+                spdlog::warn("vertex_splicer failed on missing attribute");
                 return {};
             }
         }

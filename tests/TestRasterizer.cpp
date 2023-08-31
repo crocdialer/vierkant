@@ -2,8 +2,8 @@
 
 #include "test_context.hpp"
 
+#include "vierkant/model/model_loading.hpp"
 #include "vierkant/vierkant.hpp"
-#include "vierkant/model_loading.hpp"
 
 std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePtr &device)
 {
