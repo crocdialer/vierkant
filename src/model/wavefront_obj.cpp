@@ -57,7 +57,8 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
     // use obj-file's location as base-dir for material .mtl search
     auto base_dir = path.parent_path();
 
-    bool ret = tinyobj::LoadObj(&inattrib, &shapes, &materials, &warn, &err, path.c_str(), base_dir.c_str());
+    bool ret = tinyobj::LoadObj(&inattrib, &shapes, &materials, &warn, &err, path.string().c_str(),
+                                base_dir.string().c_str());
     if(!warn.empty()) { spdlog::warn(warn); }
     if(!err.empty()) { spdlog::error(warn); }
     if(!ret) { spdlog::error("failed to load {}", path.string()); }
