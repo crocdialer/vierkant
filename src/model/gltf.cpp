@@ -794,7 +794,7 @@ bool LoadImageDataFunction(tinygltf::Image * /*tiny_image*/, const int image_idx
     return true;
 }
 
-mesh_assets_t gltf(const std::filesystem::path &path, crocore::ThreadPool *const pool)
+std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPool *const pool)
 {
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;

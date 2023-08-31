@@ -20,12 +20,12 @@ struct material_t
 {
     std::string name;
 
-    glm::vec4 base_color;
+    glm::vec4 base_color = glm::vec4(1.f);
     glm::vec3 emission;
     float emissive_strength = 1.f;
 
     float roughness = 1.f;
-    float metalness = 1.f;
+    float metalness = 0.f;
 
     // deprecated !?
     glm::vec3 specular;

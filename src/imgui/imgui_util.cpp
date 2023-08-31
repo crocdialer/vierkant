@@ -632,12 +632,16 @@ void draw_material_ui(const MaterialPtr &material)
         if(it != material->textures.end())
         {
             const auto &img = it->second;
-            bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
-                          img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
-            ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
-            ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), is_bc7 ? ", BC7" : "");
-            ImGui::Image((ImTextureID) (img.get()), sz);
-            ImGui::Separator();
+
+            if(img)
+            {
+                bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
+                              img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
+                ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
+                ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), is_bc7 ? ", BC7" : "");
+                ImGui::Image((ImTextureID) (img.get()), sz);
+                ImGui::Separator();
+            }
         }
     };
 
@@ -890,7 +894,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
 
         if(ImGui::Combo("interpolation", &mode_index, interpolation_mode_items, IM_ARRAYSIZE(interpolation_mode_items)))
         {
-//            animation.interpolation_mode = interpolation_modes[mode_index];
+            //            animation.interpolation_mode = interpolation_modes[mode_index];
             spdlog::error("cannot assign interpolation-mode here -> FIX");
         }
 

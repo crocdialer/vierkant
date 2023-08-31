@@ -14,10 +14,12 @@ vierkant::GeometryPtr create_geometry(const tinyobj::attrib_t &inattrib, const s
 {
     auto geom = vierkant::Geometry::create();
 
+    bool has_normals = !inattrib.normals.empty();
+
     // start filled with zeros
     geom->positions.resize(indices.size(), glm::vec3(0.f));
     geom->tex_coords.resize(indices.size(), glm::vec2(0.f));
-    geom->normals.resize(indices.size(), glm::vec3(0.f));
+    if(has_normals) { geom->normals.resize(indices.size(), glm::vec3(0.f)); }
 
     auto pos_start = reinterpret_cast<const glm::vec<3, tinyobj::real_t, glm::defaultp> *>(inattrib.vertices.data());
     auto normal_start = reinterpret_cast<const glm::vec<3, tinyobj::real_t, glm::defaultp> *>(inattrib.normals.data());
@@ -27,7 +29,7 @@ vierkant::GeometryPtr create_geometry(const tinyobj::attrib_t &inattrib, const s
     for(uint32_t i = 0; i < indices.size(); ++i)
     {
         if(indices[i].vertex_index >= 0) { geom->positions[i] = pos_start[indices[i].vertex_index]; }
-        if(indices[i].normal_index >= 0) { geom->normals[i] = normal_start[indices[i].normal_index]; }
+        if(has_normals && indices[i].normal_index >= 0) { geom->normals[i] = normal_start[indices[i].normal_index]; }
         if(indices[i].texcoord_index >= 0) { geom->tex_coords[i] = texcoord_start[indices[i].texcoord_index]; }
     }
 
@@ -35,12 +37,15 @@ vierkant::GeometryPtr create_geometry(const tinyobj::attrib_t &inattrib, const s
     geom->indices.resize(indices.size());
     std::iota(geom->indices.begin(), geom->indices.end(), 0);
 
+    // calculate missing normals
+    if(geom->normals.empty()) { geom->compute_vertex_normals(); }
+
     // calculate missing tangents
     if(geom->tangents.empty() && !geom->tex_coords.empty()) { geom->compute_tangents(); }
     return geom;
 }
 
-mesh_assets_t wavefront_obj(const std::filesystem::path &path, crocore::ThreadPool * /*pool*/)
+std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, crocore::ThreadPool * /*pool*/)
 {
     if(!exists(path) || !is_regular_file(path)) { return {}; }
 
@@ -50,9 +55,9 @@ mesh_assets_t wavefront_obj(const std::filesystem::path &path, crocore::ThreadPo
     std::string warn, err;
 
     // use obj-file's location as base-dir for material .mtl search
-    std::string base_dir = path.parent_path().string();
+    auto base_dir = path.parent_path();
 
-    bool ret = tinyobj::LoadObj(&inattrib, &shapes, &materials, &warn, &err, path.string().c_str(), base_dir.c_str());
+    bool ret = tinyobj::LoadObj(&inattrib, &shapes, &materials, &warn, &err, path.c_str(), base_dir.c_str());
     if(!warn.empty()) { spdlog::warn(warn); }
     if(!err.empty()) { spdlog::error(warn); }
     if(!ret) { spdlog::error("failed to load {}", path.string()); }
@@ -66,26 +71,34 @@ mesh_assets_t wavefront_obj(const std::filesystem::path &path, crocore::ThreadPo
         m.name = mat.name;
         m.base_color = {mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], 1.f};
         m.emission = {mat.emission[0], mat.emission[1], mat.emission[2]};
+        m.roughness = std::clamp(std::max(mat.roughness, std::pow(1.f - mat.shininess, 2.f)), 0.f, 1.f);
+        m.metalness = mat.metallic;
+        m.clearcoat_roughness_factor = mat.clearcoat_roughness;
+
+        // vertically flip textures
+        m.texture_transform[1][1] = -1.f;
 
         if(!mat.diffuse_texname.empty())
         {
-            spdlog::debug("tinyobjloader: found diffuse-texture: {}", mat.diffuse_texname);
+            m.img_diffuse = crocore::create_image_from_file((base_dir / mat.diffuse_texname).string(), 4);
+            m.images.push_back(m.img_diffuse);
         }
         if(!mat.normal_texname.empty())
         {
-            spdlog::debug("tinyobjloader: found normal-texture: {}", mat.normal_texname);
+            m.img_normals = crocore::create_image_from_file((base_dir / mat.normal_texname).string(), 4);
+            m.images.push_back(m.img_normals);
         }
         mesh_assets.materials.push_back(m);
     }
+    // fallback material
+    if(mesh_assets.materials.empty()) { mesh_assets.materials.resize(1); }
 
     for(const auto &shape: shapes)
     {
-        spdlog::debug("tinyobjloader: found shape {}", shape.name);
-
         vierkant::Mesh::entry_create_info_t entry_info = {};
         entry_info.geometry = create_geometry(inattrib, shape.mesh.indices);
         entry_info.name = shape.name;
-        entry_info.material_index = shape.mesh.material_ids.empty() ? 0 : shape.mesh.material_ids.front();
+        entry_info.material_index = shape.mesh.material_ids.empty() ? 0 : std::max(shape.mesh.material_ids.front(), 0);
         mesh_assets.entry_create_infos.push_back(entry_info);
     }
     return mesh_assets;

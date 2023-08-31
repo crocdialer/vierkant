@@ -15,8 +15,8 @@ namespace vierkant::model
  *
  *  @param  path    path to a model-file with either .gltf or .glb extension.
  *
- *  @return a struct grouping the loaded assets.
+ *  @return an optional struct grouping the loaded assets.
  */
-mesh_assets_t gltf(const std::filesystem::path &path, crocore::ThreadPool* pool = nullptr);
+std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPool* pool = nullptr);
 
 }// namespace vierkant::model
