@@ -48,7 +48,10 @@ VkFormat format();
 
 struct mesh_buffer_params_t
 {
-    //! flag indicating if the vertex/index-order should be optimized
+    //! flag indicating if the index-buffer should be re-mapped, avoiding duplicate vertices
+    bool remap_indices = false;
+
+    //! flag indicating if the vertex/index-order should be optimized for vertex-cache utilization
     bool optimize_vertex_cache = false;
 
     //! flag indicating if a cascade of simplified meshes (LODs) shall be generated.
@@ -60,7 +63,7 @@ struct mesh_buffer_params_t
     //! flag indicating if meshlet/cluster information shall be generated.
     bool generate_meshlets = false;
 
-    //! flag indicating if oldschoold vertex-colors shall be respected.
+    //! flag indicating if vertex-colors shall be used, if existing.
     bool use_vertex_colors = false;
 
     //! flag indicating if a packed vertex-layout should be used

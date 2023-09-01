@@ -75,6 +75,9 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
         m.roughness = std::clamp(std::max(mat.roughness, std::pow(1.f - mat.shininess, 2.f)), 0.f, 1.f);
         m.metalness = mat.metallic;
         m.clearcoat_roughness_factor = mat.clearcoat_roughness;
+        m.transmission = mat.transmittance[0];
+        m.ior = mat.ior;
+        m.clearcoat_roughness_factor = mat.clearcoat_roughness;
 
         // vertically flip textures
         m.texture_transform[1][1] = -1.f;

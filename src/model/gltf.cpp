@@ -762,10 +762,10 @@ vierkant::nodes::node_animation_t create_node_animation(const tinygltf::Animatio
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 struct load_image_context_t
 {
-    // cache created images
-    //    std::map<uint32_t, crocore::ImagePtr> image_cache;
+    // cache image-futures
     std::map<uint32_t, std::future<crocore::ImagePtr>> image_cache;
 
     crocore::ThreadPool *pool = nullptr;
@@ -793,6 +793,8 @@ bool LoadImageDataFunction(tinygltf::Image * /*tiny_image*/, const int image_idx
     });
     return true;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPool *const pool)
 {

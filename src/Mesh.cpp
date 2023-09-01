@@ -363,6 +363,56 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     // bail out on empty vertex-buffer
     if(ret.vertex_buffer.empty()) { return {}; }
 
+    // index-(re)mapping / avoid duplicate vertices
+    if(params.remap_indices)
+    {
+        spdlog::stopwatch sw;
+        size_t vertex_sum = 0, new_vertex_sum = 0;
+
+        for(const auto &[geom, offsets]: splicer.offsets)
+        {
+            if(geom->topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST) { continue; }
+
+            auto index_data = ret.index_buffer.data() + offsets.base_index;
+            size_t index_count = geom->indices.size();
+
+            auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * ret.vertex_stride;
+            size_t vertex_count = geom->positions.size();
+            vertex_sum += vertex_count;
+
+            // remapping / skip duplicate vertices
+            std::vector<uint32_t> index_remap(index_count);
+            new_vertex_sum += meshopt_generateVertexRemap(index_remap.data(), index_data, index_count, vertices,
+                                                          vertex_count, ret.vertex_stride);
+
+            meshopt_remapVertexBuffer(vertices, vertices, vertex_count, ret.vertex_stride, index_remap.data());
+            meshopt_remapIndexBuffer(index_data, index_data, index_count, index_remap.data());
+
+            // remap all morph-target-vertices
+            auto &extra_offsets = extra_offset_map[geom];
+
+            if(!ret.bone_vertex_buffer.empty())
+            {
+                size_t bone_vertex_stride = sizeof(bone_vertex_data_t);
+                auto bone_vertex_data = ret.bone_vertex_buffer.data() + offsets.base_vertex * bone_vertex_stride;
+                meshopt_remapVertexBuffer(bone_vertex_data, bone_vertex_data, vertex_count, bone_vertex_stride,
+                                          index_remap.data());
+            }
+
+            for(uint32_t i = 0; i < extra_offsets.num_morph_targets; ++i)
+            {
+                auto morph_vertices = ret.morph_buffer.data() +
+                                      (extra_offsets.morph_base_vertex + i * vertex_count) * morph_splice.vertex_stride;
+                meshopt_remapVertexBuffer(morph_vertices, morph_vertices, vertex_count, morph_splice.vertex_stride,
+                                          index_remap.data());
+            }
+        }
+        float reduction_rate = (float) (vertex_sum - new_vertex_sum) / (float) vertex_sum;
+        spdlog::debug("index-remap / avoid duplicate vertices: {} -- vertex count reduced from {} to {} ({}%)",
+                      std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), vertex_sum, new_vertex_sum,
+                      reduction_rate);
+    }
+
     // optional vertex/cache/fetch optimization here
     if(params.optimize_vertex_cache)
     {
@@ -370,6 +420,8 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
         for(const auto &[geom, offsets]: splicer.offsets)
         {
+            if(geom->topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST) { continue; }
+
             auto index_data = ret.index_buffer.data() + offsets.base_index;
             size_t index_count = geom->indices.size();
 
@@ -621,6 +673,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
 bool mesh_buffer_params_t::operator==(const mesh_buffer_params_t &other) const
 {
+    if(remap_indices != other.remap_indices) { return false; }
     if(optimize_vertex_cache != other.optimize_vertex_cache) { return false; }
     if(generate_lods != other.generate_lods) { return false; }
     if(max_num_lods != other.max_num_lods) { return false; }
@@ -638,6 +691,7 @@ bool mesh_buffer_params_t::operator==(const mesh_buffer_params_t &other) const
 size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(vierkant::mesh_buffer_params_t const &params) const
 {
     size_t hash_val = 0;
+    vierkant::hash_combine(hash_val, params.remap_indices);
     vierkant::hash_combine(hash_val, params.optimize_vertex_cache);
     vierkant::hash_combine(hash_val, params.generate_lods);
     vierkant::hash_combine(hash_val, params.max_num_lods);
