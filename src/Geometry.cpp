@@ -1,9 +1,10 @@
-#include "vierkant/Geometry.hpp"
-#include "vierkant/intersection.hpp"
 #include <cmath>
+#include <numbers>
 #include <unordered_map>
 
+#include <vierkant/intersection.hpp>
 #include <glm/gtx/polar_coordinates.hpp>
+#include <vierkant/Geometry.hpp>
 
 namespace vierkant
 {

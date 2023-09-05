@@ -38,8 +38,8 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
 /**
  * @brief   signature for a tessellation-control function.
  *
- * can be passed to 'tesselation'-routinem which will invoke it passing old&new triangle-indices,
- * allowing to control the newly genrated vertex-values.
+ * can be passed to 'tesselation'-routine which will invoke it passing old & new triangle-indices,
+ * allowing to control the newly generated vertex-values.
  *
  * used tesselation schema:
  *            /\ c/2
