@@ -17,7 +17,7 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
     {
         size_t current_offset = m_num_bytes;
 
-        if(!check_and_insert(geometry)){ return false; }
+        if(!check_and_insert(geometry)) { return false; }
         m_vertex_offsets.push_back(current_offset);
         index_buffer.insert(index_buffer.end(), geometry->indices.begin(), geometry->indices.end());
 
@@ -61,7 +61,7 @@ bool vertex_splicer::insert(const vierkant::GeometryConstPtr &geometry)
         {
             num_bytes += geom->positions.size() * sizeof(packed_vertex_t);
 
-            if(geom->positions.empty() || geom->normals.empty())
+            if(geom->positions.empty() || geom->normals.empty() || geom->tex_coords.empty() || geom->tangents.empty())
             {
                 spdlog::warn("vertex_splicer failed on missing attribute");
                 return {};
@@ -148,13 +148,13 @@ bool vertex_splicer::check_and_insert(const GeometryConstPtr &g)
     size_t num_geom_attribs = 0;
     auto num_vertices = g->positions.size();
 
-    if(g->positions.empty()){ return false; }
-    if(use_vertex_colors && !g->colors.empty() && g->colors.size() != num_vertices){ return false; }
-    if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices){ return false; }
-    if(!g->normals.empty() && g->normals.size() != num_vertices){ return false; }
-    if(!g->tangents.empty() && g->tangents.size() != num_vertices){ return false; }
-    if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices){ return false; }
-    if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices){ return false; }
+    if(g->positions.empty()) { return false; }
+    if(use_vertex_colors && !g->colors.empty() && g->colors.size() != num_vertices) { return false; }
+    if(!g->tex_coords.empty() && g->tex_coords.size() != num_vertices) { return false; }
+    if(!g->normals.empty() && g->normals.size() != num_vertices) { return false; }
+    if(!g->tangents.empty() && g->tangents.size() != num_vertices) { return false; }
+    if(!g->bone_indices.empty() && g->bone_indices.size() != num_vertices) { return false; }
+    if(!g->bone_weights.empty() && g->bone_weights.size() != num_vertices) { return false; }
 
     if(use_vertex_colors)
     {
@@ -170,14 +170,12 @@ bool vertex_splicer::check_and_insert(const GeometryConstPtr &g)
                num_geom_attribs);
     add_attrib(Mesh::ATTRIB_TANGENT, g->tangents, m_vertex_data, offset, geom_vertex_stride, num_geom_bytes,
                num_geom_attribs);
-    add_attrib(Mesh::ATTRIB_BONE_INDICES, g->bone_indices, m_vertex_data, offset, geom_vertex_stride,
-               num_geom_bytes,
+    add_attrib(Mesh::ATTRIB_BONE_INDICES, g->bone_indices, m_vertex_data, offset, geom_vertex_stride, num_geom_bytes,
                num_geom_attribs);
-    add_attrib(Mesh::ATTRIB_BONE_WEIGHTS, g->bone_weights, m_vertex_data, offset, geom_vertex_stride,
-               num_geom_bytes,
+    add_attrib(Mesh::ATTRIB_BONE_WEIGHTS, g->bone_weights, m_vertex_data, offset, geom_vertex_stride, num_geom_bytes,
                num_geom_attribs);
 
-    if(m_num_attribs && num_geom_attribs != m_num_attribs){ return false; }
+    if(m_num_attribs && num_geom_attribs != m_num_attribs) { return false; }
     m_num_attribs = num_geom_attribs;
     vertex_stride = geom_vertex_stride;
     m_num_bytes += num_geom_bytes;
@@ -193,7 +191,7 @@ std::vector<uint8_t> vertex_splicer::create_bone_vertex_buffer() const
     for(const auto &[geom, offset_bundle]: offsets)
     {
         num_bytes += geom->positions.size() * sizeof(bone_vertex_data_t);
-        if(geom->bone_weights.empty() || geom->bone_indices.empty()){ return {}; }
+        if(geom->bone_weights.empty() || geom->bone_indices.empty()) { return {}; }
     }
     ret.resize(num_bytes);
 
@@ -221,4 +219,4 @@ std::vector<uint8_t> vertex_splicer::create_bone_vertex_buffer() const
     return ret;
 }
 
-}
+}// namespace vierkant

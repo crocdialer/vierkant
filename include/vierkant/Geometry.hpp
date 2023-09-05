@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <vierkant/math.hpp>
 #include <vierkant/Device.hpp>
+#include <vierkant/math.hpp>
 #include <vierkant/nodes.hpp>
 
 namespace vierkant
@@ -36,12 +36,38 @@ struct HalfEdge
 std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom);
 
 /**
+ * @brief   signature for a tessellation-control function.
+ *
+ * can be passed to 'tesselation'-routinem which will invoke it passing old&new triangle-indices,
+ * allowing to control the newly genrated vertex-values.
+ *
+ * used tesselation schema:
+ *            /\ c/2
+ *           /  \
+ *     ac/3 /----\ bc/5
+ *         /\    /\
+ *        /  \  /  \
+ *   a/0 /----\/----\ b/1
+ *           ab/4
+ */
+using tessellation_control_fn_t =
+        std::function<void(index_t a, index_t b, index_t c, index_t ac, index_t ab, index_t bc)>;
+
+/**
+ * @brief   tessellate a provided Geometry
+ *
+ * @param   geom    the geometry to tessellate
+ * @param   count   number of iterations
+ */
+[[maybe_unused]] void tessellate(const vierkant::GeometryPtr &geom, uint32_t count,
+                                 const tessellation_control_fn_t& tessellation_control_fn = {});
+
+/**
 * @brief   Geometry groups vertex-information and provides factories for common geometries.
 */
 class Geometry
 {
 public:
-
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     std::vector<glm::vec3> positions;
@@ -61,7 +87,7 @@ public:
 
     Geometry(Geometry &&) = delete;
 
-    Geometry &operator=(Geometry other) = delete;
+    Geometry &operator=(const Geometry &other) = default;
 
     void compute_face_normals();
 
@@ -85,8 +111,8 @@ public:
     * @param   numSegments_H    number of height subdivisions
     * @return  the newly created Geometry for a plane
     */
-    static GeometryPtr
-    Plane(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 1, uint32_t numSegments_H = 1);
+    static GeometryPtr Plane(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 1,
+                             uint32_t numSegments_H = 1);
 
     /**
     * @brief   Factory to create a grid of lines in the XZ plane
@@ -97,8 +123,8 @@ public:
     * @param   numSegments_D    number of height subdivisions
     * @return  the newly created Geometry for a plane
     */
-    static GeometryPtr
-    Grid(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 10, uint32_t numSegments_D = 10);
+    static GeometryPtr Grid(float width = 1.f, float height = 1.f, uint32_t numSegments_W = 10,
+                            uint32_t numSegments_D = 10);
 
     /**
      * @brief   Factory to create a colored box
@@ -109,6 +135,26 @@ public:
     static GeometryPtr Box(const glm::vec3 &half_extents = glm::vec3(.5f));
 
     /**
+     * @brief   Factory for an icosahedron, i.e. optionally further tessellated ico-sphere
+     *
+     * Note: UV-mapping suffers from the naive approach taken here and exhibits visual seems along the UV-coord-wrap.
+     *
+     * @param   radius              radius for the sphere
+     * @param   tesselation_count   number of tessellation-iterations
+     * @return  the newly created Geometry for an ico-sphere
+     */
+    static GeometryPtr IcoSphere(float radius = 1.f, size_t tesselation_count = 0);
+
+    /**
+     * @brief   Factory for a sphere with equi-rectangular mapping, a.k.a. UV-sphere
+     *
+     * @param   radius              radius for the sphere
+     * @param   tesselation_count   number of num_segments
+     * @return  the newly created Geometry for a UV-sphere
+     */
+    static GeometryPtr UVSphere(float radius = 1.f, size_t num_segments = 16);
+
+    /**
      * @brief   Factory to create the outlines of a box
      *
      * @param   half_extents
@@ -117,8 +163,7 @@ public:
     static GeometryPtr BoxOutline(const glm::vec3 &half_extents = glm::vec3(.5f));
 
 private:
-
     Geometry() = default;
 };
 
-}// namespace
+}// namespace vierkant

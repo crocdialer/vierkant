@@ -1,6 +1,9 @@
 #include "vierkant/Geometry.hpp"
 #include "vierkant/intersection.hpp"
+#include <cmath>
 #include <unordered_map>
+
+#include <glm/gtx/polar_coordinates.hpp>
 
 namespace vierkant
 {
@@ -73,7 +76,7 @@ std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
     return ret;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Geometry::compute_face_normals()
 {
@@ -92,6 +95,8 @@ void Geometry::compute_face_normals()
         normals[a] = normals[b] = normals[c] = normal;
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Geometry::compute_vertex_normals()
 {
@@ -121,6 +126,61 @@ void Geometry::compute_vertex_normals()
 
     // normalize vertexNormals
     for(auto &n: normals) { n = glm::normalize(n); }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void tessellate(const GeometryPtr &geom, uint32_t count, const tessellation_control_fn_t &tessellation_control_fn)
+{
+    auto &verts = geom->positions;
+    auto &indices = geom->indices;
+
+    // iterate
+    for(uint32_t i = 0; i < count; ++i)
+    {
+        verts.reserve(3 * verts.size());
+        std::vector<vierkant::index_t> new_indices;
+        new_indices.reserve(indices.size() * 4);
+
+        // for each triangle
+        for(uint32_t j = 0; j < indices.size(); j += 3)
+        {
+            // generate 3 new vertices on edges
+            uint32_t k = verts.size();
+
+            // generate 4 triangles
+            new_indices.insert(new_indices.end(), {indices[j], k + 1, k, k + 1, indices[j + 1], k + 2, k, k + 2,
+                                                   indices[j + 2], k, k + 1, k + 2});
+
+            // generate new triangle-vertices, lerp values
+            auto interpolate_new_verts_fn = [k, j, &indices](auto &array) {
+                const auto &v0 = array[indices[j]], &v1 = array[indices[j + 1]], &v2 = array[indices[j + 2]];
+
+                array.resize(k + 3);
+                array[k] = 0.5f * (v0 + v2);
+                array[k + 1] = 0.5f * (v0 + v1);
+                array[k + 2] = 0.5f * (v1 + v2);
+            };
+
+            if(!geom->positions.empty()) { interpolate_new_verts_fn(geom->positions); }
+            if(!geom->colors.empty()) { interpolate_new_verts_fn(geom->colors); }
+            if(!geom->tex_coords.empty()) { interpolate_new_verts_fn(geom->tex_coords); }
+
+            // this is certainly wrong
+            if(!geom->normals.empty()) { interpolate_new_verts_fn(geom->normals); }
+            if(!geom->tangents.empty()) { interpolate_new_verts_fn(geom->colors); }
+
+            // also not elegant
+            if(!geom->bone_weights.empty()) { interpolate_new_verts_fn(geom->bone_weights); }
+            if(!geom->bone_indices.empty()) { geom->bone_indices.resize(geom->bone_indices.size() + 3); }
+
+            if(tessellation_control_fn)
+            {
+                tessellation_control_fn(indices[j], indices[j + 1], indices[j + 2], k, k + 1, k + 2);
+            }
+        }
+        indices = std::move(new_indices);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -481,6 +541,103 @@ GeometryPtr Geometry::BoxOutline(const glm::vec3 &half_extents)
                 glm::vec3(bb.max.x, bb.min.y, bb.max.z), glm::vec3(bb.max.x, bb.max.y, bb.max.z),
                 glm::vec3(bb.max.x, bb.min.y, bb.min.z), glm::vec3(bb.max.x, bb.max.y, bb.min.z)};
     colors.resize(vertices.size(), glm::vec4(1.f));
+    return geom;
+}
+
+GeometryPtr Geometry::IcoSphere(float radius, size_t tesselation_count)
+{
+    auto geom = Geometry::create();
+
+    auto &verts = geom->positions;
+    auto &normals = geom->normals;
+    auto &tex_coords = geom->tex_coords;
+    auto &indices = geom->indices;
+
+    // create 12 vertices of an icosahedron, normalized magnitude
+    constexpr float phi = std::numbers::phi_v<float>;
+    const float e1 = radius / std::sqrt(1.f + phi * phi);
+    const float e2 = phi * e1;
+
+    verts = {{-e1, e2, 0},  {e1, e2, 0},  {-e1, -e2, 0}, {e1, -e2, 0}, {0, -e1, e2},  {0, e1, e2},
+             {0, -e1, -e2}, {0, e1, -e2}, {e2, 0, -e1},  {e2, 0, e1},  {-e2, 0, -e1}, {-e2, 0, e1}};
+
+    // create 20 triangles for an icosahedron
+    indices = {0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4,  11, 10, 2,  10, 7, 6, 7, 1, 8,
+               3, 9,  4, 3, 4, 2, 3, 2, 6, 3, 6, 8,  3, 8,  9,  4, 9, 5, 2, 4,  11, 6,  2,  10, 8,  6, 7, 9, 8, 1};
+
+    // tessellate
+    tessellation_control_fn_t tess_fn = [radius, &verts = geom->positions](index_t a, index_t b, index_t c, index_t ac,
+                                                                           index_t ab, index_t bc) {
+        const auto &va = verts[a];
+        const auto &vb = verts[b];
+        const auto &vc = verts[c];
+        verts[ab] = radius * glm::normalize(va + vb);
+        verts[ac] = radius * glm::normalize(va + vc);
+        verts[bc] = radius * glm::normalize(vb + vc);
+    };
+    tessellate(geom, tesselation_count, tess_fn);
+
+    normals.resize(verts.size());
+    tex_coords.resize(verts.size());
+
+    for(uint32_t i = 0; i < verts.size(); ++i)
+    {
+        const auto &v = verts[i];
+        normals[i] = glm::normalize(v);
+
+        auto [latitude, longitude, xz_dist] = glm::polar(v);
+        tex_coords[i] = {0.5f + 0.5f * longitude * std::numbers::inv_pi_v<float>,
+                         0.5f - 0.5f * latitude / std::numbers::pi_v<float>};
+    }
+    geom->compute_tangents();
+    return geom;
+}
+
+GeometryPtr Geometry::UVSphere(float radius, size_t num_segments)
+{
+    uint32_t rings = num_segments, sectors = num_segments;
+    GeometryPtr geom = Geometry::create();
+    float const R = 1.f / (float) (rings - 1);
+    float const S = 1.f / (float) (sectors - 1);
+    uint32_t r, s;
+
+    geom->positions.resize(rings * sectors);
+    geom->normals.resize(rings * sectors);
+    geom->tex_coords.resize(rings * sectors);
+
+    auto v = geom->positions.begin();
+    auto n = geom->normals.begin();
+    auto t = geom->tex_coords.begin();
+
+    for(r = 0; r < rings; r++)
+    {
+        for(s = 0; s < sectors; s++, ++v, ++n, ++t)
+        {
+            float const x = std::cos(2.f * std::numbers::pi_v<float> * (float) s * S) *
+                            std::sin(std::numbers::pi_v<float> * (float) r * R);
+            float const y = std::sin(-std::numbers::pi_v<float> / 2.f + std::numbers::pi_v<float> * (float) r * R);
+            float const z = std::sin(2.f * std::numbers::pi_v<float> * (float) s * S) *
+                            std::sin(std::numbers::pi_v<float> * (float) r * R);
+
+            *t = glm::clamp(glm::vec2(1 - (float) s * S, 1 - (float) r * R), glm::vec2(0), glm::vec2(1));
+            *v = glm::vec3(x, y, z) * radius;
+            *n = glm::vec3(x, y, z);
+        }
+    }
+
+    geom->indices.reserve(rings * sectors * 6);
+
+    // create faces
+    for(r = 0; r < rings - 1; r++)
+    {
+        for(s = 0; s < sectors - 1; s++)
+        {
+            geom->indices.insert(geom->indices.end(),
+                                 {r * sectors + s, (r + 1) * sectors + (s + 1), r * sectors + (s + 1), r * sectors + s,
+                                  (r + 1) * sectors + s, (r + 1) * sectors + (s + 1)});
+        }
+    }
+    geom->compute_tangents();
     return geom;
 }
 
