@@ -2,6 +2,7 @@
 // Created by crocdialer on 12/20/19.
 //
 
+#include <algorithm>
 #include "vierkant/CameraControl.hpp"
 
 namespace vierkant
