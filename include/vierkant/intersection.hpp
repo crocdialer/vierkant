@@ -1,12 +1,3 @@
-// __ ___ ____ _____ ______ _______ ________ _______ ______ _____ ____ ___ __
-//
-// Copyright (C) 2012-2016, Fabian Schmidt <crocdialer@googlemail.com>
-//
-// It is distributed under the Boost Software License, Version 1.0.
-// (See accompanying file LICENSE_1_0.txt or copy at
-//  http://www.boost.org/LICENSE_1_0.txt
-// __ ___ ____ _____ ______ _______ ________ _______ ______ _____ ____ ___ __
-
 /*
  *  intersection.hpp
  *
@@ -23,7 +14,9 @@ namespace vierkant
 
 enum intersection_type
 {
-    REJECT = 0, INTERSECT = 1, INSIDE = 2
+    REJECT = 0,
+    INTERSECT = 1,
+    INSIDE = 2
 };
 
 /*!
@@ -34,12 +27,11 @@ struct ray_intersection
     intersection_type type = REJECT;
     float distance = 0.f;
 
-    ray_intersection(intersection_type theType, float theDistance = 0.0f) :
-            type(theType), distance(theDistance){}
+    ray_intersection(intersection_type theType, float theDistance = 0.0f) : type(theType), distance(theDistance) {}
 
-    explicit operator intersection_type() const{ return type; }
+    explicit operator intersection_type() const { return type; }
 
-    explicit operator bool() const{ return type; }
+    explicit operator bool() const { return type; }
 };
 
 /*!
@@ -50,9 +42,9 @@ struct ray_triangle_intersection : public ray_intersection
 {
     float u = 0.f, v = 0.f;
 
-    ray_triangle_intersection(intersection_type theType, float theDistance = 0.0f,
-                              float theU = 0.0f, float theV = 0.0f)
-            : ray_intersection(theType, theDistance), u(theU), v(theV){}
+    ray_triangle_intersection(intersection_type theType, float theDistance = 0.0f, float theU = 0.0f, float theV = 0.0f)
+        : ray_intersection(theType, theDistance), u(theU), v(theV)
+    {}
 };
 
 struct Ray;
@@ -72,39 +64,42 @@ struct Frustum;
  */
 uint32_t intersect(const Plane &plane, const AABB &aabb);
 
-inline uint32_t intersect(const AABB &aabb, const Plane &plane){ return intersect(plane, aabb); }
+inline uint32_t intersect(const AABB &aabb, const Plane &plane) { return intersect(plane, aabb); }
 
 /********************************** Ray intersection tests ****************************************/
 
 ray_intersection intersect(const Plane &plane, const Ray &ray);
 
-inline ray_intersection intersect(const Ray &ray, const Plane &plane){ return intersect(plane, ray); }
+inline ray_intersection intersect(const Ray &ray, const Plane &plane) { return intersect(plane, ray); }
 
 
 ray_triangle_intersection intersect(const Triangle &triangle, const Ray &ray);
 
-inline ray_triangle_intersection intersect(const Ray &ray, const Triangle &triangle){ return intersect(triangle, ray); }
+inline ray_triangle_intersection intersect(const Ray &ray, const Triangle &triangle)
+{
+    return intersect(triangle, ray);
+}
 
 
 ray_intersection intersect(const Sphere &sphere, const Ray &ray);
 
-inline ray_intersection intersect(const Ray &ray, const Sphere &sphere){ return intersect(sphere, ray); }
+inline ray_intersection intersect(const Ray &ray, const Sphere &sphere) { return intersect(sphere, ray); }
 
 
 ray_intersection intersect(const AABB &aabb, const Ray &ray);
 
-inline ray_intersection intersect(const Ray &ray, const AABB &aabb){ return intersect(aabb, ray); }
+inline ray_intersection intersect(const Ray &ray, const AABB &aabb) { return intersect(aabb, ray); }
 
 
 ray_intersection intersect(const OBB &obb, const Ray &ray);
 
-inline ray_intersection intersect(const Ray &ray, const OBB &obb){ return intersect(obb, ray); }
+inline ray_intersection intersect(const Ray &ray, const OBB &obb) { return intersect(obb, ray); }
 
 /********************************** Triangle intersection tests ****************************************/
 
 uint32_t intersect(const Triangle &t, const AABB &b);
 
-inline uint32_t intersect(const AABB &b, const Triangle &t){ return intersect(t, b); };
+inline uint32_t intersect(const AABB &b, const Triangle &t) { return intersect(t, b); };
 
 uint32_t intersect(const Triangle &t1, const Triangle &t2);
 
@@ -112,15 +107,15 @@ uint32_t intersect(const Triangle &t1, const Triangle &t2);
 
 uint32_t intersect(const Frustum &frustum, const glm::vec3 &p);
 
-inline uint32_t intersect(const glm::vec3 &p, const Frustum &frustum){ return intersect(frustum, p); }
+inline uint32_t intersect(const glm::vec3 &p, const Frustum &frustum) { return intersect(frustum, p); }
 
 uint32_t intersect(const Frustum &frustum, const Sphere &s);
 
-inline uint32_t intersect(const Sphere &s, const Frustum &frustum){ return intersect(frustum, s); }
+inline uint32_t intersect(const Sphere &s, const Frustum &frustum) { return intersect(frustum, s); }
 
 uint32_t intersect(const Frustum &frustum, const AABB &aabb);
 
-inline uint32_t intersect(const AABB &aabb, const Frustum &frustum){ return intersect(frustum, aabb); }
+inline uint32_t intersect(const AABB &aabb, const Frustum &frustum) { return intersect(frustum, aabb); }
 
 /**
  * @brief   compute_bounding_sphere can be used to compute a bounding sphere for an array of points.
@@ -151,8 +146,7 @@ struct Ray
     glm::vec3 origin;
     glm::vec3 direction;
 
-    Ray(const glm::vec3 &origin_, const glm::vec3 &direction_) :
-            origin(origin_), direction(normalize(direction_)){}
+    Ray(const glm::vec3 &origin_, const glm::vec3 &direction_) : origin(origin_), direction(normalize(direction_)) {}
 
     inline Ray &transform(const glm::mat4 &t)
     {
@@ -167,9 +161,9 @@ struct Ray
         return ret.transform(t);
     };
 
-    inline friend glm::vec3 operator*(const Ray &theRay, float t){ return theRay.origin + t * theRay.direction; }
+    inline friend glm::vec3 operator*(const Ray &theRay, float t) { return theRay.origin + t * theRay.direction; }
 
-    inline friend glm::vec3 operator*(float t, const Ray &theRay){ return theRay.origin + t * theRay.direction; }
+    inline friend glm::vec3 operator*(float t, const Ray &theRay) { return theRay.origin + t * theRay.direction; }
 };
 
 struct Plane
@@ -187,7 +181,7 @@ struct Plane
 
     Plane(const glm::vec3 &f, const glm::vec3 &n);
 
-    [[nodiscard]] inline const glm::vec3 &normal() const{ return *((glm::vec3 *) (&coefficients[0])); };
+    [[nodiscard]] inline const glm::vec3 &normal() const { return *((glm::vec3 *) (&coefficients[0])); };
 
     [[nodiscard]] inline float distance(const glm::vec3 &p) const
     {
@@ -225,14 +219,11 @@ struct Triangle
         return ret.transform(t);
     }
 
-    [[nodiscard]] inline glm::vec3 normal() const
-    {
-        return normalize(cross(v1 - v0, v2 - v0));
-    }
+    [[nodiscard]] inline glm::vec3 normal() const { return normalize(cross(v1 - v0, v2 - v0)); }
 
-    inline const glm::vec3 &operator[](int i) const{ return (&v0)[i]; }
+    inline const glm::vec3 &operator[](int i) const { return (&v0)[i]; }
 
-    inline glm::vec3 &operator[](int i){ return (&v0)[i]; }
+    inline glm::vec3 &operator[](int i) { return (&v0)[i]; }
 };
 
 struct Sphere
@@ -242,12 +233,7 @@ struct Sphere
 
     Sphere() = default;
 
-    Sphere(const glm::vec3 &c, float r) :
-            center(c),
-            radius(r)
-    {
-
-    }
+    Sphere(const glm::vec3 &c, float r) : center(c), radius(r) {}
 
     inline Sphere &transform(const glm::mat4 &t)
     {
@@ -265,10 +251,7 @@ struct Sphere
 
     [[nodiscard]] inline uint32_t intersect(const glm::vec3 &thePoint) const
     {
-        if(glm::length2(center - thePoint) > radius * radius)
-        {
-            return REJECT;
-        }
+        if(glm::length2(center - thePoint) > radius * radius) { return REJECT; }
         return INSIDE;
     }
 };
@@ -302,21 +285,19 @@ struct AABB
 
     AABB() = default;
 
-    AABB(const glm::vec3 &theMin, const glm::vec3 &theMax) :
-            min(theMin),
-            max(theMax){}
+    AABB(const glm::vec3 &theMin, const glm::vec3 &theMax) : min(theMin), max(theMax) {}
 
-    [[nodiscard]] inline float width() const{ return max.x - min.x; }
+    [[nodiscard]] inline float width() const { return max.x - min.x; }
 
-    [[nodiscard]] inline float height() const{ return max.y - min.y; }
+    [[nodiscard]] inline float height() const { return max.y - min.y; }
 
-    [[nodiscard]] inline float depth() const{ return max.z - min.z; }
+    [[nodiscard]] inline float depth() const { return max.z - min.z; }
 
-    [[nodiscard]] inline glm::vec3 half_extents() const{ return (max - min) / 2.f; }
+    [[nodiscard]] inline glm::vec3 half_extents() const { return (max - min) / 2.f; }
 
-    [[nodiscard]] inline glm::vec3 size() const{ return (max - min); }
+    [[nodiscard]] inline glm::vec3 size() const { return (max - min); }
 
-    [[nodiscard]] inline glm::vec3 center() const{ return (max + min) / 2.f; }
+    [[nodiscard]] inline glm::vec3 center() const { return (max + min) / 2.f; }
 
     AABB operator+(const AABB &aabb) const
     {
@@ -332,18 +313,15 @@ struct AABB
         return *this;
     }
 
-    inline bool operator==(const AABB &aabb) const
-    {
-        return min == aabb.min && max == aabb.max;
-    }
+    inline bool operator==(const AABB &aabb) const { return min == aabb.min && max == aabb.max; }
 
     [[nodiscard]] AABB transform(const glm::mat4 &t) const;
 
     [[nodiscard]] inline uint32_t intersect(const glm::vec3 &point) const
     {
-        if(point.x < min.x || point.x > max.x){ return REJECT; }
-        if(point.y < min.y || point.y > max.y){ return REJECT; }
-        if(point.z < min.z || point.z > max.z){ return REJECT; }
+        if(point.x < min.x || point.x > max.x) { return REJECT; }
+        if(point.y < min.y || point.y > max.y) { return REJECT; }
+        if(point.z < min.z || point.z > max.z) { return REJECT; }
         return INSIDE;
     }
 
@@ -370,8 +348,7 @@ struct OBB
     {
         // point in axis space
         glm::vec3 p_in_axis_space = axis * (p - center);
-        return std::abs(p_in_axis_space.x) < half_lengths.x &&
-               std::abs(p_in_axis_space.y) < half_lengths.y &&
+        return std::abs(p_in_axis_space.x) < half_lengths.x && std::abs(p_in_axis_space.y) < half_lengths.y &&
                std::abs(p_in_axis_space.z) < half_lengths.z;
     };
 };
@@ -380,13 +357,13 @@ struct Frustum
 {
     //enum CLippingPlane
     //{
-        //NEAR = 0,
-        //FAR = 1,
-        //LEFT = 2,
-        //RIGHT = 3,
-        //TOP = 4,
-        //BOTTOM = 5,
-        //NUM_PLANES = 6
+    //NEAR = 0,
+    //FAR = 1,
+    //LEFT = 2,
+    //RIGHT = 3,
+    //TOP = 4,
+    //BOTTOM = 5,
+    //NUM_PLANES = 6
     //};
     Plane planes[6];
 
@@ -394,12 +371,11 @@ struct Frustum
 
     Frustum(float aspect, float fov, float near, float far);
 
-    Frustum(float left, float right, float bottom, float top,
-            float near, float far);
+    Frustum(float left, float right, float bottom, float top, float near, float far);
 
     inline Frustum &transform(const glm::mat4 &t)
     {
-        for(Plane &p : planes){ p.transform(t); }
+        for(Plane &p: planes) { p.transform(t); }
         return *this;
     }
 
@@ -410,4 +386,4 @@ struct Frustum
     };
 };
 
-}//namespace
+}// namespace vierkant

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <crocore/define_class_ptr.hpp>
 #include <vierkant/Input.hpp>
 #include <vierkant/transform.hpp>
 
