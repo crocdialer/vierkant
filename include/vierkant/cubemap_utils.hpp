@@ -42,6 +42,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
  * @param   size    the desired output-size.
  * @param   mipmap  request mipmaps.
  * @param   format  the desired VkFormat
+ *
  * @return  a vierkant::ImagePtr holding a cubemap.
  */
 vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr &device, VkQueue queue, const glm::vec2 &size,
@@ -51,10 +52,11 @@ vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr &device
  * @brief   Create a cubemap from an equi-recangular panorama image.
  *
  * @param   panorama_img    the equirectangular panorama.
- * * @param   queue   a provided VkQueue.
+ * @param   queue   a provided VkQueue.
  * @param   size    the desired output-size.
  * @param   mipmap  request mipmaps.
  * @param   format  the desired VkFormat
+ *
  * @return  a vierkant::ImagePtr holding a cubemap.
  */
 vierkant::ImagePtr cubemap_from_panorama(const vierkant::DevicePtr &device, const vierkant::ImagePtr &panorama_img,
@@ -67,6 +69,7 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::DevicePtr &device, cons
  * @param   cubemap     a provided cubemap.
  * @param   size        the desired output-size.
  * @param   format      the desired VkFormat (i.e. VK_FORMAT_R16G16B16A16_SFLOAT, VK_FORMAT_B10G11R11_UFLOAT_PACK32).
+ *
  * @return  a cubemap containing a diffuse convolution of the input cubemap.
  */
 vierkant::ImagePtr create_convolution_lambert(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
@@ -79,6 +82,7 @@ vierkant::ImagePtr create_convolution_lambert(const vierkant::DevicePtr &device,
  * @param   cubemap     a provided cubemap.
  * @param   size        the desired output-size.
  * @param   format      the desired VkFormat (i.e. VK_FORMAT_R16G16B16A16_SFLOAT, VK_FORMAT_B10G11R11_UFLOAT_PACK32).
+ *
  * @return  a cubemap containing in it's mipmap chain a roughness-cascade of specular convolutions of the input cubemap.
  */
 vierkant::ImagePtr create_convolution_ggx(const vierkant::DevicePtr &device, const vierkant::ImagePtr &cubemap,
@@ -90,6 +94,7 @@ vierkant::ImagePtr create_convolution_ggx(const vierkant::DevicePtr &device, con
  *
  * @param   device  a provided vierkant::DevicePtr.
  * @param   queue   a provided VkQueue.
+ *
  * @return  a lookup-table containing a mapping of (NoV, roughness) -> (F, bias)
  */
 vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue queue);
