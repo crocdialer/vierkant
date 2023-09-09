@@ -15,14 +15,96 @@ struct img_copy_assets_t
     vierkant::FencePtr fence;
 };
 
+vierkant::ImagePtr cubemap_generate_mip_maps(const vierkant::cube_pipeline_t &cube, VkQueue queue, VkFormat format,
+                                             img_copy_assets_t &img_copy_asset, std::vector<VkFence> &fences)
+{
+    vierkant::Image::Format ret_fmt = {};
+    ret_fmt.extent = cube.color_image->extent();
+    ret_fmt.format = format;
+    ret_fmt.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ret_fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
+    ret_fmt.num_layers = 6;
+    ret_fmt.use_mipmap = true;
+    ret_fmt.autogenerate_mipmaps = false;
+    ret_fmt.initial_layout_transition = false;
+
+    // create mipmapped output image
+    auto mipmap_cube = vierkant::Image::create(cube.device, ret_fmt);
+
+    // copy image into mipmap-chain
+    img_copy_asset.command_buffer = vierkant::CommandBuffer(cube.device, cube.command_pool.get());
+    img_copy_asset.fence = vierkant::create_fence(cube.device);
+
+    img_copy_asset.command_buffer.begin();
+
+    // copy goes here
+    VkImageCopy region = {};
+    region.extent = cube.color_image->extent();
+    region.dstOffset = region.srcOffset = {0, 0, 0};
+    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.srcSubresource.baseArrayLayer = 0;
+    region.srcSubresource.layerCount = 6;
+    region.srcSubresource.mipLevel = 0;
+
+    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.dstSubresource.baseArrayLayer = 0;
+    region.dstSubresource.layerCount = 6;
+    region.dstSubresource.mipLevel = 0;
+
+    // transition layouts for copying
+    cube.color_image->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, img_copy_asset.command_buffer.handle());
+
+    mipmap_cube->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, img_copy_asset.command_buffer.handle());
+
+    // actual copy command
+    vkCmdCopyImage(img_copy_asset.command_buffer.handle(), cube.color_image->image(), cube.color_image->image_layout(),
+                   mipmap_cube->image(), mipmap_cube->image_layout(), 1, &region);
+
+    // generate mipmap-chain
+    mipmap_cube->generate_mipmaps(img_copy_asset.command_buffer.handle());
+
+    // submit command, sync
+    img_copy_asset.command_buffer.submit(queue, false, img_copy_asset.fence.get());
+    fences.push_back(img_copy_asset.fence.get());
+    return mipmap_cube;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img, const glm::vec2 &size, VkQueue queue,
-                                         bool mipmap, VkFormat format)
+vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr & device, const glm::vec2 & size,
+                                               VkQueue queue, bool mipmap, VkFormat format)
+{
+    VkImageUsageFlags flags = mipmap ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_SAMPLED_BIT;
+    auto cube = vierkant::create_cube_pipeline(device, static_cast<uint32_t>(size.x), format, queue, false, flags);
+
+    auto ret_img = cube.color_image;
+
+    // set a fragment stage
+    cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
+            vierkant::create_shader_module(device, vierkant::shaders::unlit::environment_white_frag);
+
+    // stage cube-drawable
+    cube.renderer.stage_drawable(cube.drawable);
+
+    std::vector<VkFence> fences;
+    auto cmd_buf = cube.renderer.render(cube.framebuffer);
+    fences.push_back(cube.framebuffer.submit({cmd_buf}, queue));
+    img_copy_assets_t image_copy_asset;
+
+    if(mipmap) { ret_img = cubemap_generate_mip_maps(cube, queue, format, image_copy_asset, fences); }
+
+    // mandatory to sync here
+    vkWaitForFences(device->handle(), fences.size(), fences.data(), VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+    return ret_img;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+vierkant::ImagePtr cubemap_from_panorama(const vierkant::DevicePtr &device, const vierkant::ImagePtr &panorama_img,
+                                         VkQueue queue, const glm::vec2 &size, bool mipmap, VkFormat format)
 {
     if(!panorama_img) { return nullptr; }
-
-    auto device = panorama_img->device();
 
     VkImageUsageFlags flags = mipmap ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_SAMPLED_BIT;
     auto cube = vierkant::create_cube_pipeline(device, static_cast<uint32_t>(size.x), format, queue, false, flags);
@@ -46,62 +128,9 @@ vierkant::ImagePtr cubemap_from_panorama(const vierkant::ImagePtr &panorama_img,
 
     auto cmd_buf = cube.renderer.render(cube.framebuffer);
     fences.push_back(cube.framebuffer.submit({cmd_buf}, queue));
-
     img_copy_assets_t image_copy_asset;
 
-    if(mipmap)
-    {
-        vierkant::Image::Format ret_fmt = {};
-        ret_fmt.extent = cube.color_image->extent();
-        ret_fmt.format = format;
-        ret_fmt.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        ret_fmt.view_type = VK_IMAGE_VIEW_TYPE_CUBE;
-        ret_fmt.num_layers = 6;
-        ret_fmt.use_mipmap = true;
-        ret_fmt.autogenerate_mipmaps = false;
-        ret_fmt.initial_layout_transition = false;
-
-        // create mipmapped output image
-        auto mipmap_cube = vierkant::Image::create(device, ret_fmt);
-        ret_img = mipmap_cube;
-
-        // copy image into mipmap-chain
-        image_copy_asset.command_buffer = vierkant::CommandBuffer(device, cube.command_pool.get());
-        image_copy_asset.fence = vierkant::create_fence(device);
-
-        image_copy_asset.command_buffer.begin();
-
-        // copy goes here
-        VkImageCopy region = {};
-        region.extent = cube.color_image->extent();
-        region.dstOffset = region.srcOffset = {0, 0, 0};
-        region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.srcSubresource.baseArrayLayer = 0;
-        region.srcSubresource.layerCount = 6;
-        region.srcSubresource.mipLevel = 0;
-
-        region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.dstSubresource.baseArrayLayer = 0;
-        region.dstSubresource.layerCount = 6;
-        region.dstSubresource.mipLevel = 0;
-
-        // transition layouts for copying
-        cube.color_image->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                            image_copy_asset.command_buffer.handle());
-
-        mipmap_cube->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, image_copy_asset.command_buffer.handle());
-
-        // actual copy command
-        vkCmdCopyImage(image_copy_asset.command_buffer.handle(), cube.color_image->image(),
-                       cube.color_image->image_layout(), mipmap_cube->image(), mipmap_cube->image_layout(), 1, &region);
-
-        // generate mipmap-chain
-        mipmap_cube->generate_mipmaps(image_copy_asset.command_buffer.handle());
-
-        // submit command, sync
-        image_copy_asset.command_buffer.submit(queue, false, image_copy_asset.fence.get());
-        fences.push_back(image_copy_asset.fence.get());
-    }
+    if(mipmap) { ret_img = cubemap_generate_mip_maps(cube, queue, format, image_copy_asset, fences); }
 
     // mandatory to sync here
     vkWaitForFences(device->handle(), fences.size(), fences.data(), VK_TRUE, std::numeric_limits<uint64_t>::max());
@@ -353,6 +382,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     drawable.descriptors[0] = desc_matrices;
 
     cube_pipeline_t ret = {};
+    ret.device = device;
     ret.command_pool = command_pool;
     ret.renderer = std::move(cube_render);
     ret.drawable = std::move(drawable);

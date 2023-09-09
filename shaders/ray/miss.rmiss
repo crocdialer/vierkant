@@ -4,6 +4,7 @@
 
 #include "ray_common.glsl"
 #include "../utils/sdf.glsl"
+#include "../utils/procedural_environment.glsl"
 
 layout(location = 0) rayPayloadInEXT payload_t payload;
 
@@ -88,14 +89,6 @@ vec3 sky_color(vec3 direction)
     return max(vec3(0.0), col);
 }
 
-// low-life + neutral environment-light
-vec3 neutral_environment(vec3 direction)
-{
-    vec3 col_sky = vec3(1.3), col_horizon = vec3(.6), col_ground = vec3(.1);
-    return direction.y > 0 ? mix(col_horizon, col_sky, direction.y) :
-                             mix(col_horizon, col_ground, -direction.y);
-}
-
 void main()
 {
     // stop path tracing loop from rgen shader
@@ -107,6 +100,6 @@ void main()
 //    vec3 p = payload.ray.origin + payload.ray.direction * d;
 //    vec3 n = calc_normal(p, 0.0);
 
-    vec3 col = neutral_environment(payload.ray.direction);
+    vec3 col = environment_white(payload.ray.direction);
     payload.radiance += ubo.environment_factor * payload.beta * col;
 }
