@@ -976,12 +976,14 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
 
             if(tiny_camera.type == camera_type_perspective)
             {
-                vierkant::physical_camera_params_t camera_params = {};
-                camera_params.aspect = static_cast<float>(tiny_camera.perspective.aspectRatio);
-                camera_params.set_fovx(
+                vierkant::model::camera_t model_camera = {};
+                model_camera.transform = world_transform;
+                model_camera.params.aspect = static_cast<float>(tiny_camera.perspective.aspectRatio);
+                model_camera.params.set_fovx(
                         static_cast<float>(tiny_camera.perspective.yfov * tiny_camera.perspective.aspectRatio));
-                camera_params.clipping_distances = {tiny_camera.perspective.znear, tiny_camera.perspective.zfar};
-                out_assets.cameras.push_back({world_transform, camera_params});
+                model_camera.params.clipping_distances =
+                        glm::vec2(tiny_camera.perspective.znear, tiny_camera.perspective.zfar);
+                out_assets.cameras.push_back(model_camera);
             }
             else if(tiny_camera.type == camera_type_orthographic)
             {
