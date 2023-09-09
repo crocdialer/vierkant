@@ -3,16 +3,17 @@
 //
 #pragma once
 
+#include <filesystem>
+#include <optional>
+
 #include <crocore/Image.hpp>
 #include <crocore/ThreadPool.hpp>
 
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Material.hpp>
-#include <vierkant/Camera.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/bc7.hpp>
-#include <filesystem>
-#include <optional>
+#include <vierkant/physical_camera_params.hpp>
 
 namespace vierkant::model
 {
