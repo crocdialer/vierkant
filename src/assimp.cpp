@@ -269,7 +269,7 @@ void insert_bone_vertex_data(const vierkant::GeometryPtr &geom, const weight_map
 //{
 //    auto ret = gl::PerspectiveCamera::create();
 //    ret->set_name(the_cam->mName.data);
-//    ret->set_fov(the_cam->mHorizontalFOV);
+//    ret->set_fovx(the_cam->mHorizontalFOV);
 //    ret->set_aspect(the_cam->mAspect);
 //    ret->set_clipping(the_cam->mClipPlaneNear, the_cam->mClipPlaneFar);
 //    auto pos = aivector_to_glm_vec3(the_cam->mPosition);

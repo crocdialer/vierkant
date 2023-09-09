@@ -51,7 +51,7 @@ struct alignas(16) physical_camera_params_t
     [[nodiscard]] inline float fovy() const { return fovx() / aspect; }
 
     //! will adjust focal_length to match provided field-of-view (fov) in radians
-    inline void set_fov(float fov) { focal_length = 0.5f * sensor_width / std::tan(fov * 0.5f); }
+    inline void set_fovx(float fovx) { focal_length = 0.5f * sensor_width / std::tan(fovx * 0.5f); }
 };
 
 class Camera : virtual public Object3D

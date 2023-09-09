@@ -38,6 +38,10 @@ constexpr char interpolation_linear[] = "LINEAR";
 constexpr char interpolation_step[] = "STEP";
 constexpr char interpolation_cubic_spline[] = "CUBICSPLINE";
 
+// cameras
+constexpr char camera_type_perspective[] = "perspective";
+constexpr char camera_type_orthographic[] = "orthographic";
+
 // extensions
 constexpr char KHR_materials_emissive_strength[] = "KHR_materials_emissive_strength";
 constexpr char KHR_materials_specular[] = "KHR_materials_specular";
@@ -964,6 +968,32 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
             }// for all primitives
         }    // mesh
 
+        // node references camera
+        if(tiny_node.camera >= 0 && static_cast<uint32_t>(tiny_node.camera) < model.cameras.size())
+        {
+            const auto &tiny_camera = model.cameras[tiny_node.camera];
+            spdlog::debug("scene contains camera of type '{}'", tiny_camera.type);
+
+            if(tiny_camera.type == camera_type_perspective)
+            {
+                vierkant::physical_camera_params_t camera_params = {};
+                camera_params.aspect = static_cast<float>(tiny_camera.perspective.aspectRatio);
+                camera_params.set_fovx(
+                        static_cast<float>(tiny_camera.perspective.yfov * tiny_camera.perspective.aspectRatio));
+                camera_params.clipping_distances = {tiny_camera.perspective.znear, tiny_camera.perspective.zfar};
+                out_assets.cameras.push_back({world_transform, camera_params});
+            }
+            else if(tiny_camera.type == camera_type_orthographic)
+            {
+                //            tiny_camera.orthographic.znear
+                //            tiny_camera.orthographic.zfar
+                //            tiny_camera.orthographic.xmag
+                //            tiny_camera.orthographic.ymag
+                spdlog::warn("camera-type '{}' currently not supported", tiny_camera.type);
+            }
+        }
+
+        // node references light-source
         if(tiny_node.extensions.count(KHR_lights_punctual))
         {
             const auto &value = tiny_node.extensions.at(KHR_lights_punctual);

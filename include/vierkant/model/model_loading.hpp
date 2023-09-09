@@ -8,6 +8,7 @@
 
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Material.hpp>
+#include <vierkant/Camera.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/bc7.hpp>
 #include <filesystem>
@@ -98,7 +99,7 @@ enum class LightType : uint32_t
     Directional
 };
 
-//! lightsource_t
+//! adhoc lightsource_t
 struct lightsource_t
 {
     glm::vec3 position;
@@ -109,6 +110,13 @@ struct lightsource_t
     float range = std::numeric_limits<float>::infinity();
     float inner_cone_angle = 0.f;
     float outer_cone_angle = glm::quarter_pi<float>();
+};
+
+//! adhoc camera_t
+struct camera_t
+{
+    vierkant::transform_t transform;
+    vierkant::physical_camera_params_t params;
 };
 
 /**
@@ -124,6 +132,9 @@ struct mesh_assets_t
 
     //! optional lights defined in model-file
     std::vector<lightsource_t> lights;
+
+    //! optional cameras defined in model-file
+    std::vector<camera_t> cameras;
 
     //! node-hierarchy for submeshes
     vierkant::nodes::NodePtr root_node;

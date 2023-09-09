@@ -129,3 +129,23 @@ BOOST_AUTO_TEST_CASE(test_rigid_transform)
     check_transform<float>(float_epsilon);
     check_transform<double>(double_epsilon);
 }
+
+//// TODO: scaffolding for a simple performance-benchmark/comparison
+//{
+//    vierkant::transform_t test_transform;
+//    glm::mat4 test_mat(1);
+//    glm::vec3 p;
+//    size_t num_iterations = 1000000;
+//
+//    // bs benchmark
+//    {
+//        spdlog::stopwatch sw;
+//        for(uint32_t i = 0; i < num_iterations; ++i){ test_transform * p; }
+//        spdlog::info("vierkant::transform * vec3 {}", std::chrono::duration_cast<std::chrono::nanoseconds>(sw.elapsed() / num_iterations));
+//    }
+//    {
+//        spdlog::stopwatch sw;
+//        for(uint32_t i = 0; i < num_iterations; ++i){ test_mat * glm::vec4(p, 1.f); }
+//        spdlog::info("glm::mat4 * vec4 {}", std::chrono::duration_cast<std::chrono::nanoseconds>(sw.elapsed() / num_iterations));
+//    }
+//} // measured almost identical timings for vierkant::transform vs. glm::mat4 (e.g. 124ns vs. 126ns)

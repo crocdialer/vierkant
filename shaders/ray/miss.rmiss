@@ -88,6 +88,14 @@ vec3 sky_color(vec3 direction)
     return max(vec3(0.0), col);
 }
 
+// low-life + neutral environment-light
+vec3 neutral_environment(vec3 direction)
+{
+    vec3 col_sky = vec3(1.3), col_horizon = vec3(.6), col_ground = vec3(.1);
+    return direction.y > 0 ? mix(col_horizon, col_sky, direction.y) :
+                             mix(col_horizon, col_ground, -direction.y);
+}
+
 void main()
 {
     // stop path tracing loop from rgen shader
@@ -95,13 +103,10 @@ void main()
     payload.normal = vec3(0.);
     payload.position = vec3(0.);
 
-    float d = march(payload.ray).x;
-    vec3 p = payload.ray.origin + payload.ray.direction * d;
-    vec3 n = calc_normal(p, 0.0);
+//    float d = march(payload.ray).x;
+//    vec3 p = payload.ray.origin + payload.ray.direction * d;
+//    vec3 n = calc_normal(p, 0.0);
 
-//    vec3 col = d < 10.0 ? mix(sky_color(reflect(payload.ray.direction, n)), n / 2.0 + .5 + vec3(0.04), 0.99) :
-//                                  sky_color(payload.ray.direction);
-
-    vec3 col = sky_color(payload.ray.direction);
-    payload.radiance += ubo.environment_factor * payload.beta * col;//sky_color(payload.ray.direction);
+    vec3 col = neutral_environment(payload.ray.direction);
+    payload.radiance += ubo.environment_factor * payload.beta * col;
 }

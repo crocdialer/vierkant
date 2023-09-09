@@ -537,14 +537,14 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &cam, std::set<vierkant::Obj
             std::unordered_set<vierkant::MaterialPtr> material_map;
             std::vector<vierkant::MaterialPtr> materials;
 
-            auto view = scene->registry()->view<vierkant::MeshPtr>();
+            auto view = scene->registry()->view<vierkant::mesh_component_t>();
 
             // uniquely gather all materials in order
-            for(const auto &[entity, mesh]: view.each())
+            for(const auto &[entity, mesh_cmp]: view.each())
             {
-                if(mesh)
+                if(mesh_cmp.mesh)
                 {
-                    for(const auto &m: mesh->materials)
+                    for(const auto &m: mesh_cmp.mesh->materials)
                     {
                         if(!material_map.contains(m))
                         {
