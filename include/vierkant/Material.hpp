@@ -24,6 +24,14 @@ public:
         Mask = 2
     };
 
+    enum class CullMode : uint8_t
+    {
+        None = 0,
+        Front,
+        Back,
+        FrontAndBack
+    };
+
     enum TextureType : uint32_t
     {
         Color = 0x001,
@@ -37,7 +45,10 @@ public:
         SheenColor = 0x100,
         SheenRoughness = 0x200,
         Iridescence = 0x400,
-        Environment = 0x800
+        IridescenceThickness = 0x800,
+        Specular = 0x1000,
+        SpecularColor = 0x2000,
+        Environment = 0x4000
     };
 
     static MaterialPtr create(){ return MaterialPtr(new Material()); };

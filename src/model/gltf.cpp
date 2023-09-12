@@ -289,7 +289,8 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
 }
 
 model::material_t convert_material(const tinygltf::Material &tiny_mat, const tinygltf::Model &model,
-                                   const std::map<uint32_t, crocore::ImagePtr> &image_cache)
+                                   const std::map<uint32_t, crocore::ImagePtr> &image_cache,
+                                   const std::unordered_map<uint32_t, TextureId> &id_cache)
 {
     model::material_t ret;
     ret.name = tiny_mat.name;
@@ -308,69 +309,76 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
     // albedo
     if(tiny_mat.pbrMetallicRoughness.baseColorTexture.index >= 0)
     {
-        ret.img_diffuse = image_cache.at(model.textures[tiny_mat.pbrMetallicRoughness.baseColorTexture.index].source);
+        auto img_index = model.textures[tiny_mat.pbrMetallicRoughness.baseColorTexture.index].source;
+        ret.textures[Material::TextureType::Color] = id_cache.at(img_index);
         ret.texture_transform = texture_transform(tiny_mat.pbrMetallicRoughness.baseColorTexture);
     }
 
     // ao / rough / metal
     if(tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0)
     {
-        ret.img_ao_roughness_metal =
-                image_cache.at(model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source);
-
+        auto img_index = model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source;
+        ret.textures[Material::TextureType::Ao_rough_metal] = id_cache.at(img_index);
         ret.roughness = ret.metalness = 1.f;
     }
 
     // normals
     if(tiny_mat.normalTexture.index >= 0)
     {
-        ret.img_normals = image_cache.at(model.textures[tiny_mat.normalTexture.index].source);
+        auto img_index = model.textures[tiny_mat.normalTexture.index].source;
+        ret.textures[Material::TextureType::Normal] = id_cache.at(img_index);
     }
 
     // emission
     if(tiny_mat.emissiveTexture.index >= 0)
     {
+        auto img_index = model.textures[tiny_mat.normalTexture.index].source;
+        ret.textures[Material::TextureType::Emission] = id_cache.at(img_index);
         ret.emission = glm::vec3(0.f);
-        ret.img_emission = image_cache.at(model.textures[tiny_mat.emissiveTexture.index].source);
     }
 
     // occlusion only supported alongside rough/metal
-    if(ret.img_ao_roughness_metal && tiny_mat.occlusionTexture.index >= 0)
+    if(ret.textures.contains(Material::TextureType::Ao_rough_metal) && tiny_mat.occlusionTexture.index >= 0)
     {
         if(tiny_mat.occlusionTexture.index != tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index)
         {
             // occlusion is provided as separate image -> combine with rough/metal
             auto occlusion_image = image_cache.at(model.textures[tiny_mat.occlusionTexture.index].source);
+            auto ao_roughness_metal_image =
+                    image_cache.at(model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source);
 
             // there was texture data for AO in a separate map -> combine
 
-            if(occlusion_image->width() != ret.img_ao_roughness_metal->width() ||
-               occlusion_image->height() != ret.img_ao_roughness_metal->height())
+            if(occlusion_image->width() != ao_roughness_metal_image->width() ||
+               occlusion_image->height() != ao_roughness_metal_image->height())
             {
-                occlusion_image = occlusion_image->resize(ret.img_ao_roughness_metal->width(),
-                                                          ret.img_ao_roughness_metal->height());
+                occlusion_image =
+                        occlusion_image->resize(ao_roughness_metal_image->width(), ao_roughness_metal_image->height());
             }
 
             auto *src = static_cast<uint8_t *>(occlusion_image->data());
 
             constexpr size_t ao_offset = 0;
-            auto dst = (uint8_t *) ret.img_ao_roughness_metal->data();
-            auto end = dst + ret.img_ao_roughness_metal->num_bytes();
+            auto dst = (uint8_t *) ao_roughness_metal_image->data();
+            auto end = dst + ao_roughness_metal_image->num_bytes();
 
             for(; dst < end;)
             {
                 dst[ao_offset] = src[ao_offset];
-                dst += ret.img_ao_roughness_metal->num_components();
+                dst += ao_roughness_metal_image->num_components();
                 src += occlusion_image->num_components();
             }
         }
     }
-    else if(ret.img_ao_roughness_metal)
+    else if(ret.textures.contains(Material::TextureType::Ao_rough_metal))
     {
+        auto ao_roughness_metal_image =
+                image_cache.at(model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source);
+
         // rough/metal was provided but no occlusion -> pad with 1.0
         constexpr size_t ao_offset = 0;
-        auto dst = (uint8_t *) ret.img_ao_roughness_metal->data(), end = dst + ret.img_ao_roughness_metal->num_bytes();
-        for(; dst < end; dst += ret.img_ao_roughness_metal->num_components()) { dst[ao_offset] = 255; }
+        auto dst = (uint8_t *) ao_roughness_metal_image->data(), end = dst + ao_roughness_metal_image->num_bytes();
+        for(; dst < end; dst += ao_roughness_metal_image->num_components()) { dst[ao_offset] = 255; }
     }
 
     for(const auto &[ext, value]: tiny_mat.extensions)
@@ -401,15 +409,15 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             if(value.Has(ext_specular_texture))
             {
                 const auto &specular_texture_value = value.Get(ext_specular_texture);
-                int tex_index = specular_texture_value.Get("index").GetNumberAsInt();
-                ret.img_specular = image_cache.at(model.textures[tex_index].source);
+                auto img_index = model.textures[specular_texture_value.Get("index").GetNumberAsInt()].source;
+                ret.textures[Material::TextureType::Specular] = id_cache.at(img_index);
             }
 
             if(value.Has(ext_specular_color_texture))
             {
                 const auto &specular_color_texture_value = value.Get(ext_specular_color_texture);
-                int tex_index = specular_color_texture_value.Get("index").GetNumberAsInt();
-                ret.img_specular_color = image_cache.at(model.textures[tex_index].source);
+                auto img_index = model.textures[specular_color_texture_value.Get("index").GetNumberAsInt()].source;
+                ret.textures[Material::TextureType::SpecularColor] = id_cache.at(img_index);
             }
         }
         else if(ext == KHR_materials_transmission)
@@ -422,8 +430,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             if(value.Has(ext_transmission_texture))
             {
                 const auto &transmission_texture_value = value.Get(ext_transmission_texture);
-                int tex_index = transmission_texture_value.Get("index").GetNumberAsInt();
-                ret.img_transmission = image_cache.at(model.textures[tex_index].source);
+                auto img_index = model.textures[transmission_texture_value.Get("index").GetNumberAsInt()].source;
+                ret.textures[Material::TextureType::SpecularColor] = id_cache.at(img_index);
             }
         }
         else if(ext == KHR_materials_volume)
@@ -450,8 +458,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             if(value.Has(ext_volume_thickness_texture))
             {
                 const auto &thickness_texture_value = value.Get(ext_volume_thickness_texture);
-                int tex_index = thickness_texture_value.Get("index").GetNumberAsInt();
-                ret.img_thickness = image_cache.at(model.textures[tex_index].source);
+                auto img_index = model.textures[thickness_texture_value.Get("index").GetNumberAsInt()].source;
+                ret.textures[Material::TextureType::Thickness] = id_cache.at(img_index);
             }
         }
         else if(ext == KHR_materials_ior)
@@ -486,14 +494,14 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             if(value.Has(ext_sheen_color_texture))
             {
                 const auto &sheen_color_texture_value = value.Get(ext_sheen_color_texture);
-                int tex_index = sheen_color_texture_value.Get("index").GetNumberAsInt();
-                ret.img_sheen_color = image_cache.at(model.textures[tex_index].source);
+                auto img_index = model.textures[sheen_color_texture_value.Get("index").GetNumberAsInt()].source;
+                ret.textures[Material::TextureType::SheenColor] = id_cache.at(img_index);
             }
             if(value.Has(ext_sheen_roughness_texture))
             {
                 const auto &sheen_roughness_texture_value = value.Get(ext_sheen_roughness_texture);
-                int tex_index = sheen_roughness_texture_value.Get("index").GetNumberAsInt();
-                ret.img_sheen_roughness = image_cache.at(model.textures[tex_index].source);
+                auto img_index = model.textures[sheen_roughness_texture_value.Get("index").GetNumberAsInt()].source;
+                ret.textures[Material::TextureType::SheenRoughness] = id_cache.at(img_index);
             }
         }
         else if(ext == KHR_materials_iridescence)
@@ -505,8 +513,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             if(value.Has(ext_iridescence_texture))
             {
                 const auto &iridescence_texture_value = value.Get(ext_iridescence_texture);
-                int tex_index = iridescence_texture_value.Get("index").GetNumberAsInt();
-                ret.img_iridescence = image_cache.at(model.textures[tex_index].source);
+                auto img_index = model.textures[iridescence_texture_value.Get("index").GetNumberAsInt()].source;
+                ret.textures[Material::TextureType::Iridescence] = id_cache.at(img_index);
             }
             if(value.Has(ext_iridescence_ior))
             {
@@ -525,14 +533,16 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             if(value.Has(ext_iridescence_thickness_texture))
             {
                 const auto &iridescence_thickness_texture_value = value.Get(ext_iridescence_thickness_texture);
-                int tex_index = iridescence_thickness_texture_value.Get("index").GetNumberAsInt();
-                auto img_iridescence_thickness = image_cache.at(model.textures[tex_index].source);
+                auto img_index =
+                        model.textures[iridescence_thickness_texture_value.Get("index").GetNumberAsInt()].source;
+                ret.textures[Material::TextureType::IridescenceThickness] = id_cache.at(img_index);
+                auto img_iridescence_thickness = image_cache.at(img_index);
 
-                if(!ret.img_iridescence)
+                if(!ret.textures.contains(Material::TextureType::Iridescence))
                 {
-                    ret.img_iridescence = img_iridescence_thickness;
+                    ret.textures[Material::TextureType::Iridescence] = id_cache.at(img_index);
 
-                    if(auto img = std::dynamic_pointer_cast<crocore::Image_<uint8_t>>(ret.img_iridescence))
+                    if(auto img = std::dynamic_pointer_cast<crocore::Image_<uint8_t>>(img_iridescence_thickness))
                     {
                         auto ptr = img->at(0, 0);
                         auto end = ptr + img->num_bytes();
@@ -545,18 +555,6 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             }
         }
     }
-    if(ret.img_diffuse) { ret.images.push_back(ret.img_diffuse); }
-    if(ret.img_emission) { ret.images.push_back(ret.img_emission); }
-    if(ret.img_normals) { ret.images.push_back(ret.img_normals); }
-    if(ret.img_ao_roughness_metal) { ret.images.push_back(ret.img_ao_roughness_metal); }
-    if(ret.img_thickness) { ret.images.push_back(ret.img_thickness); }
-    if(ret.img_transmission) { ret.images.push_back(ret.img_transmission); }
-    if(ret.img_clearcoat) { ret.images.push_back(ret.img_clearcoat); }
-    if(ret.img_sheen_color) { ret.images.push_back(ret.img_sheen_color); }
-    if(ret.img_sheen_roughness) { ret.images.push_back(ret.img_sheen_roughness); }
-    if(ret.img_specular) { ret.images.push_back(ret.img_specular); }
-    if(ret.img_specular_color) { ret.images.push_back(ret.img_specular_color); }
-    if(ret.img_iridescence) { ret.images.push_back(ret.img_iridescence); }
     return ret;
 }
 
@@ -860,10 +858,19 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
         }
     }
 
+    // populate out-textures, generate UUIDs-handles
+    std::unordered_map<uint32_t, TextureId> id_cache;
+    for(const auto &[index, img]: image_cache)
+    {
+        auto texture_id = TextureId::random();
+        id_cache[index] = texture_id;
+        out_assets.textures[texture_id] = img;
+    }
+
     // create materials
     for(const auto &tiny_mat: model.materials)
     {
-        out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache));
+        out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache, id_cache));
     }
 
     // create lights

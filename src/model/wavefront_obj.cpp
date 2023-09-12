@@ -75,7 +75,7 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
         m.roughness = std::clamp(std::max(mat.roughness, std::pow(1.f - mat.shininess, 2.f)), 0.f, 1.f);
         m.metalness = mat.metallic;
         m.clearcoat_roughness_factor = mat.clearcoat_roughness;
-//        m.transmission = mat.transmittance[0];
+        //        m.transmission = mat.transmittance[0];
         m.ior = mat.ior;
         m.clearcoat_roughness_factor = mat.clearcoat_roughness;
 
@@ -84,13 +84,16 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
 
         if(!mat.diffuse_texname.empty())
         {
-            m.img_diffuse = crocore::create_image_from_file((base_dir / mat.diffuse_texname).string(), 4);
-            m.images.push_back(m.img_diffuse);
+            auto tex_id = TextureId::random();
+            m.textures[Material::TextureType::Color] = tex_id;
+            mesh_assets.textures[tex_id] =
+                    crocore::create_image_from_file((base_dir / mat.diffuse_texname).string(), 4);
         }
         if(!mat.normal_texname.empty())
         {
-            m.img_normals = crocore::create_image_from_file((base_dir / mat.normal_texname).string(), 4);
-            m.images.push_back(m.img_normals);
+            auto tex_id = TextureId::random();
+            m.textures[Material::TextureType::Normal] = tex_id;
+            mesh_assets.textures[tex_id] = crocore::create_image_from_file((base_dir / mat.normal_texname).string(), 4);
         }
         mesh_assets.materials.push_back(m);
     }

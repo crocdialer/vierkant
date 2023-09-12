@@ -4,8 +4,8 @@
 
 #include <set>
 
-#include <vierkant/model/model_loading.hpp>
 #include <vierkant/model/gltf.hpp>
+#include <vierkant/model/model_loading.hpp>
 #include <vierkant/model/wavefront_obj.hpp>
 
 namespace vierkant::model
@@ -25,8 +25,7 @@ VkFormat vk_format(const crocore::ImagePtr &img)
     return ret;
 }
 
-std::vector<vierkant::bc7::compress_result_t>
-create_compressed_images(const std::vector<vierkant::model::material_t> &materials)
+std::vector<vierkant::bc7::compress_result_t> create_compressed_images(const mesh_assets_t &mesh_assets)
 {
     std::vector<vierkant::bc7::compress_result_t> ret;
     std::set<crocore::ImagePtr> images;
@@ -35,10 +34,18 @@ create_compressed_images(const std::vector<vierkant::model::material_t> &materia
     std::chrono::milliseconds compress_total_duration(0);
     size_t num_pixels = 0;
 
-    for(const auto &mat: materials)
+    for(const auto &mat: mesh_assets.materials)
     {
-        for(const auto &img: mat.images)
+        for(const auto &[tex_type, tex_id]: mat.textures)
         {
+            if(!mesh_assets.textures.contains(tex_id))
+            {
+                spdlog::warn("missing texture in mesh-assets: type: {} - id: {}", (uint32_t) tex_type, tex_id.str());
+                continue;
+            }
+
+            const auto &img = std::get<crocore::ImagePtr>(mesh_assets.textures.at(tex_id));
+
             if(img && !images.contains(img))
             {
                 images.insert(img);
@@ -121,22 +128,23 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
 
     mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
-    std::map<crocore::ImagePtr, uint32_t> index_map;
-    std::set<crocore::ImagePtr> images;
+    std::map<vierkant::TextureId, uint32_t> index_map;
+    std::set<vierkant::TextureId> texture_id_set;
     uint32_t idx = 0;
 
     for(const auto &mat: mesh_assets.materials)
     {
-        for(const auto &img: mat.images)
+        for(const auto &[tex_type, tex_id]: mat.textures)
         {
-            if(img && !images.contains(img))
+            if(tex_id && !texture_id_set.contains(tex_id))
             {
-                images.insert(img);
-                index_map[img] = idx++;
+                texture_id_set.insert(tex_id);
+                index_map[tex_id] = idx++;
             }
         }
     }
 
+    // TODO: refactor using TextureId
     std::vector<vierkant::bc7::compress_result_t> compressed_images;
     if(asset_bundle && asset_bundle->compressed_images.size() == index_map.size())
     {
@@ -144,16 +152,17 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     }
     if(params.compress_textures && compressed_images.empty())
     {
-        compressed_images = create_compressed_images(mesh_assets.materials);
+        compressed_images = create_compressed_images(mesh_assets);
     }
 
     // cache textures
-    std::unordered_map<crocore::ImagePtr, vierkant::ImagePtr> texture_cache;
+    std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> texture_cache;
+
     auto cache_helper = [&params, &texture_cache, &create_texture, &compressed_images,
-                         &index_map](const crocore::ImagePtr &img) {
-        if(img && !texture_cache.count(img))
+                         &index_map](const vierkant::TextureId &tex_id, const crocore::ImagePtr &img) {
+        if(tex_id && !texture_cache.count(tex_id))
         {
-            if(!params.compress_textures) { texture_cache[img] = create_texture(img); }
+            if(!params.compress_textures) { texture_cache[tex_id] = create_texture(img); }
             else
             {
                 vierkant::Image::Format fmt;
@@ -162,17 +171,22 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 fmt.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
                 fmt.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
-                const auto &compress_result = compressed_images[index_map[img]];
-                texture_cache[img] = create_compressed_texture(params.device, compress_result, fmt, params.load_queue);
+                const auto &compress_result = compressed_images[index_map[tex_id]];
+                texture_cache[tex_id] =
+                        create_compressed_texture(params.device, compress_result, fmt, params.load_queue);
             }
         }
     };
 
-    for(const auto &asset_mat: mesh_assets.materials)
+    for(const auto &[tex_id, tex_variant]: mesh_assets.textures)
     {
-        for(const auto &img: asset_mat.images)
+        try
         {
-            if(img) { cache_helper(img); }
+            auto img = std::get<crocore::ImagePtr>(tex_variant);
+            if(img) { cache_helper(tex_id, img); }
+        } catch(std::bad_variant_access &e)
+        {
+            spdlog::error("was expecting an uncompressed image: {}", e.what());
         }
     }
 
@@ -205,27 +219,10 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
         material->iridescence_ior = mesh_assets.materials[i].iridescence_ior;
         material->iridescence_thickness_range = mesh_assets.materials[i].iridescence_thickness_range;
 
-        auto color_img = mesh_assets.materials[i].img_diffuse;
-        auto emmission_img = mesh_assets.materials[i].img_emission;
-        auto normal_img = mesh_assets.materials[i].img_normals;
-        auto ao_rough_metal_img = mesh_assets.materials[i].img_ao_roughness_metal;
-        auto thickness_img = mesh_assets.materials[i].img_thickness;
-        auto transmission_img = mesh_assets.materials[i].img_transmission;
-        auto sheen_img = mesh_assets.materials[i].img_sheen_color;
-        auto iridescence_img = mesh_assets.materials[i].img_iridescence;
-
-        if(color_img) { material->textures[vierkant::Material::Color] = texture_cache[color_img]; }
-        if(emmission_img) { material->textures[vierkant::Material::Emission] = texture_cache[emmission_img]; }
-        if(normal_img) { material->textures[vierkant::Material::Normal] = texture_cache[normal_img]; }
-
-        if(ao_rough_metal_img)
+        for(const auto &[tex_type, tex_id] : mesh_assets.materials[i].textures)
         {
-            material->textures[vierkant::Material::Ao_rough_metal] = texture_cache[ao_rough_metal_img];
+            material->textures[tex_type] = texture_cache[tex_id];
         }
-        if(transmission_img) { material->textures[vierkant::Material::Transmission] = texture_cache[transmission_img]; }
-        if(thickness_img) { material->textures[vierkant::Material::Thickness] = texture_cache[thickness_img]; }
-        if(sheen_img) { material->textures[vierkant::Material::SheenColor] = texture_cache[sheen_img]; }
-        if(iridescence_img) { material->textures[vierkant::Material::Iridescence] = texture_cache[iridescence_img]; }
 
         material->texture_transform = mesh_assets.materials[i].texture_transform;
     }

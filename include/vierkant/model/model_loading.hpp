@@ -5,8 +5,10 @@
 
 #include <filesystem>
 #include <optional>
+#include <variant>
 
 #include <crocore/Image.hpp>
+#include <crocore/NamedUUID.hpp>
 #include <crocore/ThreadPool.hpp>
 
 #include <vierkant/Geometry.hpp>
@@ -14,6 +16,15 @@
 #include <vierkant/Mesh.hpp>
 #include <vierkant/bc7.hpp>
 #include <vierkant/physical_camera_params.hpp>
+
+namespace vierkant
+{
+DEFINE_NAMED_UUID(TextureId)
+
+//! contains uncompressed or BC7-compressed images
+using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bc7::compress_result_t>;
+}// namespace vierkant
+
 
 namespace vierkant::model
 {
@@ -70,27 +81,8 @@ struct material_t
     // optional texture-transform (todo: per image)
     glm::mat4 texture_transform = glm::mat4(1);
 
-    std::vector<crocore::ImagePtr> images;
-
-    crocore::ImagePtr img_diffuse;
-    crocore::ImagePtr img_emission;
-
-    crocore::ImagePtr img_normals;
-    crocore::ImagePtr img_ao_roughness_metal;
-
-    crocore::ImagePtr img_thickness;
-    crocore::ImagePtr img_transmission;
-
-    crocore::ImagePtr img_clearcoat;
-
-    crocore::ImagePtr img_sheen_color;
-    crocore::ImagePtr img_sheen_roughness;
-
-    crocore::ImagePtr img_specular;
-    crocore::ImagePtr img_specular_color;
-
-    // iridescence intensity/thickness stored in RG-channels
-    crocore::ImagePtr img_iridescence;
+    // maps TextureType to a vierkant::TextureId. sorted in enum order, which is important in other places.
+    std::map<Material::TextureType, vierkant::TextureId> textures;
 };
 
 enum class LightType : uint32_t
@@ -130,6 +122,9 @@ struct mesh_assets_t
 
     //! common materials for all submeshes
     std::vector<material_t> materials;
+
+    //! common textures for all materials
+    std::unordered_map<vierkant::TextureId, texture_variant_t> textures;
 
     //! optional lights defined in model-file
     std::vector<lightsource_t> lights;
@@ -178,7 +173,7 @@ struct load_mesh_params_t
  *
  *  @return a struct grouping the loaded assets.
  */
-std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool* pool = nullptr);
+std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool *pool = nullptr);
 
 /**
  * @brief   load_mesh can be used to load assets into gpu-buffers
@@ -187,8 +182,7 @@ std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, croco
  * @param   params  a struct grouping input-parameters
  * @return  a vierkant::MeshPtr, nullptr in case of failure.
  */
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
-                            const vierkant::model::mesh_assets_t &mesh_assets,
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets,
                             const std::optional<asset_bundle_t> &asset_bundle = {});
 
 /**
@@ -198,8 +192,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params,
  * @param   materials   a provided array of materials.
  * @return  an array of bc7-compressed images.
  */
-std::vector<vierkant::bc7::compress_result_t>
-create_compressed_images(const std::vector<vierkant::model::material_t> &materials);
+std::vector<vierkant::bc7::compress_result_t> create_compressed_images(const mesh_assets_t &mesh_assets);
 
 /**
  * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.
@@ -213,7 +206,6 @@ create_compressed_images(const std::vector<vierkant::model::material_t> &materia
  */
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bc7::compress_result_t &compression_result,
-                                             vierkant::Image::Format format,
-                                             VkQueue load_queue);
+                                             vierkant::Image::Format format, VkQueue load_queue);
 
 }// namespace vierkant::model
