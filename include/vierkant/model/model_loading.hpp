@@ -159,9 +159,6 @@ struct load_mesh_params_t
     //! parameters for creation of vertex-buffers
     mesh_buffer_params_t mesh_buffers_params = {};
 
-    //! request texture-compression
-    bool compress_textures = false;
-
     //! a VkQueue used for required buffer/image-transfers.
     VkQueue load_queue = VK_NULL_HANDLE;
 

@@ -310,6 +310,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
     if(tiny_mat.pbrMetallicRoughness.baseColorTexture.index >= 0)
     {
         auto img_index = model.textures[tiny_mat.pbrMetallicRoughness.baseColorTexture.index].source;
+        assert(id_cache.contains(img_index));
         ret.textures[Material::TextureType::Color] = id_cache.at(img_index);
         ret.texture_transform = texture_transform(tiny_mat.pbrMetallicRoughness.baseColorTexture);
     }
@@ -318,6 +319,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
     if(tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index >= 0)
     {
         auto img_index = model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source;
+        assert(id_cache.contains(img_index));
         ret.textures[Material::TextureType::Ao_rough_metal] = id_cache.at(img_index);
         ret.roughness = ret.metalness = 1.f;
     }
@@ -326,13 +328,15 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
     if(tiny_mat.normalTexture.index >= 0)
     {
         auto img_index = model.textures[tiny_mat.normalTexture.index].source;
+        assert(id_cache.contains(img_index));
         ret.textures[Material::TextureType::Normal] = id_cache.at(img_index);
     }
 
     // emission
     if(tiny_mat.emissiveTexture.index >= 0)
     {
-        auto img_index = model.textures[tiny_mat.normalTexture.index].source;
+        auto img_index = model.textures[tiny_mat.emissiveTexture.index].source;
+        assert(id_cache.contains(img_index));
         ret.textures[Material::TextureType::Emission] = id_cache.at(img_index);
         ret.emission = glm::vec3(0.f);
     }
@@ -410,6 +414,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             {
                 const auto &specular_texture_value = value.Get(ext_specular_texture);
                 auto img_index = model.textures[specular_texture_value.Get("index").GetNumberAsInt()].source;
+                assert(id_cache.contains(img_index));
                 ret.textures[Material::TextureType::Specular] = id_cache.at(img_index);
             }
 
@@ -417,6 +422,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             {
                 const auto &specular_color_texture_value = value.Get(ext_specular_color_texture);
                 auto img_index = model.textures[specular_color_texture_value.Get("index").GetNumberAsInt()].source;
+                assert(id_cache.contains(img_index));
                 ret.textures[Material::TextureType::SpecularColor] = id_cache.at(img_index);
             }
         }
@@ -431,7 +437,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             {
                 const auto &transmission_texture_value = value.Get(ext_transmission_texture);
                 auto img_index = model.textures[transmission_texture_value.Get("index").GetNumberAsInt()].source;
-                ret.textures[Material::TextureType::SpecularColor] = id_cache.at(img_index);
+                assert(id_cache.contains(img_index));
+                ret.textures[Material::TextureType::Transmission] = id_cache.at(img_index);
             }
         }
         else if(ext == KHR_materials_volume)
@@ -459,7 +466,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             {
                 const auto &thickness_texture_value = value.Get(ext_volume_thickness_texture);
                 auto img_index = model.textures[thickness_texture_value.Get("index").GetNumberAsInt()].source;
-                ret.textures[Material::TextureType::Thickness] = id_cache.at(img_index);
+                ret.textures[Material::TextureType::VolumeThickness] = id_cache.at(img_index);
             }
         }
         else if(ext == KHR_materials_ior)
@@ -495,12 +502,14 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             {
                 const auto &sheen_color_texture_value = value.Get(ext_sheen_color_texture);
                 auto img_index = model.textures[sheen_color_texture_value.Get("index").GetNumberAsInt()].source;
+                assert(id_cache.contains(img_index));
                 ret.textures[Material::TextureType::SheenColor] = id_cache.at(img_index);
             }
             if(value.Has(ext_sheen_roughness_texture))
             {
                 const auto &sheen_roughness_texture_value = value.Get(ext_sheen_roughness_texture);
                 auto img_index = model.textures[sheen_roughness_texture_value.Get("index").GetNumberAsInt()].source;
+                assert(id_cache.contains(img_index));
                 ret.textures[Material::TextureType::SheenRoughness] = id_cache.at(img_index);
             }
         }
@@ -514,6 +523,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             {
                 const auto &iridescence_texture_value = value.Get(ext_iridescence_texture);
                 auto img_index = model.textures[iridescence_texture_value.Get("index").GetNumberAsInt()].source;
+                assert(id_cache.contains(img_index));
                 ret.textures[Material::TextureType::Iridescence] = id_cache.at(img_index);
             }
             if(value.Has(ext_iridescence_ior))
@@ -535,7 +545,9 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
                 const auto &iridescence_thickness_texture_value = value.Get(ext_iridescence_thickness_texture);
                 auto img_index =
                         model.textures[iridescence_thickness_texture_value.Get("index").GetNumberAsInt()].source;
+                assert(id_cache.contains(img_index));
                 ret.textures[Material::TextureType::IridescenceThickness] = id_cache.at(img_index);
+                assert(image_cache.contains(img_index));
                 auto img_iridescence_thickness = image_cache.at(img_index);
 
                 if(!ret.textures.contains(Material::TextureType::Iridescence))
@@ -870,7 +882,15 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
     // create materials
     for(const auto &tiny_mat: model.materials)
     {
-        out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache, id_cache));
+        try
+        {
+            out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache, id_cache));
+        }
+        catch(std::exception &e)
+        {
+            spdlog::warn("could not convert material '{}' for: '{}' ({})", tiny_mat.name, path.string(), e.what());
+            out_assets.materials.push_back({});
+        }
     }
 
     // create lights

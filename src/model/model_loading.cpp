@@ -27,8 +27,8 @@ VkFormat vk_format(const crocore::ImagePtr &img)
 
 bool compress_textures(vierkant::model::mesh_assets_t &mesh_assets)
 {
-    crocore::ThreadPool threadpool(std::thread::hardware_concurrency());
     std::chrono::milliseconds compress_total_duration(0);
+    crocore::ThreadPool threadpool(std::thread::hardware_concurrency());
     size_t num_pixels = 0;
 
     for(auto &[tex_id, texture_variant]: mesh_assets.textures)

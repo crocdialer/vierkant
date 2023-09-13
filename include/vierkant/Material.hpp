@@ -39,7 +39,7 @@ public:
         Ao_rough_metal = 0x004,
         Emission = 0x008,
         Displacement = 0x010,
-        Thickness = 0x020,
+        VolumeThickness = 0x020,
         Transmission = 0x040,
         Clearcoat = 0x080,
         SheenColor = 0x100,
