@@ -40,9 +40,6 @@ struct material_t
     float roughness = 1.f;
     float metalness = 0.f;
 
-    // deprecated !?
-    glm::vec3 specular;
-
     // transmission
     float ior = 1.5f;
     glm::vec3 attenuation_color = glm::vec3(1.f);
@@ -61,7 +58,7 @@ struct material_t
 
     // specular
     float specular_factor = 1.f;
-    glm::vec3 specular_color_factor = glm::vec3(1.f);
+    glm::vec3 specular_color = glm::vec3(1.f);
 
     // clearcoat
     float clearcoat_factor = 0.f;
@@ -144,8 +141,14 @@ struct mesh_assets_t
 
 struct asset_bundle_t
 {
+    //! packed vertex/index/meshlet-buffers with entry information
     vierkant::mesh_buffer_bundle_t mesh_buffer_bundle;
-    std::vector<vierkant::bc7::compress_result_t> compressed_images;
+
+    //! common materials for all meshes
+    std::vector<material_t> materials;
+
+    //! common textures for all materials
+    std::unordered_map<vierkant::TextureId, texture_variant_t> textures;
 };
 
 struct load_mesh_params_t
@@ -186,13 +189,12 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                             const std::optional<asset_bundle_t> &asset_bundle = {});
 
 /**
- * @brief   create_compressed_images will compress all images retrieved from provided materials
- *          and return an array of compression-results.
+ * @brief   compress_textures will compress all images found in contained materials in-place.
  *
- * @param   materials   a provided array of materials.
- * @return  an array of bc7-compressed images.
+ * @param   mesh_assets     a mesh_assets struct.
+ * @return  true, if all images contained in mesh_assets are compressed.
  */
-std::vector<vierkant::bc7::compress_result_t> create_compressed_images(const mesh_assets_t &mesh_assets);
+bool compress_textures(vierkant::model::mesh_assets_t &mesh_assets);
 
 /**
  * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.

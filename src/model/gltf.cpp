@@ -401,7 +401,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             if(value.Has(ext_specular_color_factor))
             {
                 const auto &specular_color_value = value.Get(ext_specular_color_factor);
-                ret.specular_color_factor = glm::dvec3(specular_color_value.Get(0).GetNumberAsDouble(),
+                ret.specular_color = glm::dvec3(specular_color_value.Get(0).GetNumberAsDouble(),
                                                        specular_color_value.Get(1).GetNumberAsDouble(),
                                                        specular_color_value.Get(2).GetNumberAsDouble());
             }
