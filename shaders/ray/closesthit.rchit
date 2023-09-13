@@ -79,6 +79,12 @@ Triangle get_triangle()
                     unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.z]));
 }
 
+//! calculates a triangle's normal
+vec3 triangle_normal(Triangle t)
+{
+    return normalize(cross(t.v1.position - t.v0.position, t.v2.position - t.v0.position));
+}
+
 //! returns a base LoD for a triangle. derives the result by comparing tex-coord and world-space sizes.
 float lod_constant(Triangle t)
 {
@@ -161,12 +167,13 @@ void main()
                                        vec3(0.5)));
 
         // normal, tangent, bi-tangent
-        vec3 b = normalize(cross(v.normal, v.tangent));
-        payload.normal = mat3(v.tangent, b, v.normal) * normal;
+        vec3 b = normalize(cross(payload.normal, v.tangent));
+        payload.normal = mat3(v.tangent, b, payload.normal) * normal;
     }
+    if(dot(V, payload.normal) < 0){ payload.normal = reflect(payload.normal, V); }
 
     // flip the normal so it points against the ray direction:
-    payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, v.normal);
+    payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
 
     // max emission from material/map
     if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
@@ -206,10 +213,10 @@ void main()
         material.metalness *= rough_metal_tex.y;
     }
 
-    float eta = payload.inside_media ? material.ior / payload.ior : payload.ior / material.ior;
+    float eta = payload.transmission ? material.ior / payload.ior : payload.ior / material.ior;
     eta += EPS;
 
-    payload.ior = payload.inside_media ? material.ior : 1.0;
+    payload.ior = payload.transmission ? material.ior : 1.0;
 
 #if 0
     // test-code for shadow-rays
@@ -264,12 +271,12 @@ void main()
     float cos_theta = abs(dot(payload.normal, payload.ray.direction));
 
     payload.beta *= clamp(bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS), 0.0, 1.0);
-    payload.inside_media = bsdf_sample.transmission ? !payload.inside_media : payload.inside_media;
+    payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
 
     // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
     payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
 
-    payload.absorption = payload.inside_media ?
+    payload.absorption = payload.transmission ?
                          -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS) : vec3(0);
 
     // Russian roulette

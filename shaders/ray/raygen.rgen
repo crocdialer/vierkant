@@ -86,7 +86,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         // assumes we start in air
         float ior = 1.0;
         vec3 absorption = vec3(0);
-        bool inside_media = false;
+        bool transmission = false;
 
         vec3 beta = vec3(1);
         vec3 path_radiance = vec3(0);
@@ -103,11 +103,11 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.beta = beta;
             payload.ior = ior;
             payload.absorption = absorption;
-            payload.inside_media = inside_media;
+            payload.transmission = transmission;
             payload.ray = ray;
             payload.cone = cone;
 
-            const uint ray_flags = gl_RayFlagsOpaqueEXT | (inside_media ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
+            const uint ray_flags = gl_RayFlagsOpaqueEXT | (transmission ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
 
             // trace one ray
             traceRayEXT(topLevelAS,         // acceleration structure
@@ -127,7 +127,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             beta = payload.beta;
             ior = payload.ior;
             absorption = payload.absorption;
-            inside_media = payload.inside_media;
+            transmission = payload.transmission;
             path_radiance = payload.radiance;
 
             if(i == 0)

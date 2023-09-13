@@ -57,7 +57,7 @@ struct payload_t
     // color-absorbtion per unit-length
     vec3 absorption;
 
-    bool inside_media;
+    bool transmission;
 };
 
 struct shadow_payload_t
