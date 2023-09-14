@@ -170,7 +170,8 @@ void main()
         vec3 b = normalize(cross(payload.normal, v.tangent));
         payload.normal = mat3(v.tangent, b, payload.normal) * normal;
     }
-    if(dot(V, payload.normal) < 0){ payload.normal = reflect(payload.normal, V); }
+    // hack to counter black fringes, need to get back to that ...
+    if(material.transmission == 0.0 && dot(V, payload.normal) < 0){ payload.normal = reflect(payload.normal, V); }
 
     // flip the normal so it points against the ray direction:
     payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);

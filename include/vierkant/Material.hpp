@@ -4,9 +4,9 @@
 
 #pragma once
 
+#include "vierkant/Geometry.hpp"
 #include "vierkant/Image.hpp"
 #include "vierkant/Pipeline.hpp"
-#include "vierkant/Geometry.hpp"
 
 namespace vierkant
 {
@@ -16,7 +16,6 @@ DEFINE_CLASS_PTR(Material);
 class Material
 {
 public:
-
     enum class BlendMode : uint8_t
     {
         Opaque = 0,
@@ -51,7 +50,7 @@ public:
         Environment = 0x4000
     };
 
-    static MaterialPtr create(){ return MaterialPtr(new Material()); };
+    static MaterialPtr create() { return MaterialPtr(new Material()); };
 
     [[nodiscard]] std::size_t hash() const;
 
@@ -111,4 +110,4 @@ private:
     Material() = default;
 };
 
-}
+}// namespace vierkant

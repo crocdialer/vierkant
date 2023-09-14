@@ -20,6 +20,7 @@
 namespace vierkant
 {
 DEFINE_NAMED_UUID(TextureId)
+DEFINE_NAMED_UUID(SamplerId)
 
 //! contains uncompressed or BC7-compressed images
 using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bc7::compress_result_t>;
@@ -78,8 +79,35 @@ struct material_t
     // optional texture-transform (todo: per image)
     glm::mat4 texture_transform = glm::mat4(1);
 
-    // maps TextureType to a vierkant::TextureId. sorted in enum order, which is important in other places.
+    // maps TextureType to a TextureId/SamplerId. sorted in enum order, which is important in other places.
     std::map<Material::TextureType, vierkant::TextureId> textures;
+//    std::map<Material::TextureType, vierkant::SamplerId> samplers;
+};
+
+struct texture_sampler_state_t
+{
+    enum class Filter
+    {
+        NEAREST = 0,
+        LINEAR,
+        CUBIC
+    };
+
+    enum class AddressMode
+    {
+        REPEAT = 0,
+        MIRRORED_REPEAT,
+        CLAMP_TO_EDGE,
+        CLAMP_TO_BORDER,
+        MIRROR_CLAMP_TO_EDGE,
+    };
+
+    AddressMode address_mode_u = AddressMode::REPEAT;
+    AddressMode address_mode_v = AddressMode::REPEAT;
+
+    Filter min_filter = Filter::LINEAR;
+    Filter mag_filter = Filter::LINEAR;
+    glm::mat4 transform = glm::mat4(1);
 };
 
 enum class LightType : uint32_t
@@ -122,6 +150,9 @@ struct mesh_assets_t
 
     //! common textures for all materials
     std::unordered_map<vierkant::TextureId, texture_variant_t> textures;
+
+    //! texture-sample-states for all materials (TODO: correct this to use SamplerId)
+    std::unordered_map<vierkant::TextureId, texture_sampler_state_t> texture_sampler_states;
 
     //! optional lights defined in model-file
     std::vector<lightsource_t> lights;
@@ -182,7 +213,7 @@ std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, croco
  * @param   params  a struct grouping input-parameters
  * @return  a vierkant::MeshPtr, nullptr in case of failure.
  */
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets,
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &sampler_state,
                             const std::optional<asset_bundle_t> &asset_bundle = {});
 
 /**

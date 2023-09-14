@@ -406,8 +406,8 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             {
                 const auto &specular_color_value = value.Get(ext_specular_color_factor);
                 ret.specular_color = glm::dvec3(specular_color_value.Get(0).GetNumberAsDouble(),
-                                                       specular_color_value.Get(1).GetNumberAsDouble(),
-                                                       specular_color_value.Get(2).GetNumberAsDouble());
+                                                specular_color_value.Get(1).GetNumberAsDouble(),
+                                                specular_color_value.Get(2).GetNumberAsDouble());
             }
 
             if(value.Has(ext_specular_texture))
@@ -567,6 +567,37 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
             }
         }
     }
+    return ret;
+}
+
+vierkant::model::texture_sampler_state_t convert_sampler(const tinygltf::Sampler &tiny_sampler)
+{
+    vierkant::model::texture_sampler_state_t ret = {};
+
+    using Filter = model::texture_sampler_state_t::Filter;
+    auto convert_tiny_filter = [](int tf) -> Filter {
+        switch(tf)
+        {
+            case TINYGLTF_TEXTURE_FILTER_NEAREST: return Filter::NEAREST;
+            case TINYGLTF_TEXTURE_FILTER_LINEAR:
+            default: return Filter::LINEAR;
+        }
+    };
+    ret.min_filter = convert_tiny_filter(tiny_sampler.minFilter);
+    ret.mag_filter = convert_tiny_filter(tiny_sampler.magFilter);
+
+    using AddressMode = model::texture_sampler_state_t::AddressMode;
+    auto convert_tiny_wrap = [](int wrap) -> AddressMode {
+        switch(wrap)
+        {
+            case TINYGLTF_TEXTURE_WRAP_CLAMP_TO_EDGE: return AddressMode::CLAMP_TO_EDGE;
+            case TINYGLTF_TEXTURE_WRAP_MIRRORED_REPEAT: return AddressMode::MIRRORED_REPEAT;
+            case TINYGLTF_TEXTURE_WRAP_REPEAT:
+            default: return AddressMode::REPEAT;
+        }
+    };
+    ret.address_mode_u = convert_tiny_wrap(tiny_sampler.wrapS);
+    ret.address_mode_v = convert_tiny_wrap(tiny_sampler.wrapT);
     return ret;
 }
 
@@ -839,8 +870,9 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
     out_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
     out_assets.root_node->name = model.nodes[scene.nodes[0]].name;
 
-    // create images
+    // map tiny-indices to created assets
     std::map<uint32_t, crocore::ImagePtr> image_cache;
+    std::map<uint32_t, model::texture_sampler_state_t> sampler_cache;
 
     if(pool)
     {
@@ -858,15 +890,23 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
     {
         for(const auto &t: model.textures)
         {
-            //auto &sampler = model.samplers[t.sampler];
             auto &tiny_image = model.images[t.source];
-
-            if(!image_cache.count(t.source))
+            if(!image_cache.contains(t.source))
             {
                 auto img = crocore::Image_<uint8_t>::create(tiny_image.image.data(), tiny_image.width,
                                                             tiny_image.height, tiny_image.component);
                 image_cache[t.source] = img;
             }
+        }
+    }
+
+    // cache sampler under image-index (not correct way, but let's see)
+    for(const auto &t: model.textures)
+    {
+        if(t.sampler >= 0 && static_cast<uint32_t>(t.sampler) < model.samplers.size())
+        {
+            const auto &sampler = model.samplers[t.sampler];
+            if(!sampler_cache.contains(t.source)) { sampler_cache[t.source] = convert_sampler(sampler); }
         }
     }
 
@@ -877,6 +917,9 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
         auto texture_id = TextureId::random();
         id_cache[index] = texture_id;
         out_assets.textures[texture_id] = img;
+
+        // retrieve actual or default value
+        out_assets.texture_sampler_states[texture_id] = sampler_cache[index];
     }
 
     // create materials
@@ -885,8 +928,7 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
         try
         {
             out_assets.materials.push_back(convert_material(tiny_mat, model, image_cache, id_cache));
-        }
-        catch(std::exception &e)
+        } catch(std::exception &e)
         {
             spdlog::warn("could not convert material '{}' for: '{}' ({})", tiny_mat.name, path.string(), e.what());
             out_assets.materials.push_back({});
