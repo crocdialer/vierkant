@@ -193,7 +193,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
                         VkDescriptorImageInfo img_info = {};
                         img_info.imageLayout = img->image_layout();
                         img_info.imageView = image_view;
-                        img_info.sampler = img->sampler();
+                        img_info.sampler = img->sampler().get();
                         image_infos.push_back(img_info);
                     }
                 }

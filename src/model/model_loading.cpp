@@ -171,7 +171,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                                     : mesh_assets.materials;
 
     // create + cache textures
-    std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> texture_cache;
+    std::unordered_map<vierkant::TextureSourceId, vierkant::ImagePtr> texture_cache;
 
     for(const auto &[tex_id, tex_variant]: textures)
     {

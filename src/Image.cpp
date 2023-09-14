@@ -227,17 +227,8 @@ ImagePtr Image::create(DevicePtr device, const VkImagePtr &shared_image, Format 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format)
-    : m_device(std::move(device)), m_format(std::move(format))
-{
-    init(data, shared_image);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 Image::~Image()
 {
-    if(m_sampler) { vkDestroySampler(m_device->handle(), m_sampler, nullptr); }
     if(m_image_view) { vkDestroyImageView(m_device->handle(), m_image_view, nullptr); }
 
     for(uint32_t i = 0; i < m_num_mip_levels; ++i)
@@ -248,7 +239,8 @@ Image::~Image()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::init(const void *data, const VkImagePtr &shared_image)
+Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format)
+    : m_device(std::move(device)), m_format(std::move(format))
 {
     if(!m_format.extent.width || !m_format.extent.height || !m_format.extent.depth)
     {
@@ -387,8 +379,11 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
         reduction_mode_info.reductionMode = m_format.reduction_mode;
         sampler_create_info.pNext = &reduction_mode_info;
 
-        vkCheck(vkCreateSampler(m_device->handle(), &sampler_create_info, nullptr, &m_sampler),
+        VkSampler sampler;
+        vkCheck(vkCreateSampler(m_device->handle(), &sampler_create_info, nullptr, &sampler),
                 "failed to create texture sampler!");
+        m_sampler = VkSamplerPtr(sampler,
+                                 [device = m_device](VkSampler s) { vkDestroySampler(device->handle(), s, nullptr); });
     }
 
     ////////////////////////////////////////// layout transitions //////////////////////////////////////////////////////
@@ -413,8 +408,7 @@ void Image::init(const void *data, const VkImagePtr &shared_image)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer,
-                              VkDependencyFlags dependency_flags)
+void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer, VkDependencyFlags dependency_flags)
 {
     if(new_layout != m_image_layout)
     {

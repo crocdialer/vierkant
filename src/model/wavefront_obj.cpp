@@ -84,14 +84,14 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
 
         if(!mat.diffuse_texname.empty())
         {
-            auto tex_id = TextureId::random();
+            auto tex_id = TextureSourceId::random();
             m.textures[Material::TextureType::Color] = tex_id;
             mesh_assets.textures[tex_id] =
                     crocore::create_image_from_file((base_dir / mat.diffuse_texname).string(), 4);
         }
         if(!mat.normal_texname.empty())
         {
-            auto tex_id = TextureId::random();
+            auto tex_id = TextureSourceId::random();
             m.textures[Material::TextureType::Normal] = tex_id;
             mesh_assets.textures[tex_id] = crocore::create_image_from_file((base_dir / mat.normal_texname).string(), 4);
         }

@@ -163,9 +163,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     m_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     vkGetPhysicalDeviceProperties2(create_info.physical_device, &m_physical_device_properties);
 
-    // print vulkan/driver/vierkant-version
-    spdlog::info(device_info(create_info.physical_device));
-
     // add some obligatory features here
     VkPhysicalDeviceFeatures device_features = create_info.device_features;
     device_features.geometryShader = true;

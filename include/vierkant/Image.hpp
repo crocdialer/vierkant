@@ -3,8 +3,8 @@
 //
 #pragma once
 
-#include "vierkant/Device.hpp"
 #include "vierkant/Buffer.hpp"
+#include "vierkant/Device.hpp"
 
 namespace vierkant
 {
@@ -12,6 +12,7 @@ namespace vierkant
 DEFINE_CLASS_PTR(Image)
 
 using VkImagePtr = std::shared_ptr<VkImage_T>;
+using VkSamplerPtr = std::shared_ptr<VkSampler_T>;
 
 VkDeviceSize num_bytes(VkFormat format);
 
@@ -20,7 +21,6 @@ VkDeviceSize num_bytes(VkIndexType format);
 class Image
 {
 public:
-
     /**
      * @brief   Format groups all sort of information, necessary to describe and create a vierkant::Image.
      *          Format is default-constructable, trivially copyable, comparable and hashable.
@@ -45,10 +45,8 @@ public:
 
         VkSamplerReductionMode reduction_mode = VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE;
 
-        VkComponentMapping component_swizzle = {VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                VK_COMPONENT_SWIZZLE_IDENTITY,
-                                                VK_COMPONENT_SWIZZLE_IDENTITY};
+        VkComponentMapping component_swizzle = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
+                                                VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
         float max_anisotropy = 0.f;
         bool initial_layout_transition = true;
         bool use_mipmap = false;
@@ -64,7 +62,7 @@ public:
 
         bool operator==(const Format &other) const;
 
-        bool operator!=(const Format &other) const{ return !(*this == other); };
+        bool operator!=(const Format &other) const { return !(*this == other); };
     };
 
     /**
@@ -114,73 +112,79 @@ public:
     /**
      * @return  the image extent
      */
-    [[nodiscard]] inline const VkExtent3D &extent() const{ return m_format.extent; }
+    [[nodiscard]] inline const VkExtent3D &extent() const { return m_format.extent; }
 
     /**
      * @return  the width of the image in pixels
      */
-    [[nodiscard]] inline uint32_t width() const{ return m_format.extent.width; }
+    [[nodiscard]] inline uint32_t width() const { return m_format.extent.width; }
 
     /**
      * @return  the height of the image in pixels
      */
-    [[nodiscard]] inline uint32_t height() const{ return m_format.extent.height; }
+    [[nodiscard]] inline uint32_t height() const { return m_format.extent.height; }
 
     /**
      * @return  the depth of the image in pixels
      */
-    [[nodiscard]] inline uint32_t depth() const{ return m_format.extent.depth; }
+    [[nodiscard]] inline uint32_t depth() const { return m_format.extent.depth; }
 
     /**
      * @return  number of array layers
      */
-    [[nodiscard]] inline uint32_t num_layers() const{ return m_format.num_layers; }
+    [[nodiscard]] inline uint32_t num_layers() const { return m_format.num_layers; }
 
     /**
      * @return  the current format struct
      */
-    [[nodiscard]] const Format &format() const{ return m_format; }
+    [[nodiscard]] const Format &format() const { return m_format; }
 
     /**
      * @return  handle to the managed VkImage
      */
-    [[nodiscard]] VkImage image() const{ return m_image.get(); };
+    [[nodiscard]] VkImage image() const { return m_image.get(); };
 
     /**
      * @return  shared handle to the managed VkImage
      */
-    [[nodiscard]] const VkImagePtr &shared_image() const{ return m_image; };
+    [[nodiscard]] const VkImagePtr &shared_image() const { return m_image; };
 
     /**
      * @return  image view handle
      */
-    [[nodiscard]] VkImageView image_view() const{ return m_image_view; };
+    [[nodiscard]] VkImageView image_view() const { return m_image_view; };
 
     /**
      * @return  image view handles for mips
      */
-    [[nodiscard]] const std::vector<VkImageView> &mip_image_views() const{ return m_mip_image_views; };
+    [[nodiscard]] const std::vector<VkImageView> &mip_image_views() const { return m_mip_image_views; };
 
     /**
-     * @return  image sampler handle
+     * @return  shared image sampler handle
      */
-    [[nodiscard]] VkSampler sampler() const{ return m_sampler; };
+    [[nodiscard]] VkSamplerPtr sampler() const { return m_sampler; };
+
+    /**
+     * @brief   set a new shared VkSampler-handle.
+     *
+     * @param   sampler desired sampler
+     */
+    void set_sampler(VkSamplerPtr sampler) { m_sampler = std::move(sampler); }
 
     /**
      * @return  current image layout
      */
-    [[nodiscard]] VkImageLayout image_layout() const{ return m_image_layout; };
+    [[nodiscard]] VkImageLayout image_layout() const { return m_image_layout; };
 
     /**
      * @return  number of images in the mipmap chain.
      */
-    [[nodiscard]] uint32_t num_mip_levels() const{ return m_num_mip_levels; };
+    [[nodiscard]] uint32_t num_mip_levels() const { return m_num_mip_levels; };
 
     /**
      * @return  request transition to a new image layout
      */
-    void transition_layout(VkImageLayout new_layout,
-                           VkCommandBuffer cmd_buffer = VK_NULL_HANDLE,
+    void transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer = VK_NULL_HANDLE,
                            VkDependencyFlags dependency_flags = 0);
 
     /**
@@ -200,12 +204,8 @@ public:
      * @param   layer       the target layer in the image to copy the data into
      * @param   level       the target mip-level to copy the data into
      */
-    void copy_from(const BufferPtr &src,
-                   VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE,
-                   size_t buf_offset = 0,
-                   VkOffset3D img_offset = {0, 0, 0},
-                   VkExtent3D extent = {0, 0, 0},
-                   uint32_t layer = 0,
+    void copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle = VK_NULL_HANDLE, size_t buf_offset = 0,
+                   VkOffset3D img_offset = {0, 0, 0}, VkExtent3D extent = {0, 0, 0}, uint32_t layer = 0,
                    uint32_t level = 0);
 
     /**
@@ -218,12 +218,8 @@ public:
      * @param   layer       the target layer in the image to copy the data from
      * @param   level       the target mip-level to copy the data from
      */
-    void copy_to(const BufferPtr &dst,
-                 VkCommandBuffer command_buffer = VK_NULL_HANDLE,
-                 size_t buf_offset = 0,
-                 VkOffset3D img_offset = {0, 0, 0},
-                 VkExtent3D extent = {0, 0, 0},
-                 uint32_t layer = 0,
+    void copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer = VK_NULL_HANDLE, size_t buf_offset = 0,
+                 VkOffset3D img_offset = {0, 0, 0}, VkExtent3D extent = {0, 0, 0}, uint32_t layer = 0,
                  uint32_t level = 0);
 
     /**
@@ -234,22 +230,16 @@ public:
      * @param   dst_offset  the desitnation-offset used for the copy operation
      * @param   extent      the extent of the memory region to copy
      */
-    void copy_to(const ImagePtr &dst,
-                 VkCommandBuffer command_buffer = VK_NULL_HANDLE,
-                 VkOffset3D src_offset = {0, 0, 0},
-                 VkOffset3D dst_offset = {0, 0, 0},
-                 VkExtent3D extent = {0, 0, 0});
+    void copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer = VK_NULL_HANDLE,
+                 VkOffset3D src_offset = {0, 0, 0}, VkOffset3D dst_offset = {0, 0, 0}, VkExtent3D extent = {0, 0, 0});
 
     /**
      * @return  the vierkant::DevicePtr used to create the image.
      */
-    [[nodiscard]] vierkant::DevicePtr device() const{ return m_device; }
+    [[nodiscard]] vierkant::DevicePtr device() const { return m_device; }
 
 private:
-
     Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format);
-
-    void init(const void *data, const VkImagePtr &shared_image = nullptr);
 
     DevicePtr m_device;
 
@@ -266,7 +256,7 @@ private:
     std::vector<VkImageView> m_mip_image_views;
 
     // sampler handle
-    VkSampler m_sampler = VK_NULL_HANDLE;
+    VkSamplerPtr m_sampler = nullptr;
 
     // current image layout
     VkImageLayout m_image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -283,13 +273,13 @@ private:
 
 static inline bool operator==(const VkExtent3D &lhs, const VkExtent3D &rhs)
 {
-    if(lhs.width != rhs.width){ return false; }
-    if(lhs.height != rhs.height){ return false; }
-    if(lhs.depth != rhs.depth){ return false; }
+    if(lhs.width != rhs.width) { return false; }
+    if(lhs.height != rhs.height) { return false; }
+    if(lhs.depth != rhs.depth) { return false; }
     return true;
 }
 
-static inline bool operator!=(const VkExtent3D &lhs, const VkExtent3D &rhs){ return !(lhs == rhs); }
+static inline bool operator!=(const VkExtent3D &lhs, const VkExtent3D &rhs) { return !(lhs == rhs); }
 
 namespace std
 {
@@ -298,4 +288,4 @@ struct hash<vierkant::Image::Format>
 {
     size_t operator()(vierkant::Image::Format const &fmt) const;
 };
-}
+}// namespace std

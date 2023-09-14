@@ -19,7 +19,7 @@
 
 namespace vierkant
 {
-DEFINE_NAMED_UUID(TextureId)
+DEFINE_NAMED_UUID(TextureSourceId)
 DEFINE_NAMED_UUID(SamplerId)
 
 //! contains uncompressed or BC7-compressed images
@@ -80,8 +80,8 @@ struct material_t
     glm::mat4 texture_transform = glm::mat4(1);
 
     // maps TextureType to a TextureId/SamplerId. sorted in enum order, which is important in other places.
-    std::map<Material::TextureType, vierkant::TextureId> textures;
-//    std::map<Material::TextureType, vierkant::SamplerId> samplers;
+    std::map<Material::TextureType, vierkant::TextureSourceId> textures;
+    std::map<Material::TextureType, vierkant::SamplerId> samplers;
 };
 
 struct texture_sampler_state_t
@@ -149,10 +149,10 @@ struct mesh_assets_t
     std::vector<material_t> materials;
 
     //! common textures for all materials
-    std::unordered_map<vierkant::TextureId, texture_variant_t> textures;
+    std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
 
     //! texture-sample-states for all materials (TODO: correct this to use SamplerId)
-    std::unordered_map<vierkant::TextureId, texture_sampler_state_t> texture_sampler_states;
+    std::unordered_map<vierkant::TextureSourceId, texture_sampler_state_t> texture_sampler_states;
 
     //! optional lights defined in model-file
     std::vector<lightsource_t> lights;
@@ -179,7 +179,7 @@ struct asset_bundle_t
     std::vector<material_t> materials;
 
     //! common textures for all materials
-    std::unordered_map<vierkant::TextureId, texture_variant_t> textures;
+    std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
 };
 
 struct load_mesh_params_t
