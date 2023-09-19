@@ -98,8 +98,10 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     std::vector<vierkant::ImagePtr> pyramid_images = {params.depth_map};
     pyramid_images.resize(1 + context->depth_pyramid_img->num_mip_levels(), context->depth_pyramid_img);
 
-    pyramid_views.insert(pyramid_views.end(), context->depth_pyramid_img->mip_image_views().begin(),
-                         context->depth_pyramid_img->mip_image_views().end());
+    for(const auto &mip_image_view : context->depth_pyramid_img->mip_image_views())
+    {
+        pyramid_views.push_back(mip_image_view.get());
+    }
 
     vierkant::Compute::computable_t computable = context->depth_pyramid_computable;
 

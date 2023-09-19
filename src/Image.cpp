@@ -227,20 +227,9 @@ ImagePtr Image::create(DevicePtr device, const VkImagePtr &shared_image, Format 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Image::~Image()
-{
-    if(m_image_view) { vkDestroyImageView(m_device->handle(), m_image_view, nullptr); }
-
-    for(uint32_t i = 0; i < m_num_mip_levels; ++i)
-    {
-        vkDestroyImageView(m_device->handle(), m_mip_image_views[i], nullptr);
-    }
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format)
-    : m_device(std::move(device)), m_format(std::move(format))
+    : m_device(std::move(device)), m_image_layout(std::make_shared<VkImageLayout>(VK_IMAGE_LAYOUT_UNDEFINED)),
+      m_format(std::move(format))
 {
     if(!m_format.extent.width || !m_format.extent.height || !m_format.extent.depth)
     {
@@ -300,13 +289,14 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
         alloc_info.pool = m_format.memory_pool.get();
 
         VkImage image;
-        vmaCreateImage(m_device->vk_mem_allocator(), &image_create_info, &alloc_info, &image, &m_allocation,
-                       &m_allocation_info);
+        VmaAllocation allocation;
+        vmaCreateImage(m_device->vk_mem_allocator(), &image_create_info, &alloc_info, &image, &allocation, nullptr);
 
         // debug name
         if(!m_format.name.empty()) { m_device->set_object_name(uint64_t(image), VK_OBJECT_TYPE_IMAGE, m_format.name); }
-        m_image = VkImagePtr(image,
-                             [this](VkImage img) { vmaDestroyImage(m_device->vk_mem_allocator(), img, m_allocation); });
+        m_image = VkImagePtr(image, [device = m_device, allocation](VkImage img) {
+            vmaDestroyImage(device->vk_mem_allocator(), img, allocation);
+        });
     }
 
     ////////////////////////////////////////// copy contents ///////////////////////////////////////////////////////////
@@ -334,8 +324,11 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
     view_create_info.subresourceRange.baseArrayLayer = 0;
     view_create_info.subresourceRange.layerCount = m_format.num_layers;
 
-    vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &m_image_view),
+    VkImageView image_view;
+    vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &image_view),
             "failed to create texture image view!");
+    m_image_view = {image_view,
+                    [device = m_device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); }};
 
     m_mip_image_views.resize(m_num_mip_levels);
 
@@ -343,8 +336,12 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
     {
         view_create_info.subresourceRange.baseMipLevel = i;
         view_create_info.subresourceRange.levelCount = 1;
-        vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &m_mip_image_views[i]),
+        VkImageView mip_image_view;
+        vkCheck(vkCreateImageView(m_device->handle(), &view_create_info, nullptr, &mip_image_view),
                 "failed to create texture image view!");
+        m_mip_image_views[i] = {mip_image_view, [device = m_device](VkImageView v) {
+                                    vkDestroyImageView(device->handle(), v, nullptr);
+                                }};
     }
     ////////////////////////////////////////// create image sampler ////////////////////////////////////////////////////
 
@@ -410,7 +407,7 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
 
 void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer, VkDependencyFlags dependency_flags)
 {
-    if(new_layout != m_image_layout)
+    if(new_layout != *m_image_layout)
     {
         vierkant::CommandBuffer localCommandBuffer;
 
@@ -420,12 +417,12 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
             localCommandBuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
             cmd_buffer = localCommandBuffer.handle();
         }
-        transition_image_layout(cmd_buffer, m_image.get(), m_image_layout, new_layout, m_format.num_layers,
+        transition_image_layout(cmd_buffer, m_image.get(), *m_image_layout, new_layout, m_format.num_layers,
                                 m_num_mip_levels, m_format.aspect, dependency_flags);
 
         // submit local command-buffer, if any. also creates a fence and waits for completion of operation
         if(localCommandBuffer) { localCommandBuffer.submit(m_device->queue(), true); }
-        m_image_layout = new_layout;
+        *m_image_layout = new_layout;
     }
 }
 
@@ -472,7 +469,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle, s
         copy_info.pRegions = &region;
         copy_info.srcBuffer = src->handle();
         copy_info.dstImage = m_image.get();
-        copy_info.dstImageLayout = m_image_layout;
+        copy_info.dstImageLayout = *m_image_layout;
         vkCmdCopyBufferToImage2(cmd_buffer_handle, &copy_info);
 
         // generate new mipmaps after copying
@@ -522,7 +519,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, size_t
         copy_info.regionCount = 1;
         copy_info.pRegions = &region;
         copy_info.srcImage = m_image.get();
-        copy_info.srcImageLayout = m_image_layout;
+        copy_info.srcImageLayout = *m_image_layout;
         copy_info.dstBuffer = dst->handle();
         vkCmdCopyImageToBuffer2(command_buffer, &copy_info);
 
@@ -575,7 +572,7 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
         copy_info.regionCount = 1;
         copy_info.pRegions = &region;
         copy_info.srcImage = m_image.get();
-        copy_info.srcImageLayout = m_image_layout;
+        copy_info.srcImageLayout = *m_image_layout;
         copy_info.dstImage = dst->image();
         copy_info.dstImageLayout = dst->image_layout();
 
@@ -700,10 +697,14 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
     vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 
     if(local_command_buffer) { local_command_buffer.submit(m_device->queue(), true); }
-    m_image_layout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+    *m_image_layout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ImagePtr Image::clone() const { return ImagePtr(new Image(*this)); }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Image::Format::operator==(const Image::Format &other) const
 {

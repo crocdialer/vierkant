@@ -12,6 +12,8 @@ namespace vierkant
 DEFINE_CLASS_PTR(Image)
 
 using VkImagePtr = std::shared_ptr<VkImage_T>;
+using VkImageViewPtr = std::shared_ptr<VkImageView_T>;
+using VkImageLayoutPtr = std::shared_ptr<VkImageLayout>;
 using VkSamplerPtr = std::shared_ptr<VkSampler_T>;
 
 VkDeviceSize num_bytes(VkFormat format);
@@ -81,33 +83,35 @@ public:
                                   VmaPoolCreateFlags vma_flags = 0);
 
     /**
-     * @brief   Factory to create instances of ImagePtr.
-     *
-     * @return  a newly created ImagePtr
-     */
-    static ImagePtr create(DevicePtr device, const void *data, Format format);
-
-    /**
-     * @brief   Factory to create instances of ImagePtr.
+     * @brief   Factory to create an empty, shared vierkant::Image with provided format.
      *
      * @return  a newly created ImagePtr
      */
     static ImagePtr create(DevicePtr device, Format format);
 
     /**
-     * @brief   Factory to create instances of ImagePtr.
+     * @brief   Factory to create a shared vierkant::Image with provided format and image-data.
+     *
+     * provided image-data will be copied into a gpu-buffer using internal staging with blocking sync.
+     *
+     * @return  a newly created ImagePtr
+     */
+    static ImagePtr create(DevicePtr device, const void *data, Format format);
+
+    /**
+     * @brief   Factory to create a shared vierkant::Image with provided format, using an existing image-handle.
+     *
+     * 'can' be used to e.g. wrap pre-existing swapchain-image-handles.
      *
      * @return  a newly created ImagePtr
      */
     static ImagePtr create(DevicePtr device, const VkImagePtr &shared_image, Format format);
 
-    Image(const Image &) = delete;
-
     Image(Image &&) = delete;
 
     Image &operator=(Image other) = delete;
 
-    ~Image();
+    ~Image() = default;
 
     /**
      * @return  the image extent
@@ -145,19 +149,14 @@ public:
     [[nodiscard]] VkImage image() const { return m_image.get(); };
 
     /**
-     * @return  shared handle to the managed VkImage
-     */
-    [[nodiscard]] const VkImagePtr &shared_image() const { return m_image; };
-
-    /**
      * @return  image view handle
      */
-    [[nodiscard]] VkImageView image_view() const { return m_image_view; };
+    [[nodiscard]] VkImageView image_view() const { return m_image_view.get(); };
 
     /**
      * @return  image view handles for mips
      */
-    [[nodiscard]] const std::vector<VkImageView> &mip_image_views() const { return m_mip_image_views; };
+    [[nodiscard]] const std::vector<VkImageViewPtr> &mip_image_views() const { return m_mip_image_views; };
 
     /**
      * @return  shared image sampler handle
@@ -174,7 +173,7 @@ public:
     /**
      * @return  current image layout
      */
-    [[nodiscard]] VkImageLayout image_layout() const { return m_image_layout; };
+    [[nodiscard]] VkImageLayout image_layout() const { return *m_image_layout; };
 
     /**
      * @return  number of images in the mipmap chain.
@@ -234,6 +233,13 @@ public:
                  VkOffset3D src_offset = {0, 0, 0}, VkOffset3D dst_offset = {0, 0, 0}, VkExtent3D extent = {0, 0, 0});
 
     /**
+     * @brief   clone an image, yielding a new ImagePtr with image/image-views/sampler being shared.
+     *
+     * @return  a cloned vierkant::ImagePtr
+     */
+    [[nodiscard]] ImagePtr clone() const;
+
+    /**
      * @return  the vierkant::DevicePtr used to create the image.
      */
     [[nodiscard]] vierkant::DevicePtr device() const { return m_device; }
@@ -241,7 +247,9 @@ public:
 private:
     Image(DevicePtr device, const void *data, const VkImagePtr &shared_image, Format format);
 
-    DevicePtr m_device;
+    Image(const Image &) = default;
+
+    DevicePtr m_device = nullptr;
 
     // number of images in mipmap chain
     uint32_t m_num_mip_levels = 1;
@@ -250,23 +258,19 @@ private:
     VkImagePtr m_image = nullptr;
 
     // image view handle
-    VkImageView m_image_view = VK_NULL_HANDLE;
+    VkImageViewPtr m_image_view = nullptr;
 
     // image view handles for mipmap-levels
-    std::vector<VkImageView> m_mip_image_views;
+    std::vector<VkImageViewPtr> m_mip_image_views;
 
     // sampler handle
     VkSamplerPtr m_sampler = nullptr;
 
     // current image layout
-    VkImageLayout m_image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkImageLayoutPtr m_image_layout = nullptr;
 
     // current format
     Format m_format;
-
-    // vma assets
-    VmaAllocation m_allocation = nullptr;
-    VmaAllocationInfo m_allocation_info = {};
 };
 
 }//namespace vierkant

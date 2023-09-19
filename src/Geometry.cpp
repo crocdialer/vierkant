@@ -16,7 +16,7 @@ inline uint64_t pack(uint64_t a, uint64_t b) { return (a << 32U) | b; }
 inline uint64_t swizzle(uint64_t a) { return ((a & 0xFFFFFFFFU) << 32U) | (a >> 32U); }
 }// namespace
 
-std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
+[[maybe_unused]] std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom)
 {
     if(geom->topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST || geom->indices.size() < 3)
     {

@@ -25,31 +25,59 @@ VkFormat vk_format(const crocore::ImagePtr &img)
     return ret;
 }
 
-VkSamplerAddressMode vk_sampler_address_mode(const vierkant::model::texture_sampler_state_t::AddressMode &address_mode)
+VkSamplerAddressMode vk_sampler_address_mode(const vierkant::model::texture_sampler_t::AddressMode &address_mode)
 {
     switch(address_mode)
     {
-        case texture_sampler_state_t::AddressMode::MIRRORED_REPEAT: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
-        case texture_sampler_state_t::AddressMode::CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        case texture_sampler_state_t::AddressMode::CLAMP_TO_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-        case texture_sampler_state_t::AddressMode::MIRROR_CLAMP_TO_EDGE:
-        case texture_sampler_state_t::AddressMode::REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        default:
-            return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+        case texture_sampler_t::AddressMode::MIRRORED_REPEAT: return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+        case texture_sampler_t::AddressMode::CLAMP_TO_EDGE: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        case texture_sampler_t::AddressMode::CLAMP_TO_BORDER: return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+        case texture_sampler_t::AddressMode::MIRROR_CLAMP_TO_EDGE:
+        case texture_sampler_t::AddressMode::REPEAT: return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        default: return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
     }
 }
 
-VkFilter vk_filter(const vierkant::model::texture_sampler_state_t::Filter &filter)
+VkFilter vk_filter(const vierkant::model::texture_sampler_t::Filter &filter)
 {
     switch(filter)
     {
 
-        case texture_sampler_state_t::Filter::NEAREST: return VK_FILTER_NEAREST;
-        case texture_sampler_state_t::Filter::LINEAR: return VK_FILTER_LINEAR;
-        case texture_sampler_state_t::Filter::CUBIC: return VK_FILTER_CUBIC_EXT;
+        case texture_sampler_t::Filter::NEAREST: return VK_FILTER_NEAREST;
+        case texture_sampler_t::Filter::LINEAR: return VK_FILTER_LINEAR;
+        case texture_sampler_t::Filter::CUBIC: return VK_FILTER_CUBIC_EXT;
         default: break;
     }
     return VK_FILTER_NEAREST;
+}
+
+vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::model::texture_sampler_t &ts,
+                                      uint32_t num_mips)
+{
+    VkSamplerCreateInfo sampler_create_info = {};
+    sampler_create_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler_create_info.magFilter = vk_filter(ts.mag_filter);
+    sampler_create_info.minFilter = vk_filter(ts.min_filter);
+    sampler_create_info.addressModeU = vk_sampler_address_mode(ts.address_mode_u);
+    sampler_create_info.addressModeV = vk_sampler_address_mode(ts.address_mode_v);
+    sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
+    sampler_create_info.anisotropyEnable = true;
+    sampler_create_info.maxAnisotropy = device->properties().limits.maxSamplerAnisotropy;
+
+    sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    sampler_create_info.unnormalizedCoordinates = false;
+    sampler_create_info.compareEnable = VK_FALSE;
+    sampler_create_info.compareOp = VK_COMPARE_OP_ALWAYS;
+    sampler_create_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler_create_info.mipLodBias = 0.0f;
+    sampler_create_info.minLod = 0.0f;
+    sampler_create_info.maxLod = static_cast<float>(num_mips);
+
+    VkSampler sampler;
+    vkCheck(vkCreateSampler(device->handle(), &sampler_create_info, nullptr, &sampler),
+            "failed to create texture sampler!");
+    return {sampler, [device](VkSampler s) { vkDestroySampler(device->handle(), s, nullptr); }};
 }
 
 bool compress_textures(vierkant::model::mesh_assets_t &mesh_assets)
@@ -80,9 +108,8 @@ bool compress_textures(vierkant::model::mesh_assets_t &mesh_assets)
                                 return compressed_img;
                             }
                         }
-                        else if constexpr(std::is_same_v<T, vierkant::bc7::compress_result_t>) {}
 
-                        // in case variant was already compressed
+                        // variant was already compressed
                         return img;
                     },
                     texture_variant);
@@ -114,9 +141,8 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     auto mesh_staging_buf = vierkant::Buffer::create(params.device, nullptr, 1U << 20, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                      VMA_MEMORY_USAGE_CPU_ONLY);
 
-    auto create_texture = [device = params.device, cmd_buf_handle = cmd_buf.handle(), &staging_buffers](
-                                  const crocore::ImagePtr &img,
-                                  const model::texture_sampler_state_t &sampler_state) -> vierkant::ImagePtr {
+    auto create_texture = [device = params.device, cmd_buf_handle = cmd_buf.handle(),
+                           &staging_buffers](const crocore::ImagePtr &img) -> vierkant::ImagePtr {
         if(!img) { return nullptr; }
 
         vierkant::Image::Format fmt;
@@ -124,11 +150,6 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         fmt.extent = {img->width(), img->height(), 1};
         fmt.use_mipmap = true;
-        fmt.max_anisotropy = device->properties().limits.maxSamplerAnisotropy;
-        fmt.address_mode_u = vk_sampler_address_mode(sampler_state.address_mode_u);
-        fmt.address_mode_v = vk_sampler_address_mode(sampler_state.address_mode_u);
-        fmt.min_filter = vk_filter(sampler_state.min_filter);
-        fmt.mag_filter = vk_filter(sampler_state.mag_filter);
         fmt.initial_layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         fmt.initial_cmd_buffer = cmd_buf_handle;
 
@@ -170,40 +191,28 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                                     ? asset_bundle->materials
                                     : mesh_assets.materials;
 
-    // create + cache textures
+    // create + cache textures & samplers
     std::unordered_map<vierkant::TextureSourceId, vierkant::ImagePtr> texture_cache;
+    std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> sampler_cache;
 
+    // generate textures with default samplers
     for(const auto &[tex_id, tex_variant]: textures)
     {
         std::visit(
-                [&params, tex_id = tex_id, &texture_cache, &create_texture,
-                 &samplers = mesh_assets.texture_sampler_states](auto &&img) {
+                [&params, tex_id = tex_id, &texture_cache, &create_texture](auto &&img) {
                     using T = std::decay_t<decltype(img)>;
 
-                    // retrieve sampler-state
-                    vierkant::model::texture_sampler_state_t sampler_state = {};
-                    auto sampler_it = samplers.find(tex_id);
-                    if(sampler_it != samplers.end()) { sampler_state = sampler_it->second; }
-
-                    if constexpr(std::is_same_v<T, crocore::ImagePtr>)
-                    {
-                        texture_cache[tex_id] = create_texture(img, sampler_state);
-                    }
+                    if constexpr(std::is_same_v<T, crocore::ImagePtr>) { texture_cache[tex_id] = create_texture(img); }
                     else if constexpr(std::is_same_v<T, vierkant::bc7::compress_result_t>)
                     {
                         vierkant::Image::Format fmt;
                         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
                         fmt.max_anisotropy = params.device->properties().limits.maxSamplerAnisotropy;
-                        fmt.address_mode_u = vk_sampler_address_mode(sampler_state.address_mode_u);
-                        fmt.address_mode_v = vk_sampler_address_mode(sampler_state.address_mode_v);
-                        fmt.min_filter = vk_filter(sampler_state.min_filter);
-                        fmt.mag_filter = vk_filter(sampler_state.mag_filter);
                         texture_cache[tex_id] = create_compressed_texture(params.device, img, fmt, params.load_queue);
                     }
                 },
                 tex_variant);
     }
-
     mesh->materials.resize(std::max<size_t>(1, materials.size()));
 
     for(uint32_t i = 0; i < materials.size(); ++i)
@@ -237,7 +246,21 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
 
         for(const auto &[tex_type, tex_id]: materials[i].textures)
         {
-            material->textures[tex_type] = texture_cache[tex_id];
+            auto vk_img = texture_cache[tex_id];
+
+            // optional sampler-override
+            auto sampler_id_it = materials[i].samplers.find(tex_type);
+            if(sampler_id_it != materials[i].samplers.end())
+            {
+                // clone img
+                vk_img = texture_cache[tex_id]->clone();
+                const auto &sampler_id = sampler_id_it->second;
+                assert(mesh_assets.texture_samplers.contains(sampler_id));
+                auto vk_sampler = create_sampler(params.device, mesh_assets.texture_samplers.at(sampler_id),
+                                                 vk_img->num_mip_levels());
+                vk_img->set_sampler(vk_sampler);
+            }
+            material->textures[tex_type] = vk_img;
         }
 
         material->texture_transform = materials[i].texture_transform;
@@ -248,6 +271,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     return mesh;
 }
 
+// TODO: fix unnecessary blocking, rework with commandbuffer-handle and staging-buffer!?
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bc7::compress_result_t &compression_result,
                                              vierkant::Image::Format format, VkQueue load_queue)

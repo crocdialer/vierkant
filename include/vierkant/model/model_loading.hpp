@@ -84,7 +84,7 @@ struct material_t
     std::map<Material::TextureType, vierkant::SamplerId> samplers;
 };
 
-struct texture_sampler_state_t
+struct texture_sampler_t
 {
     enum class Filter
     {
@@ -152,7 +152,7 @@ struct mesh_assets_t
     std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
 
     //! texture-sample-states for all materials (TODO: correct this to use SamplerId)
-    std::unordered_map<vierkant::TextureSourceId, texture_sampler_state_t> texture_sampler_states;
+    std::unordered_map<vierkant::SamplerId , texture_sampler_t> texture_samplers;
 
     //! optional lights defined in model-file
     std::vector<lightsource_t> lights;

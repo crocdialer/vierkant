@@ -33,7 +33,7 @@ struct HalfEdge
  * @param   geom    the geometry to compute the half-edges for
  * @return  an array containing the half-edges
  */
-std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom);
+[[maybe_unused]] std::vector<HalfEdge> compute_half_edges(const vierkant::GeometryConstPtr &geom);
 
 /**
  * @brief   signature for a tessellation-control function.
