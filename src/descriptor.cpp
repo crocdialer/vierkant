@@ -115,8 +115,8 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
-                           const descriptor_map_t &descriptors)
+void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_map_t &descriptors,
+                           const DescriptorSetPtr &descriptor_set)
 {
     std::vector<VkWriteDescriptorSet> descriptor_writes;
 
@@ -265,6 +265,14 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void update_descriptor_buffer(const vierkant::DevicePtr &/*device*/, const descriptor_map_t &/*descriptors*/,
+                              const vierkant::BufferPtr &/*out_descriptor_buffer*/)
+{
+
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device,
                                                const DescriptorSetLayoutPtr &set_layout,
                                                const descriptor_map_t &descriptors,
@@ -299,7 +307,7 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
         }
 
         // update the descriptor set
-        vierkant::update_descriptor_set(device, ret, descriptors);
+        vierkant::update_descriptor_set(device, descriptors, ret);
 
         // insert all created assets and store in map
         current[descriptors] = ret;

@@ -97,11 +97,22 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const 
  * @brief   Update an existing shared VkDescriptorSet with a provided array of vierkant::descriptor_t.
  *
  * @param   device          handle for the vierkant::Device to update the DescriptorSet
- * @param   descriptor_set  handle for a shared VkDescriptorSet to update
  * @param   descriptors     an array of descriptor_t to use for updating the DescriptorSet
+ * @param   descriptor_set  handle for a shared VkDescriptorSet to update
  */
-void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSetPtr &descriptor_set,
-                           const descriptor_map_t &descriptors);
+void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_map_t &descriptors,
+                           const DescriptorSetPtr &descriptor_set);
+
+/**
+ * @brief   Update an existing shared vierkant::Buffer, used as descriptor-buffer,
+ *          with a provided array of vierkant::descriptor_t.
+ *
+ * @param   device          handle for the vierkant::Device to update the DescriptorSet
+ * @param   descriptors     an array of descriptor_t to use for updating the descriptor-buffer
+ * @param   descriptor_set  handle for a shared VkDescriptorSet to update
+ */
+void update_descriptor_buffer(const vierkant::DevicePtr &device, const descriptor_map_t &descriptors,
+                              const vierkant::BufferPtr &out_descriptor_buffer);
 
 /**
  * @brief   find_or_create_set_layout can be used to search for an existing descriptor-set-layout or create a new one.
@@ -112,10 +123,9 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const DescriptorSe
  * @param   current     output cache of retrieved/created descriptor-sets.
  * @return  a retrieved or newly created, shared VkDescriptorSetLayout.
  */
-DescriptorSetLayoutPtr
-find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
-                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
-                          std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next);
+DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &device, descriptor_map_t descriptors,
+                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &current,
+                                                 std::unordered_map<descriptor_map_t, DescriptorSetLayoutPtr> &next);
 
 /**
  * @brief   find_or_create_descriptor_set can be used to search for an existing descriptor-set or create a new one.

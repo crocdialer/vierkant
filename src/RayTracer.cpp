@@ -144,7 +144,7 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
                                                                   next_descriptor_set_cache, false);
 
     // update descriptor-set with actual descriptors
-    vierkant::update_descriptor_set(m_device, descriptor_set, tracable.descriptors);
+    vierkant::update_descriptor_set(m_device, tracable.descriptors, descriptor_set);
 
     VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 

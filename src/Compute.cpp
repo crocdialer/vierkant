@@ -102,7 +102,7 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
                     next_descriptor_set_cache, false);
 
             // update descriptor-set with actual descriptors
-            vierkant::update_descriptor_set(m_device, descriptor_set, computable.descriptors);
+            vierkant::update_descriptor_set(m_device, computable.descriptors, descriptor_set);
 
             VkDescriptorSet descriptor_set_handle = descriptor_set.get();
 
