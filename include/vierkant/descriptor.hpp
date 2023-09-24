@@ -111,7 +111,9 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
  * @param   descriptors     an array of descriptor_t to use for updating the descriptor-buffer
  * @param   descriptor_set  handle for a shared VkDescriptorSet to update
  */
-void update_descriptor_buffer(const vierkant::DevicePtr &device, const descriptor_map_t &descriptors,
+void update_descriptor_buffer(const vierkant::DevicePtr &device,
+                              const DescriptorSetLayoutPtr &layout,
+                              const descriptor_map_t &descriptors,
                               const vierkant::BufferPtr &out_descriptor_buffer);
 
 /**

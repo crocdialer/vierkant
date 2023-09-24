@@ -246,21 +246,17 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     ray_tracing_pipeline_features.pNext = &ray_query_features;
     last_pNext = &ray_query_features.pNext;
 
-    //------------------------------------ mesh-shader feature ---------------------------------------------------------
+    //------------------------------------ VK_EXT_mesh_shader feature ---------------------------------------------------------
     VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader_features = {};
     mesh_shader_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
     *last_pNext = &mesh_shader_features;
     last_pNext = &mesh_shader_features.pNext;
 
-    VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader_properties = {};
-    mesh_shader_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
-
-    {
-        VkPhysicalDeviceProperties2 props = {};
-        props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-        props.pNext = &mesh_shader_properties;
-        vkGetPhysicalDeviceProperties2(create_info.physical_device, &props);
-    }
+    //------------------------------------ VK_EXT_descriptor_buffer feature --------------------------------------------
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer_features = {};
+    descriptor_buffer_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
+    *last_pNext = &descriptor_buffer_features;
+    last_pNext = &descriptor_buffer_features.pNext;
 
     //------------------------------------------------------------------------------------------------------------------
 
