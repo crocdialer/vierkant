@@ -1227,13 +1227,13 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     {
         // G-buffer (pre and post occlusion-culling)
         asset.g_buffer_main = create_g_buffer(m_device, size);
-        asset.g_buffer_main.debug_label = {"g_buffer_main"};
+        asset.g_buffer_main.debug_label = {.text = "g_buffer_main"};
 
         auto renderpass_no_clear_depth =
                 vierkant::create_renderpass(m_device, asset.g_buffer_main.attachments(), false, false);
         asset.g_buffer_post =
                 vierkant::Framebuffer(m_device, asset.g_buffer_main.attachments(), renderpass_no_clear_depth);
-        asset.g_buffer_post.debug_label = {"g_buffer_post"};
+        asset.g_buffer_post.debug_label = {.text = "g_buffer_post"};
         asset.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
 
         auto depth_fmt = asset.g_buffer_main.depth_attachment()->format();

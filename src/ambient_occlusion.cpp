@@ -58,7 +58,7 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
     framebuffer_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
     framebuffer_info.color_attachment_format.format = VK_FORMAT_R16_SFLOAT;
     framebuffer_info.color_attachment_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    framebuffer_info.debug_label = {"ambient_occlusion"};
+    framebuffer_info.debug_label = {.text = "ambient_occlusion"};
     framebuffer_info.color_attachment_format.name = "ambient_occlusion";
     ret->framebuffer = vierkant::Framebuffer(device, framebuffer_info);
 
