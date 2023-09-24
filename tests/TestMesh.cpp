@@ -129,7 +129,7 @@ BOOST_AUTO_TEST_CASE(TestMesh)
     auto descriptor_set = vierkant::create_descriptor_set(test_context.device, pool, descriptor_set_layout, false);
 
     // update the descriptor set
-    vierkant::update_descriptor_set(test_context.device, descriptor_set, descriptors);
+    vierkant::update_descriptor_set(test_context.device, descriptors, descriptor_set);
 
 }
 
