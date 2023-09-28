@@ -265,7 +265,7 @@ private:
                                                             const build_scene_acceleration_params_t &params,
                                                             const vierkant::AccelerationStructurePtr &last) const;
 
-    void set_function_pointers();
+//    void set_function_pointers();
 
     [[nodiscard]] acceleration_asset_t
     create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info) const;
@@ -285,14 +285,14 @@ private:
 
     vierkant::BufferPtr m_placeholder_buffer;
 
-    // process-addresses for raytracing related functions
-    PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;
-    PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR = nullptr;
-    PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;
-    PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR = nullptr;
-    PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR = nullptr;
-    PFN_vkCmdWriteAccelerationStructuresPropertiesKHR vkCmdWriteAccelerationStructuresPropertiesKHR = nullptr;
-    PFN_vkCmdCopyAccelerationStructureKHR vkCmdCopyAccelerationStructureKHR = nullptr;
+//    // process-addresses for raytracing related functions
+//    PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;
+//    PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR = nullptr;
+//    PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;
+//    PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR = nullptr;
+//    PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR = nullptr;
+//    PFN_vkCmdWriteAccelerationStructuresPropertiesKHR vkCmdWriteAccelerationStructuresPropertiesKHR = nullptr;
+//    PFN_vkCmdCopyAccelerationStructureKHR vkCmdCopyAccelerationStructureKHR = nullptr;
 };
 
 }// namespace vierkant

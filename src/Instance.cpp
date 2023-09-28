@@ -183,6 +183,8 @@ Instance &Instance::operator=(Instance other)
 
 bool Instance::init(const create_info_t &create_info)
 {
+    vkCheck(volkInitialize(), "failed during 'volkInitialize()': unable to retrieve vulkan function-pointers");
+
     auto used_extensions = create_info.extensions;
     if(create_info.use_validation_layers || create_info.use_debug_labels)
     {
@@ -238,6 +240,9 @@ bool Instance::init(const create_info_t &create_info)
 
     // create the vulkan instance
     vkCheck(vkCreateInstance(&instance_create_info, nullptr, &m_handle), "failed to create instance!");
+
+    // load all instance-functions pointers dynamically
+    volkLoadInstance(m_handle);
 
     if(create_info.use_validation_layers)
     {

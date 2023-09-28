@@ -72,7 +72,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
                                         const create_depth_pyramid_params_t &params)
 {
     context->depth_pyramid_cmd_buffer.begin(0);
-    context->device->begin_label(context->depth_pyramid_cmd_buffer.handle(), {fmt::format("create_depth_pyramid")});
+    vierkant::begin_label(context->depth_pyramid_cmd_buffer.handle(), {fmt::format("create_depth_pyramid")});
 
     auto extent_pyramid_lvl0 = params.depth_map->extent();
     extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
@@ -194,7 +194,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     vkCmdWriteTimestamp2(context->depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
                          params.query_pool.get(), params.query_index_end);
 
-    context->device->end_label(context->depth_pyramid_cmd_buffer.handle());
+    vierkant::end_label(context->depth_pyramid_cmd_buffer.handle());
     context->depth_pyramid_cmd_buffer.submit(params.queue, false, VK_NULL_HANDLE, {params.semaphore_submit_info});
     return context->depth_pyramid_img;
 }
@@ -203,7 +203,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
 {
     // start command-buffer
     context->cull_cmd_buffer.begin(0);
-    context->device->begin_label(context->cull_cmd_buffer.handle(), {fmt::format("gpu_cull")});
+    vierkant::begin_label(context->cull_cmd_buffer.handle(), {fmt::format("gpu_cull")});
     vkCmdWriteTimestamp2(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          params.query_pool.get(), params.query_index_start);
 
@@ -323,7 +323,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
                              params.query_pool.get(), params.query_index_end);
     }
 
-    context->device->end_label(context->cull_cmd_buffer.handle());
+    vierkant::end_label(context->cull_cmd_buffer.handle());
     context->cull_cmd_buffer.submit(params.queue, false, VK_NULL_HANDLE, {params.semaphore_submit_info});
 
     // return results from host-buffer

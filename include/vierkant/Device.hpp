@@ -7,6 +7,7 @@
 #include <map>
 #include <vierkant/Instance.hpp>
 #include <vierkant/math.hpp>
+#include <vierkant/debug_label.hpp>
 #include <vk_mem_alloc.h>
 
 namespace vierkant
@@ -35,11 +36,6 @@ using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
 class Device
 {
 public:
-    struct debug_label_t
-    {
-        std::string text;
-        glm::vec4 color = {0.6f, 0.6f, 0.6f, 1.f};
-    };
 
     struct create_info_t
     {
@@ -54,6 +50,9 @@ public:
 
         //! use debug_utils extension
         bool debug_labels = false;
+
+        //! short-circuit function-pointers directly to device/driver entries (useful if only a single device exists)
+        bool direct_function_pointers = false;
 
         //! optional VkSurface
         VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -145,54 +144,6 @@ public:
     [[nodiscard]] VmaAllocator vk_mem_allocator() const { return m_vk_mem_allocator; };
 
     /**
-     * @brief   'begin_label' can be used to mark the start of a labeled section within a commandbuffer.
-     *
-     * @param   commandbuffer   a provided commandbuffer
-     * @param   label           a debug-label object.
-     */
-    void begin_label(VkCommandBuffer commandbuffer, const debug_label_t &label);
-
-    /**
-     * @brief   'begin_label' can be used to mark the start of a labeled section within a queue.
-     *
-     * @param   queue   a provided queue
-     * @param   label   a debug-label object.
-     */
-    void begin_label(VkQueue queue, const debug_label_t &label);
-
-    /**
-     * @brief   'end_label' needs to be used after previous calls to 'begin_label',
-     *          to mark the end of a labeled section within a commandbuffer.
-     *
-     * @param   commandbuffer   a provided commandbuffer.
-     */
-    void end_label(VkCommandBuffer commandbuffer);
-
-    /**
-     * @brief   'end_label' needs to be used after previous calls to 'begin_label',
-     *          to mark the end of a labeled section within a queue.
-     *
-     * @param   queue   a provided queue.
-     */
-    void end_label(VkQueue queue);
-
-    /**
-     * @brief   insert_label can be used to insert a singular label into a commandbuffer.
-     *
-     * @param   commandbuffer   a provided commandbuffer
-     * @param   label           a debug-label object.
-     */
-    void insert_label(VkCommandBuffer commandbuffer, const debug_label_t &label);
-
-    /**
-     * @brief   insert_label can be used to insert a singular label into a queue.
-     *
-     * @param   queue   a provided queue
-     * @param   label   a debug-label object.
-     */
-    void insert_label(VkQueue queue, const debug_label_t &label);
-
-    /**
      * @brief   set_object_name can be used to set a name for an object.
      *
      * @param   handle  an arbitrary vulkan-handle
@@ -229,15 +180,6 @@ private:
 
     // transient command pool (transfer queue)
     VkCommandPool m_command_pool_transfer = VK_NULL_HANDLE;
-
-    //! debug-labels (VK_EXT_debug_utils)
-    PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT = nullptr;
-    PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT = nullptr;
-    PFN_vkCmdInsertDebugUtilsLabelEXT vkCmdInsertDebugUtilsLabelEXT = nullptr;
-    PFN_vkQueueBeginDebugUtilsLabelEXT vkQueueBeginDebugUtilsLabelEXT = nullptr;
-    PFN_vkQueueEndDebugUtilsLabelEXT vkQueueEndDebugUtilsLabelEXT = nullptr;
-    PFN_vkQueueInsertDebugUtilsLabelEXT vkQueueInsertDebugUtilsLabelEXT = nullptr;
-    PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT = nullptr;
 };
 
 }// namespace vierkant

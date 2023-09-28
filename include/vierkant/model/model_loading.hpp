@@ -151,7 +151,7 @@ struct mesh_assets_t
     //! common textures for all materials
     std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
 
-    //! texture-sample-states for all materials (TODO: correct this to use SamplerId)
+    //! texture-sample-states for all materials
     std::unordered_map<vierkant::SamplerId , texture_sampler_t> texture_samplers;
 
     //! optional lights defined in model-file
@@ -217,7 +217,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                             const std::optional<asset_bundle_t> &asset_bundle = {});
 
 /**
- * @brief   compress_textures will compress all images found in contained materials in-place.
+ * @brief   compress_textures will compress all images found provided mesh_assets in-place.
  *
  * @param   mesh_assets     a mesh_assets struct.
  * @return  true, if all images contained in mesh_assets are compressed.

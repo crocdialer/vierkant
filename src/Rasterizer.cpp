@@ -59,9 +59,6 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
         props.pNext = &m_mesh_shader_properties;
         vkGetPhysicalDeviceProperties2(m_device->physical_device(), &props);
     }
-
-    // VK_EXT_mesh_shading function and pointers
-    set_function_pointers();
     use_mesh_shader = create_info.enable_mesh_shader && vkCmdDrawMeshTasksEXT;
     m_mesh_task_count = create_info.mesh_task_count;
 
@@ -152,9 +149,6 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
 
     std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
     std::swap(lhs.m_mesh_task_count, rhs.m_mesh_task_count);
-    std::swap(lhs.vkCmdDrawMeshTasksEXT, rhs.vkCmdDrawMeshTasksEXT);
-    std::swap(lhs.vkCmdDrawMeshTasksIndirectEXT, rhs.vkCmdDrawMeshTasksIndirectEXT);
-    std::swap(lhs.vkCmdDrawMeshTasksIndirectCountEXT, rhs.vkCmdDrawMeshTasksIndirectCountEXT);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -469,7 +463,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     push_constants.debug_draw_ids = debug_draw_ids;
 
     // record start-timestamp
-    if(debug_label) { m_device->begin_label(command_buffer, *debug_label); }
+    if(debug_label) { vierkant::begin_label(command_buffer, *debug_label); }
     vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, frame_assets.query_pool.get(), 0);
 
     // grouped by pipelines
@@ -621,7 +615,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
     // record end-timestamp
     vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, frame_assets.query_pool.get(), 1);
-    if(debug_label) { m_device->end_label(command_buffer); }
+    if(debug_label) { vierkant::end_label(command_buffer); }
 
     // keep the stuff in use
     frame_assets.descriptor_set_layouts = std::move(next_set_layouts);
@@ -636,18 +630,6 @@ void Rasterizer::reset()
     m_current_index = 0;
     m_staged_drawables.clear();
     for(auto &frame_asset: m_frame_assets) { frame_asset = {}; }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void Rasterizer::set_function_pointers()
-{
-    vkCmdDrawMeshTasksEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksEXT>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkCmdDrawMeshTasksEXT"));
-    vkCmdDrawMeshTasksIndirectEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectEXT>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkCmdDrawMeshTasksIndirectEXT"));
-    vkCmdDrawMeshTasksIndirectCountEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksIndirectCountEXT>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkCmdDrawMeshTasksIndirectCountEXT"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

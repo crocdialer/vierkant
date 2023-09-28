@@ -59,7 +59,7 @@ public:
         vierkant::CommandPoolPtr command_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
         RenderPassPtr renderpass = nullptr;
-        std::optional<Device::debug_label_t> debug_label;
+        std::optional<vierkant::debug_label_t> debug_label;
     };
 
     //! group parameters for  'begin_rendering'-routine
@@ -198,7 +198,7 @@ public:
     VkClearDepthStencilValue clear_depth_stencil = {0.f, 0};
 
     //! optional debug label. will be attached to renderpass-submissions
-    std::optional<Device::debug_label_t> debug_label;
+    std::optional<vierkant::debug_label_t> debug_label;
 
 private:
     void init(attachment_map_t attachments, RenderPassPtr renderpass);

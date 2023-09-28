@@ -67,9 +67,6 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
     // fallback to first device queue
     m_queue = queue ? queue : m_device->queue();
 
-    // get the ray tracing and acceleration-structure related function pointers
-    set_function_pointers();
-
     m_command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                                    VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                            VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
@@ -301,24 +298,6 @@ void RayBuilder::compact(build_result_t &build_result) const
     build_result.compact_command.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_compact_info});
 
     build_result.compacted_assets = std::move(entry_assets_compact);
-}
-
-void RayBuilder::set_function_pointers()
-{
-    vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkCmdBuildAccelerationStructuresKHR"));
-    vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkCreateAccelerationStructureKHR"));
-    vkDestroyAccelerationStructureKHR = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkDestroyAccelerationStructureKHR"));
-    vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkGetAccelerationStructureBuildSizesKHR"));
-    vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkGetAccelerationStructureDeviceAddressKHR"));
-    vkCmdWriteAccelerationStructuresPropertiesKHR = reinterpret_cast<PFN_vkCmdWriteAccelerationStructuresPropertiesKHR>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkCmdWriteAccelerationStructuresPropertiesKHR"));
-    vkCmdCopyAccelerationStructureKHR = reinterpret_cast<PFN_vkCmdCopyAccelerationStructureKHR>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkCmdCopyAccelerationStructureKHR"));
 }
 
 RayBuilder::acceleration_asset_t

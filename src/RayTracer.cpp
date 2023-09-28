@@ -49,9 +49,6 @@ void swap(RayTracer &lhs, RayTracer &rhs) noexcept
     std::swap(lhs.m_binding_tables, rhs.m_binding_tables);
     std::swap(lhs.m_trace_assets, rhs.m_trace_assets);
     std::swap(lhs.m_current_index, rhs.m_current_index);
-    std::swap(lhs.vkGetAccelerationStructureBuildSizesKHR, rhs.vkGetAccelerationStructureBuildSizesKHR);
-    std::swap(lhs.vkCmdTraceRaysKHR, rhs.vkCmdTraceRaysKHR);
-    std::swap(lhs.vkGetRayTracingShaderGroupHandlesKHR, rhs.vkGetRayTracingShaderGroupHandlesKHR);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -62,9 +59,6 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
     if(!m_pipeline_cache) { m_pipeline_cache = vierkant::PipelineCache::create(device); }
 
     m_trace_assets.resize(create_info.num_frames_in_flight);
-
-    // get the ray tracing and acceleration-structure related function pointers
-    set_function_pointers();
 
     // query the ray tracing properties
     m_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
@@ -89,17 +83,6 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
                                                           {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void RayTracer::set_function_pointers()
-{
-    vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(
-            vkGetDeviceProcAddr(m_device->handle(), "vkGetRayTracingShaderGroupHandlesKHR"));
-
-    vkCmdTraceRaysKHR =
-            reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(m_device->handle(), "vkCmdTraceRaysKHR"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

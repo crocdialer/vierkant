@@ -131,7 +131,7 @@ public:
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
         uint32_t random_seed = 0;
-        std::optional<Device::debug_label_t> debug_label;
+        std::optional<vierkant::debug_label_t> debug_label;
     };
 
     //! struct grouping information for direct-rendering
@@ -166,7 +166,7 @@ public:
     bool debug_draw_ids = false;
 
     //! optional label for frame-debugging
-    std::optional<Device::debug_label_t> debug_label;
+    std::optional<vierkant::debug_label_t> debug_label;
 
     //! optional cull-delegate
     indirect_draw_delegate_t draw_indirect_delegate;
@@ -287,8 +287,6 @@ private:
         double_millisecond_t frame_time;
     };
 
-    void set_function_pointers();
-
     //! internal rendering-workhorse, creating assets and recording drawing-commands
     void render(VkCommandBuffer command_buffer, frame_assets_t &frame_assets);
 
@@ -327,11 +325,6 @@ private:
 
     VkPhysicalDeviceMeshShaderPropertiesEXT m_mesh_shader_properties = {};
     uint32_t m_mesh_task_count = 0;
-
-    //! function pointers for optional mesh-shader support
-    PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT = nullptr;
-    PFN_vkCmdDrawMeshTasksIndirectEXT vkCmdDrawMeshTasksIndirectEXT = nullptr;
-    PFN_vkCmdDrawMeshTasksIndirectCountEXT vkCmdDrawMeshTasksIndirectCountEXT = nullptr;
 };
 
 }//namespace vierkant

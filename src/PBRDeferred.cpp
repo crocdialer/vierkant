@@ -896,7 +896,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
 
     frame_asset.cmd_lighting = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_lighting.begin(0);
-    m_device->begin_label(frame_asset.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
+    vierkant::begin_label(frame_asset.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
     vierkant::ImagePtr occlusion_img = m_util_img_white;
 
     if(frame_asset.settings.ambient_occlusion)
@@ -1006,7 +1006,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     lighting_semaphore_info.wait_value = SemaphoreValue::G_BUFFER_ALL;
     lighting_semaphore_info.signal_value = SemaphoreValue::LIGHTING;
     frame_asset.semaphore_value_done = SemaphoreValue::LIGHTING;
-    m_device->end_label(frame_asset.cmd_lighting.handle());
+    vierkant::end_label(frame_asset.cmd_lighting.handle());
     frame_asset.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE,
                                     {frame_asset.scene_ray_acceleration.semaphore_info, lighting_semaphore_info});
     return frame_asset.lighting_buffer;
@@ -1033,7 +1033,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
     size_t buffer_index = 0;
 
     // get next set of pingpong assets, increment index
-    auto pingpong_render = [&frame_asset, &buffer_index, &renderer = m_renderer_post_fx, &device = m_device](
+    auto pingpong_render = [&frame_asset, &buffer_index, &renderer = m_renderer_post_fx](
                                    vierkant::drawable_t &drawable, SemaphoreValue semaphore_value,
                                    const vierkant::Framebuffer &override_fb = {}) -> vierkant::ImagePtr {
         const vierkant::Framebuffer *framebuffer =
@@ -1042,7 +1042,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
         auto cmd = frame_asset.cmd_post_fx.handle();
         auto color_attachment = framebuffer->color_attachment();
 
-        device->begin_label(cmd, {crocore::to_lower(to_string(semaphore_value))});
+        vierkant::begin_label(cmd, {crocore::to_lower(to_string(semaphore_value))});
         vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, frame_asset.query_pool.get(),
                              2 * semaphore_value);
 
@@ -1062,7 +1062,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
 
         vkCmdWriteTimestamp2(cmd, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, frame_asset.query_pool.get(),
                              2 * semaphore_value + 1);
-        device->end_label(cmd);
+        vierkant::end_label(cmd);
         frame_asset.semaphore_value_done = semaphore_value;
         color_attachment->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cmd);
         return color_attachment;
@@ -1070,7 +1070,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
 
     // begin command-buffer
     frame_asset.cmd_post_fx.begin(0);
-    m_device->begin_label(frame_asset.cmd_post_fx.handle(), {"PBRDeferred::post_fx_pass"});
+    vierkant::begin_label(frame_asset.cmd_post_fx.handle(), {"PBRDeferred::post_fx_pass"});
 
     // TAA
     if(frame_asset.settings.use_taa)
@@ -1175,7 +1175,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
                                                                     frame_asset.cmd_post_fx.handle());
     frame_asset.depth_map->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_asset.cmd_post_fx.handle());
 
-    m_device->end_label(frame_asset.cmd_post_fx.handle());
+    vierkant::end_label(frame_asset.cmd_post_fx.handle());
     frame_asset.cmd_post_fx.end();
 
     if(frame_asset.semaphore_value_done >= SemaphoreValue::TAA)

@@ -4,11 +4,11 @@
 
 #include <set>
 
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
-
 #include <vierkant/Device.hpp>
 #include <vierkant/git_hash.h>
+
+#define VMA_IMPLEMENTATION
+#include <vk_mem_alloc.h>
 
 namespace vierkant
 {
@@ -291,6 +291,9 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     vkCheck(vkCreateDevice(m_physical_device, &device_create_info, nullptr, &m_device),
             "failed to create logical device!");
 
+    // short-circuit function-pointers to point directly add device/driver entries
+    if(create_info.direct_function_pointers){ volkLoadDevice(m_device); }
+
     auto get_all_queues = [this](Queue type) {
         if(m_queue_indices[type].index >= 0)
         {
@@ -324,11 +327,16 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
             "failed to create command pool!");
 
     // create VMA allocator instance
+    VmaVulkanFunctions vma_vulkan_functions = {};
+    vma_vulkan_functions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vma_vulkan_functions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
     VmaAllocatorCreateInfo allocator_info = {};
     allocator_info.vulkanApiVersion = Instance::api_version;
     allocator_info.instance = create_info.instance;
     allocator_info.physicalDevice = m_physical_device;
     allocator_info.device = m_device;
+    allocator_info.pVulkanFunctions = &vma_vulkan_functions;
 
     // optionally enable DEVICE_ADDRESS_BIT
     if(device_features_12.bufferDeviceAddress)
@@ -338,24 +346,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
 
     vmaCreateAllocator(&allocator_info, &m_vk_mem_allocator);
     m_max_usable_samples = max_usable_sample_count(m_physical_device);
-
-    if(create_info.debug_labels)
-    {
-        vkCmdBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(
-                vkGetDeviceProcAddr(m_device, "vkCmdBeginDebugUtilsLabelEXT"));
-        vkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(
-                vkGetDeviceProcAddr(m_device, "vkCmdEndDebugUtilsLabelEXT"));
-        vkCmdInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdInsertDebugUtilsLabelEXT>(
-                vkGetDeviceProcAddr(m_device, "vkCmdInsertDebugUtilsLabelEXT"));
-        vkQueueBeginDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueBeginDebugUtilsLabelEXT>(
-                vkGetDeviceProcAddr(m_device, "vkQueueBeginDebugUtilsLabelEXT"));
-        vkQueueEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueEndDebugUtilsLabelEXT>(
-                vkGetDeviceProcAddr(m_device, "vkQueueEndDebugUtilsLabelEXT"));
-        vkQueueInsertDebugUtilsLabelEXT = reinterpret_cast<PFN_vkQueueInsertDebugUtilsLabelEXT>(
-                vkGetDeviceProcAddr(m_device, "vkQueueInsertDebugUtilsLabelEXT"));
-        vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(
-                vkGetDeviceProcAddr(m_device, "vkSetDebugUtilsObjectNameEXT"));
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -404,62 +394,6 @@ const std::vector<VkQueue> &Device::queues(Queue type) const
     return g_empty_queue;
 }
 
-void Device::begin_label(VkCommandBuffer commandbuffer, const debug_label_t &label)
-{
-    if(vkCmdBeginDebugUtilsLabelEXT && !label.text.empty())
-    {
-        VkDebugUtilsLabelEXT debug_label = {};
-        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
-        debug_label.pLabelName = label.text.c_str();
-        vkCmdBeginDebugUtilsLabelEXT(commandbuffer, &debug_label);
-    }
-}
-
-void Device::end_label(VkCommandBuffer commandbuffer)
-{
-    if(vkCmdEndDebugUtilsLabelEXT) { vkCmdEndDebugUtilsLabelEXT(commandbuffer); }
-}
-
-void Device::insert_label(VkCommandBuffer commandbuffer, const debug_label_t &label)
-{
-    if(vkCmdInsertDebugUtilsLabelEXT && !label.text.empty())
-    {
-        VkDebugUtilsLabelEXT debug_label = {};
-        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
-        debug_label.pLabelName = label.text.c_str();
-        vkCmdInsertDebugUtilsLabelEXT(commandbuffer, &debug_label);
-    }
-}
-
-void Device::begin_label(VkQueue queue, const Device::debug_label_t &label)
-{
-    if(vkCmdBeginDebugUtilsLabelEXT && !label.text.empty())
-    {
-        VkDebugUtilsLabelEXT debug_label = {};
-        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
-        debug_label.pLabelName = label.text.c_str();
-        vkQueueBeginDebugUtilsLabelEXT(queue, &debug_label);
-    }
-}
-void Device::end_label(VkQueue queue)
-{
-    if(vkQueueEndDebugUtilsLabelEXT) { vkQueueEndDebugUtilsLabelEXT(queue); }
-}
-
-void Device::insert_label(VkQueue queue, const debug_label_t &label)
-{
-    if(vkQueueInsertDebugUtilsLabelEXT && !label.text.empty())
-    {
-        VkDebugUtilsLabelEXT debug_label = {};
-        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
-        debug_label.pLabelName = label.text.c_str();
-        vkQueueInsertDebugUtilsLabelEXT(queue, &debug_label);
-    }
-}
 void Device::set_object_name(VkDeviceAddress handle, VkObjectType type, const std::string &name)
 {
     if(vkSetDebugUtilsObjectNameEXT)

@@ -71,11 +71,11 @@ vierkant::ImagePtr cubemap_generate_mip_maps(const vierkant::cube_pipeline_t &cu
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr & device, const glm::vec2 & size,
-                                               VkQueue queue, bool mipmap, VkFormat format)
+vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr &device, uint32_t size, VkQueue queue,
+                                               bool mipmap, VkFormat format)
 {
     VkImageUsageFlags flags = mipmap ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_SAMPLED_BIT;
-    auto cube = vierkant::create_cube_pipeline(device, static_cast<uint32_t>(size.x), format, queue, false, flags);
+    auto cube = vierkant::create_cube_pipeline(device, size, format, queue, false, flags);
 
     auto ret_img = cube.color_image;
 
@@ -102,12 +102,12 @@ vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr & devic
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::ImagePtr cubemap_from_panorama(const vierkant::DevicePtr &device, const vierkant::ImagePtr &panorama_img,
-                                         VkQueue queue, const glm::vec2 &size, bool mipmap, VkFormat format)
+                                         VkQueue queue, uint32_t size, bool mipmap, VkFormat format)
 {
     if(!panorama_img) { return nullptr; }
 
     VkImageUsageFlags flags = mipmap ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT : VK_IMAGE_USAGE_SAMPLED_BIT;
-    auto cube = vierkant::create_cube_pipeline(device, static_cast<uint32_t>(size.x), format, queue, false, flags);
+    auto cube = vierkant::create_cube_pipeline(device, size, format, queue, false, flags);
 
     auto ret_img = cube.color_image;
 

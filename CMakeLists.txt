@@ -60,6 +60,10 @@ set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_BINARY_DIR}/include)
 
 # glfw
+add_subdirectory(submodules/volk EXCLUDE_FROM_ALL)
+set(LIBS ${LIBS} volk)
+
+# glfw
 add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glfw)
 
@@ -76,10 +80,10 @@ add_subdirectory(submodules/meshoptimizer EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} meshoptimizer)
 
 ## Vulkan
-find_package(Vulkan REQUIRED)
-include_directories(${Vulkan_INCLUDE_DIRS})
-set(INCLUDE_DIRS ${INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
-SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
+#find_package(Vulkan REQUIRED)
+#include_directories(${Vulkan_INCLUDE_DIRS})
+#set(INCLUDE_DIRS ${INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
+#SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
 
 # vma
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)

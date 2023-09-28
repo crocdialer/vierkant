@@ -100,7 +100,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkQueue queue,
 vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbuffer)
 {
     // debug label
-    m_device->begin_label(commandbuffer, {fmt::format("Bloom::apply")});
+    vierkant::begin_label(commandbuffer, {fmt::format("Bloom::apply")});
 
     // threshold
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
@@ -118,7 +118,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbu
 
     // blur
     auto blur = m_gaussian_blur->apply(m_thresh_framebuffer.color_attachment(), commandbuffer);
-    m_device->end_label(commandbuffer);
+    vierkant::end_label(commandbuffer);
     return blur;
 }
 

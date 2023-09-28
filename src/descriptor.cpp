@@ -301,33 +301,21 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
                               const descriptor_map_t &descriptors,
                               const vierkant::BufferPtr & /*out_descriptor_buffer*/)
 {
-    static auto s_vkGetDescriptorSetLayoutSizeEXT = reinterpret_cast<PFN_vkGetDescriptorSetLayoutSizeEXT>(
-            vkGetDeviceProcAddr(device->handle(), "vkGetDescriptorSetLayoutSizeEXT"));
-    static auto s_vkGetDescriptorSetLayoutBindingOffsetEXT =
-            reinterpret_cast<PFN_vkGetDescriptorSetLayoutBindingOffsetEXT>(
-                    vkGetDeviceProcAddr(device->handle(), "vkGetDescriptorSetLayoutBindingOffsetEXT"));
-    static auto s_vkGetDescriptorEXT =
-            reinterpret_cast<PFN_vkGetDescriptorEXT>(vkGetDeviceProcAddr(device->handle(), "vkGetDescriptorEXT"));
-
-    static auto s_vkGetAccelerationStructureDeviceAddressKHR =
-            reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(
-                    vkGetDeviceProcAddr(device->handle(), "vkGetAccelerationStructureDeviceAddressKHR"));
-
-    assert(s_vkGetDescriptorSetLayoutSizeEXT && s_vkGetDescriptorSetLayoutBindingOffsetEXT && s_vkGetDescriptorEXT &&
-           s_vkGetAccelerationStructureDeviceAddressKHR);
+    assert(vkGetDescriptorSetLayoutSizeEXT && vkGetDescriptorSetLayoutBindingOffsetEXT && vkGetDescriptorEXT &&
+           vkGetAccelerationStructureDeviceAddressKHR);
 
     auto descriptor_size_fn = descriptor_size_fn_t(device->physical_device());
 
     // query buffer-size for provided layout
     VkDeviceSize size;
-    s_vkGetDescriptorSetLayoutSizeEXT(device->handle(), layout.get(), &size);
+    vkGetDescriptorSetLayoutSizeEXT(device->handle(), layout.get(), &size);
 
     std::vector<uint8_t> out_data(size);
 
     for(const auto &[binding, descriptor]: descriptors)
     {
         VkDeviceSize offset;
-        s_vkGetDescriptorSetLayoutBindingOffsetEXT(device->handle(), layout.get(), binding, &offset);
+        vkGetDescriptorSetLayoutBindingOffsetEXT(device->handle(), layout.get(), binding, &offset);
         uint8_t *data_ptr = out_data.data() + offset;
 
         auto desc_stride = descriptor_size_fn(descriptor.type);
@@ -361,8 +349,8 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
                         }
                         else { descriptor_get_info.data.pStorageBuffer = &address_info; }
 
-                        s_vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
-                                             data_ptr + i * desc_stride);
+                        vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
+                                           data_ptr + i * desc_stride);
                     }
                 }
             }
@@ -396,8 +384,8 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
                         }
                         else { descriptor_get_info.data.pStorageImage = &image_info; }
 
-                        s_vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
-                                             data_ptr + i * desc_stride);
+                        vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
+                                           data_ptr + i * desc_stride);
                     }
                 }
             }
@@ -411,8 +399,8 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
                 address_info.accelerationStructure = descriptor.acceleration_structure.get();
 
                 descriptor_get_info.data.accelerationStructure =
-                        s_vkGetAccelerationStructureDeviceAddressKHR(device->handle(), &address_info);
-                s_vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride, data_ptr);
+                        vkGetAccelerationStructureDeviceAddressKHR(device->handle(), &address_info);
+                vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride, data_ptr);
                 break;
             }
 

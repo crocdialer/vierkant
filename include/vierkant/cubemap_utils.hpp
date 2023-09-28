@@ -45,7 +45,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
  *
  * @return  a vierkant::ImagePtr holding a cubemap.
  */
-vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr &device, VkQueue queue, const glm::vec2 &size,
+vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr &device, uint32_t size, VkQueue queue,
                                                bool mipmap, VkFormat format);
 
 /**
@@ -60,7 +60,7 @@ vierkant::ImagePtr cubemap_neutral_environment(const vierkant::DevicePtr &device
  * @return  a vierkant::ImagePtr holding a cubemap.
  */
 vierkant::ImagePtr cubemap_from_panorama(const vierkant::DevicePtr &device, const vierkant::ImagePtr &panorama_img,
-                                         VkQueue queue, const glm::vec2 &size, bool mipmap, VkFormat format);
+                                         VkQueue queue, uint32_t size, bool mipmap, VkFormat format);
 
 /**
  * @brief   Create a diffuse (lambertian brdf) convolution of a provided cubemap.

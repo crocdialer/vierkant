@@ -4,7 +4,10 @@
 
 #pragma once
 
-#include <vulkan/vulkan.h>
+//#include <vulkan/vulkan.h>
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <crocore/crocore.hpp>
 
 namespace vierkant

@@ -121,8 +121,6 @@ private:
     shader_binding_table_t create_shader_binding_table(VkPipeline pipeline,
                                                        const vierkant::raytracing_shader_map_t &shader_stages);
 
-    void set_function_pointers();
-
     vierkant::DevicePtr m_device;
 
     VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_properties = {};
@@ -138,11 +136,6 @@ private:
     std::vector<trace_assets_t> m_trace_assets;
 
     uint32_t m_current_index = 0;
-
-    // process-addresses for raytracing related functions
-    PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;
-    PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR = nullptr;
-    PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR = nullptr;
 };
 
 }// namespace vierkant

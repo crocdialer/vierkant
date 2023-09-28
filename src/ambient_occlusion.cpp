@@ -133,7 +133,7 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     bool use_rtao = params.use_ray_queries && params.top_level;
 
     // debug label
-    context->device->begin_label(params.commandbuffer, {fmt::format("ambient_occlusion")});
+    vierkant::begin_label(params.commandbuffer, {fmt::format("ambient_occlusion")});
 
     auto drawable = use_rtao ? context->drawable_rtao : context->drawable_ssao;
     std::vector<vierkant::staging_copy_info_t> staging_copy_infos;
@@ -202,7 +202,7 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     vkCmdEndRendering(params.commandbuffer);
 
     ao_img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, params.commandbuffer, 0);
-    context->device->end_label(params.commandbuffer);
+    vierkant::end_label(params.commandbuffer);
     return ao_img;
 }
 
