@@ -4,8 +4,10 @@
 
 #pragma once
 
+#define VK_NO_PROTOTYPES
+#include <vulkan/vulkan.h>
+
 #include <vierkant/math.hpp>
-#include <volk.h>
 
 namespace vierkant
 {
@@ -26,17 +28,7 @@ struct debug_label_t
  * @param   commandbuffer   a provided commandbuffer
  * @param   label           a debug-label object.
  */
-static inline void begin_label(VkCommandBuffer commandbuffer, const debug_label_t &label)
-{
-    if(vkCmdBeginDebugUtilsLabelEXT && !label.text.empty())
-    {
-        VkDebugUtilsLabelEXT debug_label = {};
-        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
-        debug_label.pLabelName = label.text.c_str();
-        vkCmdBeginDebugUtilsLabelEXT(commandbuffer, &debug_label);
-    }
-}
+void begin_label(VkCommandBuffer commandbuffer, const debug_label_t &label);
 
 /**
  * @brief   'begin_label' can be used to mark the start of a labeled section within a queue.
@@ -44,17 +36,7 @@ static inline void begin_label(VkCommandBuffer commandbuffer, const debug_label_
  * @param   queue   a provided queue
  * @param   label   a debug-label object.
  */
-static inline void begin_label(VkQueue queue, const vierkant::debug_label_t &label)
-{
-    if(vkCmdBeginDebugUtilsLabelEXT && !label.text.empty())
-    {
-        VkDebugUtilsLabelEXT debug_label = {};
-        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
-        debug_label.pLabelName = label.text.c_str();
-        vkQueueBeginDebugUtilsLabelEXT(queue, &debug_label);
-    }
-}
+void begin_label(VkQueue queue, const vierkant::debug_label_t &label);
 
 /**
  * @brief   'end_label' needs to be used after previous calls to 'begin_label',
@@ -62,10 +44,7 @@ static inline void begin_label(VkQueue queue, const vierkant::debug_label_t &lab
  *
  * @param   queue   a provided queue.
  */
-static inline void end_label(VkQueue queue)
-{
-    if(vkQueueEndDebugUtilsLabelEXT) { vkQueueEndDebugUtilsLabelEXT(queue); }
-}
+void end_label(VkQueue queue);
 
 /**
  * @brief   'end_label' needs to be used after previous calls to 'begin_label',
@@ -73,10 +52,7 @@ static inline void end_label(VkQueue queue)
  *
  * @param   commandbuffer   a provided commandbuffer.
  */
-static inline void end_label(VkCommandBuffer commandbuffer)
-{
-    if(vkCmdEndDebugUtilsLabelEXT) { vkCmdEndDebugUtilsLabelEXT(commandbuffer); }
-}
+void end_label(VkCommandBuffer commandbuffer);
 
 /**
  * @brief   insert_label can be used to insert a singular label into a commandbuffer.
@@ -84,17 +60,7 @@ static inline void end_label(VkCommandBuffer commandbuffer)
  * @param   commandbuffer   a provided commandbuffer
  * @param   label           a debug-label object.
  */
-static inline void insert_label(VkCommandBuffer commandbuffer, const vierkant::debug_label_t &label)
-{
-    if(vkCmdInsertDebugUtilsLabelEXT && !label.text.empty())
-    {
-        VkDebugUtilsLabelEXT debug_label = {};
-        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
-        debug_label.pLabelName = label.text.c_str();
-        vkCmdInsertDebugUtilsLabelEXT(commandbuffer, &debug_label);
-    }
-}
+void insert_label(VkCommandBuffer commandbuffer, const vierkant::debug_label_t &label);
 
 /**
  * @brief   insert_label can be used to insert a singular label into a queue.
@@ -102,16 +68,6 @@ static inline void insert_label(VkCommandBuffer commandbuffer, const vierkant::d
  * @param   queue   a provided queue
  * @param   label   a debug-label object.
  */
-static inline void insert_label(VkQueue queue, const debug_label_t &label)
-{
-    if(vkQueueInsertDebugUtilsLabelEXT && !label.text.empty())
-    {
-        VkDebugUtilsLabelEXT debug_label = {};
-        debug_label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-        *reinterpret_cast<glm::vec4 *>(debug_label.color) = label.color;
-        debug_label.pLabelName = label.text.c_str();
-        vkQueueInsertDebugUtilsLabelEXT(queue, &debug_label);
-    }
-}
+void insert_label(VkQueue queue, const debug_label_t &label);
 
 }

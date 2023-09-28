@@ -2,6 +2,9 @@
 // Created by crocdialer on 13.02.23.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <vierkant/mesh_compute.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/staging_copy.hpp>

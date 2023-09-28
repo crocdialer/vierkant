@@ -3,6 +3,9 @@
 //
 //#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <crocore/gaussian.hpp>
 
 #include <vierkant/PBRDeferred.hpp>

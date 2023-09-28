@@ -2,6 +2,9 @@
 // Created by crocdialer on 4/22/21.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <vierkant/Compute.hpp>
 
 namespace vierkant

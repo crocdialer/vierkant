@@ -2,6 +2,9 @@
 // Created by crocdialer on 10/17/20.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include "vierkant/GaussianBlur.hpp"
 #include "crocore/gaussian.hpp"
 #include "vierkant/shaders.hpp"

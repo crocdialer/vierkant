@@ -143,6 +143,11 @@ public:
     void begin_rendering(const begin_rendering_info_t &info) const;
 
     /**
+     * @brief   End a direct-rendering-pass using this Framebuffer.
+     */
+    void end_rendering() const;
+
+    /**
      * @return  the VkExtent3D used by the Image-Attachments
      */
     const VkExtent3D &extent() const { return m_extent; }
@@ -230,7 +235,7 @@ private:
 
     vierkant::CommandBuffer m_commandbuffer;
 
-    mutable VkCommandBuffer m_active_commandbuffer = VK_NULL_HANDLE;
+    mutable VkCommandBuffer m_active_commandbuffer = VK_NULL_HANDLE, m_direct_rendering_commandbuffer = VK_NULL_HANDLE;
 
     RenderPassPtr m_renderpass;
 

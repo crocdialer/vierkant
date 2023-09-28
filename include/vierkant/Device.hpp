@@ -31,6 +31,8 @@ double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp
  */
 std::string device_info(VkPhysicalDevice physical_device);
 
+VkPhysicalDeviceProperties2 device_properties(VkPhysicalDevice physical_device);
+
 using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
 
 class Device
@@ -98,6 +100,11 @@ public:
      * @return  the associated VkPhysicalDevice
      */
     [[nodiscard]] VkPhysicalDevice physical_device() const { return m_physical_device; }
+
+    /**
+     * @brief   wait for the device to become idle
+     */
+    void wait_idle();
 
     /**
      * @return the physical device properties

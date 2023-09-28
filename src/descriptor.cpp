@@ -2,6 +2,9 @@
 // Created by crocdialer on 1/17/21.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <vierkant/descriptor.hpp>
 #include <vierkant/hash.hpp>
 

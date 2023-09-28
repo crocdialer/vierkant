@@ -2,6 +2,9 @@
 // Created by crocdialer on 3/20/21.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <vierkant/PBRPathTracer.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/shaders.hpp>

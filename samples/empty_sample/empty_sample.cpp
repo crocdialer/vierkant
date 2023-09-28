@@ -12,7 +12,7 @@ void HelloTriangleApplication::setup()
 void HelloTriangleApplication::teardown()
 {
     spdlog::info("ciao {}", name());
-    vkDeviceWaitIdle(m_device->handle());
+    m_device->wait_idle();
 }
 
 void HelloTriangleApplication::poll_events()

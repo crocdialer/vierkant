@@ -2,6 +2,9 @@
 // Created by crocdialer on 13.04.23.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <vierkant/Rasterizer.hpp>
 #include <vierkant/ambient_occlusion.hpp>
 #include <vierkant/shaders.hpp>

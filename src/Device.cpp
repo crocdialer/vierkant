@@ -2,8 +2,10 @@
 // Created by crocdialer on 2/8/19.
 //
 
-#include <set>
+#define VK_NO_PROTOTYPES
+#include <volk.h>
 
+#include <set>
 #include <vierkant/Device.hpp>
 #include <vierkant/git_hash.h>
 
@@ -58,6 +60,17 @@ std::string device_info(VkPhysicalDevice physical_device)
                        version_patch, physical_device_properties.properties.deviceName, driver_info, GIT_COMMIT_HASH,
                        GIT_COMMIT_DATE);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+VkPhysicalDeviceProperties2 device_properties(VkPhysicalDevice physical_device)
+{
+    VkPhysicalDeviceProperties2 device_props = {};
+    device_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    vkGetPhysicalDeviceProperties2(physical_device, &device_props);
+    return device_props;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp_period)
@@ -292,7 +305,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
             "failed to create logical device!");
 
     // short-circuit function-pointers to point directly add device/driver entries
-    if(create_info.direct_function_pointers){ volkLoadDevice(m_device); }
+    if(create_info.direct_function_pointers) { volkLoadDevice(m_device); }
 
     auto get_all_queues = [this](Queue type) {
         if(m_queue_indices[type].index >= 0)
@@ -406,5 +419,6 @@ void Device::set_object_name(VkDeviceAddress handle, VkObjectType type, const st
         vkSetDebugUtilsObjectNameEXT(m_device, &object_name_info);
     }
 }
+void Device::wait_idle() { vkDeviceWaitIdle(m_device); }
 
 }// namespace vierkant

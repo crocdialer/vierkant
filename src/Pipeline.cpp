@@ -2,6 +2,9 @@
 // Created by crocdialer on 11/14/18.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include "vierkant/Pipeline.hpp"
 
 namespace vierkant

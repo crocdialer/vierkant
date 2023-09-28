@@ -2,6 +2,9 @@
 // Created by crocdialer on 11/15/20.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <vierkant/RayTracer.hpp>
 
 namespace vierkant

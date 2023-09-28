@@ -1,5 +1,7 @@
-#include "vierkant/Framebuffer.hpp"
+#define VK_NO_PROTOTYPES
+#include <volk.h>
 
+#include "vierkant/Framebuffer.hpp"
 
 namespace vierkant
 {
@@ -593,6 +595,16 @@ void Framebuffer::begin_rendering(const begin_rendering_info_t &info) const
     // TODO: check actual VK_FORMAT and figure our if stencil is required
     //    pass_info.pStencilAttachment = depth_attachments.empty() ? nullptr : depth_attachments.data();
     vkCmdBeginRendering(info.commandbuffer, &pass_info);
+    m_direct_rendering_commandbuffer = info.commandbuffer;
+}
+
+void Framebuffer::end_rendering() const
+{
+    if(m_direct_rendering_commandbuffer)
+    {
+        vkCmdEndRendering(m_direct_rendering_commandbuffer);
+        m_direct_rendering_commandbuffer = VK_NULL_HANDLE;
+    }
 }
 
 }// namespace vierkant

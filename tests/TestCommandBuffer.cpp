@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(TestCommandBuffer_Submission)
     }
 
     // wait for work to finish on all queues
-    vkDeviceWaitIdle(device->handle());
+    device->wait_idle();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

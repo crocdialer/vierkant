@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
 
     // record drawing commands into an active command-buffer
     renderer.render(rendering_info);
-    vkCmdEndRendering(cmd_buffer.handle());
+    framebuffer.end_rendering();
 
     cmd_buffer.submit(test_context.device->queue(), true);
 }

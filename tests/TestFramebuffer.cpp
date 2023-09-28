@@ -250,7 +250,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_DirectRendering)
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
     begin_rendering_info.commandbuffer = cmd_buffer.handle();
     framebuffer.begin_rendering(begin_rendering_info);
-    vkCmdEndRendering(cmd_buffer.handle());
+    framebuffer.end_rendering();
 
     // submit to queue
     VkQueue queue = test_context.device->queue();
@@ -289,7 +289,7 @@ BOOST_AUTO_TEST_CASE(TestFramebuffer_DirectRendering_MSAA)
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
     begin_rendering_info.commandbuffer = cmd_buffer.handle();
     framebuffer.begin_rendering(begin_rendering_info);
-    vkCmdEndRendering(cmd_buffer.handle());
+    framebuffer.end_rendering();
 
     // submit to queue
     VkQueue queue = test_context.device->queue();

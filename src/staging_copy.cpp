@@ -2,8 +2,10 @@
 // Created by crocdialer on 10.01.23.
 //
 
-#include "vierkant/staging_copy.hpp"
+#define VK_NO_PROTOTYPES
+#include <volk.h>
 #include <set>
+#include "vierkant/staging_copy.hpp"
 
 namespace vierkant
 {

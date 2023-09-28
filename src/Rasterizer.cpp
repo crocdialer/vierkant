@@ -2,6 +2,9 @@
 // Created by crocdialer on 3/22/19.
 //
 
+#define VK_NO_PROTOTYPES
+#include <volk.h>
+
 #include <crocore/Area.hpp>
 #include <unordered_set>
 #include <vierkant/Pipeline.hpp>
