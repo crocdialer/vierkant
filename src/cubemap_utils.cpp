@@ -209,7 +209,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
         auto &cube = cube_pipelines[lvl];
 
         // create a cube-pipeline
-        cube = vierkant::create_cube_pipeline(device, size, VK_FORMAT_B10G11R11_UFLOAT_PACK32, queue, false,
+        cube = vierkant::create_cube_pipeline(device, size, format, queue, false,
                                               VK_IMAGE_USAGE_TRANSFER_SRC_BIT, descriptor_pool);
 
         cube.drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] = frag_module;

@@ -42,17 +42,17 @@ bool check_validation_layer_support()
 VkResult CreateDebugUtilMessenger(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
                                   const VkAllocationCallbacks *pAllocator, VkDebugUtilsMessengerEXT *pCallback)
 {
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    if(func) { return func(instance, pCreateInfo, pAllocator, pCallback); }
+    if(vkCreateDebugUtilsMessengerEXT)
+    {
+        return vkCreateDebugUtilsMessengerEXT(instance, pCreateInfo, pAllocator, pCallback);
+    }
     else { return VK_ERROR_EXTENSION_NOT_PRESENT; }
 }
 
 void DestroyDebugUtilMessenger(VkInstance instance, VkDebugUtilsMessengerEXT callback,
                                const VkAllocationCallbacks *pAllocator)
 {
-    auto func =
-            (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if(func) { func(instance, callback, pAllocator); }
+    if(vkDestroyDebugUtilsMessengerEXT) { vkDestroyDebugUtilsMessengerEXT(instance, callback, pAllocator); }
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT msg_severity,
