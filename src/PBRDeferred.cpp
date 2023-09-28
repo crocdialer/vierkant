@@ -16,7 +16,7 @@
 namespace vierkant
 {
 
-const char* PBRDeferred::to_string(PBRDeferred::SemaphoreValue v)
+const char *PBRDeferred::to_string(PBRDeferred::SemaphoreValue v)
 {
     switch(v)
     {
@@ -40,7 +40,8 @@ const char* PBRDeferred::to_string(PBRDeferred::SemaphoreValue v)
     return "";
 }
 
-PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info) : m_device(device)
+PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_info)
+    : m_device(device), m_hdr_format(create_info.hdr_format)
 {
     m_logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
     //    m_logger->set_pattern("[%Y-%m-%d %H:%M:%S %z] %v [%! | %s:%#]");
@@ -343,7 +344,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         {
             bool entry_enabled = !mesh_component.entry_indices || mesh_component.entry_indices->contains(i);
             vierkant::hash_combine(scene_hash, entry_enabled);
-            if(!entry_enabled){ continue; }
+            if(!entry_enabled) { continue; }
 
             const auto &entry = mesh->entries[i];
 
@@ -482,7 +483,8 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
                         m_g_renderer_main.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
-    auto view = frame_asset.cull_result.scene->registry()->view<vierkant::mesh_component_t, vierkant::animation_state_t>();
+    auto view =
+            frame_asset.cull_result.scene->registry()->view<vierkant::mesh_component_t, vierkant::animation_state_t>();
 
     for(const auto &[entity, mesh_component, animation_state]: view.each())
     {
@@ -1244,7 +1246,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
         vierkant::attachment_map_t lighting_attachments;
         vierkant::Image::Format hdr_attachment_info = {};
         hdr_attachment_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        hdr_attachment_info.format = m_hdr_image_format;
+        hdr_attachment_info.format = m_hdr_format;
         hdr_attachment_info.extent = size;
         lighting_attachments[vierkant::AttachmentType::Color] = {
                 vierkant::Image::create(m_device, hdr_attachment_info)};
@@ -1272,7 +1274,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
         post_fx_buffer_info.color_attachment_format.usage =
                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         post_fx_buffer_info.color_attachment_format.extent = upscaling_size;
-        post_fx_buffer_info.color_attachment_format.format = m_hdr_image_format;
+        post_fx_buffer_info.color_attachment_format.format = m_hdr_format;
         asset.taa_buffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
 
         // create post_fx ping pong buffers and renderers

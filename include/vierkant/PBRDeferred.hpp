@@ -153,6 +153,7 @@ public:
     {
         uint32_t num_frames_in_flight = 1;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
+        VkFormat hdr_format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
         vierkant::PipelineCachePtr pipeline_cache = nullptr;
         vierkant::DescriptorPoolPtr descriptor_pool = nullptr;
         VkQueue queue = VK_NULL_HANDLE;
@@ -365,7 +366,7 @@ private:
 
     VkQueue m_queue = VK_NULL_HANDLE;
 
-    VkFormat m_hdr_image_format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+    VkFormat m_hdr_format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
 
     vierkant::CommandPoolPtr m_command_pool;
 
