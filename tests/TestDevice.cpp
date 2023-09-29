@@ -1,27 +1,24 @@
-#define BOOST_TEST_MAIN
-
 #include "test_context.hpp"
-
 #include "vierkant/vierkant.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(TestDevice)
+TEST(Device, basic)
 {
     vulkan_test_context_t test_context;
     auto device = test_context.device;
 
-    BOOST_CHECK(device->physical_device());
-    BOOST_CHECK(device->handle() != nullptr);
-    BOOST_CHECK(device->queue(vierkant::Device::Queue::GRAPHICS) != nullptr);
-    BOOST_CHECK(device->queue(vierkant::Device::Queue::TRANSFER) != nullptr);
-    BOOST_CHECK(device->queue(vierkant::Device::Queue::COMPUTE) != nullptr);
+    EXPECT_TRUE(device->physical_device());
+    EXPECT_TRUE(device->handle() != nullptr);
+    EXPECT_TRUE(device->queue(vierkant::Device::Queue::GRAPHICS) != nullptr);
+    EXPECT_TRUE(device->queue(vierkant::Device::Queue::TRANSFER) != nullptr);
+    EXPECT_TRUE(device->queue(vierkant::Device::Queue::COMPUTE) != nullptr);
 
     // we didn't order one, so this should be null
-    BOOST_CHECK(device->queue(vierkant::Device::Queue::PRESENT) == nullptr);
+    EXPECT_TRUE(device->queue(vierkant::Device::Queue::PRESENT) == nullptr);
 
-    BOOST_CHECK(device->command_pool_transient());
-    BOOST_CHECK(device->vk_mem_allocator());
+    EXPECT_TRUE(device->command_pool_transient());
+    EXPECT_TRUE(device->vk_mem_allocator());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

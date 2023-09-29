@@ -1,17 +1,14 @@
-#define BOOST_TEST_MAIN
-
-#include <boost/test/unit_test.hpp>
-
+#include <gtest/gtest.h>
 #include "vierkant/vierkant.hpp"
 
 const auto window_size = glm::ivec2(1280, 720);
 
 void test_helper(vierkant::WindowPtr window, VkSampleCountFlagBits sampleCount)
 {
-    BOOST_CHECK(window->swapchain());
-    BOOST_CHECK_EQUAL(window->framebuffer_size().x, window->swapchain().extent().width);
-    BOOST_CHECK_EQUAL(window->framebuffer_size().y, window->swapchain().extent().height);
-    BOOST_CHECK_EQUAL(window->swapchain().sample_count(), sampleCount);
+    EXPECT_TRUE(window->swapchain());
+    EXPECT_EQ(window->framebuffer_size().x, window->swapchain().extent().width);
+    EXPECT_EQ(window->framebuffer_size().y, window->swapchain().extent().height);
+    EXPECT_EQ(window->swapchain().sample_count(), sampleCount);
 
     // draw one frame
     window->draw();
@@ -19,15 +16,15 @@ void test_helper(vierkant::WindowPtr window, VkSampleCountFlagBits sampleCount)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(TestSwapChain_Constructor)
+TEST(SwapChain, Constructor)
 {
     vierkant::SwapChain swapchain;
-    BOOST_CHECK(!swapchain);
+    EXPECT_TRUE(!swapchain);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(TestSwapChain_Creation)
+TEST(SwapChain, Creation)
 {
     vierkant::Instance::create_info_t instance_info = {};
     instance_info.extensions = vierkant::Window::required_extensions();
@@ -51,17 +48,17 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation)
     auto sample_count = VK_SAMPLE_COUNT_1_BIT;
     window->create_swapchain(device);
 
-    BOOST_CHECK(window->swapchain());
-    BOOST_CHECK_EQUAL(window->framebuffer_size().x, window->swapchain().extent().width);
-    BOOST_CHECK_EQUAL(window->framebuffer_size().y, window->swapchain().extent().height);
-    BOOST_CHECK_EQUAL(window->swapchain().sample_count(), sample_count);
+    EXPECT_TRUE(window->swapchain());
+    EXPECT_EQ(window->framebuffer_size().x, window->swapchain().extent().width);
+    EXPECT_EQ(window->framebuffer_size().y, window->swapchain().extent().height);
+    EXPECT_EQ(window->swapchain().sample_count(), sample_count);
 
     test_helper(window, sample_count);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(TestSwapChain_Creation_MSAA)
+TEST(SwapChain, Creation_MSAA)
 {
     vierkant::Instance::create_info_t instance_info = {};
     instance_info.extensions = vierkant::Window::required_extensions();
@@ -86,10 +83,10 @@ BOOST_AUTO_TEST_CASE(TestSwapChain_Creation_MSAA)
     auto sample_count = device->max_usable_samples();
     window->create_swapchain(device, sample_count);
 
-    BOOST_CHECK(window->swapchain());
-    BOOST_CHECK_EQUAL(window->framebuffer_size().x, window->swapchain().extent().width);
-    BOOST_CHECK_EQUAL(window->framebuffer_size().y, window->swapchain().extent().height);
-    BOOST_CHECK_EQUAL(window->swapchain().sample_count(), sample_count);
+    EXPECT_TRUE(window->swapchain());
+    EXPECT_EQ(window->framebuffer_size().x, window->swapchain().extent().width);
+    EXPECT_EQ(window->framebuffer_size().y, window->swapchain().extent().height);
+    EXPECT_EQ(window->swapchain().sample_count(), sample_count);
 
     test_helper(window, sample_count);
 }

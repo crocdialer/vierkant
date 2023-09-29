@@ -1,23 +1,21 @@
-#define BOOST_TEST_MAIN
-
 #include "test_context.hpp"
 
 #include "vierkant/vierkant.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(TestImageFormat)
+TEST(Image, Format)
 {
     vierkant::Image::Format fmt = {};
     auto fmt2 = fmt;
-    BOOST_CHECK(fmt == fmt2);
+    EXPECT_TRUE(fmt == fmt2);
     fmt.extent = {1920, 1080, 1};
-    BOOST_CHECK(fmt != fmt2);
+    EXPECT_TRUE(fmt != fmt2);
     std::unordered_map<vierkant::Image::Format, int> fmt_map;
     fmt_map[fmt] = 69;
 }
 
-BOOST_AUTO_TEST_CASE(TestImage)
+TEST(Image, basic)
 {
     vulkan_test_context_t test_context;
     VkExtent3D size = {1920, 1080, 1};
@@ -37,7 +35,7 @@ BOOST_AUTO_TEST_CASE(TestImage)
         auto img_sampler = vierkant::Image::create(test_context.device, fmt);
 
         // a sampler should have been created
-        BOOST_CHECK(img_sampler->sampler());
+        EXPECT_TRUE(img_sampler->sampler());
 
         // image for use as framebuffer-attachment
         fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
@@ -45,7 +43,7 @@ BOOST_AUTO_TEST_CASE(TestImage)
         auto img_attachment = vierkant::Image::create(test_context.device, fmt);
 
         // no sampler requested, check if that's the case
-        BOOST_CHECK(!img_attachment->sampler());
+        EXPECT_TRUE(!img_attachment->sampler());
 
         // image for sampling with prior mipmap generation
         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -85,7 +83,7 @@ BOOST_AUTO_TEST_CASE(TestImage)
         img->copy_to(hostBuf);
 
         // check data-integrity
-        BOOST_CHECK_EQUAL(memcmp(hostBuf->map(), testData.get(), numBytes), 0);
+        EXPECT_EQ(memcmp(hostBuf->map(), testData.get(), numBytes), 0);
 
         // transition back to shader readable layout
         img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
@@ -101,11 +99,11 @@ BOOST_AUTO_TEST_CASE(TestImage)
         cmdBuf.submit(test_context.device->queue(vierkant::Device::Queue::GRAPHICS), true);
 
         // check data-integrity
-        BOOST_CHECK_EQUAL(memcmp(hostBuf->map(), testData.get(), numBytes), 0);
+        EXPECT_EQ(memcmp(hostBuf->map(), testData.get(), numBytes), 0);
     }
 }
 
-BOOST_AUTO_TEST_CASE(TestImageClone)
+TEST(Image, Clone)
 {
     vulkan_test_context_t test_context;
 
@@ -117,24 +115,24 @@ BOOST_AUTO_TEST_CASE(TestImageClone)
 
     auto img = vierkant::Image::create(test_context.device, fmt);
     auto cloned_img = img->clone();
-    BOOST_CHECK(cloned_img);
+    EXPECT_TRUE(cloned_img);
 
     // the image-ptrs are different
-    BOOST_CHECK_NE(img, cloned_img);
+    EXPECT_NE(img, cloned_img);
 
     // their internals should just have been cloned
-    BOOST_CHECK_EQUAL(img->image(), cloned_img->image());
-    BOOST_CHECK_EQUAL(img->image_view(), cloned_img->image_view());
-    BOOST_CHECK_EQUAL(img->sampler(), cloned_img->sampler());
-    BOOST_CHECK(img->mip_image_views() == cloned_img->mip_image_views());
+    EXPECT_EQ(img->image(), cloned_img->image());
+    EXPECT_EQ(img->image_view(), cloned_img->image_view());
+    EXPECT_EQ(img->sampler(), cloned_img->sampler());
+    EXPECT_TRUE(img->mip_image_views() == cloned_img->mip_image_views());
 
     // assure we start with identical layouts
-    BOOST_CHECK(img->image_layout() == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
-    BOOST_CHECK(img->image_layout() == cloned_img->image_layout());
+    EXPECT_TRUE(img->image_layout() == VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
+    EXPECT_TRUE(img->image_layout() == cloned_img->image_layout());
 
     // test that image-layout is shared among cloned instances (because VkImage is shared)
     img->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    BOOST_CHECK(img->image_layout() == cloned_img->image_layout());
+    EXPECT_TRUE(img->image_layout() == cloned_img->image_layout());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1,40 +1,38 @@
-#define BOOST_TEST_MAIN
-
 #include "test_context.hpp"
 
 #include <vierkant/Semaphore.hpp>
 #include <vierkant/CommandBuffer.hpp>
 
-BOOST_AUTO_TEST_CASE(DefaultConstructor)
+TEST(Semaphore, DefaultConstructor)
 {
     vierkant::Semaphore semaphore;
 
     // checks operator bool
-    BOOST_CHECK(!semaphore);
+    EXPECT_TRUE(!semaphore);
 
-    BOOST_CHECK_EQUAL(semaphore.handle(), nullptr);
-    BOOST_CHECK_EQUAL(semaphore.value(), 0);
+    EXPECT_EQ(semaphore.handle(), nullptr);
+    EXPECT_EQ(semaphore.value(), 0);
 }
 
-BOOST_AUTO_TEST_CASE(Constructor)
+TEST(Semaphore, Constructor)
 {
     vulkan_test_context_t testContext;
 
     auto semaphore = vierkant::Semaphore(testContext.device);
 
     // checks operator bool
-    BOOST_CHECK(semaphore);
+    EXPECT_TRUE(semaphore);
 
-    BOOST_CHECK_NE(semaphore.handle(), nullptr);
-    BOOST_CHECK_EQUAL(semaphore.value(), 0);
+    EXPECT_NE(semaphore.handle(), nullptr);
+    EXPECT_EQ(semaphore.value(), 0);
 
     // reassign
     semaphore = vierkant::Semaphore(testContext.device, 42);
-    BOOST_CHECK_NE(semaphore.handle(), nullptr);
-    BOOST_CHECK_EQUAL(semaphore.value(), 42);
+    EXPECT_NE(semaphore.handle(), nullptr);
+    EXPECT_EQ(semaphore.value(), 42);
 }
 
-BOOST_AUTO_TEST_CASE(Submission)
+TEST(Semaphore, Submission)
 {
     vulkan_test_context_t testContext;
 
@@ -50,7 +48,7 @@ BOOST_AUTO_TEST_CASE(Submission)
     vierkant::submit(testContext.device, testContext.device->queue(), {}, true,
                      VK_NULL_HANDLE, {semaphoreSubmitInfo});
 
-    BOOST_CHECK_EQUAL(semaphore.value(), signalValue);
+    EXPECT_EQ(semaphore.value(), signalValue);
 
     // reset semaphore
     semaphore = vierkant::Semaphore(testContext.device);
@@ -64,7 +62,7 @@ BOOST_AUTO_TEST_CASE(Submission)
     semaphore.wait(signalValue);
 }
 
-BOOST_AUTO_TEST_CASE(WaitBeforeSignal)
+TEST(Semaphore, WaitBeforeSignal)
 {
     vulkan_test_context_t testContext;
 
@@ -95,5 +93,5 @@ BOOST_AUTO_TEST_CASE(WaitBeforeSignal)
     vierkant::submit(testContext.device, queue2, {}, false, VK_NULL_HANDLE, {signalInfo});
 
     semaphore.wait(signal2);
-    BOOST_CHECK_EQUAL(semaphore.value(), signal2);
+    EXPECT_EQ(semaphore.value(), signal2);
 }

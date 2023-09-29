@@ -59,7 +59,7 @@ set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/3rdparty/include
         ${PROJECT_BINARY_DIR}/include)
 
-# glfw
+# volk
 add_subdirectory(submodules/volk EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} volk)
 
@@ -78,12 +78,6 @@ include_directories(BEFORE SYSTEM "submodules/tinyobjloader")
 # zeux/meshoptimizer
 add_subdirectory(submodules/meshoptimizer EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} meshoptimizer)
-
-## Vulkan
-#find_package(Vulkan REQUIRED)
-#include_directories(${Vulkan_INCLUDE_DIRS})
-#set(INCLUDE_DIRS ${INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
-#SET(LIBS ${LIBS} ${Vulkan_LIBRARIES})
 
 # vma
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)

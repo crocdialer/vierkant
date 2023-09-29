@@ -1,7 +1,4 @@
-#define BOOST_TEST_MAIN
-
 #include "test_context.hpp"
-
 #include "vierkant/model/model_loading.hpp"
 #include "vierkant/vierkant.hpp"
 
@@ -25,8 +22,8 @@ std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePt
     mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
     auto mesh = vierkant::Mesh::create_with_entries(device, mesh_assets.entry_create_infos, mesh_create_info);
 
-    BOOST_CHECK_EQUAL(mesh_assets.entry_create_infos.size(), mesh->entries.size());
-    BOOST_CHECK_EQUAL(mesh_assets.materials.size(), mesh->materials.size());
+    EXPECT_EQ(mesh_assets.entry_create_infos.size(), mesh->entries.size());
+    EXPECT_EQ(mesh_assets.materials.size(), mesh->materials.size());
 
     vierkant::create_drawables_params_t drawable_params = {};
     auto drawables = vierkant::create_drawables({mesh}, drawable_params);
@@ -37,7 +34,7 @@ std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePt
     return drawables;
 }
 
-BOOST_AUTO_TEST_CASE(TestRenderer_renderpass_API)
+TEST(Rasterizer, renderpass_API)
 {
     vulkan_test_context_t test_context;
 
@@ -47,7 +44,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_renderpass_API)
     create_info.num_frames_in_flight = 1;
     create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
     create_info.viewport = {0.f, 0.f, res.x, res.y, 0.f, 1.f};
-    auto renderer = vierkant::Rasterizer(test_context.device, create_info);
+    auto rasterizer = vierkant::Rasterizer(test_context.device, create_info);
     auto drawables = create_test_drawables(test_context.device);
 
     // create a framebuffer to submit to
@@ -57,10 +54,10 @@ BOOST_AUTO_TEST_CASE(TestRenderer_renderpass_API)
     vierkant::Framebuffer framebuffer(test_context.device, framebuffer_info);
 
     // stage drawables and generate a (secondary) command-buffer
-    renderer.stage_drawables(drawables);
-    VkCommandBuffer secondaryCmdBuffer = renderer.render(framebuffer);
+    rasterizer.stage_drawables(drawables);
+    VkCommandBuffer secondaryCmdBuffer = rasterizer.render(framebuffer);
 
-    BOOST_CHECK(secondaryCmdBuffer);
+    EXPECT_TRUE(secondaryCmdBuffer);
 
     // now submit this command-buffer into a render-pass
     framebuffer.submit({secondaryCmdBuffer}, test_context.device->queue());
@@ -69,7 +66,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_renderpass_API)
     framebuffer.wait_fence();
 }
 
-BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
+TEST(Rasterizer, direct_API)
 {
     vulkan_test_context_t test_context;
 
@@ -82,7 +79,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
     create_info.viewport = {0.f, 0.f, res.x, res.y, 0.f, 1.f};
     create_info.command_pool = command_pool;
 
-    auto renderer = vierkant::Rasterizer(test_context.device, create_info);
+    auto rasterizer = vierkant::Rasterizer(test_context.device, create_info);
     auto drawables = create_test_drawables(test_context.device);
 
     // create a framebuffer to submit to
@@ -91,7 +88,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
     vierkant::Framebuffer framebuffer(test_context.device, framebuffer_info);
 
     // stage drawables
-    renderer.stage_drawables(drawables);
+    rasterizer.stage_drawables(drawables);
 
     auto cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
     cmd_buffer.begin();
@@ -104,7 +101,7 @@ BOOST_AUTO_TEST_CASE(TestRenderer_direct_API)
     rendering_info.color_attachment_formats = {framebuffer_info.color_attachment_format.format};
 
     // record drawing commands into an active command-buffer
-    renderer.render(rendering_info);
+    rasterizer.render(rendering_info);
     framebuffer.end_rendering();
 
     cmd_buffer.submit(test_context.device->queue(), true);

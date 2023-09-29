@@ -1,7 +1,6 @@
 #pragma once
 
-#include <boost/test/unit_test.hpp>
-
+#include <gtest/gtest.h>
 #include <vierkant/Device.hpp>
 
 class vulkan_test_context_t
@@ -27,6 +26,7 @@ public:
         vierkant::Instance::create_info_t instance_info = {};
         instance_info.use_validation_layers = true;
         instance = vierkant::Instance(instance_info);
+        EXPECT_NE(instance.handle(), VK_NULL_HANDLE);
 
         // set a debug-function to intercept validation-warnings/errors
         instance.set_debug_fn([&](VkDebugUtilsMessageSeverityFlagBitsEXT,
@@ -36,10 +36,8 @@ public:
                                   validation_data.num_errors++;
                                   validation_data.errorMsgStream << "\nError:\n" << data->pMessage << "\n";
                               });
-
-        BOOST_CHECK_NE(instance.handle(), nullptr);
-        BOOST_CHECK_EQUAL(instance.use_validation_layers(), instance_info.use_validation_layers);
-        BOOST_CHECK(!instance.physical_devices().empty());
+        EXPECT_EQ(instance.use_validation_layers(), instance_info.use_validation_layers);
+        EXPECT_TRUE(!instance.physical_devices().empty());
 
         // use first device-index
         auto physical_device = instance.physical_devices()[0];
@@ -55,7 +53,7 @@ public:
     ~vulkan_test_context_t()
     {
         if(validation_data.num_errors){ std::cerr << validation_data.errorMsgStream.str(); }
-        BOOST_CHECK(!validation_data.num_errors);
+        EXPECT_TRUE(!validation_data.num_errors);
     }
 };
 

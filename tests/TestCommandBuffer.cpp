@@ -1,25 +1,22 @@
-#define BOOST_TEST_MAIN
-
 #include "test_context.hpp"
-
 #include "vierkant/vierkant.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(TestCommandBuffer_Constructor)
+TEST(TestCommandBuffer, Constructor)
 {
     auto cmdBuf = vierkant::CommandBuffer();
 
     // testing operator bool()
-    BOOST_CHECK(!cmdBuf);
+    EXPECT_TRUE(!cmdBuf);
 
     // testing default state
-    BOOST_CHECK_EQUAL(cmdBuf.is_recording(), false);
+    EXPECT_EQ(cmdBuf.is_recording(), false);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-BOOST_AUTO_TEST_CASE(TestCommandBuffer_Submission)
+TEST(TestCommandBuffer, Submission)
 {
     vulkan_test_context_t test_context;
     auto device = test_context.device;
@@ -36,14 +33,14 @@ BOOST_AUTO_TEST_CASE(TestCommandBuffer_Submission)
         auto cmdBuf = vierkant::CommandBuffer(device, p.first);
 
         // testing operator bool()
-        BOOST_CHECK(cmdBuf);
-        BOOST_CHECK(!cmdBuf.is_recording());
+        EXPECT_TRUE(cmdBuf);
+        EXPECT_TRUE(!cmdBuf.is_recording());
 
         cmdBuf.begin(/*VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT*/);
-        BOOST_CHECK(cmdBuf.is_recording());
+        EXPECT_TRUE(cmdBuf.is_recording());
         cmdBuf.end();
 
-        BOOST_CHECK(!cmdBuf.is_recording());
+        EXPECT_TRUE(!cmdBuf.is_recording());
 
         // submit, do not wait on semaphore, create fence and wait for it
         cmdBuf.submit(p.second, true);
@@ -52,7 +49,7 @@ BOOST_AUTO_TEST_CASE(TestCommandBuffer_Submission)
         cmdBuf.reset();
 
         cmdBuf.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
-        BOOST_CHECK(cmdBuf.is_recording());
+        EXPECT_TRUE(cmdBuf.is_recording());
         cmdBuf.end();
 
         // submit, do not wait on semaphore, do not wait for completion

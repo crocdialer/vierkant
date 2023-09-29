@@ -1,7 +1,4 @@
-#define BOOST_TEST_MAIN
-
 #include "test_context.hpp"
-
 #include <vierkant/bc7.hpp>
 
 // 4x4 black/white checkerboard RGBA
@@ -42,26 +39,26 @@ inline uint32_t num_blocks(uint32_t base_width, uint32_t base_height, uint32_t l
 
 void check(const vierkant::bc7::compress_info_t &compress_info, const vierkant::bc7::compress_result_t &compress_result)
 {
-    BOOST_CHECK(compress_info.image);
+    EXPECT_TRUE(compress_info.image);
 
     uint32_t width = compress_info.image->width();
     uint32_t height = compress_info.image->height();
 
-    BOOST_CHECK(compress_result.duration > std::chrono::milliseconds(0));
-    BOOST_CHECK_EQUAL(compress_result.base_width, round4(width));
-    BOOST_CHECK_EQUAL(compress_result.base_height, round4(height));
-    BOOST_CHECK_EQUAL(compress_result.levels.size(), compress_info.generate_mipmaps ? num_levels(width, height) : 1);
+    EXPECT_TRUE(compress_result.duration > std::chrono::milliseconds(0));
+    EXPECT_EQ(compress_result.base_width, round4(width));
+    EXPECT_EQ(compress_result.base_height, round4(height));
+    EXPECT_EQ(compress_result.levels.size(), compress_info.generate_mipmaps ? num_levels(width, height) : 1);
 
     for(uint32_t l = 0; l < compress_result.levels.size(); ++l)
     {
-        BOOST_CHECK_EQUAL(compress_result.levels[l].size(), num_blocks(width, height, l));
+        EXPECT_EQ(compress_result.levels[l].size(), num_blocks(width, height, l));
     }
 }
 
-BOOST_AUTO_TEST_CASE(basic)
+TEST(CompressionBC7, basic)
 {
     auto img = crocore::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(checker_board_4x4), 4, 4, 4);
-    BOOST_CHECK(img);
+    EXPECT_TRUE(img);
 
     uint32_t width = 512, height = 256;
     auto img8u = img->resize(width, height);
@@ -72,11 +69,11 @@ BOOST_AUTO_TEST_CASE(basic)
     check(compress_info, compress_result);
 }
 
-BOOST_AUTO_TEST_CASE(missing_alpha)
+TEST(CompressionBC7, missing_alpha)
 {
     // treat same data as 3channel here
     auto img = crocore::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(checker_board_4x4), 4, 4, 3);
-    BOOST_CHECK(img);
+    EXPECT_TRUE(img);
 
     uint32_t width = 64, height = 128;
     auto img8u = img->resize(width, height);
@@ -87,10 +84,10 @@ BOOST_AUTO_TEST_CASE(missing_alpha)
     check(compress_info, compress_result);
 }
 
-BOOST_AUTO_TEST_CASE(mips)
+TEST(CompressionBC7, mips)
 {
     auto img = crocore::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(checker_board_4x4), 4, 4, 4);
-    BOOST_CHECK(img);
+    EXPECT_TRUE(img);
 
     uint32_t width = 512, height = 256;
     auto img8u = img->resize(width, height);
@@ -102,10 +99,10 @@ BOOST_AUTO_TEST_CASE(mips)
     check(compress_info, compress_result);
 }
 
-BOOST_AUTO_TEST_CASE(odd_size)
+TEST(CompressionBC7, odd_size)
 {
     auto img = crocore::Image_<uint8_t>::create(reinterpret_cast<uint8_t *>(checker_board_4x4), 4, 4, 4);
-    BOOST_CHECK(img);
+    EXPECT_TRUE(img);
 
     uint32_t width = 123, height = 81;
     auto img8u = img->resize(width, height);

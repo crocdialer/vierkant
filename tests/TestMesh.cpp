@@ -1,7 +1,4 @@
-#define BOOST_TEST_MAIN
-
 #include "test_context.hpp"
-
 #include "vierkant/vierkant.hpp"
 
 struct Vertex
@@ -103,13 +100,13 @@ vierkant::descriptor_map_t create_descriptors(const vierkant::DevicePtr &device)
             {1, desc_texture}};
 }
 
-BOOST_AUTO_TEST_CASE(TestMesh_Constructor)
+TEST(Mesh, Constructor)
 {
     // vierkant::Mesh is just a data-struct atm, so this is not really exciting here
     auto m = vierkant::Mesh::create();
 }
 
-BOOST_AUTO_TEST_CASE(TestMesh)
+TEST(Mesh, basic)
 {
     vulkan_test_context_t test_context;
 
@@ -133,35 +130,35 @@ BOOST_AUTO_TEST_CASE(TestMesh)
 
 }
 
-BOOST_AUTO_TEST_CASE(TestFormat)
+TEST(Mesh, Format)
 {
-    BOOST_CHECK_EQUAL(vierkant::format<float>(), VK_FORMAT_R32_SFLOAT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::vec2>(), VK_FORMAT_R32G32_SFLOAT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::vec3>(), VK_FORMAT_R32G32B32_SFLOAT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::vec4>(), VK_FORMAT_R32G32B32A32_SFLOAT);
-    BOOST_CHECK_EQUAL(vierkant::format<int32_t>(), VK_FORMAT_R32_SINT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::ivec2>(), VK_FORMAT_R32G32_SINT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::ivec3>(), VK_FORMAT_R32G32B32_SINT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::ivec4>(), VK_FORMAT_R32G32B32A32_SINT);
-    BOOST_CHECK_EQUAL(vierkant::format<uint32_t>(), VK_FORMAT_R32_UINT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::uvec2>(), VK_FORMAT_R32G32_UINT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::uvec3>(), VK_FORMAT_R32G32B32_UINT);
-    BOOST_CHECK_EQUAL(vierkant::format<glm::uvec4>(), VK_FORMAT_R32G32B32A32_UINT);
+    EXPECT_EQ(vierkant::format<float>(), VK_FORMAT_R32_SFLOAT);
+    EXPECT_EQ(vierkant::format<glm::vec2>(), VK_FORMAT_R32G32_SFLOAT);
+    EXPECT_EQ(vierkant::format<glm::vec3>(), VK_FORMAT_R32G32B32_SFLOAT);
+    EXPECT_EQ(vierkant::format<glm::vec4>(), VK_FORMAT_R32G32B32A32_SFLOAT);
+    EXPECT_EQ(vierkant::format<int32_t>(), VK_FORMAT_R32_SINT);
+    EXPECT_EQ(vierkant::format<glm::ivec2>(), VK_FORMAT_R32G32_SINT);
+    EXPECT_EQ(vierkant::format<glm::ivec3>(), VK_FORMAT_R32G32B32_SINT);
+    EXPECT_EQ(vierkant::format<glm::ivec4>(), VK_FORMAT_R32G32B32A32_SINT);
+    EXPECT_EQ(vierkant::format<uint32_t>(), VK_FORMAT_R32_UINT);
+    EXPECT_EQ(vierkant::format<glm::uvec2>(), VK_FORMAT_R32G32_UINT);
+    EXPECT_EQ(vierkant::format<glm::uvec3>(), VK_FORMAT_R32G32B32_UINT);
+    EXPECT_EQ(vierkant::format<glm::uvec4>(), VK_FORMAT_R32G32B32A32_UINT);
 
-    // only needed to satisfy freakin BOOST_CHECK_EQUAL
+    // only needed to satisfy freakin EXPECT_EQ
     using u16vec2 = glm::vec<2, uint16_t>;
     using u16vec3 = glm::vec<3, uint16_t>;
     using u16vec4 = glm::vec<4, uint16_t>;
 
-    BOOST_CHECK_EQUAL(vierkant::format<u16vec2>(), VK_FORMAT_R16G16_UINT);
-    BOOST_CHECK_EQUAL(vierkant::format<u16vec3>(), VK_FORMAT_R16G16B16_UINT);
-    BOOST_CHECK_EQUAL(vierkant::format<u16vec4>(), VK_FORMAT_R16G16B16A16_UINT);
+    EXPECT_EQ(vierkant::format<u16vec2>(), VK_FORMAT_R16G16_UINT);
+    EXPECT_EQ(vierkant::format<u16vec3>(), VK_FORMAT_R16G16B16_UINT);
+    EXPECT_EQ(vierkant::format<u16vec4>(), VK_FORMAT_R16G16B16A16_UINT);
 }
 
-BOOST_AUTO_TEST_CASE(TestIndexType)
+TEST(Mesh, IndexType)
 {
-    BOOST_CHECK_EQUAL(vierkant::index_type<uint16_t>(), VK_INDEX_TYPE_UINT16);
-    BOOST_CHECK_EQUAL(vierkant::index_type<uint32_t>(), VK_INDEX_TYPE_UINT32);
+    EXPECT_EQ(vierkant::index_type<uint16_t>(), VK_INDEX_TYPE_UINT16);
+    EXPECT_EQ(vierkant::index_type<uint32_t>(), VK_INDEX_TYPE_UINT32);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

@@ -1,12 +1,9 @@
-#define BOOST_TEST_MAIN
-
 #include "test_context.hpp"
-
 #include "vierkant/PBRDeferred.hpp"
 #include "vierkant/model/model_loading.hpp"
 #include "vierkant/vierkant.hpp"
 
-BOOST_AUTO_TEST_CASE(TestPBRDeferred)
+TEST(TestPBRDeferred, basic)
 {
     vulkan_test_context_t test_context;
 
@@ -33,20 +30,20 @@ BOOST_AUTO_TEST_CASE(TestPBRDeferred)
     auto mesh = vierkant::Mesh::create_with_entries(test_context.device, mesh_assets.entry_create_infos,
                                                     mesh_create_info);
 
-    BOOST_CHECK_EQUAL(mesh_assets.entry_create_infos.size(), mesh->entries.size());
-    BOOST_CHECK_EQUAL(mesh_assets.materials.size(), mesh->materials.size());
+    EXPECT_EQ(mesh_assets.entry_create_infos.size(), mesh->entries.size());
+    EXPECT_EQ(mesh_assets.materials.size(), mesh->materials.size());
 
     // create camera / mesh-node/ scene
     auto registry = std::make_shared<entt::registry>();
     auto cam = vierkant::PerspectiveCamera::create(registry);
-    BOOST_CHECK(cam);
+    EXPECT_TRUE(cam);
 
     auto scene = vierkant::Scene::create();
     auto mesh_node = vierkant::create_mesh_object(scene->registry(), {mesh});
-    BOOST_CHECK(mesh_node);
+    EXPECT_TRUE(mesh_node);
 
     scene->add_object(mesh_node);
-    BOOST_CHECK(scene);
+    EXPECT_TRUE(scene);
 
     // create PBR scene-renderer
     vierkant::PBRDeferred::create_info_t pbr_render_info = {};
@@ -57,7 +54,7 @@ BOOST_AUTO_TEST_CASE(TestPBRDeferred)
     pbr_render_info.settings.resolution = res;
     pbr_render_info.settings.indirect_draw = false;
     auto pbr_renderer = vierkant::PBRDeferred::create(test_context.device, pbr_render_info);
-    BOOST_CHECK(pbr_renderer);
+    EXPECT_TRUE(pbr_renderer);
 
     // create a framebuffer to submit to
     vierkant::Framebuffer::create_info_t framebuffer_info = {};
@@ -67,8 +64,8 @@ BOOST_AUTO_TEST_CASE(TestPBRDeferred)
     // stage drawables and generate a (secondary) command-buffer
     auto render_result = pbr_renderer->render_scene(renderer, scene, cam, {});
     VkCommandBuffer secondaryCmdBuffer = renderer.render(framebuffer);
-    BOOST_CHECK_EQUAL(render_result.num_draws, 1);
-    BOOST_CHECK(secondaryCmdBuffer);
+    EXPECT_EQ(render_result.num_draws, 1);
+    EXPECT_TRUE(secondaryCmdBuffer);
 
     // now submit this command-buffer into a render-pass
     framebuffer.submit({secondaryCmdBuffer}, test_context.device->queue(), render_result.semaphore_infos);
