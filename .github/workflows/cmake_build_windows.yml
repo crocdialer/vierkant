@@ -1,6 +1,7 @@
 name: build_windows
 
 on:
+  workflow_dispatch:
   push:
     branches: [ master, integration ]
   pull_request:

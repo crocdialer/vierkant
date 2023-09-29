@@ -60,7 +60,7 @@ public:
 
     glm::vec4 emission = glm::vec4(0, 0, 0, 1);
 
-    float metalness = 1.f;
+    float metalness = 0.f;
 
     float roughness = 1.f;
 
