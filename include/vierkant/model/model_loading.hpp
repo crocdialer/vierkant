@@ -170,6 +170,7 @@ struct mesh_assets_t
     std::vector<vierkant::nodes::node_animation_t> node_animations;
 };
 
+// TODO: consolidate mesh_assets_t <-> asset_bundle_t, they store ~same information, only use one
 struct asset_bundle_t
 {
     //! packed vertex/index/meshlet-buffers with entry information
@@ -180,6 +181,9 @@ struct asset_bundle_t
 
     //! common textures for all materials
     std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
+
+    //! texture-sample-states for all materials
+    std::unordered_map<vierkant::SamplerId , texture_sampler_t> texture_samplers;
 };
 
 struct load_mesh_params_t

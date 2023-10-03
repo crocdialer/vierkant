@@ -12,7 +12,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(SceneRenderer);
+DEFINE_CLASS_PTR(SceneRenderer)
 
 class SceneRenderer
 {

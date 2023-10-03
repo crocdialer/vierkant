@@ -10,7 +10,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(Buffer);
+DEFINE_CLASS_PTR(Buffer)
 
 class Buffer
 {

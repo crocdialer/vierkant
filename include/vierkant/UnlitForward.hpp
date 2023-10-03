@@ -10,7 +10,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(UnlitForward);
+DEFINE_CLASS_PTR(UnlitForward)
 
 class UnlitForward : public vierkant::SceneRenderer
 {

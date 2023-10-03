@@ -10,7 +10,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(Scene);
+DEFINE_CLASS_PTR(Scene)
 
 using double_second = std::chrono::duration<double>;
 

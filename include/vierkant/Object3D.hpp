@@ -17,7 +17,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(Object3D);
+DEFINE_CLASS_PTR(Object3D)
 
 class Object3D : public std::enable_shared_from_this<Object3D>
 {

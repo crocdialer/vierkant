@@ -5,6 +5,7 @@
 #include "../utils/random.glsl"
 #include "../utils/bsdf.glsl"
 #include "ray_common.glsl"
+#include "reservoir.glsl"
 
 #define RADIANCE 0
 #define NORMALS 1

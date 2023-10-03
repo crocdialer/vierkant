@@ -229,7 +229,7 @@ void main()
     // uniform sample sun-area
     vec3 L_light = local_frame(sun_dir) * sample_unit_sphere_cap(vec2(rnd(rng_state), rnd(rng_state)), sun_angle);
     const vec3 sun_color = vec3(1.0, 0.6, 0.4);
-    const float sun_intensity = 10.0;
+    const float sun_intensity = 1.0;
     Ray ray = Ray(payload.position + EPS * payload.ff_normal, L_light);
     const uint ray_flags =  gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT | gl_RayFlagsOpaqueEXT;
     float tmin = 0.0;

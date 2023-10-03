@@ -11,7 +11,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(Material);
+DEFINE_CLASS_PTR(Material)
 
 class Material
 {

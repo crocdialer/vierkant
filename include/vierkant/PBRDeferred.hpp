@@ -19,7 +19,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(PBRDeferred);
+DEFINE_CLASS_PTR(PBRDeferred)
 
 class PBRDeferred : public vierkant::SceneRenderer
 {

@@ -19,7 +19,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(PBRPathTracer);
+DEFINE_CLASS_PTR(PBRPathTracer)
 
 class PBRPathTracer : public vierkant::SceneRenderer
 {

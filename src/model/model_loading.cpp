@@ -186,13 +186,9 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     mesh->node_animations = mesh_assets.node_animations;
 
     // check if we need to override materials/textures with our asset-bundle
-    const auto &textures = (asset_bundle && asset_bundle->textures.size() == mesh_assets.textures.size())
-                                   ? asset_bundle->textures
-                                   : mesh_assets.textures;
-
-    const auto &materials = (asset_bundle && asset_bundle->materials.size() == mesh_assets.materials.size())
-                                    ? asset_bundle->materials
-                                    : mesh_assets.materials;
+    const auto &textures = asset_bundle ? asset_bundle->textures : mesh_assets.textures;
+    const auto &materials = asset_bundle ? asset_bundle->materials : mesh_assets.materials;
+    const auto &samplers = asset_bundle ? asset_bundle->texture_samplers : mesh_assets.texture_samplers;
 
     // create + cache textures & samplers
     std::unordered_map<vierkant::TextureSourceId, vierkant::ImagePtr> texture_cache;
@@ -258,9 +254,8 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 // clone img
                 vk_img = texture_cache[tex_id]->clone();
                 const auto &sampler_id = sampler_id_it->second;
-                assert(mesh_assets.texture_samplers.contains(sampler_id));
-                auto vk_sampler = create_sampler(params.device, mesh_assets.texture_samplers.at(sampler_id),
-                                                 vk_img->num_mip_levels());
+                assert(samplers.contains(sampler_id));
+                auto vk_sampler = create_sampler(params.device, samplers.at(sampler_id), vk_img->num_mip_levels());
                 vk_img->set_sampler(vk_sampler);
             }
             material->textures[tex_type] = vk_img;

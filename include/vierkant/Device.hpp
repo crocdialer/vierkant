@@ -13,7 +13,7 @@
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(Device);
+DEFINE_CLASS_PTR(Device)
 
 //! define a shared handle for a VkQueryPool
 using QueryPoolPtr = std::shared_ptr<VkQueryPool_T>;
