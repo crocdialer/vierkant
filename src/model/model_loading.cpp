@@ -254,9 +254,18 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 // clone img
                 vk_img = texture_cache[tex_id]->clone();
                 const auto &sampler_id = sampler_id_it->second;
-                assert(samplers.contains(sampler_id));
-                auto vk_sampler = create_sampler(params.device, samplers.at(sampler_id), vk_img->num_mip_levels());
-                vk_img->set_sampler(vk_sampler);
+                auto sampler_it = samplers.find(sampler_id);
+
+                if(sampler_it != samplers.end())
+                {
+                    auto vk_sampler = create_sampler(params.device, sampler_it->second, vk_img->num_mip_levels());
+                    vk_img->set_sampler(vk_sampler);
+                }
+                else
+                {
+                    spdlog::warn("material '{}' references sampler '{}', but could not find in bundle",
+                                 materials[i].name, sampler_id.str());
+                }
             }
             material->textures[tex_type] = vk_img;
         }
