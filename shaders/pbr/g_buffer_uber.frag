@@ -97,7 +97,8 @@ void main()
         out_color.rgb *= vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
     }
 
-    vec3 normal = vertex_in.normal;
+    // invert normals for two-sided/backface surfels
+    vec3 normal = (material.two_sided && !gl_FrontFacing) ? -vertex_in.normal : vertex_in.normal;
 
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {

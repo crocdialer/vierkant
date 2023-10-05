@@ -58,6 +58,8 @@ struct alignas(16) material_struct_t
     uint32_t base_texture_index = 0;
 
     uint32_t texture_type_flags = 0;
+
+    uint32_t two_sided = false;
 };
 
 //! define a strong id-type for drawables

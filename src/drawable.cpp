@@ -65,6 +65,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.material.metalness = material->metalness;
         drawable.material.blend_mode = static_cast<uint32_t>(material->blend_mode);
         drawable.material.alpha_cutoff = material->alpha_cutoff;
+        drawable.material.two_sided = material->two_sided;
 
         drawable.base_index = lod_0.base_index;
         drawable.num_indices = lod_0.num_indices;

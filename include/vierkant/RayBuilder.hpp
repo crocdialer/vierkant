@@ -16,7 +16,7 @@ namespace vierkant
 {
 
 /**
- * @brief   RaytBuilder can be used to create bottom and toplevel acceleration-structures
+ * @brief   RayBuilder can be used to create bottom and toplevel acceleration-structures
  *          used by raytracing pipelines.
  *
  */
@@ -83,6 +83,8 @@ public:
         uint32_t blend_mode = static_cast<uint32_t>(Material::BlendMode::Opaque);
 
         float alpha_cutoff = 0.5f;
+
+        uint32_t two_sided = false;
     };
 
     //! used for both bottom and toplevel acceleration-structures

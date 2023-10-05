@@ -93,6 +93,7 @@ struct material_struct_t
     vec2 iridescence_thickness_range;
     uint base_texture_index;
     uint texture_type_flags;
+    bool two_sided;
 };
 
 //! some render-context passed as push-constant

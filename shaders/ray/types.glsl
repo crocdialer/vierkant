@@ -62,4 +62,5 @@ struct material_t
 
     uint blend_mode;
     float alpha_cutoff;
+    bool two_sided;
 };
