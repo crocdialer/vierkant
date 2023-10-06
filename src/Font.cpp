@@ -10,7 +10,9 @@
 
 #include "stb_truetype.h"
 
+#if defined(__clang__)
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #include <codecvt>
 
 std::wstring utf8_to_wstring(const std::string &str)
