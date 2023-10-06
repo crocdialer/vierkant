@@ -2,6 +2,8 @@
 // Created by crocdialer on 9/3/21.
 //
 
+#pragma clang diagnostic ignored "-Wunused-const-variable"
+
 #define TINYGLTF_IMPLEMENTATION
 
 #include <deque>

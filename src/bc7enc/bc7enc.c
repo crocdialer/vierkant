@@ -12,19 +12,19 @@
 static inline int32_t clampi(int32_t value, int32_t low, int32_t high) { if (value < low) value = low; else if (value > high) value = high;	return value; }
 static inline float clampf(float value, float low, float high) { if (value < low) value = low; else if (value > high) value = high;	return value; }
 static inline float saturate(float value) { return clampf(value, 0, 1.0f); }
-static inline uint8_t minimumub(uint8_t a, uint8_t b) { return (a < b) ? a : b; }
+//static inline uint8_t minimumub(uint8_t a, uint8_t b) { return (a < b) ? a : b; }
 static inline uint32_t minimumu(uint32_t a, uint32_t b) { return (a < b) ? a : b; }
 static inline float minimumf(float a, float b) { return (a < b) ? a : b; }
-static inline uint8_t maximumub(uint8_t a, uint8_t b) { return (a > b) ? a : b; }
+//static inline uint8_t maximumub(uint8_t a, uint8_t b) { return (a > b) ? a : b; }
 static inline uint32_t maximumu(uint32_t a, uint32_t b) { return (a > b) ? a : b; }
 static inline float maximumf(float a, float b) { return (a > b) ? a : b; }
 static inline int squarei(int i) { return i * i; }
 static inline float squaref(float i) { return i * i; }
 
 static inline int32_t iabs32(int32_t v) { uint32_t msk = v >> 31; return (v ^ msk) - msk; }
-static inline void swapub(uint8_t* a, uint8_t* b) { uint8_t t = *a; *a = *b; *b = t; }
+//static inline void swapub(uint8_t* a, uint8_t* b) { uint8_t t = *a; *a = *b; *b = t; }
 static inline void swapu(uint32_t* a, uint32_t* b) { uint32_t t = *a; *a = *b; *b = t; }
-static inline void swapf(float* a, float* b) { float t = *a; *a = *b; *b = t; }
+//static inline void swapf(float* a, float* b) { float t = *a; *a = *b; *b = t; }
 
 typedef struct { uint8_t m_c[4]; } color_quad_u8;
 typedef struct { float m_c[4]; } vec4F;

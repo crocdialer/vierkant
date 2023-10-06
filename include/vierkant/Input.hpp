@@ -2,6 +2,7 @@
 
 #include <vierkant/math.hpp>
 #include <unordered_map>
+#include <string>
 
 namespace vierkant
 {
@@ -65,14 +66,12 @@ public:
     MouseEvent() = default;
 
     MouseEvent(int initiator, int x, int y, unsigned int modifiers,
-               glm::ivec2 wheel_inc, int touch_idx = 0, int touch_id = 0) :
+               glm::ivec2 wheel_inc) :
             m_initiator(initiator),
             m_x(x),
             m_y(y),
             m_modifiers(modifiers),
-            m_wheel_inc(wheel_inc),
-            m_touch_index(touch_idx),
-            m_touch_id(touch_id){}
+            m_wheel_inc(wheel_inc){}
 
     //! Returns the X coordinate of the mouse event
     int get_x() const{ return m_x; }
@@ -133,8 +132,6 @@ private:
     int m_x = 0, m_y = 0;
     unsigned int m_modifiers = 0;
     glm::ivec2 m_wheel_inc{0};
-    int m_touch_index = 0;
-    int m_touch_id = 0;
 };
 
 //! Represents a keyboard event

@@ -20,10 +20,10 @@ static inline bool operator==(const VkVertexInputBindingDescription &lhs, const 
     return true;
 }
 
-static inline bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
-{
-    return !(lhs == rhs);
-}
+//static inline bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
+//{
+//    return !(lhs == rhs);
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -37,11 +37,11 @@ static inline bool operator==(const VkVertexInputAttributeDescription &lhs,
     return true;
 }
 
-static inline bool operator!=(const VkVertexInputAttributeDescription &lhs,
-                              const VkVertexInputAttributeDescription &rhs)
-{
-    return !(lhs == rhs);
-}
+//static inline bool operator!=(const VkVertexInputAttributeDescription &lhs,
+//                              const VkVertexInputAttributeDescription &rhs)
+//{
+//    return !(lhs == rhs);
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -59,11 +59,11 @@ static inline bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
     return true;
 }
 
-static inline bool operator!=(const VkPipelineColorBlendAttachmentState &lhs,
-                              const VkPipelineColorBlendAttachmentState &rhs)
-{
-    return !(lhs == rhs);
-}
+//static inline bool operator!=(const VkPipelineColorBlendAttachmentState &lhs,
+//                              const VkPipelineColorBlendAttachmentState &rhs)
+//{
+//    return !(lhs == rhs);
+//}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -75,10 +75,10 @@ static inline bool operator==(const VkPushConstantRange &lhs, const VkPushConsta
     return true;
 }
 
-static inline bool operator!=(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
-{
-    return !(lhs == rhs);
-}
+//static inline bool operator!=(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
+//{
+//    return !(lhs == rhs);
+//}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -26,7 +26,7 @@ constexpr uint32_t query_count = 2;
 struct texture_index_key_t
 {
     vierkant::MeshConstPtr mesh;
-    uint64_t texture_hash;
+    size_t texture_hash;
 
     inline bool operator==(const texture_index_key_t &other) const
     {
@@ -256,7 +256,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     std::vector<vierkant::ImagePtr> textures;
 
     auto create_texture_hash = [](const std::vector<vierkant::ImagePtr> &textures) -> uint64_t {
-        uint64_t texture_hash = 0;
+        size_t texture_hash = 0;
         for(const auto &tex: textures) { vierkant::hash_combine(texture_hash, tex); }
         return texture_hash;
     };

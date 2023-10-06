@@ -7,6 +7,7 @@
 #define VK_NO_PROTOTYPES
 #include <vulkan/vulkan.h>
 
+#include <string>
 #include <vierkant/math.hpp>
 
 namespace vierkant
