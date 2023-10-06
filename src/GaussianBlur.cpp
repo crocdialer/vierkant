@@ -12,16 +12,6 @@
 namespace vierkant
 {
 
-template class GaussianBlur_<5>;
-
-template class GaussianBlur_<7>;
-
-template class GaussianBlur_<9>;
-
-template class GaussianBlur_<11>;
-
-template class GaussianBlur_<13>;
-
 template<uint32_t NUM_TAPS>
 std::unique_ptr<GaussianBlur_<NUM_TAPS>> GaussianBlur_<NUM_TAPS>::create(const DevicePtr &device,
                                                                          const create_info_t &create_info)
@@ -242,5 +232,11 @@ vierkant::ImagePtr GaussianBlur_<NUM_TAPS>::apply(const ImagePtr &image, VkComma
     vierkant::end_label(commandbuffer);
     return current_img;
 }
+
+template class GaussianBlur_<5>;
+template class GaussianBlur_<7>;
+template class GaussianBlur_<9>;
+template class GaussianBlur_<11>;
+template class GaussianBlur_<13>;
 
 }// namespace vierkant
