@@ -145,7 +145,11 @@ void main()
     material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
 
     vec3 V = -gl_WorldRayDirectionEXT;
-    float NoV = abs(dot(V, v.normal));
+    float NoV = dot(V, v.normal);
+
+    // account for two-sided materials seen from backside, flip normals
+    if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
+    NoV = abs(NoV);
 
     payload.position = v.position;
     payload.normal = v.normal;
@@ -170,11 +174,9 @@ void main()
         vec3 b = normalize(cross(payload.normal, v.tangent));
         payload.normal = mat3(v.tangent, b, payload.normal) * normal;
     }
-    bool triangle_ff = dot(V, payload.normal) >= 0;
-    if(material.two_sided && !triangle_ff){ payload.normal *= -1.0; triangle_ff = !triangle_ff; }
 
     // hack to counter black fringes, need to get back to that ...
-    if(material.transmission == 0.0 && !triangle_ff){ payload.normal = reflect(payload.normal, V); }
+    if(material.transmission == 0.0 && dot(V, payload.normal) < 0){ payload.normal = reflect(payload.normal, V); }
 
     // flip the normal so it points against the ray direction:
     payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);

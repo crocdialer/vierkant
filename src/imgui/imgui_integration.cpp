@@ -188,7 +188,9 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
         font_cfg.FontData = const_cast<uint8_t *>(create_info.font_data.data());
         font_cfg.FontDataSize = static_cast<int>(create_info.font_data.size());
         font_cfg.FontDataOwnedByAtlas = false;
-        font_cfg.SizePixels = create_info.font_size;
+
+        // additionally apply ui-scale to font-size
+        font_cfg.SizePixels = create_info.font_size * create_info.ui_scale;
         font_cfg.GlyphRanges = io.Fonts->GetGlyphRangesDefault();
         io.Fonts->AddFont(&font_cfg);
     }
