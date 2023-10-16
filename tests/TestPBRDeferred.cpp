@@ -12,8 +12,7 @@ TEST(TestPBRDeferred, basic)
     vierkant::Rasterizer::create_info_t create_info = {};
     create_info.num_frames_in_flight = 1;
     create_info.sample_count = VK_SAMPLE_COUNT_1_BIT;
-    create_info.viewport = {0.f, 0.f, res.x,
-                            res.y, 0.f, 1.f};
+    create_info.viewport = {0.f, 0.f, res.x, res.y, 0.f, 1.f};
 
     auto renderer = vierkant::Rasterizer(test_context.device, create_info);
 
@@ -21,17 +20,12 @@ TEST(TestPBRDeferred, basic)
     vierkant::Mesh::entry_create_info_t entry_info = {};
     entry_info.geometry = vierkant::Geometry::Box();
 
-    vierkant::model::mesh_assets_t mesh_assets = {};
-    mesh_assets.entry_create_infos = {entry_info};
-    mesh_assets.materials.resize(1);
-
     // use sub-entry information to create a mesh (owns a combined + interleaved vertex-buffer)
     vierkant::Mesh::create_info_t mesh_create_info = {};
-    auto mesh = vierkant::Mesh::create_with_entries(test_context.device, mesh_assets.entry_create_infos,
-                                                    mesh_create_info);
+    auto mesh = vierkant::Mesh::create_with_entries(test_context.device, {entry_info}, mesh_create_info);
 
-    EXPECT_EQ(mesh_assets.entry_create_infos.size(), mesh->entries.size());
-    EXPECT_EQ(mesh_assets.materials.size(), mesh->materials.size());
+    EXPECT_EQ(1, mesh->entries.size());
+    EXPECT_EQ(1, mesh->materials.size());
 
     // create camera / mesh-node/ scene
     auto registry = std::make_shared<entt::registry>();
