@@ -875,8 +875,8 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
     out_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
     out_assets.root_node->name = model.nodes[scene.nodes[0]].name;
 
-//    auto &entry_create_infos = std::get<std::vector<vierkant::Mesh::entry_create_info_t>>(out_assets.geometry_data);
-    std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
+    auto &entry_create_infos = std::get<std::vector<vierkant::Mesh::entry_create_info_t>>(out_assets.geometry_data);
+//    std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
 
     // map tiny-indices to created assets
     std::map<uint32_t, crocore::ImagePtr> image_cache;
@@ -1116,7 +1116,6 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
         auto node_animation = create_node_animation(tiny_animation, model, node_map);
         out_assets.node_animations.push_back(std::move(node_animation));
     }
-    out_assets.geometry_data = std::move(entry_create_infos);
     return out_assets;
 }
 

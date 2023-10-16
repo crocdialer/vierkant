@@ -14,17 +14,6 @@
 namespace vierkant::model
 {
 
-//vierkant::nodes::NodePtr create_node(const std::unordered_map<vierkant::NodeId, vierkant::model::node_t> &nodes,
-//                                     NodeId root_id)
-//{
-//    auto it = nodes.find(root_id);
-//    if(it != nodes.end())
-//    {
-//        const auto &node = it->second;
-//
-//    }
-//}
-
 VkFormat vk_format(const crocore::ImagePtr &img)
 {
     VkFormat ret = VK_FORMAT_UNDEFINED;
@@ -195,11 +184,6 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 }
             },
             mesh_assets.geometry_data);
-
-    //    auto mesh = asset_bundle ? vierkant::Mesh::create_from_bundle(params.device, asset_bundle->mesh_buffer_bundle,
-    //                                                                  mesh_create_info)
-    //                             : vierkant::Mesh::create_with_entries(params.device, mesh_assets.entry_create_infos,
-    //                                                                   mesh_create_info);
 
     // skin + bones
     mesh->root_bone = mesh_assets.root_bone;
