@@ -622,7 +622,7 @@ void process_node_hierarchy(const aiScene *scene,
                             size_t &num_vertices,
                             size_t &num_indices)
 {
-    struct node_t
+    struct node_helper_t
     {
         const aiNode *ai_node;
         glm::mat4 global_transform;
@@ -637,11 +637,11 @@ void process_node_hierarchy(const aiScene *scene,
     std::map<std::string, crocore::ImagePtr> image_cache;
 
     // create vierkant::node root
-    out_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
+    out_assets.root_node = std::make_shared<vierkant::nodes::node_helper_t>();
     out_assets.root_node->name = scene->mRootNode->mName.data;
     uint32_t current_node_index = 0;
 
-    std::deque<node_t> node_queue;
+    std::deque<node_helper_t> node_queue;
     node_queue.push_back({scene->mRootNode, glm::mat4(1), out_assets.root_node});
 
     while(!node_queue.empty())
@@ -702,7 +702,7 @@ void process_node_hierarchy(const aiScene *scene,
             glm::mat4 child_transform = aimatrix_to_glm_mat4(ai_node->mChildren[c]->mTransformation);
 
             // create vierkant::node
-            auto child_node = std::make_shared<vierkant::nodes::node_t>();
+            auto child_node = std::make_shared<vierkant::nodes::node_helper_t>();
             child_node->name = ai_node->mChildren[c]->mName.data;
             child_node->index = ++current_node_index;
             child_node->parent = current_node;
@@ -735,7 +735,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy(const aiNode *theNode, glm::mat4 
     {
         int boneIndex = it->second.first;
         const glm::mat4 &offset = it->second.second;
-        currentBone = std::make_shared<vierkant::nodes::node_t>();
+        currentBone = std::make_shared<vierkant::nodes::node_helper_t>();
         currentBone->name = nodeName;
         currentBone->index = boneIndex;
         currentBone->transform = nodeTransform;

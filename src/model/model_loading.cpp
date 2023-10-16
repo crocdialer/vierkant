@@ -14,6 +14,17 @@
 namespace vierkant::model
 {
 
+//vierkant::nodes::NodePtr create_node(const std::unordered_map<vierkant::NodeId, vierkant::model::node_t> &nodes,
+//                                     NodeId root_id)
+//{
+//    auto it = nodes.find(root_id);
+//    if(it != nodes.end())
+//    {
+//        const auto &node = it->second;
+//
+//    }
+//}
+
 VkFormat vk_format(const crocore::ImagePtr &img)
 {
     VkFormat ret = VK_FORMAT_UNDEFINED;
@@ -177,13 +188,13 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                                                                    mesh_create_info);
 
     // skin + bones
-    mesh->root_bone = mesh_assets.root_bone;
+    mesh->root_bone = asset_bundle ? asset_bundle->root_bone : mesh_assets.root_bone;
 
     // node hierarchy
-    mesh->root_node = mesh_assets.root_node;
+    mesh->root_node = asset_bundle ? asset_bundle->root_node : mesh_assets.root_node;
 
     // node animations
-    mesh->node_animations = mesh_assets.node_animations;
+    mesh->node_animations = asset_bundle ? asset_bundle->node_animations : mesh_assets.node_animations;
 
     // check if we need to override materials/textures with our asset-bundle
     const auto &textures = asset_bundle ? asset_bundle->textures : mesh_assets.textures;

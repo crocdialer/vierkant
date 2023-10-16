@@ -36,13 +36,14 @@ struct animation_value_t
 /**
  *  @brief  animation_keys_t groups all existing keys for an entity.
  */
-struct animation_keys_t
+template <typename T> struct animation_keys_t_
 {
     std::map<float, animation_value_t<glm::vec3>> positions;
     std::map<float, animation_value_t<glm::quat>> rotations;
     std::map<float, animation_value_t<glm::vec3>> scales;
     std::map<float, animation_value_t<std::vector<double>>> morph_weights;
 };
+using animation_keys_t = animation_keys_t_<float>;
 
 /**
  * @brief   animation_t groups all information for a keyframe animation.
