@@ -24,6 +24,11 @@ DEFINE_NAMED_UUID(SamplerId)
 
 //! contains uncompressed or BC7-compressed images
 using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bc7::compress_result_t>;
+
+//! contains raw or packed geometry-information. either way 'can' be used to construct a mesh
+using geometry_variant_t = std::variant<std::vector<vierkant::Mesh::entry_create_info_t>,
+                                        vierkant::mesh_buffer_bundle_t>;
+
 }// namespace vierkant
 
 
@@ -142,8 +147,8 @@ struct camera_t
  */
 struct mesh_assets_t
 {
-    //! submesh entries
-    std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
+    //! vertex/index/meshlet/submesh data for a mesh with submeshes
+    geometry_variant_t geometry_data;
 
     //! common materials for all submeshes
     std::vector<material_t> materials;
@@ -159,31 +164,6 @@ struct mesh_assets_t
 
     //! optional cameras defined in model-file
     std::vector<camera_t> cameras;
-
-    //! node-hierarchy for submeshes
-    vierkant::nodes::NodePtr root_node;
-
-    //! optional bone node-hierarchy
-    vierkant::nodes::NodePtr root_bone;
-
-    //! optional array of animations defined for nodes
-    std::vector<vierkant::nodes::node_animation_t> node_animations;
-};
-
-// TODO: consolidate mesh_assets_t <-> asset_bundle_t, they store ~same information, only use one
-struct asset_bundle_t
-{
-    //! packed vertex/index/meshlet-buffers with entry information
-    vierkant::mesh_buffer_bundle_t mesh_buffer_bundle;
-
-    //! common materials for all meshes
-    std::vector<material_t> materials;
-
-    //! common textures for all materials
-    std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
-
-    //! texture-sample-states for all materials
-    std::unordered_map<vierkant::SamplerId , texture_sampler_t> texture_samplers;
 
     //! node-hierarchy for submeshes
     vierkant::nodes::NodePtr root_node;
@@ -226,8 +206,7 @@ std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, croco
  * @param   params  a struct grouping input-parameters
  * @return  a vierkant::MeshPtr, nullptr in case of failure.
  */
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets,
-                            const std::optional<asset_bundle_t> &asset_bundle = {});
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets);
 
 /**
  * @brief   compress_textures will compress all images found provided mesh_assets in-place.
