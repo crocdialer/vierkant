@@ -140,8 +140,7 @@ bool compress_textures(vierkant::model::mesh_assets_t &mesh_assets)
     return true;
 }
 
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets,
-                            const std::optional<asset_bundle_t> &asset_bundle)
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets)
 {
     assert(params.device);
     std::vector<vierkant::BufferPtr> staging_buffers;
@@ -182,31 +181,41 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     mesh_create_info.mesh_buffer_params = params.mesh_buffers_params;
     mesh_create_info.command_buffer = cmd_buf.handle();
     mesh_create_info.staging_buffer = mesh_staging_buf;
-    auto mesh = asset_bundle ? vierkant::Mesh::create_from_bundle(params.device, asset_bundle->mesh_buffer_bundle,
-                                                                  mesh_create_info)
-                             : vierkant::Mesh::create_with_entries(params.device, mesh_assets.entry_create_infos,
-                                                                   mesh_create_info);
+    vierkant::MeshPtr mesh = std::visit(
+            [&mesh_create_info, &device = params.device](auto &&geometry_data) -> vierkant::MeshPtr {
+                using T = std::decay_t<decltype(geometry_data)>;
+
+                if constexpr(std::is_same_v<T, std::vector<vierkant::Mesh::entry_create_info_t>>)
+                {
+                    return vierkant::Mesh::create_with_entries(device, geometry_data, mesh_create_info);
+                }
+                else if constexpr(std::is_same_v<T, vierkant::mesh_buffer_bundle_t>)
+                {
+                    return vierkant::Mesh::create_from_bundle(device, geometry_data, mesh_create_info);
+                }
+            },
+            mesh_assets.geometry_data);
+
+    //    auto mesh = asset_bundle ? vierkant::Mesh::create_from_bundle(params.device, asset_bundle->mesh_buffer_bundle,
+    //                                                                  mesh_create_info)
+    //                             : vierkant::Mesh::create_with_entries(params.device, mesh_assets.entry_create_infos,
+    //                                                                   mesh_create_info);
 
     // skin + bones
-    mesh->root_bone = asset_bundle ? asset_bundle->root_bone : mesh_assets.root_bone;
+    mesh->root_bone = mesh_assets.root_bone;
 
     // node hierarchy
-    mesh->root_node = asset_bundle ? asset_bundle->root_node : mesh_assets.root_node;
+    mesh->root_node = mesh_assets.root_node;
 
     // node animations
-    mesh->node_animations = asset_bundle ? asset_bundle->node_animations : mesh_assets.node_animations;
-
-    // check if we need to override materials/textures with our asset-bundle
-    const auto &textures = asset_bundle ? asset_bundle->textures : mesh_assets.textures;
-    const auto &materials = asset_bundle ? asset_bundle->materials : mesh_assets.materials;
-    const auto &samplers = asset_bundle ? asset_bundle->texture_samplers : mesh_assets.texture_samplers;
+    mesh->node_animations = mesh_assets.node_animations;
 
     // create + cache textures & samplers
     std::unordered_map<vierkant::TextureSourceId, vierkant::ImagePtr> texture_cache;
     std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> sampler_cache;
 
     // generate textures with default samplers
-    for(const auto &[tex_id, tex_variant]: textures)
+    for(const auto &[tex_id, tex_variant]: mesh_assets.textures)
     {
         std::visit(
                 [&params, tex_id = tex_id, &texture_cache, &create_texture](auto &&img) {
@@ -223,6 +232,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 },
                 tex_variant);
     }
+    const auto &materials = mesh_assets.materials;
     mesh->materials.resize(std::max<size_t>(1, materials.size()));
 
     for(uint32_t i = 0; i < materials.size(); ++i)
@@ -265,9 +275,9 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 // clone img
                 vk_img = texture_cache[tex_id]->clone();
                 const auto &sampler_id = sampler_id_it->second;
-                auto sampler_it = samplers.find(sampler_id);
+                auto sampler_it = mesh_assets.texture_samplers.find(sampler_id);
 
-                if(sampler_it != samplers.end())
+                if(sampler_it != mesh_assets.texture_samplers.end())
                 {
                     auto vk_sampler = create_sampler(params.device, sampler_it->second, vk_img->num_mip_levels());
                     vk_img->set_sampler(vk_sampler);

@@ -100,14 +100,17 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
     // fallback material
     if(mesh_assets.materials.empty()) { mesh_assets.materials.resize(1); }
 
+    std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
+
     for(const auto &shape: shapes)
     {
         vierkant::Mesh::entry_create_info_t entry_info = {};
         entry_info.geometry = create_geometry(inattrib, shape.mesh.indices);
         entry_info.name = shape.name;
         entry_info.material_index = shape.mesh.material_ids.empty() ? 0 : std::max(shape.mesh.material_ids.front(), 0);
-        mesh_assets.entry_create_infos.push_back(entry_info);
+        entry_create_infos.push_back(entry_info);
     }
+    mesh_assets.geometry_data = entry_create_infos;
     return mesh_assets;
 }
 

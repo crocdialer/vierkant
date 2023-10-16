@@ -82,6 +82,8 @@ public:
 
     std::vector<index_t> indices;
 
+    // only used by serialization-access
+    Geometry() = default;
 
     Geometry(const Geometry &) = delete;
 
@@ -161,9 +163,6 @@ public:
      * @return  the newly created Geometry for a box-outline
      */
     static GeometryPtr BoxOutline(const glm::vec3 &half_extents = glm::vec3(.5f));
-
-private:
-    Geometry() = default;
 };
 
 }// namespace vierkant
