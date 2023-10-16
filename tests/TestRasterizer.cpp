@@ -12,18 +12,14 @@ std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePt
     entry_info.geometry->tangents.clear();
     entry_info.geometry->tex_coords.clear();
 
-    vierkant::model::mesh_assets_t mesh_assets = {};
-    mesh_assets.entry_create_infos = {entry_info};
-    mesh_assets.materials.resize(1);
-
     // use sub-entry information to create a mesh (owns a combined + interleaved vertex-buffer)
     vierkant::Mesh::create_info_t mesh_create_info = {};
     mesh_create_info.mesh_buffer_params.pack_vertices = false;
     mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
-    auto mesh = vierkant::Mesh::create_with_entries(device, mesh_assets.entry_create_infos, mesh_create_info);
+    auto mesh = vierkant::Mesh::create_with_entries(device, {entry_info}, mesh_create_info);
 
-    EXPECT_EQ(mesh_assets.entry_create_infos.size(), mesh->entries.size());
-    EXPECT_EQ(mesh_assets.materials.size(), mesh->materials.size());
+    EXPECT_EQ(1, mesh->entries.size());
+    EXPECT_EQ(1, mesh->materials.size());
 
     vierkant::create_drawables_params_t drawable_params = {};
     auto drawables = vierkant::create_drawables({mesh}, drawable_params);
