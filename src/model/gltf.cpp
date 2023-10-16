@@ -33,12 +33,12 @@ constexpr char animation_target_scale[] = "scale";
 constexpr char animation_target_weights[] = "weights";
 
 // blend modes
-constexpr char blend_mode_opaque[] = "OPAQUE";
+[[maybe_unused]] constexpr char blend_mode_opaque[] = "OPAQUE";
 constexpr char blend_mode_blend[] = "BLEND";
 constexpr char blend_mode_mask[] = "MASK";
 
 // interpolation modes
-constexpr char interpolation_linear[] = "LINEAR";
+[[maybe_unused]] constexpr char interpolation_linear[] = "LINEAR";
 constexpr char interpolation_step[] = "STEP";
 constexpr char interpolation_cubic_spline[] = "CUBICSPLINE";
 
@@ -99,15 +99,15 @@ constexpr char ext_iridescence_thickness_texture[] = "iridescenceThicknessTextur
 constexpr char ext_texture_offset[] = "offset";
 constexpr char ext_texture_rotation[] = "rotation";
 constexpr char ext_texture_scale[] = "scale";
-constexpr char ext_texture_tex_coord[] = "texCoord";
+[[maybe_unused]] constexpr char ext_texture_tex_coord[] = "texCoord";
 
 // KHR_lights_punctual
 constexpr char ext_light[] = "light";
-constexpr char ext_light_point[] = "point";
+[[maybe_unused]] constexpr char ext_light_point[] = "point";
 constexpr char ext_light_spot[] = "spot";
 constexpr char ext_light_directional[] = "directional";
 
-struct node_t
+struct node_helper_t
 {
     size_t index;
     vierkant::transform_t world_transform;
@@ -636,7 +636,7 @@ vierkant::nodes::NodePtr create_bone_hierarchy_bfs(const tinygltf::Skin &skin, c
     if(skin.skeleton >= 0 && static_cast<uint32_t>(skin.skeleton) < model.nodes.size() &&
        !inverse_binding_matrices.empty())
     {
-        std::deque<node_t> node_queue;
+        std::deque<node_helper_t> node_queue;
         node_queue.push_back({static_cast<size_t>(skin.skeleton), {}, nullptr});
 
         while(!node_queue.empty())
@@ -963,7 +963,7 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
         out_assets.lights.push_back(l);
     }
 
-    std::deque<node_t> node_queue;
+    std::deque<node_helper_t> node_queue;
 
     for(int node_index: scene.nodes)
     {
@@ -1111,7 +1111,6 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
     for(const auto &tiny_animation: model.animations)
     {
         auto node_animation = create_node_animation(tiny_animation, model, node_map);
-
         out_assets.node_animations.push_back(std::move(node_animation));
     }
     return out_assets;

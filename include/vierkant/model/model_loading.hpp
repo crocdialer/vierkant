@@ -184,6 +184,15 @@ struct asset_bundle_t
 
     //! texture-sample-states for all materials
     std::unordered_map<vierkant::SamplerId , texture_sampler_t> texture_samplers;
+
+    //! node-hierarchy for submeshes
+    vierkant::nodes::NodePtr root_node;
+
+    //! optional bone node-hierarchy
+    vierkant::nodes::NodePtr root_bone;
+
+    //! optional array of animations defined for nodes
+    std::vector<vierkant::nodes::node_animation_t> node_animations;
 };
 
 struct load_mesh_params_t
@@ -217,7 +226,7 @@ std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, croco
  * @param   params  a struct grouping input-parameters
  * @return  a vierkant::MeshPtr, nullptr in case of failure.
  */
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &sampler_state,
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets,
                             const std::optional<asset_bundle_t> &asset_bundle = {});
 
 /**
