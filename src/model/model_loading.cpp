@@ -138,7 +138,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     auto command_pool = vierkant::create_command_pool(params.device, vierkant::Device::Queue::GRAPHICS,
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 
-    auto cmd_buf = vierkant::CommandBuffer(params.device, command_pool.get());
+    auto cmd_buf = vierkant::CommandBuffer({params.device, command_pool.get()});
 
     auto mesh_staging_buf = vierkant::Buffer::create(params.device, nullptr, 1U << 20, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                      VMA_MEMORY_USAGE_CPU_ONLY);
@@ -291,7 +291,7 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     // adhoc using global pool
     auto pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
                                               VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-    auto command_buffer = vierkant::CommandBuffer(device, pool.get());
+    auto command_buffer = vierkant::CommandBuffer({device, pool.get()});
     command_buffer.begin();
 
     format.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -302,9 +302,7 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     format.initial_layout_transition = false;
 
     auto compressed_img = vierkant::Image::create(device, format);
-
     std::vector<vierkant::BufferPtr> level_buffers(compression_result.levels.size());
-
     compressed_img->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, command_buffer.handle());
 
     for(uint32_t lvl = 0; lvl < compression_result.levels.size(); ++lvl)

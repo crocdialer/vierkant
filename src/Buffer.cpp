@@ -19,7 +19,7 @@ void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommand
 
     if(!cmd_handle)
     {
-        local_cmd_buf = CommandBuffer(device, device->command_pool_transfer());
+        local_cmd_buf = CommandBuffer({device, device->command_pool_transfer()});
         local_cmd_buf.begin();
         cmd_handle = local_cmd_buf.handle();
     }

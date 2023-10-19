@@ -84,9 +84,9 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
     for(auto &render_asset: m_frame_assets)
     {
         render_asset.staging_command_buffer =
-                vierkant::CommandBuffer(m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+                vierkant::CommandBuffer({m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_PRIMARY});
         render_asset.command_buffer =
-                vierkant::CommandBuffer(m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+                vierkant::CommandBuffer({m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_SECONDARY});
         render_asset.query_pool = vierkant::create_query_pool(m_device, query_count, VK_QUERY_TYPE_TIMESTAMP);
     }
 
@@ -707,16 +707,20 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
     auto add_staging_copy = [&staging_copies, device = m_device](const auto &array, vierkant::BufferPtr &outbuffer,
                                                                  VkPipelineStageFlags2 dst_stage,
-                                                                 VkAccessFlags2 dst_access) {
+                                                                 VkAccessFlags2 dst_access, const std::string &label) {
         using elem_t = typename std::decay<decltype(array)>::type::value_type;
         size_t num_bytes = array.size() * sizeof(elem_t);
 
         if(!outbuffer)
         {
-            outbuffer = vierkant::Buffer::create(device, nullptr, num_bytes,
-                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                                 VMA_MEMORY_USAGE_GPU_ONLY);
+            vierkant::Buffer::create_info_t buffer_info = {};
+            buffer_info.device = device;
+            buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                                VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+            buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+            buffer_info.num_bytes = num_bytes;
+            buffer_info.name = label;
+            outbuffer = vierkant::Buffer::create(buffer_info);
         }
         else { outbuffer->set_data(nullptr, num_bytes); }
 
@@ -733,18 +737,23 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     {
         if(!frame_asset.staging_buffer)
         {
-            frame_asset.staging_buffer = vierkant::Buffer::create(
-                    m_device, nullptr, 1UL << 20, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+            vierkant::Buffer::create_info_t buffer_info = {};
+            buffer_info.device = m_device;
+            buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+            buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
+            buffer_info.num_bytes = 1UL << 20;
+            buffer_info.name = "Rasterizer: staging_buffer";
+            frame_asset.staging_buffer = vierkant::Buffer::create(buffer_info);
         }
         frame_asset.staging_command_buffer.begin();
 
         add_staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                         VK_ACCESS_2_SHADER_READ_BIT);
+                         VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_entries");
         add_staging_copy(mesh_draws, frame_asset.mesh_draw_buffer,
                          VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                         VK_ACCESS_2_SHADER_READ_BIT);
+                         VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_draws");
         add_staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-                         VK_ACCESS_2_SHADER_READ_BIT);
+                         VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: material_data");
 
         vierkant::staging_copy_context_t staging_context = {};
         staging_context.command_buffer = frame_asset.staging_command_buffer.handle();
@@ -774,22 +783,26 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
     size_t num_bytes_indexed = std::max<size_t>(num_drawables * sizeof(indexed_indirect_command_t), 1UL << 20);
     size_t num_bytes = std::max<size_t>(num_drawables * sizeof(VkDrawIndirectCommand), 1UL << 20);
 
+    vierkant::Buffer::create_info_t buffer_info = {};
+    buffer_info.device = m_device;
+    buffer_info.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    buffer_info.num_bytes = num_bytes_indexed;
+    buffer_info.name = "Rasterizer: frame_asset.indirect_indexed_bundle.draws_in";
+
     if(!frame_asset.indirect_indexed_bundle.draws_in ||
        frame_asset.indirect_indexed_bundle.draws_in->num_bytes() < num_bytes_indexed)
     {
-        frame_asset.indirect_indexed_bundle.draws_in =
-                vierkant::Buffer::create(m_device, nullptr, num_bytes_indexed,
-                                         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_asset.indirect_indexed_bundle.draws_in =                vierkant::Buffer::create(buffer_info);
     }
     else { frame_asset.indirect_indexed_bundle.draws_in->set_data(nullptr, num_bytes_indexed); }
 
     if(!frame_asset.indirect_bundle.draws_in || frame_asset.indirect_bundle.draws_in->num_bytes() < num_bytes)
     {
-        frame_asset.indirect_bundle.draws_in = vierkant::Buffer::create(
-                m_device, nullptr, num_bytes, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                VMA_MEMORY_USAGE_CPU_TO_GPU);
+        buffer_info.num_bytes = num_bytes;
+        buffer_info.name = "Rasterizer: frame_asset.indirect_bundle.draws_in";
+        frame_asset.indirect_bundle.draws_in = vierkant::Buffer::create(buffer_info);
     }
     else { frame_asset.indirect_bundle.draws_in->set_data(nullptr, num_bytes); }
 
@@ -797,19 +810,23 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
 
     if(indirect_draw)
     {
+        buffer_info.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
         if(!frame_asset.indirect_indexed_bundle.draws_out ||
            frame_asset.indirect_indexed_bundle.draws_out->num_bytes() < num_bytes_indexed)
         {
-            frame_asset.indirect_indexed_bundle.draws_out = vierkant::Buffer::create(
-                    m_device, nullptr, num_bytes_indexed,
-                    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                    VMA_MEMORY_USAGE_GPU_ONLY);
+            buffer_info.num_bytes = num_bytes_indexed;
+            buffer_info.name = "Rasterizer: frame_asset.indirect_indexed_bundle.draws_out";
+            frame_asset.indirect_indexed_bundle.draws_out = vierkant::Buffer::create(buffer_info);
         }
         else { frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed); }
 
         if(!frame_asset.indirect_bundle.draws_out || frame_asset.indirect_bundle.draws_out->num_bytes() < num_bytes)
         {
+            buffer_info.num_bytes = num_bytes;
+            buffer_info.name = "Rasterizer: frame_asset.indirect_bundle.draws_out";
             frame_asset.indirect_bundle.draws_out = vierkant::Buffer::create(
                     m_device, nullptr, num_bytes,
                     VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |

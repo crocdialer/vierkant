@@ -35,7 +35,7 @@ vierkant::ImagePtr cubemap_generate_mip_maps(const vierkant::cube_pipeline_t &cu
     auto mipmap_cube = vierkant::Image::create(cube.device, ret_fmt);
 
     // copy image into mipmap-chain
-    img_copy_asset.command_buffer = vierkant::CommandBuffer(cube.device, cube.command_pool.get());
+    img_copy_asset.command_buffer = vierkant::CommandBuffer({cube.device, cube.command_pool.get()});
     img_copy_asset.fence = vierkant::create_fence(cube.device);
 
     img_copy_asset.command_buffer.begin();
@@ -242,7 +242,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
 
         // copy image into mipmap-chain
         img_copy_assets_t &image_copy_asset = image_copy_assets[lvl];
-        image_copy_asset.command_buffer = vierkant::CommandBuffer(device, cube.command_pool.get());
+        image_copy_asset.command_buffer = vierkant::CommandBuffer({device, cube.command_pool.get()});
         image_copy_asset.fence = vierkant::create_fence(device);
 
         image_copy_asset.command_buffer.begin();
@@ -330,7 +330,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_GEOMETRY_BIT] =
             vierkant::create_shader_module(device, vierkant::shaders::cube::cube_layers_geom);
 
-    auto cmd_buffer = vierkant::CommandBuffer(device, command_pool.get());
+    auto cmd_buffer = vierkant::CommandBuffer({device, command_pool.get()});
     cmd_buffer.begin();
 
     auto box = vierkant::Geometry::Box();

@@ -64,7 +64,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
     m_ping_pongs[0].framebuffer = vierkant::Framebuffer(device, fb_attachments_ping, renderpass);
     m_ping_pongs[1].framebuffer = vierkant::Framebuffer(device, fb_attachments_pong, renderpass);
 
-    m_command_buffer = vierkant::CommandBuffer(device, command_pool.get());
+    m_command_buffer = vierkant::CommandBuffer({device, command_pool.get()});
 
     // symmetric 1D gaussian kernels
     auto gaussian_x = crocore::createGaussianKernel_1D<NUM_TAPS>(create_info.sigma.x);

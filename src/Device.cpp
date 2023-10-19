@@ -156,12 +156,12 @@ std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysi
     return indices;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DevicePtr Device::create(const create_info_t &create_info) { return DevicePtr(new Device(create_info)); }
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Device::Device(const create_info_t &create_info) : m_physical_device(create_info.physical_device)
 {
@@ -259,7 +259,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     ray_tracing_pipeline_features.pNext = &ray_query_features;
     last_pNext = &ray_query_features.pNext;
 
-    //------------------------------------ VK_EXT_mesh_shader feature ---------------------------------------------------------
+    //------------------------------------ VK_EXT_mesh_shader feature --------------------------------------------------
     VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader_features = {};
     mesh_shader_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
     *last_pNext = &mesh_shader_features;
@@ -361,7 +361,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     m_max_usable_samples = max_usable_sample_count(m_physical_device);
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Device::~Device()
 {
@@ -387,7 +387,7 @@ Device::~Device()
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 VkQueue Device::queue(Queue type) const
 {
@@ -397,7 +397,7 @@ VkQueue Device::queue(Queue type) const
     return VK_NULL_HANDLE;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 const std::vector<VkQueue> &Device::queues(Queue type) const
 {
@@ -406,6 +406,8 @@ const std::vector<VkQueue> &Device::queues(Queue type) const
     if(queue_it != m_queues.end()) { return queue_it->second; }
     return g_empty_queue;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Device::set_object_name(VkDeviceAddress handle, VkObjectType type, const std::string &name)
 {
@@ -419,6 +421,9 @@ void Device::set_object_name(VkDeviceAddress handle, VkObjectType type, const st
         vkSetDebugUtilsObjectNameEXT(m_device, &object_name_info);
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void Device::wait_idle() { vkDeviceWaitIdle(m_device); }
 
 }// namespace vierkant

@@ -357,7 +357,7 @@ void Framebuffer::init(attachment_map_t attachments, RenderPassPtr renderpass)
                            : vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
                                                            VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                                    VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-    m_commandbuffer = vierkant::CommandBuffer(m_device, command_pool.get());
+    m_commandbuffer = vierkant::CommandBuffer({m_device, command_pool.get()});
     m_command_pool = command_pool;
     m_fence = vierkant::create_fence(m_device, true);
 
@@ -424,7 +424,7 @@ attachment_map_t Framebuffer::create_attachments(const vierkant::DevicePtr &devi
 
     if(fmt.command_pool && fmt.queue)
     {
-        cmd_buf = vierkant::CommandBuffer(device, fmt.command_pool.get());
+        cmd_buf = vierkant::CommandBuffer({device, fmt.command_pool.get()});
         cmd_buf.begin();
 
         fmt.color_attachment_format.initial_cmd_buffer = cmd_buf.handle();

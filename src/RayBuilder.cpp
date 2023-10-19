@@ -130,7 +130,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
     build_result_t ret = {};
     ret.semaphore = vierkant::Semaphore(m_device);
     ret.compact = params.enable_compaction;
-    ret.build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    ret.build_command = vierkant::CommandBuffer({m_device, m_command_pool.get()});
     ret.build_command.begin();
 
     // used to query compaction sizes after building
@@ -266,7 +266,7 @@ void RayBuilder::compact(build_result_t &build_result) const
                                   sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT),
             "RayBuilder::add_mesh: could not query compacted acceleration-structure sizes");
 
-    build_result.compact_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    build_result.compact_command = vierkant::CommandBuffer({m_device, m_command_pool.get()});
     build_result.compact_command.begin();
 
     // compacting
@@ -845,9 +845,9 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     auto ret = scene_acceleration_context_ptr(new scene_acceleration_context_t,
                                               std::default_delete<scene_acceleration_context_t>());
     ret->command_pool = m_command_pool;
-    ret->cmd_build_bottom_start = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    ret->cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
-    ret->cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
+    ret->cmd_build_bottom_start = vierkant::CommandBuffer({m_device, m_command_pool.get()});
+    ret->cmd_build_bottom_end = vierkant::CommandBuffer({m_device, m_command_pool.get()});
+    ret->cmd_build_toplvl = vierkant::CommandBuffer({m_device, m_command_pool.get()});
     ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device);
     ret->query_pool =
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);

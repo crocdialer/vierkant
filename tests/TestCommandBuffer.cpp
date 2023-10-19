@@ -28,9 +28,12 @@ TEST(TestCommandBuffer, Submission)
             };
 
     // create command buffers, sourced from different pools
-    for(const auto &p : poolQueueMap)
+    for(const auto &[pool, queue] : poolQueueMap)
     {
-        auto cmdBuf = vierkant::CommandBuffer(device, p.first);
+        vierkant::CommandBuffer::create_info_t cmd_buffer_info = {};
+        cmd_buffer_info.device = device;
+        cmd_buffer_info.command_pool = pool;
+        auto cmdBuf = vierkant::CommandBuffer(cmd_buffer_info);
 
         // testing operator bool()
         EXPECT_TRUE(cmdBuf);
@@ -43,7 +46,7 @@ TEST(TestCommandBuffer, Submission)
         EXPECT_TRUE(!cmdBuf.is_recording());
 
         // submit, do not wait on semaphore, create fence and wait for it
-        cmdBuf.submit(p.second, true);
+        cmdBuf.submit(queue, true);
 
         // reset command buffer
         cmdBuf.reset();
@@ -53,7 +56,7 @@ TEST(TestCommandBuffer, Submission)
         cmdBuf.end();
 
         // submit, do not wait on semaphore, do not wait for completion
-        cmdBuf.submit(p.second, true);
+        cmdBuf.submit(queue, true);
     }
 
     // wait for work to finish on all queues
