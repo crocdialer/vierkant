@@ -325,6 +325,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
     for(const auto &[entity, object, mesh_component]: mesh_view.each())
     {
+        // TODO: figure out wtf is racing mesh-component after scene-changes
+        if(!mesh_component.mesh) { continue; }
+
         const auto &mesh = mesh_component.mesh;
         bool transform_update = false;
         meshes.insert(mesh_component.mesh);

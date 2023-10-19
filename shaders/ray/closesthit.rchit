@@ -10,6 +10,8 @@
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
 
+#define TEST_SHADOW_RAYS 1
+
 //! Triangle groups triangle vertices
 struct Triangle
 {
@@ -119,8 +121,8 @@ Vertex interpolate_vertex(Triangle t)
     Vertex out_vert;
     out_vert.position = t.v0.position * barycentric.x + t.v1.position * barycentric.y + t.v2.position * barycentric.z;
     out_vert.tex_coord = t.v0.tex_coord * barycentric.x + t.v1.tex_coord * barycentric.y + t.v2.tex_coord * barycentric.z;
-    out_vert.normal = t.v0.normal * barycentric.x + t.v1.normal * barycentric.y + t.v2.normal * barycentric.z;
-    out_vert.tangent = t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z;
+    out_vert.normal = normalize(t.v0.normal * barycentric.x + t.v1.normal * barycentric.y + t.v2.normal * barycentric.z);
+    out_vert.tangent = normalize(t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z);
 
     // bring surfel into worldspace
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
@@ -129,8 +131,8 @@ Vertex interpolate_vertex(Triangle t)
 
     vec4 quat = vec4(entry.transform.rotation_x, entry.transform.rotation_y, entry.transform.rotation_z,
                      entry.transform.rotation_w);
-    out_vert.normal = normalize(rotate_quat(quat, out_vert.normal));
-    out_vert.tangent = normalize(rotate_quat(quat, out_vert.tangent));
+    out_vert.normal = rotate_quat(quat, out_vert.normal);
+    out_vert.tangent = rotate_quat(quat, out_vert.tangent);
 
     return out_vert;
 }
@@ -145,11 +147,7 @@ void main()
     material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
 
     vec3 V = -gl_WorldRayDirectionEXT;
-    float NoV = dot(V, v.normal);
-
-    // account for two-sided materials seen from backside, flip normals
-    if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
-    NoV = abs(NoV);
+    float NoV = dot(V, payload.normal);
 
     payload.position = v.position;
     payload.normal = v.normal;
@@ -171,12 +169,19 @@ void main()
                                        vec3(0.5)));
 
         // normal, tangent, bi-tangent
-        vec3 b = normalize(cross(payload.normal, v.tangent));
+        vec3 b = normalize(cross(v.normal, v.tangent));
         payload.normal = mat3(v.tangent, b, payload.normal) * normal;
+        NoV = dot(V, payload.normal);
     }
 
-    // hack to counter black fringes, need to get back to that ...
-    if(material.transmission == 0.0 && dot(V, payload.normal) < 0){ payload.normal = reflect(payload.normal, V); }
+    // account for two-sided materials seen from backside, flip normals
+    if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
+    else if(material.transmission == 0.0 && NoV < 0)
+    {
+        // hack to counter black fringes, need to get back to that ...
+        payload.normal = reflect(payload.normal, V);
+    }
+    NoV = abs(NoV);
 
     // flip the normal so it points against the ray direction:
     payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
@@ -224,7 +229,7 @@ void main()
 
     payload.ior = payload.transmission ? material.ior : 1.0;
 
-#if 0
+#if TEST_SHADOW_RAYS
     // test-code for shadow-rays
 
     // sun angular diameter
