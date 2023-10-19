@@ -53,7 +53,7 @@ TEST(Image, basic)
         auto buf = vierkant::Buffer::create(test_context.device, testData.get(), numBytes,
                                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                             VMA_MEMORY_USAGE_CPU_ONLY);
-        vierkant::CommandBuffer cmdBuf(test_context.device, test_context.device->command_pool_transient());
+        vierkant::CommandBuffer cmdBuf({test_context.device, test_context.device->command_pool_transient()});
         cmdBuf.begin();
 
         // copy new data -> will also generate mipmaps
@@ -89,7 +89,7 @@ TEST(Image, basic)
         img->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL);
 
         // use external CommandBuffer to group commands
-        vierkant::CommandBuffer cmdBuf(test_context.device, test_context.device->command_pool_transient());
+        vierkant::CommandBuffer cmdBuf({test_context.device, test_context.device->command_pool_transient()});
         cmdBuf.begin();
         img->transition_layout(VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, cmdBuf.handle());
         img_mip->copy_to(hostBuf, cmdBuf.handle());

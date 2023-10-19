@@ -55,7 +55,7 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                               VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    ret->cmd_buffer = vierkant::CommandBuffer(device, ret->command_pool.get());
+    ret->cmd_buffer = vierkant::CommandBuffer({device, ret->command_pool.get()});
 
     vierkant::Framebuffer::create_info_t framebuffer_info = {};
     framebuffer_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};

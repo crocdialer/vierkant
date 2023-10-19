@@ -58,7 +58,7 @@ mesh_compute_context_ptr create_mesh_compute_context(const vierkant::DevicePtr &
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                               VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    ret->cmd_buffer = vierkant::CommandBuffer(device, ret->command_pool.get());
+    ret->cmd_buffer = vierkant::CommandBuffer({device, ret->command_pool.get()});
 
     vierkant::Buffer::create_info_t internal_buffer_info = {};
     internal_buffer_info.device = device;

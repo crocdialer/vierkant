@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "vierkant/Semaphore.hpp"
 #include "vierkant/Device.hpp"
+#include "vierkant/Semaphore.hpp"
 
 namespace vierkant
 {
@@ -39,11 +39,8 @@ void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fen
  * @param   wait_fence      optional flag indicating that the fence should be waited on
  * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
  */
-void submit(const vierkant::DevicePtr &device,
-            VkQueue queue,
-            const std::vector<VkCommandBuffer> &command_buffers,
-            bool wait_fence = false,
-            VkFence fence = VK_NULL_HANDLE,
+void submit(const vierkant::DevicePtr &device, VkQueue queue, const std::vector<VkCommandBuffer> &command_buffers,
+            bool wait_fence = false, VkFence fence = VK_NULL_HANDLE,
             const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos = {});
 
 using CommandPoolPtr = std::shared_ptr<VkCommandPool_T>;
@@ -63,6 +60,14 @@ class CommandBuffer
 {
 public:
 
+    struct create_info_t
+    {
+        DevicePtr device;
+        VkCommandPool command_pool;
+        VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        std::string name = "";
+    };
+
     /**
      * @brief   construct a new CommandBuffer
      *
@@ -71,9 +76,7 @@ public:
      * @param   level       the VkCommandBufferLevel
      * @param   the_queue   an optional VkQueue to automatically submit the CommandBuffer before destruction
      */
-    CommandBuffer(DevicePtr device,
-                  VkCommandPool command_pool,
-                  VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    explicit CommandBuffer(const create_info_t &create_info);
 
     CommandBuffer() = default;
 
@@ -107,9 +110,7 @@ public:
      * @param   fence           optional external VkFence object to wait on
      * @param   semaphore_infos an optional array of semaphore_submit_info_t, can be used to pass in signal/wait semaphores
      */
-    void submit(VkQueue queue,
-                bool wait_fence = false,
-                VkFence fence = VK_NULL_HANDLE,
+    void submit(VkQueue queue, bool wait_fence = false, VkFence fence = VK_NULL_HANDLE,
                 const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos = {});
 
     /**
@@ -120,13 +121,13 @@ public:
      */
     void reset(bool release_resources = false);
 
-    [[nodiscard]] VkCommandBuffer handle() const{ return m_handle; }
+    [[nodiscard]] VkCommandBuffer handle() const { return m_handle; }
 
-    [[nodiscard]] VkCommandPool pool() const{ return m_pool; }
+    [[nodiscard]] VkCommandPool pool() const { return m_pool; }
 
-    [[nodiscard]] bool is_recording() const{ return m_recording; }
+    [[nodiscard]] bool is_recording() const { return m_recording; }
 
-    inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
+    inline explicit operator bool() const { return static_cast<bool>(m_handle); };
 
     friend void swap(CommandBuffer &lhs, CommandBuffer &rhs);
 
@@ -138,4 +139,4 @@ private:
     bool m_recording = false;
 };
 
-}//namespace vulkan
+}// namespace vierkant
