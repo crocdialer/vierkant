@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <string>
 #include <map>
+#include <string>
 #include <vector>
 #include <vierkant/math.hpp>
 #include <vierkant/transform.hpp>
@@ -36,12 +36,14 @@ struct animation_value_t
 /**
  *  @brief  animation_keys_t groups all existing keys for an entity.
  */
-template <typename T> struct animation_keys_t_
+template<typename T = float>
+    requires std::floating_point<T>
+struct animation_keys_t_
 {
-    std::map<float, animation_value_t<glm::vec3>> positions;
-    std::map<float, animation_value_t<glm::quat>> rotations;
-    std::map<float, animation_value_t<glm::vec3>> scales;
-    std::map<float, animation_value_t<std::vector<double>>> morph_weights;
+    std::map<T, animation_value_t<glm::vec3>> positions;
+    std::map<T, animation_value_t<glm::quat>> rotations;
+    std::map<T, animation_value_t<glm::vec3>> scales;
+    std::map<T, animation_value_t<std::vector<double>>> morph_weights;
 };
 using animation_keys_t = animation_keys_t_<float>;
 
@@ -60,7 +62,8 @@ struct animation_t
     InterpolationMode interpolation_mode = InterpolationMode::Linear;
 };
 
-template<typename T = float, typename = std::enable_if<std::is_floating_point_v<T>>>
+template<typename T = float>
+    requires std::floating_point<T>
 struct animation_state_t_
 {
     uint32_t index = 0;
