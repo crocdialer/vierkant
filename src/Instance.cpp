@@ -240,6 +240,9 @@ bool Instance::init(const create_info_t &create_info)
 
     // request debug_utils only if validation was requested
     instance_create_info.pNext = create_info.use_validation_layers ? &debug_utils_create_info : nullptr;
+    
+    // portability flag (e.g. required for Molten VK on)
+    instance_create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
     // create the vulkan instance
     vkCheck(vkCreateInstance(&instance_create_info, nullptr, &m_handle), "failed to create instance!");
