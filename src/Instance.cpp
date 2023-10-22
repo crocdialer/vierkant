@@ -95,6 +95,19 @@ void Instance::setup_debug_callback()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+[[maybe_unused]] bool check_instance_extension_support(const std::vector<const char *> &extensions)
+{
+    uint32_t num_extensions;
+    vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, nullptr);
+    std::vector<VkExtensionProperties> extensions_available(num_extensions);
+    vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, extensions_available.data());
+    std::set<std::string> extensions_required(extensions.begin(), extensions.end());
+    for(const auto &extension: extensions_available) { extensions_required.erase(extension.extensionName); }
+    return extensions_required.empty();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool check_device_extension_support(VkPhysicalDevice device, const std::vector<const char *> &extensions)
 {
     uint32_t num_extensions;
@@ -188,10 +201,29 @@ bool Instance::init(const create_info_t &create_info)
 {
     vkCheck(volkInitialize(), "failed during 'volkInitialize()': unable to retrieve vulkan function-pointers");
 
+    // query extension support
+    std::set<std::string> available_extensions;
+    {
+        uint32_t num_extensions = 0;
+        vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, nullptr);
+        std::vector<VkExtensionProperties> extensions_vec(num_extensions);
+        vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, extensions_vec.data());
+        for(const auto &ext: extensions_vec) { available_extensions.insert(ext.extensionName); }
+    }
+    spdlog::trace("available extensions: {}", available_extensions);
+
     auto used_extensions = create_info.extensions;
+
+    // debug-utils extension
     if(create_info.use_validation_layers || create_info.use_debug_labels)
     {
         used_extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
+
+    // portability-extension
+    if(available_extensions.contains(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME))
+    {
+        used_extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     }
 
     // check support for validation-layers
@@ -200,17 +232,6 @@ bool Instance::init(const create_info_t &create_info)
         spdlog::error("validation layers requested, but not available!");
         return false;
     }
-
-    // query extension support
-    uint32_t num_extensions = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, nullptr);
-
-    // allocate memory and fill
-    std::vector<VkExtensionProperties> extensions(num_extensions);
-    vkEnumerateInstanceExtensionProperties(nullptr, &num_extensions, extensions.data());
-
-    spdlog::trace("available extensions: ");
-    for(const auto &ext: extensions) { spdlog::trace(ext.extensionName); }
 
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
