@@ -21,13 +21,22 @@ namespace vierkant
 VkFormat find_depth_format(VkPhysicalDevice device);
 
 /**
+ * @brief   check_instance_extension_support can be used to check if a list of instance-extensions is supported.
+ *
+ * @param   extensions  a provided list of extension-strings
+ * @return  true, if all provided extensions are supported
+ */
+[[maybe_unused]] bool check_instance_extension_support(const std::vector<const char *> &extensions);
+
+/**
  * @brief   check_device_extension_support can be used to check if a list of device-extensions is supported.
  *
  * @param   device      a provided device.
  * @param   extensions  a provided list of extension-strings
  * @return  true, if all provided extensions are supported
  */
-bool check_device_extension_support(VkPhysicalDevice device, const std::vector<const char *> &extensions);
+[[maybe_unused]] bool check_device_extension_support(VkPhysicalDevice device,
+                                                     const std::vector<const char *> &extensions);
 
 /**
  * @brief   Helper function to check if the provided VkResult equals VK_SUCCESS.
@@ -46,10 +55,8 @@ void vkCheck(VkResult res, const std::string &fail_msg);
 class Instance
 {
 public:
-
-    using debug_fn_t = std::function<void(VkDebugUtilsMessageSeverityFlagBitsEXT,
-                                          VkDebugUtilsMessageTypeFlagsEXT,
-                                          const VkDebugUtilsMessengerCallbackDataEXT*)>;
+    using debug_fn_t = std::function<void(VkDebugUtilsMessageSeverityFlagBitsEXT, VkDebugUtilsMessageTypeFlagsEXT,
+                                          const VkDebugUtilsMessengerCallbackDataEXT *)>;
 
     /**
      * @brief the vulkan-api version used
@@ -68,7 +75,7 @@ public:
      * @param   use_validation_layers       use validation layers (VK_LAYER_LUNARG_standard_validation) or not
      * @param   the_required_extensions     a list of required extensions (e.g. VK_KHR_SWAPCHAIN_EXTENSION_NAME)
      */
-    explicit Instance(const create_info_t& create_info);
+    explicit Instance(const create_info_t &create_info);
 
     Instance() = default;
 
@@ -83,7 +90,7 @@ public:
     /**
      * @return  true if validation layers are in use, false otherwise
      */
-    [[nodiscard]] bool use_validation_layers() const{ return m_debug_messenger; }
+    [[nodiscard]] bool use_validation_layers() const { return m_debug_messenger; }
 
     /**
      * @brief   set a debug-callback, containing output from validation-layers.
@@ -95,27 +102,26 @@ public:
     /**
      * @return  a handle to the managed VKInstance
      */
-    [[nodiscard]] VkInstance handle() const{ return m_handle; }
+    [[nodiscard]] VkInstance handle() const { return m_handle; }
 
     /**
      * @return  an array of all available physical GPU-devices
      */
-    [[nodiscard]] const std::vector<VkPhysicalDevice> &physical_devices() const{ return m_physical_devices; }
+    [[nodiscard]] const std::vector<VkPhysicalDevice> &physical_devices() const { return m_physical_devices; }
 
-    [[nodiscard]] const std::vector<const char *> &extensions() const{ return m_extensions; }
+    [[nodiscard]] const std::vector<const char *> &extensions() const { return m_extensions; }
 
-    inline explicit operator bool() const{ return static_cast<bool>(m_handle); };
+    inline explicit operator bool() const { return static_cast<bool>(m_handle); };
 
     friend void swap(Instance &lhs, Instance &rhs);
 
 private:
-
     /**
      * @brief   initialize the vulkan instance
      * @param   use_validation_layers       use validation layers (VK_LAYER_LUNARG_standard_validation) or not
      * @param   the_required_extensions     a list of required extensions (e.g. VK_KHR_SWAPCHAIN_EXTENSION_NAME)
      */
-    bool init(const create_info_t& create_info);
+    bool init(const create_info_t &create_info);
 
     void setup_debug_callback();
 
@@ -134,4 +140,4 @@ private:
     debug_fn_t m_debug_fn;
 };
 
-}//namespace vulkan
+}// namespace vierkant
