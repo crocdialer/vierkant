@@ -15,6 +15,8 @@
 namespace vierkant
 {
 
+constexpr char g_portability_ext_name[] = "VK_KHR_portability_subset";
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query_count, VkQueryType query_type)
@@ -186,9 +188,15 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_features.fillModeNonSolid = true;
     device_features.multiDrawIndirect = true;
 
-    std::vector<const char *> extensions;
-    for(const auto &ext: create_info.extensions) { extensions.push_back(ext); }
+    auto extensions = create_info.extensions;
     if(create_info.surface) { extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
+
+    // check if a portability-extension is available/required
+    if(vierkant::check_device_extension_support(create_info.physical_device, {g_portability_ext_name}))
+    {
+        // if this extension is available, it's also mandatory
+        extensions.push_back(g_portability_ext_name);
+    }
 
     if(!vierkant::check_device_extension_support(create_info.physical_device, extensions))
     {
