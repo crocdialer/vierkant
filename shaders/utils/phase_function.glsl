@@ -1,7 +1,7 @@
 #ifndef UTILS_PHASE_FUNCTION_GLSL
 #define UTILS_PHASE_FUNCTION_GLSL
 
-#include "constants.glsl"
+#include "sampling.glsl"
 
 //! Henyey & Greensteins's phase-function
 float phase_hg(float cos_theta, float g)

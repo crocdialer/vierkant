@@ -6,6 +6,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/packed_vertex.glsl"
+#include "../utils/phase_function.glsl"
 #include "reservoir.glsl"
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"

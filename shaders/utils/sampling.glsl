@@ -3,6 +3,13 @@
 
 #include "constants.glsl"
 
+//! return a Hammersley point in range [0, 1]
+vec2 Hammersley(uint i, uint N)
+{
+    float vdc = float(bitfieldReverse(i)) * 2.3283064365386963e-10; // Van der Corput
+    return vec2(float(i) / float(N), vdc);
+}
+
 //! returns a local coordinate frame for a given normalized direction
 mat3 local_frame(in vec3 direction)
 {

@@ -78,12 +78,5 @@ float rnd(inout uint prev)
 {
     return (float(lcg(prev)) / float(0x01000000));
 }
-
-//! return a Hammersley point in range [0, 1]
-vec2 Hammersley(uint i, uint N)
-{
-    float vdc = float(bitfieldReverse(i)) * 2.3283064365386963e-10; // Van der Corput
-    return vec2(float(i) / float(N), vdc);
-}
-
+    
 #endif // UTILS_RANDOM_GLSL
