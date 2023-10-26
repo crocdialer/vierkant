@@ -10,7 +10,7 @@
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
 
-#define TEST_SHADOW_RAYS 1
+#define TEST_SHADOW_RAYS 0
 
 //! Triangle groups triangle vertices
 struct Triangle
@@ -155,6 +155,18 @@ void main()
     // next ray from current position
     payload.ray.origin = payload.position;
 
+    // albedo
+    if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
+    {
+        material.color *= sample_texture_lod(u_albedos[material.texture_index],
+        v.tex_coord, NoV, payload.cone.width, triangle_lod);
+    }
+    material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
+
+    // skip surface-interaction (alpha-cutoff/blend or explicit skip)
+    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
+    if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state)){ return; }
+
     // propagate ray-cone
     payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
@@ -202,18 +214,6 @@ void main()
 
     // add radiance from emission
     payload.radiance += payload.beta * material.emission.rgb;
-
-    // albedo
-    if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
-    {
-        material.color *= sample_texture_lod(u_albedos[material.texture_index],
-                                             v.tex_coord, NoV, payload.cone.width, triangle_lod);
-    }
-    material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
-
-    // alpha-cutoff
-    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
-    if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state)){ return; }
 
     // roughness / metalness
     if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)

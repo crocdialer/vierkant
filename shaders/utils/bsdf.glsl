@@ -227,11 +227,4 @@ vec3 transmittance(vec3 attenuation_color, float attenuation_distance, float dis
     return exp(log(attenuation_color) / attenuation_distance * distance);
 }
 
-//! Henyey & Greensteins's phase-function
-float phase_hg(float cos_theta, float g)
-{
-    float denom = 1 + g * g + 2 * g * cos_theta;
-    return 4 * ONE_OVER_PI * (1 - g * g) / (denom * sqrt(denom));
-}
-
 #endif // UTILS_BSDF_GLSL
