@@ -64,3 +64,14 @@ struct material_t
     float alpha_cutoff;
     bool two_sided;
 };
+
+//! medium_t groups medium-properties
+struct medium_t
+{
+    //! spectral absorption/scattering coefficients and resulting attenuation
+    //! sigma_t = sigma_a + sigma_s
+    vec3 sigma_a, sigma_s;
+
+    //! henyey-greenstein asymmetry parameter [-1, 1]
+    float g;
+};

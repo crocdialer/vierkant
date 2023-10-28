@@ -7,7 +7,7 @@
 float phase_hg(float cos_theta, float g)
 {
     float denom = 1 + g * g + 2 * g * cos_theta;
-    return FOUR_OVER_PI * (1 - g * g) / (denom * sqrt(denom));
+    return ONE_OVER_FOUR_PI * (1 - g * g) / (denom * sqrt(denom));
 }
 
 //! return a sample from Henyey-Greenstein phase-function
