@@ -2,6 +2,7 @@
 #define RAY_DIRECT_LIGHTING_GLSL
 
 #include "ray_common.glsl"
+#include "bsdf_disney.glsl"
 
 layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shadow;
 
