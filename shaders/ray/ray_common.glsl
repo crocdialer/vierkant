@@ -1,5 +1,5 @@
-#define FLOAT_MAX 3.402823466e+38
-#define FLOAT_MIN 1.175494351e-38
+#ifndef RAY_COMMON_GLSL
+#define RAY_COMMON_GLSL
 
 #define EPS 0.0001
 
@@ -97,3 +97,5 @@ struct camera_ubo_t
     float aperture;
     float focal_distance;
 };
+
+#endif // RAY_COMMON_GLSL

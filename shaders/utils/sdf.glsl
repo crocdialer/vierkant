@@ -1,6 +1,9 @@
 #ifndef UTILS_SDF_GLSL
 #define UTILS_SDF_GLSL
 
+#define FLOAT_MAX 3.402823466e+38
+#define FLOAT_MIN 1.175494351e-38
+
 // http://www.iquilezles.org/www/articles/distfunctions/distfunctions.htm
 float sd_sphere(in vec3 p, in float r)
 {

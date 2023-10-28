@@ -10,6 +10,7 @@
 #include "reservoir.glsl"
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
+#include "direct_lighting.glsl"
 
 #define TEST_SHADOW_RAYS 0
 
@@ -46,7 +47,6 @@ layout(binding = 10) uniform sampler2D u_ao_rough_metal_maps[];
 
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
-layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shadow;
 
 // builtin barycentric coords
 hitAttributeEXT vec2 attribs;
@@ -231,43 +231,10 @@ void main()
     payload.ior = payload.transmission ? material.ior : 1.0;
 
 #if TEST_SHADOW_RAYS
-    // test-code for shadow-rays
-
-    // sun angular diameter
-    const float sun_angle =  0.524167 *  PI / 180.0;
-    const vec3 sun_dir = normalize(vec3(.4, 1.0, 0.7));
-
-    // uniform sample sun-area
-    vec3 L_light = local_frame(sun_dir) * sample_unit_sphere_cap(vec2(rnd(rng_state), rnd(rng_state)), sun_angle);
-    const vec3 sun_color = vec3(1.0, 0.6, 0.4);
-    const float sun_intensity = 1.0;
-    Ray ray = Ray(payload.position + EPS * payload.ff_normal, L_light);
-    const uint ray_flags =  gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT | gl_RayFlagsOpaqueEXT;
-    float tmin = 0.0;
-    float tmax = 10000.0;
-    payload_shadow.shadow = true;
-
-    traceRayEXT(topLevelAS,         // acceleration structure
-                ray_flags,          // rayflags
-                0xff,               // cullMask
-                0,                  // sbtRecordOffset
-                0,                  // sbtRecordStride
-                MISS_INDEX_SHADOW,  // missIndex
-                ray.origin,         // ray origin
-                tmin,               // ray min range
-                ray.direction,      // ray direction
-                tmax,               // ray max range
-                MISS_INDEX_SHADOW); // payload-location
-
-    // eval light
-    if(!payload_shadow.shadow)
-    {
-        float pdf = 0.0;
-        float cos_theta = abs(dot(payload.normal, L_light));
-        vec3 F = eval_disney(material, L_light, payload.ff_normal, V, eta, pdf);
-        vec3 radiance_L = sun_color * sun_intensity * clamp(F * cos_theta / (pdf + EPS), 0.0, 1.0);
-        payload.radiance += payload.beta * (payload_shadow.shadow ? vec3(0) : radiance_L);
-    }
+    const sunlight_params_t sun_params = {vec3(1.0, 0.6, 0.4), 1.0, normalize(vec3(.4, 1.0, 0.7)), 0.524167 *  PI / 180.0};
+    vec3 sun_L = sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.ff_normal, V, eta,
+                                  rng_state);
+    payload.radiance += payload.beta * sun_L;
 #endif
 
     // take sample from burley/disney BSDF
