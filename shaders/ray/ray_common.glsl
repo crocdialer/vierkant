@@ -54,8 +54,8 @@ struct payload_t
     // media refraction index
     float ior;
 
-    // color-absorbtion per unit-length
-    vec3 absorption;
+    // spectral attenuation per unit-length (sigma_s + sigma_a)
+    vec3 sigma_t;
 
     bool transmission;
 };

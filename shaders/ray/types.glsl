@@ -72,6 +72,6 @@ struct medium_t
     //! sigma_t = sigma_a + sigma_s
     vec3 sigma_a, sigma_s;
 
-    //! henyey-greenstein asymmetry parameter [-1, 1]
+    //! phase-function asymmetry parameter [-1, 1]
     float g;
 };

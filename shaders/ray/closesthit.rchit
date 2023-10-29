@@ -114,6 +114,11 @@ vec4 sample_texture_lod(sampler2D tex, vec2 tex_coord, float NoV, float cone_wid
     return textureLod(tex, tex_coord, lambda);
 }
 
+float channel_avg(vec3 v)
+{
+    return (v.x + v.y + v.z) / 3.0;
+}
+
 Vertex interpolate_vertex(Triangle t)
 {
     const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
@@ -150,6 +155,35 @@ void main()
     vec3 V = -gl_WorldRayDirectionEXT;
     float NoV = dot(V, payload.normal);
 
+    // participating media
+    bool sample_medium = false;
+    {
+        // sample a ray hit_t
+        int channel = int(min(rnd(rng_state) * 3, 2));
+        float t = payload.sigma_t[channel] > 0 ?
+                  min(-log(rnd(rng_state)) / payload.sigma_t[channel], gl_HitTEXT) : gl_HitTEXT;
+
+        // determine scattering
+        sample_medium = t < gl_HitTEXT;
+
+        // beam_transmittance
+        vec3 beam_tr = exp(-payload.sigma_t * t);
+        vec3 density = sample_medium ? beam_tr * payload.sigma_t : beam_tr;
+        float pdf = channel_avg(density);
+
+        // TODO: sample scattering event
+        vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
+        payload.ray.origin += payload.ray.direction * t;
+        float phase_pdf;
+        payload.ray.direction = sample_phase_hg(Xi, 0.3, phase_pdf);
+
+        vec3 sigma_s = 0.5 * payload.sigma_t;
+        payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
+    }
+
+//    return;
+    // skip surface-interaction (alpha-cutoff/blend or explicit skip)
+    if(sample_medium){ return; }
     payload.position = v.position;
     payload.normal = v.normal;
 
@@ -163,8 +197,6 @@ void main()
         v.tex_coord, NoV, payload.cone.width, triangle_lod);
     }
     material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
-
-    // skip surface-interaction (alpha-cutoff/blend or explicit skip)
     if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
     if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state)){ return; }
 
@@ -188,12 +220,12 @@ void main()
     }
 
     // account for two-sided materials seen from backside, flip normals
-    if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
-    else if(material.transmission == 0.0 && NoV < 0)
-    {
-        // hack to counter black fringes, need to get back to that ...
-        payload.normal = reflect(payload.normal, V);
-    }
+//    if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
+//    if(material.transmission == 0.0 && NoV < 0)
+//    {
+//        // hack to counter black fringes, need to get back to that ...
+//        payload.normal = reflect(payload.normal, V);
+//    }
     NoV = abs(NoV);
 
     // flip the normal so it points against the ray direction:
@@ -208,10 +240,6 @@ void main()
 
     }
     material.emission.rgb *= dot(payload.normal, payload.ff_normal) > 0 ? material.emission.a : 0.0;
-
-    // absorption in media
-    payload.beta *= exp(-payload.absorption * gl_HitTEXT);
-    payload.absorption = vec3(0);
 
     // add radiance from emission
     payload.radiance += payload.beta * material.emission.rgb;
@@ -249,14 +277,14 @@ void main()
     payload.ray.direction = bsdf_sample.direction;
     float cos_theta = abs(dot(payload.normal, payload.ray.direction));
 
-    payload.beta *= clamp(bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS), 0.0, 1.0);
+    payload.beta *= clamp(bsdf_sample.F * cos_theta / bsdf_sample.pdf, 0.0, 1.0);
     payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
 
     // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
     payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
 
-    payload.absorption = payload.transmission ?
-                         -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS) : vec3(0);
+    vec3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
+    payload.sigma_t = payload.transmission ? sigma_t : vec3(0);
 
     // Russian roulette
     if(max3(payload.beta) <= 0.05 && payload.depth >= 2)
