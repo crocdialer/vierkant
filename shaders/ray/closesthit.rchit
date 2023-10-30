@@ -171,19 +171,22 @@ void main()
         vec3 density = sample_medium ? beam_tr * payload.sigma_t : beam_tr;
         float pdf = channel_avg(density);
 
-        // TODO: sample scattering event
-        vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
-        payload.ray.origin += payload.ray.direction * t;
-        float phase_pdf;
-        payload.ray.direction = sample_phase_hg(Xi, 0.3, phase_pdf);
-
+        // sample scattering event
+        if(sample_medium)
+        {
+            const float g = 0.3;
+            vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
+            payload.ray.origin += payload.ray.direction * t;
+            float phase_pdf;
+            payload.ray.direction = local_frame(payload.ray.direction) * sample_phase_hg(Xi, g, phase_pdf);
+        }
         vec3 sigma_s = 0.5 * payload.sigma_t;
         payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
     }
 
-//    return;
-    // skip surface-interaction (alpha-cutoff/blend or explicit skip)
+    // media sampled, skip surface-interaction
     if(sample_medium){ return; }
+
     payload.position = v.position;
     payload.normal = v.normal;
 
@@ -197,6 +200,8 @@ void main()
         v.tex_coord, NoV, payload.cone.width, triangle_lod);
     }
     material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
+
+    // skip surface-interaction (alpha-cutoff/blend)
     if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
     if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state)){ return; }
 
