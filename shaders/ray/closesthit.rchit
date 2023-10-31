@@ -157,11 +157,12 @@ void main()
 
     // participating media
     bool sample_medium = false;
+
+    if(any(greaterThan(payload.sigma_t, vec3(0))))
     {
         // sample a ray hit_t
         int channel = int(min(rnd(rng_state) * 3, 2));
-        float t = payload.sigma_t[channel] > 0 ?
-                  min(-log(rnd(rng_state)) / payload.sigma_t[channel], gl_HitTEXT) : gl_HitTEXT;
+        float t = min(-log(1 - rnd(rng_state)) / payload.sigma_t[channel], gl_HitTEXT);
 
         // determine scattering
         sample_medium = t < gl_HitTEXT;
@@ -185,7 +186,7 @@ void main()
     }
 
     // media sampled, skip surface-interaction
-    if(sample_medium){ return; }
+//    if(sample_medium){ return; }
 
     payload.position = v.position;
     payload.normal = v.normal;
@@ -225,7 +226,7 @@ void main()
     }
 
     // account for two-sided materials seen from backside, flip normals
-//    if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
+    if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
 //    if(material.transmission == 0.0 && NoV < 0)
 //    {
 //        // hack to counter black fringes, need to get back to that ...
@@ -270,23 +271,21 @@ void main()
     payload.radiance += payload.beta * sun_L;
 #endif
 
-    // take sample from burley/disney BSDF
-    bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
-
-    if (bsdf_sample.pdf <= 0.0)
+    if(!sample_medium)
     {
-        payload.stop = true;
-        return;
+        // take sample from burley/disney BSDF
+        bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
+        if(bsdf_sample.pdf <= 0.0){ payload.stop = true; return; }
+
+        payload.ray.direction = bsdf_sample.direction;
+        float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
+
+        payload.beta *= bsdf_sample.F * cos_theta / bsdf_sample.pdf;
+        payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
+
+        // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
+        payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
     }
-
-    payload.ray.direction = bsdf_sample.direction;
-    float cos_theta = abs(dot(payload.normal, payload.ray.direction));
-
-    payload.beta *= clamp(bsdf_sample.F * cos_theta / bsdf_sample.pdf, 0.0, 1.0);
-    payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
-
-    // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
-    payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
 
     vec3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
     payload.sigma_t = payload.transmission ? sigma_t : vec3(0);
