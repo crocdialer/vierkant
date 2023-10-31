@@ -59,10 +59,12 @@ struct material_t
     uint ao_rough_metal_index;
 
     uint texture_type_flags;
-
     uint blend_mode;
     float alpha_cutoff;
     bool two_sided;
+
+    bool null_surface;
+//    int pad[3];
 };
 
 //! medium_t groups medium-properties

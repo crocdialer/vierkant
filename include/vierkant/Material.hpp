@@ -68,6 +68,9 @@ public:
 
     bool two_sided = false;
 
+    //! null-surface (skip surface interaction)
+    bool null_surface = false;
+
     BlendMode blend_mode = BlendMode::Opaque;
 
     float alpha_cutoff = 0.5f;

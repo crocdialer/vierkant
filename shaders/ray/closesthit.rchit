@@ -206,9 +206,6 @@ void main()
     if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
     if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state)){ return; }
 
-    // propagate ray-cone
-    payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
-
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
         // normalize after checking for validity
@@ -271,8 +268,13 @@ void main()
     payload.radiance += payload.beta * sun_L;
 #endif
 
-    if(!sample_medium)
+    bool sample_surface = !(material.null_surface || sample_medium);
+
+    if(sample_surface)
     {
+        // propagate ray-cone
+        payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
+
         // take sample from burley/disney BSDF
         bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
         if(bsdf_sample.pdf <= 0.0){ payload.stop = true; return; }
@@ -285,6 +287,10 @@ void main()
 
         // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
         payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
+    }
+    else
+    {
+        payload.transmission = payload.transmission ^^ (material.transmission > 0.0);
     }
 
     vec3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;

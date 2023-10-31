@@ -85,6 +85,10 @@ public:
         float alpha_cutoff = 0.5f;
 
         uint32_t two_sided = false;
+
+        uint32_t null_surface = false;
+
+//        uint32_t pad[3];
     };
 
     //! used for both bottom and toplevel acceleration-structures

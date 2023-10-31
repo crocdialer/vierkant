@@ -704,6 +704,9 @@ void draw_material_ui(const MaterialPtr &material)
     // two-sided
     ImGui::Checkbox("two-sided", &material->two_sided);
 
+    // null-surface
+    ImGui::Checkbox("null-surface", &material->null_surface);
+
     // transmission
     ImGui::SliderFloat("transmission", &material->transmission, 0.f, 1.f);
     draw_texture(vierkant::Material::TextureType::Transmission, "transmission");
