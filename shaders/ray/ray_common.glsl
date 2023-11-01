@@ -2,6 +2,7 @@
 #define RAY_COMMON_GLSL
 
 #define EPS 0.0001
+#define PDF_EPS 0.0001
 
 struct Ray
 {

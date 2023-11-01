@@ -49,9 +49,11 @@ public:
 
         float transmission = 0.f;
 
-        float attenuation_distance = std::numeric_limits<float>::infinity();
+        uint32_t null_surface = false;
 
-        glm::vec4 attenuation_color = glm::vec4(1.f);
+        glm::vec3 attenuation_color = glm::vec3(1.f);
+
+        float attenuation_distance = std::numeric_limits<float>::infinity();
 
         float ior = 1.5f;
 
@@ -85,10 +87,6 @@ public:
         float alpha_cutoff = 0.5f;
 
         uint32_t two_sided = false;
-
-        uint32_t null_surface = false;
-
-//        uint32_t pad[3];
     };
 
     //! used for both bottom and toplevel acceleration-structures

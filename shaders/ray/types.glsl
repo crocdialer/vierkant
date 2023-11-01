@@ -41,8 +41,9 @@ struct material_t
     float metalness;
     float roughness;
     float transmission;
+    bool null_surface;
+    vec3 attenuation_color;
     float attenuation_distance;
-    vec4 attenuation_color;
     float ior;
     float clearcoat;
     float clearcoat_roughness;
@@ -62,9 +63,6 @@ struct material_t
     uint blend_mode;
     float alpha_cutoff;
     bool two_sided;
-
-    bool null_surface;
-//    int pad[3];
 };
 
 //! medium_t groups medium-properties

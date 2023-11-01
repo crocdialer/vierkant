@@ -48,7 +48,7 @@ vec3 sample_sun_light(const in material_t material, const in sunlight_params_t p
         float cos_theta = abs(dot(N, L_light));
         vec3 F = eval_disney(material, L_light, N, V, eta, pdf);
         if(pdf <= 0){ return vec3(0); }
-        radiance = p.color * p.intensity * F * cos_theta / pdf;
+        radiance = p.color * p.intensity * F * cos_theta / (pdf + PDF_EPS);
     }
     return radiance;
 }

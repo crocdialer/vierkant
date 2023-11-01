@@ -282,7 +282,7 @@ void main()
         payload.ray.direction = bsdf_sample.direction;
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
 
-        payload.beta *= bsdf_sample.F * cos_theta / bsdf_sample.pdf;
+        payload.beta *= bsdf_sample.F * cos_theta / (bsdf_sample.pdf + PDF_EPS);
         payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
 
         // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?

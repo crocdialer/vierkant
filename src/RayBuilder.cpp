@@ -456,7 +456,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                 material.transmission = mesh_material->transmission;
                 material.ior = mesh_material->ior;
                 material.attenuation_distance = mesh_material->attenuation_distance;
-                material.attenuation_color = {mesh_material->attenuation_color, 0.f};
+                material.attenuation_color = mesh_material->attenuation_color;
                 material.clearcoat_factor = mesh_material->clearcoat_factor;
                 material.clearcoat_roughness_factor = mesh_material->clearcoat_roughness_factor;
                 material.sheen_color = {mesh_material->sheen_color, 0.f};
