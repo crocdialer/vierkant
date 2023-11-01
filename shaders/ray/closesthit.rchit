@@ -155,6 +155,12 @@ void main()
     vec3 V = -gl_WorldRayDirectionEXT;
     float NoV = dot(V, payload.normal);
 
+    payload.position = v.position;
+    payload.normal = v.normal;
+
+    // next ray from current position
+    payload.ray.origin = payload.position;
+
     // participating media
     bool sample_medium = false;
 
@@ -163,6 +169,9 @@ void main()
         // sample a ray hit_t
         int channel = int(min(rnd(rng_state) * 3, 2));
         float t = min(-log(1 - rnd(rng_state)) / payload.sigma_t[channel], gl_HitTEXT);
+
+        // fraction of scattering vs. absorption
+        vec3 sigma_s = 1.0 * payload.sigma_t;
 
         // determine scattering
         sample_medium = t < gl_HitTEXT;
@@ -175,24 +184,14 @@ void main()
         // sample scattering event
         if(sample_medium)
         {
-            const float g = 0.3;
+            const float g = -0.3;
             vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
             payload.ray.origin += payload.ray.direction * t;
             float phase_pdf;
-            payload.ray.direction = local_frame(payload.ray.direction) * sample_phase_hg(Xi, g, phase_pdf);
+            payload.ray.direction = local_frame(-payload.ray.direction) * sample_phase_hg(Xi, g, phase_pdf);
         }
-        vec3 sigma_s = 0.5 * payload.sigma_t;
         payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
     }
-
-    // media sampled, skip surface-interaction
-//    if(sample_medium){ return; }
-
-    payload.position = v.position;
-    payload.normal = v.normal;
-
-    // next ray from current position
-    payload.ray.origin = payload.position;
 
     // albedo
     if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
@@ -203,8 +202,11 @@ void main()
     material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
 
     // skip surface-interaction (alpha-cutoff/blend)
-    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
-    if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state)){ return; }
+    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff ||
+       material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state))
+    {
+        material.null_surface = true;
+    }
 
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
@@ -224,11 +226,6 @@ void main()
 
     // account for two-sided materials seen from backside, flip normals
     if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
-//    if(material.transmission == 0.0 && NoV < 0)
-//    {
-//        // hack to counter black fringes, need to get back to that ...
-//        payload.normal = reflect(payload.normal, V);
-//    }
     NoV = abs(NoV);
 
     // flip the normal so it points against the ray direction:
