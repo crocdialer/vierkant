@@ -63,6 +63,9 @@ struct material_t
     uint blend_mode;
     float alpha_cutoff;
     bool two_sided;
+
+    float phase_asymmetry_g;
+    float scattering_ratio;
 };
 
 //! medium_t groups medium-properties

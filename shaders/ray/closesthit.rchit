@@ -171,7 +171,7 @@ void main()
         float t = min(-log(1 - rnd(rng_state)) / payload.sigma_t[channel], gl_HitTEXT);
 
         // fraction of scattering vs. absorption
-        vec3 sigma_s = 1.0 * payload.sigma_t;
+        vec3 sigma_s = material.scattering_ratio * payload.sigma_t;
 
         // determine scattering
         sample_medium = t < gl_HitTEXT;
@@ -184,7 +184,7 @@ void main()
         // sample scattering event
         if(sample_medium)
         {
-            const float g = -0.3;
+            const float g = material.phase_asymmetry_g;
             vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
             payload.ray.origin += payload.ray.direction * t;
             float phase_pdf;

@@ -81,6 +81,12 @@ public:
 
     float attenuation_distance = std::numeric_limits<float>::infinity();
 
+    // phase-function asymmetry parameter (forward- vs. back-scattering) [-1, 1]
+    float phase_asymmetry_g = 0.f;
+
+    // ratio of scattering vs. absorption (sigma_s / sigma_t)
+    float scattering_ratio = 0.f;
+
     float ior = 1.5f;
 
     float clearcoat_factor = 0.f;
