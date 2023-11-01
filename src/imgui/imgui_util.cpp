@@ -704,6 +704,9 @@ void draw_material_ui(const MaterialPtr &material)
     // two-sided
     ImGui::Checkbox("two-sided", &material->two_sided);
 
+    // null-surface
+    ImGui::Checkbox("null-surface", &material->null_surface);
+
     // transmission
     ImGui::SliderFloat("transmission", &material->transmission, 0.f, 1.f);
     draw_texture(vierkant::Material::TextureType::Transmission, "transmission");
@@ -713,6 +716,12 @@ void draw_material_ui(const MaterialPtr &material)
 
     // attenuation color
     ImGui::ColorEdit3("attenuation color", glm::value_ptr(material->attenuation_color));
+
+    // phase_asymmetry_g
+    ImGui::SliderFloat("phase_asymmetry_g", &material->phase_asymmetry_g, -1.f, 1.f);
+
+    // scattering_ratio
+    ImGui::SliderFloat("scattering_ratio", &material->scattering_ratio, 0.f, 1.f);
 
     // index of refraction - ior
     ImGui::InputFloat("ior", &material->ior);

@@ -68,6 +68,9 @@ public:
 
     bool two_sided = false;
 
+    //! null-surface (skip surface interaction)
+    bool null_surface = false;
+
     BlendMode blend_mode = BlendMode::Opaque;
 
     float alpha_cutoff = 0.5f;
@@ -77,6 +80,12 @@ public:
     glm::vec3 attenuation_color = glm::vec3(1.f);
 
     float attenuation_distance = std::numeric_limits<float>::infinity();
+
+    // phase-function asymmetry parameter (forward- vs. back-scattering) [-1, 1]
+    float phase_asymmetry_g = 0.f;
+
+    // ratio of scattering vs. absorption (sigma_s / sigma_t)
+    float scattering_ratio = 0.f;
 
     float ior = 1.5f;
 

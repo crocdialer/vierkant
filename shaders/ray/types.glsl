@@ -41,8 +41,9 @@ struct material_t
     float metalness;
     float roughness;
     float transmission;
+    bool null_surface;
+    vec3 attenuation_color;
     float attenuation_distance;
-    vec4 attenuation_color;
     float ior;
     float clearcoat;
     float clearcoat_roughness;
@@ -59,8 +60,21 @@ struct material_t
     uint ao_rough_metal_index;
 
     uint texture_type_flags;
-
     uint blend_mode;
     float alpha_cutoff;
     bool two_sided;
+
+    float phase_asymmetry_g;
+    float scattering_ratio;
+};
+
+//! medium_t groups medium-properties
+struct medium_t
+{
+    //! spectral absorption/scattering coefficients and resulting attenuation
+    //! sigma_t = sigma_a + sigma_s
+    vec3 sigma_a, sigma_s;
+
+    //! phase-function asymmetry parameter [-1, 1]
+    float g;
 };

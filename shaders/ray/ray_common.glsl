@@ -1,7 +1,8 @@
-#define FLOAT_MAX 3.402823466e+38
-#define FLOAT_MIN 1.175494351e-38
+#ifndef RAY_COMMON_GLSL
+#define RAY_COMMON_GLSL
 
 #define EPS 0.0001
+#define PDF_EPS 0.0001
 
 struct Ray
 {
@@ -54,8 +55,8 @@ struct payload_t
     // media refraction index
     float ior;
 
-    // color-absorbtion per unit-length
-    vec3 absorption;
+    // spectral attenuation per unit-length (sigma_s + sigma_a)
+    vec3 sigma_t;
 
     bool transmission;
 };
@@ -97,3 +98,5 @@ struct camera_ubo_t
     float aperture;
     float focal_distance;
 };
+
+#endif // RAY_COMMON_GLSL

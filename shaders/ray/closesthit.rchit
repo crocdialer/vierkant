@@ -10,6 +10,7 @@
 #include "reservoir.glsl"
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
+#include "direct_lighting.glsl"
 
 #define TEST_SHADOW_RAYS 0
 
@@ -46,7 +47,6 @@ layout(binding = 10) uniform sampler2D u_ao_rough_metal_maps[];
 
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
-layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shadow;
 
 // builtin barycentric coords
 hitAttributeEXT vec2 attribs;
@@ -114,6 +114,11 @@ vec4 sample_texture_lod(sampler2D tex, vec2 tex_coord, float NoV, float cone_wid
     return textureLod(tex, tex_coord, lambda);
 }
 
+float channel_avg(vec3 v)
+{
+    return (v.x + v.y + v.z) / 3.0;
+}
+
 Vertex interpolate_vertex(Triangle t)
 {
     const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
@@ -156,6 +161,38 @@ void main()
     // next ray from current position
     payload.ray.origin = payload.position;
 
+    // participating media
+    bool sample_medium = false;
+
+    if(any(greaterThan(payload.sigma_t, vec3(0))))
+    {
+        // sample a ray hit_t
+        int channel = int(min(rnd(rng_state) * 3, 2));
+        float t = min(-log(1 - rnd(rng_state)) / payload.sigma_t[channel], gl_HitTEXT);
+
+        // fraction of scattering vs. absorption
+        vec3 sigma_s = material.scattering_ratio * payload.sigma_t;
+
+        // determine scattering
+        sample_medium = t < gl_HitTEXT;
+
+        // beam_transmittance
+        vec3 beam_tr = exp(-payload.sigma_t * t);
+        vec3 density = sample_medium ? beam_tr * payload.sigma_t : beam_tr;
+        float pdf = channel_avg(density);
+
+        // sample scattering event
+        if(sample_medium)
+        {
+            const float g = material.phase_asymmetry_g;
+            vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
+            payload.ray.origin += payload.ray.direction * t;
+            float phase_pdf;
+            payload.ray.direction = local_frame(-payload.ray.direction) * sample_phase_hg(Xi, g, phase_pdf);
+        }
+        payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
+    }
+
     // albedo
     if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
     {
@@ -164,12 +201,12 @@ void main()
     }
     material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
 
-    // skip surface-interaction (alpha-cutoff/blend or explicit skip)
-    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff){ return; }
-    if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state)){ return; }
-
-    // propagate ray-cone
-    payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
+    // skip surface-interaction (alpha-cutoff/blend)
+    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff ||
+       material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state))
+    {
+        material.null_surface = true;
+    }
 
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
@@ -189,11 +226,6 @@ void main()
 
     // account for two-sided materials seen from backside, flip normals
     if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
-    else if(material.transmission == 0.0 && NoV < 0)
-    {
-        // hack to counter black fringes, need to get back to that ...
-        payload.normal = reflect(payload.normal, V);
-    }
     NoV = abs(NoV);
 
     // flip the normal so it points against the ray direction:
@@ -208,10 +240,6 @@ void main()
 
     }
     material.emission.rgb *= dot(payload.normal, payload.ff_normal) > 0 ? material.emission.a : 0.0;
-
-    // absorption in media
-    payload.beta *= exp(-payload.absorption * gl_HitTEXT);
-    payload.absorption = vec3(0);
 
     // add radiance from emission
     payload.radiance += payload.beta * material.emission.rgb;
@@ -231,65 +259,39 @@ void main()
     payload.ior = payload.transmission ? material.ior : 1.0;
 
 #if TEST_SHADOW_RAYS
-    // test-code for shadow-rays
-
-    // sun angular diameter
-    const float sun_angle =  0.524167 *  PI / 180.0;
-    const vec3 sun_dir = normalize(vec3(.4, 1.0, 0.7));
-
-    // uniform sample sun-area
-    vec3 L_light = local_frame(sun_dir) * sample_unit_sphere_cap(vec2(rnd(rng_state), rnd(rng_state)), sun_angle);
-    const vec3 sun_color = vec3(1.0, 0.6, 0.4);
-    const float sun_intensity = 1.0;
-    Ray ray = Ray(payload.position + EPS * payload.ff_normal, L_light);
-    const uint ray_flags =  gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT | gl_RayFlagsOpaqueEXT;
-    float tmin = 0.0;
-    float tmax = 10000.0;
-    payload_shadow.shadow = true;
-
-    traceRayEXT(topLevelAS,         // acceleration structure
-                ray_flags,          // rayflags
-                0xff,               // cullMask
-                0,                  // sbtRecordOffset
-                0,                  // sbtRecordStride
-                MISS_INDEX_SHADOW,  // missIndex
-                ray.origin,         // ray origin
-                tmin,               // ray min range
-                ray.direction,      // ray direction
-                tmax,               // ray max range
-                MISS_INDEX_SHADOW); // payload-location
-
-    // eval light
-    if(!payload_shadow.shadow)
-    {
-        float pdf = 0.0;
-        float cos_theta = abs(dot(payload.normal, L_light));
-        vec3 F = eval_disney(material, L_light, payload.ff_normal, V, eta, pdf);
-        vec3 radiance_L = sun_color * sun_intensity * clamp(F * cos_theta / (pdf + EPS), 0.0, 1.0);
-        payload.radiance += payload.beta * (payload_shadow.shadow ? vec3(0) : radiance_L);
-    }
+    const sunlight_params_t sun_params = {vec3(1.0, 0.6, 0.4), 1.0, normalize(vec3(.4, 1.0, 0.7)), 0.524167 *  PI / 180.0};
+    vec3 sun_L = sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.ff_normal, V, eta,
+                                  rng_state);
+    payload.radiance += payload.beta * sun_L;
 #endif
 
-    // take sample from burley/disney BSDF
-    bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
+    bool sample_surface = !(material.null_surface || sample_medium);
 
-    if (bsdf_sample.pdf <= 0.0)
+    if(sample_surface)
     {
-        payload.stop = true;
-        return;
+        // propagate ray-cone
+        payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
+
+        // take sample from burley/disney BSDF
+        bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
+        if(bsdf_sample.pdf <= 0.0){ payload.stop = true; return; }
+
+        payload.ray.direction = bsdf_sample.direction;
+        float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
+
+        payload.beta *= bsdf_sample.F * cos_theta / (bsdf_sample.pdf + PDF_EPS);
+        payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
+
+        // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
+        payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
+    }
+    else
+    {
+        payload.transmission = payload.transmission ^^ (material.transmission > 0.0);
     }
 
-    payload.ray.direction = bsdf_sample.direction;
-    float cos_theta = abs(dot(payload.normal, payload.ray.direction));
-
-    payload.beta *= clamp(bsdf_sample.F * cos_theta / (bsdf_sample.pdf + EPS), 0.0, 1.0);
-    payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
-
-    // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
-    payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
-
-    payload.absorption = payload.transmission ?
-                         -log(material.attenuation_color.rgb) / (material.attenuation_distance + EPS) : vec3(0);
+    vec3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
+    payload.sigma_t = payload.transmission ? sigma_t : vec3(0);
 
     // Russian roulette
     if(max3(payload.beta) <= 0.05 && payload.depth >= 2)

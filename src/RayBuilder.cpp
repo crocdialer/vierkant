@@ -456,7 +456,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                 material.transmission = mesh_material->transmission;
                 material.ior = mesh_material->ior;
                 material.attenuation_distance = mesh_material->attenuation_distance;
-                material.attenuation_color = {mesh_material->attenuation_color, 0.f};
+                material.attenuation_color = mesh_material->attenuation_color;
                 material.clearcoat_factor = mesh_material->clearcoat_factor;
                 material.clearcoat_roughness_factor = mesh_material->clearcoat_roughness_factor;
                 material.sheen_color = {mesh_material->sheen_color, 0.f};
@@ -465,6 +465,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                 material.blend_mode = static_cast<uint32_t>(mesh_material->blend_mode);
                 material.alpha_cutoff = mesh_material->alpha_cutoff;
                 material.two_sided = mesh_material->two_sided;
+                material.null_surface = mesh_material->null_surface;
+                material.phase_asymmetry_g = mesh_material->phase_asymmetry_g;
+                material.scattering_ratio = mesh_material->scattering_ratio;
 
                 material.iridescence_strength = mesh_material->iridescence_factor;
                 material.iridescence_ior = mesh_material->iridescence_ior;

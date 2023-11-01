@@ -337,11 +337,7 @@ model::material_t convert_material(const tinygltf::Material &tiny_mat, const tin
     }
 
     // ao / rough / metal
-    if(insert_texture(tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index,
-                      Material::TextureType::Ao_rough_metal))
-    {
-        ret.roughness = ret.metalness = 1.f;
-    }
+    insert_texture(tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index, Material::TextureType::Ao_rough_metal);
 
     // normals
     insert_texture(tiny_mat.normalTexture.index, Material::TextureType::Normal);
@@ -876,7 +872,7 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
     out_assets.root_node->name = model.nodes[scene.nodes[0]].name;
 
     auto &entry_create_infos = std::get<std::vector<vierkant::Mesh::entry_create_info_t>>(out_assets.geometry_data);
-//    std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
+    //    std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
 
     // map tiny-indices to created assets
     std::map<uint32_t, crocore::ImagePtr> image_cache;

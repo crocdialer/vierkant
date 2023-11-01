@@ -86,7 +86,7 @@ trace_result_t trace(vec2 coord, vec2 size)
 
         // assumes we start in air
         float ior = 1.0;
-        vec3 absorption = vec3(0);
+        vec3 sigma_t = vec3(0);
         bool transmission = false;
 
         vec3 beta = vec3(1);
@@ -103,7 +103,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.radiance = path_radiance;
             payload.beta = beta;
             payload.ior = ior;
-            payload.absorption = absorption;
+            payload.sigma_t = sigma_t;
             payload.transmission = transmission;
             payload.ray = ray;
             payload.cone = cone;
@@ -127,7 +127,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             ray = payload.ray;
             beta = payload.beta;
             ior = payload.ior;
-            absorption = payload.absorption;
+            sigma_t = payload.sigma_t;
             transmission = payload.transmission;
             path_radiance = payload.radiance;
 
@@ -141,7 +141,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             if (payload.stop){ break; }
         }
 
-        trace_result.radiance += path_radiance;
+        trace_result.radiance += payload.radiance;
 //        trace_result.coverage += payload.depth > 0 ? 1.0 : 0.0;
         trace_result.coverage = max(trace_result.coverage, payload.depth > 0 ? 1.0 : 0.0);
     }
