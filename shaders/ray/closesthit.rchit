@@ -39,12 +39,6 @@ layout(binding = 6, set = 0) readonly buffer Materials{ material_t materials[]; 
 
 layout(binding = 7) uniform sampler2D u_textures[];
 
-//layout(binding = 8) uniform sampler2D u_normalmaps[];
-//
-//layout(binding = 9) uniform sampler2D u_emissionmaps[];
-//
-//layout(binding = 10) uniform sampler2D u_ao_rough_metal_maps[];
-
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
 

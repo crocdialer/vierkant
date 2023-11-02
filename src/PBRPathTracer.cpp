@@ -444,7 +444,7 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     desc_textures.images = frame_asset.scene_ray_acceleration.textures;
 
     // comman ubo for miss-shaders
-    vierkant::descriptor_t &desc_ray_miss_ubo = frame_asset.tracable.descriptors[11];
+    vierkant::descriptor_t &desc_ray_miss_ubo = frame_asset.tracable.descriptors[8];
     desc_ray_miss_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
     desc_ray_miss_ubo.buffers = {frame_asset.ray_miss_ubo};
@@ -453,7 +453,7 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
 
     if(m_environment)
     {
-        vierkant::descriptor_t &desc_environment = frame_asset.tracable.descriptors[12];
+        vierkant::descriptor_t &desc_environment = frame_asset.tracable.descriptors[9];
         desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
         desc_environment.images = {m_environment};
