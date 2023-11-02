@@ -81,18 +81,6 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
     fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
     m_placeholder_solid_white = vierkant::Image::create(m_device, &v, fmt);
 
-    // normal: vec3(0, 0, 1)
-    v = 0xFFFF7F7F;
-    m_placeholder_normalmap = vierkant::Image::create(m_device, &v, fmt);
-
-    // emission: vec3(0)
-    v = 0xFF000000;
-    m_placeholder_emission = vierkant::Image::create(m_device, &v, fmt);
-
-    // ao/rough/metal: vec3(1, 1, 1)
-    v = 0xFFFFFFFF;
-    m_placeholder_ao_rough_metal = vierkant::Image::create(m_device, &v, fmt);
-
     m_placeholder_buffer = vierkant::Buffer::create(
             m_device, nullptr, 1, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
             VMA_MEMORY_USAGE_GPU_ONLY);
@@ -341,9 +329,6 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     std::vector<entry_t> entries;
     std::vector<material_struct_t> materials;
     std::vector<vierkant::ImagePtr> textures = {m_placeholder_solid_white};
-    std::vector<vierkant::ImagePtr> normalmaps = {m_placeholder_normalmap};
-    std::vector<vierkant::ImagePtr> emissions = {m_placeholder_emission};
-    std::vector<vierkant::ImagePtr> ao_rough_metal_maps = {m_placeholder_ao_rough_metal};
 
     //! vertex- and index-buffers for the entire scene
     std::vector<vierkant::BufferPtr> vertex_buffers;
@@ -476,26 +461,27 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                 for(auto &[type_flag, tex]: mesh_material->textures)
                 {
                     material.texture_type_flags |= type_flag;
+                    uint32_t texture_index = textures.size();
+                    textures.push_back(tex);
 
-                    if(type_flag == vierkant::Material::TextureType::Color)
+                    switch(type_flag)
                     {
-                        material.texture_index = textures.size();
-                        textures.push_back(tex);
-                    }
-                    else if(type_flag == vierkant::Material::TextureType::Normal)
-                    {
-                        material.normalmap_index = normalmaps.size();
-                        normalmaps.push_back(tex);
-                    }
-                    else if(type_flag == vierkant::Material::TextureType::Emission)
-                    {
-                        material.emission_index = emissions.size();
-                        emissions.push_back(tex);
-                    }
-                    else if(type_flag == vierkant::Material::TextureType::Ao_rough_metal)
-                    {
-                        material.ao_rough_metal_index = ao_rough_metal_maps.size();
-                        ao_rough_metal_maps.push_back(tex);
+                        case vierkant::Material::TextureType::Color:
+                            material.albedo_index = texture_index;
+                            break;
+
+                        case vierkant::Material::TextureType::Normal:
+                            material.normalmap_index = texture_index;
+                            break;
+
+                        case vierkant::Material::TextureType::Emission:
+                            material.emission_index = texture_index;
+                            break;
+
+                        case vierkant::Material::TextureType::Ao_rough_metal:
+                            material.ao_rough_metal_index = texture_index;
+                            break;
+                        default: break;
                     }
                 }
                 materials.push_back(material);
@@ -581,9 +567,6 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
         // move texture-assets
         ret.textures = std::move(textures);
-        ret.normalmaps = std::move(normalmaps);
-        ret.emissions = std::move(emissions);
-        ret.ao_rough_metal_maps = std::move(ao_rough_metal_maps);
 
         // move buffers
         ret.vertex_buffers = std::move(vertex_buffers);

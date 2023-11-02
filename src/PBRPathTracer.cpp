@@ -443,21 +443,6 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_textures.images = frame_asset.scene_ray_acceleration.textures;
 
-    vierkant::descriptor_t &desc_normalmaps = frame_asset.tracable.descriptors[8];
-    desc_normalmaps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_normalmaps.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_normalmaps.images = frame_asset.scene_ray_acceleration.normalmaps;
-
-    vierkant::descriptor_t &desc_emissions = frame_asset.tracable.descriptors[9];
-    desc_emissions.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_emissions.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_emissions.images = frame_asset.scene_ray_acceleration.emissions;
-
-    vierkant::descriptor_t &desc_ao_rough_metal_maps = frame_asset.tracable.descriptors[10];
-    desc_ao_rough_metal_maps.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_ao_rough_metal_maps.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-    desc_ao_rough_metal_maps.images = frame_asset.scene_ray_acceleration.ao_rough_metal_maps;
-
     // comman ubo for miss-shaders
     vierkant::descriptor_t &desc_ray_miss_ubo = frame_asset.tracable.descriptors[11];
     desc_ray_miss_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;

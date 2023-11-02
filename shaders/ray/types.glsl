@@ -54,7 +54,7 @@ struct material_t
     float iridescence_ior;
     vec2 iridescence_thickness_range;
 
-    uint texture_index;
+    uint albedo_index;
     uint normalmap_index;
     uint emission_index;
     uint ao_rough_metal_index;
