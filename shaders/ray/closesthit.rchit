@@ -12,7 +12,7 @@
 #include "bsdf_disney.glsl"
 #include "direct_lighting.glsl"
 
-#define TEST_SHADOW_RAYS 0
+#define USE_DIRECT_LIGHTING 0
 
 //! Triangle groups triangle vertices
 struct Triangle
@@ -174,6 +174,7 @@ void main()
         vec3 beam_tr = exp(-payload.sigma_t * t);
         vec3 density = sample_medium ? beam_tr * payload.sigma_t : beam_tr;
         float pdf = channel_avg(density);
+        payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
 
         // sample scattering event
         if(sample_medium)
@@ -183,8 +184,17 @@ void main()
             payload.ray.origin += payload.ray.direction * t;
             float phase_pdf;
             payload.ray.direction = local_frame(-payload.ray.direction) * sample_phase_hg(Xi, g, phase_pdf);
+
+            #if USE_DIRECT_LIGHTING
+            sunlight_params_t sun_params;
+            sun_params.color = vec3(1.0, 0.6, 0.4);
+            sun_params.intensity = 1.0;
+            sun_params.direction = normalize(vec3(.4, 1.0, 0.7));
+            sun_params.angular_size = 0.524167 *  PI / 180.0;
+            vec3 sun_L = phase_pdf * sample_sun_light_phase(payload.ray, sun_params, topLevelAS, rng_state);
+            payload.radiance += payload.beta * sun_L;
+            #endif
         }
-        payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
     }
 
     // albedo
@@ -220,7 +230,7 @@ void main()
 
     // account for two-sided materials seen from backside, flip normals
     if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
-    else if(material.transmission == 0.0 && NoV < 0){ payload.normal = v.normal; }
+//    else if(material.transmission == 0.0 && NoV < 0){ payload.normal = v.normal; }
     NoV = abs(NoV);
 
     // flip the normal so it points against the ray direction:
@@ -252,18 +262,21 @@ void main()
     eta += EPS;
 
     payload.ior = payload.transmission ? material.ior : 1.0;
-
-#if TEST_SHADOW_RAYS
-    const sunlight_params_t sun_params = {vec3(1.0, 0.6, 0.4), 1.0, normalize(vec3(.4, 1.0, 0.7)), 0.524167 *  PI / 180.0};
-    vec3 sun_L = sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.ff_normal, V, eta,
-                                  rng_state);
-    payload.radiance += payload.beta * sun_L;
-#endif
-
     bool sample_surface = !(material.null_surface || sample_medium);
 
     if(sample_surface)
     {
+        #if USE_DIRECT_LIGHTING
+        sunlight_params_t sun_params;
+        sun_params.color = vec3(1.0, 0.6, 0.4);
+        sun_params.intensity = 1.0;
+        sun_params.direction = normalize(vec3(.4, 1.0, 0.7));
+        sun_params.angular_size = 0.524167 *  PI / 180.0;
+        vec3 sun_L = sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.ff_normal, V, eta,
+        rng_state);
+        payload.radiance += payload.beta * sun_L;
+        #endif
+        
         // propagate ray-cone
         payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 

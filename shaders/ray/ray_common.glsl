@@ -17,7 +17,6 @@ struct RayCone
 };
 
 #define MISS_INDEX_DEFAULT 0
-#define MISS_INDEX_SHADOW 1
 
 //! simple struct to groupt rayhit-parameters
 struct payload_t
@@ -59,11 +58,6 @@ struct payload_t
     vec3 sigma_t;
 
     bool transmission;
-};
-
-struct shadow_payload_t
-{
-    bool shadow;
 };
 
 struct push_constants_t

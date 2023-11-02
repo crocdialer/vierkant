@@ -106,16 +106,13 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     auto ray_closest_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::closesthit_rchit);
     auto ray_miss = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_rmiss);
     auto ray_miss_env = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_environment_rmiss);
-    auto ray_miss_shadow = vierkant::create_shader_module(m_device, vierkant::shaders::ray::shadow_rmiss);
 
     m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
                        {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss},
-                       {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_shadow},
                        {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
 
     m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
                            {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env},
-                           {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_shadow},
                            {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
 
     // create drawables for post-fx-pass
@@ -443,7 +440,7 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_textures.images = frame_asset.scene_ray_acceleration.textures;
 
-    // comman ubo for miss-shaders
+    // common ubo for miss-shaders
     vierkant::descriptor_t &desc_ray_miss_ubo = frame_asset.tracable.descriptors[8];
     desc_ray_miss_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
