@@ -443,7 +443,7 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_textures.images = frame_asset.scene_ray_acceleration.textures;
 
-    // comman ubo for miss-shaders
+    // common ubo for miss-shaders
     vierkant::descriptor_t &desc_ray_miss_ubo = frame_asset.tracable.descriptors[8];
     desc_ray_miss_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
