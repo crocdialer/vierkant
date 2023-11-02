@@ -67,14 +67,3 @@ struct material_t
     float phase_asymmetry_g;
     float scattering_ratio;
 };
-
-//! medium_t groups medium-properties
-struct medium_t
-{
-    //! spectral absorption/scattering coefficients and resulting attenuation
-    //! sigma_t = sigma_a + sigma_s
-    vec3 sigma_a, sigma_s;
-
-    //! phase-function asymmetry parameter [-1, 1]
-    float g;
-};
