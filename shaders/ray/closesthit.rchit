@@ -37,13 +37,7 @@ layout(binding = 5, set = 0) readonly buffer Entries { entry_t entries[]; };
 
 layout(binding = 6, set = 0) readonly buffer Materials{ material_t materials[]; };
 
-layout(binding = 7) uniform sampler2D u_albedos[];
-
-layout(binding = 8) uniform sampler2D u_normalmaps[];
-
-layout(binding = 9) uniform sampler2D u_emissionmaps[];
-
-layout(binding = 10) uniform sampler2D u_ao_rough_metal_maps[];
+layout(binding = 7) uniform sampler2D u_textures[];
 
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
@@ -196,8 +190,8 @@ void main()
     // albedo
     if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
     {
-        material.color *= sample_texture_lod(u_albedos[material.texture_index],
-        v.tex_coord, NoV, payload.cone.width, triangle_lod);
+        material.color *= sample_texture_lod(u_textures[material.albedo_index],
+                                             v.tex_coord, NoV, payload.cone.width, triangle_lod);
     }
     material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
 
@@ -214,7 +208,7 @@ void main()
         v.tangent = normalize(v.tangent);
 
         // sample normalmap
-        vec3 normal = normalize(2.0 * (sample_texture_lod(u_normalmaps[material.normalmap_index],
+        vec3 normal = normalize(2.0 * (sample_texture_lod(u_textures[material.normalmap_index],
                                                           v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz -
                                        vec3(0.5)));
 
@@ -226,6 +220,7 @@ void main()
 
     // account for two-sided materials seen from backside, flip normals
     if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
+    else if(material.transmission == 0.0 && NoV < 0){ payload.normal = v.normal; }
     NoV = abs(NoV);
 
     // flip the normal so it points against the ray direction:
@@ -234,7 +229,7 @@ void main()
     // max emission from material/map
     if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
     {
-        material.emission.rgb = max(material.emission.rgb, sample_texture_lod(u_emissionmaps[material.emission_index],
+        material.emission.rgb = max(material.emission.rgb, sample_texture_lod(u_textures[material.emission_index],
                                                                               v.tex_coord, NoV, payload.cone.width,
                                                                               triangle_lod).rgb);
 
@@ -247,8 +242,8 @@ void main()
     // roughness / metalness
     if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)
     {
-        vec2 rough_metal_tex = sample_texture_lod(u_ao_rough_metal_maps[material.ao_rough_metal_index],
-        v.tex_coord, NoV, payload.cone.width, triangle_lod).gb;
+        vec2 rough_metal_tex = sample_texture_lod(u_textures[material.ao_rough_metal_index],
+                                                  v.tex_coord, NoV, payload.cone.width, triangle_lod).gb;
         material.roughness *= rough_metal_tex.x;
         material.metalness *= rough_metal_tex.y;
     }

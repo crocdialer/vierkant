@@ -72,7 +72,7 @@ public:
         // range of thin-film thickness in nanometers (nm)
         glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
-        uint32_t texture_index = 0;
+        uint32_t albedo_index = 0;
 
         uint32_t normalmap_index = 0;
 
@@ -88,10 +88,10 @@ public:
 
         uint32_t two_sided = false;
 
-        // phase-function asymmetry parameter (forward- vs. back-scattering) [-1, 1]
+        //! phase-function asymmetry parameter (forward- vs. back-scattering) [-1, 1]
         float phase_asymmetry_g = 0.f;
 
-        // ratio of scattering vs. absorption (sigma_s / sigma_t)
+        //! ratio of scattering vs. absorption (sigma_s / sigma_t)
         float scattering_ratio = 0.f;
     };
 
@@ -166,7 +166,8 @@ public:
         //! buffer containing material-information
         vierkant::BufferPtr material_buffer = nullptr;
 
-        std::vector<vierkant::ImagePtr> textures, normalmaps, emissions, ao_rough_metal_maps;
+        //! array containing all textures for a scene
+        std::vector<vierkant::ImagePtr> textures;
 
         //! vertex- and index-buffers for the entire scene
         std::vector<vierkant::BufferPtr> vertex_buffers;
@@ -275,8 +276,6 @@ private:
                                                             const build_scene_acceleration_params_t &params,
                                                             const vierkant::AccelerationStructurePtr &last) const;
 
-//    void set_function_pointers();
-
     [[nodiscard]] acceleration_asset_t
     create_acceleration_asset(VkAccelerationStructureCreateInfoKHR create_info) const;
 
@@ -290,19 +289,9 @@ private:
 
     vierkant::CommandPoolPtr m_command_pool;
 
-    vierkant::ImagePtr m_placeholder_solid_white, m_placeholder_normalmap, m_placeholder_emission,
-            m_placeholder_ao_rough_metal;
+    vierkant::ImagePtr m_placeholder_solid_white;
 
     vierkant::BufferPtr m_placeholder_buffer;
-
-//    // process-addresses for raytracing related functions
-//    PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;
-//    PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR = nullptr;
-//    PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;
-//    PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR = nullptr;
-//    PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR = nullptr;
-//    PFN_vkCmdWriteAccelerationStructuresPropertiesKHR vkCmdWriteAccelerationStructuresPropertiesKHR = nullptr;
-//    PFN_vkCmdCopyAccelerationStructureKHR vkCmdCopyAccelerationStructureKHR = nullptr;
 };
 
 }// namespace vierkant

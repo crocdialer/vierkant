@@ -54,7 +54,7 @@ struct material_t
     float iridescence_ior;
     vec2 iridescence_thickness_range;
 
-    uint texture_index;
+    uint albedo_index;
     uint normalmap_index;
     uint emission_index;
     uint ao_rough_metal_index;
@@ -66,15 +66,4 @@ struct material_t
 
     float phase_asymmetry_g;
     float scattering_ratio;
-};
-
-//! medium_t groups medium-properties
-struct medium_t
-{
-    //! spectral absorption/scattering coefficients and resulting attenuation
-    //! sigma_t = sigma_a + sigma_s
-    vec3 sigma_a, sigma_s;
-
-    //! phase-function asymmetry parameter [-1, 1]
-    float g;
 };
