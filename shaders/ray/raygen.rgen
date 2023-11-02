@@ -25,7 +25,6 @@ layout(push_constant) uniform PushConstants
 };
 
 layout(location = MISS_INDEX_DEFAULT) rayPayloadEXT payload_t payload;
-layout(location = MISS_INDEX_SHADOW) rayPayloadEXT shadow_payload_t payload_shadow;
 
 struct trace_result_t
 {
