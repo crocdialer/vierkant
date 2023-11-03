@@ -134,6 +134,8 @@ Vertex interpolate_vertex(Triangle t)
     out_vert.normal = rotate_quat(quat, out_vert.normal);
     out_vert.tangent = rotate_quat(quat, out_vert.tangent);
 
+    // account for two-sided materials seen from backside, flip normals
+    if(gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT){ out_vert.normal *= -1.0; }
     return out_vert;
 }
 
@@ -147,7 +149,7 @@ void main()
     material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
 
     vec3 V = -gl_WorldRayDirectionEXT;
-    float NoV = dot(V, payload.normal);
+    float NoV = abs(dot(V, payload.normal));
 
     payload.position = v.position;
     payload.normal = v.normal;
@@ -225,13 +227,7 @@ void main()
         // normal, tangent, bi-tangent
         vec3 b = normalize(cross(v.normal, v.tangent));
         payload.normal = mat3(v.tangent, b, payload.normal) * normal;
-        NoV = dot(V, payload.normal);
     }
-
-    // account for two-sided materials seen from backside, flip normals
-    if(material.two_sided && NoV < 0){ payload.normal *= -1.0; }
-//    else if(material.transmission == 0.0 && NoV < 0){ payload.normal = v.normal; }
-    NoV = abs(NoV);
 
     // flip the normal so it points against the ray direction:
     payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);

@@ -18,7 +18,7 @@ vec3 sample_sun_light(const in material_t material, const in sunlight_params_t p
     // uniform sample sun-area
     vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
     vec3 light_dir = local_frame(p.direction) * sample_unit_sphere_cap(Xi, p.angular_size);
-    Ray ray = Ray(pos + EPS * N, light_dir);
+    Ray ray = Ray(pos + EPS * N, light_dir, 0, 10000.0);
     vec3 radiance = vec3(0);
 
     // eval light
@@ -38,7 +38,7 @@ vec3 sample_sun_light_phase(Ray ray, const in sunlight_params_t p, accelerationS
     // uniform sample sun-area
     vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
     vec3 light_dir = local_frame(p.direction) * sample_unit_sphere_cap(Xi, p.angular_size);
-    Ray light_ray = Ray(ray.origin, light_dir);
+    Ray light_ray = Ray(ray.origin, light_dir, 0, 10000.0);
     return visibility_test(light_ray, as) ? p.color * p.intensity : vec3(0);
 }
 
