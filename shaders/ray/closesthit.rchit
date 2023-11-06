@@ -278,7 +278,9 @@ void main()
 
         // take sample from burley/disney BSDF
         bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
-        if(bsdf_sample.pdf <= 0.0){ payload.stop = true; return; }
+
+        // TODO: check wtf/when pdf turns out NaN here
+        if(bsdf_sample.pdf <= 0.0 || isnan(bsdf_sample.pdf)){ payload.stop = true; return; }
 
         payload.ray.direction = bsdf_sample.direction;
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
