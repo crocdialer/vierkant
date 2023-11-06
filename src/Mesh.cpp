@@ -410,10 +410,11 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                                           index_remap.data());
             }
         }
-        float reduction_rate = (float) (vertex_sum - new_vertex_sum) / (float) vertex_sum;
-        spdlog::debug("index-remap / avoid duplicate vertices: {} -- vertex count reduced from {} to {} ({}%)",
-                      std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), vertex_sum, new_vertex_sum,
-                      reduction_rate);
+        float reduction_rate = (float) (new_vertex_sum) / (float) vertex_sum;
+        spdlog::debug(
+                "index-remap / avoid duplicate vertices: {} -- vertex count reduced from {} to {} (ratio: {:03.2f})",
+                std::chrono::duration_cast<std::chrono::milliseconds>(sw.elapsed()), vertex_sum, new_vertex_sum,
+                reduction_rate);
     }
 
     // optional vertex/cache/fetch optimization here
