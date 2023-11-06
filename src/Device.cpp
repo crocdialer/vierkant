@@ -251,21 +251,28 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
 
     //-------------------------------------- raytracing features -------------------------------------------------------
 
-    // query optional features required for raytracing-pipelines
+    // acceleration-structures
     VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {};
     acceleration_structure_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
 
+    // raytracing-pipeline
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_pipeline_features = {};
     ray_tracing_pipeline_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
 
+    // ray-queries
     VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {};
     ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+
+    // opacity micromaps
+    VkPhysicalDeviceOpacityMicromapFeaturesEXT ray_micromap_features = {};
+    ray_micromap_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPACITY_MICROMAP_FEATURES_EXT;
 
     // append to pNext-chain
     *last_pNext = &acceleration_structure_features;
     acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
     ray_tracing_pipeline_features.pNext = &ray_query_features;
-    last_pNext = &ray_query_features.pNext;
+    ray_query_features.pNext = &ray_micromap_features;
+    last_pNext = &ray_micromap_features.pNext;
 
     //------------------------------------ VK_EXT_mesh_shader feature --------------------------------------------------
     VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader_features = {};

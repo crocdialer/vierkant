@@ -65,18 +65,23 @@ public:
         DevicePtr device;
         VkCommandPool command_pool;
         VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        std::string name = "";
+        std::string name;
     };
+
+    /**
+     * @brief   construct a new CommandBuffer using a create_info_t struct.
+     *
+     * @param   create_info a struct grouping parameters
+     */
+    explicit CommandBuffer(const create_info_t &create_info);
 
     /**
      * @brief   construct a new CommandBuffer
      *
      * @param   device  the VkDevice that should be used to create the CommandBuffer
      * @param   command_pool    the VkCommandPool to allocate the CommandBuffer from
-     * @param   level       the VkCommandBufferLevel
-     * @param   the_queue   an optional VkQueue to automatically submit the CommandBuffer before destruction
      */
-    explicit CommandBuffer(const create_info_t &create_info);
+    CommandBuffer(DevicePtr device, VkCommandPool command_pool);
 
     CommandBuffer() = default;
 

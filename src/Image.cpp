@@ -416,7 +416,7 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
 
         if(cmd_buffer == VK_NULL_HANDLE)
         {
-            localCommandBuffer = vierkant::CommandBuffer({m_device, m_device->command_pool_transient()});
+            localCommandBuffer = vierkant::CommandBuffer(m_device, m_device->command_pool_transient());
             localCommandBuffer.begin(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
             cmd_buffer = localCommandBuffer.handle();
         }
@@ -440,7 +440,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle, s
 
         if(!cmd_buffer_handle)
         {
-            localCommandBuffer = CommandBuffer({m_device, m_device->command_pool_transient()});
+            localCommandBuffer = CommandBuffer(m_device, m_device->command_pool_transient());
             localCommandBuffer.begin();
             cmd_buffer_handle = localCommandBuffer.handle();
         }
@@ -498,7 +498,7 @@ void Image::copy_to(const BufferPtr &dst, VkCommandBuffer command_buffer, size_t
 
         if(!command_buffer)
         {
-            local_command_buffer = CommandBuffer({m_device, m_device->command_pool_transient()});
+            local_command_buffer = CommandBuffer(m_device, m_device->command_pool_transient());
             local_command_buffer.begin();
             command_buffer = local_command_buffer.handle();
         }
@@ -543,7 +543,7 @@ void Image::copy_to(const ImagePtr &dst, VkCommandBuffer command_buffer, VkOffse
 
         if(!command_buffer)
         {
-            local_command_buffer = CommandBuffer({m_device, m_device->command_pool_transient()});
+            local_command_buffer = CommandBuffer(m_device, m_device->command_pool_transient());
             local_command_buffer.begin();
             command_buffer = local_command_buffer.handle();
         }
@@ -614,7 +614,7 @@ void Image::generate_mipmaps(VkCommandBuffer command_buffer)
 
     if(!command_buffer)
     {
-        local_command_buffer = CommandBuffer({m_device, m_device->command_pool_transient()});
+        local_command_buffer = CommandBuffer(m_device, m_device->command_pool_transient());
         local_command_buffer.begin();
         command_buffer = local_command_buffer.handle();
     }
