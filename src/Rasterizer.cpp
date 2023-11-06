@@ -83,10 +83,13 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
 
     for(auto &render_asset: m_frame_assets)
     {
-        render_asset.staging_command_buffer =
-                vierkant::CommandBuffer({m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_PRIMARY});
-        render_asset.command_buffer =
-                vierkant::CommandBuffer({m_device, m_command_pool.get(), VK_COMMAND_BUFFER_LEVEL_SECONDARY});
+        render_asset.staging_command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
+
+        vierkant::CommandBuffer::create_info_t cmd_buffer_create_info = {};
+        cmd_buffer_create_info.device = m_device;
+        cmd_buffer_create_info.command_pool = m_command_pool.get();
+        cmd_buffer_create_info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+        render_asset.command_buffer = vierkant::CommandBuffer(cmd_buffer_create_info);
         render_asset.query_pool = vierkant::create_query_pool(m_device, query_count, VK_QUERY_TYPE_TIMESTAMP);
     }
 
@@ -785,8 +788,8 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
 
     vierkant::Buffer::create_info_t buffer_info = {};
     buffer_info.device = m_device;
-    buffer_info.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buffer_info.usage =
+            VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     buffer_info.num_bytes = num_bytes_indexed;
     buffer_info.name = "Rasterizer: frame_asset.indirect_indexed_bundle.draws_in";
@@ -794,7 +797,7 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
     if(!frame_asset.indirect_indexed_bundle.draws_in ||
        frame_asset.indirect_indexed_bundle.draws_in->num_bytes() < num_bytes_indexed)
     {
-        frame_asset.indirect_indexed_bundle.draws_in =                vierkant::Buffer::create(buffer_info);
+        frame_asset.indirect_indexed_bundle.draws_in = vierkant::Buffer::create(buffer_info);
     }
     else { frame_asset.indirect_indexed_bundle.draws_in->set_data(nullptr, num_bytes_indexed); }
 

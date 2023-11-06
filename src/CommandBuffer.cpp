@@ -5,6 +5,8 @@
 #define VK_NO_PROTOTYPES
 #include <volk.h>
 
+#include <utility>
+
 #include "vierkant/CommandBuffer.hpp"
 
 namespace vierkant
@@ -132,6 +134,12 @@ CommandPoolPtr create_command_pool(const vierkant::DevicePtr &device, vierkant::
 
     return {command_pool, [device](VkCommandPool pool) { vkDestroyCommandPool(device->handle(), pool, nullptr); }};
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CommandBuffer::CommandBuffer(DevicePtr device, VkCommandPool command_pool)
+    : CommandBuffer({.device = std::move(device), .command_pool = command_pool, .name = ""})
+{}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

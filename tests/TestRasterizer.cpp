@@ -86,7 +86,7 @@ TEST(Rasterizer, direct_API)
     // stage drawables
     rasterizer.stage_drawables(drawables);
 
-    auto cmd_buffer = vierkant::CommandBuffer({test_context.device, command_pool.get()});
+    auto cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
     cmd_buffer.begin();
     vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
     begin_rendering_info.commandbuffer = cmd_buffer.handle();

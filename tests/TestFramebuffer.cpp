@@ -239,7 +239,7 @@ TEST(TestFramebuffer, DirectRendering)
                                           VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     EXPECT_TRUE(command_pool);
-    vierkant::CommandBuffer cmd_buffer = vierkant::CommandBuffer({test_context.device, command_pool.get()});
+    vierkant::CommandBuffer cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
     EXPECT_TRUE(cmd_buffer);
 
     // record direct rendering-pass
@@ -278,7 +278,7 @@ TEST(TestFramebuffer, DirectRendering_MSAA)
                                           VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                           VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     EXPECT_TRUE(command_pool);
-    vierkant::CommandBuffer cmd_buffer = vierkant::CommandBuffer({test_context.device, command_pool.get()});
+    vierkant::CommandBuffer cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
     EXPECT_TRUE(cmd_buffer);
 
     // record direct rendering-pass

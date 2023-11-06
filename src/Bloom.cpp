@@ -45,7 +45,7 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     thresh_render_info.command_pool = m_command_pool;
     m_thresh_renderer = vierkant::Rasterizer(device, thresh_render_info);
 
-    m_command_buffer = vierkant::CommandBuffer({device, m_command_pool.get()});
+    m_command_buffer = vierkant::CommandBuffer(device, m_command_pool.get());
 
     // create gaussian blur
     GaussianBlur::create_info_t gaussian_info = {};

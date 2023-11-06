@@ -70,7 +70,7 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
     {
         vierkant::model::material_t m = {};
         m.name = mat.name;
-        m.base_color = {mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], 1.f};
+        m.base_color = {mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], std::clamp(1.f - mat.dissolve, 0.f, 1.f)};
         m.emission = {mat.emission[0], mat.emission[1], mat.emission[2]};
         m.roughness = std::clamp(std::max(mat.roughness, std::pow(1.f - mat.shininess, 2.f)), 0.f, 1.f);
         m.metalness = mat.metallic;

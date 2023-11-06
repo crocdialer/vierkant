@@ -90,11 +90,11 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                 vierkant::Buffer::create(device, &frame_asset.settings.environment_factor, sizeof(float),
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        frame_asset.cmd_pre_render = vierkant::CommandBuffer({m_device, m_command_pool.get()});
+        frame_asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
-        frame_asset.cmd_trace = vierkant::CommandBuffer({m_device, m_command_pool.get()});
-        frame_asset.cmd_denoise = vierkant::CommandBuffer({m_device, m_command_pool.get()});
-        frame_asset.cmd_post_fx = vierkant::CommandBuffer({m_device, m_command_pool.get()});
+        frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        frame_asset.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        frame_asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
         frame_asset.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
 

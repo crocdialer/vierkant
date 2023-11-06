@@ -120,8 +120,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         staging_buffer_info.name = "staging_post_fx";
         asset.staging_post_fx = vierkant::Buffer::create(staging_buffer_info);
 
-        asset.cmd_pre_render = vierkant::CommandBuffer({m_device, m_command_pool.get()});
-        asset.cmd_post_fx = vierkant::CommandBuffer({m_device, m_command_pool.get()});
+        asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
     }
 
     // create renderer for g-buffer-pass
@@ -734,7 +734,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // draw last visible objects
     m_g_renderer_main.draw_indirect_delegate = [this, &frame_asset,
                                                 use_gpu_culling](Rasterizer::indirect_draw_bundle_t &params) {
-        frame_asset.cmd_clear = vierkant::CommandBuffer({m_device, m_command_pool.get()});
+        frame_asset.cmd_clear = vierkant::CommandBuffer(m_device, m_command_pool.get());
         frame_asset.cmd_clear.begin();
 
         resize_indirect_draw_buffers(params.num_draws, frame_asset.indirect_draw_params_main);
@@ -901,7 +901,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                    m_g_renderer_main.num_concurrent_frames();
     auto &frame_asset = m_frame_assets[index];
 
-    frame_asset.cmd_lighting = vierkant::CommandBuffer({m_device, m_command_pool.get()});
+    frame_asset.cmd_lighting = vierkant::CommandBuffer(m_device, m_command_pool.get());
     frame_asset.cmd_lighting.begin(0);
     vierkant::begin_label(frame_asset.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
     vierkant::ImagePtr occlusion_img = m_util_img_white;
