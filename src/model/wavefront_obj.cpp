@@ -63,6 +63,23 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
     if(!err.empty()) { spdlog::error(warn); }
     if(!ret) { spdlog::error("failed to load {}", path.string()); }
 
+    std::unordered_map<std::string, std::tuple<TextureSourceId, crocore::ImagePtr>> image_cache;
+    auto get_image = [&image_cache](const std::string &path) -> std::tuple<TextureSourceId, crocore::ImagePtr> {
+        auto it = image_cache.find(path);
+        if(it != image_cache.end()) { return it->second; }
+
+        std::tuple<TextureSourceId, crocore::ImagePtr> ret;
+        try
+        {
+            ret = {TextureSourceId::random(), crocore::create_image_from_file(path, 4)};
+            image_cache[path] = ret;
+        } catch(std::exception &e)
+        {
+            spdlog::warn(e.what());
+        }
+        return ret;
+    };
+
     mesh_assets_t mesh_assets = {};
     mesh_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
 
@@ -84,16 +101,15 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
 
         if(!mat.diffuse_texname.empty())
         {
-            auto tex_id = TextureSourceId::random();
+            auto [tex_id, img] = get_image((base_dir / mat.diffuse_texname).string());
             m.textures[Material::TextureType::Color] = tex_id;
-            mesh_assets.textures[tex_id] =
-                    crocore::create_image_from_file((base_dir / mat.diffuse_texname).string(), 4);
+            mesh_assets.textures[tex_id] = img;
         }
         if(!mat.normal_texname.empty())
         {
-            auto tex_id = TextureSourceId::random();
+            auto [tex_id, img] = get_image((base_dir / mat.normal_texname).string());
             m.textures[Material::TextureType::Normal] = tex_id;
-            mesh_assets.textures[tex_id] = crocore::create_image_from_file((base_dir / mat.normal_texname).string(), 4);
+            mesh_assets.textures[tex_id] = img;
         }
         mesh_assets.materials.push_back(m);
     }
