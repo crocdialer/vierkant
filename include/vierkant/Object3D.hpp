@@ -23,7 +23,7 @@ namespace vierkant
 template<class T>
 concept object_component =
         requires() {
-            std::is_same<std::decay_t<decltype(std::remove_pointer_t<T>::component_description)>(), const char *>();
+            std::is_same<decltype(std::remove_pointer_t<T>::component_description), const char *>();
 //            std::is_same<typename T::Type, object_component_trait_t>();
 
         };
