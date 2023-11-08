@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <concepts>
 #include <list>
 #include <optional>
 #include <set>
@@ -22,9 +21,6 @@ namespace vierkant
 struct aabb_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
-
-    // object_component concept
-    static constexpr char component_description[] = "AABB component";
 
     //! signature for a function to retrieve a combined AABB
     using aabb_fn_t = std::function<vierkant::AABB(const std::optional<vierkant::animation_state_t> &)>;
@@ -79,8 +75,7 @@ public:
      * @param   component   optional arbitrary component. will be copied if provided, otherwise default-constructed
      * @return  a reference for the newly created component.
      */
-    template<typename T>
-        requires object_component<T>
+    template<object_component T>
     inline T &add_component(const T &component = {})
     {
         if(auto reg = m_registry.lock()) { return reg->template emplace<T>(m_entity, component); }
@@ -93,8 +88,7 @@ public:
      * @tparam  T   type of the component
      * @return  true, if a component of the provided type exists.
      */
-    template<typename T>
-        requires object_component<T>
+    template<object_component T>
     inline bool has_component() const
     {
         return get_component_ptr<T>();
@@ -106,8 +100,7 @@ public:
      * @tparam  T   type of the component
      * @return  a pointer to a component of the provided type, if available. nullptr otherwise.
      */
-    template<typename T>
-        requires object_component<T>
+    template<object_component T>
     inline T *get_component_ptr()
     {
         auto reg = m_registry.lock();
@@ -120,8 +113,7 @@ public:
      * @tparam  T   type of the component
      * @return  a pointer to a component of the provided type, if available. nullptr otherwise.
      */
-    template<typename T>
-        requires object_component<T>
+    template<object_component T>
     inline const T *get_component_ptr() const
     {
         auto reg = m_registry.lock();
@@ -135,8 +127,7 @@ public:
      * @tparam  T   type of the component
      * @return  a reference to an associated component of the provided type.
      */
-    template<typename T>
-        requires object_component<T>
+    template<object_component T>
     inline T &get_component()
     {
         auto ptr = get_component_ptr<T>();
@@ -151,8 +142,7 @@ public:
      * @tparam  T   type of the component
      * @return  a reference to an associated component of the provided type.
      */
-    template<typename T>
-        requires object_component<T>
+    template<object_component T>
     inline const T &get_component() const
     {
         auto ptr = get_component_ptr<T>();

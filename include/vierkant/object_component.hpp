@@ -20,7 +20,5 @@ struct object_component_guard_t;
 //! concept definition for an object-component
 template<class T>
 concept object_component =
-        requires() {
-            std::is_same<typename std::remove_pointer_t<T>::Guard, internal::object_component_guard_t>();
-        };
+        requires() { std::same_as<typename std::remove_pointer_t<T>::Guard, internal::object_component_guard_t>; };
 }// namespace vierkant
