@@ -18,13 +18,12 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
 {
     auto object = vierkant::Object3D::create(registry);
     object->add_component(mesh_component);
-    vierkant::Object3D::aabb_fn_t aabb_fn;
-    vierkant::Object3D::sub_aabb_fn_t sub_aabb_fn;
     if(!mesh_component.mesh->node_animations.empty()) { object->add_component<vierkant::animation_state_t>(); }
 
     auto weak_obj = vierkant::Object3DWeakPtr(object);
+    auto &aabb_component = object->add_component<vierkant::aabb_component_t>();
 
-    aabb_fn = [weak_obj](const std::optional<vierkant::animation_state_t> &anim_state) {
+    aabb_component.aabb_fn = [weak_obj](const std::optional<vierkant::animation_state_t> &anim_state) {
         vierkant::AABB ret = {};
         auto obj = weak_obj.lock();
 
@@ -58,11 +57,8 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
         }
         return ret;
     };
-    object->add_component(aabb_fn);
-    vierkant::AABB aabb = aabb_fn({});
-    object->add_component(aabb);
 
-    sub_aabb_fn = [weak_obj](const std::optional<vierkant::animation_state_t> &anim_state) {
+    aabb_component.sub_aabb_fn = [weak_obj](const std::optional<vierkant::animation_state_t> &anim_state) {
         std::vector<vierkant::AABB> ret;
 
         auto obj = weak_obj.lock();
@@ -97,7 +93,6 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
         }
         return ret;
     };
-    object->add_component(sub_aabb_fn);
     return object;
 }
 
@@ -107,10 +102,7 @@ void Scene::add_object(const Object3DPtr &object) { m_root->add_child(object); }
 
 void Scene::remove_object(const Object3DPtr &object) { m_root->remove_child(object, true); }
 
-void Scene::clear()
-{
-    m_root = vierkant::Object3D::create(m_registry, "scene root");
-}
+void Scene::clear() { m_root = vierkant::Object3D::create(m_registry, "scene root"); }
 
 void Scene::update(double time_delta)
 {

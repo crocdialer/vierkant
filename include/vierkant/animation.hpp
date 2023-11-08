@@ -66,6 +66,9 @@ template<typename T = float>
     requires std::floating_point<T>
 struct animation_state_t_
 {
+    // object_component concept
+    static constexpr char component_description[] = "animation state";
+
     uint32_t index = 0;
     bool playing = true;
     T animation_speed = 1.0;

@@ -11,6 +11,8 @@ namespace vierkant
 
 struct alignas(16) physical_camera_params_t
 {
+    static constexpr char component_description[] = "physical camera parameters";
+
     //! focal length in m
     float focal_length = 0.05f;
 

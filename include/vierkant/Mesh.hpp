@@ -328,6 +328,9 @@ struct animated_mesh_t
 
 struct mesh_component_t
 {
+    // object_component concept
+    static constexpr char component_description[] = "mesh-component";
+
     //! handle to a mesh, containing buffers and a list of entries
     vierkant::MeshConstPtr mesh;
 
