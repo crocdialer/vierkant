@@ -44,28 +44,16 @@ TEST(Object3D, hierarchy)
     EXPECT_TRUE(glm::vec3(b->global_transform().translation) == glm::vec3(1, 2, 3));
 }
 
-struct foo_component_t
-{
-    //! need to satisfy object_component concept
-    static constexpr char component_description[] = "some foo test-component";
-
-    int a = 0, b = 0;
-};
-
-struct destruction_test_comp_t
-{
-    //! need to satisfy object_component concept
-    static constexpr char component_description[] = "some foo test-component testing component destruction";
-
-    std::function<void()> f;
-
-    ~destruction_test_comp_t(){ if(f){ f(); }}
-};
-
 TEST(Object3D, entity)
 {
     auto registry = std::make_shared<entt::registry>();
     Object3DPtr a(Object3D::create(registry)), b(Object3D::create(registry)), c(Object3D::create(registry));
+
+    struct foo_component_t
+    {
+        VIERKANT_ENABLE_AS_COMPONENT();
+        int a = 0, b = 0;
+    };
 
     // miss-case
     EXPECT_TRUE(!c->has_component<foo_component_t>());
@@ -95,6 +83,15 @@ TEST(Object3D, entity)
     bool destructed = false;
     {
         auto d = Object3D::create(registry);
+
+        struct destruction_test_comp_t
+        {
+            VIERKANT_ENABLE_AS_COMPONENT();
+
+            std::function<void()> f;
+
+            ~destruction_test_comp_t(){ if(f){ f(); }}
+        };
 
         auto &destruct_comp = d->add_component<destruction_test_comp_t>();
         destruct_comp.f = [&destructed](){ destructed = true; };

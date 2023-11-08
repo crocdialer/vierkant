@@ -9,6 +9,7 @@
 #include <vector>
 #include <vierkant/math.hpp>
 #include <vierkant/transform.hpp>
+#include <vierkant/object_component.hpp>
 
 namespace vierkant
 {
@@ -66,8 +67,7 @@ template<typename T = float>
     requires std::floating_point<T>
 struct animation_state_t_
 {
-    // object_component concept
-    static constexpr char component_description[] = "animation state";
+    VIERKANT_ENABLE_AS_COMPONENT();
 
     uint32_t index = 0;
     bool playing = true;

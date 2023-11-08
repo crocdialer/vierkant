@@ -14,6 +14,7 @@
 #include <vierkant/vertex_attrib.hpp>
 #include <vierkant/transform.hpp>
 #include <vierkant/intersection.hpp>
+#include <vierkant/object_component.hpp>
 
 namespace vierkant
 {
@@ -328,8 +329,7 @@ struct animated_mesh_t
 
 struct mesh_component_t
 {
-    // object_component concept
-    static constexpr char component_description[] = "mesh-component";
+    VIERKANT_ENABLE_AS_COMPONENT();
 
     //! handle to a mesh, containing buffers and a list of entries
     vierkant::MeshConstPtr mesh;

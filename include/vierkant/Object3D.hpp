@@ -14,22 +14,15 @@
 #include <vierkant/animation.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/transform.hpp>
+#include <vierkant/object_component.hpp>
 
 namespace vierkant
 {
 
-//enum class object_component_trait_t{};
-
-template<class T>
-concept object_component =
-        requires() {
-            std::is_same<decltype(std::remove_pointer_t<T>::component_description), const char *>();
-//            std::is_same<typename T::Type, object_component_trait_t>();
-
-        };
-
 struct aabb_component_t
 {
+    VIERKANT_ENABLE_AS_COMPONENT();
+
     // object_component concept
     static constexpr char component_description[] = "AABB component";
 
@@ -50,7 +43,6 @@ DEFINE_CLASS_PTR(Object3D)
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
-
     static Object3DPtr create(const std::shared_ptr<entt::registry> &registry = {}, std::string name = "");
 
     virtual ~Object3D() noexcept;
@@ -183,8 +175,7 @@ public:
     //! a list of child-objects
     std::list<Object3DPtr> children;
 
-    //! object_component concept
-    static constexpr char component_description[] = "object raw pointer/component";
+    VIERKANT_ENABLE_AS_COMPONENT();
 
 protected:
     explicit Object3D(const std::shared_ptr<entt::registry> &registry, std::string name = "");
