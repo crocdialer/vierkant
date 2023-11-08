@@ -24,7 +24,7 @@ FOREACH(folderItem ${FOLDER_CONTENT})
                 FILE(GLOB FOLDER_SOURCES ${folderItem}/*.c*)
                 FILE(GLOB FOLDER_HEADERS ${folderItem}/*.h*)
 
-                add_executable(${itemName} ${FOLDER_SOURCES} ${FOLDER_HEADERS} ../include/vierkant/model/wavefront_obj.hpp ../include/vierkant/physical_camera_params.hpp ../include/vierkant/debug_label.hpp)
+                add_executable(${itemName} ${FOLDER_SOURCES} ${FOLDER_HEADERS} ../include/vierkant/model/wavefront_obj.hpp ../include/vierkant/physical_camera_params.hpp ../include/vierkant/debug_label.hpp ../include/vierkant/object_component.hpp)
                 target_link_libraries(${itemName} ${LIBS})
             endif()
         endif()

@@ -199,6 +199,13 @@ void main()
         }
     }
 
+    bool sample_surface = !(material.null_surface || sample_medium);
+    if(sample_surface)
+    {
+        // propagate ray-cone
+        payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
+    }
+
     // albedo
     if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
     {
@@ -258,7 +265,6 @@ void main()
     eta += EPS;
 
     payload.ior = payload.transmission ? material.ior : 1.0;
-    bool sample_surface = !(material.null_surface || sample_medium);
 
     if(sample_surface)
     {
@@ -272,9 +278,6 @@ void main()
         rng_state);
         payload.radiance += payload.beta * sun_L;
         #endif
-        
-        // propagate ray-cone
-        payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
         // take sample from burley/disney BSDF
         bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
@@ -289,7 +292,7 @@ void main()
         payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
 
         // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
-        payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
+//        payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
     }
     else
     {

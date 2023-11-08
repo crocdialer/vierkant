@@ -102,6 +102,31 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
     }
 }
 
+AABB Object3D::aabb() const
+{
+    auto aabb_component_ptr = get_component_ptr<aabb_component_t>();
+    auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
+    if(aabb_component_ptr && aabb_component_ptr->aabb_fn)
+    {
+        return aabb_component_ptr->aabb_fn(animation_state_ptr ? *animation_state_ptr
+                                                               : std::optional<vierkant::animation_state_t>());
+    }
+    else if(aabb_component_ptr) { return aabb_component_ptr->aabb; }
+    return {};
+}
+
+std::vector<AABB> Object3D::sub_aabbs() const
+{
+    auto aabb_component_ptr = get_component_ptr<aabb_component_t>();
+    auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
+    if(aabb_component_ptr && aabb_component_ptr->sub_aabb_fn)
+    {
+        return aabb_component_ptr->sub_aabb_fn(animation_state_ptr ? *animation_state_ptr
+                                                                   : std::optional<vierkant::animation_state_t>());
+    }
+    return {};
+}
+
 OBB Object3D::obb() const
 {
     OBB ret(aabb(), glm::mat4(1));

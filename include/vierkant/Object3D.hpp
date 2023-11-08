@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <concepts>
 #include <list>
 #include <optional>
 #include <set>
@@ -13,15 +14,18 @@
 #include <vierkant/animation.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/transform.hpp>
+#include <vierkant/object_component.hpp>
 
 namespace vierkant
 {
 
-DEFINE_CLASS_PTR(Object3D)
-
-class Object3D : public std::enable_shared_from_this<Object3D>
+struct aabb_component_t
 {
-public:
+    VIERKANT_ENABLE_AS_COMPONENT();
+
+    // object_component concept
+    static constexpr char component_description[] = "AABB component";
+
     //! signature for a function to retrieve a combined AABB
     using aabb_fn_t = std::function<vierkant::AABB(const std::optional<vierkant::animation_state_t> &)>;
 
@@ -29,6 +33,16 @@ public:
     using sub_aabb_fn_t =
             std::function<std::vector<vierkant::AABB>(const std::optional<vierkant::animation_state_t> &)>;
 
+    vierkant::AABB aabb;
+    aabb_fn_t aabb_fn;
+    sub_aabb_fn_t sub_aabb_fn;
+};
+
+DEFINE_CLASS_PTR(Object3D)
+
+class Object3D : public std::enable_shared_from_this<Object3D>
+{
+public:
     static Object3DPtr create(const std::shared_ptr<entt::registry> &registry = {}, std::string name = "");
 
     virtual ~Object3D() noexcept;
@@ -50,29 +64,11 @@ public:
     /**
      * @return the axis-aligned boundingbox (AABB) in object coords.
      */
-    inline AABB aabb() const
-    {
-        auto aabb_fn_ptr = get_component_ptr<aabb_fn_t>();
-        auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
-        if(aabb_fn_ptr)
-        {
-            return (*aabb_fn_ptr)(animation_state_ptr ? *animation_state_ptr
-                                                      : std::optional<vierkant::animation_state_t>());
-        }
-        auto aabb_ptr = get_component_ptr<vierkant::AABB>();
-        return aabb_ptr ? *aabb_ptr : AABB();
-    };
+    AABB aabb() const;
 
     OBB obb() const;
 
-    inline std::vector<AABB> sub_aabbs() const
-    {
-        auto sub_aabb_fn_ptr = get_component_ptr<sub_aabb_fn_t>();
-        auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
-        std::optional<vierkant::animation_state_t> dummy;
-        if(sub_aabb_fn_ptr) { return (*sub_aabb_fn_ptr)(animation_state_ptr ? *animation_state_ptr : dummy); }
-        return {};
-    }
+    std::vector<AABB> sub_aabbs() const;
 
     virtual void accept(class Visitor &theVisitor);
 
@@ -84,6 +80,7 @@ public:
      * @return  a reference for the newly created component.
      */
     template<typename T>
+        requires object_component<T>
     inline T &add_component(const T &component = {})
     {
         if(auto reg = m_registry.lock()) { return reg->template emplace<T>(m_entity, component); }
@@ -97,6 +94,7 @@ public:
      * @return  true, if a component of the provided type exists.
      */
     template<typename T>
+        requires object_component<T>
     inline bool has_component() const
     {
         return get_component_ptr<T>();
@@ -109,6 +107,7 @@ public:
      * @return  a pointer to a component of the provided type, if available. nullptr otherwise.
      */
     template<typename T>
+        requires object_component<T>
     inline T *get_component_ptr()
     {
         auto reg = m_registry.lock();
@@ -122,6 +121,7 @@ public:
      * @return  a pointer to a component of the provided type, if available. nullptr otherwise.
      */
     template<typename T>
+        requires object_component<T>
     inline const T *get_component_ptr() const
     {
         auto reg = m_registry.lock();
@@ -136,6 +136,7 @@ public:
      * @return  a reference to an associated component of the provided type.
      */
     template<typename T>
+        requires object_component<T>
     inline T &get_component()
     {
         auto ptr = get_component_ptr<T>();
@@ -151,6 +152,7 @@ public:
      * @return  a reference to an associated component of the provided type.
      */
     template<typename T>
+        requires object_component<T>
     inline const T &get_component() const
     {
         auto ptr = get_component_ptr<T>();
@@ -173,10 +175,13 @@ public:
     //! a list of child-objects
     std::list<Object3DPtr> children;
 
+    VIERKANT_ENABLE_AS_COMPONENT();
+
 protected:
     explicit Object3D(const std::shared_ptr<entt::registry> &registry, std::string name = "");
 
 private:
+
     std::weak_ptr<Object3D> m_parent;
 
     std::weak_ptr<entt::registry> m_registry;

@@ -51,6 +51,7 @@ TEST(Object3D, entity)
 
     struct foo_component_t
     {
+        VIERKANT_ENABLE_AS_COMPONENT();
         int a = 0, b = 0;
     };
 
@@ -85,6 +86,8 @@ TEST(Object3D, entity)
 
         struct destruction_test_comp_t
         {
+            VIERKANT_ENABLE_AS_COMPONENT();
+
             std::function<void()> f;
 
             ~destruction_test_comp_t(){ if(f){ f(); }}

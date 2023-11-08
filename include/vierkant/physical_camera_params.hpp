@@ -5,12 +5,15 @@
 #pragma once
 
 #include <vierkant/math.hpp>
+#include <vierkant/object_component.hpp>
 
 namespace vierkant
 {
 
 struct alignas(16) physical_camera_params_t
 {
+    VIERKANT_ENABLE_AS_COMPONENT();
+
     //! focal length in m
     float focal_length = 0.05f;
 

@@ -138,15 +138,9 @@ trace_result_t trace(vec2 coord, vec2 size)
         }
 
         trace_result.radiance += payload.radiance;
-//        trace_result.coverage += payload.depth > 0 ? 1.0 : 0.0;
         trace_result.coverage = max(trace_result.coverage, payload.depth > 0 ? 1.0 : 0.0);
     }
     trace_result.radiance /= float(push_constants.num_samples);
-//    trace_result.coverage /= float(push_constants.num_samples);
-
-    // error on the side of caution!?
-    // TODO: check if that helps with artifacts on older nvidia hardware, i.e. 1060
-//    if(any(isinf(trace_result.radiance)) || any(isnan(trace_result.radiance))){ trace_result.radiance = vec3(0); }
     return trace_result;
 }
 
