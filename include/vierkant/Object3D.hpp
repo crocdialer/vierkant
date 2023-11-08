@@ -183,12 +183,13 @@ public:
     //! a list of child-objects
     std::list<Object3DPtr> children;
 
+    //! object_component concept
+    static constexpr char component_description[] = "object raw pointer/component";
+
 protected:
     explicit Object3D(const std::shared_ptr<entt::registry> &registry, std::string name = "");
 
 private:
-    // object_component concept
-    static constexpr char component_description[] = "object raw pointer/component";
 
     std::weak_ptr<Object3D> m_parent;
 
