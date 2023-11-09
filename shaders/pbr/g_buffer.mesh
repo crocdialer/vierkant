@@ -123,6 +123,9 @@ void main()
 
         gl_PrimitiveTriangleIndicesEXT[i] = uvec3(a, b, c);
 
+//        // TODO: writing this causes a validation-bug (https://github.com/KhronosGroup/glslang/issues/3103)
+//        // keep track of primitive-id
+//        gl_MeshPrimitivesEXT[i].gl_PrimitiveID = int(base_index / 3);
 #if CULLING
         bool culled = false;
 

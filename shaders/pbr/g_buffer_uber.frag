@@ -93,7 +93,7 @@ void main()
     // debug object-ids
     if(context.debug_draw_ids)
     {
-        uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);
+        uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
         out_color.rgb *= vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
     }
 

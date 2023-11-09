@@ -51,13 +51,21 @@ std::string device_info(VkPhysicalDevice physical_device)
     // nvidia
     if(physical_device_properties.properties.vendorID == 0x10de)
     {
+        // 10|8|8|6
         uint32_t versionraw = physical_device_properties.properties.driverVersion;
         uint32_t nvidia_driver_major = (versionraw >> 22) & 0x3ff;
         uint32_t nvidia_driver_minor = (versionraw >> 14) & 0x0ff;
         uint32_t nvidia_driver_patch = (versionraw >> 6) & 0x0ff;
         driver_info = fmt::format("{}.{}.{:02}", nvidia_driver_major, nvidia_driver_minor, nvidia_driver_patch);
     }
-
+    // AMD ...
+    else
+    {
+        // default version-schema is 10|10|12
+        uint32_t versionraw = physical_device_properties.properties.driverVersion;
+        driver_info = fmt::format("{}.{}.{:02}", VK_VERSION_MAJOR(versionraw), VK_VERSION_MINOR(versionraw),
+                                  VK_VERSION_PATCH(versionraw));
+    }
     return fmt::format("Vulkan {}.{}.{} - {} (driver: {}) - vierkant: {} | {}", version_major, version_minor,
                        version_patch, physical_device_properties.properties.deviceName, driver_info, GIT_COMMIT_HASH,
                        GIT_COMMIT_DATE);
@@ -86,7 +94,7 @@ double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp
 
 ////////////////////////////// VALIDATION LAYER ////////////////////////////////////////////////////////////////////////
 
-const std::vector<const char *> g_validation_layers = {"VK_LAYER_KHRONOS_validation"};
+const char * g_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -309,8 +317,8 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
 
     if(create_info.use_validation)
     {
-        device_create_info.enabledLayerCount = static_cast<uint32_t>(g_validation_layers.size());
-        device_create_info.ppEnabledLayerNames = g_validation_layers.data();
+        device_create_info.enabledLayerCount = static_cast<uint32_t>(sizeof(g_validation_layers) / sizeof(const char*));
+        device_create_info.ppEnabledLayerNames = g_validation_layers;
     }
     else { device_create_info.enabledLayerCount = 0; }
 
