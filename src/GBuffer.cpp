@@ -50,6 +50,14 @@ vierkant::Framebuffer create_g_buffer(const vierkant::DevicePtr &device,
     motion_format.name = "motion";
     g_buffer_attachments[G_BUFFER_MOTION] = vierkant::Image::create(device, motion_format);
 
+    // object-id
+    Image::Format object_id_format = {};
+    object_id_format.extent = extent;
+    object_id_format.format = VK_FORMAT_R16_UINT;
+    object_id_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+    object_id_format.name = "object-id";
+    g_buffer_attachments[G_BUFFER_OBJECT_ID] = vierkant::Image::create(device, object_id_format);
+
     vierkant::attachment_map_t attachments;
 
     attachments[AttachmentType::Color] = g_buffer_attachments;
