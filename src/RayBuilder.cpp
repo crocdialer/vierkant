@@ -386,9 +386,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
         // NOTE: vertex-skin/morph animations use baked vertex-buffers and new bottom-level assets per frame instead
         std::vector<vierkant::transform_t> node_transforms;
 
-        if(!(mesh->root_bone || mesh->morph_buffer) && object->has_component<animation_state_t>())
+        if(!(mesh->root_bone || mesh->morph_buffer) && object->has_component<animation_component_t>())
         {
-            auto &animation_state = object->get_component<animation_state_t>();
+            auto &animation_state = object->get_component<animation_component_t>();
             const auto &anim_state = animation_state;
 
             if(anim_state.index < mesh->node_animations.size())
@@ -691,9 +691,9 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             const auto &mesh = mesh_component.mesh;
             vierkant::animated_mesh_t key = {mesh};
 
-            if(object->has_component<vierkant::animation_state_t>() && (mesh->root_bone || mesh->morph_buffer))
+            if(object->has_component<vierkant::animation_component_t>() && (mesh->root_bone || mesh->morph_buffer))
             {
-                key.animation_state = object->get_component<vierkant::animation_state_t>();
+                key.animation_state = object->get_component<vierkant::animation_component_t>();
                 mesh_compute_entities[entity] = key;
                 mesh_compute_params.mesh_compute_items[object->id()] = key;
             }

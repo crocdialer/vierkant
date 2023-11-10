@@ -23,11 +23,11 @@ struct aabb_component_t
     VIERKANT_ENABLE_AS_COMPONENT();
 
     //! signature for a function to retrieve a combined AABB
-    using aabb_fn_t = std::function<vierkant::AABB(const std::optional<vierkant::animation_state_t> &)>;
+    using aabb_fn_t = std::function<vierkant::AABB(const std::optional<vierkant::animation_component_t> &)>;
 
     //! signature for a function to retrieve all sub-AABBs
     using sub_aabb_fn_t =
-            std::function<std::vector<vierkant::AABB>(const std::optional<vierkant::animation_state_t> &)>;
+            std::function<std::vector<vierkant::AABB>(const std::optional<vierkant::animation_component_t> &)>;
 
     vierkant::AABB aabb;
     aabb_fn_t aabb_fn;

@@ -866,9 +866,9 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
     }
 
     // animation
-    if(!mesh->node_animations.empty() && ImGui::TreeNode("animation") && object->has_component<animation_state_t>())
+    if(!mesh->node_animations.empty() && ImGui::TreeNode("animation") && object->has_component<animation_component_t>())
     {
-        auto &animation_state = object->get_component<animation_state_t>();
+        auto &animation_state = object->get_component<animation_component_t>();
 
         // animation index
         int animation_index = static_cast<int>(animation_state.index);

@@ -332,14 +332,14 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         meshes.insert(mesh_component.mesh);
 
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
-                                object->has_component<animation_state_t>();
+                                object->has_component<animation_component_t>();
 
         // entry animation transforms
         std::vector<vierkant::transform_t> node_transforms;
 
         if(animation_update)
         {
-            const auto &animation_state = object->get_component<animation_state_t>();
+            const auto &animation_state = object->get_component<animation_component_t>();
             const auto &animation = mesh->node_animations[animation_state.index];
             vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
                                                      static_cast<float>(animation_state.current_time), node_transforms);
@@ -488,8 +488,8 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
                         m_g_renderer_main.num_concurrent_frames();
     auto &last_frame_asset = m_frame_assets[last_index];
 
-    auto view =
-            frame_asset.cull_result.scene->registry()->view<vierkant::mesh_component_t, vierkant::animation_state_t>();
+    auto view = frame_asset.cull_result.scene->registry()
+                        ->view<vierkant::mesh_component_t, vierkant::animation_component_t>();
 
     for(const auto &[entity, mesh_component, animation_state]: view.each())
     {

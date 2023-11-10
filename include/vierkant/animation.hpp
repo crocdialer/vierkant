@@ -63,30 +63,42 @@ struct animation_t
     InterpolationMode interpolation_mode = InterpolationMode::Linear;
 };
 
-template<typename T = float>
-    requires std::floating_point<T>
-struct animation_state_t_
+/**
+ * @brief   animation_component_t_ is a struct-template to store an entity's animation-state.
+ *
+ * support for comparing and hashing
+ * @tparam  T   a floating-point template param
+ */
+template<std::floating_point T = float>
+struct animation_component_t_
 {
     VIERKANT_ENABLE_AS_COMPONENT();
 
+    //! index into an array of animations
     uint32_t index = 0;
+
+    //! true if animation is playing
     bool playing = true;
+
+    //! scaling factor for animation-speed
     T animation_speed = 1.0;
+
+    //! current time
     T current_time = 0.0;
 };
-using animation_state_t = animation_state_t_<float>;
+using animation_component_t = animation_component_t_<float>;
 
 template<typename T>
-bool operator==(const animation_state_t_<T> &lhs, const animation_state_t_<T> &rhs);
+bool operator==(const animation_component_t_<T> &lhs, const animation_component_t_<T> &rhs);
 
 template<typename T>
-inline bool operator!=(const animation_state_t_<T> &lhs, const animation_state_t_<T> &rhs)
+inline bool operator!=(const animation_component_t_<T> &lhs, const animation_component_t_<T> &rhs)
 {
     return !(lhs == rhs);
 }
 
 template<typename T>
-void update_animation(const animation_t<T> &animation, double time_delta, vierkant::animation_state_t &animation_state)
+void update_animation(const animation_t<T> &animation, double time_delta, vierkant::animation_component_t &animation_state)
 {
     if(animation_state.playing)
     {
@@ -123,9 +135,9 @@ namespace std
 {
 
 template<typename T>
-struct hash<vierkant::animation_state_t_<T>>
+struct hash<vierkant::animation_component_t_<T>>
 {
-    size_t operator()(vierkant::animation_state_t_<T> const &animation_state) const;
+    size_t operator()(vierkant::animation_component_t_<T> const &animation_state) const;
 };
 
 }// namespace std
