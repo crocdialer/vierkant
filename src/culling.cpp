@@ -71,9 +71,9 @@ public:
                 vierkant::create_drawables_params_t drawable_params = {};
                 drawable_params.transform = model_view;
 
-                if(object.has_component<animation_state_t>())
+                if(object.has_component<animation_component_t>())
                 {
-                    auto &animation_state = object.get_component<animation_state_t>();
+                    auto &animation_state = object.get_component<animation_component_t>();
                     drawable_params.animation_index = animation_state.index;
                     drawable_params.animation_time = static_cast<float>(animation_state.current_time);
                 }

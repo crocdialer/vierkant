@@ -214,7 +214,7 @@ bool create_morph_weights(const animation_keys_t &keys, float time, Interpolatio
 }
 
 template<typename T>
-bool operator==(const animation_state_t_<T> &lhs, const animation_state_t_<T> &rhs)
+bool operator==(const animation_component_t_<T> &lhs, const animation_component_t_<T> &rhs)
 {
     if(lhs.index != rhs.index) { return false; }
     if(lhs.current_time != rhs.current_time) { return false; }
@@ -223,14 +223,14 @@ bool operator==(const animation_state_t_<T> &lhs, const animation_state_t_<T> &r
     return true;
 }
 
-template bool operator==(const animation_state_t_<float> &lhs, const animation_state_t_<float> &rhs);
-template bool operator==(const animation_state_t_<double> &lhs, const animation_state_t_<double> &rhs);
+template bool operator==(const animation_component_t_<float> &lhs, const animation_component_t_<float> &rhs);
+template bool operator==(const animation_component_t_<double> &lhs, const animation_component_t_<double> &rhs);
 
 }// namespace vierkant
 
 template<typename T>
 size_t
-std::hash<vierkant::animation_state_t_<T>>::operator()(vierkant::animation_state_t_<T> const &animation_state) const
+std::hash<vierkant::animation_component_t_<T>>::operator()(vierkant::animation_component_t_<T> const &animation_state) const
 {
     size_t h = 0;
     vierkant::hash_combine(h, animation_state.index);
@@ -240,7 +240,7 @@ std::hash<vierkant::animation_state_t_<T>>::operator()(vierkant::animation_state
     return h;
 }
 
-template size_t std::hash<vierkant::animation_state_t_<float>>::operator()(
-        vierkant::animation_state_t_<float> const &animation_state) const;
-template size_t std::hash<vierkant::animation_state_t_<double>>::operator()(
-        vierkant::animation_state_t_<double> const &animation_state) const;
+template size_t std::hash<vierkant::animation_component_t_<float>>::operator()(
+        vierkant::animation_component_t_<float> const &animation_state) const;
+template size_t std::hash<vierkant::animation_component_t_<double>>::operator()(
+        vierkant::animation_component_t_<double> const &animation_state) const;

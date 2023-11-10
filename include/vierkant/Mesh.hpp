@@ -319,7 +319,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 struct animated_mesh_t
 {
     vierkant::MeshConstPtr mesh = {};
-    vierkant::animation_state_t animation_state = {};
+    vierkant::animation_component_t animation_state = {};
 
     inline bool operator==(const animated_mesh_t &k) const
     {

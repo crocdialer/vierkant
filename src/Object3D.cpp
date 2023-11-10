@@ -105,11 +105,11 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
 AABB Object3D::aabb() const
 {
     auto aabb_component_ptr = get_component_ptr<aabb_component_t>();
-    auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
+    auto animation_state_ptr = get_component_ptr<vierkant::animation_component_t>();
     if(aabb_component_ptr && aabb_component_ptr->aabb_fn)
     {
         return aabb_component_ptr->aabb_fn(animation_state_ptr ? *animation_state_ptr
-                                                               : std::optional<vierkant::animation_state_t>());
+                                                               : std::optional<vierkant::animation_component_t>());
     }
     else if(aabb_component_ptr) { return aabb_component_ptr->aabb; }
     return {};
@@ -118,11 +118,11 @@ AABB Object3D::aabb() const
 std::vector<AABB> Object3D::sub_aabbs() const
 {
     auto aabb_component_ptr = get_component_ptr<aabb_component_t>();
-    auto animation_state_ptr = get_component_ptr<vierkant::animation_state_t>();
+    auto animation_state_ptr = get_component_ptr<vierkant::animation_component_t>();
     if(aabb_component_ptr && aabb_component_ptr->sub_aabb_fn)
     {
         return aabb_component_ptr->sub_aabb_fn(animation_state_ptr ? *animation_state_ptr
-                                                                   : std::optional<vierkant::animation_state_t>());
+                                                                   : std::optional<vierkant::animation_component_t>());
     }
     return {};
 }
