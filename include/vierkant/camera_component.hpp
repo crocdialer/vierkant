@@ -15,7 +15,8 @@ struct ortho_camera_component_t
     VIERKANT_ENABLE_AS_COMPONENT();
 
     // clipping planes distances
-    float left, right, bottom, top, near, far;
+    // NOTE: fun-fact: 'near' and 'far' are reserved (non-standard) keywords for msvc
+    float left, right, bottom, top, near_, far_;
 };
 
 struct physical_camera_component_t
