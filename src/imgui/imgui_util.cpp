@@ -591,7 +591,7 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &cam, std::set<vierkant::Obj
             {
                 scene->add_object(vierkant::PerspectiveCamera::create(scene->registry()));
             }
-            auto view = scene->registry()->view<vierkant::Object3D *, vierkant::physical_camera_params_t>();
+            auto view = scene->registry()->view<vierkant::Object3D *, vierkant::physical_camera_component_t>();
 
             for(auto [entity, object, camera_params]: view.each())
             {
@@ -984,7 +984,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
         auto z_val = m[3].z;
         ImGuizmo::SetOrthographic(is_ortho);
 
-        const auto &cam_params = camera->get_component<vierkant::physical_camera_params_t>();
+        const auto &cam_params = camera->get_component<vierkant::physical_camera_component_t>();
         float fovy = is_ortho ? 0.f : cam_params.fovy();
 
         auto sz = ImGui::GetIO().DisplaySize;
@@ -997,7 +997,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
     }
 }
 
-void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
+void draw_camera_param_ui(vierkant::physical_camera_component_t &camera_params)
 {
     // focal-length in mm
     float focal_length_mm = 1000.f * camera_params.focal_length;

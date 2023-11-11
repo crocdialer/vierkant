@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Object3D.hpp"
-#include "physical_camera_params.hpp"
+#include "camera_component.hpp"
 
 namespace vierkant
 {
@@ -65,7 +65,7 @@ class PerspectiveCamera : public Camera
 
 public:
     static PerspectiveCameraPtr create(const std::shared_ptr<entt::registry> &registry,
-                                       const physical_camera_params_t params = {})
+                                       const physical_camera_component_t params = {})
     {
         auto ret = PerspectiveCameraPtr(new PerspectiveCamera(registry));
         ret->add_component(params);
@@ -76,9 +76,9 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override { return get_component<physical_camera_params_t>().clipping_distances.x; };
+    float near() const override { return get_component<physical_camera_component_t>().clipping_distances.x; };
 
-    float far() const override { return get_component<physical_camera_params_t>().clipping_distances.y; };
+    float far() const override { return get_component<physical_camera_component_t>().clipping_distances.y; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 

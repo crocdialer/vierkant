@@ -7,6 +7,7 @@
 
 // rnd(state)
 #include "../utils/random.glsl"
+#include "../utils/constants.glsl"
 
 #define ALBEDO 0
 #define NORMAL 1
@@ -39,6 +40,7 @@ layout(location = 1) out vec4 out_normal;
 layout(location = 2) out vec4 out_emission;
 layout(location = 3) out vec4 out_ao_rough_metal;
 layout(location = 4) out vec2 out_motion;
+layout(location = 5) out uint out_object_id;
 
 //! return a texture's index by counting all set flagbits
 uint tex_offset(uint type, uint flags)
@@ -55,6 +57,8 @@ uint tex_offset(uint type, uint flags)
 
 void main()
 {
+    out_object_id = MAX_UINT16 - indices.mesh_draw_index;
+
     uint rng_state = tea(context.random_seed, uint(context.size.x * gl_FragCoord.y + gl_FragCoord.x));
 
     material_struct_t material = materials[indices.material_index];

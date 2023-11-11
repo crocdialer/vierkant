@@ -18,7 +18,8 @@ enum GBuffer : uint32_t
     G_BUFFER_EMISSION = 2,
     G_BUFFER_AO_ROUGH_METAL = 3,
     G_BUFFER_MOTION = 4,
-    G_BUFFER_SIZE = 5
+    G_BUFFER_OBJECT_ID = 5,
+    G_BUFFER_SIZE = 6
 };
 
 /**

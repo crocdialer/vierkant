@@ -1157,7 +1157,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
 
         if(!drawable.descriptors[1].buffers.empty())
         {
-            const auto &cam_params = cam->get_component<vierkant::physical_camera_params_t>();
+            const auto &cam_params = cam->get_component<vierkant::physical_camera_component_t>();
             depth_of_field_params_t dof_params = {};
             dof_params.focal_distance = cam_params.focal_distance;
             dof_params.focal_length = cam_params.focal_length;
@@ -1309,6 +1309,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_asset_t 
     asset.internal_images.emission = asset.g_buffer_main.color_attachment(G_BUFFER_EMISSION);
     asset.internal_images.ao_rough_metal = asset.g_buffer_main.color_attachment(G_BUFFER_AO_ROUGH_METAL);
     asset.internal_images.motion = asset.g_buffer_main.color_attachment(G_BUFFER_MOTION);
+    asset.internal_images.object_ids = asset.g_buffer_main.color_attachment(G_BUFFER_OBJECT_ID);
     asset.internal_images.lighting = asset.lighting_buffer.color_attachment();
 
     asset.internal_images.bsdf_lut = m_brdf_lut;

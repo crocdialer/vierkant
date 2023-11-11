@@ -1,0 +1,33 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+
+#include "../utils/constants.glsl"
+
+struct object_overlay_params_t
+{
+    // TODO: consider providing a buffer+range
+    uint object_id;
+};
+
+layout(binding = 0, r16ui) readonly uniform uimage2D in_object_id_img;
+
+layout(binding = 1) writeonly uniform image2D out_mask_img;
+
+layout(std140, binding = 2) uniform UniformBuffer
+{
+    object_overlay_params_t params;
+};
+
+layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
+
+void main()
+{
+    ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+
+    // retrieve stored object-id
+    uint object_id = MAX_UINT16 - imageLoad(in_object_id_img, coords).x;
+
+    // store binary overlay-mask for selected object
+    imageStore(out_mask_img, coords, vec4(object_id == params.object_id));
+}
