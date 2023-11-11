@@ -10,7 +10,15 @@
 namespace vierkant
 {
 
-struct alignas(16) physical_camera_params_t
+struct ortho_camera_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+
+    // clipping planes distances
+    float left, right, bottom, top, near, far;
+};
+
+struct physical_camera_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
 

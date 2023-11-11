@@ -15,7 +15,7 @@
 #include <vierkant/Material.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/bc7.hpp>
-#include <vierkant/physical_camera_params.hpp>
+#include <vierkant/camera_component.hpp>
 
 namespace vierkant
 {
@@ -139,7 +139,7 @@ struct lightsource_t
 struct camera_t
 {
     vierkant::transform_t transform = {};
-    vierkant::physical_camera_params_t params = {};
+    vierkant::physical_camera_component_t params = {};
 };
 
 /**

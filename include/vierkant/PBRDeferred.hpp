@@ -139,6 +139,7 @@ public:
         vierkant::ImagePtr emission;
         vierkant::ImagePtr ao_rough_metal;
         vierkant::ImagePtr motion;
+        vierkant::ImagePtr object_ids;
         vierkant::ImagePtr depth;
 
         //! lighting / occlusion

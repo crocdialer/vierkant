@@ -31,6 +31,11 @@ VkDeviceSize num_bytes(VkFormat format)
         case VK_FORMAT_R16_SFLOAT: return 2;
         case VK_FORMAT_R16G16B16A16_SFLOAT: return 8;
         case VK_FORMAT_R16G16B16_SFLOAT: return 6;
+        case VK_FORMAT_R16_UINT: return 2;
+        case VK_FORMAT_R16G16_UINT: return 4;
+        case VK_FORMAT_R16G16B16_UINT: return 6;
+        case VK_FORMAT_R16G16B16A16_UINT: return 8;
+
         default: throw std::runtime_error("num_bytes: format not handled");
     }
 }
