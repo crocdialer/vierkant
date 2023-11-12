@@ -35,6 +35,14 @@ public:
 
     void update(double time_delta);
 
+    /**
+     * @brief   object_by_id finds and returns an object based on its object/entity-id
+     *
+     * @param   object_id   a provided object-id
+     * @return  an object or nullptr, if nothing was found
+     */
+    [[nodiscard]] Object3DPtr object_by_id(uint32_t object_id) const;
+
     [[nodiscard]] Object3DPtr pick(const Ray &ray) const;
 
     void add_object(const Object3DPtr &object);

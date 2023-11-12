@@ -499,8 +499,8 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
         if(mesh->root_bone)
         {
             std::vector<vierkant::transform_t> bone_transforms;
-            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation,
-                                                     static_cast<float>(animation_state.current_time), bone_transforms);
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation, animation_state.current_time,
+                                                     bone_transforms);
 
             // min alignment for storage-buffers
             auto min_alignment = m_device->properties().limits.minStorageBufferOffsetAlignment;
@@ -515,8 +515,8 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
         {
             // morph-target weights
             std::vector<std::vector<float>> node_morph_weights;
-            vierkant::nodes::build_morph_weights_bfs(
-                    mesh->root_node, animation, static_cast<float>(animation_state.current_time), node_morph_weights);
+            vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, animation_state.current_time,
+                                                     node_morph_weights);
 
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)
             {
@@ -1400,6 +1400,14 @@ const PBRDeferred::image_bundle_t &PBRDeferred::image_bundle() const
                          m_g_renderer_main.num_concurrent_frames();
     auto &frame_asset = m_frame_assets[frame_index];
     return frame_asset.internal_images;
+}
+
+const vierkant::cull_result_t& PBRDeferred::cull_result() const
+{
+    size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
+                         m_g_renderer_main.num_concurrent_frames();
+    auto &frame_asset = m_frame_assets[frame_index];
+    return frame_asset.cull_result;
 }
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)

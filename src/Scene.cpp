@@ -21,7 +21,7 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
     if(!mesh_component.mesh->node_animations.empty()) { object->add_component<vierkant::animation_component_t>(); }
 
     auto weak_obj = vierkant::Object3DWeakPtr(object);
-    auto &aabb_component = object->add_component<vierkant::aabb_component_t>();
+    vierkant::object_component auto &aabb_component = object->add_component<vierkant::aabb_component_t>();
 
     aabb_component.aabb_fn = [weak_obj](const std::optional<vierkant::animation_component_t> &anim_state) {
         vierkant::AABB ret = {};
@@ -29,7 +29,7 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
 
         if(obj && obj->has_component<mesh_component_t>())
         {
-            const auto &cmp = obj->get_component<mesh_component_t>();
+            const vierkant::object_component auto &cmp = obj->get_component<mesh_component_t>();
 
             // entry animation transforms
             std::vector<vierkant::transform_t> node_transforms;
@@ -65,7 +65,7 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
 
         if(obj && obj->has_component<mesh_component_t>())
         {
-            const auto &cmp = obj->get_component<mesh_component_t>();
+            const vierkant::object_component auto &cmp = obj->get_component<mesh_component_t>();
 
             // entry animation transforms
             std::vector<vierkant::transform_t> node_transforms;
@@ -113,6 +113,12 @@ void Scene::update(double time_delta)
         vierkant::update_animation(mesh_component.mesh->node_animations[animation_state.index], time_delta,
                                    animation_state);
     }
+}
+
+Object3DPtr Scene::object_by_id(uint32_t object_id) const
+{
+    auto object_ptr = m_registry->try_get<vierkant::Object3D*>(entt::entity(object_id));
+    return object_ptr ? (*object_ptr)->shared_from_this() : nullptr;
 }
 
 Object3DPtr Scene::pick(const Ray &ray) const

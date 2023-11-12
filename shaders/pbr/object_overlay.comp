@@ -1,13 +1,15 @@
 #version 460
-
+#extension GL_EXT_buffer_reference2: require
 #extension GL_GOOGLE_include_directive : require
 
 #include "../utils/constants.glsl"
 
+layout(buffer_reference, std430) buffer readonly ObjectIdPtr{ uint v[]; };
+
 struct object_overlay_params_t
 {
-    // TODO: consider providing a buffer+range
-    uint object_id;
+    ObjectIdPtr object_ids;
+    uint num_object_ids;
 };
 
 layout(binding = 0, r16ui) readonly uniform uimage2D in_object_id_img;
@@ -21,6 +23,15 @@ layout(std140, binding = 2) uniform UniformBuffer
 
 layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
+bool contains(const object_overlay_params_t params, uint object_id)
+{
+    for(uint i = 0; i < params.num_object_ids; ++i)
+    {
+        if(object_id == params.object_ids.v[i]){ return true; }
+    }
+    return false;
+}
+
 void main()
 {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
@@ -29,5 +40,5 @@ void main()
     uint object_id = MAX_UINT16 - imageLoad(in_object_id_img, coords).x;
 
     // store binary overlay-mask for selected object
-    imageStore(out_mask_img, coords, vec4(object_id == params.object_id));
+    imageStore(out_mask_img, coords, vec4(contains(params, object_id)));
 }
