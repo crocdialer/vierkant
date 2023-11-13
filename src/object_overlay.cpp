@@ -62,6 +62,8 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     img_fmt.extent = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
     img_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
     img_fmt.format = VK_FORMAT_R8_UNORM;
+    img_fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
+                                 VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_R};
     img_fmt.initial_layout_transition = false;
     ret->result = vierkant::Image::create(device, img_fmt);
     return ret;
@@ -115,8 +117,11 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     desc_param_ubo.buffers = {context->param_buffer};
 
     // dispatch
+    auto prev_input_layout = params.object_id_img->image_layout();
+    params.object_id_img->transition_layout(VK_IMAGE_LAYOUT_GENERAL, params.commandbuffer);
     context->result->transition_layout(VK_IMAGE_LAYOUT_GENERAL, params.commandbuffer);
     context->mask_compute.dispatch({computable}, params.commandbuffer);
+    params.object_id_img->transition_layout(prev_input_layout, params.commandbuffer);
     context->result->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, params.commandbuffer);
     return context->result;
 }
