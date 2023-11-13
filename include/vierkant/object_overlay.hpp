@@ -39,7 +39,7 @@ struct object_overlay_params_t
  * @param   size            desired size of the resulting object-overlay image.
  * @return  opaque handle to a object_overlay_context_t.
  */
-object_overlay_context_ptr create_object_overlay_context(const vierkant::DevicePtr &device, const glm::vec2 &size);
+[[maybe_unused]] object_overlay_context_ptr create_object_overlay_context(const vierkant::DevicePtr &device, const glm::vec2 &size);
 
 /**
  * @brief   'object_overlay' can be used to generate a fullscreen object-overlay.
@@ -48,6 +48,6 @@ object_overlay_context_ptr create_object_overlay_context(const vierkant::DeviceP
  * @param   params  a struct grouping parameters.
  * @return  type result-image depends on requested mode (mask, rgb-overlay, rgb-silhouette, ...)
  */
-vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, const object_overlay_params_t &params);
+[[maybe_unused]] vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, const object_overlay_params_t &params);
 
 }// namespace vierkant

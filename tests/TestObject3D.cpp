@@ -1,13 +1,15 @@
-#include <gtest/gtest.h>
 #include "vierkant/Object3D.hpp"
 #include "vierkant/Scene.hpp"
+#include <gtest/gtest.h>
 
 using namespace vierkant;
 //____________________________________________________________________________//
 
 TEST(Object3D, hierarchy)
 {
-    Object3DPtr a(Object3D::create()), b(Object3D::create()), c(Object3D::create());
+    auto scene = vierkant::Scene::create();
+    Object3DPtr a(Object3D::create(scene->registry())), b(Object3D::create(scene->registry())),
+            c(Object3D::create(scene->registry()));
 
     a->set_parent(b);
     EXPECT_TRUE(a->parent() == b);
@@ -71,10 +73,10 @@ TEST(Object3D, entity)
     EXPECT_EQ(foo_ref.a, foo_comp.a);
     EXPECT_EQ(foo_ref.b, foo_comp.b);
 
-    auto view = registry->view<vierkant::Object3D*, foo_component_t>();
+    auto view = registry->view<vierkant::Object3D *, foo_component_t>();
 
-    std::set<vierkant::Object3D*> foo_objects;
-    for(auto [entity, object, foo]: view.each()){ foo_objects.insert(object); }
+    std::set<vierkant::Object3D *> foo_objects;
+    for(auto [entity, object, foo]: view.each()) { foo_objects.insert(object); }
     EXPECT_EQ(foo_objects.size(), 2);
     EXPECT_TRUE(foo_objects.contains(a.get()));
     EXPECT_TRUE(foo_objects.contains(b.get()));
@@ -90,11 +92,14 @@ TEST(Object3D, entity)
 
             std::function<void()> f;
 
-            ~destruction_test_comp_t(){ if(f){ f(); }}
+            ~destruction_test_comp_t()
+            {
+                if(f) { f(); }
+            }
         };
 
         auto &destruct_comp = d->add_component<destruction_test_comp_t>();
-        destruct_comp.f = [&destructed](){ destructed = true; };
+        destruct_comp.f = [&destructed]() { destructed = true; };
     }
     EXPECT_TRUE(destructed);
 }

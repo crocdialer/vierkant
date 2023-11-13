@@ -51,7 +51,6 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     // create our raytracing-thingies
     vierkant::RayTracer::create_info_t ray_tracer_create_info = {};
     ray_tracer_create_info.num_frames_in_flight = create_info.num_frames_in_flight;
-    ray_tracer_create_info.command_pool = m_command_pool;
     ray_tracer_create_info.descriptor_pool = m_descriptor_pool;
     ray_tracer_create_info.pipeline_cache = create_info.pipeline_cache;
     m_ray_tracer = vierkant::RayTracer(device, ray_tracer_create_info);
@@ -61,7 +60,6 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.num_frames_in_flight = create_info.num_frames_in_flight;
     compute_info.descriptor_pool = m_descriptor_pool;
-    compute_info.command_pool = m_command_pool;
     compute_info.pipeline_cache = create_info.pipeline_cache;
     m_compute = vierkant::Compute(device, compute_info);
 

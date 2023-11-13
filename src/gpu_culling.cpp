@@ -122,7 +122,6 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
 
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = context->pipeline_cache;
-    compute_info.command_pool = context->command_pool;
     compute_info.descriptor_pool = context->descriptor_pool;
 
     for(uint32_t i = context->depth_pyramid_computes.size(); i < context->depth_pyramid_img->num_mip_levels(); ++i)
@@ -383,7 +382,6 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const vier
 
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = ret->pipeline_cache;
-    compute_info.command_pool = ret->command_pool;
     ret->cull_compute = vierkant::Compute(device, compute_info);
 
     // depth pyramid compute
