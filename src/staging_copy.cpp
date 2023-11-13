@@ -26,6 +26,7 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
     for(const auto &info: staging_copy_infos)
     {
         if(!info.data || !info.num_bytes) { continue; }
+        assert(info.dst_buffer);
         assert(context.staging_buffer->num_bytes() - info.num_bytes >= context.offset);
 
         // copy array into staging-buffer

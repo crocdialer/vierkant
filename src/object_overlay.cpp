@@ -40,7 +40,13 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     internal_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
     ret->id_buffer = vierkant::Buffer::create(internal_buffer_info);
-    ret->param_buffer = vierkant::Buffer::create(internal_buffer_info);
+
+    vierkant::Buffer::create_info_t param_buffer_info = {};
+    param_buffer_info.device = device;
+    param_buffer_info.num_bytes = 1U << 8U;
+    param_buffer_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    param_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    ret->param_buffer = vierkant::Buffer::create(param_buffer_info);
 
     vierkant::Buffer::create_info_t staging_buffer_info = {};
     staging_buffer_info.device = device;
@@ -62,8 +68,6 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     img_fmt.extent = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
     img_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
     img_fmt.format = VK_FORMAT_R8_UNORM;
-    img_fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
-                                 VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_R};
     img_fmt.initial_layout_transition = false;
     ret->result = vierkant::Image::create(device, img_fmt);
     return ret;
@@ -86,9 +90,9 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     vierkant::staging_copy_info_t copy_ubo = {};
     copy_ubo.num_bytes = sizeof(object_overlay_ubo_t);
     copy_ubo.data = &object_overlay_ubo;
-    copy_ids.dst_buffer = context->param_buffer;
-    copy_ids.dst_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    copy_ids.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+    copy_ubo.dst_buffer = context->param_buffer;
+    copy_ubo.dst_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    copy_ubo.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
 
     // id-buffer/ubo upload
     vierkant::staging_copy_context_t staging_context = {};
