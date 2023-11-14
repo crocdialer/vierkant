@@ -6,6 +6,7 @@
 #include <vierkant/object_overlay.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/staging_copy.hpp>
+#include <volk.h>
 
 namespace vierkant
 {
@@ -19,7 +20,7 @@ struct object_overlay_context_t
     vierkant::Compute mask_compute;
     glm::uvec3 mask_compute_local_size{};
     vierkant::Compute::computable_t mask_computable;
-    vierkant::ImagePtr result;
+    vierkant::ImagePtr result, result_swizzle;
 };
 
 struct alignas(16) object_overlay_ubo_t
@@ -68,9 +69,30 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     vierkant::Image::Format img_fmt = {};
     img_fmt.extent = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
     img_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-    img_fmt.format = VK_FORMAT_R8_UNORM;
     img_fmt.initial_layout_transition = false;
     ret->result = vierkant::Image::create(device, img_fmt);
+
+    // create a swizzle-able imageview
+    VkImageViewCreateInfo view_create_info = {};
+    view_create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view_create_info.image = ret->result->image();
+    view_create_info.viewType = ret->result->format().view_type;
+    view_create_info.format = ret->result->format().format;
+    view_create_info.components = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
+                                   VK_COMPONENT_SWIZZLE_R};
+    view_create_info.subresourceRange.aspectMask = ret->result->format().aspect;
+    view_create_info.subresourceRange.baseMipLevel = 0;
+    view_create_info.subresourceRange.levelCount = 1;
+    view_create_info.subresourceRange.baseArrayLayer = 0;
+    view_create_info.subresourceRange.layerCount = 1;
+
+    VkImageView image_view;
+    vkCheck(vkCreateImageView(device->handle(), &view_create_info, nullptr, &image_view),
+            "failed to create texture image view!");
+    vierkant::VkImageViewPtr swizzle_view = {
+            image_view, [device](VkImageView v) { vkDestroyImageView(device->handle(), v, nullptr); }};
+    ret->result_swizzle = ret->result->clone();
+    ret->result_swizzle->set_image_view(swizzle_view);
     return ret;
 }
 
@@ -129,7 +151,7 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     context->mask_compute.dispatch({computable}, params.commandbuffer);
     params.object_id_img->transition_layout(prev_input_layout, params.commandbuffer);
     context->result->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, params.commandbuffer);
-    return context->result;
+    return context->result_swizzle;
 }
 
 }// namespace vierkant

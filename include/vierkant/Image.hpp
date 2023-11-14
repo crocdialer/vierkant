@@ -154,6 +154,13 @@ public:
     [[nodiscard]] VkImageView image_view() const { return m_image_view.get(); };
 
     /**
+     * @brief   set a new shared VkImageView-handle.
+     *
+     * @param   sampler desired imageview
+     */
+    void set_image_view(VkImageViewPtr image_view) { m_image_view = std::move(image_view); }
+
+    /**
      * @return  image view handles for mips
      */
     [[nodiscard]] const std::vector<VkImageViewPtr> &mip_image_views() const { return m_mip_image_views; };
