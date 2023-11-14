@@ -22,7 +22,9 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         plane->normals.clear();
         plane->tangents.clear();
 
-        auto mesh = Mesh::create_from_geometry(m_device, plane, {});
+        vierkant::Mesh::create_info_t mesh_info = {};
+        mesh_info.mesh_buffer_params.use_vertex_colors = true;
+        auto mesh = Mesh::create_from_geometry(m_device, plane, mesh_info);
         const auto &entry = mesh->entries.front();
         const auto &lod = entry.lods.front();
 
@@ -258,7 +260,7 @@ void DrawContext::draw_text(vierkant::Rasterizer &renderer, const std::string &t
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
-                             const crocore::Area_<int> &area)
+                             const crocore::Area_<int> &area, const glm::vec4 &color)
 {
     float w = area.width ? area.width : renderer.viewport.width;
     float h = area.height ? area.height : renderer.viewport.height;
@@ -271,6 +273,9 @@ void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::Ima
     drawable.matrices.transform.scale = glm::vec3(scale, 1);
     drawable.matrices.transform.translation = glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
                                                         static_cast<float>(-area.y) / renderer.viewport.height, 0);
+
+    // color-tint
+    drawable.material.color = color;
 
     // set image
     drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {image};
@@ -354,6 +359,7 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
                                         bool depth_test, bool blend)
 {
     if(!image) { return; }
+
     // create image-drawable
     vierkant::drawable_t drawable;
 
