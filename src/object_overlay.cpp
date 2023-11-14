@@ -26,6 +26,7 @@ struct alignas(16) object_overlay_ubo_t
 {
     VkDeviceAddress id_buffer_address;
     uint32_t num_object_ids;
+    uint32_t silhouette;
 };
 
 object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device, const glm::vec2 &size)
@@ -84,6 +85,7 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     copy_ids.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
 
     object_overlay_ubo_t object_overlay_ubo = {};
+    object_overlay_ubo.silhouette = static_cast<uint32_t>(params.mode);
     object_overlay_ubo.id_buffer_address = context->id_buffer->device_address();
     object_overlay_ubo.num_object_ids = id_array.size();
 
@@ -102,8 +104,8 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
 
     // run compute over input-image dimension
     auto computable = context->mask_computable;
-    computable.extent = {vierkant::group_count(params.object_id_img->width(), context->mask_compute_local_size.x),
-                         vierkant::group_count(params.object_id_img->height(), context->mask_compute_local_size.y), 1};
+    computable.extent = {vierkant::group_count(context->result->width(), context->mask_compute_local_size.x),
+                         vierkant::group_count(context->result->height(), context->mask_compute_local_size.y), 1};
 
     auto &desc_id_img = computable.descriptors[0];
     desc_id_img.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;

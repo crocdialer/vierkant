@@ -10,6 +10,7 @@ struct object_overlay_params_t
 {
     ObjectIdPtr object_ids;
     uint num_object_ids;
+    bool silhouette;
 };
 
 layout(binding = 0, r16ui) readonly uniform uimage2D in_object_id_img;
@@ -32,13 +33,44 @@ bool contains(const object_overlay_params_t params, uint object_id)
     return false;
 }
 
+float sobel_edge(ivec2 coord)
+{
+    // sobel
+    float n[9];
+    n[0] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(-1, -1)).x));
+    n[1] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(0, -1)).x));
+    n[2] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(1, -1)).x));
+    n[3] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(-1, 0)).x));
+    n[4] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(0, 0)).x));
+    n[5] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(1, 0)).x));
+    n[6] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(-1, 1)).x));
+    n[7] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(0, 1)).x));
+    n[8] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(1, 1)).x));
+    float sobel_edge_h = n[2] + (2.0 * n[5]) + n[8] - (n[0] + (2.0 * n[3]) + n[6]);
+    float sobel_edge_v = n[0] + (2.0 * n[1]) + n[2] - (n[6] + (2.0 * n[7]) + n[8]);
+    return sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
+}
+
 void main()
 {
-    ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 out_coords = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 in_coords = ivec2(imageSize(in_object_id_img) * out_coords / vec2(imageSize(out_mask_img)));
 
-    // retrieve stored object-id
-    uint object_id = MAX_UINT16 - imageLoad(in_object_id_img, coords).x;
+    float result = 0.0;
 
-    // store binary overlay-mask for selected object
-    imageStore(out_mask_img, coords, vec4(contains(params, object_id)));
+    if(params.silhouette)
+    {
+        result = sobel_edge(in_coords);
+    }
+    else
+    {
+        // retrieve stored object-id
+        uint object_id = MAX_UINT16 - imageLoad(in_object_id_img, in_coords).x;
+
+        // generate binary mask
+        result = float(contains(params, object_id));
+    }
+
+    // store mask/silhouette value for selected objects
+    imageStore(out_mask_img, out_coords, vec4(result));
 }

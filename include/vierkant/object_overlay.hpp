@@ -10,10 +10,9 @@
 namespace vierkant
 {
 
-enum class ObjectOverlayMode
+enum class ObjectOverlayMode : uint32_t
 {
-    BinaryMask,
-    Overlay,
+    Mask = 0,
     Silhouette
 };
 
@@ -28,7 +27,7 @@ struct object_overlay_params_t
     vierkant::ImagePtr object_id_img;
     std::set<uint32_t> object_ids;
 
-    ObjectOverlayMode mode = ObjectOverlayMode::BinaryMask;
+    ObjectOverlayMode mode = ObjectOverlayMode::Mask;
 };
 
 /**
