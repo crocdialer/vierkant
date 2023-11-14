@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <set>
+#include <unordered_set>
 #include <vierkant/Image.hpp>
 
 namespace vierkant
@@ -25,7 +25,7 @@ struct object_overlay_params_t
     VkCommandBuffer commandbuffer = VK_NULL_HANDLE;
 
     vierkant::ImagePtr object_id_img;
-    std::set<uint32_t> object_ids;
+    std::unordered_set<uint32_t> object_ids;
 
     ObjectOverlayMode mode = ObjectOverlayMode::Mask;
 };
