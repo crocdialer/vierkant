@@ -25,7 +25,8 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 
 void main()
 {
-    indices.mesh_draw_index = gl_InstanceIndex;//gl_BaseInstance + gl_InstanceIndex
+    indices.mesh_draw_index = gl_BaseInstance;
+    indices.material_index = draws[gl_BaseInstance].material_index;
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
 
     gl_Position = m.projection * vec4(apply_transform(m.transform, a_position), 1.0);

@@ -27,6 +27,7 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
+    // TODO: fix
     uint material_index = indices.mesh_draw_index;
     vec4 tex_color = texture(u_sampler_2D[materials[material_index].base_texture_index], vertex_in.tex_coord);
     out_color = tex_color * materials[material_index].color * vertex_in.color;
