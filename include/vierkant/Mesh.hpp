@@ -107,7 +107,7 @@ public:
         ATTRIB_TANGENT = 4,
         ATTRIB_BONE_INDICES = 5,
         ATTRIB_BONE_WEIGHTS = 6,
-        ATTRIB_MAX
+        ATTRIB_MAX [[maybe_unused]]
     };
 
     struct create_info_t

@@ -45,7 +45,7 @@ public:
      * @param   area        the desired area to cover.
      */
     void draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
-                    const crocore::Area_<int> &area = {});
+                    const crocore::Area_<int> &area = {}, const glm::vec4 &color = glm::vec4(1.f));
 
     /**
      * @brief   Draws a set of lines.
@@ -88,8 +88,8 @@ public:
      * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      */
-    void draw_grid(vierkant::Rasterizer &renderer, float scale, uint32_t num_subs, const vierkant::transform_t &transform,
-                   const glm::mat4 &projection);
+    void draw_grid(vierkant::Rasterizer &renderer, float scale, uint32_t num_subs,
+                   const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
      * @brief   Draws a mesh.
@@ -100,8 +100,9 @@ public:
      * @param   projection  the projection matrix to use for drawing.
      * @param   shader_type the desired vierkant::ShaderType.
      */
-    void draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh, const vierkant::transform_t &transform,
-                   const glm::mat4 &projection, vierkant::ShaderType shader_type);
+    void draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh,
+                   const vierkant::transform_t &transform, const glm::mat4 &projection,
+                   vierkant::ShaderType shader_type);
 
     /**
      * @brief   Draws a node hierarchy as set of lines.

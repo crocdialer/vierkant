@@ -46,7 +46,6 @@ void swap(RayTracer &lhs, RayTracer &rhs) noexcept
 
     std::swap(lhs.m_device, rhs.m_device);
     std::swap(lhs.m_properties, rhs.m_properties);
-    std::swap(lhs.m_command_pool, rhs.m_command_pool);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_binding_tables, rhs.m_binding_tables);
@@ -69,12 +68,6 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
     deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
     deviceProps2.pNext = &m_properties;
     vkGetPhysicalDeviceProperties2(m_device->physical_device(), &deviceProps2);
-
-    m_command_pool = create_info.command_pool
-                             ? create_info.command_pool
-                             : vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
-                                                             VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                                     VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
     else

@@ -22,7 +22,9 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         plane->normals.clear();
         plane->tangents.clear();
 
-        auto mesh = Mesh::create_from_geometry(m_device, plane, {});
+        vierkant::Mesh::create_info_t mesh_info = {};
+        mesh_info.mesh_buffer_params.use_vertex_colors = true;
+        auto mesh = Mesh::create_from_geometry(m_device, plane, mesh_info);
         const auto &entry = mesh->entries.front();
         const auto &lod = entry.lods.front();
 
@@ -258,7 +260,7 @@ void DrawContext::draw_text(vierkant::Rasterizer &renderer, const std::string &t
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
-                             const crocore::Area_<int> &area)
+                             const crocore::Area_<int> &area, const glm::vec4 &color)
 {
     float w = area.width ? area.width : renderer.viewport.width;
     float h = area.height ? area.height : renderer.viewport.height;
@@ -272,6 +274,9 @@ void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::Ima
     drawable.matrices.transform.translation = glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
                                                         static_cast<float>(-area.y) / renderer.viewport.height, 0);
 
+    // color-tint
+    drawable.material.color = color;
+
     // set image
     drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES].images = {image};
 
@@ -281,8 +286,9 @@ void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::Ima
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<glm::vec3> &lines, const glm::vec4 &color,
-                             const vierkant::transform_t &transform, const glm::mat4 &projection)
+void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<glm::vec3> &lines,
+                             const glm::vec4 &color, const vierkant::transform_t &transform,
+                             const glm::mat4 &projection)
 {
     // search drawable
     auto drawable_it = m_drawables.find(DrawableType::Lines);
@@ -352,23 +358,23 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
 void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth,
                                         bool depth_test, bool blend)
 {
+    if(!image) { return; }
+
     // create image-drawable
     vierkant::drawable_t drawable;
 
-    if(image && depth)
+    if(depth)
     {
         // set image + depth
         drawable = m_drawable_color_depth_fullscreen;
         drawable.pipeline_format.depth_test = depth_test;
         drawable.descriptors[0].images = {image, depth};
     }
-    else if(image)
-    {
-        // set image
-        drawable = m_drawable_image_fullscreen;
-        drawable.pipeline_format.depth_test = depth_test;
-        drawable.descriptors[0].images = {image};
-    }
+
+    // set image
+    drawable = m_drawable_image_fullscreen;
+    drawable.pipeline_format.depth_test = depth_test;
+    drawable.descriptors[0].images = {image};
     drawable.pipeline_format.blend_state.blendEnable = blend;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
     drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);

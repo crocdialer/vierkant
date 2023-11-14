@@ -39,7 +39,7 @@ DEFINE_CLASS_PTR(Object3D)
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
-    static Object3DPtr create(const std::shared_ptr<entt::registry> &registry = {}, std::string name = "");
+    static Object3DPtr create(const std::shared_ptr<entt::registry> &registry, std::string name = "");
 
     virtual ~Object3D() noexcept;
 

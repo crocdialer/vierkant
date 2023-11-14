@@ -99,7 +99,6 @@ mesh_compute_context_ptr create_mesh_compute_context(const vierkant::DevicePtr &
 
     vierkant::Compute::create_info_t compute_info = {};
     compute_info.pipeline_cache = ret->pipeline_cache;
-    compute_info.command_pool = ret->command_pool;
     ret->compute = vierkant::Compute(device, compute_info);
     ret->run_id = 0;
     return ret;
