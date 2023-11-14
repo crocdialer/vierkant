@@ -367,14 +367,15 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
     {
         // set image + depth
         drawable = m_drawable_color_depth_fullscreen;
-        drawable.pipeline_format.depth_test = depth_test;
         drawable.descriptors[0].images = {image, depth};
     }
+    else
+    {
+        drawable = m_drawable_image_fullscreen;
+        drawable.descriptors[0].images = {image};
+    }
 
-    // set image
-    drawable = m_drawable_image_fullscreen;
     drawable.pipeline_format.depth_test = depth_test;
-    drawable.descriptors[0].images = {image};
     drawable.pipeline_format.blend_state.blendEnable = blend;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
     drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);

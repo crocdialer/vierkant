@@ -98,6 +98,9 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
 
 vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, const object_overlay_params_t &params)
 {
+    // debug label
+    vierkant::begin_label(params.commandbuffer, {"object_overlay"});
+
     std::vector<uint32_t> id_array = {params.object_ids.begin(), params.object_ids.end()};
     vierkant::staging_copy_info_t copy_ids = {};
     copy_ids.num_bytes = sizeof(uint32_t) * id_array.size();
@@ -151,6 +154,7 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     context->mask_compute.dispatch({computable}, params.commandbuffer);
     params.object_id_img->transition_layout(prev_input_layout, params.commandbuffer);
     context->result->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, params.commandbuffer);
+    vierkant::end_label(params.commandbuffer);
     return context->result_swizzle;
 }
 
