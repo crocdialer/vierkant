@@ -19,5 +19,5 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    out_color = materials[indices.mesh_draw_index].color;
+    out_color = materials[indices.material_index].color;
 }
