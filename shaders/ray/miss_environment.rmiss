@@ -4,12 +4,12 @@
 
 #include "ray_common.glsl"
 
-layout(std140, binding = 8) uniform ubo_t
+layout(std140, binding = 9) uniform ubo_t
 {
     float environment_factor;
 } ubo;
 
-layout(binding = 9) uniform samplerCube u_sampler_cube;
+layout(binding = 10) uniform samplerCube u_sampler_cube;
 
 layout(location = 0) rayPayloadInEXT payload_t payload;
 

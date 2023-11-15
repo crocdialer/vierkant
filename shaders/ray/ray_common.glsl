@@ -59,6 +59,9 @@ struct payload_t
     // spectral attenuation per unit-length (sigma_s + sigma_a)
     vec3 sigma_t;
 
+    // object/entity
+    uint entity_index;
+
     bool transmission;
 };
 
