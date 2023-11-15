@@ -25,6 +25,7 @@ public:
         uint32_t num_frustum_culled = 0;
         uint32_t num_occlusion_culled = 0;
         uint32_t num_distance_culled = 0;
+        vierkant::ImagePtr object_ids;
         std::vector<semaphore_submit_info_t> semaphore_infos;
     };
 

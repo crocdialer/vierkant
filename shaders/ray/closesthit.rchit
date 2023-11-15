@@ -28,16 +28,16 @@ layout(push_constant) uniform PushConstants
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 // array of vertex-buffers
-layout(binding = 3, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
+layout(binding = 4, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
 
 // array of index-buffers
-layout(binding = 4, set = 0) readonly buffer Indices { uint i[]; } indices[];
+layout(binding = 5, set = 0) readonly buffer Indices { uint i[]; } indices[];
 
-layout(binding = 5, set = 0) readonly buffer Entries { entry_t entries[]; };
+layout(binding = 6, set = 0) readonly buffer Entries { entry_t entries[]; };
 
-layout(binding = 6, set = 0) readonly buffer Materials{ material_t materials[]; };
+layout(binding = 7, set = 0) readonly buffer Materials{ material_t materials[]; };
 
-layout(binding = 7) uniform sampler2D u_textures[];
+layout(binding = 8) uniform sampler2D u_textures[];
 
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
@@ -151,6 +151,7 @@ void main()
     vec3 V = -gl_WorldRayDirectionEXT;
     float NoV = abs(dot(V, payload.normal));
 
+    payload.entity_index = gl_InstanceCustomIndexEXT;
     payload.position = v.position;
     payload.normal = v.normal;
 

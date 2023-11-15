@@ -14,7 +14,9 @@ layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(binding = 1, set = 0, rgba32f) uniform image2D out_images[2];
 
-layout(binding = 2, set = 0) uniform CameraProperties
+layout(binding = 2, r16ui) writeonly uniform uimage2D out_object_ids;
+
+layout(binding = 3, set = 0) uniform CameraProperties
 {
     camera_ubo_t cam;
 };
@@ -32,6 +34,7 @@ struct trace_result_t
     float coverage;
     vec3 normal;
     vec3 position;
+    uint entity_index;
 };
 
 trace_result_t trace(vec2 coord, vec2 size)
@@ -103,6 +106,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.transmission = transmission;
             payload.ray = ray;
             payload.cone = cone;
+            payload.entity_index = MAX_UINT16;
 
             const uint ray_flags = gl_RayFlagsOpaqueEXT | (transmission ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
 
@@ -129,6 +133,7 @@ trace_result_t trace(vec2 coord, vec2 size)
 
             if(i == 0)
             {
+                trace_result.entity_index = payload.entity_index;
                 trace_result.normal = payload.normal;
                 trace_result.position = payload.position;
             }
@@ -149,7 +154,7 @@ void main()
     trace_result_t trace_result = trace(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
     vec4 accumulated_radiance = vec4(trace_result.radiance, smoothstep(0, 1, trace_result.coverage));
 
-    if (push_constants.batch_index != 0)
+    if(push_constants.batch_index != 0)
     {
         uint size = push_constants.batch_index;
         accumulated_radiance += size * imageLoad(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy));
@@ -157,4 +162,5 @@ void main()
     }
     imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
     imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
+    imageStore(out_object_ids, ivec2(gl_LaunchIDEXT.xy), uvec4(MAX_UINT16 - trace_result.entity_index));
 }

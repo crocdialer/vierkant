@@ -272,6 +272,7 @@ private:
     {
         vierkant::ImagePtr radiance;
         vierkant::ImagePtr normals;
+        vierkant::ImagePtr object_ids;
     } m_storage_images;
 
     //! owns raytracing pipelines and shader-bindingtables
