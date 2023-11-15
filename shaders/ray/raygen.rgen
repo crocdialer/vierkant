@@ -153,16 +153,13 @@ void main()
     trace_result_t trace_result = trace(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
     vec4 accumulated_radiance = vec4(trace_result.radiance, smoothstep(0, 1, trace_result.coverage));
 
-    if(push_constants.batch_index == 0)
-    {
-        imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
-        imageStore(out_object_ids, ivec2(gl_LaunchIDEXT.xy), uvec4(MAX_UINT16 - trace_result.entity_index));
-    }
-    else
+    if(push_constants.batch_index != 0)
     {
         uint size = push_constants.batch_index;
         accumulated_radiance += size * imageLoad(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy));
         accumulated_radiance /= size + 1;
     }
     imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
+    imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
+    imageStore(out_object_ids, ivec2(gl_LaunchIDEXT.xy), uvec4(MAX_UINT16 - trace_result.entity_index));
 }
