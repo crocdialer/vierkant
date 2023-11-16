@@ -174,6 +174,12 @@ public:
         std::vector<vierkant::BufferPtr> index_buffers;
         std::vector<VkDeviceSize> vertex_buffer_offsets;
         std::vector<VkDeviceSize> index_buffer_offsets;
+
+        //! the scene used to generate above data
+        SceneConstPtr scene;
+
+        //! maps sub-entry-indices to their entity-ids
+        std::unordered_map<uint32_t, uint32_t> entry_idx_to_object_id;
     };
 
     //! struct grouping parameters for 'build_scene_acceleration'-routine.

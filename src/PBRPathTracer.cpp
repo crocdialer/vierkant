@@ -163,7 +163,8 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     frame_asset.settings = settings;
 
     // max num batches reached, bail out
-    if(!frame_asset.settings.max_num_batches || m_batch_index < frame_asset.settings.max_num_batches)
+    if(!frame_asset.settings.max_num_batches || !frame_asset.settings.suspend_trace_when_done ||
+       m_batch_index < frame_asset.settings.max_num_batches)
     {
         // create/update/compact bottom-lvl acceleration-structures
         update_acceleration_structures(frame_asset, scene, tags);
@@ -190,6 +191,15 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     render_result_t ret;
     //    for(const auto &[id, assets]: frame_asset.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
     ret.object_ids = m_storage_images.object_ids;
+    ret.object_by_index_fn = [scene,
+                              &scene_asset = frame_asset.scene_ray_acceleration](uint32_t object_idx) -> vierkant::Object3DPtr {
+        auto it = scene_asset.entry_idx_to_object_id.find(object_idx);
+        if(it != scene_asset.entry_idx_to_object_id.end())
+        {
+            return scene_asset.scene->object_by_id(it->second);
+        }
+        return nullptr;
+    };
 
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};

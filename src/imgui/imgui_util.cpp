@@ -408,6 +408,7 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer)
     }
 
     ImGui::Checkbox("skybox", &path_tracer->settings.draw_skybox);
+    ImGui::Checkbox("suspend_trace_when_done", &path_tracer->settings.suspend_trace_when_done);
     ImGui::Checkbox("disable material", &path_tracer->settings.disable_material);
     ImGui::Checkbox("denoiser", &path_tracer->settings.denoising);
     ImGui::Checkbox("tonemap", &path_tracer->settings.tonemap);

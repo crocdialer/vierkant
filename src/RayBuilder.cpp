@@ -324,6 +324,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                                                                   const build_scene_acceleration_params_t &params,
                                                                   const vierkant::AccelerationStructurePtr &last) const
 {
+    RayBuilder::scene_acceleration_data_t ret;
+    ret.scene = params.scene;
+
     std::vector<VkAccelerationStructureInstanceKHR> instances;
 
     std::vector<entry_t> entries;
@@ -423,7 +426,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                     mesh_material->two_sided ? VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR : 0;
 
             // store next entry-index
-            instance.instanceCustomIndex = entries.size();
+            size_t entry_idx = entries.size();
+            ret.entry_idx_to_object_id[entry_idx] = static_cast<uint32_t>(entity);
+            instance.instanceCustomIndex = entry_idx;
             instance.mask = 0xFF;
             instance.instanceShaderBindingTableRecordOffset = 0;
             instance.flags = instance_flags;
@@ -552,7 +557,6 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     create_info.size = acceleration_structure_build_sizes_info.accelerationStructureSize;
 
     // create/collect our stuff
-    RayBuilder::scene_acceleration_data_t ret;
     ret.top_lvl = create_acceleration_asset(create_info);
 
     if(params.use_scene_assets)
