@@ -1412,14 +1412,6 @@ const PBRDeferred::image_bundle_t &PBRDeferred::image_bundle() const
     return frame_asset.internal_images;
 }
 
-const vierkant::cull_result_t &PBRDeferred::cull_result() const
-{
-    size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
-                         m_g_renderer_main.num_concurrent_frames();
-    auto &frame_asset = m_frame_assets[frame_index];
-    return frame_asset.cull_result;
-}
-
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)
 {
     if(lhs.resolution != rhs.resolution) { return false; }

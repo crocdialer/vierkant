@@ -204,8 +204,6 @@ public:
 
     const image_bundle_t& image_bundle() const;
 
-    const vierkant::cull_result_t& cull_result() const;
-
     //! settings struct
     settings_t settings;
 
