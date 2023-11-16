@@ -46,10 +46,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     : m_device(device), m_hdr_format(create_info.hdr_format)
 {
     m_logger = create_info.logger_name.empty() ? spdlog::default_logger() : spdlog::get(create_info.logger_name);
-    //    m_logger->set_pattern("[%Y-%m-%d %H:%M:%S %z] %v [%! | %s:%#]");
-    //    SPDLOG_LOGGER_DEBUG(m_logger, "PBRDeferred initialized");
-    m_logger->debug("PBRDeferred initialized");
-
     m_queue = create_info.queue ? create_info.queue : device->queue();
 
     m_command_pool = vierkant::create_command_pool(m_device, vierkant::Device::Queue::GRAPHICS,
@@ -320,10 +316,12 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         vierkant::hash_combine(scene_hash, object->enabled);
     });
 
-    auto mesh_view = scene->registry()->view<vierkant::Object3D *, vierkant::mesh_component_t>();
+    auto mesh_view = scene->registry()->view<vierkant::mesh_component_t>();
 
-    for(const auto &[entity, object, mesh_component]: mesh_view.each())
+    for(const auto &[entity, mesh_component]: mesh_view.each())
     {
+        auto object = scene->object_by_id(static_cast<uint32_t>(entity));
+
         // TODO: figure out wtf is racing mesh-component after scene-changes
         if(!mesh_component.mesh) { continue; }
 
@@ -387,6 +385,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     {
         objects_unchanged = false;
         frame_asset.scene_hash = scene_hash;
+        frame_asset.dirty_drawable_indices.clear();
     }
 
     for(const auto &mesh: meshes)
@@ -460,6 +459,16 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     m_draw_context.draw_image_fullscreen(renderer, out_img, depth_img, true);
 
     SceneRenderer::render_result_t ret = {};
+    ret.object_by_index_fn = [scene,
+                              &cull_result = frame_asset.cull_result](uint32_t object_idx) -> vierkant::Object3DPtr {
+        if(object_idx < cull_result.drawables.size())
+        {
+            // picked_idx is an index into an array of drawables
+            auto drawable_id = cull_result.drawables[object_idx].id;
+            return cull_result.scene->object_by_id(cull_result.entity_map.at(drawable_id));
+        }
+        return nullptr;
+    };
     ret.num_draws = frame_asset.cull_result.drawables.size();
     ret.num_frustum_culled = frame_asset.stats.draw_cull_result.num_frustum_culled;
     ret.num_occlusion_culled = frame_asset.stats.draw_cull_result.num_occlusion_culled;
@@ -1403,7 +1412,7 @@ const PBRDeferred::image_bundle_t &PBRDeferred::image_bundle() const
     return frame_asset.internal_images;
 }
 
-const vierkant::cull_result_t& PBRDeferred::cull_result() const
+const vierkant::cull_result_t &PBRDeferred::cull_result() const
 {
     size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
                          m_g_renderer_main.num_concurrent_frames();

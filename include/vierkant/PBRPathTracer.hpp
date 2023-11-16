@@ -39,6 +39,9 @@ public:
         //! spp - samples per pixel
         uint32_t max_trace_depth = 6;
 
+        //! flag indicating if path-tracing should be suspended after processing 'max_num_batches'
+        bool suspend_trace_when_done = true;
+
         //! disable colors from textures, material, positions
         bool disable_material = false;
 
