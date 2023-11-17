@@ -68,18 +68,9 @@ Bloom::Bloom(const DevicePtr &device, const Bloom::create_info_t &create_info)
     m_drawable.pipeline_format.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // set the specialization info
-    m_specialization_entry[0].constantID = 0;
-    m_specialization_entry[0].offset = 0;
-    m_specialization_entry[0].size = sizeof(float);
-    m_specialization_entry[1].constantID = 1;
-    m_specialization_entry[1].offset = offsetof(glm::vec2, y);
-    m_specialization_entry[1].size = sizeof(float);
-
-    m_specialization_info.mapEntryCount = 2;
-    m_specialization_info.pMapEntries = m_specialization_entry.data();
-    m_specialization_info.pData = glm::value_ptr(m_brightness_thresh);
-    m_specialization_info.dataSize = sizeof(glm::vec2);
-    m_drawable.pipeline_format.specialization_info = &m_specialization_info;
+    vierkant::pipeline_specialization pipeline_specialization;
+    pipeline_specialization.set(0, m_brightness_thresh.x);
+    pipeline_specialization.set(0, m_brightness_thresh.y);
 
     // descriptor
     vierkant::descriptor_t desc_texture = {};

@@ -20,11 +20,6 @@ static inline bool operator==(const VkVertexInputBindingDescription &lhs, const 
     return true;
 }
 
-//static inline bool operator!=(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
-//{
-//    return !(lhs == rhs);
-//}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 static inline bool operator==(const VkVertexInputAttributeDescription &lhs,
@@ -36,12 +31,6 @@ static inline bool operator==(const VkVertexInputAttributeDescription &lhs,
     if(lhs.offset != rhs.offset){ return false; }
     return true;
 }
-
-//static inline bool operator!=(const VkVertexInputAttributeDescription &lhs,
-//                              const VkVertexInputAttributeDescription &rhs)
-//{
-//    return !(lhs == rhs);
-//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -59,12 +48,6 @@ static inline bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
     return true;
 }
 
-//static inline bool operator!=(const VkPipelineColorBlendAttachmentState &lhs,
-//                              const VkPipelineColorBlendAttachmentState &rhs)
-//{
-//    return !(lhs == rhs);
-//}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static inline bool operator==(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
@@ -74,11 +57,6 @@ static inline bool operator==(const VkPushConstantRange &lhs, const VkPushConsta
     if(lhs.stageFlags != rhs.stageFlags){ return false; }
     return true;
 }
-
-//static inline bool operator!=(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
-//{
-//    return !(lhs == rhs);
-//}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -263,7 +241,7 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
     if(subpass != other.subpass){ return false; }
     if(base_pipeline != other.base_pipeline){ return false; }
     if(base_pipeline_index != other.base_pipeline_index){ return false; }
-    if(specialization_info != other.specialization_info){ return false; }
+    if(pipeline_specialization != other.pipeline_specialization){ return false; }
     if(pipeline_cache != other.pipeline_cache){ return false; }
     if(dynamic_states != other.dynamic_states){ return false; }
     if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
@@ -351,6 +329,17 @@ struct hash<VkPushConstantRange>
 
 }
 
+size_t std::hash<vierkant::pipeline_specialization>::operator()(vierkant::pipeline_specialization const &ps) const
+{
+    size_t h = 0;
+    for(const auto &[constant_id, blob] : ps.constant_blobs)
+    {
+        hash_combine(h, constant_id);
+        for(const auto &byte : blob){ hash_combine(h, byte); }
+    }
+    return h;
+}
+
 size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graphics_pipeline_info_t const &fmt) const
 {
     size_t h = 0;
@@ -427,7 +416,7 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     hash_combine(h, fmt.subpass);
     hash_combine(h, fmt.base_pipeline);
     hash_combine(h, fmt.base_pipeline_index);
-    hash_combine(h, fmt.specialization_info);
+    hash_combine(h, fmt.pipeline_specialization);
     hash_combine(h, fmt.pipeline_cache);
     for(const auto &ds : fmt.dynamic_states){ hash_combine(h, ds); }
     for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }

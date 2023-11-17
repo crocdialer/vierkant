@@ -8,7 +8,6 @@
 #include "vierkant/Rasterizer.hpp"
 #include "vierkant/Scene.hpp"
 #include "vierkant/Semaphore.hpp"
-#include "vierkant/culling.hpp"
 
 namespace vierkant
 {

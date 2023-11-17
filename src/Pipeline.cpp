@@ -13,8 +13,7 @@ namespace vierkant
 // shader stages from map/multimap
 template<typename ShaderMap_T>
 std::vector<VkPipelineShaderStageCreateInfo>
-shader_stage_create_infos(const ShaderMap_T &shader_stages,
-                          const VkSpecializationInfo *specialization_info = nullptr)
+shader_stage_create_infos(const ShaderMap_T &shader_stages, const VkSpecializationInfo *specialization_info = nullptr)
 {
     std::vector<VkPipelineShaderStageCreateInfo> ret;
 
@@ -41,7 +40,9 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     }
 
     // our shader stages
-    auto stage_create_infos = shader_stage_create_infos(format.shader_stages, format.specialization_info);
+    const VkSpecializationInfo *specialization_info =
+            format.pipeline_specialization ? format.pipeline_specialization->info() : nullptr;
+    auto stage_create_infos = shader_stage_create_infos(format.shader_stages, specialization_info);
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -190,8 +191,7 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     pipeline_info.pNext = direct_rendering ? &rendering_create_info : nullptr;
 
     VkPipeline pipeline = VK_NULL_HANDLE;
-    vkCheck(vkCreateGraphicsPipelines(device->handle(), format.pipeline_cache, 1, &pipeline_info, nullptr,
-                                      &pipeline),
+    vkCheck(vkCreateGraphicsPipelines(device->handle(), format.pipeline_cache, 1, &pipeline_info, nullptr, &pipeline),
             "failed to create graphics pipeline!");
 
     return PipelinePtr(new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline));
@@ -201,14 +201,14 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
 
 PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_info_t raytracing_info)
 {
-    auto vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(vkGetDeviceProcAddr(
-            device->handle(), "vkCreateRayTracingPipelinesKHR"));
+    auto vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(
+            vkGetDeviceProcAddr(device->handle(), "vkCreateRayTracingPipelinesKHR"));
 
-    if(!vkCreateRayTracingPipelinesKHR){ return nullptr; }
+    if(!vkCreateRayTracingPipelinesKHR) { return nullptr; }
 
     // shader stages
-    auto stage_create_infos = shader_stage_create_infos(raytracing_info.shader_stages,
-                                                        raytracing_info.specialization_info);
+    auto stage_create_infos =
+            shader_stage_create_infos(raytracing_info.shader_stages, raytracing_info.specialization_info);
 
     // shader groups
     auto group_create_infos = raytracing_shader_groups(raytracing_info.shader_stages);
@@ -236,7 +236,8 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_inf
 
     VkPipeline pipeline = VK_NULL_HANDLE;
     vkCheck(vkCreateRayTracingPipelinesKHR(device->handle(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &pipeline_create_info,
-                                           VK_NULL_HANDLE, &pipeline), "could not create raytracing pipeline");
+                                           VK_NULL_HANDLE, &pipeline),
+            "could not create raytracing pipeline");
 
     return PipelinePtr(
             new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline));
@@ -270,24 +271,19 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::compute_pipeline_info_t
     pipeline_create_info.stage = stage_create_infos.back();
 
     VkPipeline pipeline = VK_NULL_HANDLE;
-    vkCheck(vkCreateComputePipelines(device->handle(), VK_NULL_HANDLE, 1, &pipeline_create_info,
-                                     VK_NULL_HANDLE, &pipeline), "could not create compute pipeline");
+    vkCheck(vkCreateComputePipelines(device->handle(), VK_NULL_HANDLE, 1, &pipeline_create_info, VK_NULL_HANDLE,
+                                     &pipeline),
+            "could not create compute pipeline");
 
-    return PipelinePtr(
-            new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline));
+    return PipelinePtr(new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Pipeline::Pipeline(DevicePtr device, VkPipelineLayout pipeline_layout, VkPipelineBindPoint bind_point,
-                   VkPipeline pipeline) :
-        m_device(std::move(device)),
-        m_pipeline_layout(pipeline_layout),
-        m_bind_point(bind_point),
-        m_pipeline(pipeline)
-{
-
-}
+                   VkPipeline pipeline)
+    : m_device(std::move(device)), m_pipeline_layout(pipeline_layout), m_bind_point(bind_point), m_pipeline(pipeline)
+{}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -295,8 +291,8 @@ Pipeline::~Pipeline()
 {
     if(m_device)
     {
-        if(m_pipeline_layout){ vkDestroyPipelineLayout(m_device->handle(), m_pipeline_layout, nullptr); }
-        if(m_pipeline){ vkDestroyPipeline(m_device->handle(), m_pipeline, nullptr); }
+        if(m_pipeline_layout) { vkDestroyPipelineLayout(m_device->handle(), m_pipeline_layout, nullptr); }
+        if(m_pipeline) { vkDestroyPipeline(m_device->handle(), m_pipeline, nullptr); }
     }
 }
 
