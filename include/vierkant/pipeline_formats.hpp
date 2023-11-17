@@ -68,7 +68,7 @@ enum class ShaderType
 shader_stage_map_t create_shader_stages(const DevicePtr &device, ShaderType t);
 
 /**
- * @brief   specialization is used to handle shader/pipeline specialization-constants.
+ * @brief   pipeline_specialization is used to handle shader/pipeline specialization-constants.
  */
 class pipeline_specialization
 {
