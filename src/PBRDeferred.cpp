@@ -166,26 +166,22 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // descriptors
-        vierkant::descriptor_t desc_ubo = {};
+        vierkant::descriptor_t &desc_ubo = m_drawable_lighting_env.descriptors[0];
         desc_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        vierkant::descriptor_t desc_texture = {};
+        vierkant::descriptor_t &desc_texture = m_drawable_lighting_env.descriptors[1];
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        vierkant::descriptor_t desc_cubes = {};
+        vierkant::descriptor_t &desc_cubes = m_drawable_lighting_env.descriptors[2];
         desc_cubes.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_cubes.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        vierkant::descriptor_t desc_lights = {};
+        vierkant::descriptor_t &desc_lights = m_drawable_lighting_env.descriptors[3];
         desc_lights.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_lights.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        m_drawable_lighting_env.descriptors[0] = desc_ubo;
-        m_drawable_lighting_env.descriptors[1] = desc_texture;
-        m_drawable_lighting_env.descriptors[2] = desc_cubes;
-        m_drawable_lighting_env.descriptors[3] = desc_lights;
         m_drawable_lighting_env.num_vertices = 3;
         m_drawable_lighting_env.pipeline_format = fmt;
         m_drawable_lighting_env.use_own_buffers = true;
@@ -235,15 +231,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         m_drawable_dof.pipeline_format.shader_stages[VK_SHADER_STAGE_FRAGMENT_BIT] =
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::dof_frag);
 
-        // TODO: depth-of-field settings uniform-buffer
-        vierkant::descriptor_t desc_dof_ubo = {};
+        // depth-of-field settings uniform-buffer
+        vierkant::descriptor_t &desc_dof_ubo =  m_drawable_dof.descriptors[1];
         desc_dof_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_dof_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         desc_dof_ubo.buffers = {vierkant::Buffer::create(
                 m_device, nullptr, sizeof(depth_of_field_params_t),
                 VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY)};
-
-        m_drawable_dof.descriptors[1] = std::move(desc_dof_ubo);
 
         // bloom
         m_drawable_bloom = fullscreen_drawable;
@@ -700,6 +694,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 shader_flags |= PROP_MESHLETS;
                 camera_desc.stage_flags |= VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+                auto &mesh_shader_props = m_g_renderer_main.mesh_shader_properties();
+                vierkant::pipeline_specialization pipeline_specialization;
+                pipeline_specialization.set(0, mesh_shader_props.maxPreferredTaskWorkGroupInvocations);
+                drawable.pipeline_format.specialization = std::move(pipeline_specialization);
             }
 
             // check if morph-targets are available

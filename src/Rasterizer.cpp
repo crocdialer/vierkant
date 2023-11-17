@@ -63,7 +63,7 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
         vkGetPhysicalDeviceProperties2(m_device->physical_device(), &props);
     }
     use_mesh_shader = create_info.enable_mesh_shader && vkCmdDrawMeshTasksEXT;
-    m_mesh_task_count = create_info.mesh_task_count;
+    m_mesh_task_count = m_mesh_shader_properties.maxPreferredTaskWorkGroupInvocations;//create_info.mesh_task_count;
 
     viewport = create_info.viewport;
     scissor = create_info.scissor;
@@ -154,6 +154,7 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
     std::swap(lhs.m_start_time, rhs.m_start_time);
 
     std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
+    std::swap(lhs.m_mesh_shader_properties, rhs.m_mesh_shader_properties);
     std::swap(lhs.m_mesh_task_count, rhs.m_mesh_task_count);
 }
 

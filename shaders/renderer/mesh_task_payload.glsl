@@ -3,7 +3,7 @@
 
 #extension GL_EXT_shader_explicit_arithmetic_types_int8: require
 
-//! these mesh/task workgroup sizes are still vendor-specific (NV -> 32, AMD -> 64)
+//! TODO: these mesh/task workgroup sizes are still vendor-specific (NV -> 32, AMD -> 64)
 #define MESH_WORKGROUP_SIZE 32
 #define TASK_WORKGROUP_SIZE 32
 

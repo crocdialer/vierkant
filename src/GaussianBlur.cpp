@@ -130,15 +130,6 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
 
     // create drawable for post-fx-pass
     {
-        m_specialization_entry.constantID = 0;
-        m_specialization_entry.offset = 0;
-        m_specialization_entry.size = sizeof(num_taps);
-
-        m_specialization_info.mapEntryCount = 1;
-        m_specialization_info.pMapEntries = &m_specialization_entry;
-        m_specialization_info.pData = &num_taps;
-        m_specialization_info.dataSize = sizeof(num_taps);
-
         vierkant::drawable_t drawable = {};
 
         graphics_pipeline_info_t fmt = {};
@@ -152,7 +143,9 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
         // set the specialization info
-        fmt.specialization_info = &m_specialization_info;
+        vierkant::pipeline_specialization pipeline_specialization;
+        pipeline_specialization.set(0, num_taps);
+        fmt.specialization = std::move(pipeline_specialization);
 
         // descriptor
         vierkant::descriptor_t desc_texture = {};

@@ -4,8 +4,9 @@
 
 #pragma once
 
-#include "vierkant/Device.hpp"
-#include "vierkant/math.hpp"
+#include <optional>
+#include <vierkant/Device.hpp>
+#include <vierkant/math.hpp>
 
 namespace vierkant
 {
@@ -29,15 +30,11 @@ using raytracing_shader_map_t = std::multimap<VkShaderStageFlagBits, ShaderModul
  *
  * @return  a newly constructed, shared VkShaderModule
  */
-ShaderModulePtr create_shader_module(const DevicePtr &device,
-                                     const void *spirv_code,
-                                     size_t num_bytes,
+ShaderModulePtr create_shader_module(const DevicePtr &device, const void *spirv_code, size_t num_bytes,
                                      glm::uvec3 *group_count);
 
 template<typename T>
-ShaderModulePtr create_shader_module(const DevicePtr &device,
-                                     const T &array,
-                                     glm::uvec3 *group_count = nullptr)
+ShaderModulePtr create_shader_module(const DevicePtr &device, const T &array, glm::uvec3 *group_count = nullptr)
 {
     return create_shader_module(device, array.data(), sizeof(typename T::value_type) * array.size(), group_count);
 }
@@ -71,6 +68,55 @@ enum class ShaderType
 shader_stage_map_t create_shader_stages(const DevicePtr &device, ShaderType t);
 
 /**
+ * @brief   pipeline_specialization is used to handle shader/pipeline specialization-constants.
+ */
+class pipeline_specialization
+{
+public:
+    std::map<uint32_t, std::vector<uint8_t>> constant_blobs;
+
+    const VkSpecializationInfo *info()
+    {
+        m_map_entries.clear();
+        m_data.clear();
+
+        for(const auto &[constant_id, blob]: constant_blobs)
+        {
+            VkSpecializationMapEntry map_entry = {};
+            map_entry.constantID = constant_id;
+            map_entry.offset = m_data.size();
+            map_entry.size = blob.size();
+
+            m_map_entries.push_back(map_entry);
+            m_data.insert(m_data.end(), blob.begin(), blob.end());
+        }
+        m_info.mapEntryCount = m_map_entries.size();
+        m_info.pMapEntries = m_map_entries.data();
+        m_info.dataSize = m_data.size();
+        m_info.pData = m_data.data();
+        return &m_info;
+    }
+
+    void set(uint32_t constant_id, const auto &data)
+    {
+        auto ptr = (uint8_t *) &data;
+        auto end = ptr + sizeof(data);
+        constant_blobs[constant_id] = {ptr, end};
+    }
+
+    inline bool operator==(const pipeline_specialization &other) const
+    {
+        return constant_blobs == other.constant_blobs;
+    }
+    inline bool operator!=(const pipeline_specialization &other) const { return !(*this == other); };
+
+private:
+    VkSpecializationInfo m_info;
+    std::vector<VkSpecializationMapEntry> m_map_entries;
+    std::vector<uint8_t> m_data;
+};
+
+/**
  * @brief   graphics_pipeline_info_t groups all sort of information for a graphics pipeline.
  *          graphics_pipeline_info_t is default-constructable, copyable, compare- and hashable.
  *          Can be used as key in std::unordered_map.
@@ -98,8 +144,7 @@ struct graphics_pipeline_info_t
     VkCullModeFlagBits cull_mode = VK_CULL_MODE_BACK_BIT;
 
     VkViewport viewport = {0.f, 0.f, 0.f, 0.f, 0.f, 1.f};
-    VkRect2D scissor = {{0, 0},
-                        {0, 0}};
+    VkRect2D scissor = {{0, 0}, {0, 0}};
 
     //! disable rasterizer
     bool rasterizer_discard = false;
@@ -138,9 +183,8 @@ struct graphics_pipeline_info_t
             .alphaBlendOp = VK_BLEND_OP_ADD,
 
             // color mask
-            .colorWriteMask =  VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                               VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
-    };
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT |
+                              VK_COLOR_COMPONENT_A_BIT};
 
     // optional attachment-specific blendStates (will override global state if present)
     std::vector<VkPipelineColorBlendAttachmentState> attachment_blend_states;
@@ -157,7 +201,8 @@ struct graphics_pipeline_info_t
     VkPipeline base_pipeline = VK_NULL_HANDLE;
     int32_t base_pipeline_index = -1;
 
-    const VkSpecializationInfo *specialization_info = nullptr;
+    // optionally provide specialization-constants
+    std::optional<vierkant::pipeline_specialization> specialization;
 
     VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
     std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
@@ -168,7 +213,7 @@ struct graphics_pipeline_info_t
 
     bool operator==(const graphics_pipeline_info_t &other) const;
 
-    bool operator!=(const graphics_pipeline_info_t &other) const{ return !(*this == other); };
+    bool operator!=(const graphics_pipeline_info_t &other) const { return !(*this == other); };
 };
 
 /**
@@ -187,11 +232,11 @@ struct raytracing_pipeline_info_t
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
 
-    const VkSpecializationInfo *specialization_info = nullptr;
+    std::optional<vierkant::pipeline_specialization> specialization;
 
     bool operator==(const raytracing_pipeline_info_t &other) const;
 
-    bool operator!=(const raytracing_pipeline_info_t &other) const{ return !(*this == other); };
+    bool operator!=(const raytracing_pipeline_info_t &other) const { return !(*this == other); };
 };
 
 /**
@@ -207,11 +252,11 @@ struct compute_pipeline_info_t
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
 
-    const VkSpecializationInfo *specialization_info = nullptr;
+    std::optional<vierkant::pipeline_specialization> specialization;
 
     bool operator==(const compute_pipeline_info_t &other) const;
 
-    bool operator!=(const compute_pipeline_info_t &other) const{ return !(*this == other); };
+    bool operator!=(const compute_pipeline_info_t &other) const { return !(*this == other); };
 };
 
 }// namespace vierkant
@@ -219,6 +264,12 @@ struct compute_pipeline_info_t
 // template specializations for hashing
 namespace std
 {
+template<>
+struct hash<vierkant::pipeline_specialization>
+{
+    size_t operator()(vierkant::pipeline_specialization const &ps) const;
+};
+
 template<>
 struct hash<vierkant::graphics_pipeline_info_t>
 {
@@ -236,4 +287,4 @@ struct hash<vierkant::compute_pipeline_info_t>
 {
     size_t operator()(vierkant::compute_pipeline_info_t const &fmt) const;
 };
-}
+}// namespace std
