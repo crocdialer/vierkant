@@ -35,9 +35,8 @@ layout(push_constant) uniform PushConstants
 
 taskPayloadSharedEXT mesh_task_payload_t task_payload;
 
-// local_size_x via specialization-constant
+// NOTE: local_size_x_id coming from specialization-constant
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
-//layout(local_size_x = TASK_WORKGROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
 bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
 {

@@ -14,6 +14,8 @@
 #include "../utils/camera.glsl"
 #include "../utils/packed_vertex.glsl"
 
+
+// NOTE: local_size_x_id coming from specialization-constant
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = 64) out;
 
