@@ -68,12 +68,11 @@ enum class ShaderType
 shader_stage_map_t create_shader_stages(const DevicePtr &device, ShaderType t);
 
 /**
- * @brief   pipeline_specialization is used to handle shader/pipeline specialization-constants.
+ * @brief   specialization is used to handle shader/pipeline specialization-constants.
  */
 class pipeline_specialization
 {
 public:
-
     std::map<uint32_t, std::vector<uint8_t>> constant_blobs;
 
     const VkSpecializationInfo *info()
@@ -202,7 +201,8 @@ struct graphics_pipeline_info_t
     VkPipeline base_pipeline = VK_NULL_HANDLE;
     int32_t base_pipeline_index = -1;
 
-    std::optional<vierkant::pipeline_specialization> pipeline_specialization;
+    // optionally provide specialization-constants
+    std::optional<vierkant::pipeline_specialization> specialization;
 
     VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
     std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
@@ -232,7 +232,7 @@ struct raytracing_pipeline_info_t
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
 
-    const VkSpecializationInfo *specialization_info = nullptr;
+    std::optional<vierkant::pipeline_specialization> specialization;
 
     bool operator==(const raytracing_pipeline_info_t &other) const;
 
@@ -252,7 +252,7 @@ struct compute_pipeline_info_t
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
 
-    const VkSpecializationInfo *specialization_info = nullptr;
+    std::optional<vierkant::pipeline_specialization> specialization;
 
     bool operator==(const compute_pipeline_info_t &other) const;
 

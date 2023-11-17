@@ -695,18 +695,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 shader_flags |= PROP_MESHLETS;
                 camera_desc.stage_flags |= VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
 
-                VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader_props = {};
-                mesh_shader_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
-
-                VkPhysicalDeviceProperties2 device_props = {};
-                device_props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-                device_props.pNext = &mesh_shader_props;
-                vkGetPhysicalDeviceProperties2(m_device->physical_device(), &device_props);
-
+                auto &mesh_shader_props = m_g_renderer_main.mesh_shader_properties();
                 vierkant::pipeline_specialization pipeline_specialization;
-
-                pipeline_specialization.set(0, mesh_shader_props. maxPreferredTaskWorkGroupInvocations);
-                drawable.pipeline_format.pipeline_specialization = std::move(pipeline_specialization);
+                pipeline_specialization.set(0, mesh_shader_props.maxPreferredTaskWorkGroupInvocations);
+                drawable.pipeline_format.specialization = std::move(pipeline_specialization);
             }
 
             // check if morph-targets are available

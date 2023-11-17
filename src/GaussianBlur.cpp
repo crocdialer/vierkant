@@ -145,7 +145,7 @@ GaussianBlur_<NUM_TAPS>::GaussianBlur_(const DevicePtr &device, const create_inf
         // set the specialization info
         vierkant::pipeline_specialization pipeline_specialization;
         pipeline_specialization.set(0, num_taps);
-        fmt.pipeline_specialization = std::move(pipeline_specialization);
+        fmt.specialization = std::move(pipeline_specialization);
 
         // descriptor
         vierkant::descriptor_t desc_texture = {};

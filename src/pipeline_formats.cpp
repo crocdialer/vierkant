@@ -241,7 +241,7 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
     if(subpass != other.subpass){ return false; }
     if(base_pipeline != other.base_pipeline){ return false; }
     if(base_pipeline_index != other.base_pipeline_index){ return false; }
-    if(pipeline_specialization != other.pipeline_specialization){ return false; }
+    if(specialization != other.specialization){ return false; }
     if(pipeline_cache != other.pipeline_cache){ return false; }
     if(dynamic_states != other.dynamic_states){ return false; }
     if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
@@ -416,7 +416,7 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     hash_combine(h, fmt.subpass);
     hash_combine(h, fmt.base_pipeline);
     hash_combine(h, fmt.base_pipeline_index);
-    hash_combine(h, fmt.pipeline_specialization);
+    hash_combine(h, fmt.specialization);
     hash_combine(h, fmt.pipeline_cache);
     for(const auto &ds : fmt.dynamic_states){ hash_combine(h, ds); }
     for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }

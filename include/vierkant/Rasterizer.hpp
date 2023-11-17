@@ -238,6 +238,11 @@ public:
 
     [[nodiscard]] const vierkant::DevicePtr &device() const { return m_device; }
 
+    [[nodiscard]] const VkPhysicalDeviceMeshShaderPropertiesEXT &mesh_shader_properties() const
+    {
+        return m_mesh_shader_properties;
+    }
+
     friend void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept;
 
 private:
