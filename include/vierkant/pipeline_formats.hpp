@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <optional>
 #include <vierkant/Device.hpp>
 #include <vierkant/math.hpp>
