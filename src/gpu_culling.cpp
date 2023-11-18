@@ -157,7 +157,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     }
 
     // min alignment for uniform-buffers
-    auto min_alignment = context->device->properties().limits.minUniformBufferOffsetAlignment;
+    auto min_alignment = context->device->properties().core.limits.minUniformBufferOffsetAlignment;
     auto stride = sizeof(glm::vec2) + min_alignment - (sizeof(glm::vec2) % min_alignment);
 
     // transition all mips to general layout for writing
@@ -390,7 +390,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const vier
     ret->depth_pyramid_computable.pipeline_info.shader_stage = shader_stage;
 
     constexpr size_t max_num_mips = 128;
-    auto min_alignment = device->properties().limits.minUniformBufferOffsetAlignment;
+    auto min_alignment = device->properties().core.limits.minUniformBufferOffsetAlignment;
     auto stride = sizeof(glm::vec2) + min_alignment - (sizeof(glm::vec2) % min_alignment);
 
     buffer_info.num_bytes = max_num_mips * stride;

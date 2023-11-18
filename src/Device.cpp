@@ -94,7 +94,7 @@ double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp
 
 ////////////////////////////// VALIDATION LAYER ////////////////////////////////////////////////////////////////////////
 
-const char * g_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
+const char *g_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -182,9 +182,21 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     }
 
     // query physical device properties
-    m_physical_device_properties = {};
-    m_physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    vkGetPhysicalDeviceProperties2(create_info.physical_device, &m_physical_device_properties);
+    {
+        VkPhysicalDeviceProperties2 physical_device_properties = {};
+        physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        m_properties.acceleration_structure.sType =
+                VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
+        m_properties.ray_pipeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+        m_properties.mesh_shader.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
+        m_properties.micromap_opacity.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPACITY_MICROMAP_PROPERTIES_EXT;
+        physical_device_properties.pNext = &m_properties.acceleration_structure;
+        m_properties.acceleration_structure.pNext = &m_properties.ray_pipeline;
+        m_properties.ray_pipeline.pNext = &m_properties.mesh_shader;
+        m_properties.mesh_shader.pNext = &m_properties.micromap_opacity;
+        vkGetPhysicalDeviceProperties2(create_info.physical_device, &physical_device_properties);
+        m_properties.core = physical_device_properties.properties;
+    }
 
     // add some obligatory features here
     VkPhysicalDeviceFeatures device_features = create_info.device_features;
@@ -317,7 +329,8 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
 
     if(create_info.use_validation)
     {
-        device_create_info.enabledLayerCount = static_cast<uint32_t>(sizeof(g_validation_layers) / sizeof(const char*));
+        device_create_info.enabledLayerCount =
+                static_cast<uint32_t>(sizeof(g_validation_layers) / sizeof(const char *));
         device_create_info.ppEnabledLayerNames = g_validation_layers;
     }
     else { device_create_info.enabledLayerCount = 0; }

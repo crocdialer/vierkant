@@ -224,7 +224,7 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_asset_t &frame_asset)
 
     if(query_result == VK_SUCCESS || query_result == VK_NOT_READY)
     {
-        auto timestamp_period = m_device->properties().limits.timestampPeriod;
+        auto timestamp_period = m_device->properties().core.limits.timestampPeriod;
 
         for(uint32_t i = 1; i < SemaphoreValue::MAX_VALUE; ++i)
         {

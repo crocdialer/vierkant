@@ -66,7 +66,7 @@ vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const v
     sampler_create_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
     sampler_create_info.anisotropyEnable = true;
-    sampler_create_info.maxAnisotropy = device->properties().limits.maxSamplerAnisotropy;
+    sampler_create_info.maxAnisotropy = device->properties().core.limits.maxSamplerAnisotropy;
 
     sampler_create_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
     sampler_create_info.unnormalizedCoordinates = false;
@@ -212,7 +212,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                     {
                         vierkant::Image::Format fmt;
                         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-                        fmt.max_anisotropy = params.device->properties().limits.maxSamplerAnisotropy;
+                        fmt.max_anisotropy = params.device->properties().core.limits.maxSamplerAnisotropy;
                         texture_cache[tex_id] = create_compressed_texture(params.device, img, fmt, params.load_queue);
                     }
                 },

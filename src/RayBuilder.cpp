@@ -58,15 +58,6 @@ std::vector<const char *> RayBuilder::required_extensions()
 RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool)
     : m_device(device), m_queue(queue), m_memory_pool(std::move(pool))
 {
-    m_properties = {};
-    m_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
-
-    VkPhysicalDeviceProperties2 device_properties = {};
-    device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    device_properties.pNext = &m_properties;
-    vkGetPhysicalDeviceProperties2(device->physical_device(), &device_properties);
-
-
     // fallback to first device queue
     m_queue = queue ? queue : m_device->queue();
 
@@ -865,7 +856,7 @@ RayBuilder::timings_t RayBuilder::timings(const scene_acceleration_context_ptr &
 
     if(query_result == VK_SUCCESS || query_result == VK_NOT_READY)
     {
-        auto timestamp_period = m_device->properties().limits.timestampPeriod;
+        auto timestamp_period = m_device->properties().core.limits.timestampPeriod;
 
         for(uint32_t i = 1; i < UpdateSemaphoreValue::MAX_VALUE; ++i)
         {

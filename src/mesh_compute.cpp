@@ -114,7 +114,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
     ret.run_id = mesh_compute_run_id_t(context->run_id++);
 
     // min alignment for storage-buffers
-    auto min_alignment = context->device->properties().limits.minStorageBufferOffsetAlignment;
+    auto min_alignment = context->device->properties().core.limits.minStorageBufferOffsetAlignment;
 
     // determine total sizes, grow buffers if necessary
     {
@@ -256,8 +256,8 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, cons
     }
 
     context->cmd_buffer.begin(0);
-    vkCmdWriteTimestamp2(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                         params.query_pool.get(), params.query_index_start);
+    vkCmdWriteTimestamp2(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, params.query_pool.get(),
+                         params.query_index_start);
 
     // staging copies of bones + params
     vierkant::staging_copy_context_t staging_context = {};

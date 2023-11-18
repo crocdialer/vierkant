@@ -507,7 +507,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
                                                      bone_transforms);
 
             // min alignment for storage-buffers
-            auto min_alignment = m_device->properties().limits.minStorageBufferOffsetAlignment;
+            auto min_alignment = m_device->properties().core.limits.minStorageBufferOffsetAlignment;
             size_t num_bytes = bone_transforms.size() * sizeof(vierkant::transform_t);
             if(num_bytes % min_alignment) { bone_transforms.push_back({}); }
 
@@ -695,7 +695,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 shader_flags |= PROP_MESHLETS;
                 camera_desc.stage_flags |= VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
 
-                auto &mesh_shader_props = m_g_renderer_main.mesh_shader_properties();
+                auto &mesh_shader_props = m_device->properties().mesh_shader;
                 vierkant::pipeline_specialization pipeline_specialization;
                 pipeline_specialization.set(0, mesh_shader_props.maxPreferredTaskWorkGroupInvocations);
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
@@ -1367,7 +1367,7 @@ void PBRDeferred::update_timing(frame_asset_t &frame_asset)
 
     if(query_result == VK_SUCCESS || query_result == VK_NOT_READY)
     {
-        auto timestamp_period = m_device->properties().limits.timestampPeriod;
+        auto timestamp_period = m_device->properties().core.limits.timestampPeriod;
 
         for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= frame_asset.semaphore_value_done; ++i)
         {
