@@ -98,9 +98,10 @@ public:
         return &m_info;
     }
 
-    template<Numeric32 T>
+    template<typename T>
     void set(uint32_t constant_id, const T &data)
     {
+        static_assert((std::integral<T> || std::floating_point<T>) && sizeof(T) == 4, "only 32-bit numerical allowed");
         auto ptr = (uint8_t *) &data;
         auto end = ptr + sizeof(data);
         std::copy(ptr, end, constant_blobs[constant_id].data());

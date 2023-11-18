@@ -19,9 +19,3 @@
 #include <glm/gtx/hash.hpp>
 #include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtx/norm.hpp>
-
-template<typename T>
-concept Numeric32 = requires() {
-                        std::integral<T> || std::floating_point<T>;
-                        sizeof(T) == 4;
-                    };
