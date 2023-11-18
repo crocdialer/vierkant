@@ -237,11 +237,6 @@ public:
 
     [[nodiscard]] const vierkant::DevicePtr &device() const { return m_device; }
 
-    [[nodiscard]] const VkPhysicalDeviceMeshShaderPropertiesEXT &mesh_shader_properties() const
-    {
-        return m_mesh_shader_properties;
-    }
-
     friend void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept;
 
 private:
@@ -327,7 +322,6 @@ private:
 
     std::default_random_engine m_random_engine;
 
-    VkPhysicalDeviceMeshShaderPropertiesEXT m_mesh_shader_properties = {};
     uint32_t m_mesh_task_count = 0;
 };
 

@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <array>
 #include <optional>
 #include <vierkant/Device.hpp>
 #include <vierkant/math.hpp>
@@ -73,7 +74,7 @@ shader_stage_map_t create_shader_stages(const DevicePtr &device, ShaderType t);
 class pipeline_specialization
 {
 public:
-    std::map<uint32_t, std::vector<uint8_t>> constant_blobs;
+    std::map<uint32_t, std::array<uint8_t, 4>> constant_blobs;
 
     const VkSpecializationInfo *info()
     {
@@ -97,11 +98,12 @@ public:
         return &m_info;
     }
 
-    void set(uint32_t constant_id, const auto &data)
+    template<Numeric32 T>
+    void set(uint32_t constant_id, const T &data)
     {
         auto ptr = (uint8_t *) &data;
         auto end = ptr + sizeof(data);
-        constant_blobs[constant_id] = {ptr, end};
+        std::copy(ptr, end, constant_blobs[constant_id].data());
     }
 
     inline bool operator==(const pipeline_specialization &other) const

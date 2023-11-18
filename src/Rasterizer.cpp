@@ -54,16 +54,8 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
 {
     if(!create_info.num_frames_in_flight) { throw std::runtime_error("could not create vierkant::Renderer"); }
 
-    // VK_EXT_mesh_shading properties
-    m_mesh_shader_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
-    {
-        VkPhysicalDeviceProperties2 props = {};
-        props.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-        props.pNext = &m_mesh_shader_properties;
-        vkGetPhysicalDeviceProperties2(m_device->physical_device(), &props);
-    }
     use_mesh_shader = create_info.enable_mesh_shader && vkCmdDrawMeshTasksEXT;
-    m_mesh_task_count = m_mesh_shader_properties.maxPreferredTaskWorkGroupInvocations;//create_info.mesh_task_count;
+    m_mesh_task_count = m_device->properties().mesh_shader.maxPreferredTaskWorkGroupInvocations;
 
     viewport = create_info.viewport;
     scissor = create_info.scissor;
@@ -154,7 +146,6 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
     std::swap(lhs.m_start_time, rhs.m_start_time);
 
     std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
-    std::swap(lhs.m_mesh_shader_properties, rhs.m_mesh_shader_properties);
     std::swap(lhs.m_mesh_task_count, rhs.m_mesh_task_count);
 }
 
@@ -861,8 +852,8 @@ Rasterizer::frame_assets_t &Rasterizer::next_frame()
     if(query_result == VK_SUCCESS)
     {
         // calculate last gpu-frametime
-        auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(double(timestamps[1] - timestamps[0]) *
-                                                                       m_device->properties().limits.timestampPeriod));
+        auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(
+                double(timestamps[1] - timestamps[0]) * m_device->properties().core.limits.timestampPeriod));
         frame_assets.frame_time = std::chrono::duration_cast<double_millisecond_t>(frame_ns);
 
         // reset query-pool

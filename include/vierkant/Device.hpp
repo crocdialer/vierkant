@@ -6,8 +6,8 @@
 
 #include <map>
 #include <vierkant/Instance.hpp>
-#include <vierkant/math.hpp>
 #include <vierkant/debug_label.hpp>
+#include <vierkant/math.hpp>
 #include <vk_mem_alloc.h>
 
 namespace vierkant
@@ -38,6 +38,28 @@ using VmaPoolPtr = std::shared_ptr<VmaPool_T>;
 class Device
 {
 public:
+    enum class Queue
+    {
+        GRAPHICS,
+        TRANSFER,
+        COMPUTE,
+        PRESENT
+    };
+
+    struct queue_family_info_t
+    {
+        int index = -1;
+        uint32_t num_queues = 0;
+    };
+
+    struct properties_t
+    {
+        VkPhysicalDeviceProperties core;
+        VkPhysicalDeviceAccelerationStructurePropertiesKHR acceleration_structure;
+        VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_pipeline;
+        VkPhysicalDeviceOpacityMicromapPropertiesEXT micromap_opacity;
+        VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader;
+    };
 
     struct create_info_t
     {
@@ -77,20 +99,6 @@ public:
 
     ~Device();
 
-    enum class Queue
-    {
-        GRAPHICS,
-        TRANSFER,
-        COMPUTE,
-        PRESENT
-    };
-
-    struct queue_family_info_t
-    {
-        int index = -1;
-        uint32_t num_queues = 0;
-    };
-
     /**
      * @return  the managed VkDevice
      */
@@ -107,12 +115,9 @@ public:
     void wait_idle();
 
     /**
-     * @return the physical device properties
+     * @return a struct grouping physical-device properties
      */
-    [[nodiscard]] const VkPhysicalDeviceProperties &properties() const
-    {
-        return m_physical_device_properties.properties;
-    };
+    [[nodiscard]] const properties_t &properties() const { return m_properties; };
 
     /**
      * @return  handle for the highest-priority-queue of a certain type
@@ -165,8 +170,8 @@ private:
     // physical device
     VkPhysicalDevice m_physical_device = VK_NULL_HANDLE;
 
-    // physical device properties
-    VkPhysicalDeviceProperties2 m_physical_device_properties = {};
+    // group physical device properties
+    properties_t m_properties = {};
 
     // logical device
     VkDevice m_device = VK_NULL_HANDLE;
