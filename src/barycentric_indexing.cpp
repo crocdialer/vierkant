@@ -2,6 +2,7 @@
 // Created by crocdialer on 20.11.23.
 //
 
+#include <algorithm>
 #include <vierkant/barycentric_indexing.hpp>
 
 namespace vierkant
