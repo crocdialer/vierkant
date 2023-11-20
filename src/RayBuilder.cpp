@@ -81,7 +81,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 {
     // raytracing flags
     VkBuildAccelerationStructureFlagsKHR flags = 0;
-    if(params.enable_compaction) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR; }
+    if(params.compaction) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR; }
 
     // vertex-skinned meshes need to update their AABBs
     if(params.mesh->root_bone || params.mesh->morph_buffer)
@@ -108,7 +108,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
     // timelinesemaphore to track builds
     build_result_t ret = {};
     ret.semaphore = vierkant::Semaphore(m_device);
-    ret.compact = params.enable_compaction;
+    ret.compact = params.compaction;
     ret.build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret.build_command.begin();
 
@@ -142,6 +142,17 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         triangles.vertexStride = vertex_attrib.stride;
         triangles.maxVertex = entry.num_vertices;
         triangles.transformData = {};
+
+        if(params.opacity_micromap && vkCreateMicromapEXT &&
+           material->blend_mode == vierkant::Material::BlendMode::Mask)
+        {
+            spdlog::warn("opacity-micromaps coming up!");
+
+//            VkMicromapBuildInfoEXT micromap_build_info = {};
+//            micromap_build_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_INFO_EXT;
+//            VkMicromapCreateInfoEXT micromap_create_info = {};
+//            micromap_create_info.sType = VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT;
+        }
 
         auto &geometry = geometries[i];
         geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -203,7 +214,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         vkCmdBuildAccelerationStructuresKHR(ret.build_command.handle(), 1, &build_info, &offset_ptr);
 
         // Write compacted size to query number idx.
-        if(params.enable_compaction)
+        if(params.compaction)
         {
             // barrier before reading back size
             VkMemoryBarrier barrier = {};
@@ -462,17 +473,11 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
                     switch(type_flag)
                     {
-                        case vierkant::Material::TextureType::Color:
-                            material.albedo_index = texture_index;
-                            break;
+                        case vierkant::Material::TextureType::Color: material.albedo_index = texture_index; break;
 
-                        case vierkant::Material::TextureType::Normal:
-                            material.normalmap_index = texture_index;
-                            break;
+                        case vierkant::Material::TextureType::Normal: material.normalmap_index = texture_index; break;
 
-                        case vierkant::Material::TextureType::Emission:
-                            material.emission_index = texture_index;
-                            break;
+                        case vierkant::Material::TextureType::Emission: material.emission_index = texture_index; break;
 
                         case vierkant::Material::TextureType::Ao_rough_metal:
                             material.ao_rough_metal_index = texture_index;
@@ -759,7 +764,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             create_mesh_structures_params.mesh = mesh;
             create_mesh_structures_params.vertex_buffer = vertex_buffer;
             create_mesh_structures_params.vertex_buffer_offset = vertex_buffer_offset;
-            create_mesh_structures_params.enable_compaction = !use_mesh_compute;
+            create_mesh_structures_params.compaction = !use_mesh_compute;
             create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
             create_mesh_structures_params.semaphore_info.semaphore = context->semaphore.handle();
             create_mesh_structures_params.semaphore_info.wait_value = semaphore_wait_value;

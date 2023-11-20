@@ -254,7 +254,8 @@ private:
         vierkant::BufferPtr vertex_buffer = nullptr;
         size_t vertex_buffer_offset = 0;
 
-        bool enable_compaction = true;
+        bool compaction = true;
+        bool opacity_micromap = true;
         std::vector<acceleration_asset_ptr> update_assets = {};
     };
 

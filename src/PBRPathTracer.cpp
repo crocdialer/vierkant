@@ -311,7 +311,6 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_asset_t &frame_asset)
     {
         // actual copy command
         m_storage_images.radiance->copy_to(frame_asset.denoise_image, frame_asset.cmd_denoise.handle());
-
         m_storage_images.radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_asset.cmd_denoise.handle());
     }
 
