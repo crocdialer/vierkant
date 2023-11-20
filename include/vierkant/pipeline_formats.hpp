@@ -85,13 +85,13 @@ public:
         {
             VkSpecializationMapEntry map_entry = {};
             map_entry.constantID = constant_id;
-            map_entry.offset = m_data.size();
+            map_entry.offset = static_cast<uint32_t>(m_data.size());
             map_entry.size = blob.size();
 
             m_map_entries.push_back(map_entry);
             m_data.insert(m_data.end(), blob.begin(), blob.end());
         }
-        m_info.mapEntryCount = m_map_entries.size();
+        m_info.mapEntryCount = static_cast<uint32_t>(m_map_entries.size());
         m_info.pMapEntries = m_map_entries.data();
         m_info.dataSize = m_data.size();
         m_info.pData = m_data.data();
