@@ -28,7 +28,7 @@ void index2bary(uint32_t index, uint32_t level, glm::vec2 &uv0, glm::vec2 &uv1, 
  * @brief   compute a micro-triangle index for provided barycentric coordinates.
  *
  * @param   uv      provided barycentric coordinates
- * @param   level
+ * @param   level   the subdivision level
  * @return  a micro-triangle index
  */
 uint32_t bary2index(const glm::vec2 &uv, uint32_t level);

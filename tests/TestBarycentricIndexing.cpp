@@ -2,7 +2,6 @@
 #include <gtest/gtest.h>
 #include <vierkant/barycentric_indexing.hpp>
 
-using namespace vierkant;
 //____________________________________________________________________________//
 
 TEST(BarycentricIndexing, map_back_forth)
@@ -22,7 +21,7 @@ TEST(BarycentricIndexing, map_back_forth)
             auto micro_triangle_center = (uv0 + uv1 + uv2) / 3.f;
 
             // now backwards, transform uv -> micromap-index
-            auto result_index = bary2index(micro_triangle_center, num_levels);
+            auto result_index = vierkant::bary2index(micro_triangle_center, num_levels);
 
             // expect indices to match
             EXPECT_EQ(i, result_index);

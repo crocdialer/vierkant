@@ -44,7 +44,6 @@ static inline void index2dbary(uint32_t index, uint32_t &u, uint32_t &v, uint32_
     w = (~fx & ~t) | (b0 & ~t) | (~b0 & fx & t);
 }
 
-// Compute barycentrics for micro triangle
 void index2bary(uint32_t index, uint32_t level, glm::vec2 &uv0, glm::vec2 &uv1, glm::vec2 &uv2)
 {
     if(level == 0)
@@ -64,35 +63,38 @@ void index2bary(uint32_t index, uint32_t level, glm::vec2 &uv0, glm::vec2 &uv1, 
     iw = iw & ((1 << level) - 1);
 
     bool upright = (iu & 1) ^ (iv & 1) ^ (iw & 1);
+
     if(!upright)
     {
         iu = iu + 1;
         iv = iv + 1;
     }
 
-    const uint32_t levelScalei = ((127u - level) << 23);
-    const float levelScale = reinterpret_cast<const float &>(levelScalei);
+    // matches a reinterpret-cast uint32_t -> float, but avoids 'dereferencing type-punned pointer'
+    union
+    {
+        uint32_t ui;
+        float f;
+    } level_scale{(127u - level) << 23};
 
     // scale the barycentic coordinate to the global space/scale
-    float du = 1.f * levelScale;
-    float dv = 1.f * levelScale;
+    float du = 1.f * level_scale.f;
+    float dv = 1.f * level_scale.f;
 
     // scale the barycentic coordinate to the global space/scale
-    float u = (float) iu * levelScale;
-    float v = (float) iv * levelScale;
+    float u = (float) iu * level_scale.f;
+    float v = (float) iv * level_scale.f;
 
     if(!upright)
     {
         du = -du;
         dv = -dv;
     }
-
     uv0 = {u, v};
     uv1 = {u + du, v};
     uv2 = {u, v + dv};
 }
 
-//! reference code from vulkan-specification
 uint32_t bary2index(const glm::vec2 &uv, uint32_t level)
 {
     float u = std::clamp(uv.x, 0.0f, 1.0f);
