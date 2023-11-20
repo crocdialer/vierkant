@@ -54,11 +54,10 @@ void index2bary(uint32_t index, uint32_t level, glm::vec2 &uv0, glm::vec2 &uv1, 
         uv2 = {0, 1};
         return;
     }
-
     uint32_t iu, iv, iw;
     index2dbary(index, iu, iv, iw);
 
-    // we need to only look at "level" bits
+    // consider only "level" bits
     iu = iu & ((1 << level) - 1);
     iv = iv & ((1 << level) - 1);
     iw = iw & ((1 << level) - 1);
