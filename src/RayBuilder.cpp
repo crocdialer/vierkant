@@ -143,15 +143,55 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         triangles.maxVertex = entry.num_vertices;
         triangles.transformData = {};
 
+        // build and attach an opacity-micromap for this geometry
         if(params.opacity_micromap && vkCreateMicromapEXT &&
            material->blend_mode == vierkant::Material::BlendMode::Mask)
         {
             spdlog::warn("opacity-micromaps coming up!");
+            constexpr uint32_t num_subdivisions = 4;
 
-//            VkMicromapBuildInfoEXT micromap_build_info = {};
-//            micromap_build_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_INFO_EXT;
-//            VkMicromapCreateInfoEXT micromap_create_info = {};
-//            micromap_create_info.sType = VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT;
+            VkMicromapUsageEXT micromap_usage = {};
+            micromap_usage.count = lod_0.num_indices / 3;
+            micromap_usage.subdivisionLevel = num_subdivisions;
+            micromap_usage.format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
+
+            VkMicromapBuildInfoEXT micromap_build_info = {};
+            micromap_build_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_INFO_EXT;
+            micromap_build_info.flags =
+                    VK_BUILD_MICROMAP_PREFER_FAST_TRACE_BIT_EXT | VK_BUILD_MICROMAP_ALLOW_COMPACTION_BIT_EXT;
+            micromap_build_info.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
+            micromap_build_info.usageCountsCount = 1;
+            micromap_build_info.pUsageCounts = &micromap_usage;
+
+            // query memory requirements
+            VkMicromapBuildSizesInfoEXT micromap_size_info = {};
+            micromap_size_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT;
+            vkGetMicromapBuildSizesEXT(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+                                       &micromap_build_info, &micromap_size_info);
+
+            auto micromap_buffer = vierkant::Buffer::create(
+                    m_device, nullptr, std::max<uint64_t>(micromap_size_info.micromapSize, 1 << 12U),
+                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT,
+                    VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
+
+            // create blank micromap
+            VkMicromapCreateInfoEXT micromap_create_info = {};
+            micromap_create_info.sType = VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT;
+            micromap_create_info.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
+            micromap_create_info.size = micromap_size_info.micromapSize;
+            micromap_create_info.buffer = micromap_buffer->handle();
+            
+            VkMicromapEXT handle;
+            vkCheck(vkCreateMicromapEXT(m_device->handle(), &micromap_create_info, nullptr, &handle),
+                    "could not create micromap");
+            std::shared_ptr<VkMicromapEXT_T> micromap = {handle, [device = m_device](VkMicromapEXT p) {
+                                                             vkDestroyMicromapEXT(device->handle(), p, nullptr);
+                                                         }};
+            //            VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
+            //            triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
+            //            triangles_micromap.indexBuffer
+            //            triangles_micromap.indexStride
+            //            triangles_micromap.indexType
         }
 
         auto &geometry = geometries[i];
