@@ -143,6 +143,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         triangles.maxVertex = entry.num_vertices;
         triangles.transformData = {};
 
+        std::optional<micromap_asset_t> optional_micromap;
+
         // build and attach an opacity-micromap for this geometry
         if(params.opacity_micromap && vkCreateMicromapEXT &&
            material->blend_mode == vierkant::Material::BlendMode::Mask)
@@ -151,6 +153,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
             constexpr uint32_t num_subdivisions = 4;
 
             // TODO: run compute-shader to generate micromap-data (sample opacity for all micro-triangles)
+            // populate buffer with array of VkMicromapTriangleEXT
 
             VkMicromapUsageEXT micromap_usage = {};
             micromap_usage.count = lod_0.num_indices / 3;
@@ -171,7 +174,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
             vkGetMicromapBuildSizesEXT(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
                                        &micromap_build_info, &micromap_size_info);
 
-            auto micromap_buffer = vierkant::Buffer::create(
+            micromap_asset_t micromap_asset = {};
+            micromap_asset.buffer = vierkant::Buffer::create(
                     m_device, nullptr, std::max<uint64_t>(micromap_size_info.micromapSize, 1 << 12U),
                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT,
                     VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
@@ -181,23 +185,24 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
             micromap_create_info.sType = VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT;
             micromap_create_info.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
             micromap_create_info.size = micromap_size_info.micromapSize;
-            micromap_create_info.buffer = micromap_buffer->handle();
+            micromap_create_info.buffer = micromap_asset.buffer->handle();
 
             VkMicromapEXT handle;
             vkCheck(vkCreateMicromapEXT(m_device->handle(), &micromap_create_info, nullptr, &handle),
                     "could not create micromap");
-            std::shared_ptr<VkMicromapEXT_T> micromap = {handle, [device = m_device](VkMicromapEXT p) {
-                                                             vkDestroyMicromapEXT(device->handle(), p, nullptr);
-                                                         }};
+            micromap_asset.micromap = {handle, [device = m_device](VkMicromapEXT p) {
+                                           vkDestroyMicromapEXT(device->handle(), p, nullptr);
+                                       }};
 
             // build micromap
-            micromap_build_info.dstMicromap = micromap.get();
-//            micromap_build_info.data
-//            micromap_build_info.scratchData
-//            micromap_build_info.triangleArray
-//            micromap_build_info.triangleArrayStride
-//            vkCmdBuildMicromapsEXT(ret.build_command.handle(), 1, &micromap_build_info);
+            micromap_build_info.dstMicromap = micromap_asset.micromap.get();
+            //            micromap_build_info.data
+            //            micromap_build_info.scratchData
+            //            micromap_build_info.triangleArray
+            //            micromap_build_info.triangleArrayStride
+            //            vkCmdBuildMicromapsEXT(ret.build_command.handle(), 1, &micromap_build_info);
 
+            optional_micromap = micromap_asset;
             //            VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
             //            triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
             //            triangles_micromap.indexBuffer
@@ -248,6 +253,9 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         // track vertex-buffer + offset used
         acceleration_asset.vertex_buffer = vertex_buffer;
         acceleration_asset.vertex_buffer_offset = vertex_buffer_offset;
+
+        // move over micromap stuff, if any
+        acceleration_asset.optional_micromap = std::move(optional_micromap);
 
         // Allocate the scratch buffers holding the temporary data of the
         // acceleration structure builder

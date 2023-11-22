@@ -1,0 +1,80 @@
+#version 460
+
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_buffer_reference2: require
+
+#include "../utils/packed_vertex.glsl"
+#include "../utils/barycentric_indexing.glsl"
+
+struct VkMicromapTriangleEXT
+{
+    uint dataOffset;
+    uint16_t subdivisionLevel;
+    uint16_t format;
+};
+
+layout(buffer_reference, std430) readonly buffer VertexBufferPtr{ packed_vertex_t v[]; };
+layout(buffer_reference, std430) readonly buffer IndexBufferPtr{ uint v[]; };
+layout(buffer_reference, std430) buffer MicromapDataBufferPtr{ uint v[]; };
+layout(buffer_reference, std430) buffer MicromapTriangleBufferPtr{ VkMicromapTriangleEXT v[]; };
+
+struct micromap_params_t
+{
+    uint num_triangles;
+    uint num_subdivisions;
+
+    VertexBufferPtr vertex_in;
+    IndexBufferPtr index_in;
+    MicromapDataBufferPtr micromap_data_out;
+    MicromapTriangleBufferPtr micromap_triangle_out;
+};
+
+layout(binding = 0, scalar) readonly buffer MicromapParamBuffer
+{
+    micromap_params_t params;
+};
+layout(binding = 1) uniform sampler2D u_albedo;
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+void main()
+{
+    uint gid = gl_GlobalInvocationID.x;
+    if(gid >= params.num_triangles){ return; }
+
+    uvec3 indices = uvec3(params.index_in.v[3 * gid],
+                          params.index_in.v[3 * gid + 1],
+                          params.index_in.v[3 * gid + 2]);
+
+    Vertex v0 = unpack(params.vertex_in.v[indices[0]]);
+    Vertex v1 = unpack(params.vertex_in.v[indices[1]]);
+    Vertex v2 = unpack(params.vertex_in.v[indices[2]]);
+
+    // for each micro-triangle
+    uint num_micro_triangles = num_micro_triangles(params.num_subdivisions);
+    uint data_tmp = 0;
+    for(uint i = 0; i < num_micro_triangles; ++i)
+    {
+        // get barycentrics for index
+        vec2 micro_uv[3];
+        index2bary(i, params.num_subdivisions, micro_uv[0], micro_uv[1], micro_uv[2]);
+        vec2 center = (micro_uv[0] + micro_uv[1] + micro_uv[2]) / 3.0;
+        vec3 bary = vec3(1.0f - center.x - center.y, center.x, center.y);
+
+        // interpolate tex-coord
+        vec2 tex_coord = v0.tex_coord * bary.x + v1.tex_coord * bary.y + v2.tex_coord * bary.z;
+
+        // sample opacity from texture
+        float alpha = texture(u_albedo, tex_coord).a;
+        
+        // TODO: write data, incl. bitpacking here
+        params.micromap_data_out.v[gid] = 0xFFFFFFFF;
+    }
+
+    // write triangles
+    VkMicromapTriangleEXT triangle;
+    triangle.dataOffset = gid * (num_micro_triangles / 8);
+    triangle.subdivisionLevel = uint16_t(params.num_subdivisions);
+    params.micromap_triangle_out.v[gid] = triangle;
+}

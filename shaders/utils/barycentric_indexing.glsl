@@ -1,6 +1,9 @@
 #ifndef UTILS_BARYCENTRIC_INDEXING_GLSL
 #define UTILS_BARYCENTRIC_INDEXING_GLSL
 
+//! number of micro-triangles for a given subdivision-level
+uint num_micro_triangles(uint num_levels) { return 1 << (num_levels << 1u); }
+
 //! even bits
 uint extract_even_bits(uint x)
 {
