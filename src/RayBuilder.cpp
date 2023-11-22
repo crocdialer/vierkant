@@ -150,6 +150,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
             spdlog::warn("opacity-micromaps coming up!");
             constexpr uint32_t num_subdivisions = 4;
 
+            // TODO: run compute-shader to generate micromap-data (sample opacity for all micro-triangles)
+
             VkMicromapUsageEXT micromap_usage = {};
             micromap_usage.count = lod_0.num_indices / 3;
             micromap_usage.subdivisionLevel = num_subdivisions;
@@ -180,13 +182,22 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
             micromap_create_info.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
             micromap_create_info.size = micromap_size_info.micromapSize;
             micromap_create_info.buffer = micromap_buffer->handle();
-            
+
             VkMicromapEXT handle;
             vkCheck(vkCreateMicromapEXT(m_device->handle(), &micromap_create_info, nullptr, &handle),
                     "could not create micromap");
             std::shared_ptr<VkMicromapEXT_T> micromap = {handle, [device = m_device](VkMicromapEXT p) {
                                                              vkDestroyMicromapEXT(device->handle(), p, nullptr);
                                                          }};
+
+            // build micromap
+            micromap_build_info.dstMicromap = micromap.get();
+//            micromap_build_info.data
+//            micromap_build_info.scratchData
+//            micromap_build_info.triangleArray
+//            micromap_build_info.triangleArrayStride
+//            vkCmdBuildMicromapsEXT(ret.build_command.handle(), 1, &micromap_build_info);
+
             //            VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
             //            triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
             //            triangles_micromap.indexBuffer
