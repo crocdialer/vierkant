@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
+#include <vierkant/barycentric_indexing.hpp>
 
 namespace vierkant
 {
@@ -151,14 +152,32 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         {
             spdlog::warn("opacity-micromaps coming up!");
             constexpr uint32_t num_subdivisions = 4;
+            constexpr VkOpacityMicromapFormatEXT micromap_format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
+            micromap_asset_t micromap_asset = {};
+
+            const size_t num_triangles = lod_0.num_indices / 3;
+            size_t num_data_bytes = num_triangles * vierkant::num_micro_triangles(num_subdivisions) / 8;
 
             // TODO: run compute-shader to generate micromap-data (sample opacity for all micro-triangles)
+            // stores input-opacity data
+            vierkant::Buffer::create_info_t micromap_input_buffer_format = {};
+            micromap_input_buffer_format.device = m_device;
+            micromap_input_buffer_format.num_bytes = num_data_bytes;
+            micromap_input_buffer_format.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                                 VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT;
+            micromap_input_buffer_format.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+            micromap_input_buffer_format.pool = m_memory_pool;
+            micromap_asset.data = vierkant::Buffer::create(micromap_input_buffer_format);
+
             // populate buffer with array of VkMicromapTriangleEXT
+            micromap_input_buffer_format.num_bytes = num_triangles * sizeof(VkMicromapTriangleEXT);
+            micromap_asset.triangles = vierkant::Buffer::create(micromap_input_buffer_format);
 
             VkMicromapUsageEXT micromap_usage = {};
-            micromap_usage.count = lod_0.num_indices / 3;
+            micromap_usage.count = num_triangles;
             micromap_usage.subdivisionLevel = num_subdivisions;
-            micromap_usage.format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
+            micromap_usage.format = micromap_format;
 
             VkMicromapBuildInfoEXT micromap_build_info = {};
             micromap_build_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_INFO_EXT;
@@ -174,10 +193,16 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
             vkGetMicromapBuildSizesEXT(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
                                        &micromap_build_info, &micromap_size_info);
 
-            micromap_asset_t micromap_asset = {};
+            // stores result-micromap
             micromap_asset.buffer = vierkant::Buffer::create(
                     m_device, nullptr, std::max<uint64_t>(micromap_size_info.micromapSize, 1 << 12U),
                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT,
+                    VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
+
+            // required scratch-buffer for micromap-building
+            micromap_asset.scratch = vierkant::Buffer::create(
+                    m_device, nullptr, std::max<uint64_t>(micromap_size_info.buildScratchSize, 1 << 12U),
+                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
                     VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
 
             // create blank micromap
@@ -196,13 +221,13 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 
             // build micromap
             micromap_build_info.dstMicromap = micromap_asset.micromap.get();
-            //            micromap_build_info.data
-            //            micromap_build_info.scratchData
-            //            micromap_build_info.triangleArray
-            //            micromap_build_info.triangleArrayStride
+            micromap_build_info.scratchData.deviceAddress = micromap_asset.scratch->device_address();
+            micromap_build_info.data.deviceAddress = micromap_asset.data->device_address();
+            micromap_build_info.triangleArray.deviceAddress = micromap_asset.triangles->device_address();
+            micromap_build_info.triangleArrayStride = sizeof(VkMicromapTriangleEXT);
             //            vkCmdBuildMicromapsEXT(ret.build_command.handle(), 1, &micromap_build_info);
 
-            optional_micromap = micromap_asset;
+            optional_micromap = std::move(micromap_asset);
             //            VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
             //            triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
             //            triangles_micromap.indexBuffer

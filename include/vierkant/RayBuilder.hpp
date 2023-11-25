@@ -100,9 +100,13 @@ public:
     struct micromap_asset_t
     {
         vierkant::BufferPtr buffer;
-        vierkant::BufferPtr scratch;
         VkMicromapPtr micromap;
 
+        // tmp during build
+        vierkant::Compute compute;
+        vierkant::BufferPtr data;
+        vierkant::BufferPtr triangles;
+        vierkant::BufferPtr scratch;
     };
 
     //! used for both bottom and toplevel acceleration-structures
@@ -112,7 +116,7 @@ public:
         VkDeviceAddress device_address = 0;
         vierkant::BufferPtr buffer = nullptr;
 
-        //! vertex- and index-buffers for the entire scene
+        //! optional vertex-buffer override
         vierkant::BufferPtr vertex_buffer;
         VkDeviceSize vertex_buffer_offset;
 
@@ -250,6 +254,9 @@ private:
         vierkant::QueryPoolPtr query_pool;
 
         bool compact = true;
+
+        //! micromap building
+        vierkant::CommandBuffer micromap_command;
 
         //! bottom-lvl-build
         vierkant::CommandBuffer build_command;
