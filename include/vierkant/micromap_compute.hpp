@@ -12,6 +12,8 @@
 namespace vierkant
 {
 
+using VkMicromapPtr = std::shared_ptr<VkMicromapEXT_T>;
+
 //! opaque handle owning a micromap_compute_context_t
 using micromap_compute_context_handle =
         std::unique_ptr<struct micromap_compute_context_t, std::function<void(struct micromap_compute_context_t *)>>;
@@ -19,17 +21,31 @@ using micromap_compute_context_handle =
 
 struct micromap_compute_params_t
 {
+    uint32_t num_subdivisions = 4;
+    VkOpacityMicromapFormatEXT micromap_format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
+
     //! a command-buffer to record commands to
     VkCommandBuffer command_buffer;
 
     //! set of mesh_compute_items
-    std::unordered_map<uint64_t, vierkant::MeshConstPtr> mesh_items = {};
+    std::vector<vierkant::MeshConstPtr> meshes = {};
 };
 
 //! define a typesafe identifier for individual mesh-compute runs
 enum class micromap_compute_run_id_t : uint64_t
 {
     INVALID = std::numeric_limits<uint64_t>::max()
+};
+
+struct micromap_asset_t
+{
+    vierkant::BufferPtr buffer;
+    VkMicromapPtr micromap;
+
+    // tmp during build
+    vierkant::BufferPtr data;
+    vierkant::BufferPtr triangles;
+    vierkant::BufferPtr scratch;
 };
 
 struct micromap_compute_result_t

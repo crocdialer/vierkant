@@ -15,8 +15,6 @@
 namespace vierkant
 {
 
-using VkMicromapPtr = std::shared_ptr<VkMicromapEXT_T>;
-
 /**
  * @brief   RayBuilder can be used to create bottom and toplevel acceleration-structures
  *          used by raytracing pipelines.
@@ -97,17 +95,6 @@ public:
         float scattering_ratio = 0.f;
     };
 
-    struct micromap_asset_t
-    {
-        vierkant::BufferPtr buffer;
-        VkMicromapPtr micromap;
-
-        // tmp during build
-        vierkant::BufferPtr data;
-        vierkant::BufferPtr triangles;
-        vierkant::BufferPtr scratch;
-    };
-
     //! used for both bottom and toplevel acceleration-structures
     struct acceleration_asset_t
     {
@@ -123,9 +110,6 @@ public:
         vierkant::BufferPtr instance_buffer = nullptr;
         vierkant::BufferPtr scratch_buffer = nullptr;
         vierkant::AccelerationStructurePtr update_structure = nullptr;
-
-        //! bottom-lvl assets optionally provide a triangle-micromap
-        std::optional<micromap_asset_t> optional_micromap;
     };
 
     //! shared acceleration_asset_t

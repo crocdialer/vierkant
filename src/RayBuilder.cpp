@@ -8,7 +8,6 @@
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/micromap_compute.hpp>
-#include <vierkant/barycentric_indexing.hpp>
 
 namespace vierkant
 {
@@ -114,8 +113,6 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
     build_result_t ret = {};
     ret.semaphore = vierkant::Semaphore(m_device);
     ret.compact = params.compaction;
-//    ret.micromap_compute = vierkant::Compute(m_device, {});
-//    ret.micromap_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
     ret.build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret.build_command.begin();
@@ -158,91 +155,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
            material->blend_mode == vierkant::Material::BlendMode::Mask)
         {
             spdlog::warn("opacity-micromaps coming up!");
-            constexpr uint32_t num_subdivisions = 4;
-            constexpr VkOpacityMicromapFormatEXT micromap_format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
-            constexpr auto num_micro_triangle_bits = static_cast<uint32_t>(micromap_format);
-            micromap_asset_t micromap_asset = {};
 
-            const size_t num_triangles = lod_0.num_indices / 3;
-            size_t num_data_bytes =
-                    num_triangles * vierkant::num_micro_triangles(num_subdivisions) * num_micro_triangle_bits / 8;
-
-            // TODO: run compute-shader to generate micromap-data (sample opacity for all micro-triangles)
-
-            // stores input-opacity data
-            vierkant::Buffer::create_info_t micromap_input_buffer_format = {};
-            micromap_input_buffer_format.device = m_device;
-            micromap_input_buffer_format.num_bytes = num_data_bytes;
-            micromap_input_buffer_format.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                 VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT;
-            micromap_input_buffer_format.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-            micromap_input_buffer_format.pool = m_memory_pool;
-            micromap_asset.data = vierkant::Buffer::create(micromap_input_buffer_format);
-
-            // populate buffer with array of VkMicromapTriangleEXT
-            micromap_input_buffer_format.num_bytes = num_triangles * sizeof(VkMicromapTriangleEXT);
-            micromap_asset.triangles = vierkant::Buffer::create(micromap_input_buffer_format);
-
-            VkMicromapUsageEXT micromap_usage = {};
-            micromap_usage.count = num_triangles;
-            micromap_usage.subdivisionLevel = num_subdivisions;
-            micromap_usage.format = micromap_format;
-
-            VkMicromapBuildInfoEXT micromap_build_info = {};
-            micromap_build_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_INFO_EXT;
-            micromap_build_info.flags =
-                    VK_BUILD_MICROMAP_PREFER_FAST_TRACE_BIT_EXT | VK_BUILD_MICROMAP_ALLOW_COMPACTION_BIT_EXT;
-            micromap_build_info.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
-            micromap_build_info.usageCountsCount = 1;
-            micromap_build_info.pUsageCounts = &micromap_usage;
-
-            // query memory requirements
-            VkMicromapBuildSizesInfoEXT micromap_size_info = {};
-            micromap_size_info.sType = VK_STRUCTURE_TYPE_MICROMAP_BUILD_SIZES_INFO_EXT;
-            vkGetMicromapBuildSizesEXT(m_device->handle(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-                                       &micromap_build_info, &micromap_size_info);
-
-            // stores result-micromap
-            micromap_asset.buffer = vierkant::Buffer::create(
-                    m_device, nullptr, std::max<uint64_t>(micromap_size_info.micromapSize, 1 << 12U),
-                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_MICROMAP_STORAGE_BIT_EXT,
-                    VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
-
-            // required scratch-buffer for micromap-building
-            micromap_asset.scratch = vierkant::Buffer::create(
-                    m_device, nullptr, std::max<uint64_t>(micromap_size_info.buildScratchSize, 1 << 12U),
-                    VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                    VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
-
-            // create blank micromap
-            VkMicromapCreateInfoEXT micromap_create_info = {};
-            micromap_create_info.sType = VK_STRUCTURE_TYPE_MICROMAP_CREATE_INFO_EXT;
-            micromap_create_info.type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
-            micromap_create_info.size = micromap_size_info.micromapSize;
-            micromap_create_info.buffer = micromap_asset.buffer->handle();
-
-            VkMicromapEXT handle;
-            vkCheck(vkCreateMicromapEXT(m_device->handle(), &micromap_create_info, nullptr, &handle),
-                    "could not create micromap");
-            micromap_asset.micromap = {handle, [device = m_device](VkMicromapEXT p) {
-                                           vkDestroyMicromapEXT(device->handle(), p, nullptr);
-                                       }};
-
-            // build micromap
-            micromap_build_info.dstMicromap = micromap_asset.micromap.get();
-            micromap_build_info.scratchData.deviceAddress = micromap_asset.scratch->device_address();
-            micromap_build_info.data.deviceAddress = micromap_asset.data->device_address();
-            micromap_build_info.triangleArray.deviceAddress = micromap_asset.triangles->device_address();
-            micromap_build_info.triangleArrayStride = sizeof(VkMicromapTriangleEXT);
-            //            vkCmdBuildMicromapsEXT(ret.build_command.handle(), 1, &micromap_build_info);
-
-            optional_micromap = std::move(micromap_asset);
-            //            VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
-            //            triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
-            //            triangles_micromap.indexBuffer
-            //            triangles_micromap.indexStride
-            //            triangles_micromap.indexType
         }
 
         auto &geometry = geometries[i];
@@ -288,9 +201,6 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         // track vertex-buffer + offset used
         acceleration_asset.vertex_buffer = vertex_buffer;
         acceleration_asset.vertex_buffer_offset = vertex_buffer_offset;
-
-        // move over micromap stuff, if any
-        acceleration_asset.optional_micromap = std::move(optional_micromap);
 
         // Allocate the scratch buffers holding the temporary data of the
         // acceleration structure builder
@@ -928,6 +838,7 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     ret->cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device);
+    ret->micromap_context = vierkant::create_micromap_compute_context(m_device);
     ret->query_pool =
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 
