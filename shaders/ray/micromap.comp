@@ -18,6 +18,7 @@ layout(buffer_reference, std430) readonly buffer VertexBufferPtr{ packed_vertex_
 layout(buffer_reference, std430) readonly buffer IndexBufferPtr{ uint v[]; };
 layout(buffer_reference, std430) buffer MicromapDataBufferPtr{ uint v[]; };
 layout(buffer_reference, std430) buffer MicromapTriangleBufferPtr{ VkMicromapTriangleEXT v[]; };
+layout(buffer_reference, std430) buffer MicromapTriangleIndexBufferPtr{ uint v[]; };
 
 struct micromap_params_t
 {
@@ -30,6 +31,7 @@ struct micromap_params_t
     IndexBufferPtr index_in;
     MicromapDataBufferPtr micromap_data_out;
     MicromapTriangleBufferPtr micromap_triangle_out;
+    MicromapTriangleIndexBufferPtr micromap_indices_out;
 };
 
 layout(binding = 0, scalar) readonly buffer MicromapParamBuffer
@@ -90,4 +92,10 @@ void main()
     triangle.subdivisionLevel = uint16_t(params.num_subdivisions);
     triangle.format = uint16_t(params.format);
     params.micromap_triangle_out.v[gid] = triangle;
+
+//    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_TRANSPARENT_EXT = -1,
+//    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_OPAQUE_EXT = -2,
+//    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_UNKNOWN_TRANSPARENT_EXT = -3,
+//    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_UNKNOWN_OPAQUE_EXT = -4,
+    params.micromap_indices_out.v[gid] = gid;
 }

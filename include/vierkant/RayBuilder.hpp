@@ -103,7 +103,6 @@ public:
         VkMicromapPtr micromap;
 
         // tmp during build
-        vierkant::Compute compute;
         vierkant::BufferPtr data;
         vierkant::BufferPtr triangles;
         vierkant::BufferPtr scratch;
@@ -254,9 +253,6 @@ private:
         vierkant::QueryPoolPtr query_pool;
 
         bool compact = true;
-
-        //! micromap building
-        vierkant::CommandBuffer micromap_command;
 
         //! bottom-lvl-build
         vierkant::CommandBuffer build_command;

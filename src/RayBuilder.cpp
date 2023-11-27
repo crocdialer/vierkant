@@ -30,6 +30,9 @@ struct RayBuilder::scene_acceleration_context_t
     //! context for computing vertex-buffers for animated meshes
     vierkant::mesh_compute_context_ptr mesh_compute_context = nullptr;
 
+    //! TODO: context for computing micro-triangle opacity/displacement maps
+    vierkant::mesh_compute_context_ptr micromap_context = nullptr;
+
     //! map object-id/entity to bottom-lvl structures
     RayBuilder::entity_asset_map_t entity_assets;
 
@@ -110,6 +113,9 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
     build_result_t ret = {};
     ret.semaphore = vierkant::Semaphore(m_device);
     ret.compact = params.compaction;
+//    ret.micromap_compute = vierkant::Compute(m_device, {});
+//    ret.micromap_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
+
     ret.build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret.build_command.begin();
 
@@ -153,12 +159,15 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
             spdlog::warn("opacity-micromaps coming up!");
             constexpr uint32_t num_subdivisions = 4;
             constexpr VkOpacityMicromapFormatEXT micromap_format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
+            constexpr auto num_micro_triangle_bits = static_cast<uint32_t>(micromap_format);
             micromap_asset_t micromap_asset = {};
 
             const size_t num_triangles = lod_0.num_indices / 3;
-            size_t num_data_bytes = num_triangles * vierkant::num_micro_triangles(num_subdivisions) / 8;
+            size_t num_data_bytes =
+                    num_triangles * vierkant::num_micro_triangles(num_subdivisions) * num_micro_triangle_bits / 8;
 
             // TODO: run compute-shader to generate micromap-data (sample opacity for all micro-triangles)
+
             // stores input-opacity data
             vierkant::Buffer::create_info_t micromap_input_buffer_format = {};
             micromap_input_buffer_format.device = m_device;
@@ -477,12 +486,11 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
         if(!(mesh->root_bone || mesh->morph_buffer) && object->has_component<animation_component_t>())
         {
-            auto &animation_state = object->get_component<animation_component_t>();
-            const auto &anim_state = animation_state;
+            vierkant::object_component auto &animation_state = object->get_component<animation_component_t>();
 
-            if(anim_state.index < mesh->node_animations.size())
+            if(animation_state.index < mesh->node_animations.size())
             {
-                const auto &animation = mesh->node_animations[anim_state.index];
+                const auto &animation = mesh->node_animations[animation_state.index];
                 vierkant::nodes::build_node_matrices_bfs(
                         mesh->root_node, animation, static_cast<float>(animation_state.current_time), node_transforms);
             }
