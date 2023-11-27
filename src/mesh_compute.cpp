@@ -47,11 +47,11 @@ struct alignas(16) morph_compute_params_t
     float weights[64];
 };
 
-mesh_compute_context_ptr create_mesh_compute_context(const vierkant::DevicePtr &device,
+mesh_compute_context_handle create_mesh_compute_context(const vierkant::DevicePtr &device,
                                                      const vierkant::BufferPtr &result_buffer,
                                                      const vierkant::PipelineCachePtr &pipeline_cache)
 {
-    auto ret = mesh_compute_context_ptr(new mesh_compute_context_t, std::default_delete<mesh_compute_context_t>());
+    auto ret = mesh_compute_context_handle(new mesh_compute_context_t, std::default_delete<mesh_compute_context_t>());
     ret->device = device;
     ret->pipeline_cache = pipeline_cache;
     ret->command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
@@ -104,7 +104,7 @@ mesh_compute_context_ptr create_mesh_compute_context(const vierkant::DevicePtr &
     return ret;
 }
 
-mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, const mesh_compute_params_t &params)
+mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, const mesh_compute_params_t &params)
 {
     assert(context);
     assert(params.queue);

@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
+#include <vierkant/micromap_compute.hpp>
 #include <vierkant/barycentric_indexing.hpp>
 
 namespace vierkant
@@ -28,10 +29,10 @@ struct RayBuilder::scene_acceleration_context_t
     vierkant::BufferPtr scratch_buffer_top;
 
     //! context for computing vertex-buffers for animated meshes
-    vierkant::mesh_compute_context_ptr mesh_compute_context = nullptr;
+    vierkant::mesh_compute_context_handle mesh_compute_context = nullptr;
 
-    //! TODO: context for computing micro-triangle opacity/displacement maps
-    vierkant::mesh_compute_context_ptr micromap_context = nullptr;
+    //! context for computing micro-triangle opacity/displacement maps
+    vierkant::micromap_compute_context_handle micromap_context = nullptr;
 
     //! map object-id/entity to bottom-lvl structures
     RayBuilder::entity_asset_map_t entity_assets;
