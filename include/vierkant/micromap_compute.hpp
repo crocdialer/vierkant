@@ -23,6 +23,7 @@ struct micromap_compute_params_t
 {
     uint32_t num_subdivisions = 4;
     VkOpacityMicromapFormatEXT micromap_format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
+    VkMicromapTypeEXT micromap_type = VK_MICROMAP_TYPE_OPACITY_MICROMAP_EXT;
 
     //! a command-buffer to record commands to
     VkCommandBuffer command_buffer;
@@ -41,11 +42,6 @@ struct micromap_asset_t
 {
     vierkant::BufferPtr buffer;
     VkMicromapPtr micromap;
-
-    // tmp during build
-    vierkant::BufferPtr data;
-    vierkant::BufferPtr triangles;
-    vierkant::BufferPtr scratch;
 };
 
 struct micromap_compute_result_t
@@ -53,7 +49,8 @@ struct micromap_compute_result_t
     //! run_id to keep track of results
     micromap_compute_run_id_t run_id = micromap_compute_run_id_t::INVALID;
 
-    // TODO: result ...
+    //! optional micromaps for provided meshes/entries
+    std::unordered_map<vierkant::MeshConstPtr, std::vector<std::optional<micromap_asset_t>>> mesh_micromap_assets;
 };
 
 /**
