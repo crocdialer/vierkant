@@ -48,8 +48,8 @@ struct alignas(16) morph_compute_params_t
 };
 
 mesh_compute_context_handle create_mesh_compute_context(const vierkant::DevicePtr &device,
-                                                     const vierkant::BufferPtr &result_buffer,
-                                                     const vierkant::PipelineCachePtr &pipeline_cache)
+                                                        const vierkant::BufferPtr &result_buffer,
+                                                        const vierkant::PipelineCachePtr &pipeline_cache)
 {
     auto ret = mesh_compute_context_handle(new mesh_compute_context_t, std::default_delete<mesh_compute_context_t>());
     ret->device = device;
@@ -256,8 +256,12 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
     }
 
     context->cmd_buffer.begin(0);
-    vkCmdWriteTimestamp2(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, params.query_pool.get(),
-                         params.query_index_start);
+
+    if(params.query_pool)
+    {
+        vkCmdWriteTimestamp2(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, params.query_pool.get(),
+                             params.query_index_start);
+    }
 
     // staging copies of bones + params
     vierkant::staging_copy_context_t staging_context = {};
