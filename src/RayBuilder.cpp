@@ -155,7 +155,6 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
            material->blend_mode == vierkant::Material::BlendMode::Mask)
         {
             spdlog::warn("opacity-micromaps coming up!");
-
         }
 
         auto &geometry = geometries[i];
@@ -716,6 +715,23 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     vierkant::semaphore_submit_info_t build_bottom_semaphore_info = {};
     build_bottom_semaphore_info.semaphore = context->semaphore.handle();
     build_bottom_semaphore_info.wait_value = semaphore_wait_value;
+
+    // TODO: reconsider where to place this
+    micromap_compute_result_t micromap_result;
+
+    if(context->micromap_context)
+    {
+        vierkant::micromap_compute_params_t micromap_params = {};
+        micromap_params.command_buffer = context->cmd_build_bottom_start.handle();
+
+        for(const auto &[entity, object, mesh_component]: view.each())
+        {
+            const auto &mesh = mesh_component.mesh;
+            micromap_params.meshes.push_back(mesh);
+        }
+        micromap_result = vierkant::micromap_compute(context->micromap_context, micromap_params);
+    }
+
     context->cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
 
     //  cache-lookup / non-blocking build of acceleration structures

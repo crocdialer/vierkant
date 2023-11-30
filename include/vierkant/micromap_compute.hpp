@@ -45,6 +45,7 @@ struct micromap_asset_t
 {
     vierkant::BufferPtr buffer;
     VkMicromapPtr micromap;
+    VkDeviceAddress index_buffer_address;
 };
 
 struct micromap_compute_result_t

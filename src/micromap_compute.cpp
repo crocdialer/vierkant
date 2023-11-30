@@ -77,7 +77,7 @@ micromap_compute_context_handle create_micromap_compute_context(const DevicePtr 
     vierkant::Buffer::create_info_t params_buffer_info = {};
     params_buffer_info.device = device;
     params_buffer_info.num_bytes = 1U << 20U;
-    params_buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    params_buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     params_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
     ret->params_ubo_buffer = vierkant::Buffer::create(params_buffer_info);
     return ret;
@@ -86,6 +86,7 @@ micromap_compute_context_handle create_micromap_compute_context(const DevicePtr 
 micromap_compute_result_t micromap_compute(const micromap_compute_context_handle &context,
                                            const micromap_compute_params_t &params)
 {
+    if(params.meshes.empty()) { return {}; }
     const auto num_micro_triangle_bits = static_cast<uint32_t>(params.micromap_format);
     constexpr uint32_t vertex_stride = sizeof(vierkant::packed_vertex_t);
     const uint32_t num_micro_triangles = vierkant::num_micro_triangles(params.num_subdivisions);
@@ -98,6 +99,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
     }
 
     micromap_compute_result_t ret;
+    ret.run_id = static_cast<micromap_compute_run_id_t>(context->run_id++);
 
     std::vector<vierkant::Compute::computable_t> computables;
     std::vector<micromap_params_ubo_t> param_ubos;
@@ -237,6 +239,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
 
             micromap_asset_t micromap_asset = {};
             micromap_asset.buffer = micromap_buffer;
+            micromap_asset.index_buffer_address = build_data.indices->device_address() + buffer_offset.index_data;
 
             // create blank micromap
             VkMicromapCreateInfoEXT micromap_create_info = {};
@@ -270,8 +273,15 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             computable.extent = {vierkant::group_count(param_ubo.num_triangles, context->micromap_compute_local_size.x),
                                  1, 1};
             auto &descriptor_ubo = computable.descriptors[0];
+            descriptor_ubo.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+            descriptor_ubo.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             descriptor_ubo.buffers = {context->params_ubo_buffer};
             descriptor_ubo.buffer_offsets = {param_ubos.size() * sizeof(micromap_params_ubo_t)};
+
+            auto &descriptor_img = computable.descriptors[1];
+            descriptor_img.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+            descriptor_img.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptor_img.images = {material->textures[vierkant::Material::TextureType::Color]};
 
             // store params and computable, dispatch later
             param_ubos.push_back(param_ubo);

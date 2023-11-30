@@ -207,6 +207,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_features.independentBlend = true;
     device_features.fillModeNonSolid = true;
     device_features.multiDrawIndirect = true;
+    device_features.shaderInt16 = true;
 
     auto extensions = create_info.extensions;
     if(create_info.surface) { extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
