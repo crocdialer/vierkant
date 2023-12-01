@@ -45,6 +45,8 @@ struct micromap_asset_t
 {
     vierkant::BufferPtr buffer;
     VkMicromapPtr micromap;
+    uint32_t num_subdivisions;
+    VkOpacityMicromapFormatEXT micromap_format;
     VkDeviceAddress index_buffer_address;
 };
 

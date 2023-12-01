@@ -163,8 +163,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
             if(optional_micromap_asset)
             {
                 micromap_usage.count = lod_0.num_indices / 3;
-                micromap_usage.format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
-                micromap_usage.subdivisionLevel = 4;
+                micromap_usage.format = optional_micromap_asset->micromap_format;
+                micromap_usage.subdivisionLevel = optional_micromap_asset->num_subdivisions;
 
                 spdlog::warn("attaching opacity-micromaps to mesh-entry {}", i);
                 triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;

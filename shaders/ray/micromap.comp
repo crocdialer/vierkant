@@ -34,7 +34,7 @@ struct micromap_params_t
     MicromapTriangleIndexBufferPtr micromap_indices_out;
 };
 
-layout(binding = 0, scalar) readonly buffer MicromapParamBuffer
+layout(binding = 0, std140) readonly buffer MicromapParamBuffer
 {
     micromap_params_t params;
 };
@@ -88,14 +88,14 @@ void main()
 
     // write triangles
     VkMicromapTriangleEXT triangle;
-    triangle.dataOffset = (gid * num_micro_triangles * num_bits_per_micro_triangle) / 8;
+    triangle.dataOffset = 0;//(gid * num_micro_triangles * num_bits_per_micro_triangle) / 8;
     triangle.subdivisionLevel = uint16_t(params.num_subdivisions);
-    triangle.format = uint16_t(1);//uint16_t(params.format);
+    triangle.format = uint16_t(params.format);
     params.micromap_triangle_out.v[gid] = triangle;
 
 //    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_TRANSPARENT_EXT = -1,
 //    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_OPAQUE_EXT = -2,
 //    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_UNKNOWN_TRANSPARENT_EXT = -3,
 //    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_UNKNOWN_OPAQUE_EXT = -4,
-    params.micromap_indices_out.v[gid] = gid;
+    params.micromap_indices_out.v[gid] = 0;//gid;
 }

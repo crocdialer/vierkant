@@ -238,6 +238,8 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             const auto &buffer_offset = buffer_offsets[i];
 
             micromap_asset_t micromap_asset = {};
+            micromap_asset.num_subdivisions = params.num_subdivisions;
+            micromap_asset.micromap_format = params.micromap_format;
             micromap_asset.buffer = micromap_buffer;
             micromap_asset.index_buffer_address = build_data.indices->device_address() + buffer_offset.index_data;
 
