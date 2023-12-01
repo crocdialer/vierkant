@@ -33,10 +33,14 @@ struct RayBuilder::scene_acceleration_context_t
     //! context for computing micro-triangle opacity/displacement maps
     vierkant::micromap_compute_context_handle micromap_context = nullptr;
 
+    //! map meshes to optional micromaps per entry
+    std::unordered_map<vierkant::MeshConstPtr, std::vector<std::optional<micromap_asset_t>>> mesh_micromap_assets;
+
     //! map object-id/entity to bottom-lvl structures
     RayBuilder::entity_asset_map_t entity_assets;
 
     //! map a vierkant::Mesh to bottom-lvl structures
+
     std::map<vierkant::MeshConstPtr, std::vector<RayBuilder::acceleration_asset_ptr>> mesh_assets;
 
     //! pending builds for this frame (initial build or compaction)
@@ -148,13 +152,25 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         triangles.maxVertex = entry.num_vertices;
         triangles.transformData = {};
 
-        std::optional<micromap_asset_t> optional_micromap;
+        VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
 
-        // build and attach an opacity-micromap for this geometry
-        if(params.opacity_micromap && vkCreateMicromapEXT &&
-           material->blend_mode == vierkant::Material::BlendMode::Mask)
+        // attach an existing opacity-micromap for this geometry
+        if(params.micromap_assets.size() > i && material->blend_mode == vierkant::Material::BlendMode::Mask)
         {
-            spdlog::warn("opacity-micromaps coming up!");
+            const auto &optional_micromap_asset = params.micromap_assets[i];
+
+            if(optional_micromap_asset)
+            {
+                spdlog::warn("attaching opacity-micromaps to mesh-entry {}", i);
+                triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
+                triangles_micromap.micromap = optional_micromap_asset->micromap.get();
+                triangles_micromap.indexBuffer.deviceAddress = optional_micromap_asset->index_buffer_address;
+                triangles_micromap.indexStride = vierkant::num_bytes(VK_INDEX_TYPE_UINT32);
+                triangles_micromap.indexType = VK_INDEX_TYPE_UINT32;
+
+                // chaain an extension-structure
+                triangles.pNext = &triangles_micromap;
+            }
         }
 
         auto &geometry = geometries[i];
@@ -716,10 +732,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     build_bottom_semaphore_info.semaphore = context->semaphore.handle();
     build_bottom_semaphore_info.wait_value = semaphore_wait_value;
 
-    // TODO: reconsider where to place this
-    micromap_compute_result_t micromap_result;
-
-    if(context->micromap_context)
+    if(context->micromap_context && params.use_micromaps)
     {
         vierkant::micromap_compute_params_t micromap_params = {};
         micromap_params.command_buffer = context->cmd_build_bottom_start.handle();
@@ -727,9 +740,12 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         for(const auto &[entity, object, mesh_component]: view.each())
         {
             const auto &mesh = mesh_component.mesh;
-            micromap_params.meshes.push_back(mesh);
+            if(!context->mesh_micromap_assets.contains(mesh)) { micromap_params.meshes.push_back(mesh); }
         }
-        micromap_result = vierkant::micromap_compute(context->micromap_context, micromap_params);
+        auto micromap_result = vierkant::micromap_compute(context->micromap_context, micromap_params);
+
+        // move newly created micromaps into context
+        for(auto &pair: micromap_result.mesh_micromap_assets) { context->mesh_micromap_assets.insert(std::move(pair)); }
     }
 
     context->cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
@@ -783,6 +799,9 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             create_mesh_structures_params.mesh = mesh;
             create_mesh_structures_params.vertex_buffer = vertex_buffer;
             create_mesh_structures_params.vertex_buffer_offset = vertex_buffer_offset;
+
+            // move over optional micromaps
+            create_mesh_structures_params.micromap_assets = context->mesh_micromap_assets[mesh];
             create_mesh_structures_params.compaction = !use_mesh_compute;
             create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
             create_mesh_structures_params.semaphore_info.semaphore = context->semaphore.handle();

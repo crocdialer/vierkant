@@ -10,6 +10,7 @@
 #include <vierkant/Scene.hpp>
 #include <vierkant/descriptor.hpp>
 #include <vierkant/mesh_compute.hpp>
+#include <vierkant/micromap_compute.hpp>
 #include <vierkant/transform.hpp>
 
 namespace vierkant
@@ -191,6 +192,9 @@ public:
         //! enable mesh-compute for baking animated meshes per frame
         bool use_mesh_compute = true;
 
+        //! enable micromap-compute for baking (opacity) triangle-micromaps per mesh-entry
+        bool use_micromaps = false;
+
         //! enable compaction for bottom-lvl structures
         bool use_compaction = true;
 
@@ -254,8 +258,10 @@ private:
         vierkant::BufferPtr vertex_buffer = nullptr;
         size_t vertex_buffer_offset = 0;
 
+        //! optionally provide a reference to a (sparse) array of micromap-assets
+        std::vector<std::optional<vierkant::micromap_asset_t>> micromap_assets;
+
         bool compaction = true;
-        bool opacity_micromap = true;
         std::vector<acceleration_asset_ptr> update_assets = {};
     };
 

@@ -198,17 +198,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
         m_properties.core = physical_device_properties.properties;
     }
 
-    // add some obligatory features here
-    VkPhysicalDeviceFeatures device_features = create_info.device_features;
-    device_features.geometryShader = true;
-    device_features.tessellationShader = true;
-    device_features.samplerAnisotropy = true;
-    device_features.sampleRateShading = true;
-    device_features.independentBlend = true;
-    device_features.fillModeNonSolid = true;
-    device_features.multiDrawIndirect = true;
-    device_features.shaderInt16 = true;
-
     auto extensions = create_info.extensions;
     if(create_info.surface) { extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
 
@@ -324,7 +313,9 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_create_info.pNext = &device_features_11;
     device_create_info.pQueueCreateInfos = queue_create_infos.data();
     device_create_info.queueCreateInfoCount = queue_create_infos.size();
-    device_create_info.pEnabledFeatures = &device_features;
+
+    // just enable all available features
+    device_create_info.pEnabledFeatures = &query_features.features;
     device_create_info.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     device_create_info.ppEnabledExtensionNames = extensions.data();
 

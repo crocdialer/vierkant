@@ -86,7 +86,7 @@ micromap_compute_context_handle create_micromap_compute_context(const DevicePtr 
 micromap_compute_result_t micromap_compute(const micromap_compute_context_handle &context,
                                            const micromap_compute_params_t &params)
 {
-    if(params.meshes.empty()) { return {}; }
+    if(!vkCreateMicromapEXT || params.meshes.empty()) { return {}; }
     const auto num_micro_triangle_bits = static_cast<uint32_t>(params.micromap_format);
     constexpr uint32_t vertex_stride = sizeof(vierkant::packed_vertex_t);
     const uint32_t num_micro_triangles = vierkant::num_micro_triangles(params.num_subdivisions);
@@ -356,15 +356,6 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
 
     // tadaa, build micromaps
     vkCmdBuildMicromapsEXT(params.command_buffer, micromap_build_infos.size(), micromap_build_infos.data());
-
-    // TODO: that will be needed later, during acceleration-structure builds
-    //
-    //        VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
-    //        triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
-    //        triangles_micromap.micromap = VK_NULL_HANDLE;
-    //        triangles_micromap.indexBuffer.deviceAddress = 0;
-    //        triangles_micromap.indexStride = vierkant::num_bytes(VK_INDEX_TYPE_UINT32);
-    //        triangles_micromap.indexType = VK_INDEX_TYPE_UINT32;
 
     // timestamp end
     if(params.query_pool)
