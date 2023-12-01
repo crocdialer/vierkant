@@ -153,6 +153,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         triangles.transformData = {};
 
         VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
+        VkMicromapUsageEXT micromap_usage = {};
 
         // attach an existing opacity-micromap for this geometry
         if(params.micromap_assets.size() > i && material->blend_mode == vierkant::Material::BlendMode::Mask)
@@ -161,14 +162,20 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 
             if(optional_micromap_asset)
             {
+                micromap_usage.count = lod_0.num_indices / 3;
+                micromap_usage.format = VK_OPACITY_MICROMAP_FORMAT_2_STATE_EXT;
+                micromap_usage.subdivisionLevel = 4;
+
                 spdlog::warn("attaching opacity-micromaps to mesh-entry {}", i);
                 triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
                 triangles_micromap.micromap = optional_micromap_asset->micromap.get();
                 triangles_micromap.indexBuffer.deviceAddress = optional_micromap_asset->index_buffer_address;
                 triangles_micromap.indexStride = vierkant::num_bytes(VK_INDEX_TYPE_UINT32);
                 triangles_micromap.indexType = VK_INDEX_TYPE_UINT32;
+                triangles_micromap.pUsageCounts = &micromap_usage;
+                triangles_micromap.usageCountsCount = 1;
 
-                // chaain an extension-structure
+                // chain extension-structure
                 triangles.pNext = &triangles_micromap;
             }
         }

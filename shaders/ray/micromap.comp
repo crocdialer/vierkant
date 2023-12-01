@@ -14,10 +14,10 @@ struct VkMicromapTriangleEXT
     uint16_t format;
 };
 
-layout(buffer_reference, std430) readonly buffer VertexBufferPtr{ packed_vertex_t v[]; };
+layout(buffer_reference, scalar) readonly buffer VertexBufferPtr{ packed_vertex_t v[]; };
 layout(buffer_reference, std430) readonly buffer IndexBufferPtr{ uint v[]; };
 layout(buffer_reference, std430) buffer MicromapDataBufferPtr{ uint v[]; };
-layout(buffer_reference, std430) buffer MicromapTriangleBufferPtr{ VkMicromapTriangleEXT v[]; };
+layout(buffer_reference, scalar) buffer MicromapTriangleBufferPtr{ VkMicromapTriangleEXT v[]; };
 layout(buffer_reference, std430) buffer MicromapTriangleIndexBufferPtr{ uint v[]; };
 
 struct micromap_params_t
@@ -80,17 +80,17 @@ void main()
         if(i > 0 && next_bit == 0)
         {
             // 32bit uint filled here, write out
-            uint data_index = (gid * num_micro_triangles + i) * num_bits_per_micro_triangle / 32 - 1;
-            params.micromap_data_out.v[data_index] = 0xFFFFFFFF;//data_tmp;
+            uint data_index = ((gid * num_micro_triangles + i) * num_bits_per_micro_triangle) / 32;
+            params.micromap_data_out.v[data_index] = 0;//0xFFFFFFFF;//data_tmp;
             data_tmp = 0;
         }
     }
 
     // write triangles
     VkMicromapTriangleEXT triangle;
-    triangle.dataOffset = gid * (num_micro_triangles * num_bits_per_micro_triangle / 8);
+    triangle.dataOffset = (gid * num_micro_triangles * num_bits_per_micro_triangle) / 8;
     triangle.subdivisionLevel = uint16_t(params.num_subdivisions);
-    triangle.format = uint16_t(params.format);
+    triangle.format = uint16_t(1);//uint16_t(params.format);
     params.micromap_triangle_out.v[gid] = triangle;
 
 //    VK_OPACITY_MICROMAP_SPECIAL_INDEX_FULLY_TRANSPARENT_EXT = -1,
