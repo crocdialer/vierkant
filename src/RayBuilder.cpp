@@ -743,6 +743,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     {
         vierkant::micromap_compute_params_t micromap_params = {};
         micromap_params.command_buffer = context->cmd_build_bottom_start.handle();
+        micromap_params.num_subdivisions = 5;
 
         for(const auto &[entity, object, mesh_component]: view.each())
         {
