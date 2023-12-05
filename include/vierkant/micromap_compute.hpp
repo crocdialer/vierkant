@@ -68,7 +68,8 @@ struct micromap_compute_result_t
  */
 micromap_compute_context_handle
 create_micromap_compute_context(const vierkant::DevicePtr &device,
-                                const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
+                                const vierkant::PipelineCachePtr &pipeline_cache = nullptr,
+                                const VmaPoolPtr &memory_pool = nullptr);
 
 /**
  * @brief   'micromap_compute' can be used to create opacity/displacement triangle-micromaps.

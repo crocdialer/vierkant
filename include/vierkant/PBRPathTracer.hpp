@@ -49,7 +49,7 @@ public:
         bool draw_skybox = true;
 
         //! flag indicating if compaction shall be used for created acceleration-structures
-        bool compaction = false;
+        bool compaction = true;
 
         //! flag indicating if a denoising pass shall be performed
         bool denoising = false;

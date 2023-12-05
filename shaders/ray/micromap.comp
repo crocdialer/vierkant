@@ -34,7 +34,7 @@ struct micromap_params_t
     MicromapTriangleIndexBufferPtr micromap_indices_out;
 };
 
-layout(binding = 0, std140) readonly buffer MicromapParamBuffer
+layout(binding = 0, std430) readonly buffer MicromapParamBuffer
 {
     micromap_params_t params;
 };
@@ -81,7 +81,7 @@ void main()
         {
             // one byte filled here, write out
             uint data_index = ((gid * num_micro_triangles + i) * num_bits_per_micro_triangle) / 8;
-            params.micromap_data_out.v[data_index] = uint8_t(0);//0xFFFFFFFF;//data_tmp;
+            params.micromap_data_out.v[data_index] = uint8_t(0u);//0xFF;//data_tmp;
             data_tmp = 0;
         }
     }

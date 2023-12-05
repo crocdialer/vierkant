@@ -881,7 +881,7 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     ret->cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device);
-    ret->micromap_context = vierkant::create_micromap_compute_context(m_device);
+    ret->micromap_context = vierkant::create_micromap_compute_context(m_device, nullptr, m_memory_pool);
     ret->query_pool =
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 

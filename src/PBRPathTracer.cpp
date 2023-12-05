@@ -40,7 +40,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     // memorypool
     VmaPoolCreateInfo pool_create_info = {};
-    pool_create_info.minAllocationAlignment = 128;
+    pool_create_info.minAllocationAlignment = 256;
 
     auto pool = vierkant::Buffer::create_pool(m_device,
                                               VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
