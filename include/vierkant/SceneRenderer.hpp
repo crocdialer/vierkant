@@ -18,8 +18,8 @@ class SceneRenderer
 {
 public:
 
-    //! signature for a function that returns an object for internal indices assigned during rendering
-    using object_by_index_fn_t = std::function<Object3DPtr(uint32_t idx)>;
+    //! signature for a function. returns an id_entry_t for internal draw-indices
+    using object_id_by_index_fn_t = std::function<vierkant::id_entry_t(uint32_t idx)>;
 
     //! groups results of rendering operations.
     struct render_result_t
@@ -29,7 +29,7 @@ public:
         uint32_t num_occlusion_culled = 0;
         uint32_t num_distance_culled = 0;
         vierkant::ImagePtr object_ids;
-        object_by_index_fn_t object_by_index_fn;
+        object_id_by_index_fn_t object_by_index_fn;
         std::vector<semaphore_submit_info_t> semaphore_infos;
     };
 

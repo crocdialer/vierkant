@@ -267,7 +267,7 @@ private:
         settings_t settings;
 
         //! recycling section
-        std::unordered_map<vierkant::id_entry_key_t, size_t> transform_hashes;
+        std::unordered_map<vierkant::id_entry_t, size_t> transform_hashes;
         std::unordered_map<vierkant::MaterialConstPtr, size_t> material_hashes;
         std::unordered_set<uint32_t> dirty_drawable_indices;
         size_t scene_hash = 0;

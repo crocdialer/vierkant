@@ -14,8 +14,8 @@
 namespace vierkant
 {
 
-using matrix_cache_t = std::unordered_map<id_entry_key_t, vierkant::matrix_struct_t>;
-using index_cache_t = std::unordered_map<id_entry_key_t, uint32_t>;
+using matrix_cache_t = std::unordered_map<id_entry_t, vierkant::matrix_struct_t>;
+using index_cache_t = std::unordered_map<id_entry_t, uint32_t>;
 
 //! a struct grouping drawables and other assets returned from a culling operation.
 struct cull_result_t
@@ -29,7 +29,7 @@ struct cull_result_t
     std::vector<vierkant::lightsource_ubo_t> lights;
 
     //! lookup: drawable-id -> entity/entry
-    std::unordered_map<vierkant::DrawableId, id_entry_key_t> entity_map;
+    std::unordered_map<vierkant::DrawableId, id_entry_t> entity_map;
 
     //! lookup: (id/entry) -> drawable-index
     index_cache_t index_map;

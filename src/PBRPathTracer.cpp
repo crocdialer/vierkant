@@ -190,14 +190,13 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     //    for(const auto &[id, assets]: frame_asset.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
     ret.object_ids = m_storage_images.object_ids;
     ret.object_by_index_fn =
-            [scene, &scene_asset = frame_asset.scene_ray_acceleration](uint32_t object_idx) -> vierkant::Object3DPtr {
+            [scene, &scene_asset = frame_asset.scene_ray_acceleration](uint32_t object_idx) -> vierkant::id_entry_t {
         auto it = scene_asset.entry_idx_to_object_id.find(object_idx);
         if(it != scene_asset.entry_idx_to_object_id.end())
         {
-            auto [object_id, sub_entry] = it->second;
-            return scene_asset.scene->object_by_id(object_id);
+            return it->second;
         }
-        return nullptr;
+        return {};
     };
 
     // pass semaphore wait/signal information

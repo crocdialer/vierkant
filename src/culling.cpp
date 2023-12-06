@@ -77,7 +77,7 @@ public:
                     m_cull_result.entity_map[drawable.id] = {object.id(), i};
                     drawable.matrices.projection = m_camera->projection_matrix();
 
-                    id_entry_key_t key = {object.id(), drawable.entry_index};
+                    id_entry_t key = {object.id(), drawable.entry_index};
                     m_cull_result.index_map[key] = i + m_cull_result.drawables.size();
                 }
 

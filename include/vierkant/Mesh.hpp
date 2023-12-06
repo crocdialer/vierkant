@@ -339,12 +339,12 @@ struct mesh_component_t
 };
 
 //! helper struct to group an entity/id with a sub-entry-index
-struct id_entry_key_t
+struct id_entry_t
 {
     uint32_t id;
     uint32_t entry;
 
-    inline bool operator==(const id_entry_key_t &other) const
+    inline bool operator==(const id_entry_t &other) const
     {
         return id == other.id && entry == other.entry;
     }
@@ -368,9 +368,9 @@ struct hash<vierkant::animated_mesh_t>
 };
 
 template<>
-struct hash<vierkant::id_entry_key_t>
+struct hash<vierkant::id_entry_t>
 {
-    size_t operator()(vierkant::id_entry_key_t const &key) const;
+    size_t operator()(vierkant::id_entry_t const &key) const;
 };
 
 }

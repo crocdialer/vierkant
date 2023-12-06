@@ -716,7 +716,7 @@ size_t std::hash<vierkant::animated_mesh_t>::operator()(vierkant::animated_mesh_
     return h;
 }
 
-size_t std::hash<vierkant::id_entry_key_t>::operator()(vierkant::id_entry_key_t const &key) const
+size_t std::hash<vierkant::id_entry_t>::operator()(vierkant::id_entry_t const &key) const
 {
     size_t h = 0;
     vierkant::hash_combine(h, key.id);

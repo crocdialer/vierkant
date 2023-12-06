@@ -295,7 +295,7 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset)
 {
     std::unordered_set<vierkant::MeshConstPtr> meshes;
-    std::unordered_map<vierkant::id_entry_key_t, size_t> transform_hashes;
+    std::unordered_map<vierkant::id_entry_t, size_t> transform_hashes;
 
     bool materials_unchanged = true;
     bool objects_unchanged = true;
@@ -345,7 +345,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
             const auto &entry = mesh->entries[i];
 
-            id_entry_key_t key = {object->id(), i};
+            id_entry_t key = {object->id(), i};
             auto it = m_entry_matrix_cache.find(key);
 
             vierkant::hash_combine(transform_hash, object->transform * entry.transform);
@@ -454,15 +454,14 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
 
     SceneRenderer::render_result_t ret = {};
     ret.object_by_index_fn = [scene,
-                              &cull_result = frame_asset.cull_result](uint32_t object_idx) -> vierkant::Object3DPtr {
+                              &cull_result = frame_asset.cull_result](uint32_t object_idx) -> vierkant::id_entry_t {
         if(object_idx < cull_result.drawables.size())
         {
             // picked_idx is an index into an array of drawables
             auto drawable_id = cull_result.drawables[object_idx].id;
-            const auto &[entity, sub_entry] = cull_result.entity_map.at(drawable_id);
-            return cull_result.scene->object_by_id(entity);
+            return cull_result.entity_map.at(drawable_id);
         }
-        return nullptr;
+        return {};
     };
     ret.num_draws = frame_asset.cull_result.drawables.size();
     ret.num_frustum_culled = frame_asset.stats.draw_cull_result.num_frustum_culled;
@@ -485,7 +484,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
     std::vector<vierkant::transform_t> all_bone_transforms;
 
     // cache/collect morph-params
-    using morph_buffer_offset_mapt_t = std::unordered_map<id_entry_key_t, size_t>;
+    using morph_buffer_offset_mapt_t = std::unordered_map<id_entry_t, size_t>;
     morph_buffer_offset_mapt_t morph_buffer_offsets;
     std::vector<morph_params_t> all_morph_params;
 
@@ -528,7 +527,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)
             {
                 const auto &entry = mesh->entries[i];
-                id_entry_key_t key = {object_id, i};
+                id_entry_t key = {object_id, i};
                 const auto &weights = node_morph_weights[entry.node_index];
 
                 morph_params_t p;
@@ -580,7 +579,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
             auto [entity, sub_entry] = frame_asset.cull_result.entity_map[drawable.id];
 
             // search previous matrices
-            id_entry_key_t key = {static_cast<uint32_t>(entity), drawable.entry_index};
+            id_entry_t key = {static_cast<uint32_t>(entity), drawable.entry_index};
             auto it = m_entry_matrix_cache.find(key);
             if(it != m_entry_matrix_cache.end()) { drawable.last_matrices = it->second; }
 
