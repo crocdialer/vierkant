@@ -7,6 +7,7 @@
 
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
+#include <vierkant/micromap_compute.hpp>
 
 namespace vierkant
 {
@@ -27,12 +28,19 @@ struct RayBuilder::scene_acceleration_context_t
     vierkant::BufferPtr scratch_buffer_top;
 
     //! context for computing vertex-buffers for animated meshes
-    vierkant::mesh_compute_context_ptr mesh_compute_context = nullptr;
+    vierkant::mesh_compute_context_handle mesh_compute_context = nullptr;
+
+    //! context for computing micro-triangle opacity/displacement maps
+    vierkant::micromap_compute_context_handle micromap_context = nullptr;
+
+    //! map meshes to optional micromaps per entry
+    std::unordered_map<vierkant::MeshConstPtr, std::vector<std::optional<micromap_asset_t>>> mesh_micromap_assets;
 
     //! map object-id/entity to bottom-lvl structures
     RayBuilder::entity_asset_map_t entity_assets;
 
     //! map a vierkant::Mesh to bottom-lvl structures
+
     std::map<vierkant::MeshConstPtr, std::vector<RayBuilder::acceleration_asset_ptr>> mesh_assets;
 
     //! pending builds for this frame (initial build or compaction)
@@ -81,7 +89,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 {
     // raytracing flags
     VkBuildAccelerationStructureFlagsKHR flags = 0;
-    if(params.enable_compaction) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR; }
+    if(params.compaction) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR; }
 
     // vertex-skinned meshes need to update their AABBs
     if(params.mesh->root_bone || params.mesh->morph_buffer)
@@ -108,7 +116,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
     // timelinesemaphore to track builds
     build_result_t ret = {};
     ret.semaphore = vierkant::Semaphore(m_device);
-    ret.compact = params.enable_compaction;
+    ret.compact = params.compaction;
+
     ret.build_command = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret.build_command.begin();
 
@@ -142,6 +151,34 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         triangles.vertexStride = vertex_attrib.stride;
         triangles.maxVertex = entry.num_vertices;
         triangles.transformData = {};
+
+        VkAccelerationStructureTrianglesOpacityMicromapEXT triangles_micromap = {};
+        VkMicromapUsageEXT micromap_usage = {};
+
+        // attach an existing opacity-micromap for this geometry
+        if(params.micromap_assets.size() > i && material->blend_mode == vierkant::Material::BlendMode::Mask)
+        {
+            const auto &optional_micromap_asset = params.micromap_assets[i];
+
+            if(optional_micromap_asset)
+            {
+                micromap_usage.count = lod_0.num_indices / 3;
+                micromap_usage.format = optional_micromap_asset->micromap_format;
+                micromap_usage.subdivisionLevel = optional_micromap_asset->num_subdivisions;
+
+                spdlog::warn("attaching opacity-micromaps to mesh-entry {}", i);
+                triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
+                triangles_micromap.micromap = optional_micromap_asset->micromap.get();
+                triangles_micromap.indexBuffer.deviceAddress = optional_micromap_asset->index_buffer_address;
+                triangles_micromap.indexStride = vierkant::num_bytes(VK_INDEX_TYPE_UINT32);
+                triangles_micromap.indexType = VK_INDEX_TYPE_UINT32;
+                triangles_micromap.pUsageCounts = &micromap_usage;
+                triangles_micromap.usageCountsCount = 1;
+
+                // chain extension-structure
+                triangles.pNext = &triangles_micromap;
+            }
+        }
 
         auto &geometry = geometries[i];
         geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -203,7 +240,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         vkCmdBuildAccelerationStructuresKHR(ret.build_command.handle(), 1, &build_info, &offset_ptr);
 
         // Write compacted size to query number idx.
-        if(params.enable_compaction)
+        if(params.compaction)
         {
             // barrier before reading back size
             VkMemoryBarrier barrier = {};
@@ -382,12 +419,11 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
         if(!(mesh->root_bone || mesh->morph_buffer) && object->has_component<animation_component_t>())
         {
-            auto &animation_state = object->get_component<animation_component_t>();
-            const auto &anim_state = animation_state;
+            vierkant::object_component auto &animation_state = object->get_component<animation_component_t>();
 
-            if(anim_state.index < mesh->node_animations.size())
+            if(animation_state.index < mesh->node_animations.size())
             {
-                const auto &animation = mesh->node_animations[anim_state.index];
+                const auto &animation = mesh->node_animations[animation_state.index];
                 vierkant::nodes::build_node_matrices_bfs(
                         mesh->root_node, animation, static_cast<float>(animation_state.current_time), node_transforms);
             }
@@ -462,17 +498,11 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
                     switch(type_flag)
                     {
-                        case vierkant::Material::TextureType::Color:
-                            material.albedo_index = texture_index;
-                            break;
+                        case vierkant::Material::TextureType::Color: material.albedo_index = texture_index; break;
 
-                        case vierkant::Material::TextureType::Normal:
-                            material.normalmap_index = texture_index;
-                            break;
+                        case vierkant::Material::TextureType::Normal: material.normalmap_index = texture_index; break;
 
-                        case vierkant::Material::TextureType::Emission:
-                            material.emission_index = texture_index;
-                            break;
+                        case vierkant::Material::TextureType::Emission: material.emission_index = texture_index; break;
 
                         case vierkant::Material::TextureType::Ao_rough_metal:
                             material.ao_rough_metal_index = texture_index;
@@ -708,6 +738,24 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     vierkant::semaphore_submit_info_t build_bottom_semaphore_info = {};
     build_bottom_semaphore_info.semaphore = context->semaphore.handle();
     build_bottom_semaphore_info.wait_value = semaphore_wait_value;
+
+    if(context->micromap_context && params.use_micromaps)
+    {
+        vierkant::micromap_compute_params_t micromap_params = {};
+        micromap_params.command_buffer = context->cmd_build_bottom_start.handle();
+        micromap_params.num_subdivisions = 5;
+
+        for(const auto &[entity, object, mesh_component]: view.each())
+        {
+            const auto &mesh = mesh_component.mesh;
+            if(!context->mesh_micromap_assets.contains(mesh)) { micromap_params.meshes.push_back(mesh); }
+        }
+        auto micromap_result = vierkant::micromap_compute(context->micromap_context, micromap_params);
+
+        // move newly created micromaps into context
+        for(auto &pair: micromap_result.mesh_micromap_assets) { context->mesh_micromap_assets.insert(std::move(pair)); }
+    }
+
     context->cmd_build_bottom_start.submit(m_queue, false, VK_NULL_HANDLE, {build_bottom_semaphore_info});
 
     //  cache-lookup / non-blocking build of acceleration structures
@@ -759,7 +807,10 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             create_mesh_structures_params.mesh = mesh;
             create_mesh_structures_params.vertex_buffer = vertex_buffer;
             create_mesh_structures_params.vertex_buffer_offset = vertex_buffer_offset;
-            create_mesh_structures_params.enable_compaction = !use_mesh_compute;
+
+            // move over optional micromaps
+            create_mesh_structures_params.micromap_assets = context->mesh_micromap_assets[mesh];
+            create_mesh_structures_params.compaction = !use_mesh_compute;
             create_mesh_structures_params.update_assets = std::move(previous_entity_assets[object->id()]);
             create_mesh_structures_params.semaphore_info.semaphore = context->semaphore.handle();
             create_mesh_structures_params.semaphore_info.wait_value = semaphore_wait_value;
@@ -830,6 +881,7 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
     ret->cmd_build_bottom_end = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->cmd_build_toplvl = vierkant::CommandBuffer(m_device, m_command_pool.get());
     ret->mesh_compute_context = vierkant::create_mesh_compute_context(m_device);
+    ret->micromap_context = vierkant::create_micromap_compute_context(m_device, nullptr, m_memory_pool);
     ret->query_pool =
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 

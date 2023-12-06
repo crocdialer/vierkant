@@ -58,9 +58,6 @@ private:
 
     vierkant::Rasterizer m_thresh_renderer;
     glm::vec2 m_brightness_thresh;
-
-    VkSpecializationInfo m_specialization_info = {};
-    std::array<VkSpecializationMapEntry, 2> m_specialization_entry{};
 };
 
 }// namespace vierkant

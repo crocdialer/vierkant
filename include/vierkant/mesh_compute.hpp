@@ -13,7 +13,7 @@ namespace vierkant
 {
 
 //! opaque handle owning a mesh_compute_context_t
-using mesh_compute_context_ptr =
+using mesh_compute_context_handle =
         std::unique_ptr<struct mesh_compute_context_t, std::function<void(struct mesh_compute_context_t *)>>;
 
 
@@ -30,7 +30,10 @@ struct mesh_compute_params_t
 };
 
 //! define a typesafe identifier for individual mesh-compute runs
-enum class mesh_compute_run_id_t : uint64_t { INVALID = std::numeric_limits<uint64_t>::max() };
+enum class mesh_compute_run_id_t : uint64_t
+{
+    INVALID = std::numeric_limits<uint64_t>::max()
+};
 
 struct mesh_compute_result_t
 {
@@ -52,9 +55,9 @@ struct mesh_compute_result_t
  * @param   pipeline_cache  optional vierkant::PipelineCachePtr
  * @return  opaque handle to a mesh_compute_context_t.
  */
-mesh_compute_context_ptr create_mesh_compute_context(const vierkant::DevicePtr &device,
-                                                     const vierkant::BufferPtr &result_buffer = nullptr,
-                                                     const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
+mesh_compute_context_handle create_mesh_compute_context(const vierkant::DevicePtr &device,
+                                                        const vierkant::BufferPtr &result_buffer = nullptr,
+                                                        const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
 
 /**
  * @brief   'mesh_compute' can be used to transform mesh-vertices for a list of animated meshes
@@ -64,6 +67,6 @@ mesh_compute_context_ptr create_mesh_compute_context(const vierkant::DevicePtr &
  * @param   params  a struct grouping parameters.
  * @return  a struct grouping the results of the operation.
  */
-mesh_compute_result_t mesh_compute(const mesh_compute_context_ptr &context, const mesh_compute_params_t &params);
+mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, const mesh_compute_params_t &params);
 
 }// namespace vierkant

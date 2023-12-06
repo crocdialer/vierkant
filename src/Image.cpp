@@ -5,9 +5,9 @@
 #define VK_NO_PROTOTYPES
 #include <volk.h>
 
-#include "vierkant/Image.hpp"
 #include "vierkant/Buffer.hpp"
 #include "vierkant/CommandBuffer.hpp"
+#include "vierkant/Image.hpp"
 #include "vierkant/hash.hpp"
 
 namespace vierkant
@@ -78,9 +78,9 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
             barrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
             break;
 
-            // TODO: check if this makes sense
         case VK_IMAGE_LAYOUT_GENERAL:
-            barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+            barrier.srcAccessMask =
+                    VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
             barrier.srcStageMask =
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
             break;
@@ -124,7 +124,8 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
     switch(new_layout)
     {
         case VK_IMAGE_LAYOUT_GENERAL:
-            barrier.dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+            barrier.dstAccessMask =
+                    VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
             barrier.dstStageMask =
                     VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
             break;

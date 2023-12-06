@@ -77,9 +77,6 @@ private:
     std::array<ping_pong_t, 2> m_ping_pongs;
     vierkant::Rasterizer m_renderer;
 
-    VkSpecializationInfo m_specialization_info = {};
-    VkSpecializationMapEntry m_specialization_entry = {};
-
     uint32_t m_num_iterations = 0;
     VkFormat m_color_format = VK_FORMAT_UNDEFINED;
     vierkant::CommandBuffer m_command_buffer;

@@ -28,7 +28,7 @@ public:
         //! information for a raytracing pipeline
         compute_pipeline_info_t pipeline_info = {};
 
-        //! dimensions for ray-generation
+        //! dimensions for compute-invocation
         VkExtent3D extent = {};
 
         //! a descriptormap
