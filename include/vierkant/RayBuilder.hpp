@@ -179,8 +179,8 @@ public:
         //! the scene used to generate above data
         SceneConstPtr scene;
 
-        //! maps sub-entry-indices to their entity-ids
-        std::unordered_map<uint32_t, uint32_t> entry_idx_to_object_id;
+        //! maps sub-entry-indices to their entity/sub_entry indices
+        std::unordered_map<uint32_t, vierkant::id_entry_key_t> entry_idx_to_object_id;
     };
 
     //! struct grouping parameters for 'build_scene_acceleration'-routine.
