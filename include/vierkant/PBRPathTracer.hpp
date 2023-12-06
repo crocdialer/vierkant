@@ -182,7 +182,7 @@ private:
 
         vierkant::ImagePtr denoise_image, out_image;
 
-        vierkant::BufferPtr ray_miss_ubo, composition_ubo;
+        vierkant::BufferPtr ray_camera_ubo, ray_miss_ubo, composition_ubo;
 
         BloomUPtr bloom;
 

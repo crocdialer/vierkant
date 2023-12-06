@@ -80,11 +80,12 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_asset.composition_ubo =
                 vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-
+        frame_asset.ray_camera_ubo =
+                vierkant::Buffer::create(m_device, nullptr, sizeof(camera_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
         frame_asset.ray_miss_ubo =
                 vierkant::Buffer::create(device, &frame_asset.settings.environment_factor, sizeof(float),
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
         frame_asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
         frame_asset.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
@@ -405,20 +406,10 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     desc_object_id_image.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_object_id_image.images = {m_storage_images.object_ids};
 
-    const auto &camera_params = cam->get_component<vierkant::physical_camera_component_t>();
-
-    camera_ubo_t camera_ubo = {};
-    camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
-    camera_ubo.view_inverse = vierkant::mat4_cast(cam->global_transform());
-    camera_ubo.fov = camera_params.fovy();
-    camera_ubo.aperture = frame_asset.settings.depth_of_field ? static_cast<float>(camera_params.aperture_size()) : 0.f;
-    camera_ubo.focal_distance = camera_params.focal_distance;
-
     vierkant::descriptor_t &desc_matrices = frame_asset.tracable.descriptors[3];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_matrices.buffers = {vierkant::Buffer::create(m_device, &camera_ubo, sizeof(camera_ubo),
-                                                      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
+    desc_matrices.buffers = {frame_asset.ray_camera_ubo};
 
     vierkant::descriptor_t &desc_vertex_buffers = frame_asset.tracable.descriptors[4];
     desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -453,6 +444,18 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
     desc_ray_miss_ubo.buffers = {frame_asset.ray_miss_ubo};
 
+    const vierkant::object_component auto &camera_params = cam->get_component<vierkant::physical_camera_component_t>();
+
+    // assemble camera-ubo
+    camera_ubo_t camera_ubo = {};
+    camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
+    camera_ubo.view_inverse = vierkant::mat4_cast(cam->global_transform());
+    camera_ubo.fov = camera_params.fovy();
+    camera_ubo.aperture = frame_asset.settings.depth_of_field ? static_cast<float>(camera_params.aperture_size()) : 0.f;
+    camera_ubo.focal_distance = camera_params.focal_distance;
+
+    // update uniform-buffers
+    frame_asset.ray_camera_ubo->set_data(&camera_ubo, sizeof(camera_ubo_t));
     frame_asset.ray_miss_ubo->set_data(&frame_asset.settings.environment_factor, sizeof(float));
 
     if(m_environment)
@@ -495,7 +498,6 @@ void PBRPathTracer::resize_storage(frame_asset_t &frame_asset, const glm::uvec2 
 
     if(!m_storage_images.radiance || m_storage_images.radiance->extent() != size)
     {
-
         // create storage images
         vierkant::Image::Format storage_format = {};
         storage_format.extent = size;
