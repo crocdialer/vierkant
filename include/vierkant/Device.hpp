@@ -59,6 +59,7 @@ public:
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_pipeline;
         VkPhysicalDeviceOpacityMicromapPropertiesEXT micromap_opacity;
         VkPhysicalDeviceMeshShaderPropertiesEXT mesh_shader;
+        VkPhysicalDeviceDescriptorBufferPropertiesEXT descriptor_buffer;
     };
 
     struct create_info_t
