@@ -42,11 +42,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     VmaPoolCreateInfo pool_create_info = {};
     pool_create_info.minAllocationAlignment = 256;
 
-    auto pool = vierkant::Buffer::create_pool(m_device,
-                                              VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                      VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
-                                              VMA_MEMORY_USAGE_GPU_ONLY, pool_create_info);
+    auto pool = vierkant::Buffer::create_pool(m_device, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
+                                              pool_create_info);
 
     // create our raytracing-thingies
     vierkant::RayTracer::create_info_t ray_tracer_create_info = {};
@@ -191,13 +188,10 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     render_result_t ret;
     //    for(const auto &[id, assets]: frame_asset.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
     ret.object_ids = m_storage_images.object_ids;
-    ret.object_by_index_fn = [scene,
-                              &scene_asset = frame_asset.scene_ray_acceleration](uint32_t object_idx) -> vierkant::Object3DPtr {
+    ret.object_by_index_fn =
+            [scene, &scene_asset = frame_asset.scene_ray_acceleration](uint32_t object_idx) -> vierkant::Object3DPtr {
         auto it = scene_asset.entry_idx_to_object_id.find(object_idx);
-        if(it != scene_asset.entry_idx_to_object_id.end())
-        {
-            return scene_asset.scene->object_by_id(it->second);
-        }
+        if(it != scene_asset.entry_idx_to_object_id.end()) { return scene_asset.scene->object_by_id(it->second); }
         return nullptr;
     };
 

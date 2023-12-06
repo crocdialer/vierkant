@@ -193,7 +193,7 @@ public:
         bool use_mesh_compute = true;
 
         //! enable micromap-compute for baking (opacity) triangle-micromaps per mesh-entry
-        bool use_micromaps = true;
+        bool use_micromaps = false;
 
         //! enable compaction for bottom-lvl structures
         bool use_compaction = true;

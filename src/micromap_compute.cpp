@@ -99,11 +99,9 @@ micromap_compute_context_handle create_micromap_compute_context(const DevicePtr 
     {
         VmaPoolCreateInfo pool_create_info = {};
         pool_create_info.minAllocationAlignment = micromap_compute_context_t::data_alignment;
-        ret->memory_pool = vierkant::Buffer::create_pool(device,
-                                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                                                                 VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT,
-                                                         VMA_MEMORY_USAGE_GPU_ONLY, pool_create_info);
+        ret->memory_pool = vierkant::Buffer::create_pool(
+                device, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                VMA_MEMORY_USAGE_GPU_ONLY, pool_create_info);
     }
     else { ret->memory_pool = memory_pool; }
     return ret;
