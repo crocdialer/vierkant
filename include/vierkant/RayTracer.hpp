@@ -56,8 +56,6 @@ public:
 
     RayTracer &operator=(RayTracer other);
 
-    const VkPhysicalDeviceRayTracingPipelinePropertiesKHR &properties() const { return m_properties; };
-
     /**
      * @brief   trace_rays invokes a raytracing pipeline.
      *
@@ -121,8 +119,6 @@ private:
                                                        const vierkant::raytracing_shader_map_t &shader_stages);
 
     vierkant::DevicePtr m_device;
-
-    VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_properties = {};
 
     vierkant::CommandPoolPtr m_command_pool;
 

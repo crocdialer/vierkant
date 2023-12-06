@@ -45,7 +45,6 @@ void swap(RayTracer &lhs, RayTracer &rhs) noexcept
     if(&lhs == &rhs) { return; }
 
     std::swap(lhs.m_device, rhs.m_device);
-    std::swap(lhs.m_properties, rhs.m_properties);
     std::swap(lhs.m_descriptor_pool, rhs.m_descriptor_pool);
     std::swap(lhs.m_pipeline_cache, rhs.m_pipeline_cache);
     std::swap(lhs.m_binding_tables, rhs.m_binding_tables);
@@ -61,13 +60,6 @@ RayTracer::RayTracer(const vierkant::DevicePtr &device, const create_info_t &cre
     if(!m_pipeline_cache) { m_pipeline_cache = vierkant::PipelineCache::create(device); }
 
     m_trace_assets.resize(create_info.num_frames_in_flight);
-
-    // query the ray tracing properties
-    m_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
-    VkPhysicalDeviceProperties2 deviceProps2{};
-    deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    deviceProps2.pNext = &m_properties;
-    vkGetPhysicalDeviceProperties2(m_device->physical_device(), &deviceProps2);
 
     if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
     else
@@ -160,8 +152,9 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
     auto group_create_infos = vierkant::raytracing_shader_groups(shader_stages);
 
     const uint32_t group_count = group_create_infos.size();
-    const uint32_t handle_size = m_properties.shaderGroupHandleSize;
-    const uint32_t handle_size_aligned = aligned_size(handle_size, m_properties.shaderGroupBaseAlignment);
+    const uint32_t handle_size = m_device->properties().ray_pipeline.shaderGroupHandleSize;
+    const uint32_t handle_size_aligned =
+            aligned_size(handle_size, m_device->properties().ray_pipeline.shaderGroupBaseAlignment);
     const uint32_t binding_table_size = group_count * handle_size_aligned;
 
     // retrieve the shader-handles into host-memory
