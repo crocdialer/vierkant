@@ -454,7 +454,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
             // store next entry-index
             size_t entry_idx = entries.size();
-            ret.entry_idx_to_object_id[entry_idx] = static_cast<uint32_t>(entity);
+            ret.entry_idx_to_object_id[entry_idx] = {static_cast<uint32_t>(entity), i};
             instance.instanceCustomIndex = entry_idx;
             instance.mask = 0xFF;
             instance.instanceShaderBindingTableRecordOffset = 0;

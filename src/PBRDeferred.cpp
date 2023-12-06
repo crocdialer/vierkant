@@ -232,7 +232,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::dof_frag);
 
         // depth-of-field settings uniform-buffer
-        vierkant::descriptor_t &desc_dof_ubo =  m_drawable_dof.descriptors[1];
+        vierkant::descriptor_t &desc_dof_ubo = m_drawable_dof.descriptors[1];
         desc_dof_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_dof_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         desc_dof_ubo.buffers = {vierkant::Buffer::create(
@@ -295,7 +295,7 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset)
 {
     std::unordered_set<vierkant::MeshConstPtr> meshes;
-    std::unordered_map<vierkant::id_entry_key_t, size_t, vierkant::id_entry_key_hash_t> transform_hashes;
+    std::unordered_map<vierkant::id_entry_key_t, size_t> transform_hashes;
 
     bool materials_unchanged = true;
     bool objects_unchanged = true;
@@ -459,7 +459,8 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
         {
             // picked_idx is an index into an array of drawables
             auto drawable_id = cull_result.drawables[object_idx].id;
-            return cull_result.scene->object_by_id(cull_result.entity_map.at(drawable_id));
+            const auto &[entity, sub_entry] = cull_result.entity_map.at(drawable_id);
+            return cull_result.scene->object_by_id(entity);
         }
         return nullptr;
     };
@@ -480,11 +481,11 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
 void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
 {
     // cache/collect bone-matrices
-    std::unordered_map<entt::entity, size_t> bone_buffer_offsets;
+    std::unordered_map<uint32_t, size_t> entity_bone_buffer_offsets;
     std::vector<vierkant::transform_t> all_bone_transforms;
 
     // cache/collect morph-params
-    using morph_buffer_offset_mapt_t = std::unordered_map<id_entry_key_t, size_t, id_entry_key_hash_t>;
+    using morph_buffer_offset_mapt_t = std::unordered_map<id_entry_key_t, size_t>;
     morph_buffer_offset_mapt_t morph_buffer_offsets;
     std::vector<morph_params_t> all_morph_params;
 
@@ -497,6 +498,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
 
     for(const auto &[entity, mesh_component, animation_state]: view.each())
     {
+        auto object_id = static_cast<uint32_t>(entity);
         const auto &mesh = mesh_component.mesh;
         const auto &animation = mesh->node_animations[animation_state.index];
 
@@ -512,7 +514,8 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
             if(num_bytes % min_alignment) { bone_transforms.push_back({}); }
 
             // keep track of offset
-            bone_buffer_offsets[entity] = all_bone_transforms.size() * sizeof(vierkant::transform_t);
+            entity_bone_buffer_offsets[object_id] =
+                    all_bone_transforms.size() * sizeof(vierkant::transform_t);
             all_bone_transforms.insert(all_bone_transforms.end(), bone_transforms.begin(), bone_transforms.end());
         }
         else if(mesh->morph_buffer)
@@ -525,7 +528,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)
             {
                 const auto &entry = mesh->entries[i];
-                id_entry_key_t key = {static_cast<uint32_t>(entity), i};
+                id_entry_key_t key = {object_id, i};
                 const auto &weights = node_morph_weights[entry.node_index];
 
                 morph_params_t p;
@@ -574,7 +577,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
         // insert previous matrices from cache, if any
         for(auto &drawable: frame_asset.cull_result.drawables)
         {
-            auto entity = entt::entity(frame_asset.cull_result.entity_map[drawable.id]);
+            auto [entity, sub_entry] = frame_asset.cull_result.entity_map[drawable.id];
 
             // search previous matrices
             id_entry_key_t key = {static_cast<uint32_t>(entity), drawable.entry_index};
@@ -584,7 +587,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
             // descriptors for bone buffers, if necessary
             if(drawable.mesh && drawable.mesh->root_bone)
             {
-                uint32_t buffer_offset = bone_buffer_offsets[entity];
+                uint32_t buffer_offset = entity_bone_buffer_offsets[entity];
 
                 vierkant::descriptor_t desc_bones = {};
                 desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;

@@ -192,7 +192,11 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     ret.object_by_index_fn =
             [scene, &scene_asset = frame_asset.scene_ray_acceleration](uint32_t object_idx) -> vierkant::Object3DPtr {
         auto it = scene_asset.entry_idx_to_object_id.find(object_idx);
-        if(it != scene_asset.entry_idx_to_object_id.end()) { return scene_asset.scene->object_by_id(it->second); }
+        if(it != scene_asset.entry_idx_to_object_id.end())
+        {
+            auto [object_id, sub_entry] = it->second;
+            return scene_asset.scene->object_by_id(object_id);
+        }
         return nullptr;
     };
 

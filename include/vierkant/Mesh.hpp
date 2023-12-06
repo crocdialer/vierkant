@@ -338,6 +338,18 @@ struct mesh_component_t
     std::optional<std::set<uint32_t>> entry_indices = {};
 };
 
+//! helper struct to group an entity/id with a sub-entry-index
+struct id_entry_key_t
+{
+    uint32_t id;
+    uint32_t entry;
+
+    inline bool operator==(const id_entry_key_t &other) const
+    {
+        return id == other.id && entry == other.entry;
+    }
+};
+
 }//namespace vierkant
 
 // template specializations for hashing
@@ -353,6 +365,12 @@ template<>
 struct hash<vierkant::animated_mesh_t>
 {
     size_t operator()(vierkant::animated_mesh_t const &key) const;
+};
+
+template<>
+struct hash<vierkant::id_entry_key_t>
+{
+    size_t operator()(vierkant::id_entry_key_t const &key) const;
 };
 
 }
