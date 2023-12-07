@@ -245,7 +245,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         std::vector<VkDescriptorSet> descriptor_set_handles;
         VkRect2D scissor = {};
     };
-    using draw_batch_t = std::vector<std::pair<vierkant::MeshConstPtr, indirect_draw_asset_t>>;
+    using draw_batch_t = std::vector<std::pair<const Mesh *, indirect_draw_asset_t>>;
     std::unordered_map<graphics_pipeline_info_t, draw_batch_t> pipelines;
 
     std::vector<vierkant::ImagePtr> textures;
@@ -371,7 +371,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             auto &drawable = indexed_drawable.drawable;
 
             // create new indirect-draw batch
-            if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
+            if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh.get())
             {
                 indirect_draw_asset_t new_draw = {};
                 new_draw.count_buffer_offset = count_buffer_offset++;
@@ -405,7 +405,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
                 new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
 
-                indirect_draws.emplace_back(drawable->mesh, std::move(new_draw));
+                indirect_draws.emplace_back(drawable->mesh.get(), std::move(new_draw));
             }
             auto &indirect_draw_asset = indirect_draws.back().second;
             indirect_draw_asset.num_draws++;
@@ -486,7 +486,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             vkCmdSetViewport(command_buffer, 0, 1, &viewport);
         }
 
-        vierkant::MeshConstPtr current_mesh;
+        const vierkant::Mesh *current_mesh;
 
         for(auto &[mesh, draw_asset]: indirect_draws)
         {

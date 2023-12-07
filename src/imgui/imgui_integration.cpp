@@ -392,24 +392,20 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
     auto &drawable = m_imgui_assets.drawable;
-//    drawable.mesh = mesh;
     drawable.pipeline_format = std::move(pipeline_fmt);
 
     // descriptors
-    vierkant::descriptor_t desc_matrix = {};
+    vierkant::descriptor_t &desc_matrix = drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS];
     desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-    drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
 
-    vierkant::descriptor_t desc_material = {};
+    vierkant::descriptor_t &desc_material = drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL];
     desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
 
-    vierkant::descriptor_t desc_texture = {};
+    vierkant::descriptor_t &desc_texture = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
     desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES] = desc_texture;
 
     drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(device, drawable.descriptors);
     drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
