@@ -1,6 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_buffer_reference2: require
+#extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 
@@ -12,14 +14,12 @@ layout(push_constant) uniform PushConstants {
     render_context_t context;
 };
 
+layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
+layout(binding = BINDING_VERTICES, set = 0, scalar) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
+
 layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 {
     indexed_indirect_command_t draw_commands[];
-};
-
-layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
-{
-    packed_vertex_t vertices[];
 };
 
 layout(set = 0, binding = BINDING_BONE_VERTEX_DATA) readonly buffer BoneVertexBuffer
@@ -60,7 +60,11 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 
 void main()
 {
-    const Vertex v = unpack(vertices[gl_VertexIndex]);
+    indices.mesh_draw_index = gl_BaseInstance;
+    indices.material_index = draws[gl_BaseInstance].material_index;
+
+    // retrieve vertex-buffer, unpack vertex
+    Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].mesh_index].v[gl_VertexIndex]);
 
     vec4 bone_weights = vec4(float(bone_vertex_data[gl_VertexIndex].weight_x),
                              float(bone_vertex_data[gl_VertexIndex].weight_y),
@@ -70,9 +74,6 @@ void main()
                            uint(bone_vertex_data[gl_VertexIndex].index_y),
                            uint(bone_vertex_data[gl_VertexIndex].index_z),
                            uint(bone_vertex_data[gl_VertexIndex].index_w));
-
-    indices.mesh_draw_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex;
-    indices.material_index = draws[gl_BaseInstance].material_index;
 
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;

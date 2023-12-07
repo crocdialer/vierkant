@@ -100,6 +100,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
             desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
             desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+            // TODO: overthink descriptor creation here, move to Rasterizer
             if(drawable.mesh->vertex_buffer)
             {
                 auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_VERTICES];

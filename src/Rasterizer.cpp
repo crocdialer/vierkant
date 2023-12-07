@@ -304,7 +304,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         drawable.material.base_texture_index = texture_base_index_map[create_mesh_key(drawable)];
     }
 
-    // update uniform buffers
+    // create/update uniform/storage buffers
     update_buffers(frame_assets.drawables, frame_assets);
 
     // sort by pipelines
@@ -382,6 +382,11 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 // predefined buffers
                 if(!drawable->use_own_buffers)
                 {
+                    if(drawable->descriptors.contains(BINDING_VERTICES))
+                    {
+                        drawable->descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
+                    }
+
                     drawable->descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.mesh_draw_buffer};
                     drawable->descriptors[BINDING_MATERIAL].buffers = {frame_assets.material_buffer};
 
@@ -634,6 +639,7 @@ void Rasterizer::reset()
 
 void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Rasterizer::frame_assets_t &frame_asset)
 {
+    std::vector<VkDeviceAddress> vertex_buffer_refs;
     std::vector<mesh_entry_t> mesh_entries;
     std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
 
@@ -646,17 +652,18 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
+        const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
         vierkant::MaterialConstPtr mat;
 
-        if(drawables[i].mesh && !drawables[i].mesh->entries.empty())
+        if(drawable.mesh && !drawable.mesh->entries.empty())
         {
-            auto mesh_entry_it = mesh_entry_map.find({drawables[i].mesh, drawables[i].entry_index});
+            auto mesh_entry_it = mesh_entry_map.find({drawable.mesh, drawable.entry_index});
             if(mesh_entry_it == mesh_entry_map.end())
             {
                 mesh_index = mesh_entries.size();
-                mesh_entry_map[{drawables[i].mesh, drawables[i].entry_index}] = mesh_index;
-                const auto &e = drawables[i].mesh->entries[drawables[i].entry_index];
+                mesh_entry_map[{drawable.mesh, drawable.entry_index}] = mesh_index;
+                const auto &e = drawable.mesh->entries[drawable.entry_index];
                 mesh_entry_t mesh_entry = {};
                 mesh_entry.vertex_offset = e.vertex_offset;
                 mesh_entry.vertex_count = e.num_vertices;
@@ -666,25 +673,26 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 mesh_entry.center = e.bounding_sphere.center;
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
+                vertex_buffer_refs.push_back(drawable.mesh->vertex_buffer->device_address());
             }
             else { mesh_index = mesh_entry_it->second; }
 
-            mat = drawables[i].mesh->materials[drawables[i].mesh->entries[drawables[i].entry_index].material_index];
+            mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
 
             if(!material_index_map.contains(mat))
             {
                 material_index_map[mat] = material_data.size();
-                material_data.push_back(drawables[i].material);
+                material_data.push_back(drawable.material);
             }
         }
-        else { material_data.push_back(drawables[i].material); }
+        else { material_data.push_back(drawable.material); }
 
-        mesh_draws[i].current_matrices = drawables[i].matrices;
+        mesh_draws[i].current_matrices = drawable.matrices;
         mesh_draws[i].mesh_index = mesh_index;
         mesh_draws[i].material_index = material_index_map[mat];
 
-        if(drawables[i].last_matrices) { mesh_draws[i].last_matrices = *drawables[i].last_matrices; }
-        else { mesh_draws[i].last_matrices = drawables[i].matrices; }
+        if(drawable.last_matrices) { mesh_draws[i].last_matrices = *drawable.last_matrices; }
+        else { mesh_draws[i].last_matrices = drawable.matrices; }
     }
 
     auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer) {
@@ -742,6 +750,8 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         }
         frame_asset.staging_command_buffer.begin();
 
+        add_staging_copy(vertex_buffer_refs, frame_asset.vertex_buffer_refs, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                         VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: vertex_buffer_refs");
         add_staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_entries");
         add_staging_copy(mesh_draws, frame_asset.mesh_draw_buffer,
@@ -760,6 +770,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     else
     {
         // create/upload joined buffers
+        copy_to_buffer(vertex_buffer_refs, frame_asset.vertex_buffer_refs);
         copy_to_buffer(mesh_entries, frame_asset.mesh_entry_buffer);
         copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
         copy_to_buffer(material_data, frame_asset.material_buffer);

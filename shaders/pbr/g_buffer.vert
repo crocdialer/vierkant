@@ -1,16 +1,16 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_buffer_reference2: require
+#extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_scalar_block_layout : enable
 
 #include "../renderer/types.glsl"
 #include "../utils/packed_vertex.glsl"
 #include "../utils/camera.glsl"
 
-layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
-{
-    packed_vertex_t vertices[];
-};
+layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
+layout(binding = BINDING_VERTICES, set = 0, scalar) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
 
 layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
@@ -40,11 +40,12 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 
 void main()
 {
-    Vertex v = unpack(vertices[gl_VertexIndex]);
-
-    indices.mesh_draw_index = gl_BaseInstance;//gl_BaseInstance + gl_InstanceIndex
+    indices.mesh_draw_index = gl_BaseInstance;
     indices.material_index = draws[gl_BaseInstance].material_index;
     indices.meshlet_index = 0;
+
+    // retrieve vertex-buffer, unpack vertex
+    Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].mesh_index].v[gl_VertexIndex]);
 
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
