@@ -486,7 +486,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             vkCmdSetViewport(command_buffer, 0, 1, &viewport);
         }
 
-        const vierkant::Mesh *current_mesh;
+        const vierkant::Mesh *current_mesh = nullptr;
 
         for(auto &[mesh, draw_asset]: indirect_draws)
         {
