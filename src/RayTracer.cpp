@@ -22,8 +22,7 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
 
 std::vector<const char *> RayTracer::required_extensions()
 {
-    return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
-            VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME};
+    return {VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME};
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
