@@ -163,7 +163,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
                 {
                     const auto &buf = desc.buffers[j];
 
-                    if(buf)
+                    if(buf && buf->handle())
                     {
                         VkDescriptorBufferInfo buffer_info = {};
                         buffer_info.buffer = buf->handle();

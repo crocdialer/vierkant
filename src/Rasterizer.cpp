@@ -285,12 +285,11 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
     vierkant::descriptor_map_t bindless_texture_desc;
 
-    vierkant::descriptor_t desc_texture = {};
-    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    //    desc_texture.variable_count = true;
-    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.images = textures;
-    bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
+    vierkant::descriptor_t desc_all_textures = {};
+    desc_all_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_all_textures.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_all_textures.images = textures;
+    bindless_texture_desc[BINDING_TEXTURES] = desc_all_textures;
 
     auto bindless_texture_layout = vierkant::find_or_create_set_layout(
             m_device, bindless_texture_desc, frame_assets.descriptor_set_layouts, next_set_layouts);
@@ -331,7 +330,32 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
         if(!drawable.descriptor_set_layout)
         {
-            // TODO: improve condition here. idea is to only provide a global texture-array
+            if(!drawable.use_own_buffers)
+            {
+                // descriptors
+                auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_VERTICES];
+                desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+                auto &desc_draws = drawable.descriptors[Rasterizer::BINDING_DRAW_COMMANDS];
+                desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_draws.stage_flags =
+                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+                auto &desc_mesh_draws = drawable.descriptors[Rasterizer::BINDING_MESH_DRAWS];
+                desc_mesh_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_mesh_draws.stage_flags =
+                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+                auto &desc_material = drawable.descriptors[Rasterizer::BINDING_MATERIAL];
+                desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+                auto &desc_texture = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
+                desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            }
+            // only provide a global texture-array for indirect draws
             if(indirect_draw) { drawable.descriptors.erase(BINDING_TEXTURES); }
 
             indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(
@@ -382,18 +406,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 // predefined buffers
                 if(!drawable->use_own_buffers)
                 {
-                    if(drawable->descriptors.contains(BINDING_VERTICES))
-                    {
-                        drawable->descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
-                    }
-
+                    drawable->descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
                     drawable->descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.mesh_draw_buffer};
                     drawable->descriptors[BINDING_MATERIAL].buffers = {frame_assets.material_buffer};
-
-                    if(drawable->descriptors.count(BINDING_DRAW_COMMANDS) && draw_buffer_indexed)
-                    {
-                        drawable->descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
-                    }
+                    drawable->descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
                 }
 
                 auto descriptor_set = vierkant::find_or_create_descriptor_set(
