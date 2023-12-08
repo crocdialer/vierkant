@@ -3,10 +3,11 @@
 #extension GL_EXT_mesh_shader : require
 
 #extension GL_GOOGLE_include_directive : require
-#extension GL_EXT_scalar_block_layout : require
+#extension GL_EXT_buffer_reference2: require
+#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_shader_16bit_storage: require
-
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 
 #include "../renderer/mesh_task_payload.glsl"
@@ -21,10 +22,8 @@ layout(triangles, max_vertices = 64, max_primitives = 64) out;
 
 #define CULLING 0
 
-layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
-{
-    packed_vertex_t vertices[];
-};
+layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
+layout(binding = BINDING_VERTICES, set = 0, scalar) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
 
 layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
 {
@@ -88,7 +87,9 @@ void main()
     for(uint i = ti; i < meshlets[mi].vertex_count; i += MESH_WORKGROUP_SIZE)
     {
         uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
-        const Vertex v = unpack(vertices[vi]);
+
+        // retrieve vertex-buffer, unpack vertex
+        const Vertex v = unpack(vertex_buffers[draws[task_payload.object_index].mesh_index].v[vi]);
 
         vertex_out[i].current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, v.position), 1.0);
         vertex_out[i].last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, v.position), 1.0);

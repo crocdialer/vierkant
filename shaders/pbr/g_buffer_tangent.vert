@@ -1,6 +1,8 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_buffer_reference2: require
+#extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 
@@ -8,10 +10,8 @@
 #include "../utils/packed_vertex.glsl"
 #include "../utils/camera.glsl"
 
-layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
-{
-    packed_vertex_t vertices[];
-};
+layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
+layout(binding = BINDING_VERTICES, set = 0, scalar) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
 
 layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
@@ -41,13 +41,13 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 
 void main()
 {
-    const Vertex v = unpack(vertices[gl_VertexIndex]);
-
     indices.mesh_draw_index = gl_BaseInstance;
     indices.material_index = draws[gl_BaseInstance].material_index;
 
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
+
+    Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].mesh_index].v[gl_VertexIndex]);
 
     vertex_out.current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, v.position), 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, v.position), 1.0);

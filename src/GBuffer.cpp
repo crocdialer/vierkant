@@ -90,8 +90,8 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
     auto pbr_tangent_skin_vert =
             vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_skin_vert);
 
-    auto pbr_tangent_tess_vert =
-            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_tess_vert);
+//    auto pbr_tangent_tess_vert =
+//            vierkant::create_shader_module(device, vierkant::shaders::pbr::g_buffer_tangent_tess_vert);
     auto tess_control = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tesc);
     auto tess_eval = vierkant::create_shader_module(device, vierkant::shaders::pbr::tess_pn_triangle_tese);
 
@@ -120,12 +120,12 @@ g_buffer_stage_map_t create_g_buffer_shader_stages(const DevicePtr &device)
     stages_skin_albedo[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_skin_vert;
     stages_skin_albedo[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
 
-    //  normals + tesselation
-    auto &stages_albedo_normal_tess = ret[PROP_TANGENT_SPACE | PROP_TESSELATION];
-    stages_albedo_normal_tess[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_tess_vert;
-    stages_albedo_normal_tess[VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT] = tess_control;
-    stages_albedo_normal_tess[VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT] = tess_eval;
-    stages_albedo_normal_tess[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
+//    //  normals + tesselation
+//    auto &stages_albedo_normal_tess = ret[PROP_TANGENT_SPACE | PROP_TESSELATION];
+//    stages_albedo_normal_tess[VK_SHADER_STAGE_VERTEX_BIT] = pbr_tangent_tess_vert;
+//    stages_albedo_normal_tess[VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT] = tess_control;
+//    stages_albedo_normal_tess[VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT] = tess_eval;
+//    stages_albedo_normal_tess[VK_SHADER_STAGE_FRAGMENT_BIT] = pbr_g_buffer_uber_frag;
 
     // meshlet pipelines
     auto &stages_mesh = ret[PROP_TANGENT_SPACE | PROP_MESHLETS];

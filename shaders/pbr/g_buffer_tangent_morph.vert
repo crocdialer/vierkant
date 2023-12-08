@@ -1,6 +1,8 @@
 #version 460
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_buffer_reference2: require
+#extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_scalar_block_layout : enable
 
 #include "../renderer/types.glsl"
@@ -17,14 +19,12 @@ struct morph_params_t
     float weights[61];
 };
 
+layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
+layout(binding = BINDING_VERTICES, set = 0, scalar) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
+
 layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 {
     indexed_indirect_command_t draw_commands[];
-};
-
-layout(set = 0, binding = BINDING_VERTICES, scalar) readonly buffer VertexBuffer
-{
-    packed_vertex_t vertices[];
 };
 
 layout(std140, binding = BINDING_MORPH_TARGETS, scalar) readonly buffer MorphVertices
@@ -71,7 +71,13 @@ layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 void main()
 {
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
-    Vertex v = unpack(vertices[gl_VertexIndex]);
+    indices.mesh_draw_index = draw_command.object_index;
+    indices.material_index = draws[draw_command.object_index].material_index;
+    matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
+    matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
+
+    // retrieve vertex-buffer, unpack vertex
+    Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].mesh_index].v[gl_VertexIndex]);
     vec3 last_position = v.position;
 
     vec3 new_normal = vec3(0);
@@ -88,11 +94,6 @@ void main()
 
         last_position += morph_vertices[morph_index].position * prev_morph_params.weights[i];
     }
-
-    indices.mesh_draw_index = draw_command.object_index;
-    indices.material_index = draws[draw_command.object_index].material_index;
-    matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
-    matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
     vertex_out.current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, v.position), 1.0);
     vertex_out.last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, last_position), 1.0);

@@ -85,29 +85,6 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
 
         if(!drawable.use_own_buffers)
         {
-            // descriptors
-            auto &desc_draws = drawable.descriptors[Rasterizer::BINDING_DRAW_COMMANDS];
-            desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_draws.stage_flags =
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
-
-            auto &desc_mesh_draws = drawable.descriptors[Rasterizer::BINDING_MESH_DRAWS];
-            desc_mesh_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_mesh_draws.stage_flags =
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
-
-            auto &desc_material = drawable.descriptors[Rasterizer::BINDING_MATERIAL];
-            desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            if(drawable.mesh->vertex_buffer)
-            {
-                auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_VERTICES];
-                desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_vertices.buffers = {drawable.mesh->vertex_buffer};
-            }
-
             if(drawable.mesh->bone_vertex_buffer)
             {
                 auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_BONE_VERTEX_DATA];
@@ -151,7 +128,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         // textures
         if(!material->textures.empty())
         {
-            vierkant::descriptor_t desc_texture = {};
+            vierkant::descriptor_t &desc_texture = drawable.descriptors[Rasterizer::BINDING_TEXTURES];
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
@@ -163,7 +140,6 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
                     desc_texture.images.push_back(tex);
                 }
             }
-            drawable.descriptors[Rasterizer::BINDING_TEXTURES] = desc_texture;
         }
 
         // push drawable to vector

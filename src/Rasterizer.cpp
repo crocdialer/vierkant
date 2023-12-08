@@ -245,7 +245,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         std::vector<VkDescriptorSet> descriptor_set_handles;
         VkRect2D scissor = {};
     };
-    using draw_batch_t = std::vector<std::pair<vierkant::MeshConstPtr, indirect_draw_asset_t>>;
+    using draw_batch_t = std::vector<std::pair<const Mesh *, indirect_draw_asset_t>>;
     std::unordered_map<graphics_pipeline_info_t, draw_batch_t> pipelines;
 
     std::vector<vierkant::ImagePtr> textures;
@@ -285,12 +285,11 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
     vierkant::descriptor_map_t bindless_texture_desc;
 
-    vierkant::descriptor_t desc_texture = {};
-    desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    //    desc_texture.variable_count = true;
-    desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    desc_texture.images = textures;
-    bindless_texture_desc[BINDING_TEXTURES] = desc_texture;
+    vierkant::descriptor_t desc_all_textures = {};
+    desc_all_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    desc_all_textures.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    desc_all_textures.images = textures;
+    bindless_texture_desc[BINDING_TEXTURES] = desc_all_textures;
 
     auto bindless_texture_layout = vierkant::find_or_create_set_layout(
             m_device, bindless_texture_desc, frame_assets.descriptor_set_layouts, next_set_layouts);
@@ -304,7 +303,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         drawable.material.base_texture_index = texture_base_index_map[create_mesh_key(drawable)];
     }
 
-    // update uniform buffers
+    // create/update uniform/storage buffers
     update_buffers(frame_assets.drawables, frame_assets);
 
     // sort by pipelines
@@ -331,7 +330,32 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
         if(!drawable.descriptor_set_layout)
         {
-            // TODO: improve condition here. idea is to only provide a global texture-array
+            if(!drawable.use_own_buffers)
+            {
+                // descriptors
+                auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_VERTICES];
+                desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+                auto &desc_draws = drawable.descriptors[Rasterizer::BINDING_DRAW_COMMANDS];
+                desc_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_draws.stage_flags =
+                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+                auto &desc_mesh_draws = drawable.descriptors[Rasterizer::BINDING_MESH_DRAWS];
+                desc_mesh_draws.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_mesh_draws.stage_flags =
+                        VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT;
+
+                auto &desc_material = drawable.descriptors[Rasterizer::BINDING_MATERIAL];
+                desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+                auto &desc_texture = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
+                desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+            }
+            // only provide a global texture-array for indirect draws
             if(indirect_draw) { drawable.descriptors.erase(BINDING_TEXTURES); }
 
             indexed_drawable.descriptor_set_layout = vierkant::find_or_create_set_layout(
@@ -371,7 +395,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             auto &drawable = indexed_drawable.drawable;
 
             // create new indirect-draw batch
-            if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh)
+            if(!indirect_draw || indirect_draws.empty() || indirect_draws.back().first != drawable->mesh.get())
             {
                 indirect_draw_asset_t new_draw = {};
                 new_draw.count_buffer_offset = count_buffer_offset++;
@@ -382,13 +406,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 // predefined buffers
                 if(!drawable->use_own_buffers)
                 {
+                    drawable->descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
                     drawable->descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.mesh_draw_buffer};
                     drawable->descriptors[BINDING_MATERIAL].buffers = {frame_assets.material_buffer};
-
-                    if(drawable->descriptors.count(BINDING_DRAW_COMMANDS) && draw_buffer_indexed)
-                    {
-                        drawable->descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
-                    }
+                    drawable->descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
                 }
 
                 auto descriptor_set = vierkant::find_or_create_descriptor_set(
@@ -400,7 +421,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
                 new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
 
-                indirect_draws.emplace_back(drawable->mesh, std::move(new_draw));
+                indirect_draws.emplace_back(drawable->mesh.get(), std::move(new_draw));
             }
             auto &indirect_draw_asset = indirect_draws.back().second;
             indirect_draw_asset.num_draws++;
@@ -481,7 +502,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             vkCmdSetViewport(command_buffer, 0, 1, &viewport);
         }
 
-        vierkant::MeshConstPtr current_mesh;
+        const vierkant::Mesh *current_mesh = nullptr;
 
         for(auto &[mesh, draw_asset]: indirect_draws)
         {
@@ -634,6 +655,7 @@ void Rasterizer::reset()
 
 void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Rasterizer::frame_assets_t &frame_asset)
 {
+    std::vector<VkDeviceAddress> vertex_buffer_refs;
     std::vector<mesh_entry_t> mesh_entries;
     std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
 
@@ -646,17 +668,18 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
+        const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
         vierkant::MaterialConstPtr mat;
 
-        if(drawables[i].mesh && !drawables[i].mesh->entries.empty())
+        if(drawable.mesh && !drawable.mesh->entries.empty())
         {
-            auto mesh_entry_it = mesh_entry_map.find({drawables[i].mesh, drawables[i].entry_index});
+            auto mesh_entry_it = mesh_entry_map.find({drawable.mesh, drawable.entry_index});
             if(mesh_entry_it == mesh_entry_map.end())
             {
                 mesh_index = mesh_entries.size();
-                mesh_entry_map[{drawables[i].mesh, drawables[i].entry_index}] = mesh_index;
-                const auto &e = drawables[i].mesh->entries[drawables[i].entry_index];
+                mesh_entry_map[{drawable.mesh, drawable.entry_index}] = mesh_index;
+                const auto &e = drawable.mesh->entries[drawable.entry_index];
                 mesh_entry_t mesh_entry = {};
                 mesh_entry.vertex_offset = e.vertex_offset;
                 mesh_entry.vertex_count = e.num_vertices;
@@ -666,25 +689,26 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 mesh_entry.center = e.bounding_sphere.center;
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
+                vertex_buffer_refs.push_back(drawable.mesh->vertex_buffer->device_address());
             }
             else { mesh_index = mesh_entry_it->second; }
 
-            mat = drawables[i].mesh->materials[drawables[i].mesh->entries[drawables[i].entry_index].material_index];
+            mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
 
             if(!material_index_map.contains(mat))
             {
                 material_index_map[mat] = material_data.size();
-                material_data.push_back(drawables[i].material);
+                material_data.push_back(drawable.material);
             }
         }
-        else { material_data.push_back(drawables[i].material); }
+        else { material_data.push_back(drawable.material); }
 
-        mesh_draws[i].current_matrices = drawables[i].matrices;
+        mesh_draws[i].current_matrices = drawable.matrices;
         mesh_draws[i].mesh_index = mesh_index;
         mesh_draws[i].material_index = material_index_map[mat];
 
-        if(drawables[i].last_matrices) { mesh_draws[i].last_matrices = *drawables[i].last_matrices; }
-        else { mesh_draws[i].last_matrices = drawables[i].matrices; }
+        if(drawable.last_matrices) { mesh_draws[i].last_matrices = *drawable.last_matrices; }
+        else { mesh_draws[i].last_matrices = drawable.matrices; }
     }
 
     auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer) {
@@ -742,6 +766,8 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         }
         frame_asset.staging_command_buffer.begin();
 
+        add_staging_copy(vertex_buffer_refs, frame_asset.vertex_buffer_refs, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                         VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: vertex_buffer_refs");
         add_staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_entries");
         add_staging_copy(mesh_draws, frame_asset.mesh_draw_buffer,
@@ -760,6 +786,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     else
     {
         // create/upload joined buffers
+        copy_to_buffer(vertex_buffer_refs, frame_asset.vertex_buffer_refs);
         copy_to_buffer(mesh_entries, frame_asset.mesh_entry_buffer);
         copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
         copy_to_buffer(material_data, frame_asset.material_buffer);

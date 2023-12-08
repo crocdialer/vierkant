@@ -267,6 +267,7 @@ private:
         descriptor_set_map_t descriptor_sets;
 
         // SSBOs containing everything (using gpu-mem iff a queue was provided)
+        vierkant::BufferPtr vertex_buffer_refs;
         vierkant::BufferPtr mesh_draw_buffer;
         vierkant::BufferPtr mesh_entry_buffer;
         vierkant::BufferPtr material_buffer;
