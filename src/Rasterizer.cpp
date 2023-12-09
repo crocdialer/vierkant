@@ -25,8 +25,8 @@ constexpr uint32_t query_count = 2;
 
 struct texture_index_key_t
 {
-    vierkant::MeshConstPtr mesh;
-    size_t texture_hash;
+    const vierkant::Mesh *mesh = nullptr;
+    size_t texture_hash = 0;
 
     inline bool operator==(const texture_index_key_t &other) const
     {
@@ -193,7 +193,7 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
     inheritance.framebuffer = framebuffer.handle();
     inheritance.renderPass = framebuffer.renderpass().get();
 
-    // begin secondaruy command-buffer
+    // begin secondary command-buffer
     auto &command_buffer = frame_assets.command_buffer;
     command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
 
@@ -258,9 +258,9 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
     auto create_mesh_key = [create_texture_hash](const drawable_t &drawable) -> texture_index_key_t {
         auto it = drawable.descriptors.find(BINDING_TEXTURES);
-        if(it == drawable.descriptors.end() || it->second.images.empty()) { return {drawable.mesh, {}}; }
+        if(it == drawable.descriptors.end() || it->second.images.empty()) { return {drawable.mesh.get(), {}}; }
         const auto &drawable_textures = it->second.images;
-        return {drawable.mesh, create_texture_hash(drawable_textures)};
+        return {drawable.mesh.get(), create_texture_hash(drawable_textures)};
     };
 
     texture_index_map_t texture_base_index_map;
@@ -274,7 +274,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         const auto &drawable_textures = it->second.images;
 
         // insert other textures from drawables
-        texture_index_key_t key = {drawable.mesh, create_texture_hash(drawable_textures)};
+        texture_index_key_t key = {drawable.mesh.get(), create_texture_hash(drawable_textures)};
 
         if(!texture_base_index_map.count(key))
         {
@@ -285,11 +285,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
     vierkant::descriptor_map_t bindless_texture_desc;
 
-    vierkant::descriptor_t desc_all_textures = {};
+    auto &desc_all_textures = bindless_texture_desc[BINDING_TEXTURES];
     desc_all_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_all_textures.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_all_textures.images = textures;
-    bindless_texture_desc[BINDING_TEXTURES] = desc_all_textures;
 
     auto bindless_texture_layout = vierkant::find_or_create_set_layout(
             m_device, bindless_texture_desc, frame_assets.descriptor_set_layouts, next_set_layouts);
