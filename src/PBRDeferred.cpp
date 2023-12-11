@@ -426,6 +426,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     frame_asset.timeline.wait(frame_asset.semaphore_value_done);
     frame_asset.timeline = vierkant::Semaphore(m_device);
 
+    // start label
+    vierkant::begin_label(m_queue, {"PBRDeferred::render_scene"});
+
     resize_storage(frame_asset, settings.resolution, settings.output_resolution);
 
     // apply+update transform history
@@ -451,6 +454,9 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
 
     // draw final color+depth with provided renderer
     m_draw_context.draw_image_fullscreen(renderer, out_img, depth_img, true);
+
+    // end debug label
+    vierkant::end_label(m_queue);
 
     SceneRenderer::render_result_t ret = {};
     ret.object_by_index_fn = [scene,

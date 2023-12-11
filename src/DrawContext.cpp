@@ -221,25 +221,6 @@ void DrawContext::draw_text(vierkant::Rasterizer &renderer, const std::string &t
         pipeline_fmt.cull_mode = VK_CULL_MODE_BACK_BIT;
         pipeline_fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
         drawable.pipeline_format = std::move(pipeline_fmt);
-
-        // descriptors
-        vierkant::descriptor_t desc_matrix = {};
-        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
-
-        vierkant::descriptor_t desc_material = {};
-        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
-
-        vierkant::descriptor_t desc_texture = {};
-        desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES] = desc_texture;
-
-        drawable.descriptor_set_layout = vierkant::create_descriptor_set_layout(m_device, drawable.descriptors);
-        drawable.pipeline_format.descriptor_set_layouts = {drawable.descriptor_set_layout.get()};
         drawable_it = m_drawables.insert({DrawableType::Lines, std::move(drawable)}).first;
     }
 
