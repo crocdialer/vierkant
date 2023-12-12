@@ -52,7 +52,8 @@ endfunction(GET_SHADER_SOURCES)
 
 function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR SPIRV_OUT_DIR SOURCE_OUT_DIR)
 
-    set(SPIRV_TARGET_ENV vulkan1.3)
+    # NOTE: seeing some issues with spirv-reflect/local-sizes between 1.2<->1.3
+    set(SPIRV_TARGET_ENV vulkan1.2)
     set(TOP_NAMESPACE "vierkant::shaders")
 
     # remove existing spirv files

@@ -507,6 +507,10 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
                         case vierkant::Material::TextureType::Ao_rough_metal:
                             material.ao_rough_metal_index = texture_index;
                             break;
+
+                        case vierkant::Material::TextureType::Transmission:
+                            material.transmission_index = texture_index;
+                            break;
                         default: break;
                     }
                 }

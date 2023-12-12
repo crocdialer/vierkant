@@ -4,14 +4,15 @@ cmake_minimum_required(VERSION 3.12)
 project(vierkant)
 
 # retrieve git-commit hash/date
+find_program(GIT_BINARY git)
 execute_process(
-        COMMAND git log -1 --format=%h
+        COMMAND ${GIT_BINARY} log -1 --format=%h
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_COMMIT_HASH
         OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 execute_process(
-        COMMAND git log -1 --format=%cd --date=local
+        COMMAND ${GIT_BINARY} log -1 --format=%cd --date=local
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_COMMIT_DATE
         OUTPUT_STRIP_TRAILING_WHITESPACE)
