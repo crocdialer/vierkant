@@ -214,8 +214,8 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     // create vertexbuffer
     vierkant::BufferPtr vertex_buffer;
     staging_copy(mesh_buffer_bundle.vertex_buffer, vertex_buffer,
-                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                         create_info.buffer_usage_flags);
+                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags);
 
     auto mesh = vierkant::Mesh::create();
     mesh->vertex_buffer = vertex_buffer;
@@ -223,7 +223,8 @@ vierkant::MeshPtr Mesh::create_from_bundle(const vierkant::DevicePtr &device,
     mesh->entries = mesh_buffer_bundle.entries;
     for(auto &[location, vertex_attrib]: mesh->vertex_attribs) { vertex_attrib.buffer = vertex_buffer; }
 
-    auto buffer_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | create_info.buffer_usage_flags;
+    auto buffer_flags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                        create_info.buffer_usage_flags;
 
     if(!mesh_buffer_bundle.morph_buffer.empty())
     {
