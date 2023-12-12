@@ -255,6 +255,13 @@ void main()
         material.metalness *= rough_metal_tex.y;
     }
 
+    // transmission
+    if((material.texture_type_flags & TEXTURE_TYPE_TRANSMISSION) != 0)
+    {
+        material.transmission *= sample_texture_lod(u_textures[material.ao_rough_metal_index],
+                                                    v.tex_coord, NoV, payload.cone.width, triangle_lod).x;
+    }
+
     float eta = payload.transmission ? material.ior / payload.ior : payload.ior / material.ior;
     eta += EPS;
 
@@ -263,17 +270,6 @@ void main()
 
     if(sample_surface)
     {
-        #if USE_DIRECT_LIGHTING
-        sunlight_params_t sun_params;
-        sun_params.color = vec3(1.0, 0.6, 0.4);
-        sun_params.intensity = 1.0;
-        sun_params.direction = normalize(vec3(.4, 1.0, 0.7));
-        sun_params.angular_size = 0.524167 *  PI / 180.0;
-        vec3 sun_L = sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.ff_normal, V, eta,
-        rng_state);
-        payload.radiance += payload.beta * sun_L;
-        #endif
-
         // propagate ray-cone
         payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
@@ -286,11 +282,25 @@ void main()
         payload.ray.direction = bsdf_sample.direction;
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
 
-        payload.beta *= bsdf_sample.F * cos_theta / (bsdf_sample.pdf + PDF_EPS);
+        payload.beta *= bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, PDF_EPS);
         payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
 
         // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
 //        payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
+
+        #if USE_DIRECT_LIGHTING
+        if(!payload.transmission)
+        {
+            sunlight_params_t sun_params;
+            sun_params.color = vec3(1.0, 0.6, 0.4);
+            sun_params.intensity = 1.0;
+            sun_params.direction = normalize(vec3(.4, 1.0, 0.7));
+            sun_params.angular_size = 0.524167 *  PI / 180.0;
+            vec3 sun_L = sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.ff_normal, V, eta,
+                                          rng_state);
+            payload.radiance += payload.beta * sun_L;
+        }
+        #endif
     }
     else
     {

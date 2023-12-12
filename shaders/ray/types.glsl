@@ -59,11 +59,12 @@ struct material_t
     uint emission_index;
     uint ao_rough_metal_index;
 
+    uint transmission_index;
     uint texture_type_flags;
     uint blend_mode;
     float alpha_cutoff;
-    bool two_sided;
 
+    bool two_sided;
     float phase_asymmetry_g;
     float scattering_ratio;
 };
