@@ -302,7 +302,7 @@ void main()
         }
         #endif
     }
-    else
+    else if(!sample_medium)
     {
         payload.transmission = payload.transmission ^^ (material.transmission > 0.0);
     }
