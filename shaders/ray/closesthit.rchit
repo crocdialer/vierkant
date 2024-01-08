@@ -311,7 +311,7 @@ void main()
     payload.sigma_t = payload.transmission ? sigma_t : vec3(0);
 
     // Russian roulette
-    if(max3(payload.beta) <= 0.05 && payload.depth >= 2)
+    if(max3(payload.beta) <= 0.05 && payload.depth >= 1)
     {
         float q = 1.0 - max3(payload.beta);
 
