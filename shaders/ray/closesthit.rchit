@@ -186,7 +186,7 @@ void main()
             vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
             payload.ray.origin += payload.ray.direction * t;
             float phase_pdf;
-            payload.ray.direction = local_frame(-payload.ray.direction) * sample_phase_hg(Xi, g, phase_pdf);
+            payload.ray.direction = local_frame(payload.ray.direction) * sample_phase_hg(Xi, g, phase_pdf);
 
             #if USE_DIRECT_LIGHTING
             sunlight_params_t sun_params;
