@@ -1,7 +1,3 @@
-//
-// Created by crocdialer on 13.04.23.
-//
-
 #pragma once
 
 #include <unordered_set>
@@ -12,7 +8,8 @@ namespace vierkant
 
 enum class ObjectOverlayMode : uint32_t
 {
-    Mask = 0,
+    None = 0,
+    Mask,
     Silhouette
 };
 

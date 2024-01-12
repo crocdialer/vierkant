@@ -102,6 +102,8 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     vierkant::begin_label(params.commandbuffer, {"object_overlay"});
 
     std::vector<uint32_t> id_array = {params.object_ids.begin(), params.object_ids.end()};
+    if(params.mode == ObjectOverlayMode::None){ id_array.clear(); }
+
     vierkant::staging_copy_info_t copy_ids = {};
     copy_ids.num_bytes = sizeof(uint32_t) * id_array.size();
     copy_ids.data = id_array.data();
@@ -110,7 +112,7 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     copy_ids.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
 
     object_overlay_ubo_t object_overlay_ubo = {};
-    object_overlay_ubo.silhouette = static_cast<uint32_t>(params.mode);
+    object_overlay_ubo.silhouette = static_cast<uint32_t>(params.mode == ObjectOverlayMode::Silhouette);
     object_overlay_ubo.id_buffer_address = context->id_buffer->device_address();
     object_overlay_ubo.num_object_ids = id_array.size();
 
