@@ -182,7 +182,7 @@ void main()
         // sample scattering event
         if(sample_medium)
         {
-            const float g = material.phase_asymmetry_g;
+            const float g = payload.media.phase_g;
             vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
             payload.ray.origin += payload.ray.direction * t;
             float phase_pdf;
@@ -266,6 +266,7 @@ void main()
     float eta = backface ? material.ior / payload.media.ior : payload.media.ior / material.ior;
     eta += EPS;
 
+    payload.media_op = sample_medium ? MEDIA_NO_OP : (backface ? MEDIA_LEAVE : MEDIA_ENTER);
     payload.media.ior = backface ? material.ior : 1.0;
     bool sample_surface = !(material.null_surface || sample_medium);
 
@@ -284,7 +285,7 @@ void main()
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
 
         payload.beta *= bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, PDF_EPS);
-//        payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
+        if(!bsdf_sample.transmission){ payload.media_op = MEDIA_NO_OP; };
 
         // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
 //        payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
@@ -303,13 +304,9 @@ void main()
         }
         #endif
     }
-//    else if(!sample_medium)
-//    {
-//        payload.transmission = payload.transmission ^^ (material.transmission > 0.0);
-//    }
 
     sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
-    sigma_t = !backface ? sigma_t : vec3(0);
+    sigma_t = backface ? vec3(0) : sigma_t;
     payload.media.sigma_s = material.scattering_ratio * sigma_t;
     payload.media.sigma_a = (1 - material.scattering_ratio) * sigma_t;
     payload.media.phase_g = material.phase_asymmetry_g;

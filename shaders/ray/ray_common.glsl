@@ -20,6 +20,10 @@ struct RayCone
 
 #define MISS_INDEX_DEFAULT 0
 
+#define MEDIA_NO_OP 0
+#define MEDIA_ENTER 1
+#define MEDIA_LEAVE 2
+
 struct media_t
 {
     vec3 sigma_s;
@@ -61,17 +65,13 @@ struct payload_t
     // path throughput
     vec3 beta;
 
-    // media refraction index
-//    float ior;
-
-    // spectral attenuation per unit-length (sigma_s + sigma_a)
-//    vec3 sigma_t;
     media_t media;
+
+    // media-transition in/out/no-op
+    uint media_op;
 
     // object/entity
     uint entity_index;
-
-    bool transmission;
 };
 
 struct push_constants_t
