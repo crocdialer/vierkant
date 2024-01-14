@@ -89,8 +89,6 @@ trace_result_t trace(vec2 coord, vec2 size)
         media.phase_g = 0.0;
         media.sigma_s = media.sigma_a = vec3(0);
 
-        bool transmission = false;
-
         vec3 beta = vec3(1);
         vec3 path_radiance = vec3(0);
 
@@ -107,7 +105,6 @@ trace_result_t trace(vec2 coord, vec2 size)
 //            payload.ior = ior;
 //            payload.sigma_t = sigma_t;
             payload.media = media;
-            payload.transmission = transmission;
 
             payload.ray = ray;
             payload.cone = cone;
