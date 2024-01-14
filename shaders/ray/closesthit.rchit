@@ -7,7 +7,6 @@
 
 #include "../utils/packed_vertex.glsl"
 #include "../utils/phase_function.glsl"
-#include "reservoir.glsl"
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
 #include "direct_lighting.glsl"
@@ -160,22 +159,23 @@ void main()
 
     // participating media
     bool sample_medium = false;
+    vec3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
-    if(any(greaterThan(payload.sigma_t, vec3(0))))
+    if(any(greaterThan(sigma_t, vec3(0))))
     {
         // sample a ray hit_t
         int channel = int(min(rnd(rng_state) * 3, 2));
-        float t = min(-log(1 - rnd(rng_state)) / payload.sigma_t[channel], gl_HitTEXT);
+        float t = min(-log(1 - rnd(rng_state)) / sigma_t[channel], gl_HitTEXT);
 
         // fraction of scattering vs. absorption
-        vec3 sigma_s = material.scattering_ratio * payload.sigma_t;
+        vec3 sigma_s = material.scattering_ratio * sigma_t;
 
         // determine scattering
         sample_medium = t < gl_HitTEXT;
 
         // beam_transmittance
-        vec3 beam_tr = exp(-payload.sigma_t * t);
-        vec3 density = sample_medium ? beam_tr * payload.sigma_t : beam_tr;
+        vec3 beam_tr = exp(-sigma_t * t);
+        vec3 density = sample_medium ? beam_tr * sigma_t : beam_tr;
         float pdf = channel_avg(density);
         payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
 
@@ -262,10 +262,11 @@ void main()
                                                     v.tex_coord, NoV, payload.cone.width, triangle_lod).x;
     }
 
-    float eta = payload.transmission ? material.ior / payload.ior : payload.ior / material.ior;
+    bool backface = gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT;
+    float eta = backface ? material.ior / payload.media.ior : payload.media.ior / material.ior;
     eta += EPS;
 
-    payload.ior = payload.transmission ? material.ior : 1.0;
+    payload.media.ior = backface ? material.ior : 1.0;
     bool sample_surface = !(material.null_surface || sample_medium);
 
     if(sample_surface)
@@ -283,13 +284,13 @@ void main()
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
 
         payload.beta *= bsdf_sample.F * cos_theta / max(bsdf_sample.pdf, PDF_EPS);
-        payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
+//        payload.transmission = bsdf_sample.transmission ? !payload.transmission : payload.transmission;
 
         // TODO: probably better to offset origin after bounces, instead of biasing ray-tmin!?
 //        payload.ray.origin += (bsdf_sample.transmission ? -1.0 : 1.0) * payload.ff_normal * EPS;
 
         #if USE_DIRECT_LIGHTING
-        if(!payload.transmission)
+//        if(!payload.transmission)
         {
             sunlight_params_t sun_params;
             sun_params.color = vec3(1.0, 0.6, 0.4);
@@ -302,13 +303,16 @@ void main()
         }
         #endif
     }
-    else if(!sample_medium)
-    {
-        payload.transmission = payload.transmission ^^ (material.transmission > 0.0);
-    }
+//    else if(!sample_medium)
+//    {
+//        payload.transmission = payload.transmission ^^ (material.transmission > 0.0);
+//    }
 
-    vec3 sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
-    payload.sigma_t = payload.transmission ? sigma_t : vec3(0);
+    sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
+    sigma_t = !backface ? sigma_t : vec3(0);
+    payload.media.sigma_s = material.scattering_ratio * sigma_t;
+    payload.media.sigma_a = (1 - material.scattering_ratio) * sigma_t;
+    payload.media.phase_g = material.phase_asymmetry_g;
 
     // Russian roulette
     if(max3(payload.beta) <= 0.05 && payload.depth >= 1)
