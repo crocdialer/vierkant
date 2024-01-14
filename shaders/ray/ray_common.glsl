@@ -20,6 +20,14 @@ struct RayCone
 
 #define MISS_INDEX_DEFAULT 0
 
+struct media_t
+{
+    vec3 sigma_s;
+    float ior;
+    vec3 sigma_a;
+    float phase_g;
+};
+
 //! simple struct to groupt rayhit-parameters
 struct payload_t
 {
@@ -54,10 +62,11 @@ struct payload_t
     vec3 beta;
 
     // media refraction index
-    float ior;
+//    float ior;
 
     // spectral attenuation per unit-length (sigma_s + sigma_a)
-    vec3 sigma_t;
+//    vec3 sigma_t;
+    media_t media;
 
     // object/entity
     uint entity_index;

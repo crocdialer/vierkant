@@ -84,8 +84,11 @@ trace_result_t trace(vec2 coord, vec2 size)
         RayCone cone = RayCone(spread_angle, 0.0);
 
         // assumes we start in air
-        float ior = 1.0;
-        vec3 sigma_t = vec3(0);
+        media_t media;
+        media.ior = 1.0;
+        media.phase_g = 0.0;
+        media.sigma_s = media.sigma_a = vec3(0);
+
         bool transmission = false;
 
         vec3 beta = vec3(1);
@@ -101,14 +104,16 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.stop = false;
             payload.radiance = path_radiance;
             payload.beta = beta;
-            payload.ior = ior;
-            payload.sigma_t = sigma_t;
+//            payload.ior = ior;
+//            payload.sigma_t = sigma_t;
+            payload.media = media;
             payload.transmission = transmission;
+
             payload.ray = ray;
             payload.cone = cone;
             payload.entity_index = MAX_UINT16;
 
-            const uint ray_flags = gl_RayFlagsOpaqueEXT | (transmission ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
+            const uint ray_flags = gl_RayFlagsOpaqueEXT;// | (transmission ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
 
             // trace one ray
             traceRayEXT(topLevelAS,         // acceleration structure
@@ -126,9 +131,10 @@ trace_result_t trace(vec2 coord, vec2 size)
             cone = payload.cone;
             ray = payload.ray;
             beta = payload.beta;
-            ior = payload.ior;
-            sigma_t = payload.sigma_t;
-            transmission = payload.transmission;
+//            ior = payload.ior;
+//            sigma_t = payload.sigma_t;
+            media = payload.media;
+//            transmission = payload.transmission;
             path_radiance = payload.radiance;
 
             if(i == 0)
