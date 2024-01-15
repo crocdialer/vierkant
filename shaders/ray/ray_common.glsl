@@ -67,6 +67,8 @@ struct payload_t
 
     media_t media;
 
+    float last_ior;
+
     // media-transition in/out/no-op
     uint media_op;
 
