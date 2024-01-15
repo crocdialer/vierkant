@@ -130,7 +130,8 @@ trace_result_t trace(vec2 coord, vec2 size)
             beta = payload.beta;
 //            ior = payload.ior;
 //            sigma_t = payload.sigma_t;
-            media = payload.media;
+//            if(payload.media_op == MEDIA_ENTER)
+            { media = payload.media; }
 //            transmission = payload.transmission;
             path_radiance = payload.radiance;
 
