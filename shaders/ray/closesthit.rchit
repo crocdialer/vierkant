@@ -262,6 +262,7 @@ void main()
                                                     v.tex_coord, NoV, payload.cone.width, triangle_lod).x;
     }
 
+    bool sample_surface = !(material.null_surface || sample_medium);
     bool backface = gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT;
     float eta = backface ? material.ior / payload.last_ior : payload.media.ior / material.ior;
     eta += EPS;
@@ -273,7 +274,6 @@ void main()
     payload.media.phase_g = material.phase_asymmetry_g;
     payload.media.ior = material.ior;
     payload.media_op = sample_medium ? MEDIA_NO_OP : (backface ? MEDIA_LEAVE : MEDIA_ENTER);
-    bool sample_surface = !(material.null_surface || sample_medium);
 
     if(sample_surface)
     {
