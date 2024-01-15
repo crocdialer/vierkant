@@ -266,8 +266,13 @@ void main()
     float eta = backface ? material.ior / payload.media.ior : payload.media.ior / material.ior;
     eta += EPS;
 
+    sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
+    sigma_t = backface ? vec3(0) : sigma_t;
+    payload.media.sigma_s = material.scattering_ratio * sigma_t;
+    payload.media.sigma_a = (1 - material.scattering_ratio) * sigma_t;
+    payload.media.phase_g = material.phase_asymmetry_g;
     payload.media_op = sample_medium ? MEDIA_NO_OP : (backface ? MEDIA_LEAVE : MEDIA_ENTER);
-    payload.media.ior = backface ? material.ior : 1.0;
+    payload.media.ior = backface ? 1.0 : material.ior;
     bool sample_surface = !(material.null_surface || sample_medium);
 
     if(sample_surface)
@@ -304,12 +309,6 @@ void main()
         }
         #endif
     }
-
-    sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
-    sigma_t = backface ? vec3(0) : sigma_t;
-    payload.media.sigma_s = material.scattering_ratio * sigma_t;
-    payload.media.sigma_a = (1 - material.scattering_ratio) * sigma_t;
-    payload.media.phase_g = material.phase_asymmetry_g;
 
     // Russian roulette
     if(max3(payload.beta) <= 0.05 && payload.depth >= 1)
