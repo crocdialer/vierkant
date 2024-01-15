@@ -263,7 +263,7 @@ void main()
     }
 
     bool backface = gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT;
-    float eta = backface ? material.ior / payload.media.ior : payload.media.ior / material.ior;
+    float eta = backface ? material.ior / payload.last_ior : payload.media.ior / material.ior;
     eta += EPS;
 
     sigma_t = -log(material.attenuation_color.rgb) / material.attenuation_distance;
@@ -271,8 +271,8 @@ void main()
     payload.media.sigma_s = material.scattering_ratio * sigma_t;
     payload.media.sigma_a = (1 - material.scattering_ratio) * sigma_t;
     payload.media.phase_g = material.phase_asymmetry_g;
+    payload.media.ior = material.ior;
     payload.media_op = sample_medium ? MEDIA_NO_OP : (backface ? MEDIA_LEAVE : MEDIA_ENTER);
-    payload.media.ior = backface ? 1.0 : material.ior;
     bool sample_surface = !(material.null_surface || sample_medium);
 
     if(sample_surface)
