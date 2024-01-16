@@ -272,7 +272,7 @@ void main()
     payload.media.sigma_s = material.scattering_ratio * sigma_t;
     payload.media.sigma_a = (1 - material.scattering_ratio) * sigma_t;
     payload.media.phase_g = material.phase_asymmetry_g;
-    payload.media.ior = material.ior;
+    payload.media.ior = sample_surface ? material.ior : payload.media.ior;
     payload.media_op = sample_medium ? MEDIA_NO_OP : (backface ? MEDIA_LEAVE : MEDIA_ENTER);
 
     if(sample_surface)
