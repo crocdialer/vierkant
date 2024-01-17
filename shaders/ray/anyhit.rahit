@@ -1,0 +1,78 @@
+#version 460
+#extension GL_EXT_ray_tracing : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+#extension GL_GOOGLE_include_directive : enable
+
+#include "../utils/random.glsl"
+
+// for material_t
+#include "types.glsl"
+
+#include "ray_common.glsl"
+
+layout(push_constant) uniform PushConstants
+{
+    push_constants_t push_constants;
+};
+
+// array of vertex-buffers
+layout(binding = 4, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
+
+// array of index-buffers
+layout(binding = 5, set = 0) readonly buffer Indices { uint i[]; } indices[];
+
+layout(binding = 6, set = 0) readonly buffer Entries { entry_t entries[]; };
+
+layout(binding = 7, set = 0) readonly buffer Materials{ material_t materials[]; };
+
+layout(binding = 8) uniform sampler2D u_textures[];
+
+// the ray-payload written here
+layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
+
+// builtin barycentric coords
+hitAttributeEXT vec2 attribs;
+
+void main()
+{
+    uint rng_state = payload.rng_state;
+
+    // entry aka instance
+    entry_t entry = entries[gl_InstanceCustomIndexEXT];
+    material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
+
+    if(material.blend_mode == BLEND_MODE_MASK || material.blend_mode == BLEND_MODE_BLEND)
+    {
+        // albedo
+        if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
+        {
+            // triangle indices
+            ivec3 ind = ivec3(indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 0],
+            indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 1],
+            indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 2]);
+
+            // triangle vertices
+            Triangle t = Triangle(unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.x]),
+            unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.y]),
+            unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.z]));
+
+            // interpolated vertex
+            const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
+            vec2 tex_coord = t.v0.tex_coord * barycentric.x + t.v1.tex_coord * barycentric.y + t.v2.tex_coord * barycentric.z;
+
+            material.color *= texture(u_textures[material.albedo_index], tex_coord);
+        }
+        material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
+
+        if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff)
+        {
+            ignoreIntersectionEXT;
+        }
+        if(material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state))
+        {
+            ignoreIntersectionEXT;
+        }
+    }
+}

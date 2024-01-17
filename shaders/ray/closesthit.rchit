@@ -5,19 +5,16 @@
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_GOOGLE_include_directive : enable
 
-#include "../utils/packed_vertex.glsl"
 #include "../utils/phase_function.glsl"
+
+// for material_t / entries
+#include "types.glsl"
+
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
 #include "direct_lighting.glsl"
 
 #define USE_DIRECT_LIGHTING 0
-
-//! Triangle groups triangle vertices
-struct Triangle
-{
-    Vertex v0, v1, v2;
-};
 
 layout(push_constant) uniform PushConstants
 {

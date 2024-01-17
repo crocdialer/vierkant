@@ -1,3 +1,6 @@
+#ifndef RAY_TYPES_GLSL
+#define RAY_TYPES_GLSL
+
 #include "../utils/transform.glsl"
 
 //! entry_t holds properties for geometric entries with common attributes
@@ -68,3 +71,5 @@ struct material_t
     float phase_asymmetry_g;
     float scattering_ratio;
 };
+
+#endif
