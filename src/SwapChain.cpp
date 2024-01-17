@@ -79,7 +79,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats);
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
     auto caps = swap_chain_support.capabilities;
-    VkExtent2D extent;
+    VkExtent2D extent = {};
 
     if(caps.currentExtent.width != std::numeric_limits<uint32_t>::max()){ extent = caps.currentExtent; }
     else
