@@ -41,7 +41,7 @@ void main()
 
     // entry aka instance
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
-    material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
+    material_t material = materials[entry.material_index];
 
     if(material.blend_mode == BLEND_MODE_MASK || material.blend_mode == BLEND_MODE_BLEND)
     {
@@ -55,8 +55,8 @@ void main()
 
             // triangle vertices
             Triangle t = Triangle(unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.x]),
-            unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.y]),
-            unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.z]));
+                                  unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.y]),
+                                  unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.z]));
 
             // interpolated vertex
             const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);

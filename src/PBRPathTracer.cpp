@@ -100,7 +100,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     auto raygen = vierkant::create_shader_module(m_device, vierkant::shaders::ray::raygen_rgen);
     auto ray_closest_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::closesthit_rchit);
-//    auto ray_any_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::anyhit_rahit);
+    auto ray_any_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::anyhit_rahit);
     auto ray_miss = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_rmiss);
     auto ray_miss_env = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_environment_rmiss);
 

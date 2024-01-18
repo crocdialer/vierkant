@@ -147,34 +147,8 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
 RayTracer::shader_binding_table_t
 RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::raytracing_shader_map_t &shader_stages)
 {
-    // shader groups
-    auto group_create_infos = vierkant::raytracing_shader_groups(shader_stages);
-
-    const uint32_t group_count = group_create_infos.size();
-    const uint32_t handle_size = m_device->properties().ray_pipeline.shaderGroupHandleSize;
-    const uint32_t handle_size_aligned =
-            aligned_size(handle_size, m_device->properties().ray_pipeline.shaderGroupBaseAlignment);
-    const uint32_t binding_table_size = group_count * handle_size_aligned;
-
-    // retrieve the shader-handles into host-memory
-    std::vector<uint8_t> shader_handle_data(group_count * handle_size);
-    vkCheck(vkGetRayTracingShaderGroupHandlesKHR(m_device->handle(), pipeline, 0, group_count,
-                                                 shader_handle_data.size(), shader_handle_data.data()),
-            "Raytracer::trace_rays: could not retrieve shader group handles");
-
-    shader_binding_table_t binding_table = {};
-    binding_table.buffer = vierkant::Buffer::create(m_device, nullptr, binding_table_size,
-                                                    VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
-                                                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-    // copy opaque shader-handles with proper stride (handle_size_aligned)
-    auto buf_ptr = static_cast<uint8_t *>(binding_table.buffer->map());
-    for(uint32_t i = 0; i < group_count; ++i)
-    {
-        memcpy(buf_ptr + i * handle_size_aligned, shader_handle_data.data() + i * handle_size, handle_size);
-    }
-    binding_table.buffer->unmap();
+    using Group = shader_binding_table_t::Group;
+    auto ray_props = m_device->properties().ray_pipeline;
 
     // this feels a bit silly but these groups do not correspond 1:1 to shader-stages.
     std::map<shader_binding_table_t::Group, size_t> group_elements;
@@ -182,31 +156,72 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
     {
         switch(stage)
         {
-            case VK_SHADER_STAGE_RAYGEN_BIT_KHR: group_elements[shader_binding_table_t::Group::Raygen]++; break;
-
-            case VK_SHADER_STAGE_MISS_BIT_KHR: group_elements[shader_binding_table_t::Group::Miss]++; break;
-
+            case VK_SHADER_STAGE_RAYGEN_BIT_KHR: group_elements[Group::Raygen]++; break;
+            case VK_SHADER_STAGE_MISS_BIT_KHR: group_elements[Group::Miss]++; break;
             case VK_SHADER_STAGE_INTERSECTION_BIT_KHR:
             case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
-            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR: group_elements[shader_binding_table_t::Group::Hit]++; break;
-
-            case VK_SHADER_STAGE_CALLABLE_BIT_KHR: group_elements[shader_binding_table_t::Group::Callable]++; break;
-
+            case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR: group_elements[Group::Hit]++; break;
+            case VK_SHADER_STAGE_CALLABLE_BIT_KHR: group_elements[Group::Callable]++; break;
             default: break;
         }
     }
+    const uint32_t handle_size = ray_props.shaderGroupHandleSize;
+    const uint32_t handle_size_aligned = aligned_size(handle_size, ray_props.shaderGroupHandleAlignment);
 
+    shader_binding_table_t binding_table = {};
+    uint32_t binding_table_size = 0;
+
+    // raygen
+    binding_table.strided_address_region[Group::Raygen].stride =
+            aligned_size(handle_size_aligned, ray_props.shaderGroupBaseAlignment);
+    binding_table.strided_address_region[Group::Raygen].size =
+            binding_table.strided_address_region[Group::Raygen].stride;
+    binding_table_size += binding_table.strided_address_region[Group::Raygen].size;
+
+    // hit/miss/callable
+    for(uint32_t g = Group::Hit; g < Group::MAX_ENUM; ++g)
+    {
+        binding_table.strided_address_region[g].stride = handle_size_aligned;
+        binding_table.strided_address_region[g].size =
+                aligned_size(group_elements[Group(g)] * handle_size_aligned, ray_props.shaderGroupBaseAlignment);
+        binding_table_size += binding_table.strided_address_region[g].size;
+    }
+    binding_table.buffer = vierkant::Buffer::create(m_device, nullptr, binding_table_size,
+                                                    VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
+                                                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+    // shader groups
+    auto group_create_infos = vierkant::raytracing_shader_groups(shader_stages);
+
+    const uint32_t group_count = group_create_infos.size();
+
+    // retrieve the shader-handles into host-memory
+    std::vector<uint8_t> shader_handle_data(shader_stages.size() * handle_size);
+    vkCheck(vkGetRayTracingShaderGroupHandlesKHR(m_device->handle(), pipeline, 0, group_count,
+                                                 shader_handle_data.size(), shader_handle_data.data()),
+            "Raytracer::trace_rays: could not retrieve shader group handles");
+
+    // copy opaque shader-handles with proper stride (handle_size_aligned)
     size_t buffer_offset = 0;
+    size_t handle_index = 0;
+    auto buf_ptr = static_cast<uint8_t *>(binding_table.buffer->map());
 
     for(const auto &[group, num_elements]: group_elements)
     {
         auto &address_region = binding_table.strided_address_region[group];
         address_region.deviceAddress = binding_table.buffer->device_address() + buffer_offset;
-        address_region.stride = handle_size_aligned;
-        address_region.size = handle_size_aligned * num_elements;
 
+        auto data_ptr = buf_ptr + buffer_offset;
         buffer_offset += address_region.size;
+
+        for(uint32_t c = 0; c < num_elements; c++)
+        {
+            memcpy(data_ptr, shader_handle_data.data() + handle_size * handle_index, handle_size);
+            data_ptr += address_region.stride;
+            handle_index++;
+        }
     }
+    binding_table.buffer->unmap();
     return binding_table;
 }
 

@@ -99,28 +99,34 @@ raytracing_shader_groups(const raytracing_shader_map_t &shader_stages)
 {
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> ret;
 
+    VkRayTracingShaderGroupCreateInfoKHR group_create_info = {};
+    group_create_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+    group_create_info.generalShader = VK_SHADER_UNUSED_KHR;
+    group_create_info.closestHitShader = VK_SHADER_UNUSED_KHR;
+    group_create_info.anyHitShader = VK_SHADER_UNUSED_KHR;
+    group_create_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+
+    uint32_t next_index = 0;
+
     for(const auto &[stage, shader_module] : shader_stages)
     {
-        uint32_t next_index = ret.size();
-
-        VkRayTracingShaderGroupCreateInfoKHR group_create_info = {};
-        group_create_info.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-        group_create_info.generalShader = VK_SHADER_UNUSED_KHR;
-        group_create_info.closestHitShader = VK_SHADER_UNUSED_KHR;
-        group_create_info.anyHitShader = VK_SHADER_UNUSED_KHR;
-        group_create_info.intersectionShader = VK_SHADER_UNUSED_KHR;
-
         switch(stage)
         {
             case VK_SHADER_STAGE_RAYGEN_BIT_KHR:
             case VK_SHADER_STAGE_MISS_BIT_KHR:
                 group_create_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
                 group_create_info.generalShader = next_index;
+                group_create_info.closestHitShader = VK_SHADER_UNUSED_KHR;
+                group_create_info.anyHitShader = VK_SHADER_UNUSED_KHR;
+                group_create_info.intersectionShader = VK_SHADER_UNUSED_KHR;
+                ret.push_back(group_create_info);
                 break;
 
             case VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR:
                 group_create_info.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
                 group_create_info.closestHitShader = next_index;
+                group_create_info.generalShader = VK_SHADER_UNUSED_KHR;
+                ret.push_back(group_create_info);
                 break;
 
             case VK_SHADER_STAGE_ANY_HIT_BIT_KHR:
@@ -131,7 +137,7 @@ raytracing_shader_groups(const raytracing_shader_map_t &shader_stages)
             default:
                 throw std::runtime_error("raytracing_shader_groups: provided a non-raytracing shader");
         }
-        ret.push_back(group_create_info);
+        next_index++;
     }
     return ret;
 };
