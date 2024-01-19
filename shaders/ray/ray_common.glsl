@@ -4,6 +4,14 @@
 #define EPS 0.0001
 #define PDF_EPS 0.001
 
+#include "../utils/packed_vertex.glsl"
+
+//! Triangle groups triangle vertices
+struct Triangle
+{
+    Vertex v0, v1, v2;
+};
+
 struct Ray
 {
     vec3 origin;

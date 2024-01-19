@@ -100,16 +100,19 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     auto raygen = vierkant::create_shader_module(m_device, vierkant::shaders::ray::raygen_rgen);
     auto ray_closest_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::closesthit_rchit);
+    auto ray_any_hit = vierkant::create_shader_module(m_device, vierkant::shaders::ray::anyhit_rahit);
     auto ray_miss = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_rmiss);
     auto ray_miss_env = vierkant::create_shader_module(m_device, vierkant::shaders::ray::miss_environment_rmiss);
 
     m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
                        {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss},
-                       {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
+                       {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}/*,
+                       {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, ray_any_hit}*/};
 
     m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
                            {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env},
-                           {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}};
+                           {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}/*,
+                           {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, ray_any_hit}*/};
 
     // create drawables for post-fx-pass
     {
@@ -416,29 +419,29 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
 
     vierkant::descriptor_t &desc_vertex_buffers = frame_asset.tracable.descriptors[4];
     desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_vertex_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    desc_vertex_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_vertex_buffers.buffers = frame_asset.scene_ray_acceleration.vertex_buffers;
     desc_vertex_buffers.buffer_offsets = frame_asset.scene_ray_acceleration.vertex_buffer_offsets;
 
     vierkant::descriptor_t &desc_index_buffers = frame_asset.tracable.descriptors[5];
     desc_index_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_index_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    desc_index_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_index_buffers.buffers = frame_asset.scene_ray_acceleration.index_buffers;
     desc_index_buffers.buffer_offsets = frame_asset.scene_ray_acceleration.index_buffer_offsets;
 
     vierkant::descriptor_t &desc_entries = frame_asset.tracable.descriptors[6];
     desc_entries.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_entries.buffers = {frame_asset.scene_ray_acceleration.entry_buffer};
 
     vierkant::descriptor_t &desc_materials = frame_asset.tracable.descriptors[7];
     desc_materials.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_materials.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    desc_materials.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_materials.buffers = {frame_asset.scene_ray_acceleration.material_buffer};
 
     vierkant::descriptor_t &desc_textures = frame_asset.tracable.descriptors[8];
     desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+    desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_textures.images = frame_asset.scene_ray_acceleration.textures;
 
     // common ubo for miss-shaders
