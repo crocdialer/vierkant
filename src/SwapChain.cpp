@@ -52,7 +52,10 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
 
     for(const auto &fmt: the_formats)
     {
-        if(fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR){ return fmt; }
+        if(fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        {
+            return fmt;
+        }
     }
     return the_formats[0];
 }
@@ -60,7 +63,10 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
 VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &the_modes, bool use_vsync)
 {
     VkPresentModeKHR best_mode = VK_PRESENT_MODE_FIFO_KHR;
-    for(const auto &m: the_modes){ if(!use_vsync && m == VK_PRESENT_MODE_IMMEDIATE_KHR){ best_mode = m; }}
+    for(const auto &m: the_modes)
+    {
+        if(!use_vsync && m == VK_PRESENT_MODE_IMMEDIATE_KHR) { best_mode = m; }
+    }
     return best_mode;
 }
 
@@ -71,17 +77,16 @@ bool has_stencil_component(VkFormat the_format)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync) :
-        m_device(std::move(device)), m_use_v_sync(use_vsync)
+SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync)
+    : m_device(std::move(device)), m_use_v_sync(use_vsync)
 {
-    SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(),
-                                                                         surface);
+    SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(), surface);
     VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats);
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
     auto caps = swap_chain_support.capabilities;
     VkExtent2D extent = {};
 
-    if(caps.currentExtent.width != std::numeric_limits<uint32_t>::max()){ extent = caps.currentExtent; }
+    if(caps.currentExtent.width != std::numeric_limits<uint32_t>::max()) { extent = caps.currentExtent; }
     else
     {
         extent.width = std::max(caps.minImageExtent.width, std::min(caps.maxImageExtent.width, extent.width));
@@ -119,7 +124,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
         create_info.queueFamilyIndexCount = 2;
         create_info.pQueueFamilyIndices = queueFamilyIndices;
     }
-    else{ create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; }
+    else { create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; }
 
     create_info.preTransform = swap_chain_support.capabilities.currentTransform;
     create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -151,7 +156,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     for(size_t i = 0; i < m_images.size(); i++)
     {
         // do not delete on destruction, we do not own the image
-        auto shared_image = VkImagePtr(swap_chain_images[i], [](VkImage){});
+        auto shared_image = VkImagePtr(swap_chain_images[i], [](VkImage) {});
         m_images[i] = Image::create(m_device, shared_image, fmt);
     }
 
@@ -166,16 +171,11 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
 
     // create semaphores and fences
     create_sync_objects();
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SwapChain::SwapChain(SwapChain &&other) noexcept:
-        SwapChain()
-{
-    swap(*this, other);
-}
+SwapChain::SwapChain(SwapChain &&other) noexcept : SwapChain() { swap(*this, other); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -200,10 +200,7 @@ SwapChain::~SwapChain()
         vkWaitForFences(m_device->handle(), fences.size(), fences.data(), VK_TRUE,
                         std::numeric_limits<uint64_t>::max());
 
-        for(auto &fence: fences)
-        {
-            vkDestroyFence(m_device->handle(), fence, nullptr);
-        }
+        for(auto &fence: fences) { vkDestroyFence(m_device->handle(), fence, nullptr); }
     }
 }
 
@@ -221,15 +218,17 @@ SwapChain::acquire_image_result_t SwapChain::acquire_next_image(uint64_t timeout
 {
     acquire_image_result_t ret = {};
 
+    auto fence = m_sync_objects[m_current_frame_index].fence;
     ret.image_available = m_sync_objects[m_current_frame_index].image_available;
     ret.render_finished = m_sync_objects[m_current_frame_index].render_finished;
 
-    ret.result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain,
-                                       timeout,
-                                       ret.image_available,
-                                       VK_NULL_HANDLE, &m_swapchain_image_index);
-    ret.image_index = m_swapchain_image_index;
+    // wait for prior submission
+    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vkResetFences(m_device->handle(), 1, &fence);
 
+    ret.result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain, timeout, ret.image_available, fence,
+                                       &m_swapchain_image_index);
+    ret.image_index = m_swapchain_image_index;
     m_last_acquired_image = ret;
     return ret;
 }
@@ -245,7 +244,7 @@ VkResult SwapChain::present()
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &m_swap_chain;
     present_info.pImageIndices = &m_last_acquired_image.image_index;
-    present_info.pResults = nullptr; // Optional
+    present_info.pResults = nullptr;// Optional
 
     // swap buffers
     VkResult result = vkQueuePresentKHR(m_device->queue(Device::Queue::PRESENT), &present_info);
@@ -273,7 +272,7 @@ void swap(SwapChain &lhs, SwapChain &rhs)
 
 VkRenderPass SwapChain::renderpass() const
 {
-    if(!m_framebuffers.empty()){ return m_framebuffers.front().renderpass().get(); }
+    if(!m_framebuffers.empty()) { return m_framebuffers.front().renderpass().get(); }
     return VK_NULL_HANDLE;
 }
 
@@ -297,7 +296,7 @@ void SwapChain::create_framebuffers()
         color_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         color_image = Image::create(m_device, color_fmt);
     }
-    else{ color_image = m_images.front(); }
+    else { color_image = m_images.front(); }
 
     Image::Format depth_fmt;
     depth_fmt.extent = {m_extent.width, m_extent.height, 1};
@@ -310,7 +309,7 @@ void SwapChain::create_framebuffers()
     vierkant::attachment_map_t attachments;
     attachments[vierkant::AttachmentType::Color] = {color_image};
     attachments[vierkant::AttachmentType::DepthStencil] = {depth_image};
-    if(resolve){ attachments[vierkant::AttachmentType::Resolve] = {m_images.front()}; }
+    if(resolve) { attachments[vierkant::AttachmentType::Resolve] = {m_images.front()}; }
 
     // subpass is dependant on swapchain image
     VkSubpassDependency2 dependency = {};
@@ -328,8 +327,8 @@ void SwapChain::create_framebuffers()
 
     for(size_t i = 0; i < m_images.size(); i++)
     {
-        if(resolve){ attachments[vierkant::AttachmentType::Resolve] = {m_images[i]}; }
-        else{ attachments[vierkant::AttachmentType::Color] = {m_images[i]}; }
+        if(resolve) { attachments[vierkant::AttachmentType::Resolve] = {m_images[i]}; }
+        else { attachments[vierkant::AttachmentType::Color] = {m_images[i]}; }
         m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, renderpass);
     }
 }
@@ -347,9 +346,9 @@ void SwapChain::create_sync_objects()
     for(size_t i = 0; i < m_images.size(); i++)
     {
         if(vkCreateSemaphore(m_device->handle(), &semaphore_info, nullptr, &m_sync_objects[i].image_available) !=
-           VK_SUCCESS ||
+                   VK_SUCCESS ||
            vkCreateSemaphore(m_device->handle(), &semaphore_info, nullptr, &m_sync_objects[i].render_finished) !=
-           VK_SUCCESS)
+                   VK_SUCCESS)
         {
             throw std::runtime_error("failed to create sync object");
         }
@@ -362,4 +361,4 @@ void SwapChain::create_sync_objects()
     }
 }
 
-}//namespace vulkan
+}// namespace vierkant

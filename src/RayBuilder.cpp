@@ -535,6 +535,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
         materials.resize(1);
         vertex_buffers.push_back(m_placeholder_buffer);
         index_buffers.push_back(m_placeholder_buffer);
+        instances.push_back({});
     }
 
     // put instances into host-visible gpu-buffer
