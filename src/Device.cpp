@@ -306,6 +306,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     query_features.pNext = &device_features_11;
     vkGetPhysicalDeviceFeatures2(m_physical_device, &query_features);
 
+    mesh_shader_features.primitiveFragmentShadingRateMeshShader = false;
     *last_pNext = create_info.create_device_pNext;
 
     VkDeviceCreateInfo device_create_info = {};
