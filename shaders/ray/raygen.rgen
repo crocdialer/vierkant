@@ -111,7 +111,7 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.cone = cone;
             payload.entity_index = MAX_UINT16;
 
-            const uint ray_flags = gl_RayFlagsOpaqueEXT;// | (transmission ? 0 : gl_RayFlagsCullBackFacingTrianglesEXT);
+            const uint ray_flags = media_index > 0 ? gl_RayFlagsOpaqueEXT : gl_RayFlagsCullBackFacingTrianglesEXT;
 
             // trace one ray
             traceRayEXT(topLevelAS,         // acceleration structure
