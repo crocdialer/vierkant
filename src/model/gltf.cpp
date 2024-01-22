@@ -934,14 +934,18 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
     // create materials
     for(const auto &tiny_mat: model.materials)
     {
+        vierkant::MaterialId new_id;
+
         try
         {
-            out_assets.materials.push_back(
-                    convert_material(tiny_mat, model, image_cache, tex_id_cache, sampler_id_cache));
+            out_assets.materials[new_id] =
+                    convert_material(tiny_mat, model, image_cache, tex_id_cache, sampler_id_cache);
+            out_assets.material_ids.push_back(new_id);
         } catch(std::exception &e)
         {
             spdlog::warn("could not convert material '{}' for: '{}' ({})", tiny_mat.name, path.string(), e.what());
-            out_assets.materials.push_back({});
+            out_assets.materials[new_id] = {};
+            out_assets.material_ids.push_back(new_id);
         }
     }
 

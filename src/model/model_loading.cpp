@@ -218,45 +218,47 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 },
                 tex_variant);
     }
-    const auto &materials = mesh_assets.materials;
-    mesh->materials.resize(std::max<size_t>(1, materials.size()));
+    //    const auto &materials = mesh_assets.materials;
+    mesh->materials.resize(std::max<size_t>(1, mesh_assets.material_ids.size()));
 
-    for(uint32_t i = 0; i < materials.size(); ++i)
+    for(uint32_t i = 0; i < mesh_assets.material_ids.size(); ++i)
     {
+        const auto &asset_mat = mesh_assets.materials.at(mesh_assets.material_ids[i]);
+
         auto &material = mesh->materials[i];
         material = vierkant::Material::create();
 
-        material->name = materials[i].name;
-        material->color = materials[i].base_color;
-        material->emission = glm::vec4(materials[i].emission, materials[i].emissive_strength);
-        material->roughness = materials[i].roughness;
-        material->metalness = materials[i].metalness;
-        material->blend_mode = materials[i].blend_mode;
-        material->alpha_cutoff = materials[i].alpha_cutoff;
-        material->two_sided = materials[i].twosided;
+        material->name = asset_mat.name;
+        material->color = asset_mat.base_color;
+        material->emission = glm::vec4(asset_mat.emission, asset_mat.emissive_strength);
+        material->roughness = asset_mat.roughness;
+        material->metalness = asset_mat.metalness;
+        material->blend_mode = asset_mat.blend_mode;
+        material->alpha_cutoff = asset_mat.alpha_cutoff;
+        material->two_sided = asset_mat.twosided;
 
-        material->transmission = materials[i].transmission;
-        material->attenuation_color = materials[i].attenuation_color;
-        material->attenuation_distance = materials[i].attenuation_distance;
-        material->ior = materials[i].ior;
+        material->transmission = asset_mat.transmission;
+        material->attenuation_color = asset_mat.attenuation_color;
+        material->attenuation_distance = asset_mat.attenuation_distance;
+        material->ior = asset_mat.ior;
 
-        material->sheen_color = materials[i].sheen_color;
-        material->sheen_roughness = materials[i].sheen_roughness;
+        material->sheen_color = asset_mat.sheen_color;
+        material->sheen_roughness = asset_mat.sheen_roughness;
 
-        material->sheen_color = materials[i].sheen_color;
-        material->sheen_roughness = materials[i].sheen_roughness;
+        material->sheen_color = asset_mat.sheen_color;
+        material->sheen_roughness = asset_mat.sheen_roughness;
 
-        material->iridescence_factor = materials[i].iridescence_factor;
-        material->iridescence_ior = materials[i].iridescence_ior;
-        material->iridescence_thickness_range = materials[i].iridescence_thickness_range;
+        material->iridescence_factor = asset_mat.iridescence_factor;
+        material->iridescence_ior = asset_mat.iridescence_ior;
+        material->iridescence_thickness_range = asset_mat.iridescence_thickness_range;
 
-        for(const auto &[tex_type, tex_id]: materials[i].textures)
+        for(const auto &[tex_type, tex_id]: asset_mat.textures)
         {
             auto vk_img = texture_cache[tex_id];
 
             // optional sampler-override
-            auto sampler_id_it = materials[i].samplers.find(tex_type);
-            if(sampler_id_it != materials[i].samplers.end())
+            auto sampler_id_it = asset_mat.samplers.find(tex_type);
+            if(sampler_id_it != asset_mat.samplers.end())
             {
                 // clone img
                 vk_img = texture_cache[tex_id]->clone();
@@ -270,14 +272,14 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 }
                 else
                 {
-                    spdlog::warn("material '{}' references sampler '{}', but could not find in bundle",
-                                 materials[i].name, sampler_id.str());
+                    spdlog::warn("material '{}' references sampler '{}', but could not find in bundle", asset_mat.name,
+                                 sampler_id.str());
                 }
             }
             material->textures[tex_type] = vk_img;
         }
 
-        material->texture_transform = materials[i].texture_transform;
+        material->texture_transform = asset_mat.texture_transform;
     }
 
     // submit transfer and sync
