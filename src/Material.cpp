@@ -14,13 +14,17 @@ std::size_t Material::hash() const
     hash_combine(h, name);
     hash_combine(h, base_color);
     hash_combine(h, emission);
-    hash_combine(h, metalness);
+    hash_combine(h, emissive_strength);
     hash_combine(h, roughness);
+    hash_combine(h, metalness);
+    hash_combine(h, null_surface);
     hash_combine(h, occlusion);
     hash_combine(h, twosided);
     hash_combine(h, blend_mode);
     hash_combine(h, alpha_cutoff);
     hash_combine(h, transmission);
+    hash_combine(h, phase_asymmetry_g);
+    hash_combine(h, scattering_ratio);
     hash_combine(h, attenuation_color);
     hash_combine(h, attenuation_distance);
     hash_combine(h, ior);
