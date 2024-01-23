@@ -218,12 +218,11 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 },
                 tex_variant);
     }
-    //    const auto &materials = mesh_assets.materials;
-    mesh->materials.resize(std::max<size_t>(1, mesh_assets.material_ids.size()));
+    mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
-    for(uint32_t i = 0; i < mesh_assets.material_ids.size(); ++i)
+    for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
     {
-        const auto &asset_mat = mesh_assets.materials.at(mesh_assets.material_ids[i]);
+        const auto &asset_mat = mesh_assets.materials[i];
 
         auto &material = mesh->materials[i];
         material = vierkant::Material::create();

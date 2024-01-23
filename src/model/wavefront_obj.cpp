@@ -111,16 +111,10 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
             m.textures[vierkant::TextureType::Normal] = tex_id;
             mesh_assets.textures[tex_id] = img;
         }
-        mesh_assets.materials[m.id] = m;
-        mesh_assets.material_ids.push_back(m.id);
+        mesh_assets.materials.push_back(m);
     }
     // fallback material
-    if(mesh_assets.materials.empty())
-    {
-        vierkant::material_t m = {};
-        mesh_assets.materials[m.id] = m;
-        mesh_assets.material_ids.push_back(m.id);
-    }
+    if(mesh_assets.materials.empty()) { mesh_assets.materials.push_back({}); }
 
     std::vector<vierkant::Mesh::entry_create_info_t> entry_create_infos;
 

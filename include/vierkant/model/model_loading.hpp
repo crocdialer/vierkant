@@ -71,9 +71,7 @@ struct mesh_assets_t
     geometry_variant_t geometry_data;
 
     //! common materials for all submeshes
-    std::unordered_map<vierkant::MaterialId, material_t> materials;
-
-    std::vector<vierkant::MaterialId> material_ids;
+    std::vector<vierkant::material_t> materials;
 
     //! common textures for all materials
     std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
