@@ -79,9 +79,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
 
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
         drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::BlendMode::Blend;
-        drawable.pipeline_format.depth_test = material->depth_test;
-        drawable.pipeline_format.depth_write = material->depth_write;
-        drawable.pipeline_format.cull_mode = material->twosided ? VK_CULL_MODE_NONE : material->cull_mode;
+        drawable.pipeline_format.cull_mode = material->twosided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
 
         if(!drawable.use_own_buffers)
         {

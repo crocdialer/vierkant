@@ -8,45 +8,50 @@
 namespace vierkant
 {
 
-std::size_t Material::hash() const
-{
-    size_t h = 0;
-    hash_combine(h, name);
-    hash_combine(h, base_color);
-    hash_combine(h, emission);
-    hash_combine(h, emissive_strength);
-    hash_combine(h, roughness);
-    hash_combine(h, metalness);
-    hash_combine(h, null_surface);
-    hash_combine(h, occlusion);
-    hash_combine(h, twosided);
-    hash_combine(h, blend_mode);
-    hash_combine(h, alpha_cutoff);
-    hash_combine(h, transmission);
-    hash_combine(h, phase_asymmetry_g);
-    hash_combine(h, scattering_ratio);
-    hash_combine(h, attenuation_color);
-    hash_combine(h, attenuation_distance);
-    hash_combine(h, ior);
-    hash_combine(h, clearcoat_factor);
-    hash_combine(h, clearcoat_roughness_factor);
-    hash_combine(h, sheen_color);
-    hash_combine(h, sheen_roughness);
-    hash_combine(h, iridescence_factor);
-    hash_combine(h, iridescence_ior);
-    hash_combine(h, iridescence_thickness_range);
-    hash_combine(h, depth_test);
-    hash_combine(h, depth_write);
-    hash_combine(h, cull_mode);
-
-    for(const auto &[type, tex] : textures)
-    {
-        hash_combine(h, type);
-        hash_combine(h, tex);
-    }
-
-    hash_combine(h, texture_transform);
-    return h;
-}
 
 }// namespace vierkant
+
+using vierkant::hash_combine;
+
+size_t
+std::hash<vierkant::material_t>::operator()(vierkant::material_t const &m) const
+{
+    size_t h = 0;
+    hash_combine(h, m.name);
+    hash_combine(h, m.base_color);
+    hash_combine(h, m.emission);
+    hash_combine(h, m.emissive_strength);
+    hash_combine(h, m.roughness);
+    hash_combine(h, m.metalness);
+    hash_combine(h, m.occlusion);
+    hash_combine(h, m.null_surface);
+    hash_combine(h, m.twosided);
+    hash_combine(h, m.blend_mode);
+    hash_combine(h, m.alpha_cutoff);
+    hash_combine(h, m.transmission);
+    hash_combine(h, m.phase_asymmetry_g);
+    hash_combine(h, m.scattering_ratio);
+    hash_combine(h, m.attenuation_color);
+    hash_combine(h, m.attenuation_distance);
+    hash_combine(h, m.ior);
+    hash_combine(h, m.clearcoat_factor);
+    hash_combine(h, m.clearcoat_roughness_factor);
+    hash_combine(h, m.sheen_color);
+    hash_combine(h, m.sheen_roughness);
+    hash_combine(h, m.iridescence_factor);
+    hash_combine(h, m.iridescence_ior);
+    hash_combine(h, m.iridescence_thickness_range);
+    hash_combine(h, m.texture_transform);
+
+    for(const auto &[type, tex_id] : m.textures)
+    {
+        hash_combine(h, type);
+        hash_combine(h, tex_id);
+    }
+    for(const auto &[type, sampler_id] : m.samplers)
+    {
+        hash_combine(h, type);
+        hash_combine(h, sampler_id);
+    }
+    return h;
+}

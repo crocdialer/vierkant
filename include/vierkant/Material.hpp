@@ -62,6 +62,7 @@ struct material_t
 
     float roughness = 1.f;
     float metalness = 0.f;
+    float occlusion = 1.f;
 
     //! null-surface (skip surface interaction)
     bool null_surface = false;
@@ -148,16 +149,6 @@ class Material : public material_t
 public:
     static MaterialPtr create() { return MaterialPtr(new Material()); };
 
-    [[nodiscard]] std::size_t hash() const;
-
-    float occlusion = 1.f;
-
-    bool depth_test = true;
-
-    bool depth_write = true;
-
-    VkCullModeFlagBits cull_mode = VK_CULL_MODE_BACK_BIT;
-
     std::map<TextureType, vierkant::ImagePtr> textures;
 
 private:
@@ -165,3 +156,13 @@ private:
 };
 
 }// namespace vierkant
+
+// template specializations for hashing
+namespace std
+{
+template<>
+struct hash<vierkant::material_t>
+{
+    size_t operator()(vierkant::material_t const &m) const;
+};
+}
