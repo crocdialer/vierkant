@@ -69,6 +69,9 @@ private:
 
     Object3DPtr m_root = Object3D::create(m_registry, "scene root");
 
+    //! material-store
+    std::unordered_map<vierkant::MaterialId, material_t> m_materials;
+
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };
 

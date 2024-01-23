@@ -650,12 +650,12 @@ void draw_material_ui(const MaterialPtr &material)
     ImGui::Separator();
 
     // base color
-    ImGui::ColorEdit4("base color", glm::value_ptr(material->color));
+    ImGui::ColorEdit4("base color", glm::value_ptr(material->base_color));
     draw_texture(vierkant::TextureType::Color, "base color");
 
     // emissive color
     ImGui::ColorEdit3("emission color", glm::value_ptr(material->emission));
-    ImGui::InputFloat("emissive strength", &material->emission.w);
+    ImGui::InputFloat("emissive strength", &material->emissive_strength);
     draw_texture(vierkant::TextureType::Emission, "emission");
 
     // normalmap
@@ -702,7 +702,7 @@ void draw_material_ui(const MaterialPtr &material)
     }
 
     // two-sided
-    ImGui::Checkbox("two-sided", &material->two_sided);
+    ImGui::Checkbox("two-sided", &material->twosided);
 
     // null-surface
     ImGui::Checkbox("null-surface", &material->null_surface);

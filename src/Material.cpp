@@ -12,12 +12,12 @@ std::size_t Material::hash() const
 {
     size_t h = 0;
     hash_combine(h, name);
-    hash_combine(h, color);
+    hash_combine(h, base_color);
     hash_combine(h, emission);
     hash_combine(h, metalness);
     hash_combine(h, roughness);
     hash_combine(h, occlusion);
-    hash_combine(h, two_sided);
+    hash_combine(h, twosided);
     hash_combine(h, blend_mode);
     hash_combine(h, alpha_cutoff);
     hash_combine(h, transmission);

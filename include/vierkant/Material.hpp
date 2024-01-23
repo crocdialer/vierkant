@@ -57,7 +57,7 @@ struct material_t
     std::string name;
 
     glm::vec4 base_color = glm::vec4(1.f);
-    glm::vec3 emission;
+    glm::vec3 emission = glm::vec3(0.f);
     float emissive_strength = 1.f;
 
     float roughness = 1.f;
@@ -75,6 +75,12 @@ struct material_t
     // volumes
     float transmission = 0.f;
     float attenuation_distance = std::numeric_limits<float>::infinity();
+
+    // phase-function asymmetry parameter (forward- vs. back-scattering) [-1, 1]
+    float phase_asymmetry_g = 0.f;
+
+    // ratio of scattering vs. absorption (sigma_s / sigma_t)
+    float scattering_ratio = 0.f;
 
     // idk rasterizer only thingy
     float thickness = 1.f;
@@ -137,63 +143,14 @@ struct texture_sampler_t
 
 DEFINE_CLASS_PTR(Material)
 
-class Material
+class Material : public material_t
 {
 public:
-
     static MaterialPtr create() { return MaterialPtr(new Material()); };
 
     [[nodiscard]] std::size_t hash() const;
 
-    std::string name;
-
-    glm::vec4 color = glm::vec4(1);
-
-    glm::vec4 emission = glm::vec4(0, 0, 0, 1);
-
-    float metalness = 0.f;
-
-    float roughness = 1.f;
-
     float occlusion = 1.f;
-
-    bool two_sided = false;
-
-    //! null-surface (skip surface interaction)
-    bool null_surface = false;
-
-    BlendMode blend_mode = BlendMode::Opaque;
-
-    float alpha_cutoff = 0.5f;
-
-    float transmission = 0.f;
-
-    glm::vec3 attenuation_color = glm::vec3(1.f);
-
-    float attenuation_distance = std::numeric_limits<float>::infinity();
-
-    // phase-function asymmetry parameter (forward- vs. back-scattering) [-1, 1]
-    float phase_asymmetry_g = 0.f;
-
-    // ratio of scattering vs. absorption (sigma_s / sigma_t)
-    float scattering_ratio = 0.f;
-
-    float ior = 1.5f;
-
-    float clearcoat_factor = 0.f;
-
-    float clearcoat_roughness_factor = 0.f;
-
-    glm::vec3 sheen_color = glm::vec3(0.f);
-
-    float sheen_roughness = 0.f;
-
-    // iridescence
-    float iridescence_factor = 0.f;
-    float iridescence_ior = 1.3f;
-
-    // iridescence thin-film layer given in nanometers (nm)
-    glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
     bool depth_test = true;
 
@@ -202,9 +159,6 @@ public:
     VkCullModeFlagBits cull_mode = VK_CULL_MODE_BACK_BIT;
 
     std::map<TextureType, vierkant::ImagePtr> textures;
-
-    // optional texture-transform (todo: per image)
-    glm::mat4 texture_transform = glm::mat4(1);
 
 private:
     Material() = default;

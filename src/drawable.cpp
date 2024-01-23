@@ -58,14 +58,14 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.matrices.texture = material->texture_transform;
 
         // material params
-        drawable.material.color = material->color;
-        drawable.material.emission = material->emission;
+        drawable.material.color = material->base_color;
+        drawable.material.emission.xyz() = material->emission;
         drawable.material.ambient = material->occlusion;
         drawable.material.roughness = material->roughness;
         drawable.material.metalness = material->metalness;
         drawable.material.blend_mode = static_cast<uint32_t>(material->blend_mode);
         drawable.material.alpha_cutoff = material->alpha_cutoff;
-        drawable.material.two_sided = material->two_sided;
+        drawable.material.two_sided = material->twosided;
 
         drawable.base_index = lod_0.base_index;
         drawable.num_indices = lod_0.num_indices;
@@ -81,7 +81,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::BlendMode::Blend;
         drawable.pipeline_format.depth_test = material->depth_test;
         drawable.pipeline_format.depth_write = material->depth_write;
-        drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
+        drawable.pipeline_format.cull_mode = material->twosided ? VK_CULL_MODE_NONE : material->cull_mode;
 
         if(!drawable.use_own_buffers)
         {

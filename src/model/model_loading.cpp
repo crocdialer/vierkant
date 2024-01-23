@@ -229,13 +229,13 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
         material = vierkant::Material::create();
 
         material->name = asset_mat.name;
-        material->color = asset_mat.base_color;
+        material->base_color = asset_mat.base_color;
         material->emission = glm::vec4(asset_mat.emission, asset_mat.emissive_strength);
         material->roughness = asset_mat.roughness;
         material->metalness = asset_mat.metalness;
         material->blend_mode = asset_mat.blend_mode;
         material->alpha_cutoff = asset_mat.alpha_cutoff;
-        material->two_sided = asset_mat.twosided;
+        material->twosided = asset_mat.twosided;
 
         material->transmission = asset_mat.transmission;
         material->attenuation_color = asset_mat.attenuation_color;

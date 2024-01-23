@@ -450,7 +450,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
             // instance flags
             VkGeometryInstanceFlagsKHR instance_flags =
-                    mesh_material->two_sided ? VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR : 0;
+                    mesh_material->twosided ? VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR : 0;
 
             // store next entry-index
             size_t entry_idx = entries.size();
@@ -466,8 +466,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             {
                 material_indices[mesh_material] = materials.size();
                 RayBuilder::material_struct_t material = {};
-                material.color = mesh_material->color;
-                material.emission = mesh_material->emission;
+                material.color = mesh_material->base_color;
+                material.emission = {mesh_material->emission, mesh_material->emissive_strength};
                 material.roughness = mesh_material->roughness;
                 material.metalness = mesh_material->metalness;
                 material.transmission = mesh_material->transmission;
@@ -481,7 +481,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
                 material.blend_mode = static_cast<uint32_t>(mesh_material->blend_mode);
                 material.alpha_cutoff = mesh_material->alpha_cutoff;
-                material.two_sided = mesh_material->two_sided;
+                material.two_sided = mesh_material->twosided;
                 material.null_surface = mesh_material->null_surface;
                 material.phase_asymmetry_g = mesh_material->phase_asymmetry_g;
                 material.scattering_ratio = mesh_material->scattering_ratio;

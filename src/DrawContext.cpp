@@ -128,7 +128,6 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         mat->depth_write = false;
         mat->depth_test = true;
         mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
-        mat->textures[vierkant::TextureType::Environment] = {};
         m_drawable_skybox = vierkant::create_drawables(mesh_component, drawable_params).front();
     }
 }
