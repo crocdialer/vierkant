@@ -78,7 +78,7 @@ public:
     template<object_component T>
     inline T &add_component(const T &component = {})
     {
-        if(auto reg = m_registry.lock()) { return reg->template emplace<T>(m_entity, component); }
+        if(auto reg = m_registry.lock()) { return reg->template emplace_or_replace<T>(m_entity, component); }
         throw std::runtime_error("error adding component: no registry defined");
     }
 

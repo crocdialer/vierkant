@@ -19,6 +19,9 @@
 
 namespace vierkant
 {
+
+//! define resource-identifiers
+DEFINE_NAMED_UUID(MeshId)
 DEFINE_NAMED_UUID(MaterialId)
 DEFINE_NAMED_UUID(TextureSourceId)
 DEFINE_NAMED_UUID(SamplerId)
@@ -47,6 +50,11 @@ struct material_t
     float roughness = 1.f;
     float metalness = 0.f;
 
+    //! null-surface (skip surface interaction)
+    bool null_surface = false;
+
+    bool twosided = false;
+
     // transmission
     float ior = 1.5f;
     glm::vec3 attenuation_color = glm::vec3(1.f);
@@ -60,8 +68,6 @@ struct material_t
 
     vierkant::Material::BlendMode blend_mode = vierkant::Material::BlendMode::Opaque;
     float alpha_cutoff = 0.5f;
-
-    bool twosided = false;
 
     // specular
     float specular_factor = 1.f;
