@@ -54,6 +54,7 @@ enum class TextureType : uint32_t
 
 struct material_t
 {
+    vierkant::MaterialId id;
     std::string name;
 
     glm::vec4 base_color = glm::vec4(1.f);
@@ -116,6 +117,9 @@ struct material_t
     std::map<vierkant::TextureType, vierkant::SamplerId> samplers;
 };
 
+bool operator==(const vierkant::material_t &lhs, const vierkant::material_t &rhs);
+inline bool operator!=(const vierkant::material_t &lhs, const vierkant::material_t &rhs) { return !(lhs == rhs); }
+
 struct texture_sampler_t
 {
     enum class Filter
@@ -165,4 +169,4 @@ struct hash<vierkant::material_t>
 {
     size_t operator()(vierkant::material_t const &m) const;
 };
-}
+}// namespace std
