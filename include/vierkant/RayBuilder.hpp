@@ -85,7 +85,7 @@ public:
 
         uint32_t texture_type_flags = 0;
 
-        uint32_t blend_mode = static_cast<uint32_t>(Material::BlendMode::Opaque);
+        uint32_t blend_mode = static_cast<uint32_t>(vierkant::BlendMode::Opaque);
 
         float alpha_cutoff = 0.5f;
 

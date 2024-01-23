@@ -78,7 +78,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.num_meshlets = lod_0.num_meshlets;
 
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
-        drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::Material::BlendMode::Blend;
+        drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::BlendMode::Blend;
         drawable.pipeline_format.depth_test = material->depth_test;
         drawable.pipeline_format.depth_write = material->depth_write;
         drawable.pipeline_format.cull_mode = material->two_sided ? VK_CULL_MODE_NONE : material->cull_mode;
@@ -136,7 +136,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
             {
                 if(tex)
                 {
-                    drawable.material.texture_type_flags |= type_flag;
+                    drawable.material.texture_type_flags |= static_cast<uint32_t>(type_flag);
                     desc_texture.images.push_back(tex);
                 }
             }

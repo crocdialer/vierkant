@@ -85,7 +85,7 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
 
     for(const auto &mat: materials)
     {
-        vierkant::model::material_t m = {};
+        vierkant::material_t m = {};
         m.name = mat.name;
         m.base_color = {mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], std::clamp(1.f - mat.dissolve, 0.f, 1.f)};
         m.emission = {mat.emission[0], mat.emission[1], mat.emission[2]};
@@ -102,13 +102,13 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
         if(!mat.diffuse_texname.empty())
         {
             auto [tex_id, img] = get_image((base_dir / mat.diffuse_texname).string());
-            m.textures[Material::TextureType::Color] = tex_id;
+            m.textures[vierkant::TextureType::Color] = tex_id;
             mesh_assets.textures[tex_id] = img;
         }
         if(!mat.normal_texname.empty())
         {
             auto [tex_id, img] = get_image((base_dir / mat.normal_texname).string());
-            m.textures[Material::TextureType::Normal] = tex_id;
+            m.textures[vierkant::TextureType::Normal] = tex_id;
             mesh_assets.textures[tex_id] = img;
         }
         vierkant::MaterialId new_id;

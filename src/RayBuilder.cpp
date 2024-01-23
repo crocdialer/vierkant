@@ -156,7 +156,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         VkMicromapUsageEXT micromap_usage = {};
 
         // attach an existing opacity-micromap for this geometry
-        if(params.micromap_assets.size() > i && material->blend_mode == vierkant::Material::BlendMode::Mask)
+        if(params.micromap_assets.size() > i && material->blend_mode == vierkant::BlendMode::Mask)
         {
             const auto &optional_micromap_asset = params.micromap_assets[i];
 
@@ -182,7 +182,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 
         auto &geometry = geometries[i];
         geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-        geometry.flags = material->blend_mode == vierkant::Material::BlendMode::Opaque ? VK_GEOMETRY_OPAQUE_BIT_KHR : 0;
+        geometry.flags = material->blend_mode == vierkant::BlendMode::Opaque ? VK_GEOMETRY_OPAQUE_BIT_KHR : 0;
         geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
         geometry.geometry.triangles = triangles;
 
@@ -492,23 +492,23 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
                 for(auto &[type_flag, tex]: mesh_material->textures)
                 {
-                    material.texture_type_flags |= type_flag;
+                    material.texture_type_flags |= static_cast<uint32_t>(type_flag);
                     uint32_t texture_index = textures.size();
                     textures.push_back(tex);
 
                     switch(type_flag)
                     {
-                        case vierkant::Material::TextureType::Color: material.albedo_index = texture_index; break;
+                        case vierkant::TextureType::Color: material.albedo_index = texture_index; break;
 
-                        case vierkant::Material::TextureType::Normal: material.normalmap_index = texture_index; break;
+                        case vierkant::TextureType::Normal: material.normalmap_index = texture_index; break;
 
-                        case vierkant::Material::TextureType::Emission: material.emission_index = texture_index; break;
+                        case vierkant::TextureType::Emission: material.emission_index = texture_index; break;
 
-                        case vierkant::Material::TextureType::Ao_rough_metal:
+                        case vierkant::TextureType::Ao_rough_metal:
                             material.ao_rough_metal_index = texture_index;
                             break;
 
-                        case vierkant::Material::TextureType::Transmission:
+                        case vierkant::TextureType::Transmission:
                             material.transmission_index = texture_index;
                             break;
                         default: break;

@@ -627,7 +627,7 @@ void draw_material_ui(const MaterialPtr &material)
 {
     const float w = ImGui::GetContentRegionAvail().x;
 
-    auto draw_texture = [&material, w](vierkant::Material::TextureType type, const std::string &text) {
+    auto draw_texture = [&material, w](vierkant::TextureType type, const std::string &text) {
         auto it = material->textures.find(type);
 
         if(it != material->textures.end())
@@ -651,15 +651,15 @@ void draw_material_ui(const MaterialPtr &material)
 
     // base color
     ImGui::ColorEdit4("base color", glm::value_ptr(material->color));
-    draw_texture(vierkant::Material::TextureType::Color, "base color");
+    draw_texture(vierkant::TextureType::Color, "base color");
 
     // emissive color
     ImGui::ColorEdit3("emission color", glm::value_ptr(material->emission));
     ImGui::InputFloat("emissive strength", &material->emission.w);
-    draw_texture(vierkant::Material::TextureType::Emission, "emission");
+    draw_texture(vierkant::TextureType::Emission, "emission");
 
     // normalmap
-    draw_texture(vierkant::Material::TextureType::Normal, "normals");
+    draw_texture(vierkant::TextureType::Normal, "normals");
 
     ImGui::Separator();
 
@@ -673,7 +673,7 @@ void draw_material_ui(const MaterialPtr &material)
     ImGui::SliderFloat("occlusion", &material->occlusion, 0.f, 1.f);
 
     // ambient-occlusion / roughness / metalness
-    draw_texture(vierkant::Material::TextureType::Ao_rough_metal, "occlusion / roughness / metalness");
+    draw_texture(vierkant::TextureType::Ao_rough_metal, "occlusion / roughness / metalness");
 
     ImGui::Separator();
 
@@ -681,8 +681,7 @@ void draw_material_ui(const MaterialPtr &material)
 
     // blend-mode
     const char *blend_items[] = {"Opaque", "Blend", "Mask"};
-    constexpr Material::BlendMode blend_modes[] = {Material::BlendMode::Opaque, Material::BlendMode::Blend,
-                                                   Material::BlendMode::Mask};
+    constexpr BlendMode blend_modes[] = {BlendMode::Opaque, BlendMode::Blend, BlendMode::Mask};
     int blend_mode_index = 0;
 
     for(auto blend_mode: blend_modes)
@@ -696,7 +695,7 @@ void draw_material_ui(const MaterialPtr &material)
         material->blend_mode = blend_modes[blend_mode_index];
     }
 
-    if(material->blend_mode == Material::BlendMode::Mask)
+    if(material->blend_mode == BlendMode::Mask)
     {
         // alpha-cutoff
         ImGui::SliderFloat("alpha-cutoff", &material->alpha_cutoff, 0.f, 1.f);
@@ -710,7 +709,7 @@ void draw_material_ui(const MaterialPtr &material)
 
     // transmission
     ImGui::SliderFloat("transmission", &material->transmission, 0.f, 1.f);
-    draw_texture(vierkant::Material::TextureType::Transmission, "transmission");
+    draw_texture(vierkant::TextureType::Transmission, "transmission");
 
     // attenuation distance
     ImGui::InputFloat("attenuation distance", &material->attenuation_distance);

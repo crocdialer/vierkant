@@ -32,7 +32,7 @@ struct alignas(16) material_struct_t
 
     float ambient = 1.f;
 
-    uint32_t blend_mode = static_cast<uint32_t>(Material::BlendMode::Opaque);
+    uint32_t blend_mode = static_cast<uint32_t>(vierkant::BlendMode::Opaque);
 
     float alpha_cutoff = 0.5f;
 

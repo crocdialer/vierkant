@@ -8,7 +8,6 @@
 #include <variant>
 
 #include <crocore/Image.hpp>
-#include <crocore/NamedUUID.hpp>
 #include <crocore/ThreadPool.hpp>
 
 #include <vierkant/Geometry.hpp>
@@ -22,9 +21,6 @@ namespace vierkant
 
 //! define resource-identifiers
 DEFINE_NAMED_UUID(MeshId)
-DEFINE_NAMED_UUID(MaterialId)
-DEFINE_NAMED_UUID(TextureSourceId)
-DEFINE_NAMED_UUID(SamplerId)
 
 //! contains uncompressed or BC7-compressed images
 using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bc7::compress_result_t>;
@@ -38,89 +34,6 @@ using geometry_variant_t = std::variant<std::vector<vierkant::Mesh::entry_create
 
 namespace vierkant::model
 {
-
-struct material_t
-{
-    std::string name;
-
-    glm::vec4 base_color = glm::vec4(1.f);
-    glm::vec3 emission;
-    float emissive_strength = 1.f;
-
-    float roughness = 1.f;
-    float metalness = 0.f;
-
-    //! null-surface (skip surface interaction)
-    bool null_surface = false;
-
-    bool twosided = false;
-
-    // transmission
-    float ior = 1.5f;
-    glm::vec3 attenuation_color = glm::vec3(1.f);
-
-    // volumes
-    float transmission = 0.f;
-    float attenuation_distance = std::numeric_limits<float>::infinity();
-
-    // idk rasterizer only thingy
-    float thickness = 1.f;
-
-    vierkant::Material::BlendMode blend_mode = vierkant::Material::BlendMode::Opaque;
-    float alpha_cutoff = 0.5f;
-
-    // specular
-    float specular_factor = 1.f;
-    glm::vec3 specular_color = glm::vec3(1.f);
-
-    // clearcoat
-    float clearcoat_factor = 0.f;
-    float clearcoat_roughness_factor = 0.f;
-
-    // sheen
-    glm::vec3 sheen_color = glm::vec3(0.f);
-    float sheen_roughness = 0.f;
-
-    // iridescence
-    float iridescence_factor = 0.f;
-    float iridescence_ior = 1.3f;
-
-    // iridescence thin-film layer given in nanometers (nm)
-    glm::vec2 iridescence_thickness_range = {100.f, 400.f};
-
-    // optional texture-transform (todo: per image)
-    glm::mat4 texture_transform = glm::mat4(1);
-
-    // maps TextureType to a TextureId/SamplerId. sorted in enum order, which is important in other places.
-    std::map<Material::TextureType, vierkant::TextureSourceId> textures;
-    std::map<Material::TextureType, vierkant::SamplerId> samplers;
-};
-
-struct texture_sampler_t
-{
-    enum class Filter
-    {
-        NEAREST = 0,
-        LINEAR,
-        CUBIC
-    };
-
-    enum class AddressMode
-    {
-        REPEAT = 0,
-        MIRRORED_REPEAT,
-        CLAMP_TO_EDGE,
-        CLAMP_TO_BORDER,
-        MIRROR_CLAMP_TO_EDGE,
-    };
-
-    AddressMode address_mode_u = AddressMode::REPEAT;
-    AddressMode address_mode_v = AddressMode::REPEAT;
-
-    Filter min_filter = Filter::LINEAR;
-    Filter mag_filter = Filter::LINEAR;
-    glm::mat4 transform = glm::mat4(1);
-};
 
 enum class LightType : uint32_t
 {

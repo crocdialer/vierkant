@@ -28,7 +28,7 @@ VkFormat vk_format(const crocore::ImagePtr &img)
     return ret;
 }
 
-VkSamplerAddressMode vk_sampler_address_mode(const vierkant::model::texture_sampler_t::AddressMode &address_mode)
+VkSamplerAddressMode vk_sampler_address_mode(const vierkant::texture_sampler_t::AddressMode &address_mode)
 {
     switch(address_mode)
     {
@@ -41,7 +41,7 @@ VkSamplerAddressMode vk_sampler_address_mode(const vierkant::model::texture_samp
     }
 }
 
-VkFilter vk_filter(const vierkant::model::texture_sampler_t::Filter &filter)
+VkFilter vk_filter(const vierkant::texture_sampler_t::Filter &filter)
 {
     switch(filter)
     {
@@ -54,7 +54,7 @@ VkFilter vk_filter(const vierkant::model::texture_sampler_t::Filter &filter)
     return VK_FILTER_NEAREST;
 }
 
-vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::model::texture_sampler_t &ts,
+vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts,
                                       uint32_t num_mips)
 {
     VkSamplerCreateInfo sampler_create_info = {};
