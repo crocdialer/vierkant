@@ -28,7 +28,7 @@ VkFormat vk_format(const crocore::ImagePtr &img)
     return ret;
 }
 
-VkSamplerAddressMode vk_sampler_address_mode(const vierkant::model::texture_sampler_t::AddressMode &address_mode)
+VkSamplerAddressMode vk_sampler_address_mode(const vierkant::texture_sampler_t::AddressMode &address_mode)
 {
     switch(address_mode)
     {
@@ -41,7 +41,7 @@ VkSamplerAddressMode vk_sampler_address_mode(const vierkant::model::texture_samp
     }
 }
 
-VkFilter vk_filter(const vierkant::model::texture_sampler_t::Filter &filter)
+VkFilter vk_filter(const vierkant::texture_sampler_t::Filter &filter)
 {
     switch(filter)
     {
@@ -54,7 +54,7 @@ VkFilter vk_filter(const vierkant::model::texture_sampler_t::Filter &filter)
     return VK_FILTER_NEAREST;
 }
 
-vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::model::texture_sampler_t &ts,
+vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const vierkant::texture_sampler_t &ts,
                                       uint32_t num_mips)
 {
     VkSamplerCreateInfo sampler_create_info = {};
@@ -218,45 +218,23 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 },
                 tex_variant);
     }
-    const auto &materials = mesh_assets.materials;
-    mesh->materials.resize(std::max<size_t>(1, materials.size()));
+    mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
-    for(uint32_t i = 0; i < materials.size(); ++i)
+    for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
     {
+        const auto &asset_mat = mesh_assets.materials[i];
+
         auto &material = mesh->materials[i];
         material = vierkant::Material::create();
+        material->m = asset_mat;
 
-        material->name = materials[i].name;
-        material->color = materials[i].base_color;
-        material->emission = glm::vec4(materials[i].emission, materials[i].emissive_strength);
-        material->roughness = materials[i].roughness;
-        material->metalness = materials[i].metalness;
-        material->blend_mode = materials[i].blend_mode;
-        material->alpha_cutoff = materials[i].alpha_cutoff;
-        material->two_sided = materials[i].twosided;
-
-        material->transmission = materials[i].transmission;
-        material->attenuation_color = materials[i].attenuation_color;
-        material->attenuation_distance = materials[i].attenuation_distance;
-        material->ior = materials[i].ior;
-
-        material->sheen_color = materials[i].sheen_color;
-        material->sheen_roughness = materials[i].sheen_roughness;
-
-        material->sheen_color = materials[i].sheen_color;
-        material->sheen_roughness = materials[i].sheen_roughness;
-
-        material->iridescence_factor = materials[i].iridescence_factor;
-        material->iridescence_ior = materials[i].iridescence_ior;
-        material->iridescence_thickness_range = materials[i].iridescence_thickness_range;
-
-        for(const auto &[tex_type, tex_id]: materials[i].textures)
+        for(const auto &[tex_type, tex_id]: asset_mat.textures)
         {
             auto vk_img = texture_cache[tex_id];
 
             // optional sampler-override
-            auto sampler_id_it = materials[i].samplers.find(tex_type);
-            if(sampler_id_it != materials[i].samplers.end())
+            auto sampler_id_it = asset_mat.samplers.find(tex_type);
+            if(sampler_id_it != asset_mat.samplers.end())
             {
                 // clone img
                 vk_img = texture_cache[tex_id]->clone();
@@ -270,14 +248,12 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 }
                 else
                 {
-                    spdlog::warn("material '{}' references sampler '{}', but could not find in bundle",
-                                 materials[i].name, sampler_id.str());
+                    spdlog::warn("material '{}' references sampler '{}', but could not find in bundle", asset_mat.name,
+                                 sampler_id.str());
                 }
             }
             material->textures[tex_type] = vk_img;
         }
-
-        material->texture_transform = materials[i].texture_transform;
     }
 
     // submit transfer and sync

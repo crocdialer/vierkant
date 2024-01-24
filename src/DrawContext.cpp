@@ -124,12 +124,10 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         box->tangents.clear();
         box->normals.clear();
         vierkant::mesh_component_t mesh_component = {vierkant::Mesh::create_from_geometry(m_device, box, {})};
-        auto &mat = mesh_component.mesh->materials.front();
-        mat->depth_write = false;
-        mat->depth_test = true;
-        mat->cull_mode = VK_CULL_MODE_FRONT_BIT;
-        mat->textures[vierkant::Material::TextureType::Environment] = {};
         m_drawable_skybox = vierkant::create_drawables(mesh_component, drawable_params).front();
+        m_drawable_skybox.pipeline_format.depth_write = false;
+        m_drawable_skybox.pipeline_format.depth_test = true;
+        m_drawable_skybox.pipeline_format.cull_mode = VK_CULL_MODE_FRONT_BIT;
     }
 }
 

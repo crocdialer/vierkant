@@ -259,7 +259,8 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
         {
             const auto &entry = mesh->entries[i];
             const auto &lod_0 = entry.lods.front();
-            const auto &material = mesh->materials[entry.material_index];
+            const auto &mesh_material = mesh->materials[entry.material_index];
+            const auto &material = mesh_material->m;
 
             const auto &buffer_size = buffer_sizes[i];
             const auto &buffer_offset = buffer_offsets[i];
@@ -291,7 +292,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             param_ubo.num_triangles = lod_0.num_indices / 3;
             param_ubo.num_subdivisions = params.num_subdivisions;
             param_ubo.format = params.micromap_format;
-            param_ubo.alpha_cutoff = material->blend_mode == Material::BlendMode::Mask ? material->alpha_cutoff : 0.f;
+            param_ubo.alpha_cutoff = material.blend_mode == vierkant::BlendMode::Mask ? material.alpha_cutoff : 0.f;
             param_ubo.vertex_in = mesh->vertex_buffer->device_address() + vertex_stride * entry.vertex_offset;
             param_ubo.index_in =
                     mesh->index_buffer->device_address() + vierkant::num_bytes(mesh->index_type) * lod_0.base_index;
@@ -311,7 +312,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             auto &descriptor_img = computable.descriptors[1];
             descriptor_img.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
             descriptor_img.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptor_img.images = {material->textures[vierkant::Material::TextureType::Color]};
+            descriptor_img.images = {mesh_material->textures[vierkant::TextureType::Color]};
 
             // store params and computable, dispatch later
             param_ubos.push_back(param_ubo);
