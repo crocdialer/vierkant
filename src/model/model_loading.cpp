@@ -226,30 +226,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
 
         auto &material = mesh->materials[i];
         material = vierkant::Material::create();
-
-        material->name = asset_mat.name;
-        material->base_color = asset_mat.base_color;
-        material->emission = glm::vec4(asset_mat.emission, asset_mat.emissive_strength);
-        material->roughness = asset_mat.roughness;
-        material->metalness = asset_mat.metalness;
-        material->blend_mode = asset_mat.blend_mode;
-        material->alpha_cutoff = asset_mat.alpha_cutoff;
-        material->twosided = asset_mat.twosided;
-
-        material->transmission = asset_mat.transmission;
-        material->attenuation_color = asset_mat.attenuation_color;
-        material->attenuation_distance = asset_mat.attenuation_distance;
-        material->ior = asset_mat.ior;
-
-        material->sheen_color = asset_mat.sheen_color;
-        material->sheen_roughness = asset_mat.sheen_roughness;
-
-        material->sheen_color = asset_mat.sheen_color;
-        material->sheen_roughness = asset_mat.sheen_roughness;
-
-        material->iridescence_factor = asset_mat.iridescence_factor;
-        material->iridescence_ior = asset_mat.iridescence_ior;
-        material->iridescence_thickness_range = asset_mat.iridescence_thickness_range;
+        material->m = asset_mat;
 
         for(const auto &[tex_type, tex_id]: asset_mat.textures)
         {
@@ -277,8 +254,6 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
             }
             material->textures[tex_type] = vk_img;
         }
-
-        material->texture_transform = asset_mat.texture_transform;
     }
 
     // submit transfer and sync

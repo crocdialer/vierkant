@@ -45,7 +45,8 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         // sanity check material-index
         if(entry.material_index >= mesh->materials.size()) { continue; }
 
-        const auto &material = mesh->materials[entry.material_index];
+        const auto &mesh_material = mesh->materials[entry.material_index];
+        const auto &material = mesh_material->m;
 
         // acquire ref for mesh-drawable
         vierkant::drawable_t drawable = {};
@@ -55,17 +56,17 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         // combine mesh- with entry-transform
         drawable.matrices.transform =
                 params.transform * (node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]);
-        drawable.matrices.texture = material->texture_transform;
+        drawable.matrices.texture = material.texture_transform;
 
         // material params
-        drawable.material.color = material->base_color;
-        drawable.material.emission.xyz() = material->emission;
-        drawable.material.ambient = material->occlusion;
-        drawable.material.roughness = material->roughness;
-        drawable.material.metalness = material->metalness;
-        drawable.material.blend_mode = static_cast<uint32_t>(material->blend_mode);
-        drawable.material.alpha_cutoff = material->alpha_cutoff;
-        drawable.material.two_sided = material->twosided;
+        drawable.material.color = material.base_color;
+        drawable.material.emission.xyz() = material.emission;
+        drawable.material.ambient = material.occlusion;
+        drawable.material.roughness = material.roughness;
+        drawable.material.metalness = material.metalness;
+        drawable.material.blend_mode = static_cast<uint32_t>(material.blend_mode);
+        drawable.material.alpha_cutoff = material.alpha_cutoff;
+        drawable.material.two_sided = material.twosided;
 
         drawable.base_index = lod_0.base_index;
         drawable.num_indices = lod_0.num_indices;
@@ -78,8 +79,8 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.num_meshlets = lod_0.num_meshlets;
 
         drawable.pipeline_format.primitive_topology = entry.primitive_type;
-        drawable.pipeline_format.blend_state.blendEnable = material->blend_mode == vierkant::BlendMode::Blend;
-        drawable.pipeline_format.cull_mode = material->twosided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
+        drawable.pipeline_format.blend_state.blendEnable = material.blend_mode == vierkant::BlendMode::Blend;
+        drawable.pipeline_format.cull_mode = material.twosided ? VK_CULL_MODE_NONE : VK_CULL_MODE_BACK_BIT;
 
         if(!drawable.use_own_buffers)
         {
@@ -124,13 +125,13 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.pipeline_format.attribute_descriptions = attribute_descriptions;
 
         // textures
-        if(!material->textures.empty())
+        if(!mesh_material->textures.empty())
         {
             vierkant::descriptor_t &desc_texture = drawable.descriptors[Rasterizer::BINDING_TEXTURES];
             desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-            for(auto &[type_flag, tex]: material->textures)
+            for(auto &[type_flag, tex]: mesh_material->textures)
             {
                 if(tex)
                 {

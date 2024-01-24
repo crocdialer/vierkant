@@ -148,11 +148,12 @@ struct texture_sampler_t
 
 DEFINE_CLASS_PTR(Material)
 
-class Material : public material_t
+class Material
 {
 public:
     static MaterialPtr create() { return MaterialPtr(new Material()); };
 
+    material_t m;
     std::map<TextureType, vierkant::ImagePtr> textures;
 
 private:

@@ -386,7 +386,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     {
         for(const auto &mat: mesh->materials)
         {
-            auto h = std::hash<material_t>()(*mat);
+            auto h = std::hash<material_t>()(mat->m);
             if(frame_asset.material_hashes[mat] != h) { materials_unchanged = false; }
             frame_asset.material_hashes[mat] = h;
         }
