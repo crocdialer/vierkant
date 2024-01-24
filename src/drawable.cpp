@@ -60,7 +60,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
 
         // material params
         drawable.material.color = material.base_color;
-        drawable.material.emission.xyz() = material.emission;
+        drawable.material.emission = {material.emission, material.emissive_strength};
         drawable.material.ambient = material.occlusion;
         drawable.material.roughness = material.roughness;
         drawable.material.metalness = material.metalness;
