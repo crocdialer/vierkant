@@ -227,6 +227,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
         auto &material = mesh->materials[i];
         material = vierkant::Material::create();
         material->m = asset_mat;
+        material->hash = std::hash<vierkant::material_t>()(asset_mat);
 
         for(const auto &[tex_type, tex_id]: asset_mat.textures)
         {

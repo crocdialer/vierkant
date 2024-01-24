@@ -154,6 +154,7 @@ public:
     static MaterialPtr create() { return MaterialPtr(new Material()); };
 
     material_t m;
+    size_t hash = 0;
     std::map<TextureType, vierkant::ImagePtr> textures;
 
 private:
