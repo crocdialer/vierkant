@@ -816,9 +816,13 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
                 copy_transforms.push_back(copy_transform);
 
-                // extra copy into post-meshdraws, not most elegant way
-                copy_transform.dst_buffer = frame_asset.indirect_draw_params_post.mesh_draws;
-                copy_transforms.push_back(copy_transform);
+                // TODO: get back to this, reproduce fail with transform-update
+                if(frame_asset.indirect_draw_params_post.mesh_draws)
+                {
+                    // extra copy into post-meshdraws, not most elegant way
+                    copy_transform.dst_buffer = frame_asset.indirect_draw_params_post.mesh_draws;
+                    copy_transforms.push_back(copy_transform);
+                }
                 i++;
             }
             vierkant::staging_copy(staging_context, copy_transforms);
