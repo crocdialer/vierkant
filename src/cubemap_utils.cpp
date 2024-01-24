@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 7/2/20.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include "vierkant/cubemap_utils.hpp"
 #include <vierkant/shaders.hpp>
 

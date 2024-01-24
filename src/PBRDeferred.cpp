@@ -1,11 +1,3 @@
-//
-// Created by crocdialer on 6/19/20.
-//
-//#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_DEBUG
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <crocore/gaussian.hpp>
 
 #include <vierkant/PBRDeferred.hpp>
@@ -519,8 +511,7 @@ void PBRDeferred::update_animation_transforms(frame_asset_t &frame_asset)
             if(num_bytes % min_alignment) { bone_transforms.push_back({}); }
 
             // keep track of offset
-            entity_bone_buffer_offsets[object_id] =
-                    all_bone_transforms.size() * sizeof(vierkant::transform_t);
+            entity_bone_buffer_offsets[object_id] = all_bone_transforms.size() * sizeof(vierkant::transform_t);
             all_bone_transforms.insert(all_bone_transforms.end(), bone_transforms.begin(), bone_transforms.end());
         }
         else if(mesh->morph_buffer)

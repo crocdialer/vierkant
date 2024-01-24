@@ -60,10 +60,6 @@ set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/3rdparty/include
         ${PROJECT_BINARY_DIR}/include)
 
-# volk
-add_subdirectory(submodules/volk EXCLUDE_FROM_ALL)
-set(LIBS ${LIBS} volk)
-
 # glfw
 add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glfw)

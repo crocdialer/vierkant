@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 11/15/20.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/micromap_compute.hpp>

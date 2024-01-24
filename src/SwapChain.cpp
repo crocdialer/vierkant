@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 10/1/18.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include "vierkant/Image.hpp"
 #include "vierkant/SwapChain.hpp"
 

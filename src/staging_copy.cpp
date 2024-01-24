@@ -1,9 +1,3 @@
-//
-// Created by crocdialer on 10.01.23.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
 #include <set>
 #include "vierkant/staging_copy.hpp"
 

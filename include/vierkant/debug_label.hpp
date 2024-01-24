@@ -4,10 +4,7 @@
 
 #pragma once
 
-#define VK_NO_PROTOTYPES
-#include <vulkan/vulkan.h>
-
-#include <string>
+#include <vierkant/Instance.hpp>
 #include <vierkant/math.hpp>
 
 namespace vierkant

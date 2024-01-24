@@ -1,6 +1,3 @@
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include "vierkant/Buffer.hpp"
 
 namespace vierkant

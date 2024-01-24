@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 13.11.22.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include "vierkant/shaders.hpp"
 #include <vierkant/gpu_culling.hpp>
 

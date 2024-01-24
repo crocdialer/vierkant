@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 28.09.23.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <vierkant/debug_label.hpp>
 
 namespace vierkant

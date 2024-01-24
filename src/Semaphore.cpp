@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 1/25/21.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <vierkant/Semaphore.hpp>
 
 namespace vierkant
