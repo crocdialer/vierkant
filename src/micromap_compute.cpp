@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 27.11.23.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <vierkant/barycentric_indexing.hpp>
 #include <vierkant/micromap_compute.hpp>
 #include <vierkant/shaders.hpp>

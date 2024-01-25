@@ -60,9 +60,9 @@ set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/3rdparty/include
         ${PROJECT_BINARY_DIR}/include)
 
-# volk
-add_subdirectory(submodules/volk EXCLUDE_FROM_ALL)
-set(LIBS ${LIBS} volk)
+# vulkan/volk
+find_package(Vulkan)
+include_directories(${Vulkan_INCLUDE_DIRS})
 
 # glfw
 add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)

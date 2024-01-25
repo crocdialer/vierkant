@@ -1,12 +1,3 @@
-//
-// Created by crocdialer on 9/29/18.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
-#include <utility>
-
 #include "vierkant/CommandBuffer.hpp"
 
 namespace vierkant

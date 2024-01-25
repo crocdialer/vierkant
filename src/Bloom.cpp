@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 10/28/20.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <vierkant/Bloom.hpp>
 #include <vierkant/shaders.hpp>
 

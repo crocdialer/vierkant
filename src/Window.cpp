@@ -1,11 +1,4 @@
-//
-// Created by crocdialer on 9/28/18.
-//
-
 #include "vierkant/Window.hpp"
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>

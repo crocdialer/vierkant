@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 1/20/21.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <vierkant/hash.hpp>
 #include <vierkant/pipeline_formats.hpp>
 #include "vierkant/shaders.hpp"

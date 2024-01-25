@@ -1,12 +1,4 @@
-//
-// Created by crocdialer on 9/17/21.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <set>
-
 #include <vierkant/model/gltf.hpp>
 #include <vierkant/model/model_loading.hpp>
 #include <vierkant/model/wavefront_obj.hpp>

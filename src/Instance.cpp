@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 9/27/18.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <iostream>
 #include <set>
 

@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 10/2/18.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include "vierkant/Buffer.hpp"
 #include "vierkant/CommandBuffer.hpp"
 #include "vierkant/Image.hpp"

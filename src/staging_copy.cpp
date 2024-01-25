@@ -1,9 +1,3 @@
-//
-// Created by crocdialer on 10.01.23.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
 #include <set>
 #include "vierkant/staging_copy.hpp"
 
@@ -25,8 +19,7 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
 
     for(const auto &info: staging_copy_infos)
     {
-        if(!info.data || !info.num_bytes) { continue; }
-        assert(info.dst_buffer);
+        if(!info.data || !info.num_bytes || !info.dst_buffer) { continue; }
         assert(context.staging_buffer->num_bytes() - info.num_bytes >= context.offset);
 
         // copy array into staging-buffer

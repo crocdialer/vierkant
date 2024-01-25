@@ -1,12 +1,7 @@
-//
-// Created by crocdialer on 13.11.23.
-//
-
 #include <vierkant/Compute.hpp>
 #include <vierkant/object_overlay.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/staging_copy.hpp>
-#include <volk.h>
 
 namespace vierkant
 {

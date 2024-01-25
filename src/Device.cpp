@@ -1,10 +1,3 @@
-//
-// Created by crocdialer on 2/8/19.
-//
-
-#define VK_NO_PROTOTYPES
-#include <volk.h>
-
 #include <set>
 #include <vierkant/Device.hpp>
 #include <vierkant/git_hash.h>
