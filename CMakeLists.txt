@@ -60,12 +60,9 @@ set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/3rdparty/include
         ${PROJECT_BINARY_DIR}/include)
 
-## volk
-#add_subdirectory(submodules/volk EXCLUDE_FROM_ALL)
-#set(LIBS ${LIBS} volk)
-if(CMAKE_SYSTEM_NAME STREQUAL Windows)
-    add_definitions(-DVK_USE_PLATFORM_WIN32_KHR)
-endif()
+# vulkan/volk
+find_package(Vulkan)
+include_directories(${Vulkan_INCLUDE_DIRS})
 
 # glfw
 add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
