@@ -1,6 +1,4 @@
-//
-// Created by crocdialer on 3/13/20.
-//
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/spline.hpp>
 
 #include <vierkant/animation.hpp>

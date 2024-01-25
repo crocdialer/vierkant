@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <vector>
 #include "vierkant/math.hpp"
 
 namespace vierkant
