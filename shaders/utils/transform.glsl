@@ -4,7 +4,7 @@
 struct transform_t
 {
     float translation_x, translation_y, translation_z;
-    float rotation_w, rotation_x, rotation_y, rotation_z;
+    float rotation_x, rotation_y, rotation_z, rotation_w;
     float scale_x, scale_y, scale_z;
 };
 
