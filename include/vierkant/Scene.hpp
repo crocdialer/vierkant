@@ -2,10 +2,10 @@
 
 #include <entt/entity/registry.hpp>
 
-#include <vierkant/Object3D.hpp>
 #include <vierkant/Camera.hpp>
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
+#include <vierkant/Object3D.hpp>
 
 namespace vierkant
 {
@@ -30,7 +30,6 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
 class Scene
 {
 public:
-
     static ScenePtr create();
 
     void update(double time_delta);
@@ -51,16 +50,15 @@ public:
 
     void clear();
 
-    [[nodiscard]] inline const Object3DPtr &root() const{ return m_root; };
+    [[nodiscard]] inline const Object3DPtr &root() const { return m_root; };
 
-    [[nodiscard]] const vierkant::ImagePtr &environment() const{ return m_skybox; }
+    [[nodiscard]] const vierkant::ImagePtr &environment() const { return m_skybox; }
 
     void set_environment(const vierkant::ImagePtr &img);
 
-    [[nodiscard]] const std::shared_ptr<entt::registry>& registry() const { return m_registry; }
+    [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const { return m_registry; }
 
 private:
-
     Scene() = default;
 
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
@@ -72,4 +70,23 @@ private:
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };
 
-}//namespace
+//! helper struct to group an entity/id with a sub-entry-index
+struct id_entry_t
+{
+    uint32_t id;
+    uint32_t entry;
+
+    inline bool operator==(const id_entry_t &other) const { return id == other.id && entry == other.entry; }
+};
+
+}// namespace vierkant
+
+namespace std
+{
+template<>
+struct hash<vierkant::id_entry_t>
+{
+    size_t operator()(vierkant::id_entry_t const &key) const;
+};
+
+}// namespace std

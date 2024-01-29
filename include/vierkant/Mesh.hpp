@@ -4,17 +4,17 @@
 
 #pragma once
 
+#include "vierkant/Buffer.hpp"
+#include "vierkant/Device.hpp"
+#include "vierkant/Geometry.hpp"
+#include "vierkant/Image.hpp"
+#include "vierkant/Material.hpp"
 #include <optional>
 #include <set>
-#include "vierkant/Device.hpp"
-#include "vierkant/Buffer.hpp"
-#include "vierkant/Image.hpp"
-#include "vierkant/Geometry.hpp"
-#include "vierkant/Material.hpp"
-#include <vierkant/vertex_attrib.hpp>
-#include <vierkant/transform.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
+#include <vierkant/transform.hpp>
+#include <vierkant/vertex_attrib.hpp>
 
 namespace vierkant
 {
@@ -97,7 +97,6 @@ DEFINE_CLASS_PTR(Mesh)
 class Mesh
 {
 public:
-
     enum AttribLocation : uint32_t
     {
         ATTRIB_POSITION = 0,
@@ -183,10 +182,8 @@ public:
      * @param   geometry    a Geometry struct to extract the vertex information from
      * @return  the newly created vierkant::MeshPtr
      */
-    static vierkant::MeshPtr
-    create_from_geometry(const vierkant::DevicePtr &device,
-                         const GeometryPtr &geometry,
-                         const create_info_t &create_info);
+    static vierkant::MeshPtr create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
+                                                  const create_info_t &create_info);
 
     /**
      * @brief   Create a vierkant::MeshPtr with provided information about entries.
@@ -196,10 +193,9 @@ public:
      * @param   entry_create_infos  an array of entry_create_info_t structs.
      * @return  the newly created vierkant::MeshPtr
      */
-    static vierkant::MeshPtr
-    create_with_entries(const vierkant::DevicePtr &device,
-                        const std::vector<entry_create_info_t> &entry_create_infos,
-                        const create_info_t &create_info);
+    static vierkant::MeshPtr create_with_entries(const vierkant::DevicePtr &device,
+                                                 const std::vector<entry_create_info_t> &entry_create_infos,
+                                                 const create_info_t &create_info);
 
     /**
      * @brief   Create a vierkant::MeshPtr from a provided vierkant::mesh_buffer_bundle_t.
@@ -263,7 +259,6 @@ public:
     vierkant::BufferPtr meshlet_triangles;
 
 private:
-
     Mesh() = default;
 };
 
@@ -338,18 +333,6 @@ struct mesh_component_t
     std::optional<std::set<uint32_t>> entry_indices = {};
 };
 
-//! helper struct to group an entity/id with a sub-entry-index
-struct id_entry_t
-{
-    uint32_t id;
-    uint32_t entry;
-
-    inline bool operator==(const id_entry_t &other) const
-    {
-        return id == other.id && entry == other.entry;
-    }
-};
-
 }//namespace vierkant
 
 // template specializations for hashing
@@ -366,11 +349,4 @@ struct hash<vierkant::animated_mesh_t>
 {
     size_t operator()(vierkant::animated_mesh_t const &key) const;
 };
-
-template<>
-struct hash<vierkant::id_entry_t>
-{
-    size_t operator()(vierkant::id_entry_t const &key) const;
-};
-
-}
+}// namespace std
