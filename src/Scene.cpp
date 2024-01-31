@@ -1,6 +1,6 @@
 #include "vierkant/Scene.hpp"
 #include "vierkant/Visitor.hpp"
-#include "vierkant/cubemap_utils.hpp"
+#include "vierkant/physics_context.hpp"
 
 namespace vierkant
 {

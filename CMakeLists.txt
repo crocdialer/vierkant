@@ -100,7 +100,9 @@ set(BUILD_UNIT_TESTS OFF)
 set(BUILD_EXTRAS OFF)
 set(BUILD_BULLET2_DEMOS OFF)
 add_subdirectory(submodules/bullet3 EXCLUDE_FROM_ALL)
-set(LIBS ${LIBS} BulletCollision BulletDynamics)
+set(BULLET_LIBRARIES LinearMath BulletCollision BulletDynamics BulletSoftBody)
+set(LIBS ${LIBS} ${BULLET_LIBRARIES})
+include_directories(SYSTEM "submodules/bullet3/src")
 
 ##shaders
 include(build_shaders)
@@ -123,7 +125,7 @@ add_custom_target("shaders" DEPENDS ${SHADERS_CPP})
 # vierkant
 set(LIB_NAME ${PROJECT_NAME})
 add_subdirectory("src")
-set(LIBS ${LIBS} ${vierkant_LIBRARIES})
+#set(LIBS ${LIBS} ${vierkant_LIBRARIES})
 
 if (MSVC)
     target_compile_options(${LIB_NAME} PRIVATE /W2 /WX) # /W4
@@ -135,7 +137,7 @@ endif ()
 set(${PROJECT_NAME}_INCLUDE_DIRS ${INCLUDE_DIRS}
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
-set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
+set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES} ${BULLET_LIBRARIES}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
 #examples
