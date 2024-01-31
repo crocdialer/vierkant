@@ -95,6 +95,13 @@ set(LIBS ${LIBS} ${crocore_LIBRARIES})
 add_subdirectory(submodules/entt EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} EnTT::EnTT)
 
+# bullet
+set(BUILD_UNIT_TESTS OFF)
+set(BUILD_EXTRAS OFF)
+set(BUILD_BULLET2_DEMOS OFF)
+add_subdirectory(submodules/bullet3 EXCLUDE_FROM_ALL)
+set(LIBS ${LIBS} BulletCollision BulletDynamics)
+
 ##shaders
 include(build_shaders)
 get_shaders_recursive(GLSL_SOURCE_FILES "shaders")
