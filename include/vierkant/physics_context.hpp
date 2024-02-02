@@ -32,8 +32,11 @@ public:
 
     void step_simulation(float timestep, int max_sub_steps = 1, float fixed_time_step = 0.f);
 
-    void debug_render(vierkant::Rasterizer &renderer, const vierkant::transform_t &transform,
-                      const glm::mat4 &projection);
+//    void debug_render(vierkant::Rasterizer &renderer, const vierkant::transform_t &transform,
+//                      const glm::mat4 &projection);
+
+    RigiBodyId add_object(const vierkant::Object3DPtr &obj);
+    void remove_object(const vierkant::Object3DPtr &obj);
 
     CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                             const glm::vec3 &scale = glm::vec3(1));

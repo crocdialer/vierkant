@@ -169,7 +169,7 @@ void tessellate(const GeometryPtr &geom, uint32_t count, const tessellation_cont
 
             // this is certainly wrong
             if(!geom->normals.empty()) { interpolate_new_verts_fn(geom->normals); }
-            if(!geom->tangents.empty()) { interpolate_new_verts_fn(geom->colors); }
+            if(!geom->tangents.empty()) { interpolate_new_verts_fn(geom->tangents); }
 
             // also not elegant
             if(!geom->bone_weights.empty()) { interpolate_new_verts_fn(geom->bone_weights); }

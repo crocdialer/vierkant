@@ -2,6 +2,7 @@
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <btBulletDynamicsCommon.h>
 
+#include <utility>
 #include <vierkant/physics_context.hpp>
 
 class btThreadSupportInterface;
@@ -30,6 +31,18 @@ inline glm::mat4 to_mat4(const btTransform &the_transform)
     return m;
 }
 
+inline const btQuaternion &type_cast(const glm::quat &q)
+{
+    auto tmp = (void *) &q;
+    return *((const btQuaternion *) tmp);
+}
+
+inline const glm::quat &type_cast(const btQuaternion &q)
+{
+    auto tmp = (void *) &q;
+    return *((const glm::quat *) tmp);
+}
+
 inline vierkant::transform_t to_transform(const btTransform &t)
 {
     vierkant::transform_t ret;
@@ -40,12 +53,32 @@ inline vierkant::transform_t to_transform(const btTransform &t)
     return ret;
 }
 
+struct MotionState : public btMotionState
+{
+    vierkant::Object3DPtr m_object;
+
+    /// synchronizes world transform from user to physics
+    void getWorldTransform(btTransform & centerOfMassWorldTrans) const override
+    {
+        centerOfMassWorldTrans.setRotation(type_cast(m_object->transform.rotation));
+        centerOfMassWorldTrans.setOrigin(type_cast(m_object->transform.translation));
+    }
+
+    ///synchronizes world transform from physics to user
+    ///Bullet only calls the update of worldtransform for active objects
+    void setWorldTransform(const btTransform &centerOfMassWorldTrans) override
+    {
+        m_object->transform.rotation = type_cast(centerOfMassWorldTrans.getRotation());
+        m_object->transform.translation = type_cast(centerOfMassWorldTrans.getOrigin());
+    }
+};
+
 class BulletDebugDrawer : public btIDebugDraw
 {
 public:
     BulletDebugDrawer() = default;
 
-    inline void drawLine(const btVector3 & from, const btVector3 & to, const btVector3 & color) override
+    inline void drawLine(const btVector3 &from, const btVector3 &to, const btVector3 &color) override
     {
         m_geometry->positions.insert(m_geometry->positions.end(), {type_cast(from), type_cast(to)});
         glm::vec4 c(color[0], color[1], color[2], 1.f);
@@ -54,9 +87,7 @@ public:
 
     void drawContactPoint(const btVector3 & /*PointOnB*/, const btVector3 & /*normalOnB*/, btScalar /*distance*/,
                           int /*lifeTime*/, const btVector3 & /*color*/) override
-    {
-
-    }
+    {}
 
     void draw3dText(const btVector3 & /*location*/, const char * /*textString*/) override{};
 
@@ -184,23 +215,6 @@ public:
     //    void near_callback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher,
     //                       btDispatcherInfo &dispatchInfo);
 
-    //        /*!
-    //         * Add a kinski::MeshPtr instance to the physics simulation,
-    //         * with an optional collision shape.
-    //         * If no collision shape is provided, a (static) btBvhTriangleMeshShape instance will be created.
-    //         * return: A pointer to the newly created btRigidBody
-    //         */
-    //        btRigidBody* add_mesh_to_simulation(const gl::MeshPtr &the_mesh, float mass = 0.f,
-    //                                            btCollisionShapePtr col_shape = btCollisionShapePtr());
-    //
-    //        bool remove_mesh_from_simulation(const gl::MeshPtr &the_mesh);
-    //
-    //        /*!
-    //         * return a pointer to the corresponding btRigidBody for the_mesh
-    //         * or nullptr if not found
-    //         */
-    //        btRigidBody* get_rigidbody_for_mesh(const gl::MeshPtr &the_mesh);
-
     /*!
          * set where to position static planes as boundaries for the entire physics scene
          */
@@ -273,6 +287,12 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
     vierkant::CollisionShapeId new_id;
     m_engine->bullet.collision_shapes[new_id] = std::move(hull_shape);
     return new_id;
+}
+
+RigiBodyId PhysicsContext::add_object(const Object3DPtr &obj)
+{
+    if(obj->has_component<physics_component_t>()) {}
+    return vierkant::RigiBodyId::nil();
 }
 
 }//namespace vierkant
