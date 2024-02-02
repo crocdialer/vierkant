@@ -9,10 +9,6 @@ class btThreadSupportInterface;
 namespace vierkant
 {
 typedef std::shared_ptr<btCollisionShape> btCollisionShapePtr;
-typedef std::shared_ptr<const btCollisionShape> btCollisionShapeConstPtr;
-typedef std::shared_ptr<btCollisionObject> btCollisionObjectPtr;
-typedef std::shared_ptr<const btCollisionObject> btCollisionConstObjectPtr;
-typedef std::shared_ptr<btDynamicsWorld> btDynamicsWorldPtr;
 typedef std::shared_ptr<btSoftRigidDynamicsWorld> btSoftRigidDynamicsWorldPtr;
 typedef std::shared_ptr<btIDebugDraw> btIDebugDrawPtr;
 
@@ -37,39 +33,29 @@ inline glm::mat4 to_mat4(const btTransform &the_transform)
 inline vierkant::transform_t to_transform(const btTransform &t)
 {
     vierkant::transform_t ret;
-    t.getBasis().getRotation(reinterpret_cast<btQuaternion&>(ret.rotation));
+    btQuaternion q;
+    t.getBasis().getRotation(q);
+    memcpy(glm::value_ptr(ret.rotation), &q[0], sizeof(ret.rotation));
     ret.translation = type_cast(t.getOrigin());
     return ret;
 }
 
-btCollisionShapePtr create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
-                                           const glm::vec3 &the_scale = glm::vec3(1));
-btCollisionShapePtr create_convex_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
-                                                  const glm::vec3 &the_scale = glm::vec3(1));
-
 class BulletDebugDrawer : public btIDebugDraw
 {
 public:
-    BulletDebugDrawer(){
-            //            m_mesh_lines = gl::Mesh::create();
-            //            m_mesh_lines->geometry()->set_primitive_type(GL_LINES);
+    BulletDebugDrawer() = default;
 
-            //            setDebugMode(DBG_DrawWireframe /*| DBG_DrawContactPoints*/);
-    };
-
-    inline void drawLine(const btVector3 & /*from*/, const btVector3 & /*to*/, const btVector3 & /*color*/) override
+    inline void drawLine(const btVector3 & from, const btVector3 & to, const btVector3 & color) override
     {
-        //            m_mesh_lines->geometry()->append_vertex(glm::vec3(from.x(), from.y(), from.z()));
-        //            m_mesh_lines->geometry()->append_vertex(glm::vec3(to.x(), to.y(), to.z()));
-        //            m_mesh_lines->geometry()->append_color(glm::vec4(color.x(), color.y(), color.z(), 1.0f));
-        //            m_mesh_lines->geometry()->append_color(glm::vec4(color.x(), color.y(), color.z(), 1.0f));
+        m_geometry->positions.insert(m_geometry->positions.end(), {type_cast(from), type_cast(to)});
+        glm::vec4 c(color[0], color[1], color[2], 1.f);
+        m_geometry->colors.insert(m_geometry->colors.end(), {c, c});
     }
 
     void drawContactPoint(const btVector3 & /*PointOnB*/, const btVector3 & /*normalOnB*/, btScalar /*distance*/,
                           int /*lifeTime*/, const btVector3 & /*color*/) override
     {
-        //            m_mesh_points->geometry()->append_vertex(glm::vec3(PointOnB.x(), PointOnB.y(), PointOnB.z()));
-        //            m_mesh_points->geometry()->append_color(glm::vec4(color.x(), color.y(), color.z(), 1.0f));
+
     }
 
     void draw3dText(const btVector3 & /*location*/, const char * /*textString*/) override{};
@@ -80,6 +66,7 @@ public:
     [[nodiscard]] int getDebugMode() const override { return DBG_DrawWireframe; }
 
 private:
+    vierkant::GeometryPtr m_geometry = vierkant::Geometry::create();
 };
 
 class MeshInterface : public btStridingMeshInterface
@@ -192,10 +179,10 @@ public:
         // tick callback
         //        world->setInternalTickCallback(&_tick_callback, static_cast<void*>(this));
     }
-    ~BulletContext();
+    //    ~BulletContext();
 
-    void near_callback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher,
-                       btDispatcherInfo &dispatchInfo);
+    //    void near_callback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher,
+    //                       btDispatcherInfo &dispatchInfo);
 
     //        /*!
     //         * Add a kinski::MeshPtr instance to the physics simulation,
@@ -217,19 +204,20 @@ public:
     /*!
          * set where to position static planes as boundaries for the entire physics scene
          */
-    void set_world_boundaries(const glm::vec3 &the_half_extents, const glm::vec3 &the_origin = glm::vec3(0));
-
-    void attach_constraints(float the_thresh);
-
-    /*!
-         * internal tick callback, do not call directly
-         */
-    void tick_callback(btScalar timeStep);
+    //    void set_world_boundaries(const glm::vec3 &the_half_extents, const glm::vec3 &the_origin = glm::vec3(0));
+    //
+    //    void attach_constraints(float the_thresh);
+    //
+    //    /*!
+    //         * internal tick callback, do not call directly
+    //         */
+    //    void tick_callback(btScalar timeStep);
 
     //        std::unordered_map<gl::MeshPtr, btCollisionShapePtr> m_mesh_shape_map{};
     //        std::unordered_map<gl::MeshPtr, btRigidBody*> m_mesh_rigidbody_map{};
 
-    std::set<btCollisionShapePtr> m_collisionShapes;
+    std::unordered_map<CollisionShapeId, btCollisionShapePtr> collision_shapes;
+
     std::shared_ptr<btBroadphaseInterface> broadphase;
     std::shared_ptr<btCollisionDispatcher> dispatcher;
     std::shared_ptr<btConstraintSolver> solver;
@@ -242,8 +230,6 @@ public:
     //        std::shared_ptr<btThreadSupportInterface> m_threadSupportSolver;
 
     std::shared_ptr<BulletDebugDrawer> m_debug_drawer;
-
-    std::vector<btCollisionShapePtr> m_bounding_shapes;
     std::vector<btRigidBody *> m_bounding_bodies;
 };
 
@@ -265,6 +251,28 @@ PhysicsContext &PhysicsContext::operator=(PhysicsContext other)
 void PhysicsContext::step_simulation(float timestep, int max_sub_steps, float fixed_time_step)
 {
     if(m_engine->bullet.world) { m_engine->bullet.world->stepSimulation(timestep, max_sub_steps, fixed_time_step); }
+}
+
+CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, const glm::vec3 &scale)
+{
+    auto mesh_shape = std::make_shared<TriangleMeshShape>(std::make_unique<MeshInterface>(mesh_bundle), true, true);
+    mesh_shape->setLocalScaling(type_cast(scale));
+    vierkant::CollisionShapeId new_id;
+    m_engine->bullet.collision_shapes[new_id] = std::move(mesh_shape);
+    return new_id;
+}
+
+CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle,
+                                                               const glm::vec3 &scale)
+{
+    const auto &entry = mesh_bundle.entries.front();
+    auto verts = (btScalar *) (mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride);
+    btCollisionShapePtr hull_shape(
+            new btConvexHullShape(verts, (int) entry.num_vertices, (int) mesh_bundle.vertex_stride));
+    hull_shape->setLocalScaling(type_cast(scale));
+    vierkant::CollisionShapeId new_id;
+    m_engine->bullet.collision_shapes[new_id] = std::move(hull_shape);
+    return new_id;
 }
 
 }//namespace vierkant

@@ -6,6 +6,7 @@
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Object3D.hpp>
+#include <vierkant/physics_context.hpp>
 
 namespace vierkant
 {
@@ -66,6 +67,8 @@ private:
     vierkant::ImagePtr m_skybox = nullptr;
 
     Object3DPtr m_root = Object3D::create(m_registry, "scene root");
+
+//    vierkant::PhysicsContext m_physics_context;
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };

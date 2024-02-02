@@ -43,7 +43,7 @@ public:
 
 private:
     struct engine;
-    std::unique_ptr<engine> m_engine;
+    std::unique_ptr<engine, std::function<void(engine*)>> m_engine;
 };
 
 }//namespace vierkant

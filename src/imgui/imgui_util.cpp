@@ -457,10 +457,11 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer)
 }
 
 vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj,
-                                                const std::set<vierkant::Object3DPtr> *selection)
+                                                const std::set<vierkant::Object3DPtr> *selection,
+                                                ImGuiTreeNodeFlags flags = 0)
 {
     vierkant::Object3DPtr ret;
-    ImGuiTreeNodeFlags node_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+    ImGuiTreeNodeFlags node_flags = flags | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
     node_flags |= selection && selection->count(obj) ? ImGuiTreeNodeFlags_Selected : 0;
 
     // push object id
@@ -508,8 +509,8 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &cam, std::set<vierkant::Obj
         ImGui::BeginTabBar("scene_tabs");
         if(ImGui::BeginTabItem("scene"))
         {
-            // draw a tree for the scene-objects
-            auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection);
+            // draw a tree for the scene-objects, default open root-node
+            auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection, ImGuiTreeNodeFlags_DefaultOpen);
 
             // add / remove an object from selection
             if(clicked_obj && selection)

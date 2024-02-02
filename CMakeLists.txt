@@ -99,9 +99,14 @@ set(LIBS ${LIBS} EnTT::EnTT)
 set(BUILD_UNIT_TESTS OFF)
 set(BUILD_EXTRAS OFF)
 set(BUILD_BULLET2_DEMOS OFF)
+set(BUILD_OPENGL3_DEMOS OFF)
+set(CMAKE_POLICY_DEFAULT_CMP0072 NEW)
 add_subdirectory(submodules/bullet3 EXCLUDE_FROM_ALL)
-set(BULLET_LIBRARIES LinearMath BulletCollision BulletDynamics BulletSoftBody)
+set(BULLET_LIBRARIES LinearMath BulletDynamics BulletSoftBody BulletCollision)
 set(LIBS ${LIBS} ${BULLET_LIBRARIES})
+foreach (BULLET_TARGET ${BULLET_LIBRARIES})
+    target_compile_options(${BULLET_TARGET} PRIVATE -Wno-stringop-overflow)
+endforeach()
 include_directories(SYSTEM "submodules/bullet3/src")
 
 ##shaders
@@ -125,7 +130,6 @@ add_custom_target("shaders" DEPENDS ${SHADERS_CPP})
 # vierkant
 set(LIB_NAME ${PROJECT_NAME})
 add_subdirectory("src")
-#set(LIBS ${LIBS} ${vierkant_LIBRARIES})
 
 if (MSVC)
     target_compile_options(${LIB_NAME} PRIVATE /W2 /WX) # /W4
@@ -137,7 +141,7 @@ endif ()
 set(${PROJECT_NAME}_INCLUDE_DIRS ${INCLUDE_DIRS}
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
-set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES} ${BULLET_LIBRARIES}
+set(${PROJECT_NAME}_LIBRARIES ${crocore_LIBRARIES} ${PROJECT_NAME} ${BULLET_LIBRARIES}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
 #examples
