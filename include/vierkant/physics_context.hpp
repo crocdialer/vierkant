@@ -8,8 +8,9 @@ namespace vierkant
 {
 
 DEFINE_NAMED_ID(CollisionShapeId)
-DEFINE_NAMED_ID(RigiBodyId)
+DEFINE_NAMED_ID(RigidBodyId)
 DEFINE_NAMED_ID(SoftBodyId)
+DEFINE_NAMED_ID(ConstraintId)
 
 struct physics_component_t
 {
@@ -35,7 +36,7 @@ public:
 //    void debug_render(vierkant::Rasterizer &renderer, const vierkant::transform_t &transform,
 //                      const glm::mat4 &projection);
 
-    RigiBodyId add_object(const vierkant::Object3DPtr &obj);
+    RigidBodyId add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
 
     CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,

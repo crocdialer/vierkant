@@ -10,6 +10,9 @@ class btThreadSupportInterface;
 namespace vierkant
 {
 typedef std::shared_ptr<btCollisionShape> btCollisionShapePtr;
+typedef std::shared_ptr<btRigidBody> btRigidBodyPtr;
+typedef std::shared_ptr<btSoftBody> btSoftBodyPtr;
+typedef std::shared_ptr<btTypedConstraint> btTypedConstraintPtr;
 typedef std::shared_ptr<btSoftRigidDynamicsWorld> btSoftRigidDynamicsWorldPtr;
 typedef std::shared_ptr<btIDebugDraw> btIDebugDrawPtr;
 
@@ -57,15 +60,17 @@ struct MotionState : public btMotionState
 {
     vierkant::Object3DPtr m_object;
 
-    /// synchronizes world transform from user to physics
-    void getWorldTransform(btTransform & centerOfMassWorldTrans) const override
+    explicit MotionState(vierkant::Object3DPtr obj) : m_object(std::move(obj)) {}
+    ~MotionState() override = default;
+
+    //! synchronizes world transform from user to physics
+    void getWorldTransform(btTransform &centerOfMassWorldTrans) const override
     {
         centerOfMassWorldTrans.setRotation(type_cast(m_object->transform.rotation));
         centerOfMassWorldTrans.setOrigin(type_cast(m_object->transform.translation));
     }
 
-    ///synchronizes world transform from physics to user
-    ///Bullet only calls the update of worldtransform for active objects
+    //! synchronizes world transform from physics to user
     void setWorldTransform(const btTransform &centerOfMassWorldTrans) override
     {
         m_object->transform.rotation = type_cast(centerOfMassWorldTrans.getRotation());
@@ -187,20 +192,15 @@ private:
 class BulletContext
 {
 public:
-    //        explicit BulletContext(int num_tasks = 1):m_maxNumTasks(num_tasks){};
+    struct rigid_body_item_t
+    {
+        RigidBodyId id;
+        std::unique_ptr<MotionState> motion_state;
+        btRigidBodyPtr rigid_body;
+    };
+
     BulletContext()
     {
-        configuration = std::make_shared<btDefaultCollisionConfiguration>();
-
-        ///use the default collision dispatcher. For parallel processing you can use a diffent dispatcher (see Extras/BulletMultiThreaded)
-        dispatcher = std::make_shared<btCollisionDispatcher>(configuration.get());
-        broadphase = std::make_shared<btDbvtBroadphase>();
-
-        ///the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
-        solver = std::make_shared<btSequentialImpulseConstraintSolver>();
-        world = std::make_shared<btSoftRigidDynamicsWorld>(dispatcher.get(), broadphase.get(), solver.get(),
-                                                           configuration.get());
-
         world->setGravity(btVector3(0, -9.87, 0));
 
         // debug drawer
@@ -210,7 +210,6 @@ public:
         // tick callback
         //        world->setInternalTickCallback(&_tick_callback, static_cast<void*>(this));
     }
-    //    ~BulletContext();
 
     //    void near_callback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher,
     //                       btDispatcherInfo &dispatchInfo);
@@ -230,21 +229,31 @@ public:
     //        std::unordered_map<gl::MeshPtr, btCollisionShapePtr> m_mesh_shape_map{};
     //        std::unordered_map<gl::MeshPtr, btRigidBody*> m_mesh_rigidbody_map{};
 
-    std::unordered_map<CollisionShapeId, btCollisionShapePtr> collision_shapes;
+    std::shared_ptr<btDefaultCollisionConfiguration> configuration =
+            std::make_shared<btDefaultCollisionConfiguration>();
 
-    std::shared_ptr<btBroadphaseInterface> broadphase;
-    std::shared_ptr<btCollisionDispatcher> dispatcher;
-    std::shared_ptr<btConstraintSolver> solver;
-    std::shared_ptr<btDefaultCollisionConfiguration> configuration;
+    std::shared_ptr<btCollisionDispatcher> dispatcher = std::make_shared<btCollisionDispatcher>(configuration.get());
+    std::shared_ptr<btBroadphaseInterface> broadphase = std::make_shared<btDbvtBroadphase>();
+
+    ///the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
+    std::shared_ptr<btConstraintSolver> solver = std::make_shared<btSequentialImpulseConstraintSolver>();
+
     //    btDynamicsWorldPtr world;
-    btSoftRigidDynamicsWorldPtr world;
+    btSoftRigidDynamicsWorldPtr world = std::make_shared<btSoftRigidDynamicsWorld>(dispatcher.get(), broadphase.get(),
+                                                                                   solver.get(), configuration.get());
 
     //        uint32_t m_maxNumTasks;
     //        std::shared_ptr<btThreadSupportInterface> m_threadSupportCollision;
     //        std::shared_ptr<btThreadSupportInterface> m_threadSupportSolver;
 
     std::shared_ptr<BulletDebugDrawer> m_debug_drawer;
-    std::vector<btRigidBody *> m_bounding_bodies;
+
+    std::unordered_map<CollisionShapeId, btCollisionShapePtr> collision_shapes;
+
+    //! maps object-id -> rigid-body
+    std::unordered_map<uint, rigid_body_item_t> rigid_bodies;
+
+    std::unordered_map<ConstraintId, btTypedConstraintPtr> constraints;
 };
 
 struct PhysicsContext::engine
@@ -281,18 +290,60 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
 {
     const auto &entry = mesh_bundle.entries.front();
     auto verts = (btScalar *) (mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride);
-    btCollisionShapePtr hull_shape(
-            new btConvexHullShape(verts, (int) entry.num_vertices, (int) mesh_bundle.vertex_stride));
+    auto hull_shape =
+            std::make_shared<btConvexHullShape>(verts, (int) entry.num_vertices, (int) mesh_bundle.vertex_stride);
     hull_shape->setLocalScaling(type_cast(scale));
     vierkant::CollisionShapeId new_id;
     m_engine->bullet.collision_shapes[new_id] = std::move(hull_shape);
     return new_id;
 }
 
-RigiBodyId PhysicsContext::add_object(const Object3DPtr &obj)
+RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
 {
-    if(obj->has_component<physics_component_t>()) {}
-    return vierkant::RigiBodyId::nil();
+    if(obj->has_component<physics_component_t>())
+    {
+        const vierkant::object_component auto &cmp = obj->get_component<physics_component_t>();
+        auto it = m_engine->bullet.rigid_bodies.find(obj->id());
+
+        // was already there
+        if(it != m_engine->bullet.rigid_bodies.end()) { return it->second.id; }
+
+        // shape-lookup
+        auto shape_it = m_engine->bullet.collision_shapes.find(cmp.shape_id);
+
+        if(shape_it != m_engine->bullet.collision_shapes.end())
+        {
+            const auto &col_shape = shape_it->second;
+            btVector3 local_inertia;
+
+            // required per object!?
+            if(cmp.mass != 0.f) { col_shape->calculateLocalInertia(cmp.mass, local_inertia); }
+            col_shape->setLocalScaling(type_cast(obj->transform.scale));
+
+            // create new rigid-body
+            auto &rigid_item = m_engine->bullet.rigid_bodies[obj->id()];
+            rigid_item.motion_state = std::make_unique<MotionState>(obj);
+            rigid_item.rigid_body = std::make_shared<btRigidBody>(cmp.mass, rigid_item.motion_state.get(),
+                                                                  shape_it->second.get(), local_inertia);
+
+            // add to world
+            m_engine->bullet.world->addRigidBody(rigid_item.rigid_body.get());
+            return rigid_item.id;
+        }
+    }
+    return vierkant::RigidBodyId::nil();
+}
+
+void PhysicsContext::remove_object(const Object3DPtr &obj)
+{
+    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
+
+    // found
+    if(it != m_engine->bullet.rigid_bodies.end())
+    {
+        m_engine->bullet.world->removeRigidBody(it->second.rigid_body.get());
+        m_engine->bullet.rigid_bodies.erase(it);
+    }
 }
 
 }//namespace vierkant

@@ -96,6 +96,8 @@ add_subdirectory(submodules/entt EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} EnTT::EnTT)
 
 # bullet
+option(BUILD_TESTS "Build Tests" OFF)
+set(BUILD_TESTS_TMP ${BUILD_TESTS})
 set(BUILD_UNIT_TESTS OFF)
 set(BUILD_EXTRAS OFF)
 set(BUILD_BULLET2_DEMOS OFF)
@@ -108,6 +110,7 @@ foreach (BULLET_TARGET ${BULLET_LIBRARIES})
     target_compile_options(${BULLET_TARGET} PRIVATE -Wno-stringop-overflow)
 endforeach()
 include_directories(SYSTEM "submodules/bullet3/src")
+option(BUILD_TESTS ${BUILD_TESTS_TMP})
 
 ##shaders
 include(build_shaders)

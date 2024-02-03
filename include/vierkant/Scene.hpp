@@ -6,7 +6,7 @@
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Object3D.hpp>
-#include <vierkant/physics_context.hpp>
+//#include <vierkant/physics_context.hpp>
 
 namespace vierkant
 {
