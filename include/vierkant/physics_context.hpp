@@ -2,6 +2,7 @@
 
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Rasterizer.hpp>
+#include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
 
 namespace vierkant
@@ -18,6 +19,9 @@ struct physics_component_t
 
     CollisionShapeId shape_id = CollisionShapeId::nil();
     float mass = 0.f;
+    bool kinematic = false;
+
+    // TODO: contact callbacks
 };
 
 class PhysicsContext
@@ -31,10 +35,9 @@ public:
 
     PhysicsContext &operator=(PhysicsContext other);
 
-    void step_simulation(float timestep, int max_sub_steps = 1, float fixed_time_step = 0.f);
+    void step_simulation(float timestep, int max_sub_steps = 0, float fixed_time_step = 0.f);
 
-//    void debug_render(vierkant::Rasterizer &renderer, const vierkant::transform_t &transform,
-//                      const glm::mat4 &projection);
+    vierkant::GeometryPtr debug_render();
 
     RigidBodyId add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
@@ -44,6 +47,11 @@ public:
 
     CollisionShapeId create_convex_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                                    const glm::vec3 &scale = glm::vec3(1));
+
+    CollisionShapeId create_box_shape(const glm::vec3 &half_extents);
+    CollisionShapeId create_plane_shape(const vierkant::Plane &plane);
+    CollisionShapeId create_capsule_shape(float radius, float height);
+    CollisionShapeId create_cylinder_shape(const glm::vec3 &half_extents);
 
 private:
     struct engine;

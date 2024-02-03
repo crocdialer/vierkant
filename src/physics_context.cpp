@@ -81,13 +81,21 @@ struct MotionState : public btMotionState
 class BulletDebugDrawer : public btIDebugDraw
 {
 public:
-    BulletDebugDrawer() = default;
+    vierkant::GeometryPtr geometry = vierkant::Geometry::create();
+
+    BulletDebugDrawer() { geometry->topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; };
+
+    inline void clear()
+    {
+        geometry->positions.clear();
+        geometry->colors.clear();
+    }
 
     inline void drawLine(const btVector3 &from, const btVector3 &to, const btVector3 &color) override
     {
-        m_geometry->positions.insert(m_geometry->positions.end(), {type_cast(from), type_cast(to)});
+        geometry->positions.insert(geometry->positions.end(), {type_cast(from), type_cast(to)});
         glm::vec4 c(color[0], color[1], color[2], 1.f);
-        m_geometry->colors.insert(m_geometry->colors.end(), {c, c});
+        geometry->colors.insert(geometry->colors.end(), {c, c});
     }
 
     void drawContactPoint(const btVector3 & /*PointOnB*/, const btVector3 & /*normalOnB*/, btScalar /*distance*/,
@@ -100,9 +108,6 @@ public:
 
     void setDebugMode(int /*debugMode*/) override {}
     [[nodiscard]] int getDebugMode() const override { return DBG_DrawWireframe; }
-
-private:
-    vierkant::GeometryPtr m_geometry = vierkant::Geometry::create();
 };
 
 class MeshInterface : public btStridingMeshInterface
@@ -204,8 +209,8 @@ public:
         world->setGravity(btVector3(0, -9.87, 0));
 
         // debug drawer
-        m_debug_drawer = std::make_shared<BulletDebugDrawer>();
-        world->setDebugDrawer(m_debug_drawer.get());
+        debug_drawer = std::make_shared<BulletDebugDrawer>();
+        world->setDebugDrawer(debug_drawer.get());
 
         // tick callback
         //        world->setInternalTickCallback(&_tick_callback, static_cast<void*>(this));
@@ -246,7 +251,7 @@ public:
     //        std::shared_ptr<btThreadSupportInterface> m_threadSupportCollision;
     //        std::shared_ptr<btThreadSupportInterface> m_threadSupportSolver;
 
-    std::shared_ptr<BulletDebugDrawer> m_debug_drawer;
+    std::shared_ptr<BulletDebugDrawer> debug_drawer;
 
     std::unordered_map<CollisionShapeId, btCollisionShapePtr> collision_shapes;
 
@@ -298,6 +303,38 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
     return new_id;
 }
 
+CollisionShapeId PhysicsContext::create_box_shape(const glm::vec3 &half_extents)
+{
+    auto box_shape = std::make_shared<btBoxShape>(type_cast(half_extents));
+    vierkant::CollisionShapeId new_id;
+    m_engine->bullet.collision_shapes[new_id] = std::move(box_shape);
+    return new_id;
+}
+
+CollisionShapeId PhysicsContext::create_plane_shape(const Plane &plane)
+{
+    auto plane_shape = std::make_shared<btStaticPlaneShape>(type_cast(plane.normal()), plane.coefficients.w);
+    vierkant::CollisionShapeId new_id;
+    m_engine->bullet.collision_shapes[new_id] = std::move(plane_shape);
+    return new_id;
+}
+
+CollisionShapeId PhysicsContext::create_capsule_shape(float radius, float height)
+{
+    auto capsule_shape = std::make_shared<btCapsuleShape>(radius, height);
+    vierkant::CollisionShapeId new_id;
+    m_engine->bullet.collision_shapes[new_id] = std::move(capsule_shape);
+    return new_id;
+}
+
+CollisionShapeId PhysicsContext::create_cylinder_shape(const glm::vec3 &half_extents)
+{
+    auto cylinder_shape = std::make_shared<btCylinderShape>(type_cast(half_extents));
+    vierkant::CollisionShapeId new_id;
+    m_engine->bullet.collision_shapes[new_id] = std::move(cylinder_shape);
+    return new_id;
+}
+
 RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
 {
     if(obj->has_component<physics_component_t>())
@@ -344,6 +381,13 @@ void PhysicsContext::remove_object(const Object3DPtr &obj)
         m_engine->bullet.world->removeRigidBody(it->second.rigid_body.get());
         m_engine->bullet.rigid_bodies.erase(it);
     }
+}
+
+vierkant::GeometryPtr PhysicsContext::debug_render()
+{
+    m_engine->bullet.debug_drawer->clear();
+    m_engine->bullet.world->debugDrawWorld();
+    return m_engine->bullet.debug_drawer->geometry;
 }
 
 }//namespace vierkant

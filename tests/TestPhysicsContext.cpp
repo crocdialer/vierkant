@@ -24,6 +24,10 @@ TEST(PhysicsContext, collision_shapes)
     auto box = Geometry::Box();
     EXPECT_TRUE(create_collision_shape(context, box, true));
     EXPECT_TRUE(create_collision_shape(context, box, false));
+    EXPECT_TRUE(context.create_box_shape(glm::vec3(0.5f)));
+    EXPECT_TRUE(context.create_plane_shape({}));
+    EXPECT_TRUE(context.create_capsule_shape(.5f, 1.f));
+    EXPECT_TRUE(context.create_cylinder_shape(glm::vec3(0.5f, 1.f, 0.5f)));
 }
 
 TEST(PhysicsContext, add_object)
@@ -34,30 +38,55 @@ TEST(PhysicsContext, add_object)
 
     auto scene = vierkant::Scene::create();
     Object3DPtr a(Object3D::create(scene->registry())), b(Object3D::create(scene->registry())),
-            c(Object3D::create(scene->registry()));
+            c(Object3D::create(scene->registry())), ground(Object3D::create(scene->registry()));
 
     vierkant::physics_component_t phys_cmp = {};
     phys_cmp.mass = 1.f;
     phys_cmp.shape_id = collision_shape;
 
-    Object3DPtr objects[] = {a, b, c};
-    float i = 1;
-    for(const auto &obj : objects)
+    a->add_component(phys_cmp);
+    b->add_component(phys_cmp);
+
+    // add c as static body with zero mass
+    phys_cmp.mass = 0.f;
+    c->add_component(phys_cmp);
+
+    phys_cmp.shape_id = context.create_plane_shape({});
+    ground->add_component(phys_cmp);
+
+    Object3DPtr objects[] = {ground, a, b, c};
+    float i = 0;
+    for(const auto &obj: objects)
     {
         obj->transform.translation.y = i++ * 5.f;
-
-        obj->add_component(phys_cmp);
         auto body_id = context.add_object(obj);
         EXPECT_TRUE(body_id);
         scene->add_object(obj);
     }
+    auto tground = ground->transform;
+    auto ta = a->transform;
+    auto tb = b->transform;
+    auto tc = c->transform;
 
-    for(uint32_t l = 0; l < 1000; ++l)
-    {
-        context.step_simulation(1.f / 60.f, 0);
-    }
-    // all bodies should be flat on the ground here
-    EXPECT_LE(a->transform.translation.y, 1.f);
-    EXPECT_LE(b->transform.translation.y, 1.f);
-    EXPECT_LE(c->transform.translation.y, 1.f);
+    // run simulation a bit
+    for(uint32_t l = 0; l < 100; ++l) { context.step_simulation(1.f / 60.f); }
+
+    // bodies should be pulled down some way
+    EXPECT_NE(ta, a->transform);
+    EXPECT_NE(tb, b->transform);
+
+    // ground and c were static and did not move
+    EXPECT_EQ(tc, c->transform);
+    EXPECT_EQ(tground, ground->transform);
+
+    context.remove_object(b);
+    ta = a->transform;
+    tb = b->transform;
+
+    // again, run simulation a bit
+    for(uint32_t l = 0; l < 100; ++l) { context.step_simulation(1.f / 60.f); }
+
+    // b was removed, transform should still be the same
+    EXPECT_NE(ta, a->transform);
+    EXPECT_EQ(tb, b->transform);
 }
