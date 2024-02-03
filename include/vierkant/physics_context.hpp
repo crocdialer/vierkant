@@ -13,6 +13,7 @@ DEFINE_NAMED_ID(RigidBodyId)
 DEFINE_NAMED_ID(SoftBodyId)
 DEFINE_NAMED_ID(ConstraintId)
 
+using collision_cb_t = std::function<void(uint32_t)>;
 struct physics_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
@@ -20,8 +21,12 @@ struct physics_component_t
     CollisionShapeId shape_id = CollisionShapeId::nil();
     float mass = 0.f;
     bool kinematic = false;
+    bool collision_only = false;
 
     // TODO: contact callbacks
+    collision_cb_t collision_cb;
+    collision_cb_t contact_begin;
+    collision_cb_t contact_end;
 };
 
 class PhysicsContext
@@ -38,6 +43,9 @@ public:
     void step_simulation(float timestep, int max_sub_steps = 0, float fixed_time_step = 0.f);
 
     vierkant::GeometryPtr debug_render();
+
+    void set_gravity(const glm::vec3 &g);
+    const glm::vec3 & gravity() const;
 
     RigidBodyId add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);

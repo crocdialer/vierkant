@@ -43,7 +43,8 @@ TEST(PhysicsContext, add_object)
     vierkant::physics_component_t phys_cmp = {};
     phys_cmp.mass = 1.f;
     phys_cmp.shape_id = collision_shape;
-
+    phys_cmp.contact_begin = [](uint32_t obj_id) { spdlog::info("contact_begin: {}", obj_id); };
+    phys_cmp.contact_end = [](uint32_t obj_id) { spdlog::info("contact_end: {}", obj_id); };
     a->add_component(phys_cmp);
     b->add_component(phys_cmp);
 
@@ -51,7 +52,9 @@ TEST(PhysicsContext, add_object)
     phys_cmp.mass = 0.f;
     c->add_component(phys_cmp);
 
+    bool ground_triggered = false;
     phys_cmp.shape_id = context.create_plane_shape({});
+    phys_cmp.collision_cb = [&ground_triggered](uint32_t obj_id) { ground_triggered = true; };
     ground->add_component(phys_cmp);
 
     Object3DPtr objects[] = {ground, a, b, c};
@@ -89,4 +92,6 @@ TEST(PhysicsContext, add_object)
     // b was removed, transform should still be the same
     EXPECT_NE(ta, a->transform);
     EXPECT_EQ(tb, b->transform);
+
+    EXPECT_TRUE(ground_triggered);
 }

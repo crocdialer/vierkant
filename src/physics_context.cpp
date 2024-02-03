@@ -2,13 +2,16 @@
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 #include <btBulletDynamicsCommon.h>
 
-#include <utility>
+#include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
 class btThreadSupportInterface;
 
 namespace vierkant
 {
+
+inline uint64_t pack(uint64_t a, uint64_t b) { return (a << 32U) | b; }
+
 typedef std::shared_ptr<btCollisionShape> btCollisionShapePtr;
 typedef std::shared_ptr<btRigidBody> btRigidBodyPtr;
 typedef std::shared_ptr<btSoftBody> btSoftBodyPtr;
@@ -204,6 +207,14 @@ public:
         btRigidBodyPtr rigid_body;
     };
 
+    struct object_item_t
+    {
+        uint32_t id = 0;
+        collision_cb_t collision_cb;
+        collision_cb_t contact_begin;
+        collision_cb_t contact_end;
+    };
+
     BulletContext()
     {
         world->setGravity(btVector3(0, -9.87, 0));
@@ -213,26 +224,63 @@ public:
         world->setDebugDrawer(debug_drawer.get());
 
         // tick callback
-        //        world->setInternalTickCallback(&_tick_callback, static_cast<void*>(this));
+        world->setInternalTickCallback(&_tick_callback, static_cast<void *>(this));
+    }
+
+    static inline void _tick_callback(btDynamicsWorld *world, btScalar timestep)
+    {
+        auto *ctx = static_cast<BulletContext *>(world->getWorldUserInfo());
+        ctx->tick_callback(timestep);
     }
 
     //    void near_callback(btBroadphasePair &collisionPair, btCollisionDispatcher &dispatcher,
     //                       btDispatcherInfo &dispatchInfo);
 
-    /*!
-         * set where to position static planes as boundaries for the entire physics scene
-         */
-    //    void set_world_boundaries(const glm::vec3 &the_half_extents, const glm::vec3 &the_origin = glm::vec3(0));
-    //
-    //    void attach_constraints(float the_thresh);
-    //
-    //    /*!
-    //         * internal tick callback, do not call directly
-    //         */
-    //    void tick_callback(btScalar timeStep);
+    void tick_callback(btScalar /*timestep*/)
+    {
+        auto last_collision_pairs = collision_pairs;
 
-    //        std::unordered_map<gl::MeshPtr, btCollisionShapePtr> m_mesh_shape_map{};
-    //        std::unordered_map<gl::MeshPtr, btRigidBody*> m_mesh_rigidbody_map{};
+        int numManifolds = world->getDispatcher()->getNumManifolds();
+        for(int i = 0; i < numManifolds; i++)
+        {
+            auto contactManifold = world->getDispatcher()->getManifoldByIndexInternal(i);
+            auto itemA = object_items.at(contactManifold->getBody0());
+            auto itemB = object_items.at(contactManifold->getBody1());
+
+            uint64_t key = pack(itemA.id, itemB.id);
+
+            int numContacts = contactManifold->getNumContacts();
+            for(int j = 0; j < numContacts; j++)
+            {
+                btManifoldPoint &pt = contactManifold->getContactPoint(j);
+                if(pt.getDistance() < 0.f)
+                {
+                    //                                const btVector3& ptA = pt.getPositionWorldOnA();
+                    //                                const btVector3& ptB = pt.getPositionWorldOnB();
+                    //                                const btVector3& normalOnB = pt.m_normalWorldOnB;
+
+                    if(!collision_pairs.contains(key))
+                    {
+                        // contact added
+                        collision_pairs[key] = itemA.contact_end;
+                        if(itemA.contact_begin) { itemA.contact_begin(itemB.id); }
+                    }
+                    if(itemA.collision_cb) { itemA.collision_cb(itemB.id); }
+                    if(itemB.collision_cb) { itemB.collision_cb(itemA.id); }
+                    last_collision_pairs.erase(key);
+                    break;
+                }
+            }
+
+            for(const auto &[packed_pair, end_cb]: last_collision_pairs)
+            {
+                collision_pairs.erase(packed_pair);
+
+                // contact end
+                if(end_cb){ end_cb((packed_pair >> 32) & 0xFFFFFFFF); }
+            }
+        }
+    }
 
     std::shared_ptr<btDefaultCollisionConfiguration> configuration =
             std::make_shared<btDefaultCollisionConfiguration>();
@@ -257,8 +305,12 @@ public:
 
     //! maps object-id -> rigid-body
     std::unordered_map<uint, rigid_body_item_t> rigid_bodies;
+    std::unordered_map<const btCollisionObject *, object_item_t> object_items;
 
     std::unordered_map<ConstraintId, btTypedConstraintPtr> constraints;
+
+    // contact-end callbacks
+    std::unordered_map<uint64_t, collision_cb_t> collision_pairs;
 };
 
 struct PhysicsContext::engine
@@ -350,7 +402,7 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
 
         if(shape_it != m_engine->bullet.collision_shapes.end())
         {
-            const auto &col_shape = shape_it->second;
+            const auto col_shape = shape_it->second.get();
             btVector3 local_inertia;
 
             // required per object!?
@@ -360,13 +412,29 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
             // create new rigid-body
             auto &rigid_item = m_engine->bullet.rigid_bodies[obj->id()];
             rigid_item.motion_state = std::make_unique<MotionState>(obj);
-            rigid_item.rigid_body = std::make_shared<btRigidBody>(cmp.mass, rigid_item.motion_state.get(),
-                                                                  shape_it->second.get(), local_inertia);
+            rigid_item.rigid_body =
+                    std::make_shared<btRigidBody>(cmp.mass, rigid_item.motion_state.get(), col_shape, local_inertia);
+
+            //            rigid_item.rigid_body->setFriction(.7f);
+            //            rigid_item.rigid_body->setRestitution(0);
+            if(cmp.kinematic)
+            {
+                rigid_item.rigid_body->setCollisionFlags(rigid_item.rigid_body->getCollisionFlags() |
+                                                         btCollisionObject::CF_KINEMATIC_OBJECT);
+            }
 
             // add to world
-            m_engine->bullet.world->addRigidBody(rigid_item.rigid_body.get());
+            if(cmp.collision_only) { m_engine->bullet.world->addCollisionObject(rigid_item.rigid_body.get()); }
+            else { m_engine->bullet.world->addRigidBody(rigid_item.rigid_body.get()); }
+
+            auto &object_item = m_engine->bullet.object_items[rigid_item.rigid_body.get()];
+            object_item.id = obj->id();
+            object_item.collision_cb = cmp.collision_cb;
+            object_item.contact_begin = cmp.contact_begin;
+            object_item.contact_end = cmp.contact_end;
             return rigid_item.id;
         }
+        else { spdlog::warn("could not find collision-shape"); }
     }
     return vierkant::RigidBodyId::nil();
 }
@@ -389,5 +457,9 @@ vierkant::GeometryPtr PhysicsContext::debug_render()
     m_engine->bullet.world->debugDrawWorld();
     return m_engine->bullet.debug_drawer->geometry;
 }
+
+void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->bullet.world->setGravity(type_cast(g)); }
+
+const glm::vec3 &PhysicsContext::gravity() const { return type_cast(m_engine->bullet.world->getGravity()); }
 
 }//namespace vierkant
