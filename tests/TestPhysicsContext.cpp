@@ -32,8 +32,13 @@ TEST(PhysicsContext, collision_shapes)
 
 TEST(PhysicsContext, add_object)
 {
-    spdlog::set_level(spdlog::level::debug);
+//    spdlog::set_level(spdlog::level::debug);
     PhysicsContext context;
+
+    glm::vec3 gravity = {0.f, -9.81f, 0.f};
+    context.set_gravity(gravity);
+    EXPECT_EQ(context.gravity(), gravity);
+
     auto box = Geometry::Box();
     auto collision_shape = create_collision_shape(context, box, true);
 
@@ -64,7 +69,7 @@ TEST(PhysicsContext, add_object)
     c->add_component(phys_cmp);
 
     phys_cmp.shape_id = context.create_plane_shape({});
-    phys_cmp.collision_only = true;
+//    phys_cmp.collision_only = true;
 //    phys_cmp.callbacks.collision = [&trigger_map](uint32_t obj_id) { trigger_map[obj_id] = true; };
     ground->add_component(phys_cmp);
 
@@ -110,4 +115,8 @@ TEST(PhysicsContext, add_object)
     EXPECT_TRUE(trigger_map[b->id()]);
     EXPECT_TRUE(trigger_map[ground->id()]);
     EXPECT_FALSE(trigger_map[c->id()]);
+
+    auto debug_lines = context.debug_render();
+    EXPECT_FALSE(debug_lines->positions.empty());
+    EXPECT_FALSE(debug_lines->colors.empty());
 }

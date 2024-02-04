@@ -20,6 +20,10 @@ struct physics_component_t
 
     CollisionShapeId shape_id = CollisionShapeId::nil();
     float mass = 0.f;
+    float friction = 0.5f;
+    float rolling_friction = 0.0f;
+    float spinning_friction = 0.0f;
+    float restitution = 0.f;
     bool kinematic = false;
     bool collision_only = false;
 
@@ -47,7 +51,7 @@ public:
     vierkant::GeometryPtr debug_render();
 
     void set_gravity(const glm::vec3 &g);
-    const glm::vec3 &gravity() const;
+    [[nodiscard]] glm::vec3 gravity() const;
 
     RigidBodyId add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
