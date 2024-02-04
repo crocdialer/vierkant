@@ -23,10 +23,12 @@ struct physics_component_t
     bool kinematic = false;
     bool collision_only = false;
 
-    // TODO: contact callbacks
-    collision_cb_t collision_cb;
-    collision_cb_t contact_begin;
-    collision_cb_t contact_end;
+    struct callbacks_t
+    {
+        collision_cb_t collision;
+        collision_cb_t contact_begin;
+        collision_cb_t contact_end;
+    } callbacks;
 };
 
 class PhysicsContext
@@ -45,7 +47,7 @@ public:
     vierkant::GeometryPtr debug_render();
 
     void set_gravity(const glm::vec3 &g);
-    const glm::vec3 & gravity() const;
+    const glm::vec3 &gravity() const;
 
     RigidBodyId add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
@@ -63,7 +65,7 @@ public:
 
 private:
     struct engine;
-    std::unique_ptr<engine, std::function<void(engine*)>> m_engine;
+    std::unique_ptr<engine, std::function<void(engine *)>> m_engine;
 };
 
 }//namespace vierkant

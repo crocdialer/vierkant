@@ -32,6 +32,7 @@ TEST(PhysicsContext, collision_shapes)
 
 TEST(PhysicsContext, add_object)
 {
+    spdlog::set_level(spdlog::level::debug);
     PhysicsContext context;
     auto box = Geometry::Box();
     auto collision_shape = create_collision_shape(context, box, true);
@@ -40,11 +41,21 @@ TEST(PhysicsContext, add_object)
     Object3DPtr a(Object3D::create(scene->registry())), b(Object3D::create(scene->registry())),
             c(Object3D::create(scene->registry())), ground(Object3D::create(scene->registry()));
 
+    std::map<uint32_t, bool> trigger_map;
+
     vierkant::physics_component_t phys_cmp = {};
     phys_cmp.mass = 1.f;
     phys_cmp.shape_id = collision_shape;
-    phys_cmp.contact_begin = [](uint32_t obj_id) { spdlog::info("contact_begin: {}", obj_id); };
-    phys_cmp.contact_end = [](uint32_t obj_id) { spdlog::info("contact_end: {}", obj_id); };
+    phys_cmp.callbacks.contact_begin = [&trigger_map](uint32_t obj_id)
+    {
+        spdlog::debug("contact_begin: {}", obj_id);
+        trigger_map[obj_id] = true;
+    };
+    phys_cmp.callbacks.contact_end = [&trigger_map](uint32_t obj_id)
+    {
+        spdlog::debug("contact_end: {}", obj_id);
+        trigger_map[obj_id] = true;
+    };
     a->add_component(phys_cmp);
     b->add_component(phys_cmp);
 
@@ -52,9 +63,9 @@ TEST(PhysicsContext, add_object)
     phys_cmp.mass = 0.f;
     c->add_component(phys_cmp);
 
-    bool ground_triggered = false;
     phys_cmp.shape_id = context.create_plane_shape({});
-    phys_cmp.collision_cb = [&ground_triggered](uint32_t obj_id) { ground_triggered = true; };
+    phys_cmp.collision_only = true;
+//    phys_cmp.callbacks.collision = [&trigger_map](uint32_t obj_id) { trigger_map[obj_id] = true; };
     ground->add_component(phys_cmp);
 
     Object3DPtr objects[] = {ground, a, b, c};
@@ -82,6 +93,7 @@ TEST(PhysicsContext, add_object)
     EXPECT_EQ(tc, c->transform);
     EXPECT_EQ(tground, ground->transform);
 
+    // remove object, again keep track of transforms
     context.remove_object(b);
     ta = a->transform;
     tb = b->transform;
@@ -93,5 +105,9 @@ TEST(PhysicsContext, add_object)
     EXPECT_NE(ta, a->transform);
     EXPECT_EQ(tb, b->transform);
 
-    EXPECT_TRUE(ground_triggered);
+    // check if callbacks did fire
+    EXPECT_TRUE(trigger_map[a->id()]);
+    EXPECT_TRUE(trigger_map[b->id()]);
+    EXPECT_TRUE(trigger_map[ground->id()]);
+    EXPECT_FALSE(trigger_map[c->id()]);
 }

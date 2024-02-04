@@ -210,9 +210,7 @@ public:
     struct object_item_t
     {
         uint32_t id = 0;
-        collision_cb_t collision_cb;
-        collision_cb_t contact_begin;
-        collision_cb_t contact_end;
+        physics_component_t::callbacks_t callbacks;
     };
 
     BulletContext()
@@ -238,47 +236,35 @@ public:
 
     void tick_callback(btScalar /*timestep*/)
     {
-        auto last_collision_pairs = collision_pairs;
-
+        auto last_collision_pairs = std::move(collision_pairs);
         int numManifolds = world->getDispatcher()->getNumManifolds();
+
         for(int i = 0; i < numManifolds; i++)
         {
             auto contactManifold = world->getDispatcher()->getManifoldByIndexInternal(i);
             auto itemA = object_items.at(contactManifold->getBody0());
             auto itemB = object_items.at(contactManifold->getBody1());
 
-            uint64_t key = pack(itemA.id, itemB.id);
+            auto key = std::make_pair(contactManifold->getBody0(), contactManifold->getBody1());
+            collision_pairs.insert(key);
 
-            int numContacts = contactManifold->getNumContacts();
-            for(int j = 0; j < numContacts; j++)
+            if(!last_collision_pairs.contains(key))
             {
-                btManifoldPoint &pt = contactManifold->getContactPoint(j);
-                if(pt.getDistance() < 0.f)
-                {
-                    //                                const btVector3& ptA = pt.getPositionWorldOnA();
-                    //                                const btVector3& ptB = pt.getPositionWorldOnB();
-                    //                                const btVector3& normalOnB = pt.m_normalWorldOnB;
-
-                    if(!collision_pairs.contains(key))
-                    {
-                        // contact added
-                        collision_pairs[key] = itemA.contact_end;
-                        if(itemA.contact_begin) { itemA.contact_begin(itemB.id); }
-                    }
-                    if(itemA.collision_cb) { itemA.collision_cb(itemB.id); }
-                    if(itemB.collision_cb) { itemB.collision_cb(itemA.id); }
-                    last_collision_pairs.erase(key);
-                    break;
-                }
+                // contact added
+                if(itemA.callbacks.contact_begin) { itemA.callbacks.contact_begin(itemB.id); }
+                if(itemB.callbacks.contact_begin) { itemB.callbacks.contact_begin(itemA.id); }
             }
+            if(itemA.callbacks.collision) { itemA.callbacks.collision(itemB.id); }
+            if(itemB.callbacks.collision) { itemB.callbacks.collision(itemA.id); }
+            last_collision_pairs.erase(key);
+        }
+        for(const auto &pair: last_collision_pairs)
+        {
+            auto itemA = object_items.at(pair.first);
+            auto itemB = object_items.at(pair.second);
 
-            for(const auto &[packed_pair, end_cb]: last_collision_pairs)
-            {
-                collision_pairs.erase(packed_pair);
-
-                // contact end
-                if(end_cb){ end_cb((packed_pair >> 32) & 0xFFFFFFFF); }
-            }
+            if(itemA.callbacks.contact_end) { itemA.callbacks.contact_end(itemB.id); }
+            if(itemB.callbacks.contact_end) { itemB.callbacks.contact_end(itemA.id); }
         }
     }
 
@@ -309,8 +295,10 @@ public:
 
     std::unordered_map<ConstraintId, btTypedConstraintPtr> constraints;
 
-    // contact-end callbacks
-    std::unordered_map<uint64_t, collision_cb_t> collision_pairs;
+    // current collision-pairs
+    std::unordered_set<std::pair<const btCollisionObject *, const btCollisionObject *>,
+                       vierkant::pair_hash<const btCollisionObject *, const btCollisionObject *>>
+            collision_pairs;
 };
 
 struct PhysicsContext::engine
@@ -415,6 +403,7 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
             rigid_item.rigid_body =
                     std::make_shared<btRigidBody>(cmp.mass, rigid_item.motion_state.get(), col_shape, local_inertia);
 
+
             //            rigid_item.rigid_body->setFriction(.7f);
             //            rigid_item.rigid_body->setRestitution(0);
             if(cmp.kinematic)
@@ -424,14 +413,18 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
             }
 
             // add to world
-            if(cmp.collision_only) { m_engine->bullet.world->addCollisionObject(rigid_item.rigid_body.get()); }
+            if(cmp.collision_only)
+            {
+//                rigid_item.rigid_body->setCollisionFlags(rigid_item.rigid_body->getCollisionFlags() |
+//                                                         btCollisionObject::CF_NO_CONTACT_RESPONSE);
+                m_engine->bullet.world->addCollisionObject(
+                        rigid_item.rigid_body.get(), btBroadphaseProxy::SensorTrigger, btBroadphaseProxy::DefaultFilter);
+            }
             else { m_engine->bullet.world->addRigidBody(rigid_item.rigid_body.get()); }
 
             auto &object_item = m_engine->bullet.object_items[rigid_item.rigid_body.get()];
             object_item.id = obj->id();
-            object_item.collision_cb = cmp.collision_cb;
-            object_item.contact_begin = cmp.contact_begin;
-            object_item.contact_end = cmp.contact_end;
+            object_item.callbacks = cmp.callbacks;
             return rigid_item.id;
         }
         else { spdlog::warn("could not find collision-shape"); }
