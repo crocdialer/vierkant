@@ -66,8 +66,9 @@ struct MotionState : public btMotionState
     //! synchronizes world transform from user to physics
     void getWorldTransform(btTransform &centerOfMassWorldTrans) const override
     {
-        centerOfMassWorldTrans.setRotation(type_cast(m_object->transform.rotation));
-        centerOfMassWorldTrans.setOrigin(type_cast(m_object->transform.translation));
+        auto t = m_object->global_transform();
+        centerOfMassWorldTrans.setRotation(type_cast(t.rotation));
+        centerOfMassWorldTrans.setOrigin(type_cast(t.translation));
     }
 
     //! synchronizes world transform from physics to user
@@ -81,21 +82,20 @@ struct MotionState : public btMotionState
 class BulletDebugDrawer : public btIDebugDraw
 {
 public:
-    vierkant::GeometryPtr geometry = vierkant::Geometry::create();
 
-    BulletDebugDrawer() { geometry->topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST; };
+    std::unordered_map<glm::vec4, std::vector<glm::vec3>> line_map;
 
     inline void clear()
     {
-        geometry->positions.clear();
-        geometry->colors.clear();
+        for(auto &[col, lines]: line_map) lines.clear();
     }
 
     inline void drawLine(const btVector3 &from, const btVector3 &to, const btVector3 &color) override
     {
-        geometry->positions.insert(geometry->positions.end(), {type_cast(from), type_cast(to)});
         glm::vec4 c(color[0], color[1], color[2], 1.f);
-        geometry->colors.insert(geometry->colors.end(), {c, c});
+        auto &lines = line_map[c];
+        lines.insert(lines.end(), {type_cast(from), type_cast(to)});
+        lines.insert(lines.end(), {c, c});
     }
 
     void drawContactPoint(const btVector3 & /*PointOnB*/, const btVector3 & /*normalOnB*/, btScalar /*distance*/,
@@ -272,7 +272,7 @@ public:
             // wake sleeping islands after potential removal of an object
             objA->activate();
             objB->activate();
-            
+
             auto itemA = object_items.at(objA);
             auto itemB = object_items.at(objB);
 
@@ -456,11 +456,11 @@ void PhysicsContext::remove_object(const Object3DPtr &obj)
     }
 }
 
-vierkant::GeometryPtr PhysicsContext::debug_render()
+const std::unordered_map<glm::vec4, std::vector<glm::vec3>> &PhysicsContext::debug_render()
 {
     m_engine->bullet.debug_drawer->clear();
     m_engine->bullet.world->debugDrawWorld();
-    return m_engine->bullet.debug_drawer->geometry;
+    return m_engine->bullet.debug_drawer->line_map;
 }
 
 void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->bullet.world->setGravity(type_cast(g)); }
