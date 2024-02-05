@@ -1,7 +1,8 @@
 #pragma once
 
+#include <crocore/NamedId.hpp>
 #include <vierkant/Mesh.hpp>
-#include <vierkant/Rasterizer.hpp>
+#include <vierkant/Scene.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
 
@@ -70,6 +71,30 @@ public:
 private:
     struct engine;
     std::unique_ptr<engine, std::function<void(engine *)>> m_engine;
+};
+
+
+class PhysicsScene : public vierkant::Scene
+{
+public:
+
+    ~PhysicsScene() override = default;
+
+    static std::shared_ptr<PhysicsScene> create();
+
+    void add_object(const Object3DPtr &object) override;
+
+    void remove_object(const Object3DPtr &object) override;
+
+    void clear() override;
+
+    void update(double time_delta) override;
+
+    vierkant::PhysicsContext& context(){ return m_context; };
+
+private:
+    PhysicsScene() = default;
+    vierkant::PhysicsContext m_context;
 };
 
 }//namespace vierkant

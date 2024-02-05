@@ -269,6 +269,8 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
                              const glm::vec4 &color, const vierkant::transform_t &transform,
                              const glm::mat4 &projection)
 {
+    if(lines.empty()) { return; }
+
     // search drawable
     auto drawable_it = m_drawables.find(DrawableType::Lines);
 

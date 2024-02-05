@@ -6,7 +6,6 @@
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Object3D.hpp>
-//#include <vierkant/physics_context.hpp>
 
 namespace vierkant
 {
@@ -31,9 +30,17 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
 class Scene
 {
 public:
+    virtual ~Scene() = default;
+
     static ScenePtr create();
 
-    void update(double time_delta);
+    virtual void add_object(const Object3DPtr &object);
+
+    virtual void remove_object(const Object3DPtr &object);
+
+    virtual void clear();
+
+    virtual void update(double time_delta);
 
     /**
      * @brief   object_by_id finds and returns an object based on its object/entity-id
@@ -45,12 +52,6 @@ public:
 
     [[nodiscard]] Object3DPtr pick(const Ray &ray) const;
 
-    void add_object(const Object3DPtr &object);
-
-    void remove_object(const Object3DPtr &object);
-
-    void clear();
-
     [[nodiscard]] inline const Object3DPtr &root() const { return m_root; };
 
     [[nodiscard]] const vierkant::ImagePtr &environment() const { return m_skybox; }
@@ -59,16 +60,16 @@ public:
 
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const { return m_registry; }
 
-private:
+protected:
     Scene() = default;
+
+private:
 
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
 
     vierkant::ImagePtr m_skybox = nullptr;
 
     Object3DPtr m_root = Object3D::create(m_registry, "scene root");
-
-//    vierkant::PhysicsContext m_physics_context;
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };

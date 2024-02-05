@@ -265,8 +265,14 @@ public:
             if(itemB.callbacks.collision) { itemB.callbacks.collision(itemA.id); }
             last_collision_pairs.erase(key);
         }
+
+        // leftover pairs indicate a contact ended
         for(const auto &[objA, objB]: last_collision_pairs)
         {
+            // wake sleeping islands after potential removal of an object
+            objA->activate();
+            objB->activate();
+            
             auto itemA = object_items.at(objA);
             auto itemB = object_items.at(objB);
 
@@ -444,7 +450,8 @@ void PhysicsContext::remove_object(const Object3DPtr &obj)
     // found
     if(it != m_engine->bullet.rigid_bodies.end())
     {
-        m_engine->bullet.world->removeRigidBody(it->second.rigid_body.get());
+        auto body = it->second.rigid_body.get();
+        m_engine->bullet.world->removeRigidBody(body);
         m_engine->bullet.rigid_bodies.erase(it);
     }
 }
@@ -459,5 +466,34 @@ vierkant::GeometryPtr PhysicsContext::debug_render()
 void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->bullet.world->setGravity(type_cast(g)); }
 
 glm::vec3 PhysicsContext::gravity() const { return type_cast(m_engine->bullet.world->getGravity()); }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void PhysicsScene::add_object(const Object3DPtr &object)
+{
+    vierkant::Scene::add_object(object);
+    m_context.add_object(object);
+}
+
+void PhysicsScene::remove_object(const Object3DPtr &object)
+{
+    m_context.remove_object(object);
+    vierkant::Scene::remove_object(object);
+}
+
+void PhysicsScene::clear()
+{
+    m_context = {};
+    Scene::clear();
+}
+
+void PhysicsScene::update(double time_delta)
+{
+    Scene::update(time_delta);
+    m_context.step_simulation(static_cast<float>(time_delta));
+}
+
+std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
 
 }//namespace vierkant
