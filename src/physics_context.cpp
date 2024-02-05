@@ -420,6 +420,7 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
             {
                 rigid_item.rigid_body->setCollisionFlags(rigid_item.rigid_body->getCollisionFlags() |
                                                          btCollisionObject::CF_KINEMATIC_OBJECT);
+                rigid_item.rigid_body->setActivationState(DISABLE_DEACTIVATION);
             }
 
             // add to world
