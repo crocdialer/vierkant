@@ -1,36 +1,38 @@
 //#define BT_USE_DOUBLE_PRECISION
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
 
+#include <LinearMath/btConvexHull.h>
 #include <LinearMath/btConvexHullComputer.h>
 #include <LinearMath/btGeometryUtil.h>
+#include <LinearMath/btPolarDecomposition.h>
 
 #include <btBulletDynamicsCommon.h>
 
 #include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
+// Define a dummy function that uses a symbol from bar1
+extern "C" [[maybe_unused]] void DummyLinkHelper()
+{
+    auto verts = btAlignedObjectArray<btVector3>();
+    auto eq = btAlignedObjectArray<btVector3>();
+    btGeometryUtil::getPlaneEquationsFromVertices(verts, eq);
+    btGeometryUtil::getVerticesFromPlaneEquations(eq, verts);
+
+    btConvexHullComputer p2;
+    p2.compute((float *) nullptr, 0, 0, 0.f, 0.f);
+
+    (void)CProfileSample("");
+    (void)btDiscreteDynamicsWorld(nullptr, nullptr, nullptr, nullptr);
+    (void)btMultiBody(0, 0, {}, false, false);
+    (void)btPolarDecomposition();
+    HullLibrary hl;
+    HullResult hr;
+    hl.CreateConvexHull({}, hr);
+}
+
 namespace vierkant
 {
-
-namespace internal
-{
-    struct bullet_linker_helper_t
-    {
-        bullet_linker_helper_t()
-        {
-            auto verts = btAlignedObjectArray<btVector3>();
-            auto eq = btAlignedObjectArray<btVector3>();
-            btGeometryUtil::getPlaneEquationsFromVertices(verts, eq);
-            btGeometryUtil::getVerticesFromPlaneEquations(eq, verts);
-
-            btConvexHullComputer p2;
-            p2.compute((float*)nullptr, 0, 0, 0.f, 0.f);
-
-            CProfileSample poop("");
-            (void) poop;
-        }
-    };
-}
 
 typedef std::shared_ptr<btCollisionShape> btCollisionShapePtr;
 typedef std::shared_ptr<btRigidBody> btRigidBodyPtr;
@@ -313,10 +315,10 @@ public:
     std::shared_ptr<btConstraintSolver> solver = std::make_shared<btSequentialImpulseConstraintSolver>();
 
     //    btDynamicsWorldPtr world;
-    //    btSoftRigidDynamicsWorldPtr world = std::make_shared<btSoftRigidDynamicsWorld>(dispatcher.get(), broadphase.get(),
-    //                                                                                   solver.get(), configuration.get());
-    btDynamicsWorldPtr world = std::make_shared<btDiscreteDynamicsWorld>(dispatcher.get(), broadphase.get(),
-                                                                         solver.get(), configuration.get());
+    btSoftRigidDynamicsWorldPtr world = std::make_shared<btSoftRigidDynamicsWorld>(dispatcher.get(), broadphase.get(),
+                                                                                   solver.get(), configuration.get());
+    //    btDynamicsWorldPtr world = std::make_shared<btDiscreteDynamicsWorld>(dispatcher.get(), broadphase.get(),
+    //                                                                         solver.get(), configuration.get());
     std::shared_ptr<BulletDebugDrawer> debug_drawer;
 
     std::unordered_map<CollisionShapeId, btCollisionShapePtr> collision_shapes;
@@ -331,9 +333,6 @@ public:
     std::unordered_set<std::pair<const btCollisionObject *, const btCollisionObject *>,
                        vierkant::pair_hash<const btCollisionObject *, const btCollisionObject *>>
             collision_pairs;
-
-private:
-    internal::bullet_linker_helper_t bullet_linker_helper;
 };
 
 struct PhysicsContext::engine

@@ -107,7 +107,6 @@ set(LIBS ${LIBS} ${BULLET_LIBRARIES})
 foreach (BULLET_TARGET ${BULLET_LIBRARIES})
     target_compile_options(${BULLET_TARGET} PRIVATE -Wno-stringop-overflow)
 endforeach()
-#option(BUILD_TESTS ${BUILD_TESTS_TMP})
 
 ##shaders
 include(build_shaders)
