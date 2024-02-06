@@ -12,8 +12,8 @@
 #include <entt/entity/registry.hpp>
 #include <vierkant/animation.hpp>
 #include <vierkant/intersection.hpp>
-#include <vierkant/transform.hpp>
 #include <vierkant/object_component.hpp>
+#include <vierkant/transform.hpp>
 
 namespace vierkant
 {
@@ -95,6 +95,24 @@ public:
     }
 
     /**
+     * @brief   'remove_component' removes existing components.
+     *
+     * @tparam  T   type of the component
+     * @return  true, if a component of the provided type existed.
+     */
+    template<object_component T>
+    inline bool remove_component()
+    {
+        auto reg = m_registry.lock();
+        if(reg && reg->try_get<T>(m_entity))
+        {
+            reg->remove<T>(m_entity);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * @brief   'get_component_ptr' can be used to retrieve a pointer to an object's component, if existing.
      *
      * @tparam  T   type of the component
@@ -171,7 +189,6 @@ protected:
     explicit Object3D(const std::shared_ptr<entt::registry> &registry, std::string name = "");
 
 private:
-
     std::weak_ptr<Object3D> m_parent;
 
     std::weak_ptr<entt::registry> m_registry;
