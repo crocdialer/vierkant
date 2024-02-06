@@ -236,7 +236,7 @@ public:
 
     BulletContext()
     {
-        world->setGravity(btVector3(0, -9.87, 0));
+        world->setGravity(btVector3(0.f, -9.87f, 0.f));
 
         // debug drawer
         debug_drawer = std::make_shared<BulletDebugDrawer>();
