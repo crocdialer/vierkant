@@ -974,7 +974,6 @@ void draw_object_ui(const Object3DPtr &object)
         }
     }
 
-
     if(has_physics)
     {
         vierkant::object_component auto &phys_cmp = object->get_component<vierkant::physics_component_t>();

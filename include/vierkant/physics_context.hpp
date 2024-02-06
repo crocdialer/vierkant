@@ -49,13 +49,14 @@ public:
 
     void step_simulation(float timestep, int max_sub_steps = 1, float fixed_time_step = 1.f / 60.f);
 
-    const std::unordered_map<glm::vec4, std::vector<glm::vec3>>& debug_render();
+    const std::unordered_map<glm::vec4, std::vector<glm::vec3>> &debug_render();
 
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
 
     RigidBodyId add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
+    [[nodiscard]] bool contains(const vierkant::Object3DPtr &obj) const;
 
     CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                             const glm::vec3 &scale = glm::vec3(1));
@@ -77,7 +78,6 @@ private:
 class PhysicsScene : public vierkant::Scene
 {
 public:
-
     ~PhysicsScene() override = default;
 
     static std::shared_ptr<PhysicsScene> create();
@@ -90,7 +90,7 @@ public:
 
     void update(double time_delta) override;
 
-    vierkant::PhysicsContext& context(){ return m_context; };
+    vierkant::PhysicsContext &context() { return m_context; };
 
 private:
     PhysicsScene() = default;

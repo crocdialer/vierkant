@@ -22,10 +22,10 @@ extern "C" [[maybe_unused]] void DummyLinkHelper()
     btConvexHullComputer p2;
     p2.compute((float *) nullptr, 0, 0, 0.f, 0.f);
 
-    (void)CProfileSample("");
-    (void)btDiscreteDynamicsWorld(nullptr, nullptr, nullptr, nullptr);
-    (void)btMultiBody(0, 0, {}, false, false);
-    (void)btPolarDecomposition();
+    (void) CProfileSample("");
+    (void) btDiscreteDynamicsWorld(nullptr, nullptr, nullptr, nullptr);
+    (void) btMultiBody(0, 0, {}, false, false);
+    (void) btPolarDecomposition();
     HullLibrary hl;
     HullResult hr;
     hl.CreateConvexHull({}, hr);
@@ -43,21 +43,7 @@ typedef std::shared_ptr<btDynamicsWorld> btDynamicsWorldPtr;
 
 inline btVector3 type_cast(const glm::vec3 &the_vec) { return {the_vec[0], the_vec[1], the_vec[2]}; }
 
-inline btTransform type_cast(const glm::mat4 &the_transform)
-{
-    btTransform ret;
-    ret.setFromOpenGLMatrix(&the_transform[0][0]);
-    return ret;
-}
-
 inline const glm::vec3 &type_cast(const btVector3 &the_vec) { return reinterpret_cast<const glm::vec3 &>(the_vec); }
-
-inline glm::mat4 to_mat4(const btTransform &the_transform)
-{
-    glm::mat4 m;
-    the_transform.getOpenGLMatrix(glm::value_ptr(m));
-    return m;
-}
 
 inline const btQuaternion &type_cast(const glm::quat &q)
 {
@@ -254,7 +240,6 @@ public:
 
     void tick_callback(btScalar /*timestep*/)
     {
-        auto last_collision_pairs = std::move(collision_pairs);
         int numManifolds = world->getDispatcher()->getNumManifolds();
 
         for(int i = 0; i < numManifolds; i++)
@@ -303,6 +288,8 @@ public:
             if(itemA.callbacks.contact_end) { itemA.callbacks.contact_end(itemB.id); }
             if(itemB.callbacks.contact_end) { itemB.callbacks.contact_end(itemA.id); }
         }
+        std::swap(collision_pairs, last_collision_pairs);
+        collision_pairs.clear();
     }
 
     std::shared_ptr<btDefaultCollisionConfiguration> configuration =
@@ -326,10 +313,10 @@ public:
 
     std::unordered_map<ConstraintId, btTypedConstraintPtr> constraints;
 
-    // current collision-pairs
+    // current/last collision-pairs
     std::unordered_set<std::pair<const btCollisionObject *, const btCollisionObject *>,
                        vierkant::pair_hash<const btCollisionObject *, const btCollisionObject *>>
-            collision_pairs;
+            collision_pairs, last_collision_pairs;
 };
 
 struct PhysicsContext::engine
@@ -477,6 +464,11 @@ void PhysicsContext::remove_object(const Object3DPtr &obj)
         m_engine->bullet.world->removeRigidBody(body);
         m_engine->bullet.rigid_bodies.erase(it);
     }
+}
+
+bool PhysicsContext::contains(const Object3DPtr &obj) const
+{
+    return m_engine->bullet.rigid_bodies.contains(obj->id());
 }
 
 const std::unordered_map<glm::vec4, std::vector<glm::vec3>> &PhysicsContext::debug_render()
