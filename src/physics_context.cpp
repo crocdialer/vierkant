@@ -314,17 +314,14 @@ public:
     ///the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
     std::shared_ptr<btConstraintSolver> solver = std::make_shared<btSequentialImpulseConstraintSolver>();
 
-    //    btDynamicsWorldPtr world;
     btSoftRigidDynamicsWorldPtr world = std::make_shared<btSoftRigidDynamicsWorld>(dispatcher.get(), broadphase.get(),
                                                                                    solver.get(), configuration.get());
-    //    btDynamicsWorldPtr world = std::make_shared<btDiscreteDynamicsWorld>(dispatcher.get(), broadphase.get(),
-    //                                                                         solver.get(), configuration.get());
     std::shared_ptr<BulletDebugDrawer> debug_drawer;
 
     std::unordered_map<CollisionShapeId, btCollisionShapePtr> collision_shapes;
 
     //! maps object-id -> rigid-body
-    std::unordered_map<uint, rigid_body_item_t> rigid_bodies;
+    std::unordered_map<uint32_t, rigid_body_item_t> rigid_bodies;
     std::unordered_map<const btCollisionObject *, object_item_t> object_items;
 
     std::unordered_map<ConstraintId, btTypedConstraintPtr> constraints;
