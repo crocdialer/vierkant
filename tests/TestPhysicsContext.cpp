@@ -117,6 +117,6 @@ TEST(PhysicsContext, add_object)
     EXPECT_FALSE(trigger_map[c->id()]);
 
     auto debug_lines = context.debug_render();
-    EXPECT_FALSE(debug_lines->positions.empty());
-    EXPECT_FALSE(debug_lines->colors.empty());
+    EXPECT_FALSE(debug_lines.empty());
+    EXPECT_FALSE(debug_lines.empty());
 }

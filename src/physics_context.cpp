@@ -1,20 +1,43 @@
 //#define BT_USE_DOUBLE_PRECISION
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
+
+#include <LinearMath/btConvexHullComputer.h>
+#include <LinearMath/btGeometryUtil.h>
+
 #include <btBulletDynamicsCommon.h>
 
 #include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
-class btThreadSupportInterface;
-
 namespace vierkant
 {
+
+namespace internal
+{
+    struct bullet_linker_helper_t
+    {
+        bullet_linker_helper_t()
+        {
+            auto verts = btAlignedObjectArray<btVector3>();
+            auto eq = btAlignedObjectArray<btVector3>();
+            btGeometryUtil::getPlaneEquationsFromVertices(verts, eq);
+            btGeometryUtil::getVerticesFromPlaneEquations(eq, verts);
+
+            btConvexHullComputer p2;
+            p2.compute((float*)nullptr, 0, 0, 0.f, 0.f);
+
+            CProfileSample poop("");
+            (void) poop;
+        }
+    };
+}
 
 typedef std::shared_ptr<btCollisionShape> btCollisionShapePtr;
 typedef std::shared_ptr<btRigidBody> btRigidBodyPtr;
 typedef std::shared_ptr<btSoftBody> btSoftBodyPtr;
 typedef std::shared_ptr<btTypedConstraint> btTypedConstraintPtr;
 typedef std::shared_ptr<btSoftRigidDynamicsWorld> btSoftRigidDynamicsWorldPtr;
+typedef std::shared_ptr<btDynamicsWorld> btDynamicsWorldPtr;
 
 inline btVector3 type_cast(const glm::vec3 &the_vec) { return {the_vec[0], the_vec[1], the_vec[2]}; }
 
@@ -82,7 +105,6 @@ struct MotionState : public btMotionState
 class BulletDebugDrawer : public btIDebugDraw
 {
 public:
-
     std::unordered_map<glm::vec4, std::vector<glm::vec3>> line_map;
 
     inline void clear()
@@ -247,23 +269,23 @@ public:
                 btManifoldPoint &pt = contactManifold->getContactPoint(j);
                 if(pt.getDistance() < 0.f)
                 {
+                    collision_pairs.insert(key);
+
+                    if(!last_collision_pairs.contains(key))
+                    {
+                        // contact added
+                        if(itemA.callbacks.contact_begin) { itemA.callbacks.contact_begin(itemB.id); }
+                        if(itemB.callbacks.contact_begin) { itemB.callbacks.contact_begin(itemA.id); }
+                    }
+                    if(itemA.callbacks.collision) { itemA.callbacks.collision(itemB.id); }
+                    if(itemB.callbacks.collision) { itemB.callbacks.collision(itemA.id); }
+                    last_collision_pairs.erase(key);
+                    break;
                     //                                const btVector3& ptA = pt.getPositionWorldOnA();
                     //                                const btVector3& ptB = pt.getPositionWorldOnB();
                     //                                const btVector3& normalOnB = pt.m_normalWorldOnB;
-                    break;
                 }
             }
-            collision_pairs.insert(key);
-
-            if(!last_collision_pairs.contains(key))
-            {
-                // contact added
-                if(itemA.callbacks.contact_begin) { itemA.callbacks.contact_begin(itemB.id); }
-                if(itemB.callbacks.contact_begin) { itemB.callbacks.contact_begin(itemA.id); }
-            }
-            if(itemA.callbacks.collision) { itemA.callbacks.collision(itemB.id); }
-            if(itemB.callbacks.collision) { itemB.callbacks.collision(itemA.id); }
-            last_collision_pairs.erase(key);
         }
 
         // leftover pairs indicate a contact ended
@@ -291,9 +313,10 @@ public:
     std::shared_ptr<btConstraintSolver> solver = std::make_shared<btSequentialImpulseConstraintSolver>();
 
     //    btDynamicsWorldPtr world;
-    btSoftRigidDynamicsWorldPtr world = std::make_shared<btSoftRigidDynamicsWorld>(dispatcher.get(), broadphase.get(),
-                                                                                   solver.get(), configuration.get());
-
+    //    btSoftRigidDynamicsWorldPtr world = std::make_shared<btSoftRigidDynamicsWorld>(dispatcher.get(), broadphase.get(),
+    //                                                                                   solver.get(), configuration.get());
+    btDynamicsWorldPtr world = std::make_shared<btDiscreteDynamicsWorld>(dispatcher.get(), broadphase.get(),
+                                                                         solver.get(), configuration.get());
     std::shared_ptr<BulletDebugDrawer> debug_drawer;
 
     std::unordered_map<CollisionShapeId, btCollisionShapePtr> collision_shapes;
@@ -308,6 +331,9 @@ public:
     std::unordered_set<std::pair<const btCollisionObject *, const btCollisionObject *>,
                        vierkant::pair_hash<const btCollisionObject *, const btCollisionObject *>>
             collision_pairs;
+
+private:
+    internal::bullet_linker_helper_t bullet_linker_helper;
 };
 
 struct PhysicsContext::engine

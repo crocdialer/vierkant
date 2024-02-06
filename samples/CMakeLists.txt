@@ -3,7 +3,7 @@ FILE(GLOB FOLDER_CONTENT *)
 
 include_directories(${vierkant_INCLUDE_DIRS})
 
-set(LIBS ${vierkant_LIBRARIES} ${BULLET_LIBRARIES})
+set(LIBS ${vierkant_LIBRARIES})
 message(sample-libs: ${LIBS})
 
 FOREACH(folderItem ${FOLDER_CONTENT})

@@ -97,11 +97,11 @@ set(LIBS ${LIBS} EnTT::EnTT)
 
 # bullet
 option(BUILD_TESTS "Build Tests" OFF)
+option(BUILD_OPENGL3_DEMOS OFF)
 set(BUILD_TESTS_TMP ${BUILD_TESTS})
 set(BUILD_UNIT_TESTS OFF)
 set(BUILD_EXTRAS OFF)
 set(BUILD_BULLET2_DEMOS OFF)
-set(BUILD_OPENGL3_DEMOS OFF)
 set(CMAKE_POLICY_DEFAULT_CMP0072 NEW)
 add_subdirectory(submodules/bullet3 EXCLUDE_FROM_ALL)
 set(BULLET_LIBRARIES LinearMath BulletDynamics BulletSoftBody BulletCollision)
@@ -144,7 +144,7 @@ endif ()
 set(${PROJECT_NAME}_INCLUDE_DIRS ${INCLUDE_DIRS}
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
-set(${PROJECT_NAME}_LIBRARIES ${crocore_LIBRARIES} ${PROJECT_NAME} ${BULLET_LIBRARIES}
+set(${PROJECT_NAME}_LIBRARIES ${crocore_LIBRARIES} ${PROJECT_NAME}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
 #examples
