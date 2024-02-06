@@ -5,13 +5,13 @@
 #include <cmath>
 
 
-#include <vierkant/GBuffer.hpp>
 #include <vierkant/PBRDeferred.hpp>
 #include <vierkant/PBRPathTracer.hpp>
 #include <vierkant/imgui/imgui_util.h>
+#include <vierkant/physics_context.hpp>
 
 #include "imgui_internal.h"
-#include "vierkant/Visitor.hpp"
+//#include "vierkant/Visitor.hpp"
 
 using namespace crocore;
 
@@ -961,7 +961,45 @@ void draw_object_ui(const Object3DPtr &object)
         ImGui::TreePop();
     }
 
-    // check fo a mesh-component
+    bool has_physics = object->has_component<vierkant::physics_component_t>();
+    if(ImGui::Checkbox("physics", &has_physics))
+    {
+        if(has_physics && !object->has_component<vierkant::physics_component_t>())
+        {
+            object->add_component<vierkant::physics_component_t>();
+        }
+        else if(!has_physics && object->has_component<vierkant::physics_component_t>())
+        {
+            object->remove_component<vierkant::physics_component_t>();
+        }
+    }
+
+
+    if(has_physics)
+    {
+        vierkant::object_component auto &phys_cmp = object->get_component<vierkant::physics_component_t>();
+
+        ImGui::SameLine();
+        if(ImGui::TreeNodeEx(&phys_cmp, ImGuiTreeNodeFlags_DefaultOpen, "mass: %.2f", phys_cmp.mass))
+        {
+            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
+            ImGui::InputFloat("mass", &phys_cmp.mass);
+            ImGui::InputFloat("friction", &phys_cmp.friction);
+            ImGui::InputFloat("rolling_friction", &phys_cmp.rolling_friction);
+            ImGui::InputFloat("spinning_friction", &phys_cmp.spinning_friction);
+            ImGui::InputFloat("restitution", &phys_cmp.restitution);
+            ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
+            ImGui::Checkbox("collision_only", &phys_cmp.collision_only);
+
+            ImGui::Text("callbacks:");
+            ImGui::BulletText("collision: %s", phys_cmp.callbacks.collision ? "yes" : "-");
+            ImGui::BulletText("contact_begin: %s", phys_cmp.callbacks.contact_begin ? "yes" : "-");
+            ImGui::BulletText("contact_end: %s", phys_cmp.callbacks.contact_end ? "yes" : "-");
+            ImGui::TreePop();
+        }
+    }
+
+    // check for a mesh-component
     if(object->has_component<vierkant::mesh_component_t>())
     {
         draw_mesh_ui(object, object->get_component<vierkant::mesh_component_t>());
