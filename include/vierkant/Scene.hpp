@@ -30,9 +30,17 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
 class Scene
 {
 public:
+    virtual ~Scene() = default;
+
     static ScenePtr create();
 
-    void update(double time_delta);
+    virtual void add_object(const Object3DPtr &object);
+
+    virtual void remove_object(const Object3DPtr &object);
+
+    virtual void clear();
+
+    virtual void update(double time_delta);
 
     /**
      * @brief   object_by_id finds and returns an object based on its object/entity-id
@@ -40,15 +48,9 @@ public:
      * @param   object_id   a provided object-id
      * @return  an object or nullptr, if nothing was found
      */
-    [[nodiscard]] Object3DPtr object_by_id(uint32_t object_id) const;
+    [[nodiscard]] Object3D* object_by_id(uint32_t object_id) const;
 
     [[nodiscard]] Object3DPtr pick(const Ray &ray) const;
-
-    void add_object(const Object3DPtr &object);
-
-    void remove_object(const Object3DPtr &object);
-
-    void clear();
 
     [[nodiscard]] inline const Object3DPtr &root() const { return m_root; };
 
@@ -58,8 +60,10 @@ public:
 
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const { return m_registry; }
 
-private:
+protected:
     Scene() = default;
+
+private:
 
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
 

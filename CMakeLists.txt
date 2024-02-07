@@ -95,6 +95,23 @@ set(LIBS ${LIBS} ${crocore_LIBRARIES})
 add_subdirectory(submodules/entt EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} EnTT::EnTT)
 
+# bullet
+FILE(STRINGS "submodules/bullet3/VERSION" BULLET_VERSION)
+include_directories(SYSTEM "submodules/bullet3/src")
+add_subdirectory(submodules/bullet3/src/LinearMath EXCLUDE_FROM_ALL)
+add_subdirectory(submodules/bullet3/src/BulletDynamics EXCLUDE_FROM_ALL)
+add_subdirectory(submodules/bullet3/src/BulletSoftBody EXCLUDE_FROM_ALL)
+add_subdirectory(submodules/bullet3/src/BulletCollision EXCLUDE_FROM_ALL)
+set(BULLET_LIBRARIES LinearMath BulletDynamics BulletSoftBody BulletCollision)
+set(LIBS ${LIBS} ${BULLET_LIBRARIES})
+foreach (BULLET_TARGET ${BULLET_LIBRARIES})
+    if (MSVC)
+        target_compile_options(${BULLET_TARGET} PRIVATE /wd4244 /wd4305 /wd4267 /wd4056 /wd4018)
+    elseif (UNIX)
+        target_compile_options(${BULLET_TARGET} PRIVATE -Wno-stringop-overflow)
+    endif ()
+endforeach ()
+
 ##shaders
 include(build_shaders)
 get_shaders_recursive(GLSL_SOURCE_FILES "shaders")
@@ -116,7 +133,6 @@ add_custom_target("shaders" DEPENDS ${SHADERS_CPP})
 # vierkant
 set(LIB_NAME ${PROJECT_NAME})
 add_subdirectory("src")
-set(LIBS ${LIBS} ${vierkant_LIBRARIES})
 
 if (MSVC)
     target_compile_options(${LIB_NAME} PRIVATE /W2 /WX) # /W4
@@ -128,7 +144,7 @@ endif ()
 set(${PROJECT_NAME}_INCLUDE_DIRS ${INCLUDE_DIRS}
         CACHE INTERNAL "${PROJECT_NAME}: Include Directories" FORCE)
 
-set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME} ${crocore_LIBRARIES}
+set(${PROJECT_NAME}_LIBRARIES ${PROJECT_NAME}
         CACHE INTERNAL "${PROJECT_NAME}: Libraries" FORCE)
 
 #examples

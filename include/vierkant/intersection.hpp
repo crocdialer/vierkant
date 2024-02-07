@@ -387,4 +387,11 @@ struct Frustum
     };
 };
 
+struct Capsule
+{
+    glm::vec3 center = {};
+    float radius = 0.f;
+    float height = 0.f;
+};
+
 }// namespace vierkant

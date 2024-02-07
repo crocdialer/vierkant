@@ -1,6 +1,6 @@
 #include "vierkant/Scene.hpp"
 #include "vierkant/Visitor.hpp"
-#include "vierkant/cubemap_utils.hpp"
+#include "vierkant/physics_context.hpp"
 
 namespace vierkant
 {
@@ -115,10 +115,10 @@ void Scene::update(double time_delta)
     }
 }
 
-Object3DPtr Scene::object_by_id(uint32_t object_id) const
+Object3D* Scene::object_by_id(uint32_t object_id) const
 {
     auto object_ptr = m_registry->try_get<vierkant::Object3D *>(entt::entity(object_id));
-    return object_ptr ? (*object_ptr)->shared_from_this() : nullptr;
+    return object_ptr ? *object_ptr : nullptr;
 }
 
 Object3DPtr Scene::pick(const Ray &ray) const
