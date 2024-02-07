@@ -26,7 +26,7 @@ struct physics_component_t
     float spinning_friction = 0.0f;
     float restitution = 0.f;
     bool kinematic = false;
-    bool collision_only = false;
+    bool sensor = false;
 
     struct callbacks_t
     {
@@ -57,6 +57,7 @@ public:
     RigidBodyId add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
     [[nodiscard]] bool contains(const vierkant::Object3DPtr &obj) const;
+    [[nodiscard]] RigidBodyId body_id(const vierkant::Object3DPtr &obj) const;
 
     CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                             const glm::vec3 &scale = glm::vec3(1));

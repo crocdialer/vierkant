@@ -254,7 +254,7 @@ public:
             for(int j = 0; j < numContacts; j++)
             {
                 btManifoldPoint &pt = contactManifold->getContactPoint(j);
-                if(pt.getDistance() < 0.f)
+                if(pt.getDistance() <= 0.f)
                 {
                     collision_pairs.insert(key);
 
@@ -425,6 +425,9 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
             rigid_item.rigid_body->setSpinningFriction(cmp.spinning_friction);
             rigid_item.rigid_body->setRestitution(cmp.restitution);
 
+            int collision_filter = btBroadphaseProxy::DefaultFilter;
+            int collision_mask = btBroadphaseProxy::AllFilter;
+
             if(cmp.kinematic)
             {
                 rigid_item.rigid_body->setCollisionFlags(rigid_item.rigid_body->getCollisionFlags() |
@@ -433,15 +436,17 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
             }
 
             // add to world
-            if(cmp.collision_only)
+            if(cmp.sensor)
             {
                 rigid_item.rigid_body->setCollisionFlags(rigid_item.rigid_body->getCollisionFlags() |
-                                                         btCollisionObject::CF_STATIC_OBJECT);
-                m_engine->bullet.world->addCollisionObject(
-                        rigid_item.rigid_body.get(), btBroadphaseProxy::SensorTrigger,
-                        int(btBroadphaseProxy::AllFilter ^ btBroadphaseProxy::StaticFilter));
+                                                         btCollisionObject::CF_NO_CONTACT_RESPONSE);
+                m_engine->bullet.world->addCollisionObject(rigid_item.rigid_body.get(), collision_filter,
+                                                           collision_mask);
             }
-            else { m_engine->bullet.world->addRigidBody(rigid_item.rigid_body.get()); }
+            else
+            {
+                m_engine->bullet.world->addRigidBody(rigid_item.rigid_body.get(), collision_filter, collision_mask);
+            }
 
             auto &object_item = m_engine->bullet.object_items[rigid_item.rigid_body.get()];
             object_item.id = obj->id();
@@ -469,6 +474,12 @@ void PhysicsContext::remove_object(const Object3DPtr &obj)
 bool PhysicsContext::contains(const Object3DPtr &obj) const
 {
     return m_engine->bullet.rigid_bodies.contains(obj->id());
+}
+
+RigidBodyId PhysicsContext::body_id(const Object3DPtr &obj) const
+{
+    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
+    return it != m_engine->bullet.rigid_bodies.end() ? it->second.id : vierkant::RigidBodyId::nil();
 }
 
 const std::unordered_map<glm::vec4, std::vector<glm::vec3>> &PhysicsContext::debug_render()

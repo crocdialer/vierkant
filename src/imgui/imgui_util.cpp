@@ -988,7 +988,7 @@ void draw_object_ui(const Object3DPtr &object)
             ImGui::InputFloat("spinning_friction", &phys_cmp.spinning_friction);
             ImGui::InputFloat("restitution", &phys_cmp.restitution);
             ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
-            ImGui::Checkbox("collision_only", &phys_cmp.collision_only);
+            ImGui::Checkbox("sensor", &phys_cmp.sensor);
 
             ImGui::Text("callbacks:");
             ImGui::BulletText("collision: %s", phys_cmp.callbacks.collision ? "yes" : "-");
