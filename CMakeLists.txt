@@ -63,6 +63,7 @@ set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
 # vulkan/volk
 find_package(Vulkan)
 include_directories(${Vulkan_INCLUDE_DIRS})
+set(INCLUDE_DIRS ${INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
 
 # glfw
 add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
