@@ -34,6 +34,24 @@ extern "C" [[maybe_unused]] void DummyLinkHelper()
 namespace vierkant
 {
 
+bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs)
+{
+    if(&lhs == &rhs) { return true; }
+    if(lhs.shape_id != rhs.shape_id) { return false; }
+    if(lhs.mass != rhs.mass) { return false; }
+    if(lhs.friction != rhs.friction) { return false; }
+    if(lhs.rolling_friction != rhs.rolling_friction) { return false; }
+    if(lhs.spinning_friction != rhs.spinning_friction) { return false; }
+    if(lhs.restitution != rhs.restitution) { return false; }
+    if(lhs.sensor != rhs.sensor) { return false; }
+    if(lhs.kinematic != rhs.kinematic) { return false; }
+    if(lhs.need_update != rhs.need_update) { return false; }
+    //    if(lhs.callbacks.collision != rhs.callbacks.collision) { return false; }
+    //    if(lhs.callbacks.contact_begin != rhs.callbacks.contact_begin) { return false; }
+    //    if(lhs.callbacks.collision != rhs.callbacks.collision) { return false; }
+    return true;
+}
+
 typedef std::shared_ptr<btCollisionShape> btCollisionShapePtr;
 typedef std::shared_ptr<btRigidBody> btRigidBodyPtr;
 typedef std::shared_ptr<btSoftBody> btSoftBodyPtr;
@@ -549,9 +567,34 @@ void PhysicsScene::clear()
 void PhysicsScene::update(double time_delta)
 {
     Scene::update(time_delta);
+    auto view = registry()->view<physics_component_t>();
+    for(const auto &[entity, cmp]: view.each())
+    {
+        if(cmp.need_update)
+        {   auto obj = object_by_id(static_cast<uint32_t>(entity))->shared_from_this();
+            m_context.remove_object(obj);
+            m_context.add_object(obj);
+            cmp.need_update = false;
+        }
+    }
     m_context.step_simulation(static_cast<float>(time_delta));
 }
 
 std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
 
 }//namespace vierkant
+
+size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_component_t const &c) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, c.shape_id);
+    vierkant::hash_combine(h, c.mass);
+    vierkant::hash_combine(h, c.friction);
+    vierkant::hash_combine(h, c.rolling_friction);
+    vierkant::hash_combine(h, c.spinning_friction);
+    vierkant::hash_combine(h, c.restitution);
+    vierkant::hash_combine(h, c.kinematic);
+    vierkant::hash_combine(h, c.sensor);
+    vierkant::hash_combine(h, c.need_update);
+    return h;
+}

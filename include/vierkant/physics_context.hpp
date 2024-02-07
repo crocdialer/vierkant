@@ -34,7 +34,15 @@ struct physics_component_t
         collision_cb_t contact_begin;
         collision_cb_t contact_end;
     } callbacks;
+
+    bool need_update = false;
 };
+
+bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs);
+inline bool operator!=(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs)
+{
+    return !(lhs == rhs);
+}
 
 class PhysicsContext
 {
@@ -104,3 +112,13 @@ private:
 };
 
 }//namespace vierkant
+
+// template specializations for hashing
+namespace std
+{
+template<>
+struct hash<vierkant::physics_component_t>
+{
+    size_t operator()(vierkant::physics_component_t const &c) const;
+};
+}// namespace std

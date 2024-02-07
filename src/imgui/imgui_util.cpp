@@ -966,7 +966,8 @@ void draw_object_ui(const Object3DPtr &object)
     {
         if(has_physics && !object->has_component<vierkant::physics_component_t>())
         {
-            object->add_component<vierkant::physics_component_t>();
+            vierkant::object_component auto &cmp = object->add_component<vierkant::physics_component_t>();
+            cmp.need_update = true;
         }
         else if(!has_physics && object->has_component<vierkant::physics_component_t>())
         {
@@ -981,14 +982,16 @@ void draw_object_ui(const Object3DPtr &object)
         ImGui::SameLine();
         if(ImGui::TreeNodeEx(&phys_cmp, ImGuiTreeNodeFlags_DefaultOpen, "mass: %.2f", phys_cmp.mass))
         {
+            bool change = false;
             ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
-            ImGui::InputFloat("mass", &phys_cmp.mass);
-            ImGui::InputFloat("friction", &phys_cmp.friction);
-            ImGui::InputFloat("rolling_friction", &phys_cmp.rolling_friction);
-            ImGui::InputFloat("spinning_friction", &phys_cmp.spinning_friction);
-            ImGui::InputFloat("restitution", &phys_cmp.restitution);
-            ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
-            ImGui::Checkbox("sensor", &phys_cmp.sensor);
+            change |= ImGui::InputFloat("mass", &phys_cmp.mass);
+            change |=ImGui::InputFloat("friction", &phys_cmp.friction);
+            change |=ImGui::InputFloat("rolling_friction", &phys_cmp.rolling_friction);
+            change |=ImGui::InputFloat("spinning_friction", &phys_cmp.spinning_friction);
+            change |=ImGui::InputFloat("restitution", &phys_cmp.restitution);
+            change |=ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
+            change |=ImGui::Checkbox("sensor", &phys_cmp.sensor);
+            phys_cmp.need_update |= change;
 
             ImGui::Text("callbacks:");
             ImGui::BulletText("collision: %s", phys_cmp.callbacks.collision ? "yes" : "-");
