@@ -93,19 +93,20 @@ struct MotionState : public btMotionState
 class BulletDebugDrawer : public btIDebugDraw
 {
 public:
-    std::unordered_map<glm::vec4, std::vector<glm::vec3>> line_map;
+    GeometryPtr geometry = Geometry::create();
 
     inline void clear()
     {
-        for(auto &[col, lines]: line_map) lines.clear();
+        geometry->positions.clear();
+        geometry->colors.clear();
     }
 
     inline void drawLine(const btVector3 &from, const btVector3 &to, const btVector3 &color) override
     {
         glm::vec4 c(color[0], color[1], color[2], 1.f);
-        auto &lines = line_map[c];
-        lines.insert(lines.end(), {type_cast(from), type_cast(to)});
-        lines.insert(lines.end(), {c, c});
+
+        geometry->positions.insert(geometry->positions.end(), {type_cast(from), type_cast(to)});
+        geometry->colors.insert(geometry->colors.end(), {c, c});
     }
 
     void drawContactPoint(const btVector3 & /*PointOnB*/, const btVector3 & /*normalOnB*/, btScalar /*distance*/,
@@ -482,11 +483,11 @@ RigidBodyId PhysicsContext::body_id(const Object3DPtr &obj) const
     return it != m_engine->bullet.rigid_bodies.end() ? it->second.id : vierkant::RigidBodyId::nil();
 }
 
-const std::unordered_map<glm::vec4, std::vector<glm::vec3>> &PhysicsContext::debug_render()
+const GeometryPtr &PhysicsContext::debug_render()
 {
     m_engine->bullet.debug_drawer->clear();
     m_engine->bullet.world->debugDrawWorld();
-    return m_engine->bullet.debug_drawer->line_map;
+    return m_engine->bullet.debug_drawer->geometry;
 }
 
 void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->bullet.world->setGravity(type_cast(g)); }

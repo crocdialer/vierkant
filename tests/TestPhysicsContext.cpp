@@ -160,6 +160,6 @@ TEST(PhysicsContext, simulation)
     EXPECT_TRUE(contact_map.contains(sensor->id()) && !contact_map[sensor->id()]);
 
     auto debug_lines = context.debug_render();
-    EXPECT_FALSE(debug_lines.empty());
-    EXPECT_FALSE(debug_lines.empty());
+    EXPECT_FALSE(debug_lines->positions.empty());
+    EXPECT_EQ(debug_lines->positions.size(), debug_lines->colors.size());
 }

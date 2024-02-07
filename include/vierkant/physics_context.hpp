@@ -49,7 +49,7 @@ public:
 
     void step_simulation(float timestep, int max_sub_steps = 1, float fixed_time_step = 1.f / 60.f);
 
-    const std::unordered_map<glm::vec4, std::vector<glm::vec3>> &debug_render();
+    const GeometryPtr &debug_render();
 
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
