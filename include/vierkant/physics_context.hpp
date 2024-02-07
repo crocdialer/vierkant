@@ -59,6 +59,11 @@ public:
     [[nodiscard]] bool contains(const vierkant::Object3DPtr &obj) const;
     [[nodiscard]] RigidBodyId body_id(const vierkant::Object3DPtr &obj) const;
 
+    void apply_force(const vierkant::Object3DPtr &obj, const glm::vec3 &force, const glm::vec3 &offset = {});
+    void apply_impulse(const vierkant::Object3DPtr &obj, const glm::vec3 &impulse, const glm::vec3 &offset = {});
+    glm::vec3 velocity(const vierkant::Object3DPtr &obj);
+    void set_velocity(const vierkant::Object3DPtr &obj, const glm::vec3 &velocity);
+
     CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                             const glm::vec3 &scale = glm::vec3(1));
 

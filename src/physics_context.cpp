@@ -493,6 +493,37 @@ void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->bullet.world->s
 
 glm::vec3 PhysicsContext::gravity() const { return type_cast(m_engine->bullet.world->getGravity()); }
 
+void PhysicsContext::apply_force(const vierkant::Object3DPtr &obj, const glm::vec3 &force, const glm::vec3 &offset)
+{
+    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
+    if(it != m_engine->bullet.rigid_bodies.end())
+    {
+        it->second.rigid_body->applyForce(type_cast(force), type_cast(offset));
+    }
+}
+
+void PhysicsContext::apply_impulse(const Object3DPtr &obj, const glm::vec3 &impulse, const glm::vec3 &offset)
+{
+    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
+    if(it != m_engine->bullet.rigid_bodies.end())
+    {
+        it->second.rigid_body->applyImpulse(type_cast(impulse), type_cast(offset));
+    }
+}
+
+glm::vec3 PhysicsContext::velocity(const Object3DPtr &obj)
+{
+    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
+    if(it != m_engine->bullet.rigid_bodies.end()) { return type_cast(it->second.rigid_body->getLinearVelocity()); }
+    return {};
+}
+
+void PhysicsContext::set_velocity(const Object3DPtr &obj, const glm::vec3 &velocity)
+{
+    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
+    if(it != m_engine->bullet.rigid_bodies.end()) { it->second.rigid_body->setLinearVelocity(type_cast(velocity)); }
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 

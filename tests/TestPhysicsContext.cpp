@@ -52,6 +52,10 @@ TEST(PhysicsContext, add_remove_object)
     context.add_object(a);
     EXPECT_TRUE(context.contains(a));
     EXPECT_TRUE(context.body_id(a));
+    EXPECT_EQ(context.velocity(a), glm::vec3(0));
+    auto test_velocity = glm::vec3(0, 1.f, 0.f);
+    context.set_velocity(a, glm::vec3(0, 1.f, 0.f));
+    EXPECT_EQ(context.velocity(a), glm::vec3(0, 1.f, 0.f));
 
     context.remove_object(a);
     EXPECT_FALSE(context.contains(a));
@@ -121,6 +125,8 @@ TEST(PhysicsContext, simulation)
 
     // run simulation a bit
     for(uint32_t l = 0; l < 100; ++l) { context.step_simulation(1.f / 60.f); }
+
+    EXPECT_NE(context.velocity(a), glm::vec3(0));
 
     // bodies should be pulled down some way
     EXPECT_NE(ta, a->transform);
