@@ -380,38 +380,6 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
     return new_id;
 }
 
-CollisionShapeId PhysicsContext::create_box_shape(const glm::vec3 &half_extents)
-{
-    auto box_shape = std::make_shared<btBoxShape>(type_cast(half_extents));
-    vierkant::CollisionShapeId new_id;
-    m_engine->bullet.collision_shapes[new_id] = std::move(box_shape);
-    return new_id;
-}
-
-CollisionShapeId PhysicsContext::create_plane_shape(const Plane &plane)
-{
-    auto plane_shape = std::make_shared<btStaticPlaneShape>(type_cast(plane.normal()), plane.coefficients.w);
-    vierkant::CollisionShapeId new_id;
-    m_engine->bullet.collision_shapes[new_id] = std::move(plane_shape);
-    return new_id;
-}
-
-CollisionShapeId PhysicsContext::create_capsule_shape(float radius, float height)
-{
-    auto capsule_shape = std::make_shared<btCapsuleShape>(radius, height);
-    vierkant::CollisionShapeId new_id;
-    m_engine->bullet.collision_shapes[new_id] = std::move(capsule_shape);
-    return new_id;
-}
-
-CollisionShapeId PhysicsContext::create_cylinder_shape(const glm::vec3 &half_extents)
-{
-    auto cylinder_shape = std::make_shared<btCylinderShape>(type_cast(half_extents));
-    vierkant::CollisionShapeId new_id;
-    m_engine->bullet.collision_shapes[new_id] = std::move(cylinder_shape);
-    return new_id;
-}
-
 RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
 {
     if(obj->has_component<physics_component_t>())
@@ -543,6 +511,54 @@ void PhysicsContext::set_velocity(const Object3DPtr &obj, const glm::vec3 &veloc
     if(it != m_engine->bullet.rigid_bodies.end()) { it->second.rigid_body->setLinearVelocity(type_cast(velocity)); }
 }
 
+CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collision::shape_t &shape)
+{
+    auto shape_id = std::visit(
+            [this](auto &&s) -> CollisionShapeId {
+                using T = std::decay_t<decltype(s)>;
+
+                if constexpr(std::is_same_v<T, collision::plane_t>)
+                {
+                    auto plane_shape = std::make_shared<btStaticPlaneShape>(type_cast(s.normal), s.d);
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->bullet.collision_shapes[new_id] = std::move(plane_shape);
+                    return new_id;
+                }
+                if constexpr(std::is_same_v<T, collision::box_t>)
+                {
+                    auto box_shape = std::make_shared<btBoxShape>(type_cast(s.half_extents));
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->bullet.collision_shapes[new_id] = std::move(box_shape);
+                    return new_id;
+                }
+                if constexpr(std::is_same_v<T, collision::sphere_t>)
+                {
+                    auto sphere_shape = std::make_shared<btSphereShape>(s.radius);
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->bullet.collision_shapes[new_id] = std::move(sphere_shape);
+                    return new_id;
+                }
+                if constexpr(std::is_same_v<T, collision::cylinder_t>)
+                {
+                    auto cylinder_shape = std::make_shared<btCylinderShape>(type_cast(s.half_extents));
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->bullet.collision_shapes[new_id] = std::move(cylinder_shape);
+                    return new_id;
+                }
+                if constexpr(std::is_same_v<T, collision::capsule_t>)
+                {
+                    auto capsule_shape = std::make_shared<btCapsuleShape>(s.radius, s.height);
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->bullet.collision_shapes[new_id] = std::move(capsule_shape);
+                    return new_id;
+                }
+                if constexpr(std::is_same_v<T, CollisionShapeId>) { return s; }
+                return CollisionShapeId::nil();
+            },
+            shape);
+    return shape_id;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
@@ -571,7 +587,8 @@ void PhysicsScene::update(double time_delta)
     for(const auto &[entity, cmp]: view.each())
     {
         if(cmp.need_update)
-        {   auto obj = object_by_id(static_cast<uint32_t>(entity))->shared_from_this();
+        {
+            auto obj = object_by_id(static_cast<uint32_t>(entity))->shared_from_this();
             m_context.remove_object(obj);
             m_context.add_object(obj);
             cmp.need_update = false;

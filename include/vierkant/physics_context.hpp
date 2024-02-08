@@ -1,6 +1,7 @@
 #pragma once
 
 #include <crocore/NamedId.hpp>
+#include <variant>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Scene.hpp>
 #include <vierkant/intersection.hpp>
@@ -13,6 +14,46 @@ DEFINE_NAMED_ID(CollisionShapeId)
 DEFINE_NAMED_ID(RigidBodyId)
 DEFINE_NAMED_ID(SoftBodyId)
 DEFINE_NAMED_ID(ConstraintId)
+
+namespace collision
+{
+
+struct plane_t
+{
+    glm::vec3 normal = glm::vec3(0, 1, 0);
+    float d = 0;
+};
+
+struct box_t
+{
+    glm::vec3 half_extents = glm::vec3(.5f);
+};
+
+struct sphere_t
+{
+    float radius = 1.f;
+};
+
+struct cylinder_t
+{
+    glm::vec3 half_extents = glm::vec3(.5f);
+};
+
+struct capsule_t
+{
+    float radius = 1.f;
+    float height = 1.f;
+};
+
+struct mesh_t
+{
+    //    vierkant::MeshId mesh_id = vierkant::MeshId::nil();
+    bool convex_hull = true;
+};
+
+using shape_t = std::variant<collision::plane_t, collision::sphere_t, collision::box_t, collision::cylinder_t,
+                             collision::capsule_t, collision::mesh_t, vierkant::CollisionShapeId>;
+}// namespace collision
 
 using collision_cb_t = std::function<void(uint32_t)>;
 struct physics_component_t
@@ -78,10 +119,7 @@ public:
     CollisionShapeId create_convex_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                                    const glm::vec3 &scale = glm::vec3(1));
 
-    CollisionShapeId create_box_shape(const glm::vec3 &half_extents);
-    CollisionShapeId create_plane_shape(const vierkant::Plane &plane);
-    CollisionShapeId create_capsule_shape(float radius, float height);
-    CollisionShapeId create_cylinder_shape(const glm::vec3 &half_extents);
+    CollisionShapeId create_collision_shape(const collision::shape_t &shape);
 
 private:
     struct engine;
