@@ -983,7 +983,7 @@ void draw_object_ui(const Object3DPtr &object)
         if(ImGui::TreeNodeEx(&phys_cmp, ImGuiTreeNodeFlags_DefaultOpen, "mass: %.2f", phys_cmp.mass))
         {
             bool change = false;
-            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
+//            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
             change |= ImGui::InputFloat("mass", &phys_cmp.mass);
             change |=ImGui::InputFloat("friction", &phys_cmp.friction);
             change |=ImGui::InputFloat("rolling_friction", &phys_cmp.rolling_friction);
