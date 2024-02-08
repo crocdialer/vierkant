@@ -48,7 +48,7 @@ TEST(PhysicsContext, add_remove_object)
 
     // now add required component
     vierkant::object_component auto &cmp = a->add_component<vierkant::physics_component_t>();
-    cmp.shape_id = context.create_collision_shape(collision::box_t{glm::vec3(0.5f)});
+    cmp.shape = collision::box_t{glm::vec3(0.5f)};
 
     context.add_object(a);
     EXPECT_TRUE(context.contains(a));
@@ -78,7 +78,7 @@ TEST(PhysicsContext, simulation)
 
     vierkant::physics_component_t phys_cmp = {};
     phys_cmp.mass = 1.f;
-    phys_cmp.shape_id = collision_shape;
+    phys_cmp.shape = collision_shape;
     phys_cmp.callbacks.contact_begin = [&contact_map](uint32_t obj_id)
     {
         spdlog::debug("contact_begin: {}", obj_id);
@@ -96,7 +96,7 @@ TEST(PhysicsContext, simulation)
     phys_cmp.mass = 0.f;
     c->add_component(phys_cmp);
 
-    phys_cmp.shape_id = context.create_collision_shape(collision::plane_t());
+    phys_cmp.shape = collision::plane_t();
     ground->add_component(phys_cmp);
 
     Object3DPtr objects[] = {ground, a, b, c};
@@ -115,7 +115,7 @@ TEST(PhysicsContext, simulation)
     sensor->transform.translation.y = 3.f;
     phys_cmp.sensor = true;
     phys_cmp.kinematic = true;
-    phys_cmp.shape_id = context.create_collision_shape(collision::box_t{glm::vec3(4.f, 0.5f, 4.f)});
+    phys_cmp.shape = collision::box_t{glm::vec3(4.f, 0.5f, 4.f)};
     sensor->add_component(phys_cmp);
     context.add_object(sensor);
 

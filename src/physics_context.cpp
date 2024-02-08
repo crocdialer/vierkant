@@ -407,6 +407,7 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
             // create new rigid-body
             auto &rigid_item = m_engine->bullet.rigid_bodies[obj->id()];
             rigid_item.shape_id = shape_id;
+            rigid_item.id = {};
             rigid_item.motion_state = std::make_unique<MotionState>(obj);
             rigid_item.rigid_body =
                     std::make_shared<btRigidBody>(cmp.mass, rigid_item.motion_state.get(), col_shape, local_inertia);
