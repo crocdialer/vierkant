@@ -1,6 +1,7 @@
 #pragma once
 
 #include <crocore/NamedId.hpp>
+#include <crocore/NamedUUID.hpp>
 #include <variant>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Scene.hpp>
@@ -10,7 +11,7 @@
 namespace vierkant
 {
 
-DEFINE_NAMED_ID(CollisionShapeId)
+DEFINE_NAMED_UUID(CollisionShapeId)
 DEFINE_NAMED_ID(RigidBodyId)
 DEFINE_NAMED_ID(SoftBodyId)
 DEFINE_NAMED_ID(ConstraintId)
@@ -52,7 +53,7 @@ struct mesh_t
 };
 
 using shape_t = std::variant<collision::plane_t, collision::sphere_t, collision::box_t, collision::cylinder_t,
-                             collision::capsule_t, collision::mesh_t, vierkant::CollisionShapeId>;
+                             collision::capsule_t, vierkant::CollisionShapeId>;
 }// namespace collision
 
 using collision_cb_t = std::function<void(uint32_t)>;
@@ -60,7 +61,7 @@ struct physics_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
 
-    CollisionShapeId shape_id = CollisionShapeId::nil();
+    collision::shape_t shape = CollisionShapeId::nil();
     float mass = 0.f;
     float friction = 0.5f;
     float rolling_friction = 0.0f;

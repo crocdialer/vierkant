@@ -37,7 +37,7 @@ namespace vierkant
 bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs)
 {
     if(&lhs == &rhs) { return true; }
-    if(lhs.shape_id != rhs.shape_id) { return false; }
+//    if(lhs.shape != rhs.shape) { return false; }
     if(lhs.mass != rhs.mass) { return false; }
     if(lhs.friction != rhs.friction) { return false; }
     if(lhs.rolling_friction != rhs.rolling_friction) { return false; }
@@ -228,7 +228,8 @@ class BulletContext
 public:
     struct rigid_body_item_t
     {
-        RigidBodyId id;
+        RigidBodyId id = RigidBodyId::nil();
+        CollisionShapeId shape_id = CollisionShapeId::nil();
         std::unique_ptr<MotionState> motion_state;
         btRigidBodyPtr rigid_body;
     };
@@ -391,7 +392,8 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
         if(it != m_engine->bullet.rigid_bodies.end()) { return it->second.id; }
 
         // shape-lookup
-        auto shape_it = m_engine->bullet.collision_shapes.find(cmp.shape_id);
+        auto shape_id = create_collision_shape(cmp.shape);
+        auto shape_it = m_engine->bullet.collision_shapes.find(shape_id);
 
         if(shape_it != m_engine->bullet.collision_shapes.end())
         {
@@ -404,6 +406,7 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
 
             // create new rigid-body
             auto &rigid_item = m_engine->bullet.rigid_bodies[obj->id()];
+            rigid_item.shape_id = shape_id;
             rigid_item.motion_state = std::make_unique<MotionState>(obj);
             rigid_item.rigid_body =
                     std::make_shared<btRigidBody>(cmp.mass, rigid_item.motion_state.get(), col_shape, local_inertia);
@@ -604,7 +607,7 @@ std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<Ph
 size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_component_t const &c) const
 {
     size_t h = 0;
-    vierkant::hash_combine(h, c.shape_id);
+//    vierkant::hash_combine(h, c.shape_id);
     vierkant::hash_combine(h, c.mass);
     vierkant::hash_combine(h, c.friction);
     vierkant::hash_combine(h, c.rolling_friction);
