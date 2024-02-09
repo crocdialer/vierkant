@@ -26,7 +26,7 @@ void draw_scene_renderer_ui(const vierkant::SceneRendererPtr &scene_renderer);
 
 void draw_object_ui(const vierkant::Object3DPtr &object);
 
-void draw_camera_param_ui(vierkant::physical_camera_component_t &camera_params);
+void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params);
 
 enum class GuizmoType
 {

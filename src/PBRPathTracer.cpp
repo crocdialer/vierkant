@@ -188,10 +188,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     ret.object_by_index_fn =
             [scene, &scene_asset = frame_asset.scene_ray_acceleration](uint32_t object_idx) -> vierkant::id_entry_t {
         auto it = scene_asset.entry_idx_to_object_id.find(object_idx);
-        if(it != scene_asset.entry_idx_to_object_id.end())
-        {
-            return it->second;
-        }
+        if(it != scene_asset.entry_idx_to_object_id.end()) { return it->second; }
         return {};
     };
 
@@ -443,15 +440,16 @@ void PBRPathTracer::update_trace_descriptors(frame_asset_t &frame_asset, const C
     desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
     desc_ray_miss_ubo.buffers = {frame_asset.ray_miss_ubo};
 
-    const vierkant::object_component auto &camera_params = cam->get_component<vierkant::physical_camera_component_t>();
+    auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
 
     // assemble camera-ubo
     camera_ubo_t camera_ubo = {};
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
     camera_ubo.view_inverse = vierkant::mat4_cast(cam->global_transform());
-    camera_ubo.fov = camera_params.fovy();
-    camera_ubo.aperture = frame_asset.settings.depth_of_field ? static_cast<float>(camera_params.aperture_size()) : 0.f;
-    camera_ubo.focal_distance = camera_params.focal_distance;
+    camera_ubo.fov = perspective_cam->params.fovy();
+    camera_ubo.aperture =
+            frame_asset.settings.depth_of_field ? static_cast<float>(perspective_cam->params.aperture_size()) : 0.f;
+    camera_ubo.focal_distance = perspective_cam->params.focal_distance;
 
     // update uniform-buffers
     frame_asset.ray_camera_ubo->set_data(&camera_ubo, sizeof(camera_ubo_t));

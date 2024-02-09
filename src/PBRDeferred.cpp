@@ -1169,7 +1169,8 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
 
         if(!drawable.descriptors[1].buffers.empty())
         {
-            const auto &cam_params = cam->get_component<vierkant::physical_camera_component_t>();
+            auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
+            const auto &cam_params = perspective_cam->params;
             depth_of_field_params_t dof_params = {};
             dof_params.focal_distance = cam_params.focal_distance;
             dof_params.focal_length = cam_params.focal_length;
