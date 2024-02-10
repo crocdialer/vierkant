@@ -159,9 +159,6 @@ void main()
     payload.position = v.position;
     payload.normal = v.normal;
 
-    // next ray from current position
-    payload.ray.origin = payload.position;
-
     // participating media
     bool sample_medium = false;
     vec3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
@@ -203,6 +200,12 @@ void main()
             payload.radiance += payload.beta * sun_L;
             #endif
         }
+    }
+
+    if(!sample_medium)
+    {
+        // next ray from current position
+        payload.ray.origin = payload.position;
     }
 
     // albedo
