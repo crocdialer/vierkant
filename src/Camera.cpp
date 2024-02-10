@@ -1,6 +1,7 @@
 #include <spdlog/spdlog.h>
 #include <vierkant/Camera.hpp>
 #include <vierkant/projection.hpp>
+#include <vierkant/Visitor.hpp>
 
 namespace vierkant
 {
@@ -77,7 +78,6 @@ PerspectiveCamera::PerspectiveCamera(const std::shared_ptr<entt::registry> &regi
 
 glm::mat4 PerspectiveCamera::projection_matrix() const
 {
-    const auto &params = get_component<physical_camera_component_t>();
     return perspective_infinite_reverse_RH_ZO(params.fovy(), params.aspect, params.clipping_distances.x);
 }
 
@@ -85,7 +85,6 @@ glm::mat4 PerspectiveCamera::projection_matrix() const
 
 vierkant::Frustum PerspectiveCamera::frustum() const
 {
-    const auto &params = get_component<physical_camera_component_t>();
     return {params.aspect, params.fovx(), params.clipping_distances.x, params.clipping_distances.y};
 }
 
@@ -103,7 +102,6 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
     click_2D.y = -click_2D.y;
 
     // convert fovy to radians
-    const auto &params = get_component<physical_camera_component_t>();
     float rad = params.fovx();
     float near = params.clipping_distances.x;
     float hLength = std::tan(rad / 2) * near;
@@ -166,5 +164,9 @@ std::vector<glm::mat4> CubeCamera::view_matrices() const
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Camera::accept(Visitor &v) { v.visit(*this); }
+void OrthoCamera::accept(Visitor &v) { v.visit(*this); }
+void PerspectiveCamera::accept(Visitor &v) { v.visit(*this); }
 
 }// namespace vierkant

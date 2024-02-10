@@ -109,20 +109,20 @@ float channel_avg(vec3 v)
     return (v.x + v.y + v.z) / 3.0;
 }
 
-Vertex interpolate_vertex(Triangle t)
+Vertex interpolate_vertex(Triangle t, out vec3 aabb_coord)
 {
     const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
 
     // interpolated vertex
     Vertex out_vert;
-    out_vert.position = t.v0.position * barycentric.x + t.v1.position * barycentric.y + t.v2.position * barycentric.z;
+    vec3 position = t.v0.position * barycentric.x + t.v1.position * barycentric.y + t.v2.position * barycentric.z;
     out_vert.tex_coord = t.v0.tex_coord * barycentric.x + t.v1.tex_coord * barycentric.y + t.v2.tex_coord * barycentric.z;
     out_vert.normal = normalize(t.v0.normal * barycentric.x + t.v1.normal * barycentric.y + t.v2.normal * barycentric.z);
     out_vert.tangent = normalize(t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z);
 
     // bring surfel into worldspace
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
-    out_vert.position = apply_transform(entry.transform, out_vert.position);
+    out_vert.position = apply_transform(entry.transform, position);
     out_vert.tex_coord = (entry.texture_matrix * vec4(out_vert.tex_coord, 0.f, 1.0)).xy;
 
     vec4 quat = vec4(entry.transform.rotation_x, entry.transform.rotation_y, entry.transform.rotation_z,
@@ -132,6 +132,13 @@ Vertex interpolate_vertex(Triangle t)
 
     // account for two-sided materials seen from backside, flip normals
     if(gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT){ out_vert.normal *= -1.0; }
+
+    float w = entry.aabb.max_x - entry.aabb.min_x;
+    float h = entry.aabb.max_y - entry.aabb.min_y;
+    float d = entry.aabb.max_z - entry.aabb.min_z;
+    aabb_coord.x = (position.x - entry.aabb.min_x) / w;
+    aabb_coord.y = (position.y - entry.aabb.min_y) / h;
+    aabb_coord.z = (position.z - entry.aabb.min_z) / d;
     return out_vert;
 }
 
@@ -139,7 +146,8 @@ void main()
 {
     uint rng_state = payload.rng_state;
     Triangle triangle = get_triangle();
-    Vertex v = interpolate_vertex(triangle);
+    vec3 aabb_coords;
+    Vertex v = interpolate_vertex(triangle, aabb_coords);
     float triangle_lod = lod_constant(triangle);
 
     material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
@@ -150,9 +158,6 @@ void main()
     payload.entity_index = gl_InstanceCustomIndexEXT;
     payload.position = v.position;
     payload.normal = v.normal;
-
-    // next ray from current position
-    payload.ray.origin = payload.position;
 
     // participating media
     bool sample_medium = false;
@@ -195,6 +200,12 @@ void main()
             payload.radiance += payload.beta * sun_L;
             #endif
         }
+    }
+
+    if(!sample_medium)
+    {
+        // next ray from current position
+        payload.ray.origin = payload.position;
     }
 
     // albedo

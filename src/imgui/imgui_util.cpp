@@ -11,7 +11,7 @@
 #include <vierkant/physics_context.hpp>
 
 #include "imgui_internal.h"
-//#include "vierkant/Visitor.hpp"
+#include <vierkant/Visitor.hpp>
 
 using namespace crocore;
 
@@ -499,7 +499,7 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     return ret;
 }
 
-void draw_scene_ui(const ScenePtr &scene, CameraPtr &cam, std::set<vierkant::Object3DPtr> *selection)
+void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::Object3DPtr> *selection)
 {
     constexpr char window_name[] = "scene";
     scoped_child_window_t scoped_child_window(window_name);
@@ -593,25 +593,25 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &cam, std::set<vierkant::Obj
             {
                 scene->add_object(vierkant::PerspectiveCamera::create(scene->registry()));
             }
-            auto view = scene->registry()->view<vierkant::Object3D *, vierkant::physical_camera_component_t>();
+            vierkant::SelectVisitor<vierkant::PerspectiveCamera> camera_filter({}, false);
+            scene->root()->accept(camera_filter);
 
-            for(auto [entity, object, camera_params]: view.each())
+            for(const auto &cam: camera_filter.objects)
             {
-                bool enabled = object == cam.get();
+                bool enabled = cam == camera.get();
 
                 // push object id
-                ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(object)));
+                ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(cam)));
                 if(ImGui::Checkbox("", &enabled) && enabled)
                 {
-                    cam = std::dynamic_pointer_cast<vierkant::Camera>(object->shared_from_this());
-                    // TODO: set active camera
+                    camera = std::dynamic_pointer_cast<Camera>(cam->shared_from_this());
                 }
                 ImGui::PopID();
                 ImGui::SameLine();
 
-                if(ImGui::TreeNode((void *) (entity), "%s", object->name.c_str()))
+                if(ImGui::TreeNode((void *) ((uint64_t)cam->id()), "%s", cam->name.c_str()))
                 {
-                    vierkant::gui::draw_camera_param_ui(camera_params);
+                    vierkant::gui::draw_camera_param_ui(cam->params);
                     ImGui::Spacing();
                     ImGui::Separator();
                     ImGui::TreePop();
@@ -1027,7 +1027,9 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
         auto z_val = m[3].z;
         ImGuizmo::SetOrthographic(is_ortho);
 
-        const auto &cam_params = camera->get_component<vierkant::physical_camera_component_t>();
+
+        auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(camera);
+        const auto &cam_params = perspective_cam->params;
         float fovy = is_ortho ? 0.f : cam_params.fovy();
 
         auto sz = ImGui::GetIO().DisplaySize;
@@ -1040,7 +1042,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
     }
 }
 
-void draw_camera_param_ui(vierkant::physical_camera_component_t &camera_params)
+void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
 {
     // focal-length in mm
     float focal_length_mm = 1000.f * camera_params.focal_length;
