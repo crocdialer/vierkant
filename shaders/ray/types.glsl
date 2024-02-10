@@ -3,12 +3,19 @@
 
 #include "../utils/transform.glsl"
 
+struct aabb_t
+{
+    float min_x, min_y, min_z;
+    float max_x, max_y, max_z;
+};
+
 //! entry_t holds properties for geometric entries with common attributes
 struct entry_t
 {
     // per entry
     mat4 texture_matrix;
     transform_t transform;
+    aabb_t aabb;
     uint material_index;
     int vertex_offset;
     uint base_index;
