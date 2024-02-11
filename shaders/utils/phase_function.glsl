@@ -22,7 +22,7 @@ vec3 sample_phase_hg(in const vec2 Xi, in float g, out float pdf)
         cos_theta = (1 + g * g - sqr_term * sqr_term) / 2 * g;
     }
     float sin_theta = clamp(sqrt(1.0 - (cos_theta * cos_theta)), 0.0, 1.0);
-    pdf = phase_hg(cos_theta, g);
+    pdf = phase_hg(-cos_theta, g);
     return spherical_direction(sin_theta, cos_theta, phi);
 }
 
