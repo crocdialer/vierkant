@@ -29,6 +29,7 @@ public:
         // per entry
         glm::mat4 texture_matrix = glm::mat4(1);
         vierkant::transform_t transform;
+        vierkant::transform_t inv_transform;
         vierkant::AABB aabb;
         uint32_t material_index = 0;
 

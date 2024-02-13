@@ -6,6 +6,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/phase_function.glsl"
+#include "../utils/simplex.glsl"
 
 // for material_t / entries
 #include "types.glsl"
@@ -104,12 +105,26 @@ vec4 sample_texture_lod(sampler2D tex, vec2 tex_coord, float NoV, float cone_wid
     return textureLod(tex, tex_coord, lambda);
 }
 
+transform_t to_aabb_norm(entry_t entry)
+{
+    const vec3 aabb_size = vec3(entry.aabb.max_x - entry.aabb.min_x,
+                                entry.aabb.max_y - entry.aabb.min_y,
+                                entry.aabb.max_z - entry.aabb.min_z);
+
+    // ray to entry-space
+    transform_t ret = entry.inv_transform;
+    ret.scale_x /= aabb_size.x;
+    ret.scale_y /= aabb_size.y;
+    ret.scale_z /= aabb_size.z;
+    return ret;
+}
+
 float channel_avg(vec3 v)
 {
     return (v.x + v.y + v.z) / 3.0;
 }
 
-Vertex interpolate_vertex(Triangle t, out vec3 aabb_coord)
+Vertex interpolate_vertex(Triangle t)
 {
     const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
 
@@ -132,13 +147,6 @@ Vertex interpolate_vertex(Triangle t, out vec3 aabb_coord)
 
     // account for two-sided materials seen from backside, flip normals
     if(gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT){ out_vert.normal *= -1.0; }
-
-    float w = entry.aabb.max_x - entry.aabb.min_x;
-    float h = entry.aabb.max_y - entry.aabb.min_y;
-    float d = entry.aabb.max_z - entry.aabb.min_z;
-    aabb_coord.x = (position.x - entry.aabb.min_x) / w;
-    aabb_coord.y = (position.y - entry.aabb.min_y) / h;
-    aabb_coord.z = (position.z - entry.aabb.min_z) / d;
     return out_vert;
 }
 
@@ -146,8 +154,7 @@ void main()
 {
     uint rng_state = payload.rng_state;
     Triangle triangle = get_triangle();
-    vec3 aabb_coords;
-    Vertex v = interpolate_vertex(triangle, aabb_coords);
+    Vertex v = interpolate_vertex(triangle);
     float triangle_lod = lod_constant(triangle);
 
     material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
@@ -163,23 +170,63 @@ void main()
     bool sample_medium = false;
     vec3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
-    if(any(greaterThan(sigma_t, vec3(0))))
+    if(all(greaterThan(sigma_t, vec3(0))))
     {
-        // sample a ray hit_t
+        float t = 0;
         int channel = int(min(rnd(rng_state) * 3, 2));
-        float t = min(-log(1 - rnd(rng_state)) / sigma_t[channel], gl_HitTEXT);
+        const bool homogenous_medium = true;
 
         // fraction of scattering vs. absorption
         vec3 sigma_s = material.scattering_ratio * sigma_t;
 
-        // determine scattering
-        sample_medium = t < gl_HitTEXT;
+        if(homogenous_medium)
+        {
+            // sample a ray hit_t
+            t = min(-log(1 - rnd(rng_state)) / sigma_t[channel], gl_HitTEXT);
 
-        // beam_transmittance
-        vec3 beam_tr = exp(-sigma_t * t);
-        vec3 density = sample_medium ? beam_tr * sigma_t : beam_tr;
-        float pdf = channel_avg(density);
-        payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
+            // determine scattering
+            sample_medium = t < gl_HitTEXT;
+
+            // beam_transmittance (Beer's law)
+            vec3 beam_tr = exp(-sigma_t * t);
+            vec3 density = sample_medium ? beam_tr * sigma_t : beam_tr;
+            float pdf = channel_avg(density);
+            payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
+        }
+        else
+        {
+            // NOTE: wip grid-density media with monochromatic attenuation
+            const float inv_max_density = 1.0;
+
+            // ray to entry's normalized aabb
+            transform_t to_media = to_aabb_norm(entries[gl_InstanceCustomIndexEXT]);
+
+            Ray ray_local = payload.ray;
+            float scale = length(vec3(to_media.scale_x, to_media.scale_y, to_media.scale_z));
+            ray_local.origin = apply_transform(to_media, ray_local.origin);
+            ray_local.direction = scale * apply_rotation(to_media, ray_local.direction);
+            float t_max = scale * gl_HitTEXT;
+
+            while(true)
+            {
+                // sample a ray hit_t
+                t -= log(1 - rnd(rng_state)) * inv_max_density / sigma_t[channel];
+                if(t >= t_max){ break; }
+
+                // next position on ray
+                vec3 p = ray_local.origin + t * ray_local.direction;
+
+                // sample grid-density // TODO: volume-sampler
+                float density = clamp(0.5 * (simplex(vec4(4 * p, push_constants.time * 0.1) + 1.0)), 0.0, 1.0);
+
+                if(density * inv_max_density > rnd(rng_state))
+                {
+                    sample_medium = true;
+                    break;
+                }
+            }
+            payload.beta *= sample_medium ? (sigma_s / sigma_t) : vec3(1.0);
+        }
 
         // sample scattering event
         if(sample_medium)

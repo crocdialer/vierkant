@@ -15,6 +15,7 @@ struct entry_t
     // per entry
     mat4 texture_matrix;
     transform_t transform;
+    transform_t inv_transform;
     aabb_t aabb;
     uint material_index;
     int vertex_offset;

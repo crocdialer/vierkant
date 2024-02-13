@@ -514,6 +514,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
             RayBuilder::entry_t top_level_entry = {};
             top_level_entry.transform = transform;
+            top_level_entry.inv_transform = vierkant::inverse(transform);
             top_level_entry.aabb = mesh_entry.bounding_box;
             top_level_entry.texture_matrix = m.texture_transform;
             top_level_entry.buffer_index = mesh_buffer_indices[vertex_buffer_address];
