@@ -105,6 +105,20 @@ vec4 sample_texture_lod(sampler2D tex, vec2 tex_coord, float NoV, float cone_wid
     return textureLod(tex, tex_coord, lambda);
 }
 
+transform_t to_aabb_norm(entry_t entry)
+{
+    const vec3 aabb_size = vec3(entry.aabb.max_x - entry.aabb.min_x,
+                                entry.aabb.max_y - entry.aabb.min_y,
+                                entry.aabb.max_z - entry.aabb.min_z);
+
+    // ray to entry-space
+    transform_t ret = entry.inv_transform;
+    ret.scale_x /= aabb_size.x;
+    ret.scale_y /= aabb_size.y;
+    ret.scale_z /= aabb_size.z;
+    return ret;
+}
+
 float channel_avg(vec3 v)
 {
     return (v.x + v.y + v.z) / 3.0;
@@ -160,7 +174,7 @@ void main()
     {
         float t = 0;
         int channel = int(min(rnd(rng_state) * 3, 2));
-        bool homogenous_medium = true;
+        const bool homogenous_medium = true;
 
         // fraction of scattering vs. absorption
         vec3 sigma_s = material.scattering_ratio * sigma_t;
@@ -181,11 +195,12 @@ void main()
         }
         else
         {
+            // NOTE: wip grid-density media with monochromatic attenuation
             const float inv_max_density = 1.0;
-            vec3 beam_tr = vec3(1.0);
 
-            // ray to entry-space
-            transform_t to_media = entries[gl_InstanceCustomIndexEXT].inv_transform;
+            // ray to entry's normalized aabb
+            transform_t to_media = to_aabb_norm(entries[gl_InstanceCustomIndexEXT]);
+
             Ray ray_local = payload.ray;
             float scale = length(vec3(to_media.scale_x, to_media.scale_y, to_media.scale_z));
             ray_local.origin = apply_transform(to_media, ray_local.origin);
@@ -201,9 +216,8 @@ void main()
                 // next position on ray
                 vec3 p = ray_local.origin + t * ray_local.direction;
 
-                // sample grid-density
-                float density = simplex(vec4(p, 0.0));
-                beam_tr *= 1.0 - max(0.0, density * inv_max_density);
+                // sample grid-density // TODO: volume-sampler
+                float density = clamp(0.5 * (simplex(vec4(4 * p, push_constants.time * 0.1) + 1.0)), 0.0, 1.0);
 
                 if(density * inv_max_density > rnd(rng_state))
                 {
@@ -211,7 +225,7 @@ void main()
                     break;
                 }
             }
-            payload.beta *= sample_medium ? (sigma_s * beam_tr / sigma_t) : beam_tr;
+            payload.beta *= sample_medium ? (sigma_s / sigma_t) : vec3(1.0);
         }
 
         // sample scattering event
