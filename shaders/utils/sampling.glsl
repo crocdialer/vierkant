@@ -93,31 +93,26 @@ vec3 sample_GGX(vec2 Xi, float roughness)
 }
 
 // sample a 'GGX-distribution of visible normals' (from Eric Heitz, 2018)
-vec3 sample_GGX_VNDF(vec2 Xi, vec3 V, vec2 roughness)
+vec3 sample_GGX_VNDF(vec2 Xi, vec3 wi, vec2 alpha)
 {
-    roughness = max(vec2(0.001), roughness);
+    // warp to the hemisphere configuration
+    vec3 wiStd = normalize(vec3(wi.xy * alpha, wi.z));
 
-    // transform view-direction to hemisphere configuration
-    vec3 Vh = normalize(vec3(roughness * V.xy, V.z));
+    // sample a spherical cap in (-wi.z, 1]
+    float phi = (2.0f * Xi.x - 1.0f) * PI;
 
-    // orthonormal basis
-    mat3 basis = local_frame(Vh);
+    float z = fma((1.0f - Xi.y), (1.0f + wiStd.z), -wiStd.z);
+    float sinTheta = sqrt(clamp(1.0f - z * z, 0.0f, 1.0f));
+    float x = sinTheta * cos(phi);
+    float y = sinTheta * sin(phi);
+    vec3 c = vec3(x, y, z);
 
-    // parametrization of projected area
-    float phi = 2.0 * PI * Xi.x;
-    float r = sqrt(Xi.y);
+    // compute halfway direction as standard normal
+    vec3 wmStd = c + wiStd;
 
-    float t1 = r * cos(phi);
-    float t2 = r * sin(phi);
-    float s = 0.5 * (1.0 + Vh.z);
-    t2 = (1.0 - s) * sqrt(1.0 - t1 * t1) + s * t2;
-
-    // reprojection onto hemisphere
-    vec3 Nh = t1 * basis[0] + t2 * basis[1] + sqrt(max(0.0, 1.0 - t1 * t1 - t2 * t2)) * Vh;
-
-    // transforming normal back to ellipsoid configuration
-    vec3 Ne = normalize(vec3(roughness * Nh.xy, max(0.0, Nh.z)));
-    return Ne;
+    // warp back to the ellipsoid configuration
+    vec3 wm = normalize(vec3(wmStd.xy * alpha, wmStd.z));
+    return wm;
 }
 
 vec3 sample_GTR1(vec2 Xi, float roughness)
