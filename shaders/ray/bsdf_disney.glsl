@@ -197,7 +197,10 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
 
     vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
 
-    // possible half-vector from GGX distribution (of visible normals)
+    // possible half-vector from GGX distribution
+    vec3 H = frame * sample_GGX(Xi, material.roughness);
+    if (dot(V, H) < 0.0){ H = -H; }
+
     vec3 H_vndf = frame * sample_GGX_VNDF(Xi, inverse(frame) * V, vec2(material.roughness));
     if (dot(V, H_vndf) < 0.0){ H_vndf = -H_vndf; }
 
@@ -226,8 +229,8 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         else // Transmission
         {
             material.roughness = min(material.roughness, .4);
-            ret.direction = normalize(refract(-V, H_vndf, eta));
-            ret.F = EvalDielectricRefraction(material, eta, V, N, ret.direction, H_vndf, ret.pdf);
+            ret.direction = normalize(refract(-V, H, eta));
+            ret.F = EvalDielectricRefraction(material, eta, V, N, ret.direction, H, ret.pdf);
             ret.transmission = true;
         }
 
@@ -242,7 +245,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         {
             ret.direction = frame * sample_hemisphere_cosine(Xi);
 
-            vec3 H = normalize(ret.direction + V);
+            H = normalize(ret.direction + V);
 
             ret.F = EvalDiffuse(material, V, N, ret.direction, H, ret.pdf);
             ret.pdf *= diffuseRatio;
@@ -273,7 +276,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
             // reflection - specular (clearcoat)
             else
             {
-                vec3 H = frame * sample_GTR1(Xi, mix(0.1, 0.001, material.clearcoat));
+                H = frame * sample_GTR1(Xi, mix(0.1, 0.001, material.clearcoat));
                 if (dot(V, H) < 0.0){ H = -H; }
 
                 ret.direction = normalize(reflect(-V, H));
