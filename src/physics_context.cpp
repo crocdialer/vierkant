@@ -1,13 +1,13 @@
 //#define BT_USE_DOUBLE_PRECISION
+#include <BulletSoftBody/btSoftBodyHelpers.h>
+#include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
 #include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
-
 #include <LinearMath/btConvexHull.h>
 #include <LinearMath/btConvexHullComputer.h>
 #include <LinearMath/btGeometryUtil.h>
 #include <LinearMath/btPolarDecomposition.h>
 
 #include <btBulletDynamicsCommon.h>
-
 #include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
@@ -37,7 +37,7 @@ namespace vierkant
 bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs)
 {
     if(&lhs == &rhs) { return true; }
-//    if(lhs.shape != rhs.shape) { return false; }
+    //    if(lhs.shape != rhs.shape) { return false; }
     if(lhs.mass != rhs.mass) { return false; }
     if(lhs.friction != rhs.friction) { return false; }
     if(lhs.rolling_friction != rhs.rolling_friction) { return false; }
@@ -250,6 +250,17 @@ public:
 
         // tick callback
         world->setInternalTickCallback(&_tick_callback, static_cast<void *>(this));
+
+//        // TODO: softbody testing
+//        btSoftBody *psb = btSoftBodyHelpers::CreateEllipsoid(world->getWorldInfo(), btVector3(0, 10, 0),
+//                                                             btVector3(1, 1, 1) * 3, 512);
+//        psb->m_materials[0]->m_kLST = 0.45;
+//        psb->m_cfg.kVC = 0;// anything > 0 causes nans on contact!?
+//
+//        psb->setTotalMass(50, true);
+//        psb->setPose(true, false);
+//        psb->generateClusters(1);
+//        world->addSoftBody(psb);
     }
 
     static inline void _tick_callback(btDynamicsWorld *world, btScalar timestep)
@@ -313,10 +324,15 @@ public:
     }
 
     std::shared_ptr<btDefaultCollisionConfiguration> configuration =
-            std::make_shared<btDefaultCollisionConfiguration>();
+            std::make_shared<btSoftBodyRigidBodyCollisionConfiguration>();
 
     std::shared_ptr<btCollisionDispatcher> dispatcher = std::make_shared<btCollisionDispatcher>(configuration.get());
+
     std::shared_ptr<btBroadphaseInterface> broadphase = std::make_shared<btDbvtBroadphase>();
+    //    std::shared_ptr<btBroadphaseInterface> broadphase =
+    //            std::make_shared<btAxisSweep3>(btVector3(-1000, -1000, -1000), btVector3(1000, 1000, 1000));
+
+    //    btSoftBodyWorldInfo m_softBodyWorldInfo;
 
     ///the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
     std::shared_ptr<btConstraintSolver> solver = std::make_shared<btSequentialImpulseConstraintSolver>();
@@ -598,7 +614,7 @@ void PhysicsScene::update(double time_delta)
             cmp.need_update = false;
         }
     }
-    m_context.step_simulation(static_cast<float>(time_delta));
+    m_context.step_simulation(static_cast<float>(time_delta), 4, 1.f / 240.f);
 }
 
 std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
@@ -608,7 +624,7 @@ std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<Ph
 size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_component_t const &c) const
 {
     size_t h = 0;
-//    vierkant::hash_combine(h, c.shape_id);
+    //    vierkant::hash_combine(h, c.shape_id);
     vierkant::hash_combine(h, c.mass);
     vierkant::hash_combine(h, c.friction);
     vierkant::hash_combine(h, c.rolling_friction);

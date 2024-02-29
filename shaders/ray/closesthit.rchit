@@ -205,13 +205,12 @@ void main()
             float scale = length(vec3(to_media.scale_x, to_media.scale_y, to_media.scale_z));
             ray_local.origin = apply_transform(to_media, ray_local.origin);
             ray_local.direction = scale * apply_rotation(to_media, ray_local.direction);
-            float t_max = scale * gl_HitTEXT;
 
             while(true)
             {
                 // sample a ray hit_t
                 t -= log(1 - rnd(rng_state)) * inv_max_density / sigma_t[channel];
-                if(t >= t_max){ break; }
+                if(t >= gl_HitTEXT){ break; }
 
                 // next position on ray
                 vec3 p = ray_local.origin + t * ray_local.direction;

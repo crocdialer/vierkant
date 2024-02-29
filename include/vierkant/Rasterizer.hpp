@@ -195,9 +195,9 @@ public:
     /**
      * @brief   Stage an ordered sequence of drawables to be rendered.
      *
-     * @param   drawables    an array of drawable_t objects.
+     * @param   drawables    a sequence of drawable_t objects.
      */
-    void stage_drawables(std::vector<drawable_t> drawables);
+    void stage_drawables(const std::span<drawable_t> &drawables);
 
     /**
      * @brief   Records drawing-commands for all staged drawables into a secondary VkCommandBuffer.
