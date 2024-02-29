@@ -46,7 +46,7 @@ SceneRenderer::render_result_t UnlitForward::render_scene(vierkant::Rasterizer &
     }
 
     // stage drawable
-    renderer.stage_drawables(std::move(cull_result.drawables));
+    renderer.stage_drawables(cull_result.drawables);
 
     render_result_t ret = {};
     ret.num_draws = cull_result.drawables.size();

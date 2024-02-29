@@ -152,10 +152,11 @@ void Rasterizer::stage_drawable(drawable_t drawable)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Rasterizer::stage_drawables(std::vector<drawable_t> drawables)
+void Rasterizer::stage_drawables(const std::span<drawable_t> &drawables)
 {
     std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
-    std::move(drawables.begin(), drawables.end(), std::back_inserter(m_staged_drawables[m_current_index]));
+    auto &frame_drawables = m_staged_drawables[m_current_index];
+    frame_drawables.insert(frame_drawables.end(), drawables.begin(), drawables.end());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
