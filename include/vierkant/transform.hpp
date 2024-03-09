@@ -30,7 +30,7 @@ using transform_t = transform_t_<float>;
 template<typename T1, typename T2>
 inline glm::vec<3, T2> operator*(const transform_t_<T1> &t, const glm::vec<3, T2> &v)
 {
-    return glm::rotate(t.rotation, v * t.scale) + t.translation;
+    return t.rotation * (v * t.scale) + t.translation;
 }
 
 /**
@@ -44,7 +44,7 @@ template<typename T>
 inline transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
     transform_t_<T> ret = lhs;
-    ret.translation += glm::rotate(lhs.rotation, rhs.translation * lhs.scale);
+    ret.translation += lhs.rotation * (rhs.translation * lhs.scale);
     ret.rotation *= rhs.rotation;
     ret.scale *= rhs.scale;
     return ret;
