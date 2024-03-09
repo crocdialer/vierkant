@@ -44,7 +44,7 @@ template<typename T>
 inline transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
     transform_t_<T> ret = lhs;
-    ret.translation += glm::rotate(lhs.rotation, rhs.translation * lhs.scale);
+    ret.translation += lhs.rotation * (rhs.translation * lhs.scale);
     ret.rotation *= rhs.rotation;
     ret.scale *= rhs.scale;
     return ret;

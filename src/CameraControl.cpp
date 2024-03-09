@@ -106,7 +106,7 @@ vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
 vierkant::transform_t OrbitCamera::transform() const
 {
     auto rot = rotation();
-    return {look_at + glm::rotate(rot, glm::vec3(0, 0, distance)), rot};
+    return {look_at + rot * glm::vec3(0, 0, distance), rot};
 }
 
 vierkant::joystick_delegate_t OrbitCamera::joystick_delegate()
