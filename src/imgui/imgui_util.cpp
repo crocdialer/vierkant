@@ -173,7 +173,8 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
         uint32_t color_warn = 0xFF09AADD;
         uint32_t color_debug = 0xFFFFCCDD;
 
-        ImGuiListClipper clipper(static_cast<int>(items.size()));
+        ImGuiListClipper clipper;
+        clipper.Begin(static_cast<int>(items.size()));
 
         while(clipper.Step())
         {
@@ -190,6 +191,7 @@ void draw_logger_ui(const std::deque<std::pair<std::string, spdlog::level::level
                 ImGui::PopStyleColor();
             }
         }
+        clipper.End();
         if(ImGui::GetScrollY() >= ImGui::GetScrollMaxY()) { ImGui::SetScrollHereY(); }
     }
     ImGui::End();
@@ -509,8 +511,10 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
         ImGui::BeginTabBar("scene_tabs");
         if(ImGui::BeginTabItem("scene"))
         {
-            // draw a tree for the scene-objects, default open root-node
+            // draw a scrollable tree for all scene-objects
+            ImGui::BeginChild("scrolling", ImVec2(0, 400), ImGuiChildFlags_ResizeY);
             auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection, ImGuiTreeNodeFlags_DefaultOpen);
+            ImGui::EndChild();
 
             // add / remove an object from selection
             if(clicked_obj && selection)
