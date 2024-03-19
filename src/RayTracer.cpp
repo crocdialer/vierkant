@@ -188,10 +188,10 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
 
     const uint32_t group_count = group_create_infos.size();
 
-    // retrieve the shader-handles into host-memory
-    std::vector<uint8_t> shader_handle_data(shader_stages.size() * handle_size);
-    vkCheck(vkGetRayTracingShaderGroupHandlesKHR(m_device->handle(), pipeline, 0, group_count,
-                                                 shader_handle_data.size(), shader_handle_data.data()),
+    // retrieve the group-handles into host-memory
+    std::vector<uint8_t> group_handle_data(group_count * handle_size);
+    vkCheck(vkGetRayTracingShaderGroupHandlesKHR(m_device->handle(), pipeline, 0, group_count, group_handle_data.size(),
+                                                 group_handle_data.data()),
             "Raytracer::trace_rays: could not retrieve shader group handles");
 
     // copy opaque shader-handles with proper stride (handle_size_aligned)
@@ -199,20 +199,16 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
     size_t handle_index = 0;
     auto buf_ptr = static_cast<uint8_t *>(binding_table.buffer->map());
 
-    for(const auto &[group, num_elements]: group_elements)
+    for(uint32_t g = Group::Raygen; g < Group::MAX_ENUM; ++g)
     {
-        auto &address_region = binding_table.strided_address_region[group];
+        auto &address_region = binding_table.strided_address_region[g];
         address_region.deviceAddress = binding_table.buffer->device_address() + buffer_offset;
-
         auto data_ptr = buf_ptr + buffer_offset;
         buffer_offset += address_region.size;
 
-        for(uint32_t c = 0; c < num_elements; c++)
-        {
-            memcpy(data_ptr, shader_handle_data.data() + handle_size * handle_index, handle_size);
-            data_ptr += address_region.stride;
-            handle_index++;
-        }
+        memcpy(data_ptr, group_handle_data.data() + handle_size * handle_index, handle_size);
+        data_ptr += address_region.stride;
+        handle_index++;
     }
     binding_table.buffer->unmap();
     return binding_table;

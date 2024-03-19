@@ -99,13 +99,13 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     m_shader_stages = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
                        {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss},
-                       {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}/*,
-                       {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, ray_any_hit}*/};
+                       {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit},
+                       {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, ray_any_hit}};
 
     m_shader_stages_env = {{VK_SHADER_STAGE_RAYGEN_BIT_KHR, raygen},
                            {VK_SHADER_STAGE_MISS_BIT_KHR, ray_miss_env},
-                           {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit}/*,
-                           {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, ray_any_hit}*/};
+                           {VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, ray_closest_hit},
+                           {VK_SHADER_STAGE_ANY_HIT_BIT_KHR, ray_any_hit}};
 
     // create drawables for post-fx-pass
     {
