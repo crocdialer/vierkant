@@ -43,7 +43,7 @@ void main()
     entry_t entry = entries[gl_InstanceCustomIndexEXT];
     material_t material = materials[entry.material_index];
 
-    if(material.blend_mode == BLEND_MODE_MASK || material.blend_mode == BLEND_MODE_BLEND)
+    if(!material.null_surface && (material.blend_mode == BLEND_MODE_MASK || material.blend_mode == BLEND_MODE_BLEND))
     {
         // albedo
         if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)

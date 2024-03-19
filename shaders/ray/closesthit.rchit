@@ -254,67 +254,13 @@ void main()
         payload.ray.origin = payload.position;
     }
 
-    // albedo
-    if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
-    {
-        material.color *= sample_texture_lod(u_textures[material.albedo_index],
-                                             v.tex_coord, NoV, payload.cone.width, triangle_lod);
-    }
-    material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
-
-    // skip surface-interaction (alpha-cutoff/blend)
-    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff ||
-       material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state))
-    {
-        material.null_surface = true;
-    }
-
-    if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
-    {
-        // normalize after checking for validity
-        v.tangent = normalize(v.tangent);
-
-        // sample normalmap
-        vec3 normal = normalize(2.0 * (sample_texture_lod(u_textures[material.normalmap_index],
-                                                          v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz -
-                                       vec3(0.5)));
-
-        // normal, tangent, bi-tangent
-        vec3 b = normalize(cross(v.normal, v.tangent));
-        payload.normal = mat3(v.tangent, b, payload.normal) * normal;
-    }
-
-    // flip the normal so it points against the ray direction:
-    payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
-
-    // max emission from material/map
-    if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
-    {
-        material.emission.rgb = max(material.emission.rgb, sample_texture_lod(u_textures[material.emission_index],
-                                                                              v.tex_coord, NoV, payload.cone.width,
-                                                                              triangle_lod).rgb);
-
-    }
-    material.emission.rgb *= dot(payload.normal, payload.ff_normal) > 0 ? material.emission.a : 0.0;
-
-    // add radiance from emission
-    payload.radiance += payload.beta * material.emission.rgb;
-
-    // roughness / metalness
-    if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)
-    {
-        vec2 rough_metal_tex = sample_texture_lod(u_textures[material.ao_rough_metal_index],
-                                                  v.tex_coord, NoV, payload.cone.width, triangle_lod).gb;
-        material.roughness *= rough_metal_tex.x;
-        material.metalness *= rough_metal_tex.y;
-    }
-
-    // transmission
-    if((material.texture_type_flags & TEXTURE_TYPE_TRANSMISSION) != 0)
-    {
-        material.transmission *= sample_texture_lod(u_textures[material.ao_rough_metal_index],
-                                                    v.tex_coord, NoV, payload.cone.width, triangle_lod).x;
-    }
+    // not required here, done in anyhit-shader
+//    // skip surface-interaction (alpha-cutoff/blend)
+//    if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff ||
+//       material.blend_mode == BLEND_MODE_BLEND && material.color.a < rnd(rng_state))
+//    {
+//        material.null_surface = true;
+//    }
 
     bool sample_surface = !(material.null_surface || sample_medium);
     bool backface = gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT;
@@ -331,6 +277,61 @@ void main()
 
     if(sample_surface)
     {
+        // albedo
+        if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
+        {
+            material.color *= sample_texture_lod(u_textures[material.albedo_index],
+            v.tex_coord, NoV, payload.cone.width, triangle_lod);
+        }
+        material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
+
+        if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
+        {
+            // normalize after checking for validity
+            v.tangent = normalize(v.tangent);
+
+            // sample normalmap
+            vec3 normal = normalize(2.0 * (sample_texture_lod(u_textures[material.normalmap_index],
+            v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz -
+            vec3(0.5)));
+
+            // normal, tangent, bi-tangent
+            vec3 b = normalize(cross(v.normal, v.tangent));
+            payload.normal = mat3(v.tangent, b, payload.normal) * normal;
+        }
+
+        // flip the normal so it points against the ray direction:
+        payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
+
+        // max emission from material/map
+        if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
+        {
+            material.emission.rgb = max(material.emission.rgb, sample_texture_lod(u_textures[material.emission_index],
+            v.tex_coord, NoV, payload.cone.width,
+            triangle_lod).rgb);
+
+        }
+        material.emission.rgb *= dot(payload.normal, payload.ff_normal) > 0 ? material.emission.a : 0.0;
+
+        // add radiance from emission
+        payload.radiance += payload.beta * material.emission.rgb;
+
+        // roughness / metalness
+        if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)
+        {
+            vec2 rough_metal_tex = sample_texture_lod(u_textures[material.ao_rough_metal_index],
+            v.tex_coord, NoV, payload.cone.width, triangle_lod).gb;
+            material.roughness *= rough_metal_tex.x;
+            material.metalness *= rough_metal_tex.y;
+        }
+
+        // transmission
+        if((material.texture_type_flags & TEXTURE_TYPE_TRANSMISSION) != 0)
+        {
+            material.transmission *= sample_texture_lod(u_textures[material.ao_rough_metal_index],
+            v.tex_coord, NoV, payload.cone.width, triangle_lod).x;
+        }
+
         // propagate ray-cone
         payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
