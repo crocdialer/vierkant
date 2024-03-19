@@ -188,10 +188,10 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
 
     const uint32_t group_count = group_create_infos.size();
 
-    // retrieve the shader-handles into host-memory
-    std::vector<uint8_t> shader_handle_data(shader_stages.size() * handle_size);
-    vkCheck(vkGetRayTracingShaderGroupHandlesKHR(m_device->handle(), pipeline, 0, group_count,
-                                                 shader_handle_data.size(), shader_handle_data.data()),
+    // retrieve the group-handles into host-memory
+    std::vector<uint8_t> group_handle_data(group_count * handle_size);
+    vkCheck(vkGetRayTracingShaderGroupHandlesKHR(m_device->handle(), pipeline, 0, group_count, group_handle_data.size(),
+                                                 group_handle_data.data()),
             "Raytracer::trace_rays: could not retrieve shader group handles");
 
     // copy opaque shader-handles with proper stride (handle_size_aligned)
@@ -206,7 +206,7 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
         auto data_ptr = buf_ptr + buffer_offset;
         buffer_offset += address_region.size;
 
-        memcpy(data_ptr, shader_handle_data.data() + handle_size * handle_index, handle_size);
+        memcpy(data_ptr, group_handle_data.data() + handle_size * handle_index, handle_size);
         data_ptr += address_region.stride;
         handle_index++;
     }
