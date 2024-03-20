@@ -1017,6 +1017,11 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
 
             for(const auto &primitive: mesh.primitives)
             {
+                if(primitive.mode != TINYGLTF_MODE_TRIANGLES)
+                {
+                    spdlog::warn("node '{}' contains non-triangle geometry -> skipping ...", current_node->name);
+                    continue;
+                }
                 vierkant::Mesh::entry_create_info_t create_info = {};
                 create_info.name = current_node->name;
                 create_info.geometry = get_geometry(primitive, primitive.attributes);
