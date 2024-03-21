@@ -7,8 +7,9 @@
 
 #pragma once
 
+#include <vierkant/math.hpp>
+#include <vierkant/transform.hpp>
 #include <vector>
-#include "vierkant/math.hpp"
 
 namespace vierkant
 {
@@ -300,6 +301,8 @@ struct AABB
 
     [[nodiscard]] inline glm::vec3 center() const { return (max + min) / 2.f; }
 
+    [[nodiscard]] inline bool valid() const { return glm::all(glm::greaterThanEqual(max, min)); }
+
     AABB operator+(const AABB &aabb) const
     {
         AABB ret(*this);
@@ -314,8 +317,11 @@ struct AABB
         return *this;
     }
 
+    inline explicit operator bool() const { return valid(); }
+
     inline bool operator==(const AABB &aabb) const { return min == aabb.min && max == aabb.max; }
 
+    [[nodiscard]] AABB transform(const vierkant::transform_t &t) const;
     [[nodiscard]] AABB transform(const glm::mat4 &t) const;
 
     [[nodiscard]] inline uint32_t intersect(const glm::vec3 &point) const
