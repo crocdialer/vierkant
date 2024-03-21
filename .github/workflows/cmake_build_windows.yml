@@ -28,7 +28,7 @@ jobs:
         with:
           vulkan-query-version: latest
           #vulkan-query-version: 1.3.261.1 # 30-Aug-2023
-          vulkan-components: Vulkan-Headers, Glslang
+          vulkan-components: Vulkan-Headers, SPIRV-Tools, Glslang
           vulkan-use-cache: true
 
 
