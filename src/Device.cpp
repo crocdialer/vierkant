@@ -252,47 +252,49 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_features_13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
     device_features_12.pNext = &device_features_13;
 
-    void **last_pNext = &device_features_13.pNext;
+    void **pNext = &device_features_13.pNext;
+    auto update_pnext = [&pNext, &extensions](const auto &feature_struct, const char* ext_name)
+    {
+        if(crocore::contains(extensions, ext_name))
+        {
+            *pNext = (void*)&feature_struct;
+            pNext = (void**)&feature_struct.pNext;
+        }
+    };
 
-    //-------------------------------------- raytracing features -------------------------------------------------------
-
-    // acceleration-structures
+    //------------------------------------ VK_KHR_acceleration_structure -----------------------------------------------
     VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {};
     acceleration_structure_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+    update_pnext(acceleration_structure_features, VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
 
-    // raytracing-pipeline
+    //------------------------------------ VK_KHR_ray_tracing_pipeline -------------------------------------------------
     VkPhysicalDeviceRayTracingPipelineFeaturesKHR ray_tracing_pipeline_features = {};
     ray_tracing_pipeline_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+    update_pnext(ray_tracing_pipeline_features, VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
 
-    // ray-queries
+    //------------------------------------ VK_KHR_ray_query ------------------------------------------------------------
     VkPhysicalDeviceRayQueryFeaturesKHR ray_query_features = {};
     ray_query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+    update_pnext(ray_query_features, VK_KHR_RAY_QUERY_EXTENSION_NAME);
 
-    // opacity micromaps
+    //------------------------------------ VK_EXT_opacity_micromap -----------------------------------------------------
     VkPhysicalDeviceOpacityMicromapFeaturesEXT ray_micromap_features = {};
     ray_micromap_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPACITY_MICROMAP_FEATURES_EXT;
+    update_pnext(ray_micromap_features, VK_EXT_OPACITY_MICROMAP_EXTENSION_NAME);
 
-    // append to pNext-chain
-    *last_pNext = &acceleration_structure_features;
-    acceleration_structure_features.pNext = &ray_tracing_pipeline_features;
-    ray_tracing_pipeline_features.pNext = &ray_query_features;
-    ray_query_features.pNext = &ray_micromap_features;
-    last_pNext = &ray_micromap_features.pNext;
-
-    //------------------------------------ VK_EXT_mesh_shader feature --------------------------------------------------
+    //------------------------------------ VK_EXT_mesh_shader ----------------------------------------------------------
     VkPhysicalDeviceMeshShaderFeaturesEXT mesh_shader_features = {};
     mesh_shader_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT;
-    *last_pNext = &mesh_shader_features;
-    last_pNext = &mesh_shader_features.pNext;
+    update_pnext(mesh_shader_features, VK_EXT_MESH_SHADER_EXTENSION_NAME);
 
-    //------------------------------------ VK_EXT_descriptor_buffer feature --------------------------------------------
+    //------------------------------------ VK_EXT_descriptor_buffer ----------------------------------------------------
     VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer_features = {};
     descriptor_buffer_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
-    *last_pNext = &descriptor_buffer_features;
-    last_pNext = &descriptor_buffer_features.pNext;
+    update_pnext(descriptor_buffer_features, VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
 
     //------------------------------------------------------------------------------------------------------------------
-
+    *pNext = create_info.create_device_pNext;
+    
     // query support for the required device-features
     VkPhysicalDeviceFeatures2 query_features = {};
     query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
@@ -300,7 +302,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     vkGetPhysicalDeviceFeatures2(m_physical_device, &query_features);
 
     mesh_shader_features.primitiveFragmentShadingRateMeshShader = false;
-    *last_pNext = create_info.create_device_pNext;
 
     VkDeviceCreateInfo device_create_info = {};
     device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
