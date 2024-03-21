@@ -253,12 +253,11 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_features_12.pNext = &device_features_13;
 
     void **pNext = &device_features_13.pNext;
-    auto update_pnext = [&pNext, &extensions](const auto &feature_struct, const char* ext_name)
-    {
+    auto update_pnext = [&pNext, &extensions](const auto &feature_struct, const char *ext_name) {
         if(crocore::contains(extensions, ext_name))
         {
-            *pNext = (void*)&feature_struct;
-            pNext = (void**)&feature_struct.pNext;
+            *pNext = (void *) &feature_struct;
+            pNext = (void **) &feature_struct.pNext;
         }
     };
 
@@ -294,7 +293,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
 
     //------------------------------------------------------------------------------------------------------------------
     *pNext = create_info.create_device_pNext;
-    
+
     // query support for the required device-features
     VkPhysicalDeviceFeatures2 query_features = {};
     query_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
