@@ -42,8 +42,8 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
             }
 
             auto add_entry_to_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry) {
-                ret += entry.bounding_box.transform(
-                        mat4_cast(node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]));
+                ret += entry.bounding_box.transform(node_transforms.empty() ? entry.transform
+                                                                            : node_transforms[entry.node_index]);
             };
 
             if(cmp.entry_indices)
@@ -79,7 +79,7 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
 
             auto add_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry) {
                 ret.push_back(entry.bounding_box.transform(
-                        mat4_cast(node_transforms.empty() ? entry.transform : node_transforms[entry.node_index])));
+                        node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]));
             };
 
             if(cmp.entry_indices)
@@ -115,7 +115,7 @@ void Scene::update(double time_delta)
     }
 }
 
-Object3D* Scene::object_by_id(uint32_t object_id) const
+Object3D *Scene::object_by_id(uint32_t object_id) const
 {
     auto object_ptr = m_registry->try_get<vierkant::Object3D *>(entt::entity(object_id));
     return object_ptr ? *object_ptr : nullptr;
