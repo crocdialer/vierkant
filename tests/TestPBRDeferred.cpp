@@ -5,8 +5,11 @@
 
 TEST(TestPBRDeferred, basic)
 {
-    vulkan_test_context_t test_context;
-
+    // NOTE: all of these are in fact optional, but validation would complain otherwise
+    std::vector<const char *> extensions = {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+                                            VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+                                            VK_KHR_RAY_QUERY_EXTENSION_NAME, VK_EXT_MESH_SHADER_EXTENSION_NAME};
+    vulkan_test_context_t test_context(extensions);
     const glm::vec2 res(1920, 1080);
 
     vierkant::Rasterizer::create_info_t create_info = {};
