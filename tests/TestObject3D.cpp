@@ -131,5 +131,5 @@ TEST(Object3D, clone)
     EXPECT_NE(a->get_component<test_component_t>(), c->get_component<test_component_t>());
 
     // test recursive component-cloning
-    EXPECT_EQ(a->children.front()->get_component<test_component_t>(), b->get_component<test_component_t>());
+    EXPECT_EQ(c->children.front()->get_component<test_component_t>(), b->get_component<test_component_t>());
 }
