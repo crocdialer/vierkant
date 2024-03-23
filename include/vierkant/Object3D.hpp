@@ -168,6 +168,13 @@ public:
         throw std::runtime_error("component does not exist");
     }
 
+    /**
+     * @brief   clone will perform a recursive deep-copy, including all components.
+     *
+     * @return  a newly created Object3DPtr, containing a deep-copy of entire sub-tree
+     */
+    Object3DPtr clone() const;
+
     //! set of tags
     std::set<std::string> tags;
 
