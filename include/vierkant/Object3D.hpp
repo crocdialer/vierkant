@@ -168,6 +168,8 @@ public:
         throw std::runtime_error("component does not exist");
     }
 
+    Object3DPtr clone() const;
+
     //! set of tags
     std::set<std::string> tags;
 

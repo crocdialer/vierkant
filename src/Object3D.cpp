@@ -113,10 +113,7 @@ AABB Object3D::aabb() const
                                                                : std::optional<vierkant::animation_component_t>());
     }
     else if(aabb_component_ptr) { ret += aabb_component_ptr->aabb; }
-    for(const auto &child : children)
-    {
-        ret += child->aabb().transform(child->transform);
-    }
+    for(const auto &child: children) { ret += child->aabb().transform(child->transform); }
     return ret;
 }
 
@@ -139,5 +136,28 @@ OBB Object3D::obb() const
 }
 
 void Object3D::accept(Visitor &theVisitor) { theVisitor.visit(*this); }
+
+Object3DPtr Object3D::clone() const
+{
+    auto registry = m_registry.lock();
+    auto ret = Object3D::create(registry);
+    ret->remove_component<Object3D*>();
+
+    ret->name = name;
+    ret->enabled = enabled;
+    ret->tags = tags;
+    ret->transform = transform;
+
+    if(registry)
+    {
+        for(auto [id, storage]: registry->storage())
+        {
+            if(storage.contains(m_entity)) { storage.push(ret->m_entity, storage.value(m_entity)); }
+        }
+    }
+    ret->add_component(ret.get());
+    for(const auto &child: children) { ret->add_child(child->clone()); }
+    return ret;
+}
 
 }// namespace vierkant

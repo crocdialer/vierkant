@@ -5,6 +5,13 @@
 using namespace vierkant;
 //____________________________________________________________________________//
 
+struct test_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+    int a = 0, b = 0;
+    bool operator==(const test_component_t &other) const { return a == other.a && b == other.b; }
+};
+
 TEST(Object3D, hierarchy)
 {
     auto scene = vierkant::Scene::create();
@@ -51,29 +58,23 @@ TEST(Object3D, entity)
     auto registry = std::make_shared<entt::registry>();
     Object3DPtr a(Object3D::create(registry)), b(Object3D::create(registry)), c(Object3D::create(registry));
 
-    struct foo_component_t
-    {
-        VIERKANT_ENABLE_AS_COMPONENT();
-        int a = 0, b = 0;
-    };
-
     // miss-case
-    EXPECT_TRUE(!c->has_component<foo_component_t>());
+    EXPECT_TRUE(!c->has_component<test_component_t>());
 
     // emplace new instance
-    a->add_component<foo_component_t>();
-    EXPECT_TRUE(a->has_component<foo_component_t>());
+    a->add_component<test_component_t>();
+    EXPECT_TRUE(a->has_component<test_component_t>());
 
     // copy existing
-    foo_component_t foo_comp = {1, 2};
+    test_component_t foo_comp = {1, 2};
     b->add_component(foo_comp);
-    EXPECT_TRUE(b->has_component<foo_component_t>());
+    EXPECT_TRUE(b->has_component<test_component_t>());
 
-    auto &foo_ref = b->get_component<foo_component_t>();
+    auto &foo_ref = b->get_component<test_component_t>();
     EXPECT_EQ(foo_ref.a, foo_comp.a);
     EXPECT_EQ(foo_ref.b, foo_comp.b);
 
-    auto view = registry->view<vierkant::Object3D *, foo_component_t>();
+    auto view = registry->view<vierkant::Object3D *, test_component_t>();
 
     std::set<vierkant::Object3D *> foo_objects;
     for(auto [entity, object, foo]: view.each()) { foo_objects.insert(object); }
@@ -102,4 +103,33 @@ TEST(Object3D, entity)
         destruct_comp.f = [&destructed]() { destructed = true; };
     }
     EXPECT_TRUE(destructed);
+}
+
+TEST(Object3D, clone)
+{
+    auto registry = std::make_shared<entt::registry>();
+    Object3DPtr a(Object3D::create(registry)), b(Object3D::create(registry));
+
+    a->add_component<test_component_t>({1, 2});
+    b->add_component<test_component_t>({3, 4});
+    a->add_child(b);
+
+    auto c = a->clone();
+
+    EXPECT_TRUE(a);
+    EXPECT_TRUE(b);
+    EXPECT_TRUE(c);
+
+    EXPECT_NE(a, c);
+    EXPECT_EQ(a->children.size(), c->children.size());
+
+    EXPECT_TRUE(a->has_component<test_component_t>());
+    EXPECT_EQ(a->get_component<test_component_t>(), c->get_component<test_component_t>());
+
+    // components have truly been copied and are not references
+    c->get_component<test_component_t>().a = 69;
+    EXPECT_NE(a->get_component<test_component_t>(), c->get_component<test_component_t>());
+
+    // test recursive component-cloning
+    EXPECT_EQ(a->children.front()->get_component<test_component_t>(), b->get_component<test_component_t>());
 }
