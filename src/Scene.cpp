@@ -13,6 +13,67 @@ struct range_item_t
     inline bool operator<(const range_item_t &other) const { return distance < other.distance; }
 };
 
+AABB mesh_aabb(const vierkant::mesh_component_t &cmp, const std::optional<vierkant::animation_component_t> &anim_state)
+{
+    vierkant::AABB ret = {};
+
+    // entry animation transforms
+    std::vector<vierkant::transform_t> node_transforms;
+
+    if(!cmp.mesh->root_bone && anim_state && anim_state->index < cmp.mesh->node_animations.size())
+    {
+        const auto &animation = cmp.mesh->node_animations[anim_state->index];
+        vierkant::nodes::build_node_matrices_bfs(cmp.mesh->root_node, animation,
+                                                 static_cast<float>(anim_state->current_time), node_transforms);
+    }
+
+    auto add_entry_to_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry) {
+        ret += entry.bounding_box.transform(node_transforms.empty() ? entry.transform
+                                                                    : node_transforms[entry.node_index]);
+    };
+
+    if(cmp.entry_indices)
+    {
+        for(auto idx: *cmp.entry_indices) { add_entry_to_aabb(cmp.mesh->entries[idx]); }
+    }
+    else
+    {
+        for(const auto &entry: cmp.mesh->entries) { add_entry_to_aabb(entry); }
+    }
+    return ret;
+}
+
+std::vector<vierkant::AABB> mesh_sub_aabbs(const vierkant::mesh_component_t &cmp,
+                                           const std::optional<vierkant::animation_component_t> &anim_state)
+{
+    std::vector<vierkant::AABB> ret;
+
+    // entry animation transforms
+    std::vector<vierkant::transform_t> node_transforms;
+
+    if(!cmp.mesh->root_bone && anim_state && anim_state->index < cmp.mesh->node_animations.size())
+    {
+        const auto &animation = cmp.mesh->node_animations[anim_state->index];
+        vierkant::nodes::build_node_matrices_bfs(cmp.mesh->root_node, animation,
+                                                 static_cast<float>(anim_state->current_time), node_transforms);
+    }
+
+    auto add_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry) {
+        ret.push_back(entry.bounding_box.transform(node_transforms.empty() ? entry.transform
+                                                                           : node_transforms[entry.node_index]));
+    };
+
+    if(cmp.entry_indices)
+    {
+        for(auto idx: *cmp.entry_indices) { add_aabb(cmp.mesh->entries[idx]); }
+    }
+    else
+    {
+        for(const auto &entry: cmp.mesh->entries) { add_aabb(entry); }
+    }
+    return ret;
+};
+
 vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &registry,
                                          const mesh_component_t &mesh_component)
 {
@@ -20,78 +81,31 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
     object->add_component(mesh_component);
     if(!mesh_component.mesh->node_animations.empty()) { object->add_component<vierkant::animation_component_t>(); }
 
-    auto weak_obj = vierkant::Object3DWeakPtr(object);
     vierkant::object_component auto &aabb_component = object->add_component<vierkant::aabb_component_t>();
 
-    aabb_component.aabb_fn = [weak_obj](const std::optional<vierkant::animation_component_t> &anim_state) {
-        vierkant::AABB ret = {};
-        auto obj = weak_obj.lock();
-
-        if(obj && obj->has_component<mesh_component_t>())
+    aabb_component.aabb_fn = [](const vierkant::Object3D &obj) {
+        AABB ret;
+        if(obj.has_component<mesh_component_t>())
         {
-            const vierkant::object_component auto &cmp = obj->get_component<mesh_component_t>();
+            const vierkant::object_component auto &mesh_cmp = obj.get_component<mesh_component_t>();
 
-            // entry animation transforms
-            std::vector<vierkant::transform_t> node_transforms;
-
-            if(!cmp.mesh->root_bone && anim_state && anim_state->index < cmp.mesh->node_animations.size())
-            {
-                const auto &animation = cmp.mesh->node_animations[anim_state->index];
-                vierkant::nodes::build_node_matrices_bfs(cmp.mesh->root_node, animation,
-                                                         static_cast<float>(anim_state->current_time), node_transforms);
-            }
-
-            auto add_entry_to_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry) {
-                ret += entry.bounding_box.transform(node_transforms.empty() ? entry.transform
-                                                                            : node_transforms[entry.node_index]);
-            };
-
-            if(cmp.entry_indices)
-            {
-                for(auto idx: *cmp.entry_indices) { add_entry_to_aabb(cmp.mesh->entries[idx]); }
-            }
-            else
-            {
-                for(const auto &entry: cmp.mesh->entries) { add_entry_to_aabb(entry); }
-            }
+            std::optional<vierkant::animation_component_t> anim_cmp;
+            if(obj.has_component<animation_component_t>()) { anim_cmp = obj.get_component<animation_component_t>(); }
+            ret = mesh_aabb(mesh_cmp, anim_cmp);
         }
         return ret;
     };
 
-    aabb_component.sub_aabb_fn = [weak_obj](const std::optional<vierkant::animation_component_t> &anim_state) {
-        std::vector<vierkant::AABB> ret;
-
-        auto obj = weak_obj.lock();
-
-        if(obj && obj->has_component<mesh_component_t>())
+    aabb_component.sub_aabb_fn = [](const vierkant::Object3D &obj) -> std::vector<vierkant::AABB> {
+        if(obj.has_component<mesh_component_t>())
         {
-            const vierkant::object_component auto &cmp = obj->get_component<mesh_component_t>();
+            const vierkant::object_component auto &mesh_cmp = obj.get_component<mesh_component_t>();
 
-            // entry animation transforms
-            std::vector<vierkant::transform_t> node_transforms;
-
-            if(!cmp.mesh->root_bone && anim_state && anim_state->index < cmp.mesh->node_animations.size())
-            {
-                const auto &animation = cmp.mesh->node_animations[anim_state->index];
-                vierkant::nodes::build_node_matrices_bfs(cmp.mesh->root_node, animation,
-                                                         static_cast<float>(anim_state->current_time), node_transforms);
-            }
-
-            auto add_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry) {
-                ret.push_back(entry.bounding_box.transform(
-                        node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]));
-            };
-
-            if(cmp.entry_indices)
-            {
-                for(auto idx: *cmp.entry_indices) { add_aabb(cmp.mesh->entries[idx]); }
-            }
-            else
-            {
-                for(const auto &entry: cmp.mesh->entries) { add_aabb(entry); }
-            }
+            std::optional<vierkant::animation_component_t> anim_cmp;
+            if(obj.has_component<animation_component_t>()) { anim_cmp = obj.get_component<animation_component_t>(); }
+            return mesh_sub_aabbs(mesh_cmp, anim_cmp);
         }
-        return ret;
+        return {};
     };
     return object;
 }
