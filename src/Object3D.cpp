@@ -106,13 +106,7 @@ AABB Object3D::aabb() const
 {
     AABB ret;
     auto aabb_component_ptr = get_component_ptr<aabb_component_t>();
-    auto animation_state_ptr = get_component_ptr<vierkant::animation_component_t>();
-    if(aabb_component_ptr && aabb_component_ptr->aabb_fn)
-    {
-        ret += aabb_component_ptr->aabb_fn(animation_state_ptr ? *animation_state_ptr
-                                                               : std::optional<vierkant::animation_component_t>());
-    }
-    else if(aabb_component_ptr) { ret += aabb_component_ptr->aabb; }
+    if(aabb_component_ptr && aabb_component_ptr->aabb_fn) { ret += aabb_component_ptr->aabb_fn(*this); }
     for(const auto &child: children) { ret += child->aabb().transform(child->transform); }
     return ret;
 }
@@ -120,12 +114,7 @@ AABB Object3D::aabb() const
 std::vector<AABB> Object3D::sub_aabbs() const
 {
     auto aabb_component_ptr = get_component_ptr<aabb_component_t>();
-    auto animation_state_ptr = get_component_ptr<vierkant::animation_component_t>();
-    if(aabb_component_ptr && aabb_component_ptr->sub_aabb_fn)
-    {
-        return aabb_component_ptr->sub_aabb_fn(animation_state_ptr ? *animation_state_ptr
-                                                                   : std::optional<vierkant::animation_component_t>());
-    }
+    if(aabb_component_ptr && aabb_component_ptr->sub_aabb_fn) { return aabb_component_ptr->sub_aabb_fn(*this); }
     return {};
 }
 
@@ -141,7 +130,7 @@ Object3DPtr Object3D::clone() const
 {
     auto registry = m_registry.lock();
     auto ret = Object3D::create(registry);
-    ret->remove_component<Object3D*>();
+    ret->remove_component<Object3D *>();
 
     ret->name = name;
     ret->enabled = enabled;

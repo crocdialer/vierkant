@@ -18,23 +18,21 @@
 namespace vierkant
 {
 
+DEFINE_CLASS_PTR(Object3D)
+
 struct aabb_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
 
     //! signature for a function to retrieve a combined AABB
-    using aabb_fn_t = std::function<vierkant::AABB(const std::optional<vierkant::animation_component_t> &)>;
+    using aabb_fn_t = std::function<vierkant::AABB(const vierkant::Object3D &)>;
 
     //! signature for a function to retrieve all sub-AABBs
-    using sub_aabb_fn_t =
-            std::function<std::vector<vierkant::AABB>(const std::optional<vierkant::animation_component_t> &)>;
+    using sub_aabb_fn_t = std::function<std::vector<vierkant::AABB>(const vierkant::Object3D &)>;
 
-    vierkant::AABB aabb;
     aabb_fn_t aabb_fn;
     sub_aabb_fn_t sub_aabb_fn;
 };
-
-DEFINE_CLASS_PTR(Object3D)
 
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
