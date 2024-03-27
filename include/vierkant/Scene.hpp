@@ -6,13 +6,12 @@
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Object3D.hpp>
+#include <vierkant/mesh_component.hpp>
 
 namespace vierkant
 {
 
 DEFINE_CLASS_PTR(Scene)
-
-using double_second = std::chrono::duration<double>;
 
 
 /**
@@ -25,7 +24,7 @@ using double_second = std::chrono::duration<double>;
  * @return  a newly created Object3D with attached components.
  */
 vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &registry,
-                                         const mesh_component_t &mesh_component);
+                                         const vierkant::mesh_component_t &mesh_component);
 
 class Scene
 {

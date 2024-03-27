@@ -7,7 +7,7 @@
 #include <crocore/NamedId.hpp>
 #include <optional>
 
-#include <vierkant/Mesh.hpp>
+#include <vierkant/mesh_component.hpp>
 #include <vierkant/descriptor.hpp>
 
 namespace vierkant
