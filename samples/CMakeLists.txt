@@ -25,7 +25,7 @@ FOREACH(folderItem ${FOLDER_CONTENT})
                 FILE(GLOB FOLDER_SOURCES ${folderItem}/*.c*)
                 FILE(GLOB FOLDER_HEADERS ${folderItem}/*.h*)
 
-                add_executable(${itemName} ${FOLDER_SOURCES} ${FOLDER_HEADERS})
+                add_executable(${itemName} ${FOLDER_SOURCES} ${FOLDER_HEADERS} ../include/vierkant/mesh_component.hpp)
                 target_link_libraries(${itemName} ${LIBS})
             endif()
         endif()

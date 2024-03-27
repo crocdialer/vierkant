@@ -11,7 +11,7 @@ FILE(GLOB FOLDER_HEADERS *.h* model/*.h* ${CMAKE_BINARY_DIR}/include/${PROJECT_N
 include_directories(${PROJECT_BINARY_DIR}/include ${CMAKE_BINARY_DIR}/${LIB_NAME}/include ${PROJECT_SOURCE_DIR}/include)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(${LIB_NAME} ${LIB_TYPE} ${FOLDER_SOURCES} ${FOLDER_HEADERS})
+add_library(${LIB_NAME} ${LIB_TYPE} ${FOLDER_SOURCES} ${FOLDER_HEADERS} mesh_component.cpp)
 add_dependencies(${LIB_NAME} shaders)
 target_link_libraries(${LIB_NAME} ${LIBS})
 set(LIBS ${LIBS} ${LIB_NAME})

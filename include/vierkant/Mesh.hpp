@@ -9,10 +9,7 @@
 #include "vierkant/Geometry.hpp"
 #include "vierkant/Image.hpp"
 #include "vierkant/Material.hpp"
-#include <optional>
-#include <set>
 #include <vierkant/intersection.hpp>
-#include <vierkant/object_component.hpp>
 #include <vierkant/transform.hpp>
 #include <vierkant/vertex_attrib.hpp>
 
@@ -320,17 +317,6 @@ struct animated_mesh_t
     {
         return mesh == k.mesh && animation_state == k.animation_state;
     }
-};
-
-struct mesh_component_t
-{
-    VIERKANT_ENABLE_AS_COMPONENT();
-
-    //! handle to a mesh, containing buffers and a list of entries
-    vierkant::MeshConstPtr mesh;
-
-    //! optional set of used entry-indices.
-    std::optional<std::set<uint32_t>> entry_indices = {};
 };
 
 }//namespace vierkant
