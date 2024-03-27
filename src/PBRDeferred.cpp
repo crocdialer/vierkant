@@ -307,6 +307,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     for(const auto &[entity, mesh_component]: mesh_view.each())
     {
         auto object = scene->object_by_id(static_cast<uint32_t>(entity));
+        auto obj_global_transform = object->global_transform();
 
         // TODO: figure out wtf is racing mesh-component after scene-changes
         if(!mesh_component.mesh) { continue; }
@@ -323,7 +324,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
         if(animation_update)
         {
-            const auto &animation_state = object->get_component<animation_component_t>();
+            const vierkant::object_component auto &animation_state = object->get_component<animation_component_t>();
             const auto &animation = mesh->node_animations[animation_state.index];
             vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
                                                      static_cast<float>(animation_state.current_time), node_transforms);
@@ -340,7 +341,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             id_entry_t key = {object->id(), i};
             auto it = m_entry_matrix_cache.find(key);
 
-            vierkant::hash_combine(transform_hash, object->transform * entry.transform);
+            vierkant::hash_combine(transform_hash, obj_global_transform * entry.transform);
             transform_hashes[key] = transform_hash;
 
             auto hash_it = frame_asset.transform_hashes.find(key);

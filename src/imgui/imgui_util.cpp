@@ -1026,11 +1026,11 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
             case GuizmoType::SCALE: current_gizmo = ImGuizmo::SCALE; break;
             default: break;
         }
-        glm::mat4 m = vierkant::mat4_cast(object->global_transform());
+        auto global_transform = object->global_transform();
+        glm::mat4 m = vierkant::mat4_cast(global_transform);
         bool is_ortho = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
         auto z_val = m[3].z;
         ImGuizmo::SetOrthographic(is_ortho);
-
 
         auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(camera);
         const auto &cam_params = perspective_cam->params;
