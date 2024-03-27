@@ -79,7 +79,7 @@ public:
         }
     }
 
-    bool should_visit(vierkant::Object3D &object) override
+    bool should_visit(vierkant::Object3D &object) const override
     {
         if(object.enabled && check_tags(m_tags, object.tags))
         {

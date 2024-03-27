@@ -53,7 +53,7 @@ public:
     virtual void visit(vierkant::Camera &camera) { visit(static_cast<Object3D &>(camera)); };
     virtual void visit(vierkant::PerspectiveCamera &camera) { visit(static_cast<Camera &>(camera)); };
     virtual void visit(vierkant::OrthoCamera &camera) { visit(static_cast<Camera &>(camera)); };
-    virtual bool should_visit(vierkant::Object3D &object) = 0;
+    virtual bool should_visit(vierkant::Object3D &) const { return true; };
 };
 
 template<typename T>
@@ -72,7 +72,7 @@ public:
         }
     };
 
-    bool should_visit(vierkant::Object3D &object) override
+    bool should_visit(vierkant::Object3D &object) const override
     {
         return (object.enabled || !select_only_enabled) && check_tags(tags, object.tags);
     }
@@ -82,6 +82,29 @@ public:
     std::set<std::string> tags = {};
 
     bool select_only_enabled = true;
+};
+
+class LambdaVisitor : public Visitor
+{
+public:
+
+    using visit_fn_t = std::function<bool(vierkant::Object3D &object)>;
+
+    void traverse(vierkant::Object3D &object, visit_fn_t fn)
+    {
+        m_lambda = std::move(fn);
+        object.accept(*this);
+    }
+
+    void visit(vierkant::Object3D &object) override
+    {
+        if(m_lambda && m_lambda(object))
+        {
+            for(Object3DPtr &child: object.children) { child->accept(*this); }
+        }
+    };
+
+    visit_fn_t m_lambda;
 };
 
 }// namespace vierkant
