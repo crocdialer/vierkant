@@ -2,6 +2,7 @@
 
 namespace vierkant
 {
+
 AABB mesh_aabb(const vierkant::mesh_component_t &cmp, const std::optional<vierkant::animation_component_t> &anim_state)
 {
     vierkant::AABB ret = {};
@@ -62,4 +63,5 @@ std::vector<vierkant::AABB> mesh_sub_aabbs(const vierkant::mesh_component_t &cmp
     }
     return ret;
 }
-}
+
+}// namespace vierkant
