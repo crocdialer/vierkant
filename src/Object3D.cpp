@@ -47,16 +47,7 @@ void Object3D::set_global_transform(const vierkant::transform_t &t)
 void Object3D::set_parent(const Object3DPtr &parent_object)
 {
     // detach object from former parent
-    if(auto p = parent())
-    {
-        p->remove_child(shared_from_this());
-        if(auto reg = m_registry.lock())
-        {
-            reg->destroy(m_entity);
-            m_registry = {};
-            m_entity = {};
-        }
-    }
+    if(auto p = parent()) { p->remove_child(shared_from_this()); }
 
     if(parent_object)
     {
