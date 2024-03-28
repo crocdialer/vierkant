@@ -49,6 +49,8 @@ public:
      */
     [[nodiscard]] Object3D* object_by_id(uint32_t object_id) const;
 
+    [[nodiscard]] std::vector<Object3D*> objects_by_name(const std::string_view &name) const;
+
     [[nodiscard]] Object3DPtr pick(const Ray &ray) const;
 
     [[nodiscard]] inline const Object3DPtr &root() const { return m_root; };

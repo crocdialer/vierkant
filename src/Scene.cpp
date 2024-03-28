@@ -74,6 +74,17 @@ Object3D *Scene::object_by_id(uint32_t object_id) const
     return object_ptr ? *object_ptr : nullptr;
 }
 
+std::vector<Object3D *> Scene::objects_by_name(const std::string_view &name) const
+{
+    std::vector<Object3D *> ret;
+    auto view = m_registry->view<Object3D *>();
+    for(const auto &[entity, object]: view.each())
+    {
+        if(object->name == name) { ret.push_back(object); }
+    }
+    return ret;
+}
+
 Object3DPtr Scene::pick(const Ray &ray) const
 {
     Object3DPtr ret;
@@ -101,6 +112,7 @@ void Scene::set_environment(const vierkant::ImagePtr &img)
     if(!img) { return; }
     m_skybox = img;
 }
+
 }// namespace vierkant
 
 size_t std::hash<vierkant::id_entry_t>::operator()(vierkant::id_entry_t const &key) const
