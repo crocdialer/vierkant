@@ -1,5 +1,5 @@
-#include "vierkant/Image.hpp"
 #include "vierkant/SwapChain.hpp"
+#include "vierkant/Image.hpp"
 
 namespace vierkant
 {
@@ -179,20 +179,16 @@ SwapChain::~SwapChain()
         vkDeviceWaitIdle(m_device->handle());
         vkDestroySwapchainKHR(m_device->handle(), m_swap_chain, nullptr);
         m_swap_chain = VK_NULL_HANDLE;
-
         std::vector<VkFence> fences;
 
         for(auto &so: m_sync_objects)
         {
             vkDestroySemaphore(m_device->handle(), so.render_finished, nullptr);
             vkDestroySemaphore(m_device->handle(), so.image_available, nullptr);
-
             fences.push_back(so.fence);
         }
-
-        vkWaitForFences(m_device->handle(), fences.size(), fences.data(), VK_TRUE,
-                        std::numeric_limits<uint64_t>::max());
-
+        uint64_t wait_nanos = 1000000;//std::numeric_limits<uint64_t>::max();
+        vkWaitForFences(m_device->handle(), fences.size(), fences.data(), VK_TRUE, wait_nanos);
         for(auto &fence: fences) { vkDestroyFence(m_device->handle(), fence, nullptr); }
     }
 }

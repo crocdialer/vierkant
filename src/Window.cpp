@@ -206,15 +206,9 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
     // while window is minimized
     while(is_minimized()){ glfwWaitEvents(); }
 
-    // wait for good measure
-    vkDeviceWaitIdle(device->handle());
-
     // make sure everything is cleaned up
     // prevents: vkCreateSwapChainKHR(): surface has an existing swapchain other than oldSwapchain
     m_swap_chain = {};
-
-    // wait for good measure
-    vkDeviceWaitIdle(device->handle());
 
     // create swapchain for this window
     m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync);
