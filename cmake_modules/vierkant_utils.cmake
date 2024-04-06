@@ -50,7 +50,7 @@ function(GET_SHADER_SOURCES RESULT GLSL_FOLDER)
     set(${RESULT} ${GLSL_SOURCE_FILES} PARENT_SCOPE)
 endfunction(GET_SHADER_SOURCES)
 
-function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR SPIRV_OUT_DIR SOURCE_OUT_DIR)
+function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME SHADER_COMPILER SPIRV_OUT_DIR SOURCE_OUT_DIR)
 
     # NOTE: seeing some issues with spirv-reflect/local-sizes between 1.2<->1.3
     set(SPIRV_TARGET_ENV vulkan1.2)
@@ -112,15 +112,15 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME GLSL_VALIDATOR SPIRV_OUT_DIR 
 
             execute_process(
                     COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OUT_DIR}/shaders/"
-                    COMMAND ${GLSL_VALIDATOR} --target-env ${SPIRV_TARGET_ENV} ${GLSL} -o ${SPIRV}
-                    OUTPUT_VARIABLE glslangvalidator_std_out
-                    ERROR_VARIABLE glslangvalidator_std_err
+                    COMMAND ${SHADER_COMPILER} --target-env ${SPIRV_TARGET_ENV} ${GLSL} -o ${SPIRV}
+                    OUTPUT_VARIABLE glslang_std_out
+                    ERROR_VARIABLE glslang_std_err
                     RESULT_VARIABLE ret
                     #                OUTPUT_QUIET
             )
 
             if (NOT "${ret}" STREQUAL "0")
-                message(WARNING "Failed to compile shader: ${glslangvalidator_std_out}")
+                message(WARNING "Failed to compile shader: ${glslang_std_out}")
             endif ()
 
             # read spirv binary
