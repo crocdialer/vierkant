@@ -66,16 +66,16 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
                                                              VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                                      VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    for(auto &render_asset: m_frame_assets)
+    for(auto &frame_asset: m_frame_assets)
     {
-        render_asset.staging_command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        frame_asset.staging_command_buffer = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
         vierkant::CommandBuffer::create_info_t cmd_buffer_create_info = {};
         cmd_buffer_create_info.device = m_device;
         cmd_buffer_create_info.command_pool = m_command_pool.get();
         cmd_buffer_create_info.level = VK_COMMAND_BUFFER_LEVEL_SECONDARY;
-        render_asset.command_buffer = vierkant::CommandBuffer(cmd_buffer_create_info);
-        render_asset.query_pool = vierkant::create_query_pool(m_device, query_count, VK_QUERY_TYPE_TIMESTAMP);
+        frame_asset.command_buffer = vierkant::CommandBuffer(cmd_buffer_create_info);
+        frame_asset.query_pool = vierkant::create_query_pool(m_device, query_count, VK_QUERY_TYPE_TIMESTAMP);
     }
 
     if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }

@@ -34,42 +34,54 @@ public:
 
     virtual vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const = 0;
 
+    virtual vierkant::camera_params_variant_t params() const = 0;
+
     void accept(class Visitor &v) override;
 };
 
 class OrthoCamera : public Camera
 {
 public:
-    float left, right, bottom, top, near_, far_;
+    vierkant::ortho_camera_params_t orth_params;
 
-    static OrthoCameraPtr create(float left, float right, float bottom, float top, float near, float far);
+    static OrthoCameraPtr create(const std::shared_ptr<entt::registry> &registry,
+                                 vierkant::ortho_camera_params_t params = {})
+    {
+        {
+            auto ret = OrthoCameraPtr(new OrthoCamera(registry));
+            ret->orth_params = params;
+            return ret;
+        }
+    }
 
     glm::mat4 projection_matrix() const override;
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override { return near_; };
+    float near() const override { return orth_params.near_; };
 
-    float far() const override { return far_; };
+    float far() const override { return orth_params.far_; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
+
+    vierkant::camera_params_variant_t params() const override { return orth_params; }
 
     void accept(class Visitor &v) override;
 
 private:
-    OrthoCamera(float left, float right, float bottom, float top, float near, float far);
+    explicit OrthoCamera(const std::shared_ptr<entt::registry> &registry);
 };
 
 class PerspectiveCamera : public Camera
 {
 public:
-    physical_camera_params_t params;
+    physical_camera_params_t perspective_params;
 
     static PerspectiveCameraPtr create(const std::shared_ptr<entt::registry> &registry,
                                        const physical_camera_params_t params = {})
     {
         auto ret = PerspectiveCameraPtr(new PerspectiveCamera(registry));
-        ret->params = params;
+        ret->perspective_params = params;
         return ret;
     }
 
@@ -77,11 +89,13 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override { return params.clipping_distances.x; };
+    float near() const override { return perspective_params.clipping_distances.x; };
 
-    float far() const override { return params.clipping_distances.y; };
+    float far() const override { return perspective_params.clipping_distances.y; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
+
+    vierkant::camera_params_variant_t params() const override { return perspective_params; }
 
     void accept(class Visitor &v) override;
 
@@ -106,6 +120,8 @@ public:
     float far() const override { return m_far; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
+
+    vierkant::camera_params_variant_t params() const override { return vierkant::physical_camera_params_t(); }
 
     glm::mat4 view_matrix(uint32_t the_face) const;
 

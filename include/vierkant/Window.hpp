@@ -50,7 +50,7 @@ public:
         glm::ivec2 position = {};
         bool fullscreen = false;
         bool vsync = true;
-        uint32_t monitor_index;
+        uint32_t monitor_index = 0;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         std::string title = "Vierkant";
     };
