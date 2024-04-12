@@ -1,8 +1,6 @@
 #include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
-//#define JPH_ENABLE_ASSERTS
-
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
 // You can use Jolt.h in your precompiled header to speed up compilation.
 #include <Jolt/Jolt.h>
@@ -64,6 +62,56 @@ bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physic
     spdlog::error("{} : {} : ({}) {}", inFile, inLine, inExpression, inMessage);
     return true;
 };
+
+///// Implementation of a JobSystem using a thread pool
+//class JobSystemThreadPool final : public JPH::JobSystemWithBarrier
+//{
+//public:
+//
+//    /// Creates a thread pool.
+//    /// @see JobSystemThreadPool::Init
+//    JobSystemThreadPool(uint inMaxJobs, uint inMaxBarriers, int inNumThreads = -1);
+//    JobSystemThreadPool() = default;
+//    ~JobSystemThreadPool() override;
+//
+//    /// Initialize the thread pool
+//    /// @param inMaxJobs Max number of jobs that can be allocated at any time
+//    /// @param inMaxBarriers Max number of barriers that can be allocated at any time
+//    /// @param inNumThreads Number of threads to start (the number of concurrent jobs is 1 more because the main thread will also run jobs while waiting for a barrier to complete). Use -1 to auto detect the amount of CPU's.
+//    void Init(uint inMaxJobs, uint inMaxBarriers, int inNumThreads = -1);
+//
+//    // See JobSystem
+//    int GetMaxConcurrency() const override { return 0; }
+//    JobHandle CreateJob(const char *inName, JPH::ColorArg inColor, const JobFunction &inJobFunction,
+//                                uint32_t inNumDependencies = 0) override;
+//
+//    /// Change the max concurrency after initialization
+//    void SetNumThreads(int inNumThreads)
+//    {
+//        StopThreads();
+//        StartThreads(inNumThreads);
+//    }
+//
+//protected:
+//    // See JobSystem
+//    void QueueJob(Job *inJob) override;
+//    void QueueJobs(Job **inJobs, uint inNumJobs) override;
+//    void FreeJob(Job *inJob) override;
+//
+//private:
+//    /// Start/stop the worker threads
+//    void StartThreads(int inNumThreads);
+//    void StopThreads();
+//
+//    /// Entry point for a thread
+//    void ThreadMain(int inThreadIndex);
+//
+//    /// Get the head of the thread that has processed the least amount of jobs
+//    inline uint GetHead() const;
+//
+//    /// Internal helper function to queue a job
+//    inline void QueueJobInternal(Job *inJob);
+//};
 
 // Layer that objects can be in, determines which other objects it can collide with
 // Typically you at least want to have 1 layer for moving bodies and 1 layer for static bodies, but you can have more
@@ -233,6 +281,13 @@ public:
         m_physics_system.SetContactListener(&m_contact_listener);
     }
 
+    // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
+    // in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
+    inline void update(float delta, int num_steps = 1)
+    {
+        m_physics_system.Update(delta, num_steps, &temp_allocator, &job_system);
+    }
+
     ~JoltContext()
     {
         // Unregisters all types with the factory and cleans up the default material
@@ -244,6 +299,12 @@ public:
     }
 
 private:
+    /// Maximum amount of jobs to allow
+    constexpr static uint32_t cMaxPhysicsJobs = 2048;
+
+    /// Maximum amount of barriers to allow
+    constexpr static uint32_t cMaxPhysicsBarriers = 8;
+
     // This is the max amount of rigid bodies that you can add to the physics system. If you try to add more you'll get an error.
     // Note: This value is low because this is a simple test. For a real project use something in the order of 65536.
     uint32_t m_maxBodies = 1024;
@@ -283,6 +344,19 @@ private:
     // Note that this is called from a job so whatever you do here needs to be thread safe.
     // Registering one is entirely optional.
     JoltContactListener m_contact_listener;
+
+    // We need a temp allocator for temporary allocations during the physics update. We're
+    // pre-allocating 10 MB to avoid having to do allocations during the physics update.
+    // B.t.w. 10 MB is way too much for this example but it is a typical value you can use.
+    // If you don't want to pre-allocate you can also use TempAllocatorMalloc to fall back to
+    // malloc / free.
+    JPH::TempAllocatorImpl temp_allocator = JPH::TempAllocatorImpl(10 * 1024 * 1024);
+
+    // We need a job system that will execute physics jobs on multiple threads. Typically
+    // you would implement the JobSystem interface yourself and let Jolt Physics run on top
+    // of your own job scheduler. JobSystemThreadPool is an example implementation.
+    JPH::JobSystemThreadPool job_system = JPH::JobSystemThreadPool(
+            cMaxPhysicsJobs, cMaxPhysicsBarriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
 
     // the actual physics system.
     JPH::PhysicsSystem m_physics_system;
