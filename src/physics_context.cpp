@@ -1,6 +1,8 @@
 #include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
+//#define JPH_ENABLE_ASSERTS
+
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
 // You can use Jolt.h in your precompiled header to speed up compilation.
 #include <Jolt/Jolt.h>
@@ -56,7 +58,8 @@ bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physic
 }
 
 // Callback for asserts, connect this to your own assert handler if you have one
-static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile, uint inLine)
+[[maybe_unused]] static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
+                                              uint inLine)
 {
     spdlog::error("{} : {} : ({}) {}", inFile, inLine, inExpression, inMessage);
     return true;
