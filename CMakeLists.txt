@@ -113,6 +113,11 @@ foreach (BULLET_TARGET ${BULLET_LIBRARIES})
     endif ()
 endforeach ()
 
+# JoltPhysics
+add_subdirectory("submodules/JoltPhysics/Build")
+include_directories(SYSTEM submodules/JoltPhysics/Jolt)
+set(LIBS ${LIBS} Jolt)
+
 ##shaders
 include(build_shaders)
 get_shaders_recursive(GLSL_SOURCE_FILES "shaders")

@@ -11,6 +11,39 @@
 #include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
+// The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
+// You can use Jolt.h in your precompiled header to speed up compilation.
+#include <Jolt/Jolt.h>
+
+// Jolt includes
+#include <Jolt/RegisterTypes.h>
+#include <Jolt/Core/Factory.h>
+#include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Core/JobSystemThreadPool.h>
+#include <Jolt/Core/IssueReporting.h>
+#include <Jolt/Physics/PhysicsSettings.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Body/BodyActivationListener.h>
+
+// STL includes
+#include <iostream>
+#include <cstdarg>
+
+// Callback for traces, connect this to your own trace function if you have one
+static void trace_impl(const char *inFMT, ...)
+{
+    // Format the message
+    va_list list;
+    va_start(list, inFMT);
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), inFMT, list);
+    va_end(list);
+    spdlog::trace(buffer);
+}
+
 // Define a dummy function that uses a symbol from bar1
 extern "C" [[maybe_unused]] void DummyLinkHelper()
 {
@@ -223,6 +256,39 @@ private:
     std::unique_ptr<MeshInterface> m_striding_mesh;
 };
 
+class JoltContext
+{
+public:
+    JoltContext()
+    {
+        // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you want (see Memory.h).
+        // This needs to be done before any other Jolt function is called.
+        JPH::RegisterDefaultAllocator();
+
+        // register trace-function
+        JPH::Trace = &trace_impl;
+
+        // Create a factory, this class is responsible for creating instances of classes based on their name or hash and is mainly used for deserialization of saved data.
+        // It is not directly used in this example but still required.
+        JPH::Factory::sInstance = new JPH::Factory();
+
+        // Register all physics types with the factory and install their collision handlers with the CollisionDispatch class.
+        // If you have your own custom shape types you probably need to register their handlers with the CollisionDispatch before calling this function.
+        // If you implement your own default material (PhysicsMaterial::sDefault) make sure to initialize it before this function or else this function will create one for you.
+        JPH::RegisterTypes();
+    }
+
+    ~JoltContext()
+    {
+        // Unregisters all types with the factory and cleans up the default material
+        JPH::UnregisterTypes();
+
+        // Destroy the factory
+        delete JPH::Factory::sInstance;
+        JPH::Factory::sInstance = nullptr;
+    }
+};
+
 class BulletContext
 {
 public:
@@ -357,6 +423,7 @@ public:
 
 struct PhysicsContext::engine
 {
+    JoltContext jolt;
     BulletContext bullet;
 };
 
