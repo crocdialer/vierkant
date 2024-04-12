@@ -97,7 +97,7 @@ public:
 
     PhysicsContext &operator=(PhysicsContext other);
 
-    void step_simulation(float timestep, int max_sub_steps = 1, float fixed_time_step = 1.f / 60.f);
+    void step_simulation(float timestep, int max_sub_steps = 1);
 
     GeometryConstPtr debug_render();
 

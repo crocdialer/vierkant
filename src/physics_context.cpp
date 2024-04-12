@@ -1,6 +1,8 @@
 #include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
+//#define JPH_DISABLE_CUSTOM_ALLOCATOR
+
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
 // You can use Jolt.h in your precompiled header to speed up compilation.
 #include <Jolt/Jolt.h>
@@ -266,7 +268,8 @@ public:
 
         // Create a factory, this class is responsible for creating instances of classes based on their name or hash and is mainly used for deserialization of saved data.
         // It is not directly used in this example but still required.
-        JPH::Factory::sInstance = new JPH::Factory();
+        m_factory = std::make_unique<JPH::Factory>();
+        JPH::Factory::sInstance = m_factory.get();
 
         // Register all physics types with the factory and install their collision handlers with the CollisionDispatch class.
         // If you have your own custom shape types you probably need to register their handlers with the CollisionDispatch before calling this function.
@@ -276,30 +279,43 @@ public:
         m_temp_allocator = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
         m_job_system = std::make_unique<JPH::JobSystemThreadPool>(
                 cMaxPhysicsJobs, cMaxPhysicsBarriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
-        m_physics_system.Init(m_maxBodies, m_numBodyMutexes, m_maxBodyPairs, m_maxContactConstraints,
-                              m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
-                              m_object_vs_object_layer_filter);
+        physics_system.Init(m_maxBodies, m_numBodyMutexes, m_maxBodyPairs, m_maxContactConstraints,
+                            m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
+                            m_object_vs_object_layer_filter);
 
-        m_physics_system.SetBodyActivationListener(&m_body_activation_listener);
-        m_physics_system.SetContactListener(&m_contact_listener);
+        physics_system.SetBodyActivationListener(&m_body_activation_listener);
+        physics_system.SetContactListener(&m_contact_listener);
     }
 
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
     // in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
     inline void update(float delta, int num_steps = 1)
     {
-        m_physics_system.Update(delta, num_steps, m_temp_allocator.get(), m_job_system.get());
+        physics_system.Update(delta, num_steps, m_temp_allocator.get(), m_job_system.get());
     }
+
+    inline JPH::BodyInterface &body_interface() { return physics_system.GetBodyInterface(); }
 
     ~JoltContext()
     {
         // Unregisters all types with the factory and cleans up the default material
         JPH::UnregisterTypes();
-
-        // Destroy the factory
-        delete JPH::Factory::sInstance;
         JPH::Factory::sInstance = nullptr;
     }
+
+    //! collision-shape storage
+    std::unordered_map<vierkant::CollisionShapeId, JPH::Shape *> shapes;
+
+    //! lookup of body-ids
+    struct body_id_t
+    {
+        JPH::BodyID jolt_id;
+        vierkant::RigidBodyId id = vierkant::RigidBodyId::nil();
+    };
+    std::unordered_map<uint32_t, body_id_t> body_id_map;
+
+    // the actual physics system.
+    JPH::PhysicsSystem physics_system;
 
 private:
     /// Maximum amount of jobs to allow
@@ -308,23 +324,24 @@ private:
     /// Maximum amount of barriers to allow
     constexpr static uint32_t cMaxPhysicsBarriers = 8;
 
-    // This is the max amount of rigid bodies that you can add to the physics system. If you try to add more you'll get an error.
-    // Note: This value is low because this is a simple test. For a real project use something in the order of 65536.
-    uint32_t m_maxBodies = 1024;
+    // This is the max amount of rigid bodies that you can add to the physics system.
+    // If you try to add more you'll get an error.
+    uint32_t m_maxBodies = 65536;
 
-    // This determines how many mutexes to allocate to protect rigid bodies from concurrent access. Set it to 0 for the default settings.
+    // This determines how many mutexes to allocate to protect rigid bodies from concurrent access.
+    // Set it to 0 for the default settings.
     uint32_t m_numBodyMutexes = 0;
 
     // This is the max amount of body pairs that can be queued at any time (the broad phase will detect overlapping
-    // body pairs based on their bounding boxes and will insert them into a queue for the narrowphase). If you make this buffer
-    // too small the queue will fill up and the broad phase jobs will start to do narrow phase work. This is slightly less efficient.
-    // Note: This value is low because this is a simple test. For a real project use something in the order of 65536.
-    uint32_t m_maxBodyPairs = 1024;
+    // body pairs based on their bounding boxes and will insert them into a queue for the narrowphase).
+    // If you make this buffer too small the queue will fill up
+    // and the broad phase jobs will start to do narrow phase work. This is slightly less efficient.
+    uint32_t m_maxBodyPairs = 65536;
 
-    // This is the maximum size of the contact constraint buffer. If more contacts (collisions between bodies) are detected than this
-    // number then these contacts will be ignored and bodies will start interpenetrating / fall through the world.
-    // Note: This value is low because this is a simple test. For a real project use something in the order of 10240.
-    uint32_t m_maxContactConstraints = 1024;
+    // This is the maximum size of the contact constraint buffer.
+    // If more contacts (collisions between bodies) are detected than this number then these contacts will be ignored
+    // and bodies will start interpenetrating / fall through the world.
+    uint32_t m_maxContactConstraints = 10240;
 
     // Create mapping table from object layer to broadphase layer
     // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
@@ -360,8 +377,10 @@ private:
     // of your own job scheduler. JobSystemThreadPool is an example implementation.
     std::unique_ptr<JPH::JobSystemThreadPool> m_job_system;
 
-    // the actual physics system.
-    JPH::PhysicsSystem m_physics_system;
+    // Create a factory, this class is responsible for creating instances of classes
+    // based on their name or hash and is mainly used for deserialization of saved data.
+    // It is not directly used in this example but still required.
+    std::unique_ptr<JPH::Factory> m_factory;
 };
 
 struct PhysicsContext::engine
@@ -379,7 +398,7 @@ PhysicsContext &PhysicsContext::operator=(PhysicsContext other)
     return *this;
 }
 
-void PhysicsContext::step_simulation(float timestep, int max_sub_steps, float /*fixed_time_step*/)
+void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
 {
     m_engine->jolt.update(timestep, max_sub_steps);
 }
@@ -400,22 +419,63 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
 {
     if(obj->has_component<physics_component_t>())
     {
-        //        const vierkant::object_component auto &cmp = obj->get_component<physics_component_t>();
+        const auto &t = obj->transform;
+        const vierkant::object_component auto &cmp = obj->get_component<physics_component_t>();
+        auto shape_id = create_collision_shape(cmp.shape);
+
+        if(shape_id)
+        {
+            auto &body_interface = m_engine->jolt.body_interface();
+
+            bool has_mass = cmp.mass > 0.f;
+            auto layer = has_mass ? Layers::MOVING : Layers::NON_MOVING;
+            auto motion_type = has_mass ? (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static)
+                                        : JPH::EMotionType::Dynamic;
+            auto body_create_info = JPH::BodyCreationSettings(
+                    m_engine->jolt.shapes[shape_id], JPH::RVec3(t.translation.x, t.translation.y, t.translation.z),
+                    JPH::Quat(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w), motion_type, layer);
+            JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
+            vierkant::RigidBodyId new_bodyId;
+            m_engine->jolt.body_id_map[obj->id()] = {jolt_bodyId, new_bodyId};
+            return new_bodyId;
+        }
     }
     return vierkant::RigidBodyId::nil();
 }
 
-void PhysicsContext::remove_object(const Object3DPtr & /*obj*/) {}
+void PhysicsContext::remove_object(const Object3DPtr &obj)
+{
+    auto it = m_engine->jolt.body_id_map.find(obj->id());
+    if(it != m_engine->jolt.body_id_map.end())
+    {
+        auto &body_interface = m_engine->jolt.body_interface();
+        body_interface.RemoveBody(it->second.jolt_id);
+        body_interface.DestroyBody(it->second.jolt_id);
+        m_engine->jolt.body_id_map.erase(it);
+    }
+}
 
-bool PhysicsContext::contains(const Object3DPtr & /*obj*/) const { return false; }
+bool PhysicsContext::contains(const Object3DPtr &obj) const { return m_engine->jolt.body_id_map.contains(obj->id()); }
 
-RigidBodyId PhysicsContext::body_id(const Object3DPtr & /*obj*/) const { return RigidBodyId ::nil(); }
+RigidBodyId PhysicsContext::body_id(const Object3DPtr &obj) const
+{
+    auto it = m_engine->jolt.body_id_map.find(obj->id());
+    if(it != m_engine->jolt.body_id_map.end()) { return it->second.id; }
+    return RigidBodyId ::nil();
+}
 
 GeometryConstPtr PhysicsContext::debug_render() { return nullptr; }
 
-void PhysicsContext::set_gravity(const glm::vec3 & /*g*/) {}
+void PhysicsContext::set_gravity(const glm::vec3 &g)
+{
+    m_engine->jolt.physics_system.SetGravity(JPH::Vec3(g.x, g.y, g.z));
+}
 
-glm::vec3 PhysicsContext::gravity() const { return {}; }
+glm::vec3 PhysicsContext::gravity() const
+{
+    auto g = m_engine->jolt.physics_system.GetGravity();
+    return {g.GetX(), g.GetY(), g.GetZ()};
+}
 
 void PhysicsContext::apply_force(const vierkant::Object3DPtr & /*obj*/, const glm::vec3 & /*force*/,
                                  const glm::vec3 & /*offset*/)
@@ -435,19 +495,25 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
             [this](auto &&s) -> CollisionShapeId {
                 using T = std::decay_t<decltype(s)>;
 
-                //                if constexpr(std::is_same_v<T, collision::plane_t>)
-                //                {
-                //                    auto plane_shape = std::make_shared<btStaticPlaneShape>(type_cast(s.normal), s.d);
-                //                    vierkant::CollisionShapeId new_id;
-                //                    m_engine->bullet.collision_shapes[new_id] = std::move(plane_shape);
-                //                    return new_id;
-                //                }
-                //                if constexpr(std::is_same_v<T, collision::box_t>)
-                //                {
-                //                }
-                //                if constexpr(std::is_same_v<T, collision::sphere_t>)
-                //                {
-                //                }
+                //                                if constexpr(std::is_same_v<T, collision::plane_t>)
+                //                                {
+                //                                    auto plane_shape = std::make_shared<JPH::Plane>(type_cast(s.normal), s.d);
+                //                                    vierkant::CollisionShapeId new_id;
+                //                                    return new_id;
+                //                                }
+                if constexpr(std::is_same_v<T, collision::box_t>)
+                {
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->jolt.shapes[new_id] =
+                            new JPH::BoxShape(JPH::Vec3(s.half_extents.x, s.half_extents.y, s.half_extents.z));
+                    return new_id;
+                }
+                if constexpr(std::is_same_v<T, collision::sphere_t>)
+                {
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->jolt.shapes[new_id] = new JPH::SphereShape(s.radius);
+                    return new_id;
+                }
                 //                if constexpr(std::is_same_v<T, collision::cylinder_t>)
                 //                {
                 //                }
@@ -496,7 +562,7 @@ void PhysicsScene::update(double time_delta)
             cmp.need_update = false;
         }
     }
-    m_context.step_simulation(static_cast<float>(time_delta), 4, 1.f / 240.f);
+    m_context.step_simulation(static_cast<float>(time_delta), 1);
 }
 
 std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
