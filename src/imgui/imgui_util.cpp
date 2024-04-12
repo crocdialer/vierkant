@@ -615,7 +615,7 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
 
                 if(ImGui::TreeNode((void *) ((uint64_t)cam->id()), "%s", cam->name.c_str()))
                 {
-                    vierkant::gui::draw_camera_param_ui(cam->params);
+                    vierkant::gui::draw_camera_param_ui(cam->perspective_params);
                     ImGui::Spacing();
                     ImGui::Separator();
                     ImGui::TreePop();
@@ -1033,7 +1033,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
         ImGuizmo::SetOrthographic(is_ortho);
 
         auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(camera);
-        const auto &cam_params = perspective_cam->params;
+        const auto &cam_params = perspective_cam->perspective_params;
         float fovy = is_ortho ? 0.f : cam_params.fovy();
 
         auto sz = ImGui::GetIO().DisplaySize;

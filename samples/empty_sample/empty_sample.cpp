@@ -51,7 +51,7 @@ void HelloTriangleApplication::create_context_and_window()
     window_delegate.resize_fn = [this](uint32_t w, uint32_t h)
     {
         create_graphics_pipeline();
-        m_camera->params.aspect = m_window->aspect_ratio();
+        m_camera->perspective_params.aspect = m_window->aspect_ratio();
     };
     window_delegate.close_fn = [this](){ running = false; };
     m_window->window_delegates[name()] = window_delegate;

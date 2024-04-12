@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <variant>
 #include <vierkant/math.hpp>
 #include <vierkant/object_component.hpp>
 
@@ -14,7 +15,12 @@ struct ortho_camera_params_t
 {
     // clipping planes distances
     // NOTE: fun-fact: 'near' and 'far' are reserved (non-standard) keywords for msvc
-    float left, right, bottom, top, near_, far_;
+    float left = -1.f;
+    float right = 1.f;
+    float bottom = -1.f;
+    float top = 1.f;
+    float near_ = 0.f;
+    float far_ = 100.f;
 };
 
 struct physical_camera_params_t
@@ -49,5 +55,7 @@ struct physical_camera_params_t
     //! will adjust focal_length to match provided field-of-view (fov) in radians
     inline void set_fovx(float fovx) { focal_length = 0.5f * sensor_width / std::tan(fovx * 0.5f); }
 };
+
+using camera_params_variant_t = std::variant<ortho_camera_params_t, physical_camera_params_t>;
 
 }// namespace vierkant

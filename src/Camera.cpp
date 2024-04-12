@@ -1,7 +1,7 @@
 #include <spdlog/spdlog.h>
 #include <vierkant/Camera.hpp>
-#include <vierkant/projection.hpp>
 #include <vierkant/Visitor.hpp>
+#include <vierkant/projection.hpp>
 
 namespace vierkant
 {
@@ -21,36 +21,31 @@ glm::vec2 clipping_distances(const glm::mat4 &projection)
     return ret;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::transform_t Camera::view_transform() const { return vierkant::inverse(global_transform()); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-OrthoCameraPtr OrthoCamera::create(float left, float right, float bottom, float top, float near, float far)
-{
-    return OrthoCameraPtr(new OrthoCamera(left, right, bottom, top, near, far));
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
-OrthoCamera::OrthoCamera(float left, float right, float bottom, float top, float near, float far)
-    : Object3D({}, "OrthoCamera"), left(left), right(right), bottom(bottom), top(top), near_(near), far_(far)
-{}
+OrthoCamera::OrthoCamera(const std::shared_ptr<entt::registry> &registry) : Object3D(registry, "OrthoCamera") {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::mat4 OrthoCamera::projection_matrix() const
 {
-    auto m = glm::orthoRH(left, right, bottom, top, near_, far_);
+    auto m = glm::orthoRH(orth_params.left, orth_params.right, orth_params.bottom, orth_params.top, orth_params.near_,
+                          orth_params.far_);
     m[1][1] *= -1;
     return m;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::Frustum OrthoCamera::frustum() const { return {left, right, bottom, top, near_, far_}; }
+vierkant::Frustum OrthoCamera::frustum() const
+{
+    return {orth_params.left, orth_params.right, orth_params.bottom,
+            orth_params.top,  orth_params.near_, orth_params.far_};
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -58,8 +53,8 @@ vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &
 {
     glm::vec3 click_world_pos, ray_dir;
 
-    glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, left, right),
-                    crocore::map_value<float>(pos.y, extent.y, 0, bottom, top));
+    glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, orth_params.left, orth_params.right),
+                    crocore::map_value<float>(pos.y, extent.y, 0, orth_params.bottom, orth_params.top));
 
     glm::mat3 m = glm::mat3_cast(transform.rotation);
     click_world_pos = glm::vec3(transform.translation) - m[2] * near() + m[0] * coord.x + m[1] * coord.y;
@@ -78,14 +73,16 @@ PerspectiveCamera::PerspectiveCamera(const std::shared_ptr<entt::registry> &regi
 
 glm::mat4 PerspectiveCamera::projection_matrix() const
 {
-    return perspective_infinite_reverse_RH_ZO(params.fovy(), params.aspect, params.clipping_distances.x);
+    return perspective_infinite_reverse_RH_ZO(perspective_params.fovy(), perspective_params.aspect,
+                                              perspective_params.clipping_distances.x);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 vierkant::Frustum PerspectiveCamera::frustum() const
 {
-    return {params.aspect, params.fovx(), params.clipping_distances.x, params.clipping_distances.y};
+    return {perspective_params.aspect, perspective_params.fovx(), perspective_params.clipping_distances.x,
+            perspective_params.clipping_distances.y};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,10 +99,10 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
     click_2D.y = -click_2D.y;
 
     // convert fovy to radians
-    float rad = params.fovx();
-    float near = params.clipping_distances.x;
+    float rad = perspective_params.fovx();
+    float near = perspective_params.clipping_distances.x;
     float hLength = std::tan(rad / 2) * near;
-    float vLength = hLength / params.aspect;
+    float vLength = hLength / perspective_params.aspect;
 
     glm::mat3 m = glm::mat3_cast(transform.rotation);
     ray_origin =
