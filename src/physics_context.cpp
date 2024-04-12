@@ -273,6 +273,9 @@ public:
         // If you implement your own default material (PhysicsMaterial::sDefault) make sure to initialize it before this function or else this function will create one for you.
         JPH::RegisterTypes();
 
+        m_temp_allocator = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
+        m_job_system = std::make_unique<JPH::JobSystemThreadPool>(
+                cMaxPhysicsJobs, cMaxPhysicsBarriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
         m_physics_system.Init(m_maxBodies, m_numBodyMutexes, m_maxBodyPairs, m_maxContactConstraints,
                               m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
                               m_object_vs_object_layer_filter);
@@ -285,7 +288,7 @@ public:
     // in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
     inline void update(float delta, int num_steps = 1)
     {
-        m_physics_system.Update(delta, num_steps, &temp_allocator, &job_system);
+        m_physics_system.Update(delta, num_steps, m_temp_allocator.get(), m_job_system.get());
     }
 
     ~JoltContext()
@@ -350,13 +353,12 @@ private:
     // B.t.w. 10 MB is way too much for this example but it is a typical value you can use.
     // If you don't want to pre-allocate you can also use TempAllocatorMalloc to fall back to
     // malloc / free.
-    JPH::TempAllocatorImpl temp_allocator = JPH::TempAllocatorImpl(10 * 1024 * 1024);
+    std::unique_ptr<JPH::TempAllocatorImpl> m_temp_allocator;
 
     // We need a job system that will execute physics jobs on multiple threads. Typically
     // you would implement the JobSystem interface yourself and let Jolt Physics run on top
     // of your own job scheduler. JobSystemThreadPool is an example implementation.
-    JPH::JobSystemThreadPool job_system = JPH::JobSystemThreadPool(
-            cMaxPhysicsJobs, cMaxPhysicsBarriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
+    std::unique_ptr<JPH::JobSystemThreadPool> m_job_system;
 
     // the actual physics system.
     JPH::PhysicsSystem m_physics_system;
@@ -377,7 +379,10 @@ PhysicsContext &PhysicsContext::operator=(PhysicsContext other)
     return *this;
 }
 
-void PhysicsContext::step_simulation(float /*timestep*/, int /*max_sub_steps*/, float /*fixed_time_step*/) {}
+void PhysicsContext::step_simulation(float timestep, int max_sub_steps, float /*fixed_time_step*/)
+{
+    m_engine->jolt.update(timestep, max_sub_steps);
+}
 
 CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t & /*mesh_bundle*/,
                                                         const glm::vec3 & /*scale*/)
