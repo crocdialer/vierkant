@@ -96,22 +96,10 @@ set(LIBS ${LIBS} ${crocore_LIBRARIES})
 add_subdirectory(submodules/entt EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} EnTT::EnTT)
 
-# bullet
-FILE(STRINGS "submodules/bullet3/VERSION" BULLET_VERSION)
-include_directories(SYSTEM "submodules/bullet3/src")
-add_subdirectory(submodules/bullet3/src/LinearMath EXCLUDE_FROM_ALL)
-add_subdirectory(submodules/bullet3/src/BulletDynamics EXCLUDE_FROM_ALL)
-add_subdirectory(submodules/bullet3/src/BulletSoftBody EXCLUDE_FROM_ALL)
-add_subdirectory(submodules/bullet3/src/BulletCollision EXCLUDE_FROM_ALL)
-set(BULLET_LIBRARIES LinearMath BulletDynamics BulletSoftBody BulletCollision)
-set(LIBS ${LIBS} ${BULLET_LIBRARIES})
-foreach (BULLET_TARGET ${BULLET_LIBRARIES})
-    if (MSVC)
-        target_compile_options(${BULLET_TARGET} PRIVATE /wd4244 /wd4305 /wd4267 /wd4056 /wd4018)
-    elseif (UNIX)
-        target_compile_options(${BULLET_TARGET} PRIVATE -Wno-stringop-overflow)
-    endif ()
-endforeach ()
+# JoltPhysics
+add_subdirectory("submodules/JoltPhysics/Build")
+include_directories(SYSTEM submodules/JoltPhysics/Jolt)
+set(LIBS ${LIBS} Jolt)
 
 ##shaders
 include(build_shaders)

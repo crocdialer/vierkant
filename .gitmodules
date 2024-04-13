@@ -30,7 +30,7 @@
 	path = submodules/entt
 	url = git@github.com:skypjack/entt.git
 	shallow = true
-[submodule "submodules/bullet3"]
-	path = submodules/bullet3
-	url = git@github.com:bulletphysics/bullet3.git
+[submodule "submodules/JoltPhysics"]
+	path = submodules/JoltPhysics
+	url = git@github.com:jrouwe/JoltPhysics.git
 	shallow = true

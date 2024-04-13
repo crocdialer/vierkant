@@ -1,34 +1,39 @@
-//#define BT_USE_DOUBLE_PRECISION
-#include <BulletSoftBody/btSoftBodyHelpers.h>
-#include <BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h>
-#include <BulletSoftBody/btSoftRigidDynamicsWorld.h>
-#include <LinearMath/btConvexHull.h>
-#include <LinearMath/btConvexHullComputer.h>
-#include <LinearMath/btGeometryUtil.h>
-#include <LinearMath/btPolarDecomposition.h>
-
-#include <btBulletDynamicsCommon.h>
 #include <unordered_set>
 #include <vierkant/physics_context.hpp>
 
-// Define a dummy function that uses a symbol from bar1
-extern "C" [[maybe_unused]] void DummyLinkHelper()
+// The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
+// You can use Jolt.h in your precompiled header to speed up compilation.
+#include <Jolt/Jolt.h>
+
+// Jolt includes
+#include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemThreadPool.h>
+#include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/CylinderShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/RegisterTypes.h>
+
+// STL includes
+#include <cstdarg>
+#include <iostream>
+
+// Callback for traces, connect this to your own trace function if you have one
+static void trace_impl(const char *inFMT, ...)
 {
-    auto verts = btAlignedObjectArray<btVector3>();
-    auto eq = btAlignedObjectArray<btVector3>();
-    btGeometryUtil::getPlaneEquationsFromVertices(verts, eq);
-    btGeometryUtil::getVerticesFromPlaneEquations(eq, verts);
-
-    btConvexHullComputer p2;
-    p2.compute((float *) nullptr, 0, 0, 0.f, 0.f);
-
-    (void) CProfileSample("");
-    (void) btDiscreteDynamicsWorld(nullptr, nullptr, nullptr, nullptr);
-    (void) btMultiBody(0, 0, {}, false, false);
-    (void) btPolarDecomposition();
-    HullLibrary hl;
-    HullResult hr;
-    hl.CreateConvexHull({}, hr);
+    // Format the message
+    va_list list;
+    va_start(list, inFMT);
+    char buffer[1024];
+    vsnprintf(buffer, sizeof(buffer), inFMT, list);
+    va_end(list);
+    spdlog::debug(buffer);
 }
 
 namespace vierkant
@@ -40,9 +45,9 @@ bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physic
     //    if(lhs.shape != rhs.shape) { return false; }
     if(lhs.mass != rhs.mass) { return false; }
     if(lhs.friction != rhs.friction) { return false; }
-    if(lhs.rolling_friction != rhs.rolling_friction) { return false; }
-    if(lhs.spinning_friction != rhs.spinning_friction) { return false; }
     if(lhs.restitution != rhs.restitution) { return false; }
+    if(lhs.linear_damping != rhs.linear_damping) { return false; }
+    if(lhs.angular_damping != rhs.angular_damping) { return false; }
     if(lhs.sensor != rhs.sensor) { return false; }
     if(lhs.kinematic != rhs.kinematic) { return false; }
     if(lhs.need_update != rhs.need_update) { return false; }
@@ -52,312 +57,435 @@ bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physic
     return true;
 }
 
-typedef std::shared_ptr<btCollisionShape> btCollisionShapePtr;
-typedef std::shared_ptr<btRigidBody> btRigidBodyPtr;
-typedef std::shared_ptr<btSoftBody> btSoftBodyPtr;
-typedef std::shared_ptr<btTypedConstraint> btTypedConstraintPtr;
-typedef std::shared_ptr<btSoftRigidDynamicsWorld> btSoftRigidDynamicsWorldPtr;
-typedef std::shared_ptr<btDynamicsWorld> btDynamicsWorldPtr;
-
-inline btVector3 type_cast(const glm::vec3 &the_vec) { return {the_vec[0], the_vec[1], the_vec[2]}; }
-
-inline const glm::vec3 &type_cast(const btVector3 &the_vec) { return reinterpret_cast<const glm::vec3 &>(the_vec); }
-
-inline const btQuaternion &type_cast(const glm::quat &q)
+// Callback for asserts, connect this to your own assert handler if you have one
+[[maybe_unused]] static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
+                                              uint32_t inLine)
 {
-    auto tmp = (void *) &q;
-    return *((const btQuaternion *) tmp);
-}
-
-inline const glm::quat &type_cast(const btQuaternion &q)
-{
-    auto tmp = (void *) &q;
-    return *((const glm::quat *) tmp);
-}
-
-inline vierkant::transform_t to_transform(const btTransform &t)
-{
-    vierkant::transform_t ret;
-    btQuaternion q;
-    t.getBasis().getRotation(q);
-    memcpy(glm::value_ptr(ret.rotation), &q[0], sizeof(ret.rotation));
-    ret.translation = type_cast(t.getOrigin());
-    return ret;
-}
-
-struct MotionState : public btMotionState
-{
-    vierkant::Object3DPtr m_object;
-
-    explicit MotionState(vierkant::Object3DPtr obj) : m_object(std::move(obj)) {}
-    ~MotionState() override = default;
-
-    //! synchronizes world transform from user to physics
-    void getWorldTransform(btTransform &centerOfMassWorldTrans) const override
-    {
-        auto t = m_object->global_transform();
-        centerOfMassWorldTrans.setRotation(type_cast(t.rotation));
-        centerOfMassWorldTrans.setOrigin(type_cast(t.translation));
-    }
-
-    //! synchronizes world transform from physics to user
-    void setWorldTransform(const btTransform &centerOfMassWorldTrans) override
-    {
-        m_object->transform.rotation = type_cast(centerOfMassWorldTrans.getRotation());
-        m_object->transform.translation = type_cast(centerOfMassWorldTrans.getOrigin());
-    }
+    spdlog::error("{} : {} : ({}) {}", inFile, inLine, inExpression, inMessage ? inMessage : "");
+    return true;
 };
 
-class BulletDebugDrawer : public btIDebugDraw
-{
-public:
-    GeometryPtr geometry = Geometry::create();
-
-    inline void clear()
-    {
-        geometry->positions.clear();
-        geometry->colors.clear();
-    }
-
-    inline void drawLine(const btVector3 &from, const btVector3 &to, const btVector3 &color) override
-    {
-        glm::vec4 c(color[0], color[1], color[2], 1.f);
-
-        geometry->positions.insert(geometry->positions.end(), {type_cast(from), type_cast(to)});
-        geometry->colors.insert(geometry->colors.end(), {c, c});
-    }
-
-    void drawContactPoint(const btVector3 & /*PointOnB*/, const btVector3 & /*normalOnB*/, btScalar /*distance*/,
-                          int /*lifeTime*/, const btVector3 & /*color*/) override
-    {}
-
-    void draw3dText(const btVector3 & /*location*/, const char * /*textString*/) override{};
-
-    void reportErrorWarning(const char *warningString) override { spdlog::warn(warningString); }
-
-    void setDebugMode(int /*debugMode*/) override {}
-    [[nodiscard]] int getDebugMode() const override { return DBG_DrawWireframe; }
-};
-
-class MeshInterface : public btStridingMeshInterface
-{
-public:
-    explicit MeshInterface(const vierkant::mesh_buffer_bundle_t &mesh_bundle)
-        : entries(mesh_bundle.entries), vertex_stride(mesh_bundle.vertex_stride),
-          vertex_buffer(mesh_bundle.vertex_buffer), index_buffer(mesh_bundle.index_buffer)
-    {}
-
-    /// get read and write access to a subpart of a triangle mesh
-    /// this subpart has a continuous array of vertices and indices
-    /// in this way the mesh can be handled as chunks of memory with striding
-    /// very similar to OpenGL vertexarray support
-    /// make a call to unLockVertexBase when the read and write access is finished
-    void getLockedVertexIndexBase(unsigned char **vertexbase, int &numverts, PHY_ScalarType &type, int &stride,
-                                  unsigned char **indexbase, int &indexstride, int &numfaces,
-                                  PHY_ScalarType &indicestype, int subpart) override
-    {
-        getLockedReadOnlyVertexIndexBase((const uint8_t **) vertexbase, numverts, type, stride,
-                                         (const uint8_t **) indexbase, indexstride, numfaces, indicestype, subpart);
-    }
-
-    void getLockedReadOnlyVertexIndexBase(const unsigned char **vertexbase, int &numverts, PHY_ScalarType &type,
-                                          int &stride, const unsigned char **indexbase, int &indexstride, int &numfaces,
-                                          PHY_ScalarType &indicestype, int subpart) const override
-    {
-        const auto &entry = entries[subpart];
-        const auto &lod0 = entry.lods.front();
-        *vertexbase = vertex_buffer.data() + vertex_stride * entry.vertex_offset;
-        numverts = static_cast<int>(entry.num_vertices);
-        type = PHY_FLOAT;
-        stride = static_cast<int>(vertex_stride);
-        *indexbase = reinterpret_cast<const unsigned char *>(index_buffer.data() + lod0.base_index);
-        indexstride = 3 * sizeof(vierkant::index_t);
-        numfaces = static_cast<int>(lod0.num_indices / 3);
-        indicestype = PHY_INTEGER;
-    }
-
-    /// unLockVertexBase finishes the access to a subpart of the triangle mesh
-    /// make a call to unLockVertexBase when the read and write access (using getLockedVertexIndexBase) is finished
-    void unLockVertexBase(int /*subpart*/) override {}
-
-    void unLockReadOnlyVertexBase(int /*subpart*/) const override{};
-
-    /// getNumSubParts returns the number of seperate subparts
-    /// each subpart has a continuous array of vertices and indices
-    [[nodiscard]] int getNumSubParts() const override { return static_cast<int>(entries.size()); }
-
-    void preallocateVertices(int /*numverts*/) override{};
-    void preallocateIndices(int /*numindices*/) override{};
-
-private:
-    //! entries for sub-meshes/buffers
-    std::vector<Mesh::entry_t> entries;
-
-    //! vertex-stride in bytes
-    uint32_t vertex_stride = 0;
-
-    //! combined array of vertices (vertex-footprint varies hence encoded as raw-bytes)
-    std::vector<uint8_t> vertex_buffer;
-
-    //! combined array of indices
-    std::vector<index_t> index_buffer;
-};
-
-class TriangleMeshShape : public btBvhTriangleMeshShape
-{
-public:
-    TriangleMeshShape(std::unique_ptr<MeshInterface> meshInterface, bool useQuantizedAabbCompression,
-                      bool buildBvh = true)
-        : btBvhTriangleMeshShape(meshInterface.get(), useQuantizedAabbCompression, buildBvh),
-          m_striding_mesh(std::move(meshInterface))
-    {}
-
-    ///optionally pass in a larger bvh aabb, used for quantization. This allows for deformations within this aabb
-    TriangleMeshShape(std::unique_ptr<MeshInterface> meshInterface, bool useQuantizedAabbCompression,
-                      const btVector3 &bvhAabbMin, const btVector3 &bvhAabbMax, bool buildBvh = true)
-        : btBvhTriangleMeshShape(meshInterface.get(), useQuantizedAabbCompression, bvhAabbMin, bvhAabbMax, buildBvh),
-          m_striding_mesh(std::move(meshInterface))
-    {}
-
-private:
-    std::unique_ptr<MeshInterface> m_striding_mesh;
-};
-
-class BulletContext
-{
-public:
-    struct rigid_body_item_t
-    {
-        RigidBodyId id = RigidBodyId::nil();
-        CollisionShapeId shape_id = CollisionShapeId::nil();
-        std::unique_ptr<MotionState> motion_state;
-        btRigidBodyPtr rigid_body;
-    };
-
-    struct object_item_t
-    {
-        uint32_t id = 0;
-        physics_component_t::callbacks_t callbacks;
-    };
-
-    BulletContext()
-    {
-        world->setGravity(btVector3(0.f, -9.87f, 0.f));
-
-        // debug drawer
-        debug_drawer = std::make_shared<BulletDebugDrawer>();
-        world->setDebugDrawer(debug_drawer.get());
-
-        // tick callback
-        world->setInternalTickCallback(&_tick_callback, static_cast<void *>(this));
-
-//        // TODO: softbody testing
-//        btSoftBody *psb = btSoftBodyHelpers::CreateEllipsoid(world->getWorldInfo(), btVector3(0, 10, 0),
-//                                                             btVector3(1, 1, 1) * 3, 512);
-//        psb->m_materials[0]->m_kLST = 0.45;
-//        psb->m_cfg.kVC = 0;// anything > 0 causes nans on contact!?
+///// Implementation of a JobSystem using a thread pool
+//class JobSystemThreadPool final : public JPH::JobSystemWithBarrier
+//{
+//public:
 //
-//        psb->setTotalMass(50, true);
-//        psb->setPose(true, false);
-//        psb->generateClusters(1);
-//        world->addSoftBody(psb);
-    }
+//    /// Creates a thread pool.
+//    /// @see JobSystemThreadPool::Init
+//    JobSystemThreadPool(uint inMaxJobs, uint inMaxBarriers, int inNumThreads = -1);
+//    JobSystemThreadPool() = default;
+//    ~JobSystemThreadPool() override;
+//
+//    /// Initialize the thread pool
+//    /// @param inMaxJobs Max number of jobs that can be allocated at any time
+//    /// @param inMaxBarriers Max number of barriers that can be allocated at any time
+//    /// @param inNumThreads Number of threads to start (the number of concurrent jobs is 1 more because the main thread will also run jobs while waiting for a barrier to complete). Use -1 to auto detect the amount of CPU's.
+//    void Init(uint inMaxJobs, uint inMaxBarriers, int inNumThreads = -1);
+//
+//    // See JobSystem
+//    int GetMaxConcurrency() const override { return 0; }
+//    JobHandle CreateJob(const char *inName, JPH::ColorArg inColor, const JobFunction &inJobFunction,
+//                                uint32_t inNumDependencies = 0) override;
+//
+//    /// Change the max concurrency after initialization
+//    void SetNumThreads(int inNumThreads)
+//    {
+//        StopThreads();
+//        StartThreads(inNumThreads);
+//    }
+//
+//protected:
+//    // See JobSystem
+//    void QueueJob(Job *inJob) override;
+//    void QueueJobs(Job **inJobs, uint inNumJobs) override;
+//    void FreeJob(Job *inJob) override;
+//
+//private:
+//    /// Start/stop the worker threads
+//    void StartThreads(int inNumThreads);
+//    void StopThreads();
+//
+//    /// Entry point for a thread
+//    void ThreadMain(int inThreadIndex);
+//
+//    /// Get the head of the thread that has processed the least amount of jobs
+//    inline uint GetHead() const;
+//
+//    /// Internal helper function to queue a job
+//    inline void QueueJobInternal(Job *inJob);
+//};
 
-    static inline void _tick_callback(btDynamicsWorld *world, btScalar timestep)
+// Layer that objects can be in, determines which other objects it can collide with
+// Typically you at least want to have 1 layer for moving bodies and 1 layer for static bodies, but you can have more
+// layers if you want. E.g. you could have a layer for high detail collision (which is not used by the physics simulation
+// but only if you do collision testing).
+namespace Layers
+{
+static constexpr JPH::ObjectLayer NON_MOVING = 0;
+static constexpr JPH::ObjectLayer MOVING = 1;
+static constexpr JPH::ObjectLayer NUM_LAYERS = 2;
+};// namespace Layers
+
+/// Class that determines if two object layers can collide
+class ObjectLayerPairFilterImpl : public JPH::ObjectLayerPairFilter
+{
+public:
+    [[nodiscard]] bool ShouldCollide(JPH::ObjectLayer inObject1, JPH::ObjectLayer inObject2) const override
     {
-        auto *ctx = static_cast<BulletContext *>(world->getWorldUserInfo());
-        ctx->tick_callback(timestep);
+        switch(inObject1)
+        {
+            case Layers::NON_MOVING: return inObject2 == Layers::MOVING;// Non moving only collides with moving
+            case Layers::MOVING: return true;                           // Moving collides with everything
+            default: JPH_ASSERT(false); return false;
+        }
     }
+};
 
-    void tick_callback(btScalar /*timestep*/)
+// Each broadphase layer results in a separate bounding volume tree in the broad phase. You at least want to have
+// a layer for non-moving and moving objects to avoid having to update a tree full of static objects every frame.
+// You can have a 1-on-1 mapping between object layers and broadphase layers (like in this case) but if you have
+// many object layers you'll be creating many broad phase trees, which is not efficient. If you want to fine tune
+// your broadphase layers define JPH_TRACK_BROADPHASE_STATS and look at the stats reported on the TTY.
+namespace BroadPhaseLayers
+{
+static constexpr JPH::BroadPhaseLayer NON_MOVING(0);
+static constexpr JPH::BroadPhaseLayer MOVING(1);
+static constexpr uint32_t NUM_LAYERS(2);
+};// namespace BroadPhaseLayers
+
+// BroadPhaseLayerInterface implementation
+// This defines a mapping between object and broadphase layers.
+class BPLayerInterfaceImpl final : public JPH::BroadPhaseLayerInterface
+{
+public:
+    BPLayerInterfaceImpl()
     {
-        int numManifolds = world->getDispatcher()->getNumManifolds();
-
-        for(int i = 0; i < numManifolds; i++)
-        {
-            auto contactManifold = world->getDispatcher()->getManifoldByIndexInternal(i);
-            auto itemA = object_items.at(contactManifold->getBody0());
-            auto itemB = object_items.at(contactManifold->getBody1());
-
-            auto key = std::make_pair(contactManifold->getBody0(), contactManifold->getBody1());
-
-            int numContacts = contactManifold->getNumContacts();
-            for(int j = 0; j < numContacts; j++)
-            {
-                btManifoldPoint &pt = contactManifold->getContactPoint(j);
-                if(pt.getDistance() <= 0.f)
-                {
-                    collision_pairs.insert(key);
-
-                    if(!last_collision_pairs.contains(key))
-                    {
-                        // contact added
-                        if(itemA.callbacks.contact_begin) { itemA.callbacks.contact_begin(itemB.id); }
-                        if(itemB.callbacks.contact_begin) { itemB.callbacks.contact_begin(itemA.id); }
-                    }
-                    if(itemA.callbacks.collision) { itemA.callbacks.collision(itemB.id); }
-                    if(itemB.callbacks.collision) { itemB.callbacks.collision(itemA.id); }
-                    last_collision_pairs.erase(key);
-                    break;
-                    //                                const btVector3& ptA = pt.getPositionWorldOnA();
-                    //                                const btVector3& ptB = pt.getPositionWorldOnB();
-                    //                                const btVector3& normalOnB = pt.m_normalWorldOnB;
-                }
-            }
-        }
-
-        // leftover pairs indicate a contact ended
-        for(const auto &[objA, objB]: last_collision_pairs)
-        {
-            // wake sleeping islands after potential removal of an object
-            objA->activate();
-            objB->activate();
-
-            auto itemA = object_items.at(objA);
-            auto itemB = object_items.at(objB);
-
-            if(itemA.callbacks.contact_end) { itemA.callbacks.contact_end(itemB.id); }
-            if(itemB.callbacks.contact_end) { itemB.callbacks.contact_end(itemA.id); }
-        }
-        std::swap(collision_pairs, last_collision_pairs);
-        collision_pairs.clear();
+        // Create a mapping table from object to broad phase layer
+        mObjectToBroadPhase[Layers::NON_MOVING] = BroadPhaseLayers::NON_MOVING;
+        mObjectToBroadPhase[Layers::MOVING] = BroadPhaseLayers::MOVING;
     }
 
-    std::shared_ptr<btDefaultCollisionConfiguration> configuration =
-            std::make_shared<btSoftBodyRigidBodyCollisionConfiguration>();
+    [[nodiscard]] uint32_t GetNumBroadPhaseLayers() const override { return BroadPhaseLayers::NUM_LAYERS; }
 
-    std::shared_ptr<btCollisionDispatcher> dispatcher = std::make_shared<btCollisionDispatcher>(configuration.get());
+    [[nodiscard]] JPH::BroadPhaseLayer GetBroadPhaseLayer(JPH::ObjectLayer inLayer) const override
+    {
+        JPH_ASSERT(inLayer < Layers::NUM_LAYERS);
+        return mObjectToBroadPhase[inLayer];
+    }
 
-    std::shared_ptr<btBroadphaseInterface> broadphase = std::make_shared<btDbvtBroadphase>();
-    //    std::shared_ptr<btBroadphaseInterface> broadphase =
-    //            std::make_shared<btAxisSweep3>(btVector3(-1000, -1000, -1000), btVector3(1000, 1000, 1000));
+#if defined(JPH_EXTERNAL_PROFILE) || defined(JPH_PROFILE_ENABLED)
+    [[nodiscard]] const char *GetBroadPhaseLayerName(JPH::BroadPhaseLayer inLayer) const override
+    {
+        switch((JPH::BroadPhaseLayer::Type) inLayer)
+        {
+            case(JPH::BroadPhaseLayer::Type) BroadPhaseLayers::NON_MOVING: return "NON_MOVING";
+            case(JPH::BroadPhaseLayer::Type) BroadPhaseLayers::MOVING: return "MOVING";
+            default: JPH_ASSERT(false); return "INVALID";
+        }
+    }
+#endif// JPH_EXTERNAL_PROFILE || JPH_PROFILE_ENABLED
 
-    //    btSoftBodyWorldInfo m_softBodyWorldInfo;
+private:
+    JPH::BroadPhaseLayer mObjectToBroadPhase[Layers::NUM_LAYERS]{};
+};
 
-    ///the default constraint solver. For parallel processing you can use a different solver (see Extras/BulletMultiThreaded)
-    std::shared_ptr<btConstraintSolver> solver = std::make_shared<btSequentialImpulseConstraintSolver>();
+/// Class that determines if an object layer can collide with a broadphase layer
+class ObjectVsBroadPhaseLayerFilterImpl : public JPH::ObjectVsBroadPhaseLayerFilter
+{
+public:
+    [[nodiscard]] bool ShouldCollide(JPH::ObjectLayer inLayer1, JPH::BroadPhaseLayer inLayer2) const override
+    {
+        switch(inLayer1)
+        {
+            case Layers::NON_MOVING: return inLayer2 == BroadPhaseLayers::MOVING;
+            case Layers::MOVING: return true;
+            default: JPH_ASSERT(false); return false;
+        }
+    }
+};
 
-    btSoftRigidDynamicsWorldPtr world = std::make_shared<btSoftRigidDynamicsWorld>(dispatcher.get(), broadphase.get(),
-                                                                                   solver.get(), configuration.get());
-    std::shared_ptr<BulletDebugDrawer> debug_drawer;
+class BodyInterfaceImpl : public vierkant::PhysicsContext::BodyInterface
+{
+public:
+    BodyInterfaceImpl(JPH::BodyInterface &jolt_body_interface,
+                      const std::unordered_map<uint32_t, JPH::BodyID> &body_id_map)
+        : m_jolt_body_interface(jolt_body_interface), m_body_id_map(body_id_map)
+    {}
 
-    std::unordered_map<CollisionShapeId, btCollisionShapePtr> collision_shapes;
+    virtual ~BodyInterfaceImpl() = default;
 
-    //! maps object-id -> rigid-body
-    std::unordered_map<uint32_t, rigid_body_item_t> rigid_bodies;
-    std::unordered_map<const btCollisionObject *, object_item_t> object_items;
+    [[nodiscard]] bool get_transform(uint32_t objectId, vierkant::transform_t &t) const override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            JPH::RVec3 position;
+            JPH::Quat rotation{};
+            m_jolt_body_interface.GetPositionAndRotation(it->second, position, rotation);
+            t.translation = {position.GetX(), position.GetY(), position.GetZ()};
+            t.rotation = {rotation.GetW(), rotation.GetX(), rotation.GetY(), rotation.GetZ()};
+            return true;
+        }
+        return false;
+    }
 
-    std::unordered_map<ConstraintId, btTypedConstraintPtr> constraints;
+    void set_transform(uint32_t objectId, const vierkant::transform_t &t) const override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            auto position = JPH::RVec3(t.translation.x, t.translation.y, t.translation.z);
+            auto rotation = JPH::Quat(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w);
+            m_jolt_body_interface.SetPositionAndRotation(it->second, position, rotation, JPH::EActivation::Activate);
+        }
+    }
 
-    // current/last collision-pairs
-    std::unordered_set<std::pair<const btCollisionObject *, const btCollisionObject *>,
-                       vierkant::pair_hash<const btCollisionObject *, const btCollisionObject *>>
-            collision_pairs, last_collision_pairs;
+    void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            m_jolt_body_interface.AddForce(it->second, JPH::RVec3(force.x, force.y, force.z),
+                                           JPH::RVec3(offset.x, offset.y, offset.z));
+        }
+    }
+
+    void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            m_jolt_body_interface.AddImpulse(it->second, JPH::RVec3(impulse.x, impulse.y, impulse.z),
+                                             JPH::RVec3(offset.x, offset.y, offset.z));
+        }
+    }
+
+    [[nodiscard]] glm::vec3 velocity(uint32_t objectId) const override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            auto velocity = m_jolt_body_interface.GetLinearVelocity(it->second);
+            return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
+        }
+        return {};
+    }
+
+    void set_velocity(uint32_t objectId, const glm::vec3 &velocity) override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            m_jolt_body_interface.SetLinearVelocity(it->second, JPH::Vec3(velocity.x, velocity.y, velocity.z));
+        }
+    }
+
+private:
+    //! lookup of body-ids
+    JPH::BodyInterface &m_jolt_body_interface;
+    const std::unordered_map<uint32_t, JPH::BodyID> &m_body_id_map;
+};
+
+class JoltContext : public JPH::BodyActivationListener, public JPH::ContactListener
+{
+public:
+    JoltContext()
+    {
+        // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you want (see Memory.h).
+        // This needs to be done before any other Jolt function is called.
+        JPH::RegisterDefaultAllocator();
+
+        // register trace-function
+        JPH::Trace = &trace_impl;
+
+        JPH_IF_ENABLE_ASSERTS(JPH::AssertFailed = AssertFailedImpl;)
+
+        // Create a factory, this class is responsible for creating instances of classes based on their name or hash and is mainly used for deserialization of saved data.
+        // It is not directly used in this example but still required.
+        m_factory = std::make_unique<JPH::Factory>();
+        JPH::Factory::sInstance = m_factory.get();
+
+        // Register all physics types with the factory and install their collision handlers with the CollisionDispatch class.
+        // If you have your own custom shape types you probably need to register their handlers with the CollisionDispatch before calling this function.
+        // If you implement your own default material (PhysicsMaterial::sDefault) make sure to initialize it before this function or else this function will create one for you.
+        JPH::RegisterTypes();
+
+        m_temp_allocator = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
+        m_job_system = std::make_unique<JPH::JobSystemThreadPool>(
+                cMaxPhysicsJobs, cMaxPhysicsBarriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
+        physics_system.Init(m_maxBodies, m_numBodyMutexes, m_maxBodyPairs, m_maxContactConstraints,
+                            m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
+                            m_object_vs_object_layer_filter);
+
+        // A body activation listener gets notified when bodies activate and go to sleep
+        // Note that this is called from a job so whatever you do here needs to be thread safe.
+        // Registering one is entirely optional.
+        physics_system.SetBodyActivationListener(this);
+
+        // A contact listener gets notified when bodies (are about to) collide, and when they separate again.
+        // Note that this is called from a job so whatever you do here needs to be thread safe.
+        // Registering one is entirely optional.
+        physics_system.SetContactListener(this);
+
+        body_system = std::make_unique<BodyInterfaceImpl>(physics_system.GetBodyInterface(), body_id_map);
+    }
+
+    // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
+    // in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
+    inline void update(float delta, int num_steps = 1)
+    {
+        physics_system.Update(delta, num_steps, m_temp_allocator.get(), m_job_system.get());
+    }
+
+    void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
+    {
+        spdlog::debug("A body got activated");
+    }
+
+    void OnBodyDeactivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
+    {
+        spdlog::debug("A body went to sleep");
+    }
+
+    JPH::ValidateResult OnContactValidate(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
+                                          JPH::RVec3Arg /*inBaseOffset*/,
+                                          const JPH::CollideShapeResult & /*inCollisionResult*/) override
+    {
+        // Allows you to ignore a contact before it is created (using layers to not make objects collide is cheaper!)
+        return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+    }
+
+    void OnContactAdded(const JPH::Body &/*inBody1*/, const JPH::Body &/*inBody2*/, const JPH::ContactManifold & /*inManifold*/,
+                        JPH::ContactSettings & /*ioSettings*/) override
+    {
+//        std::shared_lock lock(mutex);
+//
+//        auto cb_it = callback_map.find(inBody1.GetUserData());
+//        if(cb_it != callback_map.end())
+//        {
+//            if(cb_it->second.contact_begin)
+//            {
+//                cb_it->second.contact_begin(inBody1.GetUserData(), inBody2.GetUserData());
+//            }
+//        }
+//
+//        cb_it = callback_map.find(inBody2.GetUserData());
+//        if(cb_it != callback_map.end())
+//        {
+//            if(cb_it->second.contact_begin)
+//            {
+//                cb_it->second.contact_begin(inBody2.GetUserData(), inBody1.GetUserData());
+//            }
+//        }
+    }
+
+    void OnContactPersisted(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
+                            const JPH::ContactManifold & /*inManifold*/, JPH::ContactSettings & /*ioSettings*/) override
+    {
+        //        spdlog::debug("A contact was persisted");
+    }
+
+    void OnContactRemoved(const JPH::SubShapeIDPair &/*inSubShapePair*/) override
+    {
+//        std::shared_lock lock(mutex);
+//        uint32_t obj1 = physics_system.GetBodyInterface().GetUserData(inSubShapePair.GetBody1ID());
+//        uint32_t obj2 = physics_system.GetBodyInterface().GetUserData(inSubShapePair.GetBody2ID());
+//
+//        auto cb_it = callback_map.find(obj1);
+//        if(cb_it != callback_map.end())
+//        {
+//            if(cb_it->second.contact_begin) { cb_it->second.contact_begin(obj1, obj2); }
+//        }
+//
+//        cb_it = callback_map.find(obj2);
+//        if(cb_it != callback_map.end())
+//        {
+//            if(cb_it->second.contact_begin) { cb_it->second.contact_begin(obj2, obj1); }
+//        }
+    }
+
+    ~JoltContext() override
+    {
+        // Unregisters all types with the factory and cleans up the default material
+        JPH::UnregisterTypes();
+        JPH::Factory::sInstance = nullptr;
+    }
+
+    //! collision-shape storage
+    std::unordered_map<vierkant::CollisionShapeId, JPH::Shape *> shapes;
+
+    //! lookup of body-ids
+    std::unordered_map<uint32_t, JPH::BodyID> body_id_map;
+
+    //! lookup of callback-structs
+    std::unordered_map<uint32_t, physics_component_t::callbacks_t> callback_map;
+
+    std::shared_mutex mutex;
+
+    //! the actual physics system.
+    JPH::PhysicsSystem physics_system;
+
+    std::unique_ptr<BodyInterfaceImpl> body_system;
+
+private:
+    /// Maximum amount of jobs to allow
+    constexpr static uint32_t cMaxPhysicsJobs = 2048;
+
+    /// Maximum amount of barriers to allow
+    constexpr static uint32_t cMaxPhysicsBarriers = 8;
+
+    // This is the max amount of rigid bodies that you can add to the physics system.
+    // If you try to add more you'll get an error.
+    uint32_t m_maxBodies = 65536;
+
+    // This determines how many mutexes to allocate to protect rigid bodies from concurrent access.
+    // Set it to 0 for the default settings.
+    uint32_t m_numBodyMutexes = 0;
+
+    // This is the max amount of body pairs that can be queued at any time (the broad phase will detect overlapping
+    // body pairs based on their bounding boxes and will insert them into a queue for the narrowphase).
+    // If you make this buffer too small the queue will fill up
+    // and the broad phase jobs will start to do narrow phase work. This is slightly less efficient.
+    uint32_t m_maxBodyPairs = 65536;
+
+    // This is the maximum size of the contact constraint buffer.
+    // If more contacts (collisions between bodies) are detected than this number then these contacts will be ignored
+    // and bodies will start interpenetrating / fall through the world.
+    uint32_t m_maxContactConstraints = 10240;
+
+    // Create mapping table from object layer to broadphase layer
+    // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
+    BPLayerInterfaceImpl m_broad_phase_layer_interface;
+
+    // Create class that filters object vs broadphase layers
+    // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
+    ObjectVsBroadPhaseLayerFilterImpl m_object_vs_broadphase_layer_filter;
+
+    // Create class that filters object vs object layers
+    // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
+    ObjectLayerPairFilterImpl m_object_vs_object_layer_filter;
+
+    // We need a temp allocator for temporary allocations during the physics update. We're
+    // pre-allocating 10 MB to avoid having to do allocations during the physics update.
+    // B.t.w. 10 MB is way too much for this example but it is a typical value you can use.
+    // If you don't want to pre-allocate you can also use TempAllocatorMalloc to fall back to
+    // malloc / free.
+    std::unique_ptr<JPH::TempAllocatorImpl> m_temp_allocator;
+
+    // We need a job system that will execute physics jobs on multiple threads. Typically
+    // you would implement the JobSystem interface yourself and let Jolt Physics run on top
+    // of your own job scheduler. JobSystemThreadPool is an example implementation.
+    std::unique_ptr<JPH::JobSystemThreadPool> m_job_system;
+
+    // Create a factory, this class is responsible for creating instances of classes
+    // based on their name or hash and is mainly used for deserialization of saved data.
+    // It is not directly used in this example but still required.
+    std::unique_ptr<JPH::Factory> m_factory;
 };
 
 struct PhysicsContext::engine
 {
-    BulletContext bullet;
+    JoltContext jolt;
 };
 
 PhysicsContext::PhysicsContext() : m_engine(std::make_unique<PhysicsContext::engine>()) {}
@@ -370,165 +498,126 @@ PhysicsContext &PhysicsContext::operator=(PhysicsContext other)
     return *this;
 }
 
-void PhysicsContext::step_simulation(float timestep, int max_sub_steps, float fixed_time_step)
+void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
 {
-    if(m_engine->bullet.world) { m_engine->bullet.world->stepSimulation(timestep, max_sub_steps, fixed_time_step); }
+    m_engine->jolt.update(timestep, max_sub_steps);
 }
 
-CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, const glm::vec3 &scale)
+CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t & /*mesh_bundle*/,
+                                                        const glm::vec3 & /*scale*/)
 {
-    auto mesh_shape = std::make_shared<TriangleMeshShape>(std::make_unique<MeshInterface>(mesh_bundle), true, true);
-    mesh_shape->setLocalScaling(type_cast(scale));
-    vierkant::CollisionShapeId new_id;
-    m_engine->bullet.collision_shapes[new_id] = std::move(mesh_shape);
-    return new_id;
+    return CollisionShapeId::nil();
 }
 
 CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle,
                                                                const glm::vec3 &scale)
 {
-    const auto &entry = mesh_bundle.entries.front();
-    auto verts = (btScalar *) (mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride);
-    auto hull_shape =
-            std::make_shared<btConvexHullShape>(verts, (int) entry.num_vertices, (int) mesh_bundle.vertex_stride);
-    hull_shape->setLocalScaling(type_cast(scale));
-    vierkant::CollisionShapeId new_id;
-    m_engine->bullet.collision_shapes[new_id] = std::move(hull_shape);
-    return new_id;
+    //    JPH::ConvexHullShape()
+
+    for(const auto &entry: mesh_bundle.entries)
+    {
+        JPH::Array<JPH::Vec3> points(entry.num_vertices);
+        auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset;
+        for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
+        {
+            auto pos = *reinterpret_cast<const glm::vec3 *>(data) * scale;
+            points[i] = JPH::Vec3(pos.x, pos.y, pos.z);
+        }
+        JPH::ConvexHullShapeSettings hull_shape_settings(points);
+        JPH::Shape::ShapeResult shape_result;
+
+        auto shape = new JPH::ConvexHullShape(hull_shape_settings, shape_result);
+
+        auto mp = shape->GetMassProperties();
+        (void) mp;
+        if(shape_result.IsValid())
+        {
+            vierkant::CollisionShapeId new_id;
+            m_engine->jolt.shapes[new_id] = shape;
+            return new_id;
+        }
+        delete shape;
+    }
+    return CollisionShapeId::nil();
 }
 
-RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
+void PhysicsContext::add_object(const Object3DPtr &obj)
 {
     if(obj->has_component<physics_component_t>())
     {
+        const auto &t = obj->transform;
         const vierkant::object_component auto &cmp = obj->get_component<physics_component_t>();
-        auto it = m_engine->bullet.rigid_bodies.find(obj->id());
-
-        // was already there
-        if(it != m_engine->bullet.rigid_bodies.end()) { return it->second.id; }
-
-        // shape-lookup
         auto shape_id = create_collision_shape(cmp.shape);
-        auto shape_it = m_engine->bullet.collision_shapes.find(shape_id);
 
-        if(shape_it != m_engine->bullet.collision_shapes.end())
+        if(shape_id)
         {
-            const auto col_shape = shape_it->second.get();
-            btVector3 local_inertia;
+            auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
 
-            // required per object!?
-            if(cmp.mass != 0.f) { col_shape->calculateLocalInertia(cmp.mass, local_inertia); }
-            col_shape->setLocalScaling(type_cast(obj->transform.scale));
+            bool has_mass = cmp.mass > 0.f;
+            auto layer = has_mass ? Layers::MOVING : Layers::NON_MOVING;
+            auto motion_type = has_mass ? JPH::EMotionType::Dynamic
+                                        : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
+            auto body_create_info = JPH::BodyCreationSettings(
+                    m_engine->jolt.shapes[shape_id], JPH::RVec3(t.translation.x, t.translation.y, t.translation.z),
+                    JPH::Quat(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w), motion_type, layer);
+            body_create_info.mIsSensor = cmp.sensor;
 
-            // create new rigid-body
-            auto &rigid_item = m_engine->bullet.rigid_bodies[obj->id()];
-            rigid_item.shape_id = shape_id;
-            rigid_item.id = {};
-            rigid_item.motion_state = std::make_unique<MotionState>(obj);
-            rigid_item.rigid_body =
-                    std::make_shared<btRigidBody>(cmp.mass, rigid_item.motion_state.get(), col_shape, local_inertia);
-            rigid_item.rigid_body->setFriction(cmp.friction);
-            rigid_item.rigid_body->setRollingFriction(cmp.rolling_friction);
-            rigid_item.rigid_body->setSpinningFriction(cmp.spinning_friction);
-            rigid_item.rigid_body->setRestitution(cmp.restitution);
+            body_create_info.mFriction = cmp.friction;
+            body_create_info.mRestitution = cmp.restitution;
+            body_create_info.mLinearDamping = cmp.linear_damping;
+            body_create_info.mAngularDamping = cmp.angular_damping;
+            body_create_info.mMotionQuality = JPH::EMotionQuality::LinearCast;
+            //            if(dynamic_cast<const JPH::ConvexHullShape *>(body_create_info.GetShape()))
+            //            {
+            //                auto half_extent = obj->aabb().half_extents();
+            //                body_create_info.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
+            //                body_create_info.mMassPropertiesOverride.SetMassAndInertiaOfSolidBox(
+            //                        2.0f * JPH::Vec3(half_extent.x, half_extent.y, half_extent.z), cmp.mass);
+            //            }
+            JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
 
-            int collision_filter = btBroadphaseProxy::DefaultFilter;
-            int collision_mask = btBroadphaseProxy::AllFilter;
+            body_interface.SetUserData(jolt_bodyId, obj->id());
+            m_engine->jolt.body_id_map[obj->id()] = jolt_bodyId;
 
-            if(cmp.kinematic)
+            if(cmp.callbacks.contact_begin || cmp.callbacks.contact_end || cmp.callbacks.collision)
             {
-                rigid_item.rigid_body->setCollisionFlags(rigid_item.rigid_body->getCollisionFlags() |
-                                                         btCollisionObject::CF_KINEMATIC_OBJECT);
-                rigid_item.rigid_body->setActivationState(DISABLE_DEACTIVATION);
+//                std::unique_lock lock(m_engine->jolt.mutex);
+                m_engine->jolt.callback_map[obj->id()] = cmp.callbacks;
             }
-
-            // add to world
-            if(cmp.sensor)
-            {
-                rigid_item.rigid_body->setCollisionFlags(rigid_item.rigid_body->getCollisionFlags() |
-                                                         btCollisionObject::CF_NO_CONTACT_RESPONSE);
-                m_engine->bullet.world->addCollisionObject(rigid_item.rigid_body.get(), collision_filter,
-                                                           collision_mask);
-            }
-            else
-            {
-                m_engine->bullet.world->addRigidBody(rigid_item.rigid_body.get(), collision_filter, collision_mask);
-            }
-
-            auto &object_item = m_engine->bullet.object_items[rigid_item.rigid_body.get()];
-            object_item.id = obj->id();
-            object_item.callbacks = cmp.callbacks;
-            return rigid_item.id;
         }
-        else { spdlog::warn("could not find collision-shape"); }
     }
-    return vierkant::RigidBodyId::nil();
 }
 
 void PhysicsContext::remove_object(const Object3DPtr &obj)
 {
-    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
-
-    // found
-    if(it != m_engine->bullet.rigid_bodies.end())
+    auto it = m_engine->jolt.body_id_map.find(obj->id());
+    if(it != m_engine->jolt.body_id_map.end())
     {
-        auto body = it->second.rigid_body.get();
-        m_engine->bullet.world->removeRigidBody(body);
-        m_engine->bullet.rigid_bodies.erase(it);
+        auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
+        body_interface.RemoveBody(it->second);
+        body_interface.DestroyBody(it->second);
+        m_engine->jolt.body_id_map.erase(it);
     }
 }
 
-bool PhysicsContext::contains(const Object3DPtr &obj) const
+bool PhysicsContext::contains(const vierkant::Object3DPtr &obj) const
 {
-    return m_engine->bullet.rigid_bodies.contains(obj->id());
+    return m_engine->jolt.body_id_map.contains(obj->id());
 }
 
-RigidBodyId PhysicsContext::body_id(const Object3DPtr &obj) const
+vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
+
+GeometryConstPtr PhysicsContext::debug_render() { return nullptr; }
+
+void PhysicsContext::set_gravity(const glm::vec3 &g)
 {
-    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
-    return it != m_engine->bullet.rigid_bodies.end() ? it->second.id : vierkant::RigidBodyId::nil();
+    m_engine->jolt.physics_system.SetGravity(JPH::Vec3(g.x, g.y, g.z));
 }
 
-const GeometryPtr &PhysicsContext::debug_render()
+glm::vec3 PhysicsContext::gravity() const
 {
-    m_engine->bullet.debug_drawer->clear();
-    m_engine->bullet.world->debugDrawWorld();
-    return m_engine->bullet.debug_drawer->geometry;
-}
-
-void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->bullet.world->setGravity(type_cast(g)); }
-
-glm::vec3 PhysicsContext::gravity() const { return type_cast(m_engine->bullet.world->getGravity()); }
-
-void PhysicsContext::apply_force(const vierkant::Object3DPtr &obj, const glm::vec3 &force, const glm::vec3 &offset)
-{
-    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
-    if(it != m_engine->bullet.rigid_bodies.end())
-    {
-        it->second.rigid_body->applyForce(type_cast(force), type_cast(offset));
-    }
-}
-
-void PhysicsContext::apply_impulse(const Object3DPtr &obj, const glm::vec3 &impulse, const glm::vec3 &offset)
-{
-    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
-    if(it != m_engine->bullet.rigid_bodies.end())
-    {
-        it->second.rigid_body->applyImpulse(type_cast(impulse), type_cast(offset));
-    }
-}
-
-glm::vec3 PhysicsContext::velocity(const Object3DPtr &obj)
-{
-    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
-    if(it != m_engine->bullet.rigid_bodies.end()) { return type_cast(it->second.rigid_body->getLinearVelocity()); }
-    return {};
-}
-
-void PhysicsContext::set_velocity(const Object3DPtr &obj, const glm::vec3 &velocity)
-{
-    auto it = m_engine->bullet.rigid_bodies.find(obj->id());
-    if(it != m_engine->bullet.rigid_bodies.end()) { it->second.rigid_body->setLinearVelocity(type_cast(velocity)); }
+    auto g = m_engine->jolt.physics_system.GetGravity();
+    return {g.GetX(), g.GetY(), g.GetZ()};
 }
 
 CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collision::shape_t &shape)
@@ -537,39 +626,29 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
             [this](auto &&s) -> CollisionShapeId {
                 using T = std::decay_t<decltype(s)>;
 
-                if constexpr(std::is_same_v<T, collision::plane_t>)
-                {
-                    auto plane_shape = std::make_shared<btStaticPlaneShape>(type_cast(s.normal), s.d);
-                    vierkant::CollisionShapeId new_id;
-                    m_engine->bullet.collision_shapes[new_id] = std::move(plane_shape);
-                    return new_id;
-                }
                 if constexpr(std::is_same_v<T, collision::box_t>)
                 {
-                    auto box_shape = std::make_shared<btBoxShape>(type_cast(s.half_extents));
                     vierkant::CollisionShapeId new_id;
-                    m_engine->bullet.collision_shapes[new_id] = std::move(box_shape);
+                    m_engine->jolt.shapes[new_id] =
+                            new JPH::BoxShape(JPH::Vec3(s.half_extents.x, s.half_extents.y, s.half_extents.z));
                     return new_id;
                 }
                 if constexpr(std::is_same_v<T, collision::sphere_t>)
                 {
-                    auto sphere_shape = std::make_shared<btSphereShape>(s.radius);
                     vierkant::CollisionShapeId new_id;
-                    m_engine->bullet.collision_shapes[new_id] = std::move(sphere_shape);
+                    m_engine->jolt.shapes[new_id] = new JPH::SphereShape(s.radius);
                     return new_id;
                 }
                 if constexpr(std::is_same_v<T, collision::cylinder_t>)
                 {
-                    auto cylinder_shape = std::make_shared<btCylinderShape>(type_cast(s.half_extents));
                     vierkant::CollisionShapeId new_id;
-                    m_engine->bullet.collision_shapes[new_id] = std::move(cylinder_shape);
+                    m_engine->jolt.shapes[new_id] = new JPH::CylinderShape(s.height / 2.f, s.radius);
                     return new_id;
                 }
                 if constexpr(std::is_same_v<T, collision::capsule_t>)
                 {
-                    auto capsule_shape = std::make_shared<btCapsuleShape>(s.radius, s.height);
                     vierkant::CollisionShapeId new_id;
-                    m_engine->bullet.collision_shapes[new_id] = std::move(capsule_shape);
+                    m_engine->jolt.shapes[new_id] = new JPH::CapsuleShape(s.height / 2.f, s.radius);
                     return new_id;
                 }
                 if constexpr(std::is_same_v<T, CollisionShapeId>) { return s; }
@@ -613,8 +692,12 @@ void PhysicsScene::update(double time_delta)
             m_context.add_object(obj);
             cmp.need_update = false;
         }
+
+        // update transform bruteforce
+        auto obj = object_by_id(static_cast<uint32_t>(entity));
+        m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform);
     }
-    m_context.step_simulation(static_cast<float>(time_delta), 4, 1.f / 240.f);
+    m_context.step_simulation(static_cast<float>(time_delta), 4);
 }
 
 std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
@@ -627,9 +710,9 @@ size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_co
     //    vierkant::hash_combine(h, c.shape_id);
     vierkant::hash_combine(h, c.mass);
     vierkant::hash_combine(h, c.friction);
-    vierkant::hash_combine(h, c.rolling_friction);
-    vierkant::hash_combine(h, c.spinning_friction);
     vierkant::hash_combine(h, c.restitution);
+    vierkant::hash_combine(h, c.linear_damping);
+    vierkant::hash_combine(h, c.angular_damping);
     vierkant::hash_combine(h, c.kinematic);
     vierkant::hash_combine(h, c.sensor);
     vierkant::hash_combine(h, c.need_update);

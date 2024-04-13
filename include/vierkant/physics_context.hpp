@@ -12,18 +12,9 @@ namespace vierkant
 {
 
 DEFINE_NAMED_UUID(CollisionShapeId)
-DEFINE_NAMED_ID(RigidBodyId)
-DEFINE_NAMED_ID(SoftBodyId)
-DEFINE_NAMED_ID(ConstraintId)
 
 namespace collision
 {
-
-struct plane_t
-{
-    glm::vec3 normal = glm::vec3(0, 1, 0);
-    float d = 0;
-};
 
 struct box_t
 {
@@ -37,7 +28,8 @@ struct sphere_t
 
 struct cylinder_t
 {
-    glm::vec3 half_extents = glm::vec3(.5f);
+    float radius = 1.f;
+    float height = 1.f;
 };
 
 struct capsule_t
@@ -52,29 +44,29 @@ struct mesh_t
     bool convex_hull = true;
 };
 
-using shape_t = std::variant<collision::plane_t, collision::sphere_t, collision::box_t, collision::cylinder_t,
-                             collision::capsule_t, vierkant::CollisionShapeId>;
+using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t, collision::capsule_t,
+                             vierkant::CollisionShapeId>;
 }// namespace collision
 
-using collision_cb_t = std::function<void(uint32_t)>;
+using contact_cb_t = std::function<void(uint32_t, uint32_t)>;
 struct physics_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
 
     collision::shape_t shape = CollisionShapeId::nil();
     float mass = 0.f;
-    float friction = 0.5f;
-    float rolling_friction = 0.0f;
-    float spinning_friction = 0.0f;
+    float friction = 0.2f;
     float restitution = 0.f;
+    float linear_damping = 0.05f;
+    float angular_damping = 0.05f;
     bool kinematic = false;
     bool sensor = false;
 
     struct callbacks_t
     {
-        collision_cb_t collision;
-        collision_cb_t contact_begin;
-        collision_cb_t contact_end;
+        contact_cb_t collision;
+        contact_cb_t contact_begin;
+        contact_cb_t contact_end;
     } callbacks;
 
     bool need_update = false;
@@ -89,6 +81,17 @@ inline bool operator!=(const vierkant::physics_component_t &lhs, const vierkant:
 class PhysicsContext
 {
 public:
+    class BodyInterface
+    {
+    public:
+        virtual bool get_transform(uint32_t objectId, vierkant::transform_t &t) const = 0;
+        virtual void set_transform(uint32_t objectId, const vierkant::transform_t &t) const = 0;
+        virtual void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
+        virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
+        [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
+        virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
+    };
+
     PhysicsContext();
 
     PhysicsContext(PhysicsContext &&other) noexcept;
@@ -97,22 +100,18 @@ public:
 
     PhysicsContext &operator=(PhysicsContext other);
 
-    void step_simulation(float timestep, int max_sub_steps = 1, float fixed_time_step = 1.f / 60.f);
+    void step_simulation(float timestep, int max_sub_steps = 1);
 
-    const GeometryPtr &debug_render();
+    GeometryConstPtr debug_render();
 
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
 
-    RigidBodyId add_object(const vierkant::Object3DPtr &obj);
+    void add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
-    [[nodiscard]] bool contains(const vierkant::Object3DPtr &obj) const;
-    [[nodiscard]] RigidBodyId body_id(const vierkant::Object3DPtr &obj) const;
+    bool contains(const vierkant::Object3DPtr &obj) const;
 
-    void apply_force(const vierkant::Object3DPtr &obj, const glm::vec3 &force, const glm::vec3 &offset = {});
-    void apply_impulse(const vierkant::Object3DPtr &obj, const glm::vec3 &impulse, const glm::vec3 &offset = {});
-    glm::vec3 velocity(const vierkant::Object3DPtr &obj);
-    void set_velocity(const vierkant::Object3DPtr &obj, const glm::vec3 &velocity);
+    BodyInterface &body_interface();
 
     CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                             const glm::vec3 &scale = glm::vec3(1));

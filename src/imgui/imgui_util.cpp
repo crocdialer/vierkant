@@ -990,9 +990,9 @@ void draw_object_ui(const Object3DPtr &object)
 //            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
             change |= ImGui::InputFloat("mass", &phys_cmp.mass);
             change |=ImGui::InputFloat("friction", &phys_cmp.friction);
-            change |=ImGui::InputFloat("rolling_friction", &phys_cmp.rolling_friction);
-            change |=ImGui::InputFloat("spinning_friction", &phys_cmp.spinning_friction);
             change |=ImGui::InputFloat("restitution", &phys_cmp.restitution);
+            change |=ImGui::InputFloat("linear_damping", &phys_cmp.linear_damping);
+            change |=ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
             change |=ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |=ImGui::Checkbox("sensor", &phys_cmp.sensor);
             phys_cmp.need_update |= change;
