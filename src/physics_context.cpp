@@ -59,7 +59,7 @@ bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physic
 
 // Callback for asserts, connect this to your own assert handler if you have one
 [[maybe_unused]] static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
-                                              uint inLine)
+                                              uint32_t inLine)
 {
     spdlog::error("{} : {} : ({}) {}", inFile, inLine, inExpression, inMessage ? inMessage : "");
     return true;
