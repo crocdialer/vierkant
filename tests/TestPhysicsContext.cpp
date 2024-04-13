@@ -80,15 +80,15 @@ TEST(PhysicsContext, simulation)
     vierkant::physics_component_t phys_cmp = {};
     phys_cmp.mass = 1.f;
     phys_cmp.shape = collision_shape;
-    phys_cmp.callbacks.contact_begin = [&contact_map](uint32_t obj_id)
+    phys_cmp.callbacks.contact_begin = [&contact_map](uint32_t obj1, uint32_t obj2)
     {
-        spdlog::debug("contact_begin: {}", obj_id);
-        contact_map[obj_id]++;
+        spdlog::debug("contact_begin: {}", obj1);
+        contact_map[obj1]++;
     };
-    phys_cmp.callbacks.contact_end = [&contact_map](uint32_t obj_id)
+    phys_cmp.callbacks.contact_end = [&contact_map](uint32_t obj1, uint32_t obj2)
     {
-        spdlog::debug("contact_end: {}", obj_id);
-        contact_map[obj_id]--;
+        spdlog::debug("contact_end: {}", obj1);
+        contact_map[obj1]--;
     };
     a->add_component(phys_cmp);
     b->add_component(phys_cmp);
@@ -124,7 +124,7 @@ TEST(PhysicsContext, simulation)
     auto tc = c->transform;
 
     // run simulation a bit
-    for(uint32_t l = 0; l < 10; ++l) { scene->update(1.f / 60.f); }
+    for(uint32_t l = 0; l < 20; ++l) { scene->update(1.f / 60.f); }
 
     EXPECT_NE(body_interface.velocity(a->id()), glm::vec3(0));
 
@@ -142,19 +142,23 @@ TEST(PhysicsContext, simulation)
     tb = b->transform;
 
     // again, run simulation a bit
-    for(uint32_t l = 0; l < 10; ++l) { scene->update(1.f / 60.f); }
+    for(uint32_t l = 0; l < 20; ++l)
+    {
+        scene->update(1.f / 60.f);
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 
     // b was removed, transform should still be the same
     EXPECT_NE(ta, a->transform);
     EXPECT_EQ(tb, b->transform);
 
-//    // check if a and ground have contacts
+    // check if a and ground have contacts
 //    EXPECT_TRUE(contact_map[a->id()]);
 //    EXPECT_TRUE(contact_map[ground->id()]);
-//
+
 //    // c was floating, -> no contacts ever
 //    EXPECT_FALSE(contact_map.contains(c->id()));
-//
+
 //    // b got removed, sensor was passed -> no contacts now, but there were some
 //    EXPECT_TRUE(contact_map.contains(b->id()) && !contact_map[b->id()]);
 //    EXPECT_TRUE(contact_map.contains(sensor->id()) && !contact_map[sensor->id()]);

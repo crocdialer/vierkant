@@ -48,7 +48,7 @@ using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::c
                              vierkant::CollisionShapeId>;
 }// namespace collision
 
-using collision_cb_t = std::function<void(uint32_t)>;
+using contact_cb_t = std::function<void(uint32_t, uint32_t)>;
 struct physics_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
@@ -64,9 +64,9 @@ struct physics_component_t
 
     struct callbacks_t
     {
-        collision_cb_t collision;
-        collision_cb_t contact_begin;
-        collision_cb_t contact_end;
+        contact_cb_t collision;
+        contact_cb_t contact_begin;
+        contact_cb_t contact_end;
     } callbacks;
 
     bool need_update = false;

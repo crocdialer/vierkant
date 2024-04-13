@@ -351,27 +351,57 @@ public:
                                           JPH::RVec3Arg /*inBaseOffset*/,
                                           const JPH::CollideShapeResult & /*inCollisionResult*/) override
     {
-        spdlog::debug("Contact validate callback");
-
         // Allows you to ignore a contact before it is created (using layers to not make objects collide is cheaper!)
         return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
     }
 
-    void OnContactAdded(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
-                        const JPH::ContactManifold & /*inManifold*/, JPH::ContactSettings & /*ioSettings*/) override
+    void OnContactAdded(const JPH::Body &/*inBody1*/, const JPH::Body &/*inBody2*/, const JPH::ContactManifold & /*inManifold*/,
+                        JPH::ContactSettings & /*ioSettings*/) override
     {
-        spdlog::debug("A contact was added");
+//        std::shared_lock lock(mutex);
+//
+//        auto cb_it = callback_map.find(inBody1.GetUserData());
+//        if(cb_it != callback_map.end())
+//        {
+//            if(cb_it->second.contact_begin)
+//            {
+//                cb_it->second.contact_begin(inBody1.GetUserData(), inBody2.GetUserData());
+//            }
+//        }
+//
+//        cb_it = callback_map.find(inBody2.GetUserData());
+//        if(cb_it != callback_map.end())
+//        {
+//            if(cb_it->second.contact_begin)
+//            {
+//                cb_it->second.contact_begin(inBody2.GetUserData(), inBody1.GetUserData());
+//            }
+//        }
     }
 
     void OnContactPersisted(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
                             const JPH::ContactManifold & /*inManifold*/, JPH::ContactSettings & /*ioSettings*/) override
     {
-        spdlog::debug("A contact was persisted");
+        //        spdlog::debug("A contact was persisted");
     }
 
-    void OnContactRemoved(const JPH::SubShapeIDPair & /*inSubShapePair*/) override
+    void OnContactRemoved(const JPH::SubShapeIDPair &/*inSubShapePair*/) override
     {
-        spdlog::debug("A contact was removed");
+//        std::shared_lock lock(mutex);
+//        uint32_t obj1 = physics_system.GetBodyInterface().GetUserData(inSubShapePair.GetBody1ID());
+//        uint32_t obj2 = physics_system.GetBodyInterface().GetUserData(inSubShapePair.GetBody2ID());
+//
+//        auto cb_it = callback_map.find(obj1);
+//        if(cb_it != callback_map.end())
+//        {
+//            if(cb_it->second.contact_begin) { cb_it->second.contact_begin(obj1, obj2); }
+//        }
+//
+//        cb_it = callback_map.find(obj2);
+//        if(cb_it != callback_map.end())
+//        {
+//            if(cb_it->second.contact_begin) { cb_it->second.contact_begin(obj2, obj1); }
+//        }
     }
 
     ~JoltContext() override
@@ -386,6 +416,11 @@ public:
 
     //! lookup of body-ids
     std::unordered_map<uint32_t, JPH::BodyID> body_id_map;
+
+    //! lookup of callback-structs
+    std::unordered_map<uint32_t, physics_component_t::callbacks_t> callback_map;
+
+    std::shared_mutex mutex;
 
     //! the actual physics system.
     JPH::PhysicsSystem physics_system;
@@ -543,6 +578,12 @@ void PhysicsContext::add_object(const Object3DPtr &obj)
 
             body_interface.SetUserData(jolt_bodyId, obj->id());
             m_engine->jolt.body_id_map[obj->id()] = jolt_bodyId;
+
+            if(cmp.callbacks.contact_begin || cmp.callbacks.contact_end || cmp.callbacks.collision)
+            {
+//                std::unique_lock lock(m_engine->jolt.mutex);
+                m_engine->jolt.callback_map[obj->id()] = cmp.callbacks;
+            }
         }
     }
 }
