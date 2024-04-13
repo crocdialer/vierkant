@@ -66,10 +66,10 @@ TEST(PhysicsContext, simulation)
 {
 //    spdlog::set_level(spdlog::level::debug);
 
-    auto box = Geometry::Box();
-    auto collision_shape = vierkant::collision::sphere_t();//create_collision_shape(context, box, true);
-
     auto scene = vierkant::PhysicsScene::create();
+    auto box = Geometry::Box();
+    auto collision_shape = vierkant::collision::sphere_t();//create_collision_shape(scene->context(), box, true);
+
     Object3DPtr a(Object3D::create(scene->registry())), b(Object3D::create(scene->registry())),
             c(Object3D::create(scene->registry())), ground(Object3D::create(scene->registry()));
 
@@ -153,13 +153,13 @@ TEST(PhysicsContext, simulation)
     EXPECT_EQ(tb, b->transform);
 
     // check if a and ground have contacts
-//    EXPECT_TRUE(contact_map[a->id()]);
+    EXPECT_TRUE(contact_map[a->id()]);
 //    EXPECT_TRUE(contact_map[ground->id()]);
 
-//    // c was floating, -> no contacts ever
-//    EXPECT_FALSE(contact_map.contains(c->id()));
+    // c was floating, -> no contacts ever
+    EXPECT_FALSE(contact_map.contains(c->id()));
 
-//    // b got removed, sensor was passed -> no contacts now, but there were some
+    // b got removed, sensor was passed -> no contacts now, but there were some
 //    EXPECT_TRUE(contact_map.contains(b->id()) && !contact_map[b->id()]);
 //    EXPECT_TRUE(contact_map.contains(sensor->id()) && !contact_map[sensor->id()]);
 

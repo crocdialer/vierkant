@@ -327,7 +327,7 @@ public:
         // Registering one is entirely optional.
         physics_system.SetContactListener(this);
 
-        body_system = std::make_unique<BodyInterfaceImpl>(physics_system.GetBodyInterface(), body_id_map);
+        body_system = std::make_unique<BodyInterfaceImpl>(physics_system.GetBodyInterfaceNoLock(), body_id_map);
     }
 
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
@@ -339,12 +339,12 @@ public:
 
     void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
     {
-        spdlog::debug("A body got activated");
+
     }
 
     void OnBodyDeactivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
     {
-        spdlog::debug("A body went to sleep");
+
     }
 
     JPH::ValidateResult OnContactValidate(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
@@ -355,28 +355,28 @@ public:
         return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
     }
 
-    void OnContactAdded(const JPH::Body &/*inBody1*/, const JPH::Body &/*inBody2*/, const JPH::ContactManifold & /*inManifold*/,
+    void OnContactAdded(const JPH::Body &inBody1, const JPH::Body &inBody2, const JPH::ContactManifold & /*inManifold*/,
                         JPH::ContactSettings & /*ioSettings*/) override
     {
-//        std::shared_lock lock(mutex);
-//
-//        auto cb_it = callback_map.find(inBody1.GetUserData());
-//        if(cb_it != callback_map.end())
-//        {
-//            if(cb_it->second.contact_begin)
-//            {
-//                cb_it->second.contact_begin(inBody1.GetUserData(), inBody2.GetUserData());
-//            }
-//        }
-//
-//        cb_it = callback_map.find(inBody2.GetUserData());
-//        if(cb_it != callback_map.end())
-//        {
-//            if(cb_it->second.contact_begin)
-//            {
-//                cb_it->second.contact_begin(inBody2.GetUserData(), inBody1.GetUserData());
-//            }
-//        }
+        std::shared_lock lock(mutex);
+
+        auto cb_it = callback_map.find(inBody1.GetUserData());
+        if(cb_it != callback_map.end())
+        {
+            if(cb_it->second.contact_begin)
+            {
+                cb_it->second.contact_begin(inBody1.GetUserData(), inBody2.GetUserData());
+            }
+        }
+
+        cb_it = callback_map.find(inBody2.GetUserData());
+        if(cb_it != callback_map.end())
+        {
+            if(cb_it->second.contact_begin)
+            {
+                cb_it->second.contact_begin(inBody2.GetUserData(), inBody1.GetUserData());
+            }
+        }
     }
 
     void OnContactPersisted(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
@@ -385,23 +385,24 @@ public:
         //        spdlog::debug("A contact was persisted");
     }
 
-    void OnContactRemoved(const JPH::SubShapeIDPair &/*inSubShapePair*/) override
+    void OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override
     {
-//        std::shared_lock lock(mutex);
-//        uint32_t obj1 = physics_system.GetBodyInterface().GetUserData(inSubShapePair.GetBody1ID());
-//        uint32_t obj2 = physics_system.GetBodyInterface().GetUserData(inSubShapePair.GetBody2ID());
-//
-//        auto cb_it = callback_map.find(obj1);
-//        if(cb_it != callback_map.end())
-//        {
-//            if(cb_it->second.contact_begin) { cb_it->second.contact_begin(obj1, obj2); }
-//        }
-//
-//        cb_it = callback_map.find(obj2);
-//        if(cb_it != callback_map.end())
-//        {
-//            if(cb_it->second.contact_begin) { cb_it->second.contact_begin(obj2, obj1); }
-//        }
+        std::shared_lock lock(mutex);
+        const auto &bodyI = physics_system.GetBodyInterfaceNoLock();
+        uint32_t obj1 = bodyI.GetUserData(inSubShapePair.GetBody1ID());
+        uint32_t obj2 = bodyI.GetUserData(inSubShapePair.GetBody2ID());
+
+        auto cb_it = callback_map.find(obj1);
+        if(cb_it != callback_map.end())
+        {
+            if(cb_it->second.contact_end) { cb_it->second.contact_end(obj1, obj2); }
+        }
+
+        cb_it = callback_map.find(obj2);
+        if(cb_it != callback_map.end())
+        {
+            if(cb_it->second.contact_end) { cb_it->second.contact_end(obj2, obj1); }
+        }
     }
 
     ~JoltContext() override
@@ -581,7 +582,7 @@ void PhysicsContext::add_object(const Object3DPtr &obj)
 
             if(cmp.callbacks.contact_begin || cmp.callbacks.contact_end || cmp.callbacks.collision)
             {
-//                std::unique_lock lock(m_engine->jolt.mutex);
+                std::unique_lock lock(m_engine->jolt.mutex);
                 m_engine->jolt.callback_map[obj->id()] = cmp.callbacks;
             }
         }
