@@ -97,6 +97,7 @@ add_subdirectory(submodules/entt EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} EnTT::EnTT)
 
 # JoltPhysics
+set(GENERATE_DEBUG_SYMBOLS OFF)
 add_subdirectory("submodules/JoltPhysics/Build")
 include_directories(SYSTEM submodules/JoltPhysics/Jolt)
 set(LIBS ${LIBS} Jolt)
