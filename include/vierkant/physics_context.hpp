@@ -12,9 +12,6 @@ namespace vierkant
 {
 
 DEFINE_NAMED_UUID(CollisionShapeId)
-//DEFINE_NAMED_ID(RigidBodyId)
-//DEFINE_NAMED_ID(SoftBodyId)
-//DEFINE_NAMED_ID(ConstraintId)
 
 namespace collision
 {
@@ -31,7 +28,8 @@ struct sphere_t
 
 struct cylinder_t
 {
-    glm::vec3 half_extents = glm::vec3(.5f);
+    float radius = 1.f;
+    float height = 1.f;
 };
 
 struct capsule_t
@@ -80,20 +78,20 @@ inline bool operator!=(const vierkant::physics_component_t &lhs, const vierkant:
     return !(lhs == rhs);
 }
 
-class BodyInterface
-{
-public:
-    [[nodiscard]] virtual vierkant::transform_t transform(uint32_t objectId) const = 0;
-    virtual void set_transform(uint32_t objectId, const vierkant::transform_t &t) const = 0;
-    virtual void apply_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
-    virtual void apply_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
-    [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
-    virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
-};
-
 class PhysicsContext
 {
 public:
+    class BodyInterface
+    {
+    public:
+        [[nodiscard]] virtual vierkant::transform_t transform(uint32_t objectId) const = 0;
+        virtual void set_transform(uint32_t objectId, const vierkant::transform_t &t) const = 0;
+        virtual void apply_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
+        virtual void apply_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
+        [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
+        virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
+    };
+
     PhysicsContext();
 
     PhysicsContext(PhysicsContext &&other) noexcept;
@@ -109,10 +107,9 @@ public:
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
 
-//    RigidBodyId add_object(const vierkant::Object3DPtr &obj);
     void add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
-//    [[nodiscard]] RigidBodyId body_id(const vierkant::Object3DPtr &obj) const;
+    bool contains(const vierkant::Object3DPtr &obj) const;
 
     BodyInterface& body_interface();
 

@@ -15,7 +15,10 @@
 #include <Jolt/Physics/Body/BodyActivationListener.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/TriangleShape.h>
 #include <Jolt/Physics/PhysicsSettings.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/RegisterTypes.h>
@@ -204,10 +207,10 @@ public:
     }
 };
 
-class BodyInterfaceImpl : public vierkant::BodyInterface
+class BodyInterfaceImpl : public vierkant::PhysicsContext::BodyInterface
 {
 public:
-    BodyInterfaceImpl(const JPH::BodyInterface &jolt_body_interface,
+    BodyInterfaceImpl(JPH::BodyInterface &jolt_body_interface,
                       const std::unordered_map<uint32_t, JPH::BodyID> &body_id_map)
         : m_jolt_body_interface(jolt_body_interface), m_body_id_map(body_id_map)
     {}
@@ -230,18 +233,43 @@ public:
         return {};
     }
 
-    void set_transform(uint32_t /*objectId*/, const vierkant::transform_t & /*t*/) const override {}
+    void set_transform(uint32_t objectId, const vierkant::transform_t &t) const override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            auto position = JPH::RVec3(t.translation.x, t.translation.y, t.translation.z);
+            auto rotation = JPH::Quat(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w);
+            m_jolt_body_interface.SetPositionAndRotation(it->second, position, rotation, JPH::EActivation::Activate);
+        }
+    }
 
     void apply_force(uint32_t /*objectId*/, const glm::vec3 & /*force*/, const glm::vec3 & /*offset*/) override {}
     void apply_impulse(uint32_t /*objectId*/, const glm::vec3 & /*impulse*/, const glm::vec3 & /*offset*/) override {}
 
-    [[nodiscard]] virtual glm::vec3 velocity(uint32_t /*objectId*/) const override { return {}; }
+    [[nodiscard]] glm::vec3 velocity(uint32_t objectId) const override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            auto velocity = m_jolt_body_interface.GetLinearVelocity(it->second);
+            return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
+        }
+        return {};
+    }
 
-    void set_velocity(uint32_t /*objectId*/, const glm::vec3 & /*velocity*/) override {}
+    void set_velocity(uint32_t objectId, const glm::vec3 &velocity) override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            m_jolt_body_interface.SetLinearVelocity(it->second, JPH::Vec3(velocity.x, velocity.y, velocity.z));
+        }
+    }
 
 private:
     //! lookup of body-ids
-    const JPH::BodyInterface &m_jolt_body_interface;
+    JPH::BodyInterface &m_jolt_body_interface;
     const std::unordered_map<uint32_t, JPH::BodyID> &m_body_id_map;
 };
 
@@ -276,7 +304,14 @@ public:
                             m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
                             m_object_vs_object_layer_filter);
 
+        // A body activation listener gets notified when bodies activate and go to sleep
+        // Note that this is called from a job so whatever you do here needs to be thread safe.
+        // Registering one is entirely optional.
         physics_system.SetBodyActivationListener(this);
+
+        // A contact listener gets notified when bodies (are about to) collide, and when they separate again.
+        // Note that this is called from a job so whatever you do here needs to be thread safe.
+        // Registering one is entirely optional.
         physics_system.SetContactListener(this);
 
         body_system = std::make_unique<BodyInterfaceImpl>(physics_system.GetBodyInterface(), body_id_map);
@@ -382,16 +417,6 @@ private:
     // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
     ObjectLayerPairFilterImpl m_object_vs_object_layer_filter;
 
-    //    // A body activation listener gets notified when bodies activate and go to sleep
-    //    // Note that this is called from a job so whatever you do here needs to be thread safe.
-    //    // Registering one is entirely optional.
-    //    JoltBodyActivationListener m_body_activation_listener;
-    //
-    //    // A contact listener gets notified when bodies (are about to) collide, and when they separate again.
-    //    // Note that this is called from a job so whatever you do here needs to be thread safe.
-    //    // Registering one is entirely optional.
-    //    JoltContactListener m_contact_listener;
-
     // We need a temp allocator for temporary allocations during the physics update. We're
     // pre-allocating 10 MB to avoid having to do allocations during the physics update.
     // B.t.w. 10 MB is way too much for this example but it is a typical value you can use.
@@ -480,14 +505,12 @@ void PhysicsContext::remove_object(const Object3DPtr &obj)
     }
 }
 
-vierkant::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
+bool PhysicsContext::contains(const vierkant::Object3DPtr &obj) const
+{
+    return m_engine->jolt.body_id_map.contains(obj->id());
+}
 
-//RigidBodyId PhysicsContext::body_id(const Object3DPtr &obj) const
-//{
-//    auto it = m_engine->jolt.body_id_map.find(obj->id());
-//    if(it != m_engine->jolt.body_id_map.end()) { return it->second.id; }
-//    return RigidBodyId::nil();
-//}
+vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
 
 GeometryConstPtr PhysicsContext::debug_render() { return nullptr; }
 
@@ -521,12 +544,18 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                     m_engine->jolt.shapes[new_id] = new JPH::SphereShape(s.radius);
                     return new_id;
                 }
-                //                if constexpr(std::is_same_v<T, collision::cylinder_t>)
-                //                {
-                //                }
-                //                if constexpr(std::is_same_v<T, collision::capsule_t>)
-                //                {
-                //                }
+                if constexpr(std::is_same_v<T, collision::cylinder_t>)
+                {
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->jolt.shapes[new_id] = new JPH::CylinderShape(s.height / 2.f, s.radius);
+                    return new_id;
+                }
+                if constexpr(std::is_same_v<T, collision::capsule_t>)
+                {
+                    vierkant::CollisionShapeId new_id;
+                    m_engine->jolt.shapes[new_id] = new JPH::CapsuleShape(s.height / 2.f, s.radius);
+                    return new_id;
+                }
                 if constexpr(std::is_same_v<T, CollisionShapeId>) { return s; }
                 return CollisionShapeId::nil();
             },
