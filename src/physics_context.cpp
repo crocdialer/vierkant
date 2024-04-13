@@ -204,55 +204,48 @@ public:
     }
 };
 
-// An example contact listener
-class JoltContactListener : public JPH::ContactListener
+class BodyInterfaceImpl : public vierkant::BodyInterface
 {
 public:
-    // See: ContactListener
-    JPH::ValidateResult OnContactValidate(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
-                                          JPH::RVec3Arg /*inBaseOffset*/,
-                                          const JPH::CollideShapeResult & /*inCollisionResult*/) override
-    {
-        //        cout << "Contact validate callback" << endl;
+    BodyInterfaceImpl(const JPH::BodyInterface &jolt_body_interface,
+                      const std::unordered_map<uint32_t, JPH::BodyID> &body_id_map)
+        : m_jolt_body_interface(jolt_body_interface), m_body_id_map(body_id_map)
+    {}
 
-        // Allows you to ignore a contact before it is created (using layers to not make objects collide is cheaper!)
-        return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+    virtual ~BodyInterfaceImpl() = default;
+
+    [[nodiscard]] vierkant::transform_t transform(uint32_t objectId) const override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end())
+        {
+            JPH::RVec3 position;
+            JPH::Quat rotation{};
+            m_jolt_body_interface.GetPositionAndRotation(it->second, position, rotation);
+            vierkant::transform_t ret = {};
+            ret.translation = {position.GetX(), position.GetY(), position.GetZ()};
+            ret.rotation = {rotation.GetX(), rotation.GetY(), rotation.GetZ(), rotation.GetW()};
+            return ret;
+        }
+        return {};
     }
 
-    void OnContactAdded(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
-                        const JPH::ContactManifold & /*inManifold*/, JPH::ContactSettings & /*ioSettings*/) override
-    {
-        //        cout << "A contact was added" << endl;
-    }
+    void set_transform(uint32_t /*objectId*/, const vierkant::transform_t & /*t*/) const override {}
 
-    void OnContactPersisted(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
-                            const JPH::ContactManifold & /*inManifold*/, JPH::ContactSettings & /*ioSettings*/) override
-    {
-        //        cout << "A contact was persisted" << endl;
-    }
+    void apply_force(uint32_t /*objectId*/, const glm::vec3 & /*force*/, const glm::vec3 & /*offset*/) override {}
+    void apply_impulse(uint32_t /*objectId*/, const glm::vec3 & /*impulse*/, const glm::vec3 & /*offset*/) override {}
 
-    void OnContactRemoved(const JPH::SubShapeIDPair & /*inSubShapePair*/) override
-    {
-        //        cout << "A contact was removed" << endl;
-    }
+    [[nodiscard]] virtual glm::vec3 velocity(uint32_t /*objectId*/) const override { return {}; }
+
+    void set_velocity(uint32_t /*objectId*/, const glm::vec3 & /*velocity*/) override {}
+
+private:
+    //! lookup of body-ids
+    const JPH::BodyInterface &m_jolt_body_interface;
+    const std::unordered_map<uint32_t, JPH::BodyID> &m_body_id_map;
 };
 
-// An example activation listener
-class JoltBodyActivationListener : public JPH::BodyActivationListener
-{
-public:
-    void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
-    {
-        //        cout << "A body got activated" << endl;
-    }
-
-    void OnBodyDeactivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
-    {
-        //        cout << "A body went to sleep" << endl;
-    }
-};
-
-class JoltContext
+class JoltContext : public JPH::BodyActivationListener, public JPH::ContactListener
 {
 public:
     JoltContext()
@@ -283,8 +276,10 @@ public:
                             m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
                             m_object_vs_object_layer_filter);
 
-        physics_system.SetBodyActivationListener(&m_body_activation_listener);
-        physics_system.SetContactListener(&m_contact_listener);
+        physics_system.SetBodyActivationListener(this);
+        physics_system.SetContactListener(this);
+
+        body_system = std::make_unique<BodyInterfaceImpl>(physics_system.GetBodyInterface(), body_id_map);
     }
 
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
@@ -294,9 +289,44 @@ public:
         physics_system.Update(delta, num_steps, m_temp_allocator.get(), m_job_system.get());
     }
 
-    inline JPH::BodyInterface &body_interface() { return physics_system.GetBodyInterface(); }
+    void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
+    {
+        spdlog::debug("A body got activated");
+    }
 
-    ~JoltContext()
+    void OnBodyDeactivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
+    {
+        spdlog::debug("A body went to sleep");
+    }
+
+    JPH::ValidateResult OnContactValidate(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
+                                          JPH::RVec3Arg /*inBaseOffset*/,
+                                          const JPH::CollideShapeResult & /*inCollisionResult*/) override
+    {
+        spdlog::debug("Contact validate callback");
+
+        // Allows you to ignore a contact before it is created (using layers to not make objects collide is cheaper!)
+        return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+    }
+
+    void OnContactAdded(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
+                        const JPH::ContactManifold & /*inManifold*/, JPH::ContactSettings & /*ioSettings*/) override
+    {
+        spdlog::debug("A contact was added");
+    }
+
+    void OnContactPersisted(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
+                            const JPH::ContactManifold & /*inManifold*/, JPH::ContactSettings & /*ioSettings*/) override
+    {
+        spdlog::debug("A contact was persisted");
+    }
+
+    void OnContactRemoved(const JPH::SubShapeIDPair & /*inSubShapePair*/) override
+    {
+        spdlog::debug("A contact was removed");
+    }
+
+    ~JoltContext() override
     {
         // Unregisters all types with the factory and cleans up the default material
         JPH::UnregisterTypes();
@@ -307,15 +337,12 @@ public:
     std::unordered_map<vierkant::CollisionShapeId, JPH::Shape *> shapes;
 
     //! lookup of body-ids
-    struct body_id_t
-    {
-        JPH::BodyID jolt_id;
-        vierkant::RigidBodyId id = vierkant::RigidBodyId::nil();
-    };
-    std::unordered_map<uint32_t, body_id_t> body_id_map;
+    std::unordered_map<uint32_t, JPH::BodyID> body_id_map;
 
-    // the actual physics system.
+    //! the actual physics system.
     JPH::PhysicsSystem physics_system;
+
+    std::unique_ptr<BodyInterfaceImpl> body_system;
 
 private:
     /// Maximum amount of jobs to allow
@@ -355,15 +382,15 @@ private:
     // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
     ObjectLayerPairFilterImpl m_object_vs_object_layer_filter;
 
-    // A body activation listener gets notified when bodies activate and go to sleep
-    // Note that this is called from a job so whatever you do here needs to be thread safe.
-    // Registering one is entirely optional.
-    JoltBodyActivationListener m_body_activation_listener;
-
-    // A contact listener gets notified when bodies (are about to) collide, and when they separate again.
-    // Note that this is called from a job so whatever you do here needs to be thread safe.
-    // Registering one is entirely optional.
-    JoltContactListener m_contact_listener;
+    //    // A body activation listener gets notified when bodies activate and go to sleep
+    //    // Note that this is called from a job so whatever you do here needs to be thread safe.
+    //    // Registering one is entirely optional.
+    //    JoltBodyActivationListener m_body_activation_listener;
+    //
+    //    // A contact listener gets notified when bodies (are about to) collide, and when they separate again.
+    //    // Note that this is called from a job so whatever you do here needs to be thread safe.
+    //    // Registering one is entirely optional.
+    //    JoltContactListener m_contact_listener;
 
     // We need a temp allocator for temporary allocations during the physics update. We're
     // pre-allocating 10 MB to avoid having to do allocations during the physics update.
@@ -415,7 +442,7 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
     return CollisionShapeId::nil();
 }
 
-RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
+void PhysicsContext::add_object(const Object3DPtr &obj)
 {
     if(obj->has_component<physics_component_t>())
     {
@@ -425,22 +452,20 @@ RigidBodyId PhysicsContext::add_object(const Object3DPtr &obj)
 
         if(shape_id)
         {
-            auto &body_interface = m_engine->jolt.body_interface();
+            auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
 
             bool has_mass = cmp.mass > 0.f;
             auto layer = has_mass ? Layers::MOVING : Layers::NON_MOVING;
-            auto motion_type = has_mass ? (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static)
-                                        : JPH::EMotionType::Dynamic;
+            auto motion_type = has_mass ? JPH::EMotionType::Dynamic
+                                        : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
             auto body_create_info = JPH::BodyCreationSettings(
                     m_engine->jolt.shapes[shape_id], JPH::RVec3(t.translation.x, t.translation.y, t.translation.z),
                     JPH::Quat(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w), motion_type, layer);
             JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
-            vierkant::RigidBodyId new_bodyId;
-            m_engine->jolt.body_id_map[obj->id()] = {jolt_bodyId, new_bodyId};
-            return new_bodyId;
+            body_interface.SetUserData(jolt_bodyId, obj->id());
+            m_engine->jolt.body_id_map[obj->id()] = jolt_bodyId;
         }
     }
-    return vierkant::RigidBodyId::nil();
 }
 
 void PhysicsContext::remove_object(const Object3DPtr &obj)
@@ -448,21 +473,21 @@ void PhysicsContext::remove_object(const Object3DPtr &obj)
     auto it = m_engine->jolt.body_id_map.find(obj->id());
     if(it != m_engine->jolt.body_id_map.end())
     {
-        auto &body_interface = m_engine->jolt.body_interface();
-        body_interface.RemoveBody(it->second.jolt_id);
-        body_interface.DestroyBody(it->second.jolt_id);
+        auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
+        body_interface.RemoveBody(it->second);
+        body_interface.DestroyBody(it->second);
         m_engine->jolt.body_id_map.erase(it);
     }
 }
 
-bool PhysicsContext::contains(const Object3DPtr &obj) const { return m_engine->jolt.body_id_map.contains(obj->id()); }
+vierkant::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
 
-RigidBodyId PhysicsContext::body_id(const Object3DPtr &obj) const
-{
-    auto it = m_engine->jolt.body_id_map.find(obj->id());
-    if(it != m_engine->jolt.body_id_map.end()) { return it->second.id; }
-    return RigidBodyId ::nil();
-}
+//RigidBodyId PhysicsContext::body_id(const Object3DPtr &obj) const
+//{
+//    auto it = m_engine->jolt.body_id_map.find(obj->id());
+//    if(it != m_engine->jolt.body_id_map.end()) { return it->second.id; }
+//    return RigidBodyId::nil();
+//}
 
 GeometryConstPtr PhysicsContext::debug_render() { return nullptr; }
 
@@ -477,30 +502,12 @@ glm::vec3 PhysicsContext::gravity() const
     return {g.GetX(), g.GetY(), g.GetZ()};
 }
 
-void PhysicsContext::apply_force(const vierkant::Object3DPtr & /*obj*/, const glm::vec3 & /*force*/,
-                                 const glm::vec3 & /*offset*/)
-{}
-
-void PhysicsContext::apply_impulse(const Object3DPtr & /*obj*/, const glm::vec3 & /*impulse*/,
-                                   const glm::vec3 & /*offset*/)
-{}
-
-glm::vec3 PhysicsContext::velocity(const Object3DPtr & /*obj*/) { return {}; }
-
-void PhysicsContext::set_velocity(const Object3DPtr & /*obj*/, const glm::vec3 & /*velocity*/) {}
-
 CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collision::shape_t &shape)
 {
     auto shape_id = std::visit(
             [this](auto &&s) -> CollisionShapeId {
                 using T = std::decay_t<decltype(s)>;
 
-                //                                if constexpr(std::is_same_v<T, collision::plane_t>)
-                //                                {
-                //                                    auto plane_shape = std::make_shared<JPH::Plane>(type_cast(s.normal), s.d);
-                //                                    vierkant::CollisionShapeId new_id;
-                //                                    return new_id;
-                //                                }
                 if constexpr(std::is_same_v<T, collision::box_t>)
                 {
                     vierkant::CollisionShapeId new_id;
@@ -561,6 +568,10 @@ void PhysicsScene::update(double time_delta)
             m_context.add_object(obj);
             cmp.need_update = false;
         }
+
+        // update transform bruteforce
+        auto obj = object_by_id(static_cast<uint32_t>(entity));
+        obj->transform = m_context.body_interface().transform(static_cast<uint32_t>(entity));
     }
     m_context.step_simulation(static_cast<float>(time_delta), 1);
 }

@@ -12,18 +12,12 @@ namespace vierkant
 {
 
 DEFINE_NAMED_UUID(CollisionShapeId)
-DEFINE_NAMED_ID(RigidBodyId)
-DEFINE_NAMED_ID(SoftBodyId)
-DEFINE_NAMED_ID(ConstraintId)
+//DEFINE_NAMED_ID(RigidBodyId)
+//DEFINE_NAMED_ID(SoftBodyId)
+//DEFINE_NAMED_ID(ConstraintId)
 
 namespace collision
 {
-
-struct plane_t
-{
-    glm::vec3 normal = glm::vec3(0, 1, 0);
-    float d = 0;
-};
 
 struct box_t
 {
@@ -52,7 +46,7 @@ struct mesh_t
     bool convex_hull = true;
 };
 
-using shape_t = std::variant<collision::plane_t, collision::sphere_t, collision::box_t, collision::cylinder_t,
+using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t,
                              collision::capsule_t, vierkant::CollisionShapeId>;
 }// namespace collision
 
@@ -86,6 +80,17 @@ inline bool operator!=(const vierkant::physics_component_t &lhs, const vierkant:
     return !(lhs == rhs);
 }
 
+class BodyInterface
+{
+public:
+    [[nodiscard]] virtual vierkant::transform_t transform(uint32_t objectId) const = 0;
+    virtual void set_transform(uint32_t objectId, const vierkant::transform_t &t) const = 0;
+    virtual void apply_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
+    virtual void apply_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
+    [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
+    virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
+};
+
 class PhysicsContext
 {
 public:
@@ -104,15 +109,12 @@ public:
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
 
-    RigidBodyId add_object(const vierkant::Object3DPtr &obj);
+//    RigidBodyId add_object(const vierkant::Object3DPtr &obj);
+    void add_object(const vierkant::Object3DPtr &obj);
     void remove_object(const vierkant::Object3DPtr &obj);
-    [[nodiscard]] bool contains(const vierkant::Object3DPtr &obj) const;
-    [[nodiscard]] RigidBodyId body_id(const vierkant::Object3DPtr &obj) const;
+//    [[nodiscard]] RigidBodyId body_id(const vierkant::Object3DPtr &obj) const;
 
-    void apply_force(const vierkant::Object3DPtr &obj, const glm::vec3 &force, const glm::vec3 &offset = {});
-    void apply_impulse(const vierkant::Object3DPtr &obj, const glm::vec3 &impulse, const glm::vec3 &offset = {});
-    glm::vec3 velocity(const vierkant::Object3DPtr &obj);
-    void set_velocity(const vierkant::Object3DPtr &obj, const glm::vec3 &velocity);
+    BodyInterface& body_interface();
 
     CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                             const glm::vec3 &scale = glm::vec3(1));
