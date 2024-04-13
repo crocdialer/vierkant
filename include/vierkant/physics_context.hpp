@@ -44,8 +44,8 @@ struct mesh_t
     bool convex_hull = true;
 };
 
-using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t,
-                             collision::capsule_t, vierkant::CollisionShapeId>;
+using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t, collision::capsule_t,
+                             vierkant::CollisionShapeId>;
 }// namespace collision
 
 using collision_cb_t = std::function<void(uint32_t)>;
@@ -55,10 +55,10 @@ struct physics_component_t
 
     collision::shape_t shape = CollisionShapeId::nil();
     float mass = 0.f;
-    float friction = 0.5f;
-    float rolling_friction = 0.0f;
-    float spinning_friction = 0.0f;
+    float friction = 0.2f;
     float restitution = 0.f;
+    float linear_damping = 0.05f;
+    float angular_damping = 0.05f;
     bool kinematic = false;
     bool sensor = false;
 
@@ -84,10 +84,10 @@ public:
     class BodyInterface
     {
     public:
-        [[nodiscard]] virtual vierkant::transform_t transform(uint32_t objectId) const = 0;
+        virtual bool get_transform(uint32_t objectId, vierkant::transform_t &t) const = 0;
         virtual void set_transform(uint32_t objectId, const vierkant::transform_t &t) const = 0;
-        virtual void apply_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
-        virtual void apply_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
+        virtual void add_force(uint32_t objectId, const glm::vec3 &force, const glm::vec3 &offset) = 0;
+        virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
         [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
         virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
     };
@@ -111,7 +111,7 @@ public:
     void remove_object(const vierkant::Object3DPtr &obj);
     bool contains(const vierkant::Object3DPtr &obj) const;
 
-    BodyInterface& body_interface();
+    BodyInterface &body_interface();
 
     CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
                                             const glm::vec3 &scale = glm::vec3(1));
