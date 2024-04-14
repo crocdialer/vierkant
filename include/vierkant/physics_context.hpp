@@ -90,6 +90,8 @@ public:
         virtual void add_impulse(uint32_t objectId, const glm::vec3 &impulse, const glm::vec3 &offset) = 0;
         [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
         virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
+        virtual void activate(uint32_t objectId) = 0;
+        virtual bool is_active(uint32_t objectId) = 0;
     };
 
     PhysicsContext();
