@@ -53,10 +53,12 @@ TEST(PhysicsContext, add_remove_object)
     EXPECT_TRUE(context.contains(a));
     EXPECT_EQ(context.body_interface().velocity(a->id()), glm::vec3(0));
     auto test_velocity = glm::vec3(0, 1.f, 0.f);
-    context.body_interface().set_velocity(a->id(), glm::vec3(0, 1.f, 0.f));
+    context.body_interface().set_velocity(a->id(), test_velocity);
+
+    context.step_simulation(1.f / 60.f, 2);
 
     // TODO: fails, why?
-//    EXPECT_EQ(context.body_interface().velocity(a->id()), glm::vec3(0, 1.f, 0.f));
+//    EXPECT_EQ(context.body_interface().velocity(a->id()), test_velocity);
 
     context.remove_object(a);
     EXPECT_FALSE(context.contains(a));
@@ -77,16 +79,20 @@ TEST(PhysicsContext, simulation)
 
     std::map<uint32_t, uint32_t> contact_map, sensor_map;
 
+    std::mutex mutex;
+
     vierkant::physics_component_t phys_cmp = {};
     phys_cmp.mass = 1.f;
     phys_cmp.shape = collision_shape;
     phys_cmp.callbacks.contact_begin = [&contact_map](uint32_t obj1, uint32_t obj2)
     {
+        std::unique_lock<std::mutex> lock;
         spdlog::debug("contact_begin: {}", obj1);
         contact_map[obj1]++;
     };
     phys_cmp.callbacks.contact_end = [&contact_map](uint32_t obj1, uint32_t obj2)
     {
+        std::unique_lock<std::mutex> lock;
         spdlog::debug("contact_end: {}", obj1);
         contact_map[obj1]--;
     };
@@ -124,7 +130,7 @@ TEST(PhysicsContext, simulation)
     auto tc = c->transform;
 
     // run simulation a bit
-    for(uint32_t l = 0; l < 20; ++l) { scene->update(1.f / 60.f); }
+    for(uint32_t l = 0; l < 50; ++l) { scene->update(1.f / 60.f); }
 
     EXPECT_NE(body_interface.velocity(a->id()), glm::vec3(0));
 
@@ -142,7 +148,7 @@ TEST(PhysicsContext, simulation)
     tb = b->transform;
 
     // again, run simulation a bit
-    for(uint32_t l = 0; l < 20; ++l)
+    for(uint32_t l = 0; l < 50; ++l)
     {
         scene->update(1.f / 60.f);
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -154,14 +160,18 @@ TEST(PhysicsContext, simulation)
 
     // check if a and ground have contacts
     EXPECT_TRUE(contact_map[a->id()]);
-//    EXPECT_TRUE(contact_map[ground->id()]);
+    EXPECT_TRUE(contact_map[ground->id()]);
 
     // c was floating, -> no contacts ever
     EXPECT_FALSE(contact_map.contains(c->id()));
 
-    // b got removed, sensor was passed -> no contacts now, but there were some
-//    EXPECT_TRUE(contact_map.contains(b->id()) && !contact_map[b->id()]);
-//    EXPECT_TRUE(contact_map.contains(sensor->id()) && !contact_map[sensor->id()]);
+    // b got removed
+//    EXPECT_TRUE(contact_map.contains(b->id()));
+//    EXPECT_TRUE(!contact_map[b->id()]);
+
+    // sensor was passed -> no contacts now, but there were some
+    EXPECT_TRUE(contact_map.contains(sensor->id()));
+    EXPECT_TRUE(!contact_map[sensor->id()]);
 
 //    auto debug_lines = context.debug_render();
 //    EXPECT_FALSE(debug_lines->positions.empty());

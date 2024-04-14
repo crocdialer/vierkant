@@ -57,6 +57,11 @@ bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physic
     return true;
 }
 
+inline glm::vec3 type_cast(const JPH::Vec3 &v) { return {v.GetX(), v.GetY(), v.GetZ()}; }
+inline JPH::Vec3 type_cast(const glm::vec3 &v) { return {v.x, v.y, v.z}; }
+inline glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
+inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
+
 // Callback for asserts, connect this to your own assert handler if you have one
 [[maybe_unused]] static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
                                               uint32_t inLine)
@@ -234,8 +239,8 @@ public:
         auto it = m_body_id_map.find(objectId);
         if(it != m_body_id_map.end())
         {
-            auto position = JPH::RVec3(t.translation.x, t.translation.y, t.translation.z);
-            auto rotation = JPH::Quat(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w);
+            auto position = type_cast(t.translation);
+            auto rotation = type_cast(t.rotation);
             m_jolt_body_interface.SetPositionAndRotation(it->second, position, rotation, JPH::EActivation::Activate);
         }
     }
@@ -245,8 +250,7 @@ public:
         auto it = m_body_id_map.find(objectId);
         if(it != m_body_id_map.end())
         {
-            m_jolt_body_interface.AddForce(it->second, JPH::RVec3(force.x, force.y, force.z),
-                                           JPH::RVec3(offset.x, offset.y, offset.z));
+            m_jolt_body_interface.AddForce(it->second, type_cast(force), type_cast(offset));
         }
     }
 
@@ -255,8 +259,7 @@ public:
         auto it = m_body_id_map.find(objectId);
         if(it != m_body_id_map.end())
         {
-            m_jolt_body_interface.AddImpulse(it->second, JPH::RVec3(impulse.x, impulse.y, impulse.z),
-                                             JPH::RVec3(offset.x, offset.y, offset.z));
+            m_jolt_body_interface.AddImpulse(it->second, type_cast(impulse), type_cast(offset));
         }
     }
 
@@ -266,7 +269,7 @@ public:
         if(it != m_body_id_map.end())
         {
             auto velocity = m_jolt_body_interface.GetLinearVelocity(it->second);
-            return {velocity.GetX(), velocity.GetY(), velocity.GetZ()};
+            return type_cast(velocity);
         }
         return {};
     }
@@ -274,10 +277,20 @@ public:
     void set_velocity(uint32_t objectId, const glm::vec3 &velocity) override
     {
         auto it = m_body_id_map.find(objectId);
-        if(it != m_body_id_map.end())
-        {
-            m_jolt_body_interface.SetLinearVelocity(it->second, JPH::Vec3(velocity.x, velocity.y, velocity.z));
-        }
+        if(it != m_body_id_map.end()) { m_jolt_body_interface.SetLinearVelocity(it->second, type_cast(velocity)); }
+    }
+
+    void activate(uint32_t objectId) override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end()) { m_jolt_body_interface.ActivateBody(it->second); }
+    }
+
+    bool is_active(uint32_t objectId) override
+    {
+        auto it = m_body_id_map.find(objectId);
+        if(it != m_body_id_map.end()) { return m_jolt_body_interface.IsActive(it->second); }
+        return false;
     }
 
 private:
@@ -337,15 +350,9 @@ public:
         physics_system.Update(delta, num_steps, m_temp_allocator.get(), m_job_system.get());
     }
 
-    void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
-    {
+    void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override {}
 
-    }
-
-    void OnBodyDeactivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override
-    {
-
-    }
+    void OnBodyDeactivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override {}
 
     JPH::ValidateResult OnContactValidate(const JPH::Body & /*inBody1*/, const JPH::Body & /*inBody2*/,
                                           JPH::RVec3Arg /*inBaseOffset*/,
@@ -521,8 +528,7 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
         auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset;
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
         {
-            auto pos = *reinterpret_cast<const glm::vec3 *>(data) * scale;
-            points[i] = JPH::Vec3(pos.x, pos.y, pos.z);
+            points[i] = type_cast(*reinterpret_cast<const glm::vec3 *>(data) * scale);
         }
         JPH::ConvexHullShapeSettings hull_shape_settings(points);
         JPH::Shape::ShapeResult shape_result;
@@ -554,15 +560,13 @@ void PhysicsContext::add_object(const Object3DPtr &obj)
         {
             auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
 
-            bool has_mass = cmp.mass > 0.f;
-            auto layer = has_mass ? Layers::MOVING : Layers::NON_MOVING;
-            auto motion_type = has_mass ? JPH::EMotionType::Dynamic
-                                        : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
-            auto body_create_info = JPH::BodyCreationSettings(
-                    m_engine->jolt.shapes[shape_id], JPH::RVec3(t.translation.x, t.translation.y, t.translation.z),
-                    JPH::Quat(t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w), motion_type, layer);
+            bool dynamic = cmp.mass > 0.f && !cmp.sensor;
+            auto layer = dynamic ? Layers::MOVING : Layers::NON_MOVING;
+            auto motion_type = dynamic ? JPH::EMotionType::Dynamic
+                                       : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
+            auto body_create_info = JPH::BodyCreationSettings(m_engine->jolt.shapes[shape_id], type_cast(t.translation),
+                                                              type_cast(t.rotation), motion_type, layer);
             body_create_info.mIsSensor = cmp.sensor;
-
             body_create_info.mFriction = cmp.friction;
             body_create_info.mRestitution = cmp.restitution;
             body_create_info.mLinearDamping = cmp.linear_damping;
@@ -610,16 +614,9 @@ vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { retu
 
 GeometryConstPtr PhysicsContext::debug_render() { return nullptr; }
 
-void PhysicsContext::set_gravity(const glm::vec3 &g)
-{
-    m_engine->jolt.physics_system.SetGravity(JPH::Vec3(g.x, g.y, g.z));
-}
+void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->jolt.physics_system.SetGravity(type_cast(g)); }
 
-glm::vec3 PhysicsContext::gravity() const
-{
-    auto g = m_engine->jolt.physics_system.GetGravity();
-    return {g.GetX(), g.GetY(), g.GetZ()};
-}
+glm::vec3 PhysicsContext::gravity() const { return type_cast(m_engine->jolt.physics_system.GetGravity()); }
 
 CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collision::shape_t &shape)
 {
@@ -694,11 +691,19 @@ void PhysicsScene::update(double time_delta)
             cmp.need_update = false;
         }
 
-        // update transform bruteforce
         auto obj = object_by_id(static_cast<uint32_t>(entity));
-        m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform);
+        if(cmp.kinematic)
+        {
+            // object -> physics
+            m_context.body_interface().set_transform(static_cast<uint32_t>(entity), obj->transform);
+        }
+        else
+        {
+            // physics -> object
+            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform);
+        }
     }
-    m_context.step_simulation(static_cast<float>(time_delta), 4);
+    m_context.step_simulation(static_cast<float>(time_delta), 2);
 }
 
 std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
