@@ -530,7 +530,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
         {
             auto p = *reinterpret_cast<const glm::vec3 *>(data) * scale;
-            points[i] = *reinterpret_cast<const JPH::Float3 *>(&p);
+            points[i] = {p.x, p.y, p.z};
         }
         for(uint32_t i = 0; i < lod0.num_indices; i += 3)
         {
