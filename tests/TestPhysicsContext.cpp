@@ -23,7 +23,7 @@ TEST(PhysicsContext, collision_shapes)
     PhysicsContext context;
     auto box = Geometry::Box();
     EXPECT_TRUE(create_collision_shape(context, box, true));
-//    EXPECT_TRUE(create_collision_shape(context, box, false));
+    EXPECT_TRUE(create_collision_shape(context, box, false));
     EXPECT_TRUE(context.create_collision_shape(collision::box_t()));
     EXPECT_TRUE(context.create_collision_shape(collision::sphere_t()));
     EXPECT_TRUE(context.create_collision_shape(collision::cylinder_t()));
@@ -32,25 +32,26 @@ TEST(PhysicsContext, collision_shapes)
 
 TEST(PhysicsContext, add_remove_object)
 {
-    PhysicsContext context;
+    auto scene = vierkant::PhysicsScene::create();
+    auto &context = scene->context();
 
     glm::vec3 gravity = {0.f, -9.81f, 0.f};
     context.set_gravity(gravity);
     EXPECT_EQ(context.gravity(), gravity);
 
-    auto scene = vierkant::Scene::create();
     auto a = Object3D::create(scene->registry());
 
     // a does not (yet) have a vierkant::physics_component, so adding has no effect
-    context.add_object(a);
-    EXPECT_FALSE(context.contains(a));
+    scene->add_object(a);
+    EXPECT_FALSE(context.contains(a->id()));
+    scene->remove_object(a);
 
     // now add required component
     vierkant::object_component auto &cmp = a->add_component<vierkant::physics_component_t>();
     cmp.shape = collision::box_t{glm::vec3(0.5f)};
+    scene->context().add_object(a->id(), a->transform, cmp);
 
-    context.add_object(a);
-    EXPECT_TRUE(context.contains(a));
+    EXPECT_TRUE(context.contains(a->id()));
     EXPECT_EQ(context.body_interface().velocity(a->id()), glm::vec3(0));
     auto test_velocity = glm::vec3(0, 1.f, 0.f);
     context.body_interface().set_velocity(a->id(), test_velocity);
@@ -60,8 +61,8 @@ TEST(PhysicsContext, add_remove_object)
     // TODO: fails, why?
 //    EXPECT_EQ(context.body_interface().velocity(a->id()), test_velocity);
 
-    context.remove_object(a);
-    EXPECT_FALSE(context.contains(a));
+    context.remove_object(a->id());
+    EXPECT_FALSE(context.contains(a->id()));
 }
 
 TEST(PhysicsContext, simulation)
@@ -70,7 +71,7 @@ TEST(PhysicsContext, simulation)
 
     auto scene = vierkant::PhysicsScene::create();
     auto box = Geometry::Box();
-    auto collision_shape = vierkant::collision::sphere_t();//create_collision_shape(scene->context(), box, true);
+    auto collision_shape = create_collision_shape(scene->context(), box, true);
 
     Object3DPtr a(Object3D::create(scene->registry())), b(Object3D::create(scene->registry())),
             c(Object3D::create(scene->registry())), ground(Object3D::create(scene->registry()));
@@ -84,13 +85,15 @@ TEST(PhysicsContext, simulation)
     vierkant::physics_component_t phys_cmp = {};
     phys_cmp.mass = 1.f;
     phys_cmp.shape = collision_shape;
-    phys_cmp.callbacks.contact_begin = [&contact_map](uint32_t obj1, uint32_t obj2)
+
+    vierkant::PhysicsContext::callbacks_t callbacks;
+    callbacks.contact_begin = [&contact_map](uint32_t obj1, uint32_t obj2)
     {
         std::unique_lock<std::mutex> lock;
         spdlog::debug("contact_begin: {}", obj1);
         contact_map[obj1]++;
     };
-    phys_cmp.callbacks.contact_end = [&contact_map](uint32_t obj1, uint32_t obj2)
+    callbacks.contact_end = [&contact_map](uint32_t obj1, uint32_t obj2)
     {
         std::unique_lock<std::mutex> lock;
         spdlog::debug("contact_end: {}", obj1);
@@ -112,7 +115,8 @@ TEST(PhysicsContext, simulation)
     {
         obj->transform.translation.y = i++ * 5.f;
         scene->add_object(obj);
-        EXPECT_TRUE(scene->context().contains(obj));
+        scene->context().set_callbacks(obj->id(), callbacks);
+        EXPECT_TRUE(scene->context().contains(obj->id()));
     }
 
     auto sensor = vierkant::Object3D::create(scene->registry());
@@ -123,6 +127,7 @@ TEST(PhysicsContext, simulation)
     phys_cmp.shape = collision::box_t{glm::vec3(4.f, 0.5f, 4.f)};
     sensor->add_component(phys_cmp);
     scene->add_object(sensor);
+    scene->context().set_callbacks(sensor->id(), callbacks);
 
     auto tground = ground->transform;
     auto ta = a->transform;
