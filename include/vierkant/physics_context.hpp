@@ -40,7 +40,7 @@ struct capsule_t
 
 struct mesh_t
 {
-    //    vierkant::MeshId mesh_id = vierkant::MeshId::nil();
+    vierkant::MeshId mesh_id = vierkant::MeshId::nil();
     bool convex_hull = true;
 };
 
@@ -48,7 +48,6 @@ using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::c
                              vierkant::CollisionShapeId>;
 }// namespace collision
 
-using contact_cb_t = std::function<void(uint32_t, uint32_t)>;
 struct physics_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
@@ -62,13 +61,6 @@ struct physics_component_t
     bool kinematic = false;
     bool sensor = false;
 
-    struct callbacks_t
-    {
-        contact_cb_t collision;
-        contact_cb_t contact_begin;
-        contact_cb_t contact_end;
-    } callbacks;
-
     bool need_update = false;
 };
 
@@ -81,6 +73,15 @@ inline bool operator!=(const vierkant::physics_component_t &lhs, const vierkant:
 class PhysicsContext
 {
 public:
+
+    struct callbacks_t
+    {
+        using contact_cb_t = std::function<void(uint32_t, uint32_t)>;
+        contact_cb_t collision;
+        contact_cb_t contact_begin;
+        contact_cb_t contact_end;
+    };
+
     class BodyInterface
     {
     public:
@@ -91,6 +92,7 @@ public:
         [[nodiscard]] virtual glm::vec3 velocity(uint32_t objectId) const = 0;
         virtual void set_velocity(uint32_t objectId, const glm::vec3 &velocity) = 0;
         virtual void activate(uint32_t objectId) = 0;
+        virtual void activate_in_aabb(const vierkant::AABB &aabb) = 0;
         virtual bool is_active(uint32_t objectId) = 0;
     };
 
@@ -109,9 +111,12 @@ public:
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
 
-    void add_object(const vierkant::Object3DPtr &obj);
-    void remove_object(const vierkant::Object3DPtr &obj);
-    bool contains(const vierkant::Object3DPtr &obj) const;
+    void add_object(uint32_t objectId, const vierkant::transform_t &transform,
+                    const vierkant::physics_component_t &cmp);
+    void remove_object(uint32_t objectId);
+    [[nodiscard]] bool contains(uint32_t objectId) const;
+
+    void set_callbacks(uint32_t objectId, const callbacks_t &callbacks);
 
     BodyInterface &body_interface();
 

@@ -996,11 +996,6 @@ void draw_object_ui(const Object3DPtr &object)
             change |=ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |=ImGui::Checkbox("sensor", &phys_cmp.sensor);
             phys_cmp.need_update |= change;
-
-            ImGui::Text("callbacks:");
-            ImGui::BulletText("collision: %s", phys_cmp.callbacks.collision ? "yes" : "-");
-            ImGui::BulletText("contact_begin: %s", phys_cmp.callbacks.contact_begin ? "yes" : "-");
-            ImGui::BulletText("contact_end: %s", phys_cmp.callbacks.contact_end ? "yes" : "-");
             ImGui::TreePop();
         }
     }

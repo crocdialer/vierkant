@@ -9,6 +9,8 @@
 namespace vierkant
 {
 
+DEFINE_NAMED_UUID(MeshId)
+
 struct mesh_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
