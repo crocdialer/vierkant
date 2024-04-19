@@ -129,6 +129,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
         VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
     };
     std::vector<acceleration_write_asset_t> acceleration_write_assets;
+    std::vector<VkWriteDescriptorSetInlineUniformBlock> inline_uniform_write_assets;
 
     for(const auto &[binding, desc]: descriptors)
     {
@@ -206,6 +207,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
 
                 auto &acceleration_write_info = acceleration_write_asset.writeDescriptorSetAccelerationStructure;
                 acceleration_write_info.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+                acceleration_write_info.pNext = nullptr;
                 acceleration_write_info.accelerationStructureCount = 1;
                 acceleration_write_info.pAccelerationStructures = &acceleration_write_asset.handle;
 
@@ -214,6 +216,17 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
             }
             break;
 
+            case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
+            {
+                inline_uniform_write_assets.push_back({});
+                auto &write_inline_block = inline_uniform_write_assets.back();
+                write_inline_block.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK;
+                write_inline_block.pNext = nullptr;
+                write_inline_block.pData = desc.inline_uniform_data.data();
+                write_inline_block.dataSize = desc.inline_uniform_data.size();
+                desc_write.pNext = &write_inline_block;
+                break;
+            }
             default:
                 throw std::runtime_error("update_descriptor_set: unsupported descriptor-type -> " +
                                          std::to_string(desc.type));
@@ -469,6 +482,7 @@ bool descriptor_t::operator==(const descriptor_t &other) const
     if(images != other.images) { return false; }
     if(image_views != other.image_views) { return false; }
     if(acceleration_structure != other.acceleration_structure) { return false; }
+    if(inline_uniform_data != other.inline_uniform_data) { return false; }
     return true;
 }
 
@@ -489,6 +503,7 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     for(const auto &img: descriptor.images) { hash_combine(h, img); }
     for(const auto &s: descriptor.image_views) { hash_combine(h, s); }
     hash_combine(h, descriptor.acceleration_structure);
+    for(const auto &byte: descriptor.inline_uniform_data) { hash_combine(h, byte); }
     return h;
 }
 
