@@ -51,6 +51,9 @@ struct descriptor_t
     //! used for descriptor containing a raytracing acceleration-structure
     AccelerationStructurePtr acceleration_structure;
 
+    //! used for descriptors containing an inline uniform-buffer
+    std::vector<uint8_t > inline_uniform_data;
+
     bool operator==(const descriptor_t &other) const;
 
     bool operator!=(const descriptor_t &other) const { return !(*this == other); };
