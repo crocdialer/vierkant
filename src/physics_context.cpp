@@ -1,4 +1,6 @@
 #include <unordered_set>
+
+#include <crocore/ThreadPool.hpp>
 #include <vierkant/physics_context.hpp>
 
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
@@ -68,54 +70,36 @@ inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 };
 
 ///// Implementation of a JobSystem using a thread pool
-//class JobSystemThreadPool final : public JPH::JobSystemWithBarrier
-//{
-//public:
-//
-//    /// Creates a thread pool.
-//    /// @see JobSystemThreadPool::Init
-//    JobSystemThreadPool(uint inMaxJobs, uint inMaxBarriers, int inNumThreads = -1);
-//    JobSystemThreadPool() = default;
-//    ~JobSystemThreadPool() override;
-//
-//    /// Initialize the thread pool
-//    /// @param inMaxJobs Max number of jobs that can be allocated at any time
-//    /// @param inMaxBarriers Max number of barriers that can be allocated at any time
-//    /// @param inNumThreads Number of threads to start (the number of concurrent jobs is 1 more because the main thread will also run jobs while waiting for a barrier to complete). Use -1 to auto detect the amount of CPU's.
-//    void Init(uint inMaxJobs, uint inMaxBarriers, int inNumThreads = -1);
-//
-//    // See JobSystem
-//    int GetMaxConcurrency() const override { return 0; }
-//    JobHandle CreateJob(const char *inName, JPH::ColorArg inColor, const JobFunction &inJobFunction,
-//                                uint32_t inNumDependencies = 0) override;
-//
-//    /// Change the max concurrency after initialization
-//    void SetNumThreads(int inNumThreads)
-//    {
-//        StopThreads();
-//        StartThreads(inNumThreads);
-//    }
-//
-//protected:
-//    // See JobSystem
-//    void QueueJob(Job *inJob) override;
-//    void QueueJobs(Job **inJobs, uint inNumJobs) override;
-//    void FreeJob(Job *inJob) override;
-//
-//private:
-//    /// Start/stop the worker threads
-//    void StartThreads(int inNumThreads);
-//    void StopThreads();
-//
-//    /// Entry point for a thread
-//    void ThreadMain(int inThreadIndex);
-//
-//    /// Get the head of the thread that has processed the least amount of jobs
-//    inline uint GetHead() const;
-//
-//    /// Internal helper function to queue a job
-//    inline void QueueJobInternal(Job *inJob);
-//};
+class JobSystem final : public JPH::JobSystemWithBarrier
+{
+public:
+    JobSystem() = default;
+    JobSystem(int inNumThreads = -1)
+    {
+        if(inNumThreads < 0) { inNumThreads = std::thread::hardware_concurrency(); }
+        m_threadpool.set_num_threads(inNumThreads);
+    }
+    ~JobSystem() override;
+
+
+    [[nodiscard]] int GetMaxConcurrency() const override { return 0; }
+    JPH::JobHandle CreateJob(const char *inName, JPH::ColorArg inColor, const JobFunction &inJobFunction,
+                             uint32_t inNumDependencies = 0) override;
+
+    /// Change the max concurrency after initialization
+    void SetNumThreads(int inNumThreads) { m_threadpool.set_num_threads(inNumThreads); }
+
+    // See JobSystem
+    void QueueJob(Job *inJob) override;
+    void QueueJobs(Job **inJobs, uint inNumJobs) override;
+    void FreeJob(Job *inJob) override;
+
+private:
+    /// Internal helper function to queue a job
+    inline void QueueJobInternal(Job *inJob);
+
+    crocore::ThreadPool m_threadpool;
+};
 
 // Layer that objects can be in, determines which other objects it can collide with
 // Typically you at least want to have 1 layer for moving bodies and 1 layer for static bodies, but you can have more
