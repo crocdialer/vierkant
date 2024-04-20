@@ -109,7 +109,7 @@ public:
 
     // See JobSystem
     void QueueJob(Job *inJob) override { queue(inJob); }
-    void QueueJobs(Job **inJobs, uint inNumJobs) override
+    void QueueJobs(Job **inJobs, uint32_t inNumJobs) override
     {
         for(auto j = inJobs, end = inJobs + inNumJobs; j < end; ++j) { queue(*j); }
     }
