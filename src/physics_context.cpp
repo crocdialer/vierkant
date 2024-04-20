@@ -74,31 +74,62 @@ class JobSystem final : public JPH::JobSystemWithBarrier
 {
 public:
     JobSystem() = default;
-    JobSystem(int inNumThreads = -1)
+    explicit JobSystem(uint32_t max_jobs, uint32_t max_barriers, int num_threads)
     {
-        if(inNumThreads < 0) { inNumThreads = std::thread::hardware_concurrency(); }
-        m_threadpool.set_num_threads(inNumThreads);
+        if(num_threads < 0) { num_threads = (int) std::thread::hardware_concurrency(); }
+        JobSystemWithBarrier::Init(max_barriers);
+        m_jobs = crocore::fixed_size_free_list<Job>(max_jobs, max_jobs);
+        m_threadpool.set_num_threads(num_threads);
     }
-    ~JobSystem() override;
+    ~JobSystem() override = default;
 
+    [[nodiscard]] int GetMaxConcurrency() const override { return (int) m_threadpool.num_threads(); }
+    JPH::JobHandle CreateJob(const char *name, JPH::ColorArg color, const JobFunction &inJobFunction,
+                             uint32_t inNumDependencies) override
+    {
+        // Loop until we can get a job from the free list
+        uint32_t index;
+        for(;;)
+        {
+            index = m_jobs.create(name, color, this, inJobFunction, inNumDependencies);
+            if(index != crocore::fixed_size_free_list<Job>::s_invalid_index) break;
+            JPH_ASSERT(false, "No jobs available!");
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+        }
+        Job *job = &m_jobs.get(index);
 
-    [[nodiscard]] int GetMaxConcurrency() const override { return 0; }
-    JPH::JobHandle CreateJob(const char *inName, JPH::ColorArg inColor, const JobFunction &inJobFunction,
-                             uint32_t inNumDependencies = 0) override;
+        // Construct handle to keep a reference, the job is queued below and may immediately complete
+        JobHandle handle(job);
+
+        // If there are no dependencies, queue the job now
+        if(inNumDependencies == 0) { QueueJob(job); }
+
+        return handle;
+    }
 
     /// Change the max concurrency after initialization
     void SetNumThreads(int inNumThreads) { m_threadpool.set_num_threads(inNumThreads); }
 
     // See JobSystem
-    void QueueJob(Job *inJob) override;
-    void QueueJobs(Job **inJobs, uint inNumJobs) override;
-    void FreeJob(Job *inJob) override;
+    void QueueJob(Job *inJob) override { queue(inJob); }
+    void QueueJobs(Job **inJobs, uint inNumJobs) override
+    {
+        for(auto j = inJobs, end = inJobs + inNumJobs; j < end; ++j) { queue(*j); }
+    }
+    void FreeJob(Job *inJob) override { m_jobs.destroy(inJob); }
 
 private:
-    /// Internal helper function to queue a job
-    inline void QueueJobInternal(Job *inJob);
+    inline void queue(Job *inJob)
+    {
+        inJob->AddRef();
+        m_threadpool.post_no_track([inJob] {
+            inJob->Execute();
+            inJob->Release();
+        });
+    }
 
     crocore::ThreadPool m_threadpool;
+    crocore::fixed_size_free_list<Job> m_jobs;
 };
 
 // Layer that objects can be in, determines which other objects it can collide with
@@ -315,8 +346,8 @@ public:
         JPH::RegisterTypes();
 
         m_temp_allocator = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
-        m_job_system = std::make_unique<JPH::JobSystemThreadPool>(
-                cMaxPhysicsJobs, cMaxPhysicsBarriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
+        m_job_system = std::make_unique<JobSystem>(cMaxPhysicsJobs, cMaxPhysicsBarriers,
+                                                   static_cast<int>(std::thread::hardware_concurrency() - 1));
         physics_system.Init(m_maxBodies, m_numBodyMutexes, m_maxBodyPairs, m_maxContactConstraints,
                             m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
                             m_object_vs_object_layer_filter);
@@ -474,7 +505,7 @@ private:
     // We need a job system that will execute physics jobs on multiple threads. Typically
     // you would implement the JobSystem interface yourself and let Jolt Physics run on top
     // of your own job scheduler. JobSystemThreadPool is an example implementation.
-    std::unique_ptr<JPH::JobSystemThreadPool> m_job_system;
+    std::unique_ptr<JPH::JobSystemWithBarrier> m_job_system;
 
     // Create a factory, this class is responsible for creating instances of classes
     // based on their name or hash and is mainly used for deserialization of saved data.
