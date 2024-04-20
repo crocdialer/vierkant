@@ -2,6 +2,8 @@
 
 #include <crocore/NamedId.hpp>
 #include <crocore/NamedUUID.hpp>
+#include <crocore/ThreadPool.hpp>
+
 #include <variant>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Scene.hpp>
@@ -117,6 +119,8 @@ public:
     [[nodiscard]] bool contains(uint32_t objectId) const;
 
     void set_callbacks(uint32_t objectId, const callbacks_t &callbacks);
+
+    void set_threadpool(crocore::ThreadPool &pool);
 
     BodyInterface &body_interface();
 

@@ -73,13 +73,10 @@ inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 class JobSystem final : public JPH::JobSystemWithBarrier
 {
 public:
-    JobSystem() = default;
-    explicit JobSystem(uint32_t max_jobs, uint32_t max_barriers, int num_threads)
+    JobSystem(uint32_t max_jobs, uint32_t max_barriers, crocore::ThreadPool &pool) : m_threadpool(pool)
     {
-        if(num_threads < 0) { num_threads = (int) std::thread::hardware_concurrency(); }
         JobSystemWithBarrier::Init(max_barriers);
         m_jobs = crocore::fixed_size_free_list<Job>(max_jobs, max_jobs);
-        m_threadpool.set_num_threads(num_threads);
     }
     ~JobSystem() override = default;
 
@@ -128,7 +125,7 @@ private:
         });
     }
 
-    crocore::ThreadPool m_threadpool;
+    crocore::ThreadPool &m_threadpool;
     crocore::fixed_size_free_list<Job> m_jobs;
 };
 
@@ -324,6 +321,12 @@ private:
 class JoltContext : public JPH::BodyActivationListener, public JPH::ContactListener
 {
 public:
+    /// Maximum amount of jobs to allow
+    constexpr static uint32_t max_physics_jobs = 2048;
+
+    /// Maximum amount of barriers to allow
+    constexpr static uint32_t max_physics_barriers = 8;
+
     JoltContext()
     {
         // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you want (see Memory.h).
@@ -346,8 +349,8 @@ public:
         JPH::RegisterTypes();
 
         m_temp_allocator = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
-        m_job_system = std::make_unique<JobSystem>(cMaxPhysicsJobs, cMaxPhysicsBarriers,
-                                                   static_cast<int>(std::thread::hardware_concurrency() - 1));
+        job_system = std::make_unique<JPH::JobSystemThreadPool>(
+                max_physics_jobs, max_physics_barriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
         physics_system.Init(m_maxBodies, m_numBodyMutexes, m_maxBodyPairs, m_maxContactConstraints,
                             m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
                             m_object_vs_object_layer_filter);
@@ -369,7 +372,7 @@ public:
     // in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
     inline void update(float delta, int num_steps = 1)
     {
-        physics_system.Update(delta, num_steps, m_temp_allocator.get(), m_job_system.get());
+        physics_system.Update(delta, num_steps, m_temp_allocator.get(), job_system.get());
     }
 
     void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override {}
@@ -457,13 +460,12 @@ public:
 
     std::unique_ptr<BodyInterfaceImpl> body_system;
 
+    // We need a job system that will execute physics jobs on multiple threads. Typically
+    // you would implement the JobSystem interface yourself and let Jolt Physics run on top
+    // of your own job scheduler. JobSystemThreadPool is an example implementation.
+    std::unique_ptr<JPH::JobSystemWithBarrier> job_system;
+
 private:
-    /// Maximum amount of jobs to allow
-    constexpr static uint32_t cMaxPhysicsJobs = 2048;
-
-    /// Maximum amount of barriers to allow
-    constexpr static uint32_t cMaxPhysicsBarriers = 8;
-
     // This is the max amount of rigid bodies that you can add to the physics system.
     // If you try to add more you'll get an error.
     uint32_t m_maxBodies = 65536;
@@ -501,11 +503,6 @@ private:
     // If you don't want to pre-allocate you can also use TempAllocatorMalloc to fall back to
     // malloc / free.
     std::unique_ptr<JPH::TempAllocatorImpl> m_temp_allocator;
-
-    // We need a job system that will execute physics jobs on multiple threads. Typically
-    // you would implement the JobSystem interface yourself and let Jolt Physics run on top
-    // of your own job scheduler. JobSystemThreadPool is an example implementation.
-    std::unique_ptr<JPH::JobSystemWithBarrier> m_job_system;
 
     // Create a factory, this class is responsible for creating instances of classes
     // based on their name or hash and is mainly used for deserialization of saved data.
@@ -681,6 +678,16 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
             shape);
     return shape_id;
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void PhysicsContext::set_threadpool(crocore::ThreadPool &pool)
+{
+    m_engine->jolt.job_system =
+            std::make_unique<JobSystem>(JoltContext::max_physics_jobs, JoltContext::max_physics_barriers, pool);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsContext::set_callbacks(uint32_t objectId, const PhysicsContext::callbacks_t &callbacks)
 {
