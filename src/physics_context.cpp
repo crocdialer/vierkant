@@ -44,7 +44,7 @@ namespace vierkant
 bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs)
 {
     if(&lhs == &rhs) { return true; }
-    //    if(lhs.shape != rhs.shape) { return false; }
+    if(lhs.shape != rhs.shape) { return false; }
     if(lhs.mass != rhs.mass) { return false; }
     if(lhs.friction != rhs.friction) { return false; }
     if(lhs.restitution != rhs.restitution) { return false; }
@@ -69,16 +69,16 @@ inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
     return true;
 };
 
-///// Implementation of a JobSystem using a thread pool
-class JobSystem final : public JPH::JobSystemWithBarrier
+///// Implementation of a JoltJobSystem using a thread pool
+class JoltJobSystem final : public JPH::JobSystemWithBarrier
 {
 public:
-    JobSystem(uint32_t max_jobs, uint32_t max_barriers, crocore::ThreadPool &pool) : m_threadpool(pool)
+    JoltJobSystem(uint32_t max_jobs, uint32_t max_barriers, crocore::ThreadPool &pool) : m_threadpool(pool)
     {
         JobSystemWithBarrier::Init(max_barriers);
         m_jobs = crocore::fixed_size_free_list<Job>(max_jobs, max_jobs);
     }
-    ~JobSystem() override = default;
+    ~JoltJobSystem() override = default;
 
     [[nodiscard]] int GetMaxConcurrency() const override { return (int) m_threadpool.num_threads(); }
     JPH::JobHandle CreateJob(const char *name, JPH::ColorArg color, const JobFunction &inJobFunction,
@@ -107,7 +107,7 @@ public:
     /// Change the max concurrency after initialization
     void SetNumThreads(int inNumThreads) { m_threadpool.set_num_threads(inNumThreads); }
 
-    // See JobSystem
+    // See JoltJobSystem
     void QueueJob(Job *inJob) override { queue(inJob); }
     void QueueJobs(Job **inJobs, uint32_t inNumJobs) override
     {
@@ -141,7 +141,7 @@ static constexpr JPH::ObjectLayer NUM_LAYERS = 2;
 };// namespace Layers
 
 /// Class that determines if two object layers can collide
-class ObjectLayerPairFilterImpl : public JPH::ObjectLayerPairFilter
+class JoltObjectLayerPairFilter : public JPH::ObjectLayerPairFilter
 {
 public:
     [[nodiscard]] bool ShouldCollide(JPH::ObjectLayer inObject1, JPH::ObjectLayer inObject2) const override
@@ -169,10 +169,10 @@ static constexpr uint32_t NUM_LAYERS(2);
 
 // BroadPhaseLayerInterface implementation
 // This defines a mapping between object and broadphase layers.
-class BPLayerInterfaceImpl final : public JPH::BroadPhaseLayerInterface
+class JoltBPLayerInterface final : public JPH::BroadPhaseLayerInterface
 {
 public:
-    BPLayerInterfaceImpl()
+    JoltBPLayerInterface()
     {
         // Create a mapping table from object to broad phase layer
         mObjectToBroadPhase[Layers::NON_MOVING] = BroadPhaseLayers::NON_MOVING;
@@ -204,7 +204,7 @@ private:
 };
 
 /// Class that determines if an object layer can collide with a broadphase layer
-class ObjectVsBroadPhaseLayerFilterImpl : public JPH::ObjectVsBroadPhaseLayerFilter
+class JoltObjectVsBroadPhaseLayerFilter : public JPH::ObjectVsBroadPhaseLayerFilter
 {
 public:
     [[nodiscard]] bool ShouldCollide(JPH::ObjectLayer inLayer1, JPH::BroadPhaseLayer inLayer2) const override
@@ -327,7 +327,7 @@ public:
     /// Maximum amount of barriers to allow
     constexpr static uint32_t max_physics_barriers = 8;
 
-    JoltContext()
+    explicit JoltContext(crocore::ThreadPool *thread_pool = nullptr) : thread_pool(thread_pool)
     {
         // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you want (see Memory.h).
         // This needs to be done before any other Jolt function is called.
@@ -349,8 +349,17 @@ public:
         JPH::RegisterTypes();
 
         m_temp_allocator = std::make_unique<JPH::TempAllocatorImpl>(10 * 1024 * 1024);
-        job_system = std::make_unique<JPH::JobSystemThreadPool>(
-                max_physics_jobs, max_physics_barriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
+
+        if(thread_pool)
+        {
+            job_system = std::make_unique<JoltJobSystem>(JoltContext::max_physics_jobs,
+                                                         JoltContext::max_physics_barriers, *thread_pool);
+        }
+        else
+        {
+            job_system = std::make_unique<JPH::JobSystemThreadPool>(
+                    max_physics_jobs, max_physics_barriers, static_cast<int>(std::thread::hardware_concurrency() - 1));
+        }
         physics_system.Init(m_maxBodies, m_numBodyMutexes, m_maxBodyPairs, m_maxContactConstraints,
                             m_broad_phase_layer_interface, m_object_vs_broadphase_layer_filter,
                             m_object_vs_object_layer_filter);
@@ -460,10 +469,9 @@ public:
 
     std::unique_ptr<BodyInterfaceImpl> body_system;
 
-    // We need a job system that will execute physics jobs on multiple threads. Typically
-    // you would implement the JobSystem interface yourself and let Jolt Physics run on top
-    // of your own job scheduler. JobSystemThreadPool is an example implementation.
+    //! job-system backing physics-jobs
     std::unique_ptr<JPH::JobSystemWithBarrier> job_system;
+    crocore::ThreadPool *thread_pool = nullptr;
 
 private:
     // This is the max amount of rigid bodies that you can add to the physics system.
@@ -487,15 +495,15 @@ private:
 
     // Create mapping table from object layer to broadphase layer
     // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
-    BPLayerInterfaceImpl m_broad_phase_layer_interface;
+    JoltBPLayerInterface m_broad_phase_layer_interface;
 
     // Create class that filters object vs broadphase layers
     // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
-    ObjectVsBroadPhaseLayerFilterImpl m_object_vs_broadphase_layer_filter;
+    JoltObjectVsBroadPhaseLayerFilter m_object_vs_broadphase_layer_filter;
 
     // Create class that filters object vs object layers
     // Note: As this is an interface, PhysicsSystem will take a reference to this so this instance needs to stay alive!
-    ObjectLayerPairFilterImpl m_object_vs_object_layer_filter;
+    JoltObjectLayerPairFilter m_object_vs_object_layer_filter;
 
     // We need a temp allocator for temporary allocations during the physics update. We're
     // pre-allocating 10 MB to avoid having to do allocations during the physics update.
@@ -684,7 +692,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
 void PhysicsContext::set_threadpool(crocore::ThreadPool &pool)
 {
     m_engine->jolt.job_system =
-            std::make_unique<JobSystem>(JoltContext::max_physics_jobs, JoltContext::max_physics_barriers, pool);
+            std::make_unique<JoltJobSystem>(JoltContext::max_physics_jobs, JoltContext::max_physics_barriers, pool);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

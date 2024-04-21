@@ -21,29 +21,34 @@ namespace collision
 struct box_t
 {
     glm::vec3 half_extents = glm::vec3(.5f);
+    constexpr bool operator==(const vierkant::collision::box_t &other) const = default;
 };
 
 struct sphere_t
 {
     float radius = 1.f;
+    constexpr bool operator==(const vierkant::collision::sphere_t &other) const = default;
 };
 
 struct cylinder_t
 {
     float radius = 1.f;
     float height = 1.f;
+    constexpr bool operator==(const vierkant::collision::cylinder_t &other) const = default;
 };
 
 struct capsule_t
 {
     float radius = 1.f;
     float height = 1.f;
+    constexpr bool operator==(const vierkant::collision::capsule_t &other) const = default;
 };
 
 struct mesh_t
 {
     vierkant::MeshId mesh_id = vierkant::MeshId::nil();
     bool convex_hull = true;
+    constexpr bool operator==(const vierkant::collision::mesh_t &other) const = default;
 };
 
 using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t, collision::capsule_t,
@@ -64,18 +69,13 @@ struct physics_component_t
     bool sensor = false;
 
     bool need_update = false;
-};
 
-bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs);
-inline bool operator!=(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs)
-{
-    return !(lhs == rhs);
-}
+    constexpr bool operator==(const vierkant::physics_component_t &) const = default;
+};
 
 class PhysicsContext
 {
 public:
-
     struct callbacks_t
     {
         using contact_cb_t = std::function<void(uint32_t, uint32_t)>;
