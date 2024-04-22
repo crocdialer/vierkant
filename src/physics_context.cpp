@@ -41,21 +41,6 @@ static void trace_impl(const char *inFMT, ...)
 namespace vierkant
 {
 
-bool operator==(const vierkant::physics_component_t &lhs, const vierkant::physics_component_t &rhs)
-{
-    if(&lhs == &rhs) { return true; }
-    if(lhs.shape != rhs.shape) { return false; }
-    if(lhs.mass != rhs.mass) { return false; }
-    if(lhs.friction != rhs.friction) { return false; }
-    if(lhs.restitution != rhs.restitution) { return false; }
-    if(lhs.linear_damping != rhs.linear_damping) { return false; }
-    if(lhs.angular_damping != rhs.angular_damping) { return false; }
-    if(lhs.sensor != rhs.sensor) { return false; }
-    if(lhs.kinematic != rhs.kinematic) { return false; }
-    if(lhs.need_update != rhs.need_update) { return false; }
-    return true;
-}
-
 inline glm::vec3 type_cast(const JPH::Vec3 &v) { return {v.GetX(), v.GetY(), v.GetZ()}; }
 inline JPH::Vec3 type_cast(const glm::vec3 &v) { return {v.x, v.y, v.z}; }
 inline glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }

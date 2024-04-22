@@ -471,21 +471,6 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
     return ret;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-bool descriptor_t::operator==(const descriptor_t &other) const
-{
-    if(type != other.type) { return false; }
-    if(stage_flags != other.stage_flags) { return false; }
-    if(variable_count != other.variable_count) { return false; }
-    if(buffers != other.buffers) { return false; }
-    if(buffer_offsets != other.buffer_offsets) { return false; }
-    if(images != other.images) { return false; }
-    if(image_views != other.image_views) { return false; }
-    if(acceleration_structure != other.acceleration_structure) { return false; }
-    if(inline_uniform_data != other.inline_uniform_data) { return false; }
-    return true;
-}
-
 }//namespace vierkant
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

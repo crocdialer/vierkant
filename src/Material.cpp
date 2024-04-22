@@ -8,42 +8,6 @@
 namespace vierkant
 {
 
-bool operator==(const vierkant::material_t &lhs, const vierkant::material_t &rhs)
-{
-    if(lhs.id != rhs.id) { return false; }
-    if(lhs.name != rhs.name) { return false; }
-    if(lhs.base_color != rhs.base_color) { return false; }
-    if(lhs.emission != rhs.emission) { return false; }
-    if(lhs.emissive_strength != rhs.emissive_strength) { return false; }
-    if(lhs.roughness != rhs.roughness) { return false; }
-    if(lhs.metalness != rhs.metalness) { return false; }
-    if(lhs.occlusion != rhs.occlusion) { return false; }
-    if(lhs.null_surface != rhs.null_surface) { return false; }
-    if(lhs.twosided != rhs.twosided) { return false; }
-    if(lhs.ior != rhs.ior) { return false; }
-    if(lhs.attenuation_color != rhs.attenuation_color) { return false; }
-    if(lhs.transmission != rhs.transmission) { return false; }
-    if(lhs.attenuation_distance != rhs.attenuation_distance) { return false; }
-    if(lhs.phase_asymmetry_g != rhs.phase_asymmetry_g) { return false; }
-    if(lhs.scattering_ratio != rhs.scattering_ratio) { return false; }
-    if(lhs.thickness != rhs.thickness) { return false; }
-    if(lhs.blend_mode != rhs.blend_mode) { return false; }
-    if(lhs.alpha_cutoff != rhs.alpha_cutoff) { return false; }
-    if(lhs.specular_factor != rhs.specular_factor) { return false; }
-    if(lhs.specular_color != rhs.specular_color) { return false; }
-    if(lhs.clearcoat_factor != rhs.clearcoat_factor) { return false; }
-    if(lhs.clearcoat_roughness_factor != rhs.clearcoat_roughness_factor) { return false; }
-    if(lhs.sheen_color != rhs.sheen_color) { return false; }
-    if(lhs.sheen_roughness != rhs.sheen_roughness) { return false; }
-    if(lhs.iridescence_factor != rhs.iridescence_factor) { return false; }
-    if(lhs.iridescence_ior != rhs.iridescence_ior) { return false; }
-    if(lhs.iridescence_thickness_range != rhs.iridescence_thickness_range) { return false; }
-    if(lhs.texture_transform != rhs.texture_transform) { return false; }
-    if(lhs.textures != rhs.textures) { return false; }
-    if(lhs.samplers != rhs.samplers) { return false; }
-    return true;
-}
-
 }// namespace vierkant
 
 using vierkant::hash_combine;

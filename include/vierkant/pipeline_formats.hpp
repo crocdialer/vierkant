@@ -111,7 +111,6 @@ public:
     {
         return constant_blobs == other.constant_blobs;
     }
-    inline bool operator!=(const pipeline_specialization &other) const { return !(*this == other); };
 
 private:
     VkSpecializationInfo m_info;
@@ -215,8 +214,6 @@ struct graphics_pipeline_info_t
     std::vector<VkPushConstantRange> push_constant_ranges;
 
     bool operator==(const graphics_pipeline_info_t &other) const;
-
-    bool operator!=(const graphics_pipeline_info_t &other) const { return !(*this == other); };
 };
 
 /**
@@ -238,8 +235,6 @@ struct raytracing_pipeline_info_t
     std::optional<vierkant::pipeline_specialization> specialization;
 
     bool operator==(const raytracing_pipeline_info_t &other) const;
-
-    bool operator!=(const raytracing_pipeline_info_t &other) const { return !(*this == other); };
 };
 
 /**
@@ -258,8 +253,6 @@ struct compute_pipeline_info_t
     std::optional<vierkant::pipeline_specialization> specialization;
 
     bool operator==(const compute_pipeline_info_t &other) const;
-
-    bool operator!=(const compute_pipeline_info_t &other) const { return !(*this == other); };
 };
 
 }// namespace vierkant
