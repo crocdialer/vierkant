@@ -115,10 +115,9 @@ struct material_t
     // maps TextureType to a TextureId/SamplerId. sorted in enum order, which is important in other places.
     std::map<vierkant::TextureType, vierkant::TextureSourceId> textures;
     std::map<vierkant::TextureType, vierkant::SamplerId> samplers;
-};
 
-bool operator==(const vierkant::material_t &lhs, const vierkant::material_t &rhs);
-inline bool operator!=(const vierkant::material_t &lhs, const vierkant::material_t &rhs) { return !(lhs == rhs); }
+    bool operator==(const vierkant::material_t &other) const = default;
+};
 
 struct texture_sampler_t
 {

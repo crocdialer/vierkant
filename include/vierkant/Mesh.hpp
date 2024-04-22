@@ -313,10 +313,7 @@ struct animated_mesh_t
     vierkant::MeshConstPtr mesh = {};
     vierkant::animation_component_t animation_state = {};
 
-    inline bool operator==(const animated_mesh_t &k) const
-    {
-        return mesh == k.mesh && animation_state == k.animation_state;
-    }
+    bool operator==(const animated_mesh_t &k) const = default;
 };
 
 }//namespace vierkant

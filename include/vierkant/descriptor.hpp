@@ -54,9 +54,7 @@ struct descriptor_t
     //! used for descriptors containing an inline uniform-buffer
     std::vector<uint8_t > inline_uniform_data;
 
-    bool operator==(const descriptor_t &other) const;
-
-    bool operator!=(const descriptor_t &other) const { return !(*this == other); };
+    bool operator==(const descriptor_t &other) const = default;
 };
 
 //! maps binding-indices to descriptors
