@@ -137,7 +137,7 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     // RTAO
     if(use_rtao)
     {
-        drawable.descriptors[0].acceleration_structure = params.top_level;
+        drawable.descriptors[0].acceleration_structures = {params.top_level};
         drawable.descriptors[1].images = {params.depth_img, params.normal_img};
         drawable.descriptors[2].buffers = {context->param_buffer};
 
