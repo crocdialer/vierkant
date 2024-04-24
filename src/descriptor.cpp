@@ -126,7 +126,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
     struct acceleration_write_asset_t
     {
         VkWriteDescriptorSetAccelerationStructureKHR writeDescriptorSetAccelerationStructure = {};
-        VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
+        std::vector<VkAccelerationStructureKHR> handles;
     };
     std::vector<acceleration_write_asset_t> acceleration_write_assets;
     std::vector<VkWriteDescriptorSetInlineUniformBlock> inline_uniform_write_assets;
@@ -202,28 +202,38 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
 
             case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
             {
-                acceleration_write_asset_t acceleration_write_asset = {};
-                acceleration_write_asset.handle = desc.acceleration_structure.get();
+                assert(acceleration_write_assets.empty());
+                acceleration_write_assets.push_back({});
+                auto &acceleration_write_asset = acceleration_write_assets.back();
+
+                for(const auto &acceleration_structure: desc.acceleration_structures)
+                {
+                    acceleration_write_asset.handles.push_back(acceleration_structure.get());
+                }
 
                 auto &acceleration_write_info = acceleration_write_asset.writeDescriptorSetAccelerationStructure;
                 acceleration_write_info.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
                 acceleration_write_info.pNext = nullptr;
-                acceleration_write_info.accelerationStructureCount = 1;
-                acceleration_write_info.pAccelerationStructures = &acceleration_write_asset.handle;
+                acceleration_write_info.accelerationStructureCount =
+                        static_cast<uint32_t>(desc.acceleration_structures.size());
+                acceleration_write_info.pAccelerationStructures = acceleration_write_asset.handles.data();
 
-                acceleration_write_assets.push_back(acceleration_write_asset);
-                desc_write.pNext = &acceleration_write_assets.back().writeDescriptorSetAccelerationStructure;
+                desc_write.descriptorCount = static_cast<uint32_t>(desc.acceleration_structures.size());
+                desc_write.pNext = &acceleration_write_asset;
             }
             break;
 
             case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK:
             {
+                assert(inline_uniform_write_assets.empty());
                 inline_uniform_write_assets.push_back({});
                 auto &write_inline_block = inline_uniform_write_assets.back();
                 write_inline_block.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK;
                 write_inline_block.pNext = nullptr;
                 write_inline_block.pData = desc.inline_uniform_block.data();
                 write_inline_block.dataSize = desc.inline_uniform_block.size();
+
+                desc_write.descriptorCount = static_cast<uint32_t>(desc.inline_uniform_block.size());
                 desc_write.pNext = &write_inline_block;
                 break;
             }
@@ -249,7 +259,7 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
     {
         for(auto &img: descriptor.images) { img.reset(); }
         for(auto &buf: descriptor.buffers) { buf.reset(); }
-        descriptor.acceleration_structure.reset();
+        for(auto &as: descriptor.acceleration_structures) { as.reset(); }
     }
 
     // retrieve set-layout
@@ -402,14 +412,19 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
 
             case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
             {
-                // get device address
-                VkAccelerationStructureDeviceAddressInfoKHR address_info = {};
-                address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-                address_info.accelerationStructure = descriptor.acceleration_structure.get();
+                for(uint32_t i = 0; i < descriptor.acceleration_structures.size(); ++i)
+                {
+                    const auto &acceleration_structure = descriptor.acceleration_structures[i];
 
-                descriptor_get_info.data.accelerationStructure =
-                        vkGetAccelerationStructureDeviceAddressKHR(device->handle(), &address_info);
-                vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride, data_ptr);
+                    // get device address
+                    VkAccelerationStructureDeviceAddressInfoKHR address_info = {};
+                    address_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+                    address_info.accelerationStructure = acceleration_structure.get();
+
+                    descriptor_get_info.data.accelerationStructure =
+                            vkGetAccelerationStructureDeviceAddressKHR(device->handle(), &address_info);
+                    vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride, data_ptr + i * desc_stride);
+                }
                 break;
             }
 
@@ -487,7 +502,7 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     for(const auto &offset: descriptor.buffer_offsets) { hash_combine(h, offset); }
     for(const auto &img: descriptor.images) { hash_combine(h, img); }
     for(const auto &s: descriptor.image_views) { hash_combine(h, s); }
-    hash_combine(h, descriptor.acceleration_structure);
+    for(const auto &as: descriptor.acceleration_structures) { hash_combine(h, as); }
     for(const auto &byte: descriptor.inline_uniform_block) { hash_combine(h, byte); }
     return h;
 }

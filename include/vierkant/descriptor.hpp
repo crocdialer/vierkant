@@ -42,14 +42,14 @@ struct descriptor_t
     //! optional array of buffer-offsets. if no value for a buffer index is found, 0 is used.
     std::vector<VkDeviceSize> buffer_offsets;
 
-    //! used for descriptors containing (an array) of images
+    //! used for descriptors containing (an array of) images
     std::vector<vierkant::ImagePtr> images;
 
     //! optional array of image-views. if no value for an image index is found, the default view is used.
     std::vector<VkImageView> image_views;
 
-    //! used for descriptor containing a raytracing acceleration-structure
-    AccelerationStructurePtr acceleration_structure;
+    //! used for descriptors containing (an array of) raytracing acceleration-structures
+    std::vector<AccelerationStructurePtr> acceleration_structures;
 
     //! used for descriptors containing an inline-uniform-block
     std::vector<uint8_t > inline_uniform_block;
