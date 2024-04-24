@@ -126,7 +126,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
     struct acceleration_write_asset_t
     {
         VkWriteDescriptorSetAccelerationStructureKHR writeDescriptorSetAccelerationStructure = {};
-        std::vector<VkAccelerationStructureKHR> handles;
+        std::unique_ptr<VkAccelerationStructureKHR[]> handles;
     };
     std::vector<acceleration_write_asset_t> acceleration_write_assets;
     std::vector<VkWriteDescriptorSetInlineUniformBlock> inline_uniform_write_assets;
@@ -205,10 +205,12 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
                 assert(acceleration_write_assets.empty());
                 acceleration_write_assets.push_back({});
                 auto &acceleration_write_asset = acceleration_write_assets.back();
+                acceleration_write_asset.handles =
+                        std::make_unique<VkAccelerationStructureKHR[]>(desc.acceleration_structures.size());
 
-                for(const auto &acceleration_structure: desc.acceleration_structures)
+                for(uint32_t i = 0; i < desc.acceleration_structures.size(); ++i)
                 {
-                    acceleration_write_asset.handles.push_back(acceleration_structure.get());
+                    acceleration_write_asset.handles[i] = desc.acceleration_structures[i].get();
                 }
 
                 auto &acceleration_write_info = acceleration_write_asset.writeDescriptorSetAccelerationStructure;
@@ -216,7 +218,7 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
                 acceleration_write_info.pNext = nullptr;
                 acceleration_write_info.accelerationStructureCount =
                         static_cast<uint32_t>(desc.acceleration_structures.size());
-                acceleration_write_info.pAccelerationStructures = acceleration_write_asset.handles.data();
+                acceleration_write_info.pAccelerationStructures = acceleration_write_asset.handles.get();
 
                 desc_write.descriptorCount = static_cast<uint32_t>(desc.acceleration_structures.size());
                 desc_write.pNext = &acceleration_write_asset;

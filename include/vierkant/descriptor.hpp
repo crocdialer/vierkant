@@ -30,7 +30,10 @@ using descriptor_count_t = std::map<VkDescriptorType, uint32_t>;
  */
 struct descriptor_t
 {
+    //! type of contained descriptor
     VkDescriptorType type;
+
+    //! stage-flags depicting in which shader-stages this descriptor will be used
     VkShaderStageFlags stage_flags;
 
     //! using Vulkan 1.2 descriptor-indexing
@@ -52,7 +55,7 @@ struct descriptor_t
     std::vector<AccelerationStructurePtr> acceleration_structures;
 
     //! used for descriptors containing an inline-uniform-block
-    std::vector<uint8_t > inline_uniform_block;
+    std::vector<uint8_t> inline_uniform_block;
 
     bool operator==(const descriptor_t &other) const = default;
 };
@@ -112,10 +115,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
  * @param   descriptors     an array of descriptor_t to use for updating the descriptor-buffer
  * @param   descriptor_set  handle for a shared VkDescriptorSet to update
  */
-void update_descriptor_buffer(const vierkant::DevicePtr &device,
-                              const DescriptorSetLayoutPtr &layout,
-                              const descriptor_map_t &descriptors,
-                              const vierkant::BufferPtr &out_descriptor_buffer);
+void update_descriptor_buffer(const vierkant::DevicePtr &device, const DescriptorSetLayoutPtr &layout,
+                              const descriptor_map_t &descriptors, const vierkant::BufferPtr &out_descriptor_buffer);
 
 /**
  * @brief   find_or_create_set_layout can be used to search for an existing descriptor-set-layout or create a new one.
