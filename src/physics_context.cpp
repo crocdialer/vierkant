@@ -58,18 +58,17 @@ inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 class JoltJobSystem final : public JPH::JobSystemWithBarrier
 {
 public:
-    JoltJobSystem(uint32_t max_jobs, uint32_t max_barriers, crocore::ThreadPool &pool) : m_threadpool(pool)
-    {
-        JobSystemWithBarrier::Init(max_barriers);
-        m_jobs = crocore::fixed_size_free_list<Job>(max_jobs, max_jobs);
-    }
+    JoltJobSystem(uint32_t max_jobs, uint32_t max_barriers, crocore::ThreadPool &pool)
+        : JobSystemWithBarrier(max_barriers), m_threadpool(pool), m_jobs(max_jobs, max_jobs),
+          m_max_concurrency(pool.num_threads() - 1)
+    {}
     ~JoltJobSystem() override = default;
 
-    [[nodiscard]] int GetMaxConcurrency() const override { return (int) m_threadpool.num_threads(); }
+    [[nodiscard]] int GetMaxConcurrency() const override { return (int) m_max_concurrency; }
     JPH::JobHandle CreateJob(const char *name, JPH::ColorArg color, const JobFunction &inJobFunction,
                              uint32_t inNumDependencies) override
     {
-        // Loop until we can get a job from the free list
+        // loop until we can get a job from the free list
         uint32_t index;
         for(;;)
         {
@@ -84,15 +83,17 @@ public:
         JobHandle handle(job);
 
         // If there are no dependencies, queue the job now
-        if(inNumDependencies == 0) { QueueJob(job); }
+        if(inNumDependencies == 0) { queue(job); }
 
         return handle;
     }
 
-    /// Change the max concurrency after initialization
-    void SetNumThreads(int inNumThreads) { m_threadpool.set_num_threads(inNumThreads); }
+    void SetMaxConcurrency(int num_tasks)
+    {
+        m_max_concurrency = std::min<size_t>(num_tasks, m_threadpool.num_threads());
+    }
 
-    // See JoltJobSystem
+    // See JPH::JobSystem
     void QueueJob(Job *inJob) override { queue(inJob); }
     void QueueJobs(Job **inJobs, uint32_t inNumJobs) override
     {
@@ -112,6 +113,7 @@ private:
 
     crocore::ThreadPool &m_threadpool;
     crocore::fixed_size_free_list<Job> m_jobs;
+    std::atomic<size_t> m_max_concurrency;
 };
 
 // Layer that objects can be in, determines which other objects it can collide with

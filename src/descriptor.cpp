@@ -222,8 +222,8 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
                 auto &write_inline_block = inline_uniform_write_assets.back();
                 write_inline_block.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK;
                 write_inline_block.pNext = nullptr;
-                write_inline_block.pData = desc.inline_uniform_data.data();
-                write_inline_block.dataSize = desc.inline_uniform_data.size();
+                write_inline_block.pData = desc.inline_uniform_block.data();
+                write_inline_block.dataSize = desc.inline_uniform_block.size();
                 desc_write.pNext = &write_inline_block;
                 break;
             }
@@ -488,7 +488,7 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     for(const auto &img: descriptor.images) { hash_combine(h, img); }
     for(const auto &s: descriptor.image_views) { hash_combine(h, s); }
     hash_combine(h, descriptor.acceleration_structure);
-    for(const auto &byte: descriptor.inline_uniform_data) { hash_combine(h, byte); }
+    for(const auto &byte: descriptor.inline_uniform_block) { hash_combine(h, byte); }
     return h;
 }
 
