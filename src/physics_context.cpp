@@ -314,7 +314,7 @@ public:
     /// Maximum amount of barriers to allow
     constexpr static uint32_t max_physics_barriers = 8;
 
-    explicit JoltContext(crocore::ThreadPool *thread_pool = nullptr) : thread_pool(thread_pool)
+    explicit JoltContext(crocore::ThreadPool *const thread_pool = nullptr) : thread_pool(thread_pool)
     {
         // Register allocation hook. In this example we'll just let Jolt use malloc / free but you can override these if you want (see Memory.h).
         // This needs to be done before any other Jolt function is called.
@@ -508,9 +508,12 @@ private:
 struct PhysicsContext::engine
 {
     JoltContext jolt;
+    engine(crocore::ThreadPool *const thread_pool = nullptr) : jolt(thread_pool) {}
 };
 
-PhysicsContext::PhysicsContext() : m_engine(std::make_unique<PhysicsContext::engine>()) {}
+PhysicsContext::PhysicsContext(crocore::ThreadPool *const thread_pool)
+    : m_engine(std::make_unique<PhysicsContext::engine>(thread_pool))
+{}
 
 PhysicsContext::PhysicsContext(PhysicsContext &&other) noexcept { std::swap(m_engine, other.m_engine); }
 
@@ -692,6 +695,9 @@ void PhysicsContext::set_callbacks(uint32_t objectId, const PhysicsContext::call
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+PhysicsScene::PhysicsScene(crocore::ThreadPool *thread_pool) : vierkant::Scene(thread_pool), m_context(thread_pool) {}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsScene::add_object(const Object3DPtr &object)
 {
@@ -712,7 +718,7 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
 
 void PhysicsScene::clear()
 {
-    m_context = {};
+    m_context = vierkant::PhysicsContext(m_thread_pool);
     Scene::clear();
 }
 
@@ -745,7 +751,10 @@ void PhysicsScene::update(double time_delta)
     m_context.step_simulation(static_cast<float>(time_delta), 2);
 }
 
-std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
+std::shared_ptr<PhysicsScene> PhysicsScene::create(crocore::ThreadPool *thread_pool)
+{
+    return std::shared_ptr<PhysicsScene>(new PhysicsScene(thread_pool));
+}
 
 }//namespace vierkant
 

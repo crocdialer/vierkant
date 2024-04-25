@@ -49,7 +49,9 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
     return object;
 }
 
-ScenePtr Scene::create() { return ScenePtr(new Scene()); }
+ScenePtr Scene::create(crocore::ThreadPool *thread_pool){ return ScenePtr(new Scene(thread_pool)); }
+
+Scene::Scene(crocore::ThreadPool *thread_pool):m_thread_pool(thread_pool) {}
 
 void Scene::add_object(const Object3DPtr &object) { m_root->add_child(object); }
 
