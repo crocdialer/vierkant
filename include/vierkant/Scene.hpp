@@ -2,6 +2,8 @@
 
 #include <entt/entity/registry.hpp>
 
+#include <crocore/ThreadPool.hpp>
+
 #include <vierkant/Camera.hpp>
 #include <vierkant/Image.hpp>
 #include <vierkant/Mesh.hpp>
@@ -31,7 +33,7 @@ class Scene
 public:
     virtual ~Scene() = default;
 
-    static ScenePtr create();
+    static ScenePtr create(crocore::ThreadPool *thread_pool = nullptr);
 
     virtual void add_object(const Object3DPtr &object);
 
@@ -47,9 +49,9 @@ public:
      * @param   object_id   a provided object-id
      * @return  an object or nullptr, if nothing was found
      */
-    [[nodiscard]] Object3D* object_by_id(uint32_t object_id) const;
+    [[nodiscard]] Object3D *object_by_id(uint32_t object_id) const;
 
-    [[nodiscard]] std::vector<Object3D*> objects_by_name(const std::string_view &name) const;
+    [[nodiscard]] std::vector<Object3D *> objects_by_name(const std::string_view &name) const;
 
     [[nodiscard]] Object3DPtr pick(const Ray &ray) const;
 
@@ -62,10 +64,10 @@ public:
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const { return m_registry; }
 
 protected:
-    Scene() = default;
+    explicit Scene(crocore::ThreadPool *thread_pool = nullptr);
+    crocore::ThreadPool *m_thread_pool = nullptr;
 
 private:
-
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
 
     vierkant::ImagePtr m_skybox = nullptr;
