@@ -45,7 +45,7 @@ vierkant::GeometryPtr create_geometry(const tinyobj::attrib_t &inattrib, const s
     return geom;
 }
 
-std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, crocore::ThreadPool * /*pool*/)
+std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, crocore::ThreadPool * /*pool*/)
 {
     if(!exists(path) || !is_regular_file(path)) { return {}; }
 
@@ -80,7 +80,7 @@ std::optional<mesh_assets_t> wavefront_obj(const std::filesystem::path &path, cr
         return ret;
     };
 
-    mesh_assets_t mesh_assets = {};
+    model_assets_t mesh_assets = {};
     mesh_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
 
     for(const auto &mat: materials)

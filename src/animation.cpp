@@ -211,19 +211,6 @@ bool create_morph_weights(const animation_keys_t &keys, float time, Interpolatio
     return false;
 }
 
-template<typename T>
-bool operator==(const animation_component_t_<T> &lhs, const animation_component_t_<T> &rhs)
-{
-    if(lhs.index != rhs.index) { return false; }
-    if(lhs.current_time != rhs.current_time) { return false; }
-    if(lhs.animation_speed != rhs.animation_speed) { return false; }
-    if(lhs.playing != rhs.playing) { return false; }
-    return true;
-}
-
-template bool operator==(const animation_component_t_<float> &lhs, const animation_component_t_<float> &rhs);
-template bool operator==(const animation_component_t_<double> &lhs, const animation_component_t_<double> &rhs);
-
 }// namespace vierkant
 
 template<typename T>

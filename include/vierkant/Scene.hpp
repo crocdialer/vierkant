@@ -16,18 +16,6 @@ namespace vierkant
 DEFINE_CLASS_PTR(Scene)
 
 
-/**
- * @brief   'create_mesh_object' is a factory to create an Object3D containing a mesh.
- *
- * in addition the created object offers support for animations and dynamically updated aabbs for submeshes.
- *
- * @param   registry    a provided entt::registry
- * @param   mesh        a provided mesh
- * @return  a newly created Object3D with attached components.
- */
-vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &registry,
-                                         const vierkant::mesh_component_t &mesh_component);
-
 class Scene
 {
 public:
@@ -63,11 +51,23 @@ public:
 
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const { return m_registry; }
 
+    /**
+    * @brief   'create_mesh_object' is a factory to create an Object3D containing a mesh.
+    *
+    * in addition the created object offers support for animations and dynamically updated aabbs for submeshes.
+    *
+    * @param   registry    a provided entt::registry
+    * @param   mesh        a provided mesh
+    * @return  a newly created Object3D with attached components.
+    */
+    vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component);
+
 protected:
     explicit Scene(crocore::ThreadPool *thread_pool = nullptr);
     crocore::ThreadPool *m_thread_pool = nullptr;
 
 private:
+    vierkant::mesh_map_t m_meshes;
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
 
     vierkant::ImagePtr m_skybox = nullptr;

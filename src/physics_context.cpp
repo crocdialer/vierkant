@@ -20,6 +20,8 @@
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
+#include <Jolt/Physics/SoftBody/SoftBodyShape.h>
 #include <Jolt/RegisterTypes.h>
 
 // STL includes
@@ -305,7 +307,7 @@ private:
     const std::unordered_map<uint32_t, JPH::BodyID> &m_body_id_map;
 };
 
-class JoltContext : public JPH::BodyActivationListener, public JPH::ContactListener
+class JoltContext : public JPH::BodyActivationListener, public JPH::ContactListener, public JPH::SoftBodyContactListener
 {
 public:
     /// Maximum amount of jobs to allow
@@ -360,6 +362,7 @@ public:
         // Note that this is called from a job so whatever you do here needs to be thread safe.
         // Registering one is entirely optional.
         physics_system.SetContactListener(this);
+        physics_system.SetSoftBodyContactListener(this);
 
         body_system = std::make_unique<BodyInterfaceImpl>(physics_system.GetBodyInterfaceNoLock(), body_id_map);
     }
@@ -432,6 +435,18 @@ public:
             if(cb_it->second.contact_end) { cb_it->second.contact_end(obj2, obj1); }
         }
     }
+
+    JPH::SoftBodyValidateResult
+    OnSoftBodyContactValidate([[maybe_unused]] const JPH::Body &inSoftBody,
+                              [[maybe_unused]] const JPH::Body &inOtherBody,
+                              [[maybe_unused]] JPH::SoftBodyContactSettings &ioSettings) override
+    {
+        return JPH::SoftBodyValidateResult::AcceptContact;
+    }
+
+    void OnSoftBodyContactAdded([[maybe_unused]] const JPH::Body &inSoftBody,
+                                [[maybe_unused]] const JPH::SoftBodyManifold &inManifold) override
+    {}
 
     ~JoltContext() override
     {

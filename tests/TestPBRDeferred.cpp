@@ -36,7 +36,7 @@ TEST(TestPBRDeferred, basic)
     EXPECT_TRUE(cam);
 
     auto scene = vierkant::Scene::create();
-    auto mesh_node = vierkant::create_mesh_object(scene->registry(), {mesh});
+    auto mesh_node = scene->create_mesh_object({mesh});
     EXPECT_TRUE(mesh_node);
 
     scene->add_object(mesh_node);

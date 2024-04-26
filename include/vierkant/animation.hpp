@@ -8,8 +8,8 @@
 #include <string>
 #include <vector>
 #include <vierkant/math.hpp>
-#include <vierkant/transform.hpp>
 #include <vierkant/object_component.hpp>
+#include <vierkant/transform.hpp>
 
 namespace vierkant
 {
@@ -85,20 +85,14 @@ struct animation_component_t_
 
     //! current time
     T current_time = 0.0;
+
+    bool operator==(const animation_component_t_ &other) const = default;
 };
 using animation_component_t = animation_component_t_<float>;
 
 template<typename T>
-bool operator==(const animation_component_t_<T> &lhs, const animation_component_t_<T> &rhs);
-
-template<typename T>
-inline bool operator!=(const animation_component_t_<T> &lhs, const animation_component_t_<T> &rhs)
-{
-    return !(lhs == rhs);
-}
-
-template<typename T>
-void update_animation(const animation_t<T> &animation, double time_delta, vierkant::animation_component_t &animation_state)
+void update_animation(const animation_t<T> &animation, double time_delta,
+                      vierkant::animation_component_t &animation_state)
 {
     if(animation_state.playing)
     {

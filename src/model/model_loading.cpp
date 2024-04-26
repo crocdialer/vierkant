@@ -75,7 +75,7 @@ vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const v
     return {sampler, [device](VkSampler s) { vkDestroySampler(device->handle(), s, nullptr); }};
 }
 
-bool compress_textures(vierkant::model::mesh_assets_t &mesh_assets)
+bool compress_textures(vierkant::model::model_assets_t &mesh_assets)
 {
     std::chrono::milliseconds compress_total_duration(0);
     crocore::ThreadPool threadpool(std::thread::hardware_concurrency());
@@ -121,7 +121,7 @@ bool compress_textures(vierkant::model::mesh_assets_t &mesh_assets)
     return true;
 }
 
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets)
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::model_assets_t &mesh_assets)
 {
     assert(params.device);
     std::vector<vierkant::BufferPtr> staging_buffers;
@@ -291,7 +291,7 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     return compressed_img;
 }
 
-std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool *pool)
+std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool *pool)
 {
     auto ext_str = path.extension().string();
     std::transform(ext_str.begin(), ext_str.end(), ext_str.begin(), ::tolower);
