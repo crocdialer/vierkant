@@ -19,9 +19,6 @@
 namespace vierkant
 {
 
-//! define resource-identifiers
-DEFINE_NAMED_UUID(MeshId)
-
 //! contains uncompressed or BC7-compressed images
 using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bc7::compress_result_t>;
 
@@ -65,7 +62,7 @@ struct camera_t
 /**
  * @brief   mesh_assets_t groups assets imported from a model-file.
  */
-struct mesh_assets_t
+struct model_assets_t
 {
     //! vertex/index/meshlet/submesh data for a mesh with submeshes
     geometry_variant_t geometry_data;
@@ -117,7 +114,7 @@ struct load_mesh_params_t
  *
  *  @return a struct grouping the loaded assets.
  */
-std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool *pool = nullptr);
+std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool *pool = nullptr);
 
 /**
  * @brief   load_mesh can be used to load assets into gpu-buffers
@@ -126,7 +123,7 @@ std::optional<mesh_assets_t> load_model(const std::filesystem::path &path, croco
  * @param   params  a struct grouping input-parameters
  * @return  a vierkant::MeshPtr, nullptr in case of failure.
  */
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::mesh_assets_t &mesh_assets);
+vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::model_assets_t &mesh_assets);
 
 /**
  * @brief   compress_textures will compress all images found provided mesh_assets in-place.
@@ -134,7 +131,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
  * @param   mesh_assets     a mesh_assets struct.
  * @return  true, if all images contained in mesh_assets are compressed.
  */
-bool compress_textures(vierkant::model::mesh_assets_t &mesh_assets);
+bool compress_textures(vierkant::model::model_assets_t &mesh_assets);
 
 /**
  * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.

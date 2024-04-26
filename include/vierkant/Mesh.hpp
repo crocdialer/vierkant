@@ -76,8 +76,7 @@ struct mesh_buffer_params_t
     //! cone-weight used during meshlet-generation. useful for cluster-culling
     float meshlet_cone_weight = 0.5f;
 
-    bool operator==(const mesh_buffer_params_t &other) const;
-    inline bool operator!=(const mesh_buffer_params_t &other) const { return !(*this == other); };
+    bool operator==(const mesh_buffer_params_t &other) const = default;
 };
 
 //! mesh_buffer_bundle_t is a helper-struct to group buffer-data and other information.

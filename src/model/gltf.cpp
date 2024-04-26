@@ -835,7 +835,7 @@ bool LoadImageDataFunction(tinygltf::Image * /*tiny_image*/, const int image_idx
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPool *const pool)
+std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPool *const pool)
 {
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
@@ -860,7 +860,7 @@ std::optional<mesh_assets_t> gltf(const std::filesystem::path &path, crocore::Th
     const tinygltf::Scene &scene = model.scenes[model.defaultScene >= 0 ? model.defaultScene : 0];
 
     // create vierkant::node root
-    vierkant::model::mesh_assets_t out_assets = {};
+    vierkant::model::model_assets_t out_assets = {};
     out_assets.root_node = std::make_shared<vierkant::nodes::node_t>();
     out_assets.root_node->name = model.nodes[scene.nodes[0]].name;
 

@@ -669,21 +669,6 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     return ret;
 }
 
-bool mesh_buffer_params_t::operator==(const mesh_buffer_params_t &other) const
-{
-    if(remap_indices != other.remap_indices) { return false; }
-    if(optimize_vertex_cache != other.optimize_vertex_cache) { return false; }
-    if(generate_lods != other.generate_lods) { return false; }
-    if(max_num_lods != other.max_num_lods) { return false; }
-    if(generate_meshlets != other.generate_meshlets) { return false; }
-    if(use_vertex_colors != other.use_vertex_colors) { return false; }
-    if(pack_vertices != other.pack_vertices) { return false; }
-    if(meshlet_max_vertices != other.meshlet_max_vertices) { return false; }
-    if(meshlet_max_triangles != other.meshlet_max_triangles) { return false; }
-    if(meshlet_cone_weight != other.meshlet_cone_weight) { return false; }
-    return true;
-}
-
 }//namespace vierkant
 
 size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(vierkant::mesh_buffer_params_t const &params) const

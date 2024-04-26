@@ -22,6 +22,17 @@ struct mesh_component_t
     std::optional<std::set<uint32_t>> entry_indices = {};
 };
 
+//! struct grouping host/gpu versions of a mesh
+struct mesh_asset_t
+{
+    //! handle for a gpu-mesh, containing buffers and a list of entries
+    vierkant::MeshPtr mesh;
+
+    //! optional, persist-able bundle-version
+    std::optional<vierkant::mesh_buffer_bundle_t> bundle;
+};
+using mesh_map_t = std::unordered_map<vierkant::MeshId, mesh_asset_t>;
+
 /**
  * @brief   mesh_aabb can be used to generate a combined AABB for all activated mesh-entries,
  *          optionally applying animation-transforms.

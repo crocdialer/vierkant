@@ -13,10 +13,9 @@ struct range_item_t
     inline bool operator<(const range_item_t &other) const { return distance < other.distance; }
 };
 
-vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &registry,
-                                         const mesh_component_t &mesh_component)
+vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_component)
 {
-    auto object = vierkant::Object3D::create(registry);
+    auto object = vierkant::Object3D::create(m_registry);
     object->add_component(mesh_component);
     if(!mesh_component.mesh->node_animations.empty()) { object->add_component<vierkant::animation_component_t>(); }
 
@@ -49,9 +48,9 @@ vierkant::Object3DPtr create_mesh_object(const std::shared_ptr<entt::registry> &
     return object;
 }
 
-ScenePtr Scene::create(crocore::ThreadPool *thread_pool){ return ScenePtr(new Scene(thread_pool)); }
+ScenePtr Scene::create(crocore::ThreadPool *thread_pool) { return ScenePtr(new Scene(thread_pool)); }
 
-Scene::Scene(crocore::ThreadPool *thread_pool):m_thread_pool(thread_pool) {}
+Scene::Scene(crocore::ThreadPool *thread_pool) : m_thread_pool(thread_pool) {}
 
 void Scene::add_object(const Object3DPtr &object) { m_root->add_child(object); }
 
