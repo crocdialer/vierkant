@@ -4,9 +4,9 @@
 
 #define COLOR 0
 #define NORMALS 1
-#define POSITIONS 2
+//#define POSITIONS 2
 
-layout(binding = 0, rgba32f) readonly uniform image2D u_input[3];
+layout(binding = 0, rgba32f) readonly uniform image2D u_input[2];
 
 layout(binding = 1, rgba32f) writeonly uniform image2D u_out_image;
 
@@ -37,7 +37,7 @@ vec4 denoise(ivec2 coords)
 
     vec3 cval = imageLoad(u_input[COLOR], coords).rgb;     // color
     vec3 nval = imageLoad(u_input[NORMALS], coords).rgb;   // normal
-    vec3 pval = imageLoad(u_input[POSITIONS], coords).rgb; // position
+//    vec3 pval = imageLoad(u_input[POSITIONS], coords).rgb; // position
 
     float cum_w = 0.0;
 
@@ -56,10 +56,10 @@ vec4 denoise(ivec2 coords)
         dist2 = dot(t, t);
         float n_w = min(exp(-(dist2) * normalPhi), 1.0);
 
-        vec3 ptmp = imageLoad(u_input[POSITIONS], uv).rgb;
-        t = pval - ptmp;
-        dist2 = dot(t, t);
-        float p_w = min(exp(-(dist2) * positionPhi), 1.0);
+//        vec3 ptmp = imageLoad(u_input[POSITIONS], uv).rgb;
+//        t = pval - ptmp;
+//        dist2 = dot(t, t);
+        float p_w = 1.0;//min(exp(-(dist2) * positionPhi), 1.0);
 
         float weight = c_w * n_w * p_w * kernel[i];
         sum += ctmp * weight;
@@ -72,5 +72,4 @@ void main()
 {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
     imageStore(u_out_image, coords, denoise(coords));
-//    imageStore(u_out_image, coords, imageLoad(u_input[COLOR], coords));
 }
