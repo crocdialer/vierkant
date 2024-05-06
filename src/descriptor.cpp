@@ -262,6 +262,7 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
         for(auto &img: descriptor.images) { img.reset(); }
         for(auto &buf: descriptor.buffers) { buf.reset(); }
         for(auto &as: descriptor.acceleration_structures) { as.reset(); }
+        descriptor.inline_uniform_block.clear();
     }
 
     // retrieve set-layout
@@ -451,19 +452,30 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
                                                descriptor_set_map_t &current, bool variable_count)
 {
+    auto descriptors_copy = descriptors;
+
+    // clean descriptor-map to enable sharing
+    for(auto &[binding, descriptor]: descriptors_copy)
+    {
+        for(auto &img: descriptor.images) { img.reset(); }
+        for(auto &buf: descriptor.buffers) { buf.reset(); }
+        for(auto &as: descriptor.acceleration_structures) { as.reset(); }
+        descriptor.inline_uniform_block.clear();
+    }
+
     // handle for a descriptor-set
     DescriptorSetPtr ret;
 
     // search/create descriptor set
 
     // start searching in next_assets
-    auto descriptor_set_it = current.find(descriptors);
+    auto descriptor_set_it = current.find(descriptors_copy);
 
     // not found in current assets
     if(descriptor_set_it == current.end())
     {
         // search in last assets (might already been processed for this frame)
-        auto current_assets_it = last.find(descriptors);
+        auto current_assets_it = last.find(descriptors_copy);
 
         // not found in last assets
         if(current_assets_it == last.end())
@@ -482,7 +494,7 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
         vierkant::update_descriptor_set(device, descriptors, ret);
 
         // insert all created assets and store in map
-        current[descriptors] = ret;
+        current[descriptors_copy] = ret;
     }
     else { ret = descriptor_set_it->second; }
     return ret;
@@ -505,7 +517,7 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     for(const auto &img: descriptor.images) { hash_combine(h, img); }
     for(const auto &s: descriptor.image_views) { hash_combine(h, s); }
     for(const auto &as: descriptor.acceleration_structures) { hash_combine(h, as); }
-    for(const auto &byte: descriptor.inline_uniform_block) { hash_combine(h, byte); }
+    hash_combine(h, vierkant::hash(descriptor.inline_uniform_block.data(), descriptor.inline_uniform_block.size()));
     return h;
 }
 
