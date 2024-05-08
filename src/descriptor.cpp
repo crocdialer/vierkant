@@ -450,17 +450,20 @@ DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device
                                                const DescriptorSetLayoutPtr &set_layout,
                                                const descriptor_map_t &descriptors,
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
-                                               descriptor_set_map_t &current, bool variable_count)
+                                               descriptor_set_map_t &current, bool variable_count, bool relax_reuse)
 {
     auto descriptors_copy = descriptors;
 
-    // clean descriptor-map to enable sharing
-    for(auto &[binding, descriptor]: descriptors_copy)
+    if(relax_reuse)
     {
-        for(auto &img: descriptor.images) { img.reset(); }
-        for(auto &buf: descriptor.buffers) { buf.reset(); }
-        for(auto &as: descriptor.acceleration_structures) { as.reset(); }
-        descriptor.inline_uniform_block.clear();
+        // clean descriptor-map to enable sharing
+        for(auto &[binding, descriptor]: descriptors_copy)
+        {
+            for(auto &img: descriptor.images) { img.reset(); }
+            for(auto &buf: descriptor.buffers) { buf.reset(); }
+            for(auto &as: descriptor.acceleration_structures) { as.reset(); }
+            descriptor.inline_uniform_block.clear();
+        }
     }
 
     // handle for a descriptor-set

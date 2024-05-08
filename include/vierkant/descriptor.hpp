@@ -141,14 +141,16 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
  * @param   pool            a provided descriptor-pool
  * @param   last            cache of previously used descriptor-sets.
  * @param   current         output cache of retrieved/created descriptor-sets.
- * @param   variable_count  flag indicating if a variable descriptror-count is desired.
+ * @param   variable_count  flag indicating if a variable descriptor-count is desired.
+ * @param   relax_reuse     flag to somewhat relax reuse of descriptors
  * @return  a retrieved or newly created, shared VkDescriptorSet.
  */
 DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device,
                                                const DescriptorSetLayoutPtr &set_layout,
                                                const descriptor_map_t &descriptors,
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
-                                               descriptor_set_map_t &current, bool variable_count);
+                                               descriptor_set_map_t &current, bool variable_count,
+                                               bool relax_reuse = false);
 
 }//namespace vierkant
 
