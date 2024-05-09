@@ -8,7 +8,7 @@
 #include <variant>
 
 #include <crocore/Image.hpp>
-#include <crocore/ThreadPool.hpp>
+#include <crocore/ThreadPoolClassic.hpp>
 
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Material.hpp>
@@ -114,7 +114,7 @@ struct load_mesh_params_t
  *
  *  @return a struct grouping the loaded assets.
  */
-std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool *pool = nullptr);
+std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPoolClassic *pool = nullptr);
 
 /**
  * @brief   load_mesh can be used to load assets into gpu-buffers
@@ -131,7 +131,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
  * @param   mesh_assets     a mesh_assets struct.
  * @return  true, if all images contained in mesh_assets are compressed.
  */
-bool compress_textures(vierkant::model::model_assets_t &mesh_assets);
+bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::ThreadPoolClassic *pool = nullptr);
 
 /**
  * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.

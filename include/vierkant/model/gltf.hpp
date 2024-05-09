@@ -17,6 +17,6 @@ namespace vierkant::model
  *
  *  @return an optional struct grouping the loaded assets.
  */
-std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPool* pool = nullptr);
+std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPoolClassic* pool = nullptr);
 
 }// namespace vierkant::model

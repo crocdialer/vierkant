@@ -21,7 +21,7 @@ class Scene
 public:
     virtual ~Scene() = default;
 
-    static ScenePtr create(crocore::ThreadPool *thread_pool = nullptr);
+    static ScenePtr create();
 
     virtual void add_object(const Object3DPtr &object);
 
@@ -63,11 +63,9 @@ public:
     vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component);
 
 protected:
-    explicit Scene(crocore::ThreadPool *thread_pool = nullptr);
-    crocore::ThreadPool *m_thread_pool = nullptr;
+    explicit Scene() = default;
 
 private:
-    vierkant::mesh_map_t m_meshes;
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
 
     vierkant::ImagePtr m_skybox = nullptr;

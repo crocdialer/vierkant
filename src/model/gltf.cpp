@@ -807,7 +807,7 @@ struct load_image_context_t
     // cache image-futures
     std::map<uint32_t, std::future<crocore::ImagePtr>> image_cache;
 
-    crocore::ThreadPool *pool = nullptr;
+    crocore::ThreadPoolClassic *pool = nullptr;
 };
 
 bool LoadImageDataFunction(tinygltf::Image * /*tiny_image*/, const int image_idx, std::string * /*err*/,
@@ -835,7 +835,7 @@ bool LoadImageDataFunction(tinygltf::Image * /*tiny_image*/, const int image_idx
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPool *const pool)
+std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::ThreadPoolClassic *const pool)
 {
     tinygltf::Model model;
     tinygltf::TinyGLTF loader;
