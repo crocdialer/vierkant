@@ -143,7 +143,7 @@ class PhysicsScene : public vierkant::Scene
 public:
     ~PhysicsScene() override = default;
 
-    static std::shared_ptr<PhysicsScene> create(crocore::ThreadPool *thread_pool = nullptr);
+    static std::shared_ptr<PhysicsScene> create();
 
     void add_object(const Object3DPtr &object) override;
 
@@ -156,8 +156,10 @@ public:
     vierkant::PhysicsContext &context() { return m_context; };
 
 private:
-    explicit PhysicsScene(crocore::ThreadPool *thread_pool = nullptr);
-    vierkant::PhysicsContext m_context;
+    explicit PhysicsScene() = default;
+
+    crocore::ThreadPool m_thread_pool{std::thread::hardware_concurrency() - 1};
+    vierkant::PhysicsContext m_context{&m_thread_pool};
 };
 
 }//namespace vierkant

@@ -710,10 +710,6 @@ void PhysicsContext::set_callbacks(uint32_t objectId, const PhysicsContext::call
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-PhysicsScene::PhysicsScene(crocore::ThreadPool *thread_pool) : vierkant::Scene(thread_pool), m_context(thread_pool) {}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void PhysicsScene::add_object(const Object3DPtr &object)
 {
     vierkant::Scene::add_object(object);
@@ -733,7 +729,7 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
 
 void PhysicsScene::clear()
 {
-    m_context = vierkant::PhysicsContext(m_thread_pool);
+    m_context = vierkant::PhysicsContext(&m_thread_pool);
     Scene::clear();
 }
 
@@ -766,9 +762,9 @@ void PhysicsScene::update(double time_delta)
     m_context.step_simulation(static_cast<float>(time_delta), 2);
 }
 
-std::shared_ptr<PhysicsScene> PhysicsScene::create(crocore::ThreadPool *thread_pool)
+std::shared_ptr<PhysicsScene> PhysicsScene::create()
 {
-    return std::shared_ptr<PhysicsScene>(new PhysicsScene(thread_pool));
+    return std::shared_ptr<PhysicsScene>(new PhysicsScene());
 }
 
 }//namespace vierkant

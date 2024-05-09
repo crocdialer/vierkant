@@ -45,7 +45,7 @@ vierkant::GeometryPtr create_geometry(const tinyobj::attrib_t &inattrib, const s
     return geom;
 }
 
-std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, crocore::ThreadPool * /*pool*/)
+std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, crocore::ThreadPoolClassic * /*pool*/)
 {
     if(!exists(path) || !is_regular_file(path)) { return {}; }
 

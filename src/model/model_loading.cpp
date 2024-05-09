@@ -75,10 +75,9 @@ vierkant::VkSamplerPtr create_sampler(const vierkant::DevicePtr &device, const v
     return {sampler, [device](VkSampler s) { vkDestroySampler(device->handle(), s, nullptr); }};
 }
 
-bool compress_textures(vierkant::model::model_assets_t &mesh_assets)
+bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::ThreadPoolClassic *pool)
 {
     std::chrono::milliseconds compress_total_duration(0);
-    crocore::ThreadPool threadpool(std::thread::hardware_concurrency());
     size_t num_pixels = 0;
 
     for(auto &[tex_id, texture_variant]: mesh_assets.textures)
@@ -86,7 +85,7 @@ bool compress_textures(vierkant::model::model_assets_t &mesh_assets)
         try
         {
             texture_variant = std::visit(
-                    [&threadpool, &compress_total_duration, &num_pixels](auto &&img) -> texture_variant_t {
+                    [pool, &compress_total_duration, &num_pixels](auto &&img) -> texture_variant_t {
                         using T = std::decay_t<decltype(img)>;
 
                         if constexpr(std::is_same_v<T, crocore::ImagePtr>)
@@ -96,7 +95,7 @@ bool compress_textures(vierkant::model::model_assets_t &mesh_assets)
                                 bc7::compress_info_t compress_info = {};
                                 compress_info.image = img;
                                 compress_info.generate_mipmaps = true;
-                                compress_info.delegate_fn = [&threadpool](auto fn) { return threadpool.post(fn); };
+                                if(pool){compress_info.delegate_fn = [pool](auto fn) { return pool->post(fn); };}
                                 auto compressed_img = bc7::compress(compress_info);
                                 compress_total_duration += compressed_img.duration;
                                 num_pixels += img->width() * img->height();
@@ -193,10 +192,10 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> sampler_cache;
 
     // generate textures with default samplers
-    for(const auto &[tex_id, tex_variant]: mesh_assets.textures)
+    for(const auto &[id, tex_variant]: mesh_assets.textures)
     {
         std::visit(
-                [&params, tex_id = tex_id, &texture_cache, &create_texture](auto &&img) {
+                [&params, tex_id = id, &texture_cache, &create_texture](auto &&img) {
                     using T = std::decay_t<decltype(img)>;
 
                     if constexpr(std::is_same_v<T, crocore::ImagePtr>) { texture_cache[tex_id] = create_texture(img); }
@@ -291,7 +290,7 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     return compressed_img;
 }
 
-std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPool *pool)
+std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPoolClassic *pool)
 {
     auto ext_str = path.extension().string();
     std::transform(ext_str.begin(), ext_str.end(), ext_str.begin(), ::tolower);
