@@ -1,7 +1,7 @@
 #include <cstring>
 
-#include "bc7enc/bc7enc.h"
 #include "bc7enc/bc7decomp.h"
+#include "bc7enc/bc7enc.h"
 
 //#include <bc7e/bc7e_avx2.h>
 
@@ -29,13 +29,11 @@ struct init_helper_t
     init_helper_t()
     {
         bc7enc_compress_block_init();
-//        ispc::bc7e_compress_block_init();
+        //        ispc::bc7e_compress_block_init();
     }
 };
 
-inline void get_block(const crocore::Image_<uint8_t>::ConstPtr &img,
-                      uint32_t bx, uint32_t by,
-                      bool alpha,
+inline void get_block(const crocore::Image_<uint8_t>::ConstPtr &img, uint32_t bx, uint32_t by, bool alpha,
                       color_quad_u8 *pPixels)
 {
     constexpr uint32_t width = 4, height = 4;
@@ -44,7 +42,7 @@ inline void get_block(const crocore::Image_<uint8_t>::ConstPtr &img,
 
     for(uint32_t y = 0; y < height; ++y)
     {
-//        memcpy(pPixels + y * width, img->at(bx * width, by * height + y), width * sizeof(color_quad_u8));
+        //        memcpy(pPixels + y * width, img->at(bx * width, by * height + y), width * sizeof(color_quad_u8));
 
         for(uint32_t x = 0; x < width; ++x)
         {
@@ -53,12 +51,12 @@ inline void get_block(const crocore::Image_<uint8_t>::ConstPtr &img,
             out.r = in[0];
             out.g = in[1];
             out.b = in[2];
-            out.a =  alpha ? in[3] : 255;
+            out.a = alpha ? in[3] : 255;
         }
     }
 }
 
-inline uint32_t round4(uint32_t v){ return (v + 3) & ~3; }
+inline uint32_t round4(uint32_t v) { return (v + 3) & ~3; }
 
 bc7::compress_result_t compress(const compress_info_t &compress_info)
 {
@@ -72,9 +70,9 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     bc7enc_compress_block_params pack_params;
     bc7enc_compress_block_params_init(&pack_params);
 
-//    // faster(wtf!?) alternative bc7e
-//    ispc::bc7e_compress_block_params bc7e_params = {};
-//    ispc::bc7e_compress_block_params_init_basic(&bc7e_params, true);
+    //    // faster(wtf!?) alternative bc7e
+    //    ispc::bc7e_compress_block_params bc7e_params = {};
+    //    ispc::bc7e_compress_block_params_init_basic(&bc7e_params, true);
 
     uint32_t width = round4(compress_info.image->width());
     uint32_t height = round4(compress_info.image->height());
@@ -94,7 +92,7 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
 
     std::vector<std::future<void>> tasks;
 
-    for(auto &blocks : ret.levels)
+    for(auto &blocks: ret.levels)
     {
         source_image = std::dynamic_pointer_cast<const crocore::Image_<uint8_t>>(source_image->resize(width, height));
 
@@ -102,27 +100,33 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
         uint32_t num_blocks_y = height / 4;
         blocks.resize(num_blocks_x * num_blocks_y);
 
-        for(uint32_t by = 0; by < num_blocks_y; by++)
+        constexpr uint32_t num_rows_per_batch = 4;
+        const uint32_t num_batches = (num_blocks_y + num_rows_per_batch - 1) / num_rows_per_batch;
+
+        for(uint32_t i = 0; i < num_batches; i++)
         {
+            uint32_t first_row = i * num_rows_per_batch;
+            uint32_t end = std::min(num_blocks_y, (i + 1) * num_rows_per_batch);
+
             // function to encode one row of compressed blocks
-            auto fn = [by, num_blocks_x, source_image, has_alpha, &blocks, &pack_params]
-            {
+            auto fn = [first_row, end, num_blocks_x, source_image, has_alpha, &blocks, &pack_params] {
                 // scratch-space for block-encoding
                 color_quad_u8 pixels[16];
 
-                for(uint32_t bx = 0; bx < num_blocks_x; bx++)
+                for(uint32_t by = first_row; by < end; by++)
                 {
-                    get_block(source_image, bx, by, has_alpha, pixels);
-                    block_t *pBlock = &blocks[bx + by * num_blocks_x];
+                    for(uint32_t bx = 0; bx < num_blocks_x; bx++)
+                    {
+                        get_block(source_image, bx, by, has_alpha, pixels);
+                        block_t *pBlock = &blocks[bx + by * num_blocks_x];
 
-                    // encode one block
-                    bc7enc_compress_block(pBlock, pixels, &pack_params);
-
-                    // ispc::bc7e_compress_blocks(1, pBlock->value, reinterpret_cast<const uint32_t *>(pixels), &bc7e_params);
+                        // encode one block
+                        bc7enc_compress_block(pBlock, pixels, &pack_params);
+                    }
                 }
             };
-            if(compress_info.delegate_fn){ tasks.push_back(compress_info.delegate_fn(fn)); }
-            else{ fn(); }
+            if(compress_info.delegate_fn) { tasks.push_back(compress_info.delegate_fn(fn)); }
+            else { fn(); }
         }
 
         width = std::max<uint32_t>(width / 2, 1);
@@ -132,7 +136,7 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
         width = round4(width);
         height = round4(height);
     }
-    for(const auto &t : tasks){ t.wait(); }
+    for(const auto &t: tasks) { t.wait(); }
 
     // timing
     ret.duration = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time);
@@ -140,4 +144,4 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     return ret;
 }
 
-}
+}// namespace vierkant::bc7
