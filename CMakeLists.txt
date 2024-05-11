@@ -151,10 +151,8 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 # install vierkant-headers
-#FILE(GLOB FOLDER_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/*.h*)
-#install (FILES ${FOLDER_HEADERS} DESTINATION "include/${LIB_NAME}")
 install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include")
-install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/bundled DESTINATION "include/${LIB_NAME}/bundled")
+install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/bundled DESTINATION "include/${LIB_NAME}")
 install (DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include")
 
 # install entt-headers
