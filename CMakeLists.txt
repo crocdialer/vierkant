@@ -57,8 +57,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake_modules ${CMAKE_MODULE_PAT
 include(vierkant_utils)
 
 set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/3rdparty/include
+        ${PROJECT_SOURCE_DIR}/include/vierkant/bundled
         ${PROJECT_BINARY_DIR}/include)
+
+# suppress warnings from bundles headers
+include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/include/vierkant/bundled")
 
 # vulkan/volk
 find_package(Vulkan)
@@ -150,14 +153,15 @@ endif (BUILD_TESTS)
 # install vierkant-headers
 #FILE(GLOB FOLDER_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/*.h*)
 #install (FILES ${FOLDER_HEADERS} DESTINATION "include/${LIB_NAME}")
-install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include/")
-install (DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include/")
+install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include")
+install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/bundled DESTINATION "include/${LIB_NAME}/bundled")
+install (DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include")
 
 # install entt-headers
 FILE(GLOB ENTT_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/submodules/entt/single_include/entt/*.h*)
 install (FILES ${ENTT_HEADERS} DESTINATION "include/entt")
 
 # install glm-headers
-install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include/")
+install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include")
 
 install (TARGETS ${LIB_NAME} DESTINATION lib)
