@@ -22,10 +22,6 @@
 	path = submodules/meshoptimizer
 	url = git@github.com:zeux/meshoptimizer.git
 	shallow = true
-[submodule "submodules/VulkanMemoryAllocator"]
-	path = submodules/VulkanMemoryAllocator
-	url = git@github.com:GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
-	shallow = true
 [submodule "submodules/entt"]
 	path = submodules/entt
 	url = git@github.com:skypjack/entt.git

@@ -81,10 +81,10 @@ include_directories(BEFORE SYSTEM "submodules/tinyobjloader")
 add_subdirectory(submodules/meshoptimizer EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} meshoptimizer)
 
-# vma
-add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
-include_directories(SYSTEM submodules/VulkanMemoryAllocator/include)
-set(INCLUDE_DIRS ${INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/submodules/VulkanMemoryAllocator/include)
+## vma
+#add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
+#include_directories(SYSTEM submodules/VulkanMemoryAllocator/include)
+#set(INCLUDE_DIRS ${INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/submodules/VulkanMemoryAllocator/include)
 
 #crocore
 add_subdirectory("submodules/crocore")
@@ -98,7 +98,7 @@ set(LIBS ${LIBS} EnTT::EnTT)
 
 # JoltPhysics
 set(GENERATE_DEBUG_SYMBOLS OFF)
-add_subdirectory("submodules/JoltPhysics/Build")
+add_subdirectory("submodules/JoltPhysics/Build" EXCLUDE_FROM_ALL)
 include_directories(SYSTEM submodules/JoltPhysics/Jolt)
 set(LIBS ${LIBS} Jolt)
 
@@ -146,3 +146,18 @@ if (BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif (BUILD_TESTS)
+
+# install vierkant-headers
+#FILE(GLOB FOLDER_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME}/*.h*)
+#install (FILES ${FOLDER_HEADERS} DESTINATION "include/${LIB_NAME}")
+install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include/")
+install (DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include/")
+
+# install entt-headers
+FILE(GLOB ENTT_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/submodules/entt/single_include/entt/*.h*)
+install (FILES ${ENTT_HEADERS} DESTINATION "include/entt")
+
+# install glm-headers
+install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include/")
+
+install (TARGETS ${LIB_NAME} DESTINATION lib)
