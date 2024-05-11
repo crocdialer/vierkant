@@ -84,11 +84,6 @@ include_directories(BEFORE SYSTEM "submodules/tinyobjloader")
 add_subdirectory(submodules/meshoptimizer EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} meshoptimizer)
 
-## vma
-#add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
-#include_directories(SYSTEM submodules/VulkanMemoryAllocator/include)
-#set(INCLUDE_DIRS ${INCLUDE_DIRS} ${PROJECT_SOURCE_DIR}/submodules/VulkanMemoryAllocator/include)
-
 #crocore
 add_subdirectory("submodules/crocore")
 include_directories(${crocore_INCLUDE_DIRS})
@@ -155,10 +150,9 @@ install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "
 install (DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include")
 
 # install entt-headers
-FILE(GLOB ENTT_HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/submodules/entt/single_include/entt/*.h*)
-install (FILES ${ENTT_HEADERS} DESTINATION "include/entt")
+install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/entt/single_include/entt DESTINATION "include/vierkant/bundled")
 
 # install glm-headers
-install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include")
+install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include/vierkant/bundled")
 
 install (TARGETS ${LIB_NAME} DESTINATION lib)
