@@ -158,7 +158,7 @@ private:
         MAX_VALUE
     };
 
-    struct frame_asset_t
+    struct frame_context_t
     {
         settings_t settings;
 
@@ -240,20 +240,20 @@ private:
 
     PBRPathTracer(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void pre_render(frame_asset_t &frame_asset);
+    void pre_render(frame_context_t &frame_context);
 
-    void update_acceleration_structures(frame_asset_t &frame_asset, const SceneConstPtr &scene,
+    void update_acceleration_structures(frame_context_t &frame_context, const SceneConstPtr &scene,
                                         const std::set<std::string> &tags);
 
-    void update_trace_descriptors(frame_asset_t &frame_asset, const CameraPtr &cam);
+    void update_trace_descriptors(frame_context_t &frame_context, const CameraPtr &cam);
 
-    void path_trace_pass(frame_asset_t &frame_asset, const vierkant::SceneConstPtr &scene, const CameraPtr &cam);
+    void path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr &scene, const CameraPtr &cam);
 
-    void denoise_pass(frame_asset_t &frame_asset);
+    void denoise_pass(frame_context_t &frame_context);
 
-    void post_fx_pass(frame_asset_t &frame_asset);
+    void post_fx_pass(frame_context_t &frame_context);
 
-    void resize_storage(frame_asset_t &frame_asset, const glm::uvec2 &resolution);
+    void resize_storage(frame_context_t &frame_context, const glm::uvec2 &resolution);
 
     //! device
     vierkant::DevicePtr m_device;
@@ -287,7 +287,7 @@ private:
     //! information for a raytracing pipeline
     raytracing_shader_map_t m_shader_stages = {}, m_shader_stages_env = {};
 
-    std::vector<frame_asset_t> m_frame_assets;
+    std::vector<frame_context_t> m_frame_contexts;
 
     vierkant::DrawContext m_draw_context;
 
