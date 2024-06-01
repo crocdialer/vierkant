@@ -310,11 +310,11 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         auto obj_global_transform = object->global_transform();
 
         // TODO: figure out wtf is racing mesh-component after scene-changes
-        if(!mesh_component.mesh) { continue; }
+        auto mesh = mesh_component.mesh;
+        if(!mesh) { continue; }
 
-        const auto &mesh = mesh_component.mesh;
         bool transform_update = false;
-        meshes.insert(mesh_component.mesh);
+        meshes.insert(mesh);
 
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
                                 object->has_component<animation_component_t>();
