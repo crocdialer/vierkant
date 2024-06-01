@@ -5,13 +5,13 @@
 
 #include <deque>
 
-#include <vierkant/RayBuilder.hpp>
 #include <vierkant/Bloom.hpp>
-#include <vierkant/DrawContext.hpp>
-#include <vierkant/PipelineCache.hpp>
-#include <vierkant/SceneRenderer.hpp>
 #include <vierkant/Compute.hpp>
+#include <vierkant/DrawContext.hpp>
 #include <vierkant/GBuffer.hpp>
+#include <vierkant/PipelineCache.hpp>
+#include <vierkant/RayBuilder.hpp>
+#include <vierkant/SceneRenderer.hpp>
 #include <vierkant/ambient_occlusion.hpp>
 #include <vierkant/culling.hpp>
 #include <vierkant/gpu_culling.hpp>
@@ -202,7 +202,7 @@ public:
      */
     const std::deque<statistics_t> &statistics() const { return m_statistics; }
 
-    const image_bundle_t& image_bundle() const;
+    const image_bundle_t &image_bundle() const;
 
     //! settings struct
     settings_t settings;
@@ -258,7 +258,7 @@ private:
         float weights[61] = {};
     };
 
-    struct frame_asset_t
+    struct frame_context_t
     {
         std::chrono::steady_clock::time_point timestamp;
 
@@ -342,17 +342,17 @@ private:
         float motionblur_gain = 1.f;
     };
 
-    static const char* to_string(SemaphoreValue v);
+    static const char *to_string(SemaphoreValue v);
 
     explicit PBRDeferred(const vierkant::DevicePtr &device, const create_info_t &create_info);
 
-    void update_timing(frame_asset_t &frame_asset);
+    void update_timing(frame_context_t &frame_context);
 
-    void update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_asset_t &frame_asset);
+    void update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context);
 
-    void update_animation_transforms(frame_asset_t &frame_asset);
+    void update_animation_transforms(frame_context_t &frame_context);
 
-    void resize_storage(frame_asset_t &frame_asset, const glm::uvec2 &resolution, const glm::uvec2 &out_resolution);
+    void resize_storage(frame_context_t &frame_context, const glm::uvec2 &resolution, const glm::uvec2 &out_resolution);
 
     vierkant::Framebuffer &geometry_pass(vierkant::cull_result_t &cull_result);
 
@@ -381,7 +381,7 @@ private:
 
     size_t m_sample_index = 0;
 
-    std::vector<frame_asset_t> m_frame_assets;
+    std::vector<frame_context_t> m_frame_contexts;
 
     vierkant::DrawContext m_draw_context;
 
