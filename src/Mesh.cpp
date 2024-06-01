@@ -585,10 +585,15 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
                 ret.meshlets.reserve(ret.meshlets.size() + meshlet_count);
 
-                // generate bounds, combine data in our API output-meshlets
+                // reorder for locality, generate bounds, combine data in our API output-meshlets
                 for(uint32_t mi = 0; mi < meshlet_count; ++mi)
                 {
                     const auto &m = meshlets[mi];
+
+                    // optimize internal meshlet vertex-ordering for locality
+                    meshopt_optimizeMeshlet(&meshlet_vertices[m.vertex_offset], &meshlet_triangles[m.triangle_offset],
+                                            m.triangle_count, m.vertex_count);
+
                     auto bounds = meshopt_computeMeshletBounds(
                             &meshlet_vertices[m.vertex_offset], &meshlet_triangles[m.triangle_offset], m.triangle_count,
                             reinterpret_cast<const float *>(vertices), geom->positions.size(), ret.vertex_stride);
