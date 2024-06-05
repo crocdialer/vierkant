@@ -23,7 +23,7 @@ layout(triangles, max_vertices = 64, max_primitives = 64) out;
 #define CULLING 0
 
 layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
-layout(binding = BINDING_VERTICES, set = 0, scalar) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
+layout(binding = BINDING_VERTICES, set = 0) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
 
 layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
 {

@@ -15,7 +15,7 @@ layout(push_constant) uniform PushConstants {
 };
 
 layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
-layout(binding = BINDING_VERTICES, set = 0, scalar) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
+layout(binding = BINDING_VERTICES, set = 0) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
 
 layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 {
