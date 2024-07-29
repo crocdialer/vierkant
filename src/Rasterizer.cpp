@@ -189,7 +189,8 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
 
     // begin secondary command-buffer
     auto &command_buffer = frame_assets.command_buffer;
-    command_buffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT, &inheritance);
+    constexpr VkCommandBufferUsageFlags flags = 0;
+    command_buffer.begin(flags, &inheritance);
 
     // asset-creation and rendering
     render(frame_assets.command_buffer.handle(), frame_assets);

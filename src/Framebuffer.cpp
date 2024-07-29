@@ -286,7 +286,7 @@ void Framebuffer::end_renderpass() const
 VkCommandBuffer Framebuffer::record_commandbuffer(const std::vector<VkCommandBuffer> &commandbuffers)
 {
     // record commandbuffer
-    m_commandbuffer.begin(VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT);
+    m_commandbuffer.begin(0);//VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT
     if(debug_label) { vierkant::begin_label(m_commandbuffer.handle(), *debug_label); }
 
     // begin the renderpass
