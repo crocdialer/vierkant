@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.16)
 
 ## define our project
 project(vierkant)
@@ -44,12 +44,14 @@ option(BUILD_SHARED_LIBS "Build Shared Libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
 option(BUILD_EXAMPLES "Build Examples" ON)
 
+if( MSVC)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE INTERNAL "")
+endif ()
+
 if (NOT BUILD_SHARED_LIBS)
     set(CMAKE_CXX_FLAGS ${CXX_DEFAULT_FLAGS})
     set(LIB_TYPE STATIC)
-    set(MSVC_RUNTIME_LIBRARY MultiThreaded)
 else ()
-#    set(CMAKE_CXX_FLAGS "${CXX_DEFAULT_FLAGS} -fPIC")
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     set(LIB_TYPE SHARED)
 endif (NOT BUILD_SHARED_LIBS)
