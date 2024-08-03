@@ -48,7 +48,7 @@ static const real zero = real(0);
 static const real eps = static_cast<real>(1e-12);
 
 
-#define ZERO_TEST(x)  (abs(x) <= eps)
+#define ZERO_TEST(x)  (std::fabs(x) <= eps)
 
 
 /* function prototype */
