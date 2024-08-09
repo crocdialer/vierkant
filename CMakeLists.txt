@@ -88,6 +88,14 @@ include_directories(BEFORE SYSTEM "submodules/tinyobjloader")
 add_subdirectory(submodules/meshoptimizer EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} meshoptimizer)
 
+# SPIRV-Reflect -> libspirv-reflect-static.a
+set(SPIRV_REFLECT_EXAMPLES OFF)
+set(SPIRV_REFLECT_EXECUTABLE OFF)
+set(SPIRV_REFLECT_STATIC_LIB ON)
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
+add_subdirectory(submodules/SPIRV-Reflect EXCLUDE_FROM_ALL)
+set(LIBS ${LIBS} spirv-reflect-static)
+
 #crocore
 add_subdirectory("submodules/crocore")
 include_directories(${crocore_INCLUDE_DIRS})
