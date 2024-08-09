@@ -180,7 +180,7 @@ private:
 
         vierkant::Compute::computable_t denoise_computable = {};
 
-        vierkant::ImagePtr denoise_image, out_image;
+        vierkant::ImagePtr denoise_image, out_image, out_depth;
 
         vierkant::BufferPtr ray_camera_ubo, ray_miss_ubo, composition_ubo;
 
@@ -221,6 +221,7 @@ private:
 
     struct alignas(16) camera_ubo_t
     {
+        glm::mat4 projection_view{};
         glm::mat4 projection_inverse{};
         glm::mat4 view_inverse{};
         float fov = glm::quarter_pi<float>();
@@ -275,6 +276,7 @@ private:
     {
         vierkant::ImagePtr radiance;
         vierkant::ImagePtr normals;
+        vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
     } m_storage_images;
 

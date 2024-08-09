@@ -179,7 +179,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
 
     // stage final output
     // TODO: add depth-buffer
-    m_draw_context.draw_image_fullscreen(renderer, frame_context.out_image, nullptr, false,
+    m_draw_context.draw_image_fullscreen(renderer, frame_context.out_image, frame_context.out_depth, true,
                                          !frame_context.settings.draw_skybox);
 
     render_result_t ret;
@@ -308,6 +308,9 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
                                                    frame_context.cmd_denoise.handle());
 
+    frame_context.out_depth->copy_from(m_storage_images.depth, frame_context.cmd_denoise.handle());
+    frame_context.out_depth->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_context.cmd_denoise.handle());
+
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_context.semaphore.handle();
     semaphore_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
@@ -398,45 +401,50 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals};
 
-    auto &desc_object_id_image = frame_context.tracable.descriptors[2];
+    auto &desc_depth_buffer = frame_context.tracable.descriptors[2];
+    desc_depth_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    desc_depth_buffer.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    desc_depth_buffer.buffers = {m_storage_images.depth};
+
+    auto &desc_object_id_image = frame_context.tracable.descriptors[3];
     desc_object_id_image.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     desc_object_id_image.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_object_id_image.images = {m_storage_images.object_ids};
 
-    vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[3];
+    vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[4];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_matrices.buffers = {frame_context.ray_camera_ubo};
 
-    vierkant::descriptor_t &desc_vertex_buffers = frame_context.tracable.descriptors[4];
+    vierkant::descriptor_t &desc_vertex_buffers = frame_context.tracable.descriptors[5];
     desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_vertex_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_vertex_buffers.buffers = frame_context.scene_ray_acceleration.vertex_buffers;
     desc_vertex_buffers.buffer_offsets = frame_context.scene_ray_acceleration.vertex_buffer_offsets;
 
-    vierkant::descriptor_t &desc_index_buffers = frame_context.tracable.descriptors[5];
+    vierkant::descriptor_t &desc_index_buffers = frame_context.tracable.descriptors[6];
     desc_index_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_index_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_index_buffers.buffers = frame_context.scene_ray_acceleration.index_buffers;
     desc_index_buffers.buffer_offsets = frame_context.scene_ray_acceleration.index_buffer_offsets;
 
-    vierkant::descriptor_t &desc_entries = frame_context.tracable.descriptors[6];
+    vierkant::descriptor_t &desc_entries = frame_context.tracable.descriptors[7];
     desc_entries.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_entries.buffers = {frame_context.scene_ray_acceleration.entry_buffer};
 
-    vierkant::descriptor_t &desc_materials = frame_context.tracable.descriptors[7];
+    vierkant::descriptor_t &desc_materials = frame_context.tracable.descriptors[8];
     desc_materials.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_materials.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_materials.buffers = {frame_context.scene_ray_acceleration.material_buffer};
 
-    vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[8];
+    vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[9];
     desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_textures.images = frame_context.scene_ray_acceleration.textures;
 
     // common ubo for miss-shaders
-    vierkant::descriptor_t &desc_ray_miss_ubo = frame_context.tracable.descriptors[9];
+    vierkant::descriptor_t &desc_ray_miss_ubo = frame_context.tracable.descriptors[10];
     desc_ray_miss_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
     desc_ray_miss_ubo.buffers = {frame_context.ray_miss_ubo};
@@ -445,6 +453,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     // assemble camera-ubo
     camera_ubo_t camera_ubo = {};
+    camera_ubo.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
     camera_ubo.view_inverse = vierkant::mat4_cast(cam->global_transform());
     camera_ubo.fov = perspective_cam->perspective_params.fovy();
@@ -459,7 +468,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     if(m_environment)
     {
-        vierkant::descriptor_t &desc_environment = frame_context.tracable.descriptors[10];
+        vierkant::descriptor_t &desc_environment = frame_context.tracable.descriptors[11];
         desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
         desc_environment.images = {m_environment};
@@ -512,6 +521,15 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         auto object_id_fmt = storage_format;
         object_id_fmt.format = VK_FORMAT_R16_UINT;
         m_storage_images.object_ids = vierkant::Image::create(m_device, object_id_fmt);
+
+        vierkant::Buffer::create_info_t depth_buf_info;
+        depth_buf_info.name = "depth storage buffer";
+        depth_buf_info.num_bytes = size.width * size.height * sizeof(float);
+        depth_buf_info.usage = VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR;
+        depth_buf_info.device = m_device;
+        depth_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        m_storage_images.depth = vierkant::Buffer::create(depth_buf_info);
+
         m_batch_index = 0;
     }
 
@@ -552,6 +570,17 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         desc_denoise_output.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
         desc_denoise_output.images = {frame_context.denoise_image};
         frame_context.denoise_computable.descriptors[1] = desc_denoise_output;
+
+        // depth-image
+        Image::Format depth_image_format = {};
+        depth_image_format.extent = size;
+        depth_image_format.format = VK_FORMAT_D32_SFLOAT;
+        depth_image_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+        depth_image_format.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+                                   VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        depth_image_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+        depth_image_format.name = "depth";
+        frame_context.out_depth = {vierkant::Image::create(m_device, depth_image_format)};
 
         // create bloom
         Bloom::create_info_t bloom_info = {};

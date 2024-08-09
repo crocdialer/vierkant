@@ -18,16 +18,16 @@ layout(push_constant) uniform PushConstants
 };
 
 // array of vertex-buffers
-layout(binding = 4, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
+layout(binding = 5, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
 
 // array of index-buffers
-layout(binding = 5, set = 0) readonly buffer Indices { uint i[]; } indices[];
+layout(binding = 6, set = 0) readonly buffer Indices { uint i[]; } indices[];
 
-layout(binding = 6, set = 0) readonly buffer Entries { entry_t entries[]; };
+layout(binding = 7, set = 0) readonly buffer Entries { entry_t entries[]; };
 
-layout(binding = 7, set = 0) readonly buffer Materials{ material_t materials[]; };
+layout(binding = 8, set = 0) readonly buffer Materials{ material_t materials[]; };
 
-layout(binding = 8) uniform sampler2D u_textures[];
+layout(binding = 9) uniform sampler2D u_textures[];
 
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;

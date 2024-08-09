@@ -991,7 +991,7 @@ static uint64_t color_cell_compression(uint32_t mode, const color_cell_compresso
 		}
 	}
 
-	// TODO: Try picking the 2 colors with the largest projection onto the axis, instead of computing new colors along the axis.
+	// TODO: Try picking the 2 colors with the largest projection_view onto the axis, instead of computing new colors along the axis.
 				
 	if (vec4F_dot(&axis, &axis) < .5f)
 	{

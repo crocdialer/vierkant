@@ -110,6 +110,7 @@ struct push_constants_t
 
 struct camera_ubo_t
 {
+    mat4 projection_view;
     mat4 projection_inverse;
     mat4 view_inverse;
     float fov;

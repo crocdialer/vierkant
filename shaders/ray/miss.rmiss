@@ -8,7 +8,7 @@
 
 layout(location = 0) rayPayloadInEXT payload_t payload;
 
-layout(std140, binding = 9) uniform ubo_t
+layout(std140, binding = 10) uniform ubo_t
 {
     float environment_factor;
 } ubo;
