@@ -162,7 +162,8 @@ trace_result_t trace(vec2 coord, vec2 size)
                 trace_result.normal = payload.normal;
                 trace_result.position = payload.position;
                 vec4 depth_proj = cam.projection_view * vec4(trace_result.position, 1.0);
-                trace_result.depth = depth_proj.z / depth_proj.w;
+                bool ray_miss = payload.entity_index == MAX_UINT16;
+                trace_result.depth = ray_miss ? 0.0 : depth_proj.z / depth_proj.w;
             }
 
             // nothing hit, end recursion
