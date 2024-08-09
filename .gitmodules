@@ -1,32 +1,36 @@
 [submodule "submodules/glfw"]
 	path = submodules/glfw
-	url = git@github.com:glfw/glfw.git
+	url = https://github.com/glfw/glfw.git
 	shallow = true
 [submodule "submodules/glm"]
 	path = submodules/glm
-	url = git@github.com:g-truc/glm.git
+	url = https://github.com/g-truc/glm.git
 	shallow = true
 [submodule "submodules/crocore"]
 	path = submodules/crocore
-	url = git@github.com:crocdialer/crocore.git
+	url = https://github.com/crocdialer/crocore.git
 	shallow = true
 [submodule "submodules/tinygltf"]
 	path = submodules/tinygltf
-	url = git@github.com:syoyo/tinygltf.git
+	url = https://github.com/syoyo/tinygltf.git
 	shallow = true
 [submodule "submodules/tinyobjloader"]
 	path = submodules/tinyobjloader
-	url = git@github.com:tinyobjloader/tinyobjloader.git
+	url = https://github.com/tinyobjloader/tinyobjloader.git
 	shallow = true
 [submodule "submodules/meshoptimizer"]
 	path = submodules/meshoptimizer
-	url = git@github.com:zeux/meshoptimizer.git
+	url = https://github.com/zeux/meshoptimizer.git
 	shallow = true
 [submodule "submodules/entt"]
 	path = submodules/entt
-	url = git@github.com:skypjack/entt.git
+	url = https://github.com/skypjack/entt.git
 	shallow = true
 [submodule "submodules/JoltPhysics"]
 	path = submodules/JoltPhysics
-	url = git@github.com:jrouwe/JoltPhysics.git
+	url = https://github.com/jrouwe/JoltPhysics.git
+	shallow = true
+[submodule "submodules/SPIRV-Reflect"]
+	path = submodules/SPIRV-Reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect.git
 	shallow = true
