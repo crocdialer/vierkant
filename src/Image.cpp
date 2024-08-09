@@ -458,7 +458,7 @@ void Image::copy_from(const BufferPtr &src, VkCommandBuffer cmd_buffer_handle, s
         region.bufferOffset = buf_offset;
         region.bufferRowLength = 0;
         region.bufferImageHeight = 0;
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        region.imageSubresource.aspectMask = m_format.aspect;
         region.imageSubresource.mipLevel = level;
         region.imageSubresource.baseArrayLayer = layer;
         region.imageSubresource.layerCount = 1;

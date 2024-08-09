@@ -179,7 +179,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
 
     // stage final output
     // TODO: add depth-buffer
-    m_draw_context.draw_image_fullscreen(renderer, frame_context.out_image, nullptr, false,
+    m_draw_context.draw_image_fullscreen(renderer, frame_context.out_image, frame_context.out_depth, false,
                                          !frame_context.settings.draw_skybox);
 
     render_result_t ret;
@@ -308,6 +308,9 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
                                                    frame_context.cmd_denoise.handle());
 
+    frame_context.out_depth->copy_from(m_storage_images.depth, frame_context.cmd_denoise.handle());
+    frame_context.out_depth->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_context.cmd_denoise.handle());
+
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_context.semaphore.handle();
     semaphore_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
@@ -398,10 +401,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals};
 
-    auto &desc_depth_image = frame_context.tracable.descriptors[2];
-    desc_depth_image.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    desc_depth_image.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_depth_image.images = {m_storage_images.depth};
+    auto &desc_depth_buffer = frame_context.tracable.descriptors[2];
+    desc_depth_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    desc_depth_buffer.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    desc_depth_buffer.buffers = {m_storage_images.depth};
 
     auto &desc_object_id_image = frame_context.tracable.descriptors[3];
     desc_object_id_image.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
@@ -518,9 +521,14 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         object_id_fmt.format = VK_FORMAT_R16_UINT;
         m_storage_images.object_ids = vierkant::Image::create(m_device, object_id_fmt);
 
-        auto depth_fmt = storage_format;
-        depth_fmt.format = VK_FORMAT_R32_SFLOAT;
-        m_storage_images.depth = vierkant::Image::create(m_device, depth_fmt);
+        vierkant::Buffer::create_info_t depth_buf_info;
+        depth_buf_info.name = "depth storage buffer";
+        depth_buf_info.num_bytes = size.width * size.height * sizeof(float);
+        depth_buf_info.usage = VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR;
+        depth_buf_info.device = m_device;
+        depth_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        m_storage_images.depth = vierkant::Buffer::create(depth_buf_info);
+
         m_batch_index = 0;
     }
 
@@ -562,13 +570,13 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         desc_denoise_output.images = {frame_context.denoise_image};
         frame_context.denoise_computable.descriptors[1] = desc_denoise_output;
 
-        // precision int24 vs float32 !?
+        // depth-image
         Image::Format depth_image_format = {};
         depth_image_format.extent = size;
         depth_image_format.format = VK_FORMAT_D32_SFLOAT;
         depth_image_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-        depth_image_format.usage =
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        depth_image_format.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT |
+                                   VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         depth_image_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
         depth_image_format.name = "depth";
         frame_context.out_depth = {vierkant::Image::create(m_device, depth_image_format)};
