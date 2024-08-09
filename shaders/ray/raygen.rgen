@@ -16,9 +16,11 @@ layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(binding = 1, set = 0, rgba32f) uniform image2D out_images[2];
 
-layout(binding = 2, r16ui) writeonly uniform uimage2D out_object_ids;
+layout(binding = 2, r32f) writeonly uniform image2D out_depth;
 
-layout(binding = 3, set = 0) uniform CameraProperties
+layout(binding = 3, r16ui) writeonly uniform uimage2D out_object_ids;
+
+layout(binding = 4, set = 0) uniform CameraProperties
 {
     camera_ubo_t cam;
 };
@@ -35,6 +37,7 @@ struct trace_result_t
     vec3 radiance;
     float coverage;
     vec3 normal;
+    float depth;
     vec3 position;
     uint entity_index;
 };
@@ -158,6 +161,7 @@ trace_result_t trace(vec2 coord, vec2 size)
                 trace_result.entity_index = payload.entity_index;
                 trace_result.normal = payload.normal;
                 trace_result.position = payload.position;
+                trace_result.depth = 1.0;
             }
 
             // nothing hit, end recursion
@@ -184,5 +188,10 @@ void main()
     }
     imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
     imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
+
+    // store object-ids
     imageStore(out_object_ids, ivec2(gl_LaunchIDEXT.xy), uvec4(MAX_UINT16 - trace_result.entity_index));
+
+    // store depth
+    imageStore(out_depth, ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.depth));
 }

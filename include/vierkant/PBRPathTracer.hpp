@@ -180,7 +180,7 @@ private:
 
         vierkant::Compute::computable_t denoise_computable = {};
 
-        vierkant::ImagePtr denoise_image, out_image;
+        vierkant::ImagePtr denoise_image, out_image, out_depth;
 
         vierkant::BufferPtr ray_camera_ubo, ray_miss_ubo, composition_ubo;
 
@@ -275,6 +275,7 @@ private:
     {
         vierkant::ImagePtr radiance;
         vierkant::ImagePtr normals;
+        vierkant::ImagePtr depth;
         vierkant::ImagePtr object_ids;
     } m_storage_images;
 
