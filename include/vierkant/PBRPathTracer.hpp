@@ -221,6 +221,7 @@ private:
 
     struct alignas(16) camera_ubo_t
     {
+        glm::mat4 projection_view{};
         glm::mat4 projection_inverse{};
         glm::mat4 view_inverse{};
         float fov = glm::quarter_pi<float>();

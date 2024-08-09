@@ -16,7 +16,6 @@ layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
 layout(binding = 1, set = 0, rgba32f) uniform image2D out_images[2];
 
-//layout(binding = 2, r32f) writeonly uniform image2D out_depth;
 layout(binding = 2, set = 0) writeonly buffer Depth{ float out_depth[]; };
 
 layout(binding = 3, r16ui) writeonly uniform uimage2D out_object_ids;
@@ -162,7 +161,8 @@ trace_result_t trace(vec2 coord, vec2 size)
                 trace_result.entity_index = payload.entity_index;
                 trace_result.normal = payload.normal;
                 trace_result.position = payload.position;
-                trace_result.depth = 1.0;
+                vec4 depth_proj = cam.projection_view * vec4(trace_result.position, 1.0);
+                trace_result.depth = depth_proj.z / depth_proj.w;
             }
 
             // nothing hit, end recursion
@@ -195,5 +195,4 @@ void main()
 
     // store depth
     out_depth[gl_LaunchIDEXT.x + gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x] = trace_result.depth;
-//    imageStore(out_depth, ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.depth));
 }

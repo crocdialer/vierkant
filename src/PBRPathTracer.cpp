@@ -179,7 +179,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
 
     // stage final output
     // TODO: add depth-buffer
-    m_draw_context.draw_image_fullscreen(renderer, frame_context.out_image, frame_context.out_depth, false,
+    m_draw_context.draw_image_fullscreen(renderer, frame_context.out_image, frame_context.out_depth, true,
                                          !frame_context.settings.draw_skybox);
 
     render_result_t ret;
@@ -453,6 +453,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     // assemble camera-ubo
     camera_ubo_t camera_ubo = {};
+    camera_ubo.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
     camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
     camera_ubo.view_inverse = vierkant::mat4_cast(cam->global_transform());
     camera_ubo.fov = perspective_cam->perspective_params.fovy();
