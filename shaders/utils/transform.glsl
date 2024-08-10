@@ -85,12 +85,11 @@ mat3 mat3_cast(vec4 q)
 //! cast a transform_t to a mat4
 mat4 mat4_cast(transform_t t)
 {
-    mat4 ret = mat4(mat3_cast(vec4(t.rotation_x, t.rotation_y, t.rotation_z, t.rotation_w)));
-    ret[0] *= t.scale_x;
-    ret[1] *= t.scale_y;
-    ret[2] *= t.scale_z;
-    ret[3] = vec4(t.translation_x, t.translation_y, t.translation_z, 1.0);
-    return ret;
+    mat3 rot = mat3_cast(vec4(t.rotation_x, t.rotation_y, t.rotation_z, t.rotation_w));
+    return mat4(vec4(rot[0] * t.scale_x, 0.0),
+                vec4(rot[1] * t.scale_y, 0.0),
+                vec4(rot[2] * t.scale_z, 0.0),
+                vec4(t.translation_x, t.translation_y, t.translation_z, 1.0));
 }
 
 #endif // UTILS_TRANSFORM_GLSL
