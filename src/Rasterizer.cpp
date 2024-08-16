@@ -432,7 +432,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 draw_command->vk_draw.indexCount = drawable->num_indices;
                 draw_command->vk_draw.vertexOffset = drawable->vertex_offset;
                 draw_command->vk_draw.firstInstance = indexed_drawable.object_index;
-                draw_command->vk_draw.instanceCount = 1;
+                draw_command->vk_draw.instanceCount = drawable->num_instances;
 
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;

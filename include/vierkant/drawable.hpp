@@ -105,6 +105,8 @@ struct drawable_t
     uint32_t base_meshlet = 0;
     uint32_t num_meshlets = 0;
 
+    uint32_t num_instances = 1;
+
     bool use_own_buffers = false;
 };
 
