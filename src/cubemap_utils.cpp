@@ -320,8 +320,6 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     vierkant::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
             vierkant::create_shader_module(device, vierkant::shaders::cube::cube_vert);
-    drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_GEOMETRY_BIT] =
-            vierkant::create_shader_module(device, vierkant::shaders::cube::cube_layers_geom);
 
     auto cmd_buffer = vierkant::CommandBuffer(device, command_pool.get());
     cmd_buffer.begin();
@@ -340,6 +338,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     drawable.mesh = vierkant::Mesh::create_from_geometry(device, box, mesh_create_info);
     cmd_buffer.submit(queue, true);
 
+    drawable.num_instances = 6;
     const auto &mesh_entry = drawable.mesh->entries.front();
     const auto &lod_0 = mesh_entry.lods.front();
     drawable.base_index = lod_0.base_index;
@@ -372,7 +371,7 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
 
     vierkant::descriptor_t desc_matrices = {};
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_matrices.stage_flags = VK_SHADER_STAGE_GEOMETRY_BIT;
+    desc_matrices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;//VK_SHADER_STAGE_GEOMETRY_BIT;
     desc_matrices.buffers = {vierkant::Buffer::create(device, &ubo_data, sizeof(ubo_data),
                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU)};
     drawable.descriptors[0] = desc_matrices;
