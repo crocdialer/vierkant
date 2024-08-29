@@ -520,7 +520,8 @@ size_t std::hash<vierkant::descriptor_t>::operator()(const vierkant::descriptor_
     for(const auto &img: descriptor.images) { hash_combine(h, img); }
     for(const auto &s: descriptor.image_views) { hash_combine(h, s); }
     for(const auto &as: descriptor.acceleration_structures) { hash_combine(h, as); }
-    hash_combine(h, vierkant::hash(descriptor.inline_uniform_block.data(), descriptor.inline_uniform_block.size()));
+    hash_combine(h,
+                 vierkant::hash_range(descriptor.inline_uniform_block.begin(), descriptor.inline_uniform_block.end()));
     return h;
 }
 

@@ -17,11 +17,15 @@ inline void hash_combine(std::size_t &seed, const T &v)
     seed ^= hasher(v) + 0x9e3779b9 + (seed << 6U) + (seed >> 2U);
 }
 
-inline size_t hash(const void* p, size_t num_bytes)
+template <typename It>
+std::size_t hash_range(It first, It last)
 {
-    auto data = reinterpret_cast<const char*>(p);
-    std::hash<std::string_view> hasher;
-    return hasher(std::string_view(data, data + num_bytes));
+    std::size_t seed = 0;
+    for (; first != last; ++first)
+    {
+        hash_combine(seed, *first);
+    }
+    return seed;
 }
 
 template<class T, class U>
