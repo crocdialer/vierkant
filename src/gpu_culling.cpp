@@ -94,7 +94,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     std::vector<vierkant::ImagePtr> pyramid_images = {params.depth_map};
     pyramid_images.resize(1 + context->depth_pyramid_img->num_mip_levels(), context->depth_pyramid_img);
 
-    for(const auto &mip_image_view : context->depth_pyramid_img->mip_image_views())
+    for(const auto &mip_image_view: context->depth_pyramid_img->mip_image_views())
     {
         pyramid_views.push_back(mip_image_view.get());
     }
@@ -202,6 +202,17 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     vkCmdWriteTimestamp2(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          params.query_pool.get(), params.query_index_start);
 
+    // required to avoid a SYNC-HAZARD-WRITE-AFTER-WRITE
+    auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    auto dst_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    auto dst_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    context->draw_cull_result_buffer->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access, dst_stage,
+                                              dst_access);
+    params.draws_counts_out_main->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access, dst_stage,
+                                          dst_access);
+    params.draws_counts_out_post->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access, dst_stage,
+                                          dst_access);
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.num_draws = params.num_draws;
     draw_cull_data.pyramid_size = {params.depth_pyramid->width(), params.depth_pyramid->height()};
@@ -262,8 +273,10 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     VkBufferMemoryBarrier2 barrier = {};
     barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
     barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.srcAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+    //    barrier.srcAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+    //    barrier.srcStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+    barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
     barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
     barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     barrier.buffer = params.draws_out_main->handle();
@@ -275,8 +288,6 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_buffer_barriers[2].buffer = params.draws_counts_out_post->handle();
     draw_buffer_barriers[3].buffer = params.draws_out_post->handle();
     draw_buffer_barriers[4].buffer = context->draw_cull_result_buffer->handle();
-    draw_buffer_barriers[4].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-    draw_buffer_barriers[4].srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 
     VkDependencyInfo dependency_info = {};
     dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;

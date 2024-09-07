@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "vierkant/Device.hpp"
 #include "vierkant/CommandBuffer.hpp"
+#include "vierkant/Device.hpp"
 
 namespace vierkant
 {
@@ -15,7 +15,6 @@ DEFINE_CLASS_PTR(Buffer)
 class Buffer
 {
 public:
-
     struct create_info_t
     {
         DevicePtr device;
@@ -41,9 +40,8 @@ public:
 
     static BufferPtr create(const create_info_t &create_info);
 
-    static BufferPtr create(DevicePtr device, const void *data, size_t num_bytes,
-                            VkBufferUsageFlags usage_flags, VmaMemoryUsage mem_usage,
-                            VmaPoolPtr pool = nullptr);
+    static BufferPtr create(DevicePtr device, const void *data, size_t num_bytes, VkBufferUsageFlags usage_flags,
+                            VmaMemoryUsage mem_usage, VmaPoolPtr pool = nullptr);
 
     template<class T>
     static BufferPtr create(DevicePtr the_device, const T &the_array, VkBufferUsageFlags the_usage_flags,
@@ -97,7 +95,7 @@ public:
      * @brief   if the buffer was created with 'VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT' returns its address.
      * @return  the VkDeviceAddress for this buffer or 0 if not available.
      */
-    [[nodiscard]] VkDeviceAddress device_address() const{ return m_device_address; };
+    [[nodiscard]] VkDeviceAddress device_address() const { return m_device_address; };
 
     /**
      * @brief   upload data into the buffer
@@ -123,19 +121,28 @@ public:
      * @param   dst     the destination buffer for the copy operation
      * @param   cmd_buf optional pointer to an existing CommandBuffer to be used for the copy operation
      */
-    void copy_to(const BufferPtr &dst,
-                 VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE,
-                 size_t src_offset = 0,
-                 size_t dst_offset = 0,
-                 size_t num_bytes = 0);
+    void copy_to(const BufferPtr &dst, VkCommandBuffer cmdBufferHandle = VK_NULL_HANDLE, size_t src_offset = 0,
+                 size_t dst_offset = 0, size_t num_bytes = 0);
+
+    /**
+     * @brief   insert a pipeline-barrier for this buffer in 'command_buffer'.
+     *
+     * @param   command_buffer  existing command-buffer-handle
+     * @param   src_stage       source stage-mask
+     * @param   src_access      source access-mask
+     * @param   dst_stage       destination stage-mask
+     * @param   dst_access      destination access-mask
+     */
+    void barrier(VkCommandBuffer command_buffer,
+                 VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+                 VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access);
 
     /**
      * @return  the vierkant::DevicePtr used to create the buffer.
      */
-    [[nodiscard]] vierkant::DevicePtr device() const{ return m_device; }
+    [[nodiscard]] vierkant::DevicePtr device() const { return m_device; }
 
 private:
-
     DevicePtr m_device;
 
     VkBuffer m_buffer = VK_NULL_HANDLE;
@@ -161,4 +168,4 @@ private:
     Buffer(const create_info_t &create_info);
 };
 
-}//namespace vulkan
+}// namespace vierkant

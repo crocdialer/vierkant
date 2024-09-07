@@ -76,10 +76,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         asset.lights_ubo = vierkant::Buffer::create(device, nullptr, sizeof(vierkant::lightsource_ubo_t),
                                                     VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        asset.composition_ubo =
-                vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                         VMA_MEMORY_USAGE_CPU_TO_GPU);
-
+        vierkant::Buffer::create_info_t composition_buffer_info = {};
+        composition_buffer_info.device = m_device;
+        composition_buffer_info.num_bytes = sizeof(composition_ubo_t);
+        composition_buffer_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        composition_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+        composition_buffer_info.name = "composition_ubo";
+        asset.composition_ubo = vierkant::Buffer::create(composition_buffer_info);
 
         vierkant::Buffer::create_info_t anim_buffer_info = {};
         anim_buffer_info.device = m_device;
@@ -108,8 +111,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         staging_buffer_info.name = "staging_post_fx";
         asset.staging_post_fx = vierkant::Buffer::create(staging_buffer_info);
 
-        asset.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        asset.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        vierkant::CommandBuffer::create_info_t command_buffer_info = {};
+        command_buffer_info.device = m_device;
+        command_buffer_info.command_pool = m_command_pool.get();
+        command_buffer_info.name = "PBRDeferred::cmd_pre_render";
+        asset.cmd_pre_render = vierkant::CommandBuffer(command_buffer_info);
+
+        command_buffer_info.name = "PBRDeferred::cmd_post_fx";
+        asset.cmd_post_fx = vierkant::CommandBuffer(command_buffer_info);
     }
 
     // create renderer for g-buffer-pass
@@ -1107,10 +1116,15 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
 
         if(!drawable.descriptors[1].buffers.empty())
         {
+            const auto &buf = drawable.descriptors[1].buffers.front();
+            buf->barrier(frame_context.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                         VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                         VK_ACCESS_2_TRANSFER_WRITE_BIT);
+
             vierkant::staging_copy_info_t staging_copy_info = {};
             staging_copy_info.data = &frame_context.camera_params;
             staging_copy_info.num_bytes = sizeof(camera_params_t);
-            staging_copy_info.dst_buffer = drawable.descriptors[1].buffers.front();
+            staging_copy_info.dst_buffer = buf;
             staging_copy_info.dst_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
             staging_copy_info.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
             vierkant::staging_copy(staging_context, {staging_copy_info});

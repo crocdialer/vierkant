@@ -29,20 +29,22 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
 {
     auto ret =
             object_overlay_context_ptr(new object_overlay_context_t, std::default_delete<object_overlay_context_t>());
-    vierkant::Buffer::create_info_t internal_buffer_info = {};
-    internal_buffer_info.device = device;
-    internal_buffer_info.num_bytes = 1U << 10U;
-    internal_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    internal_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    vierkant::Buffer::create_info_t id_buffer_info = {};
+    id_buffer_info.device = device;
+    id_buffer_info.num_bytes = 1U << 10U;
+    id_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                           VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    id_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    id_buffer_info.name = "object_overlay::id_buffer";
 
-    ret->id_buffer = vierkant::Buffer::create(internal_buffer_info);
+    ret->id_buffer = vierkant::Buffer::create(id_buffer_info);
 
     vierkant::Buffer::create_info_t param_buffer_info = {};
     param_buffer_info.device = device;
     param_buffer_info.num_bytes = 1U << 8U;
     param_buffer_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     param_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    param_buffer_info.name = "object_overlay::param_buffer";
     ret->param_buffer = vierkant::Buffer::create(param_buffer_info);
 
     vierkant::Buffer::create_info_t staging_buffer_info = {};
@@ -50,6 +52,7 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     staging_buffer_info.num_bytes = 1U << 10U;
     staging_buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
     staging_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
+    staging_buffer_info.name = "object_overlay::staging_buffer";
     ret->staging_buffer = vierkant::Buffer::create(staging_buffer_info);
 
     vierkant::Compute::create_info_t compute_info = {};
@@ -97,7 +100,12 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     vierkant::begin_label(params.commandbuffer, {"object_overlay"});
 
     std::vector<uint32_t> id_array = {params.object_ids.begin(), params.object_ids.end()};
-    if(params.mode == ObjectOverlayMode::None){ id_array.clear(); }
+    if(params.mode == ObjectOverlayMode::None) { id_array.clear(); }
+
+    // required to avoid a SYNC-HAZARD-WRITE-AFTER-WRITE
+    context->param_buffer->barrier(params.commandbuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                                   VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                                   VK_ACCESS_2_TRANSFER_WRITE_BIT);
 
     vierkant::staging_copy_info_t copy_ids = {};
     copy_ids.num_bytes = sizeof(uint32_t) * id_array.size();
