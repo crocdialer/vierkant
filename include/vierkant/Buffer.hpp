@@ -10,6 +10,21 @@
 namespace vierkant
 {
 
+/**
+ * @brief   insert a pipeline-barrier for an array of buffers into 'command_buffer'.
+ *
+ * @param   command_buffer  existing command-buffer-handle
+ * @param   buffers         an array of buffers
+ * @param   num_buffers     number of elements
+ * @param   src_stage       source stage-mask
+ * @param   src_access      source access-mask
+ * @param   dst_stage       destination stage-mask
+ * @param   dst_access      destination access-mask
+ */
+void barrier(VkCommandBuffer command_buffer, const VkBuffer *buffers, uint32_t num_buffers,
+             VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access, VkPipelineStageFlags2 dst_stage,
+             VkAccessFlags2 dst_access);
+
 DEFINE_CLASS_PTR(Buffer)
 
 class Buffer
@@ -133,8 +148,7 @@ public:
      * @param   dst_stage       destination stage-mask
      * @param   dst_access      destination access-mask
      */
-    void barrier(VkCommandBuffer command_buffer,
-                 VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
+    void barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
                  VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access);
 
     /**

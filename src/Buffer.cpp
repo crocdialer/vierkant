@@ -3,6 +3,41 @@
 namespace vierkant
 {
 
+void barrier(VkCommandBuffer command_buffer, const VkBuffer *buffers, uint32_t num_buffers,
+             VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access, VkPipelineStageFlags2 dst_stage,
+             VkAccessFlags2 dst_access)
+{
+    if(buffers && num_buffers)
+    {
+
+        std::vector<VkBufferMemoryBarrier2> barriers;
+
+        for(uint32_t i = 0; i < num_buffers; ++i)
+        {
+            if(buffers[i] != VK_NULL_HANDLE)
+            {
+                VkBufferMemoryBarrier2 barrier = {};
+                barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+                barrier.buffer = buffers[i];
+                barrier.offset = 0;
+                barrier.size = VK_WHOLE_SIZE;
+                barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrier.srcStageMask = src_stage;
+                barrier.srcAccessMask = src_access;
+                barrier.dstStageMask = dst_stage;
+                barrier.dstAccessMask = dst_access;
+                barriers.push_back(barrier);
+            }
+        }
+
+        VkDependencyInfo dependency_info = {};
+        dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+        dependency_info.bufferMemoryBarrierCount = barriers.size();
+        dependency_info.pBufferMemoryBarriers = barriers.data();
+        vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void copy_to_helper(const DevicePtr &device, Buffer *src, Buffer *dst, VkCommandBuffer cmd_handle = VK_NULL_HANDLE,
@@ -228,22 +263,7 @@ void Buffer::copy_to(const BufferPtr &dst, VkCommandBuffer cmdBufferHandle, size
 void Buffer::barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access,
                      VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access)
 {
-    VkBufferMemoryBarrier2 barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-    barrier.buffer = m_buffer;
-    barrier.offset = 0;
-    barrier.size = VK_WHOLE_SIZE;
-    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.srcStageMask = src_stage;
-    barrier.srcAccessMask = src_access;
-    barrier.dstStageMask = dst_stage;
-    barrier.dstAccessMask = dst_access;
-
-    VkDependencyInfo dependency_info = {};
-    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency_info.bufferMemoryBarrierCount = 1;
-    dependency_info.pBufferMemoryBarriers = &barrier;
-    vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+    vierkant::barrier(command_buffer, &m_buffer, 1, src_stage, src_access, dst_stage, dst_access);
 }
 
 }// namespace vierkant

@@ -718,9 +718,9 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
     std::vector<staging_copy_info_t> staging_copies;
 
-    auto add_staging_copy = [&staging_copies, device = m_device](const auto &array, vierkant::BufferPtr &outbuffer,
-                                                                 VkPipelineStageFlags2 dst_stage,
-                                                                 VkAccessFlags2 dst_access, const std::string &label) {
+    auto add_staging_copy = [&staging_copies, &frame_asset, device = m_device](
+                                    const auto &array, vierkant::BufferPtr &outbuffer, VkPipelineStageFlags2 dst_stage,
+                                    VkAccessFlags2 dst_access, const std::string &label) {
         using elem_t = typename std::decay<decltype(array)>::type::value_type;
         size_t num_bytes = array.size() * sizeof(elem_t);
 
@@ -735,7 +735,13 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
             buffer_info.name = label;
             outbuffer = vierkant::Buffer::create(buffer_info);
         }
-        else { outbuffer->set_data(nullptr, num_bytes); }
+        else
+        {
+            outbuffer->barrier(frame_asset.staging_command_buffer.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                               VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                               VK_ACCESS_2_TRANSFER_WRITE_BIT);
+            outbuffer->set_data(nullptr, num_bytes);
+        }
 
         vierkant::staging_copy_info_t info = {};
         info.num_bytes = num_bytes;
