@@ -270,10 +270,13 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     barrier.offset = 0;
     barrier.size = VK_WHOLE_SIZE;
 
-    std::vector<VkBufferMemoryBarrier2> draw_buffer_barriers(4, barrier);
+    std::vector<VkBufferMemoryBarrier2> draw_buffer_barriers(5, barrier);
     draw_buffer_barriers[1].buffer = params.draws_counts_out_main->handle();
     draw_buffer_barriers[2].buffer = params.draws_counts_out_post->handle();
     draw_buffer_barriers[3].buffer = params.draws_out_post->handle();
+    draw_buffer_barriers[4].buffer = context->draw_cull_result_buffer->handle();
+    draw_buffer_barriers[4].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    draw_buffer_barriers[4].srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 
     VkDependencyInfo dependency_info = {};
     dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
