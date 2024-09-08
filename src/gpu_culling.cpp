@@ -207,12 +207,13 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
     auto dst_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
     auto dst_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-    context->draw_cull_result_buffer->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access, dst_stage,
-                                              dst_access);
-    params.draws_counts_out_main->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access, dst_stage,
-                                          dst_access);
-    params.draws_counts_out_post->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access, dst_stage,
-                                          dst_access);
+    std::vector<VkBuffer> draw_buffers = {context->draw_cull_result_buffer->handle(),
+                                          params.draws_counts_out_pre->handle(), params.draws_counts_out_post->handle(),
+                                          params.draws_out_pre->handle(), params.draws_out_post->handle()};
+
+    vierkant::barrier(context->cull_cmd_buffer.handle(), draw_buffers.data(), draw_buffers.size(), src_stage,
+                      src_access, dst_stage, dst_access);
+
     draw_cull_data_t draw_cull_data = {};
     draw_cull_data.num_draws = params.num_draws;
     draw_cull_data.pyramid_size = {params.depth_pyramid->width(), params.depth_pyramid->height()};
@@ -225,9 +226,9 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.draw_commands_in = params.draws_in->device_address();
     draw_cull_data.mesh_draws_in = params.mesh_draws_in->device_address();
     draw_cull_data.mesh_entries_in = params.mesh_entries_in->device_address();
-    draw_cull_data.draws_out_pre = params.draws_out_main->device_address();
+    draw_cull_data.draws_out_pre = params.draws_out_pre->device_address();
     draw_cull_data.draws_out_post = params.draws_out_post->device_address();
-    draw_cull_data.draw_count_pre = params.draws_counts_out_main->device_address();
+    draw_cull_data.draw_count_pre = params.draws_counts_out_pre->device_address();
     draw_cull_data.draw_count_post = params.draws_counts_out_post->device_address();
     draw_cull_data.draw_result = context->draw_cull_result_buffer->device_address();
 
@@ -267,61 +268,23 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     vkCmdFillBuffer(context->cull_cmd_buffer.handle(), context->draw_cull_result_buffer->handle(), 0, VK_WHOLE_SIZE, 0);
 
     // clear count-buffers with zeros
-    vkCmdFillBuffer(context->cull_cmd_buffer.handle(), params.draws_counts_out_main->handle(), 0, VK_WHOLE_SIZE, 0);
+    vkCmdFillBuffer(context->cull_cmd_buffer.handle(), params.draws_counts_out_pre->handle(), 0, VK_WHOLE_SIZE, 0);
     vkCmdFillBuffer(context->cull_cmd_buffer.handle(), params.draws_counts_out_post->handle(), 0, VK_WHOLE_SIZE, 0);
 
-    VkBufferMemoryBarrier2 barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    //    barrier.srcAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
-    //    barrier.srcStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT | VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-    barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-    barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    barrier.buffer = params.draws_out_main->handle();
-    barrier.offset = 0;
-    barrier.size = VK_WHOLE_SIZE;
-
-    std::vector<VkBufferMemoryBarrier2> draw_buffer_barriers(5, barrier);
-    draw_buffer_barriers[1].buffer = params.draws_counts_out_main->handle();
-    draw_buffer_barriers[2].buffer = params.draws_counts_out_post->handle();
-    draw_buffer_barriers[3].buffer = params.draws_out_post->handle();
-    draw_buffer_barriers[4].buffer = context->draw_cull_result_buffer->handle();
-
-    VkDependencyInfo dependency_info = {};
-    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency_info.bufferMemoryBarrierCount = draw_buffer_barriers.size();
-    dependency_info.pBufferMemoryBarriers = draw_buffer_barriers.data();
-
-    // barrier before writing to indirect-draw-buffer
-    vkCmdPipelineBarrier2(context->cull_cmd_buffer.handle(), &dependency_info);
+    vierkant::barrier(context->cull_cmd_buffer.handle(), draw_buffers.data(), draw_buffers.size(), src_stage,
+                      src_access, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT);
 
     // dispatch cull-compute
     context->cull_compute.dispatch({context->cull_computable}, context->cull_cmd_buffer.handle());
 
-    // swap access
-    for(auto &b: draw_buffer_barriers)
-    {
-        std::swap(b.srcStageMask, b.dstStageMask);
-        std::swap(b.srcAccessMask, b.dstAccessMask);
-    }
+    vierkant::barrier(context->cull_cmd_buffer.handle(), draw_buffers.data(), draw_buffers.size(),
+                      VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT, src_stage, src_access);
 
-    // memory barrier for draw-indirect buffer
-    vkCmdPipelineBarrier2(context->cull_cmd_buffer.handle(), &dependency_info);
-
-    // memory barrier before copying cull-result buffer
-    barrier.buffer = context->draw_cull_result_buffer->handle();
-    barrier.size = VK_WHOLE_SIZE;
-    barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
-    barrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-
-    dependency_info.bufferMemoryBarrierCount = 1;
-    dependency_info.pBufferMemoryBarriers = &barrier;
-    vkCmdPipelineBarrier2(context->cull_cmd_buffer.handle(), &dependency_info);
-
+    context->draw_cull_result_buffer->barrier(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                              VK_ACCESS_2_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                                              VK_ACCESS_2_TRANSFER_READ_BIT);
+    context->draw_cull_result_buffer_host->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access, dst_stage,
+                                                   dst_access);
     // copy result into host-visible buffer
     context->draw_cull_result_buffer->copy_to(context->draw_cull_result_buffer_host, context->cull_cmd_buffer.handle());
 

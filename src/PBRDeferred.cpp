@@ -890,8 +890,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.mesh_draws_in = frame_context.indirect_draw_params_main.mesh_draws;
             gpu_cull_params.mesh_entries_in = frame_context.indirect_draw_params_main.mesh_entries;
 
-            gpu_cull_params.draws_out_main = frame_context.indirect_draw_params_main.draws_out;
-            gpu_cull_params.draws_counts_out_main = frame_context.indirect_draw_params_main.draws_counts_out;
+            gpu_cull_params.draws_out_pre = frame_context.indirect_draw_params_main.draws_out;
+            gpu_cull_params.draws_counts_out_pre = frame_context.indirect_draw_params_main.draws_counts_out;
             gpu_cull_params.draws_out_post = params.draws_out;
             gpu_cull_params.draws_counts_out_post = frame_context.indirect_draw_params_post.draws_counts_out;
 

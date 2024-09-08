@@ -4,18 +4,18 @@
 
 #pragma once
 
-#include <vierkant/math.hpp>
-#include <vierkant/Buffer.hpp>
-#include <vierkant/Image.hpp>
-#include <vierkant/Camera.hpp>
 #include "Compute.hpp"
+#include <vierkant/Buffer.hpp>
+#include <vierkant/Camera.hpp>
+#include <vierkant/Image.hpp>
+#include <vierkant/math.hpp>
 
 namespace vierkant
 {
 
 //! opaque handle owning a gpu_cull_context_t
-using gpu_cull_context_ptr = std::unique_ptr<struct gpu_cull_context_t, std::function<void(
-        struct gpu_cull_context_t *)>>;
+using gpu_cull_context_ptr =
+        std::unique_ptr<struct gpu_cull_context_t, std::function<void(struct gpu_cull_context_t *)>>;
 
 struct gpu_cull_params_t
 {
@@ -42,9 +42,9 @@ struct gpu_cull_params_t
     vierkant::BufferPtr mesh_draws_in;
     vierkant::BufferPtr mesh_entries_in;
 
-    vierkant::BufferPtr draws_out_main;
+    vierkant::BufferPtr draws_out_pre;
     vierkant::BufferPtr draws_out_post;
-    vierkant::BufferPtr draws_counts_out_main;
+    vierkant::BufferPtr draws_counts_out_pre;
     vierkant::BufferPtr draws_counts_out_post;
 
     vierkant::CameraConstPtr camera;
@@ -102,4 +102,4 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
  */
 draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const gpu_cull_params_t &params);
 
-}
+}// namespace vierkant
