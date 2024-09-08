@@ -772,17 +772,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                               : frame_context.indirect_draw_params_main.draws_out;
             params.draws_in->copy_to(drawbuffer, frame_context.cmd_clear.handle());
 
-            VkBufferMemoryBarrier2 barrier = {};
-            barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-            barrier.buffer = drawbuffer->handle();
-            barrier.offset = 0;
-            barrier.size = VK_WHOLE_SIZE;
-            barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-            barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            barrier.dstStageMask = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
-            barrier.dstAccessMask = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-            barriers.push_back(barrier);
+            auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+            auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+            auto dst_stage = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+            auto dst_access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+            drawbuffer->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, dst_stage, dst_access);
 
             if(use_gpu_culling && !params.draws_counts_out)
             {
@@ -790,16 +784,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 vkCmdFillBuffer(frame_context.cmd_clear.handle(),
                                 frame_context.indirect_draw_params_main.draws_counts_out->handle(), 0, VK_WHOLE_SIZE,
                                 0);
-
-                barrier.buffer = frame_context.indirect_draw_params_main.draws_counts_out->handle();
-                barriers.push_back(barrier);
+                frame_context.indirect_draw_params_main.draws_counts_out->barrier(
+                        frame_context.cmd_clear.handle(), src_stage, src_access, dst_stage, dst_access);
             }
-
-            VkDependencyInfo dependency_info = {};
-            dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-            dependency_info.bufferMemoryBarrierCount = barriers.size();
-            dependency_info.pBufferMemoryBarriers = barriers.data();
-            vkCmdPipelineBarrier2(frame_context.cmd_clear.handle(), &dependency_info);
         }
         else if(params.num_draws && !frame_context.dirty_drawable_indices.empty())
         {
