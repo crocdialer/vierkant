@@ -280,12 +280,16 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     vierkant::barrier(context->cull_cmd_buffer.handle(), draw_buffers.data(), draw_buffers.size(),
                       VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_WRITE_BIT, src_stage, src_access);
 
-    context->draw_cull_result_buffer->barrier(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                              VK_ACCESS_2_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                                              VK_ACCESS_2_TRANSFER_READ_BIT);
+    VkBuffer count_buffers[] = {params.draws_counts_out_pre->handle(), params.draws_counts_out_post->handle()};
+    vierkant::barrier(context->cull_cmd_buffer.handle(), count_buffers, 2, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
+                      VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT);
+
     context->draw_cull_result_buffer_host->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access, dst_stage,
                                                    dst_access);
     // copy result into host-visible buffer
+    context->draw_cull_result_buffer->barrier(context->cull_cmd_buffer.handle(), src_stage, src_access,
+                                              VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_READ_BIT);
     context->draw_cull_result_buffer->copy_to(context->draw_cull_result_buffer_host, context->cull_cmd_buffer.handle());
 
     if(params.query_pool)
