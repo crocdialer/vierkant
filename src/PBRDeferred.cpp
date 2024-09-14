@@ -553,6 +553,12 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
     }
 
     frame_context.cmd_pre_render.begin(0);
+
+    // barriers
+    VkBuffer buffers[] = {frame_context.bone_buffer->handle(), frame_context.morph_param_buffer->handle()};
+    vierkant::barrier(frame_context.cmd_pre_render.handle(), buffers, 2,VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_WRITE_BIT);
     vierkant::staging_copy_context_t staging_context = {};
     staging_context.staging_buffer = frame_context.staging_anim;
     staging_context.command_buffer = frame_context.cmd_pre_render.handle();
