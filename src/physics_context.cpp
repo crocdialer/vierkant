@@ -549,7 +549,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
     {
         const auto &lod0 = entry.lods.front();
         JPH::VertexList points(entry.num_vertices);
-        JPH::IndexedTriangleList indices(lod0.num_indices);
+        uint32_t num_triangles = lod0.num_indices / 3;
+        JPH::IndexedTriangleList triangles(num_triangles);
 
         auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset;
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
@@ -557,12 +558,12 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
             auto p = *reinterpret_cast<const glm::vec3 *>(data) * scale;
             points[i] = {p.x, p.y, p.z};
         }
-        for(uint32_t i = 0; i < lod0.num_indices; i += 3)
+        for(uint32_t i = 0; i < num_triangles; i++)
         {
-            indices[i] = JPH::IndexedTriangle(mesh_bundle.index_buffer[i], mesh_bundle.index_buffer[i + 1],
-                                              mesh_bundle.index_buffer[i + 2], 0);
+            triangles[i] = JPH::IndexedTriangle(mesh_bundle.index_buffer[3 * i], mesh_bundle.index_buffer[3 * i + 1],
+                                                mesh_bundle.index_buffer[3 * i + 2], 0);
         }
-        JPH::MeshShapeSettings mesh_shape_settings(points, indices);
+        JPH::MeshShapeSettings mesh_shape_settings(points, triangles);
         JPH::Shape::ShapeResult shape_result = mesh_shape_settings.Create();
 
         if(shape_result.IsValid())
@@ -762,10 +763,7 @@ void PhysicsScene::update(double time_delta)
     m_context.step_simulation(static_cast<float>(time_delta), 2);
 }
 
-std::shared_ptr<PhysicsScene> PhysicsScene::create()
-{
-    return std::shared_ptr<PhysicsScene>(new PhysicsScene());
-}
+std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
 
 }//namespace vierkant
 

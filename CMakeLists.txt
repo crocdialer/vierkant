@@ -108,6 +108,7 @@ set(LIBS ${LIBS} EnTT::EnTT)
 
 # JoltPhysics
 set(GENERATE_DEBUG_SYMBOLS OFF)
+set(CPP_RTTI_ENABLED ON)
 add_subdirectory("submodules/JoltPhysics/Build" EXCLUDE_FROM_ALL)
 include_directories(SYSTEM submodules/JoltPhysics/Jolt)
 set(LIBS ${LIBS} Jolt)
