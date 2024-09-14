@@ -81,11 +81,22 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_context.ray_miss_ubo =
                 vierkant::Buffer::create(device, &frame_context.settings.environment_factor, sizeof(float),
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-        frame_context.cmd_pre_render = vierkant::CommandBuffer(m_device, m_command_pool.get());
 
-        frame_context.cmd_trace = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        frame_context.cmd_denoise = vierkant::CommandBuffer(m_device, m_command_pool.get());
-        frame_context.cmd_post_fx = vierkant::CommandBuffer(m_device, m_command_pool.get());
+        vierkant::CommandBuffer::create_info_t cmd_buffer_info = {};
+        cmd_buffer_info.device = m_device;
+        cmd_buffer_info.command_pool = m_command_pool.get();
+
+        cmd_buffer_info.name = "cmd_pre_render";
+        frame_context.cmd_pre_render = vierkant::CommandBuffer(cmd_buffer_info);
+
+        cmd_buffer_info.name = "cmd_trace";
+        frame_context.cmd_trace = vierkant::CommandBuffer(cmd_buffer_info);
+
+        cmd_buffer_info.name = "cmd_denoise";
+        frame_context.cmd_denoise = vierkant::CommandBuffer(cmd_buffer_info);
+
+        cmd_buffer_info.name = "cmd_post_fx";
+        frame_context.cmd_post_fx = vierkant::CommandBuffer(cmd_buffer_info);
 
         frame_context.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
 
