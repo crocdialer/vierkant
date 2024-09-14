@@ -51,7 +51,11 @@ mesh_compute_context_handle create_mesh_compute_context(const vierkant::DevicePt
                                                       VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                                                               VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    ret->cmd_buffer = vierkant::CommandBuffer(device, ret->command_pool.get());
+    vierkant::CommandBuffer::create_info_t cmd_buf_info = {};
+    cmd_buf_info.device = device;
+    cmd_buf_info.command_pool = ret->command_pool.get();
+    cmd_buf_info.name = "mesh_compute_context_t::cmd_buffer";
+    ret->cmd_buffer = vierkant::CommandBuffer(cmd_buf_info);
 
     vierkant::Buffer::create_info_t internal_buffer_info = {};
     internal_buffer_info.device = device;
@@ -60,8 +64,13 @@ mesh_compute_context_handle create_mesh_compute_context(const vierkant::DevicePt
                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     internal_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
+    internal_buffer_info.name = "mesh_compute_context_t::skin_param_buffer";
     ret->skin_param_buffer = vierkant::Buffer::create(internal_buffer_info);
+
+    internal_buffer_info.name = "mesh_compute_context_t::bone_buffer";
     ret->bone_buffer = vierkant::Buffer::create(internal_buffer_info);
+
+    internal_buffer_info.name = "mesh_compute_context_t::morph_param_buffer";
     ret->morph_param_buffer = vierkant::Buffer::create(internal_buffer_info);
 
     vierkant::Buffer::create_info_t result_buffer_info = {};
@@ -255,6 +264,12 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
         vkCmdWriteTimestamp2(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, params.query_pool.get(),
                              params.query_index_start);
     }
+
+    // barriers
+    VkBuffer buffers[] = {context->bone_buffer->handle(), context->skin_param_buffer->handle(),
+                          context->morph_param_buffer->handle()};
+    vierkant::barrier(context->cmd_buffer.handle(), buffers, 3, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
 
     // staging copies of bones + params
     vierkant::staging_copy_context_t staging_context = {};
