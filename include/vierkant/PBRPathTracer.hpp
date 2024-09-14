@@ -165,6 +165,8 @@ private:
         //! timeline semaphore to sync raytracing and draw-operations
         vierkant::Semaphore semaphore;
 
+        uint64_t semaphore_value = 0;
+
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
 
         //! re-usable command-buffers for all stages

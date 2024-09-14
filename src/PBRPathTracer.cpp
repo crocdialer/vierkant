@@ -68,6 +68,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
 
     for(auto &frame_context: m_frame_contexts)
     {
+        frame_context.semaphore = vierkant::Semaphore(m_device);
+
         frame_context.denoise_computable = denoise_computable;
 
         frame_context.composition_ubo =
@@ -147,8 +149,8 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     frame_context.statistics.timestamp = std::chrono::steady_clock::now();
 
     // sync and reset semaphore
-    frame_context.semaphore.wait(frame_context.semaphore_value_done);
-    frame_context.semaphore = vierkant::Semaphore(m_device);
+    frame_context.semaphore.wait(frame_context.semaphore_value + frame_context.semaphore_value_done);
+    frame_context.semaphore_value += frame_context.semaphore_value_done;
 
     // timing/query-pool, resize storage-assets
     pre_render(frame_context);
@@ -169,7 +171,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
         // increase batch index
         m_batch_index = std::min<size_t>(m_batch_index + 1, frame_context.settings.max_num_batches);
     }
-    else { frame_context.semaphore.signal(SemaphoreValue::RAYTRACING); }
+    else { frame_context.semaphore.signal(frame_context.semaphore_value + SemaphoreValue::RAYTRACING); }
 
     // edge-aware atrous-wavelet denoiser
     denoise_pass(frame_context);
@@ -195,7 +197,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     // pass semaphore wait/signal information
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
     semaphore_submit_info.semaphore = frame_context.semaphore.handle();
-    semaphore_submit_info.wait_value = frame_context.semaphore_value_done;
+    semaphore_submit_info.wait_value = frame_context.semaphore_value + frame_context.semaphore_value_done;
     semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     ret.semaphore_infos = {semaphore_submit_info};
     return ret;
@@ -278,7 +280,7 @@ void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierka
     // wait for raybuilder, signal main semaphore
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_context.semaphore.handle();
-    semaphore_info.signal_value = SemaphoreValue::RAYTRACING;
+    semaphore_info.signal_value = frame_context.semaphore_value + SemaphoreValue::RAYTRACING;
     frame_context.cmd_trace.submit(m_queue, false, VK_NULL_HANDLE,
                                    {frame_context.scene_ray_acceleration.semaphore_info, semaphore_info});
     frame_context.semaphore_value_done = SemaphoreValue::RAYTRACING;
@@ -314,8 +316,8 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_context.semaphore.handle();
     semaphore_info.wait_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-    semaphore_info.wait_value = SemaphoreValue::RAYTRACING;
-    semaphore_info.signal_value = SemaphoreValue::DENOISER;
+    semaphore_info.wait_value = frame_context.semaphore_value + SemaphoreValue::RAYTRACING;
+    semaphore_info.signal_value = frame_context.semaphore_value + SemaphoreValue::DENOISER;
 
     vkCmdWriteTimestamp2(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
                          frame_context.query_pool.get(), 2 * SemaphoreValue::DENOISER + 1);
@@ -358,9 +360,9 @@ void PBRPathTracer::post_fx_pass(frame_context_t &frame_context)
 
         vierkant::semaphore_submit_info_t tonemap_semaphore_info = {};
         tonemap_semaphore_info.semaphore = frame_context.semaphore.handle();
-        tonemap_semaphore_info.wait_value = SemaphoreValue::DENOISER;
+        tonemap_semaphore_info.wait_value = frame_context.semaphore_value + SemaphoreValue::DENOISER;
         tonemap_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-        tonemap_semaphore_info.signal_value = SemaphoreValue::TONEMAP;
+        tonemap_semaphore_info.signal_value = frame_context.semaphore_value + SemaphoreValue::TONEMAP;
 
         frame_context.out_image = frame_context.post_fx_ping_pongs[0].color_attachment();
 

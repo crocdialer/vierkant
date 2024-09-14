@@ -62,19 +62,22 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
     m_frame_contexts.resize(create_info.num_frames_in_flight);
 
-    for(auto &asset: m_frame_contexts)
+    for(auto &frame_context: m_frame_contexts)
     {
-        resize_storage(asset, create_info.settings.resolution, create_info.settings.output_resolution);
+        frame_context.timeline = vierkant::Semaphore(m_device);
 
-        asset.g_buffer_camera_ubo = vierkant::Buffer::create(
+        resize_storage(frame_context, create_info.settings.resolution, create_info.settings.output_resolution);
+
+        frame_context.g_buffer_camera_ubo = vierkant::Buffer::create(
                 m_device, nullptr, sizeof(glm::vec2), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        asset.lighting_param_ubo =
+        frame_context.lighting_param_ubo =
                 vierkant::Buffer::create(device, nullptr, sizeof(environment_lighting_ubo_t),
                                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
-        asset.lights_ubo = vierkant::Buffer::create(device, nullptr, sizeof(vierkant::lightsource_ubo_t),
-                                                    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame_context.lights_ubo =
+                vierkant::Buffer::create(device, nullptr, sizeof(vierkant::lightsource_ubo_t),
+                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         vierkant::Buffer::create_info_t composition_buffer_info = {};
         composition_buffer_info.device = m_device;
@@ -82,7 +85,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         composition_buffer_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
         composition_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
         composition_buffer_info.name = "composition_ubo";
-        asset.composition_ubo = vierkant::Buffer::create(composition_buffer_info);
+        frame_context.composition_ubo = vierkant::Buffer::create(composition_buffer_info);
 
         vierkant::Buffer::create_info_t anim_buffer_info = {};
         anim_buffer_info.device = m_device;
@@ -90,13 +93,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         anim_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         anim_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         anim_buffer_info.name = "bone_buffer";
-        asset.bone_buffer = vierkant::Buffer::create(anim_buffer_info);
+        frame_context.bone_buffer = vierkant::Buffer::create(anim_buffer_info);
         anim_buffer_info.name = "morph_param_buffer";
-        asset.morph_param_buffer = vierkant::Buffer::create(anim_buffer_info);
+        frame_context.morph_param_buffer = vierkant::Buffer::create(anim_buffer_info);
 
-        asset.query_pool =
+        frame_context.query_pool =
                 vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE * 2, VK_QUERY_TYPE_TIMESTAMP);
-        asset.gpu_cull_context = vierkant::create_gpu_cull_context(device, m_pipeline_cache);
+        frame_context.gpu_cull_context = vierkant::create_gpu_cull_context(device, m_pipeline_cache);
 
         // create staging-buffers
         vierkant::Buffer::create_info_t staging_buffer_info = {};
@@ -105,26 +108,26 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         staging_buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         staging_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
         staging_buffer_info.name = "staging_main";
-        asset.staging_main = vierkant::Buffer::create(staging_buffer_info);
+        frame_context.staging_main = vierkant::Buffer::create(staging_buffer_info);
         staging_buffer_info.name = "staging_anim";
-        asset.staging_anim = vierkant::Buffer::create(staging_buffer_info);
+        frame_context.staging_anim = vierkant::Buffer::create(staging_buffer_info);
         staging_buffer_info.name = "staging_post_fx";
-        asset.staging_post_fx = vierkant::Buffer::create(staging_buffer_info);
+        frame_context.staging_post_fx = vierkant::Buffer::create(staging_buffer_info);
 
         vierkant::CommandBuffer::create_info_t command_buffer_info = {};
         command_buffer_info.device = m_device;
         command_buffer_info.command_pool = m_command_pool.get();
         command_buffer_info.name = "PBRDeferred::cmd_pre_render";
-        asset.cmd_pre_render = vierkant::CommandBuffer(command_buffer_info);
+        frame_context.cmd_pre_render = vierkant::CommandBuffer(command_buffer_info);
 
         command_buffer_info.name = "PBRDeferred::cmd_post_fx";
-        asset.cmd_post_fx = vierkant::CommandBuffer(command_buffer_info);
+        frame_context.cmd_post_fx = vierkant::CommandBuffer(command_buffer_info);
 
         command_buffer_info.name = "PBRDeferred::cmd_lighting";
-        asset.cmd_lighting = vierkant::CommandBuffer(command_buffer_info);
+        frame_context.cmd_lighting = vierkant::CommandBuffer(command_buffer_info);
 
         command_buffer_info.name = "PBRDeferred::cmd_clear";
-        asset.cmd_clear = vierkant::CommandBuffer(command_buffer_info);
+        frame_context.cmd_clear = vierkant::CommandBuffer(command_buffer_info);
     }
 
     // create renderer for g-buffer-pass
@@ -291,7 +294,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
 PBRDeferred::~PBRDeferred()
 {
-    for(auto &frame_context: m_frame_contexts) { frame_context.timeline.wait(frame_context.semaphore_value_done); }
+    for(auto &frame_context: m_frame_contexts)
+    {
+        frame_context.timeline.wait(frame_context.current_semaphore_value + frame_context.semaphore_value_done);
+    }
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
@@ -431,8 +437,8 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     }
 
     // timeline semaphore
-    frame_context.timeline.wait(frame_context.semaphore_value_done);
-    frame_context.timeline = vierkant::Semaphore(m_device);
+    frame_context.timeline.wait(frame_context.current_semaphore_value + frame_context.semaphore_value_done);
+    frame_context.current_semaphore_value += frame_context.semaphore_value_done;
 
     // start label
     vierkant::begin_label(m_queue, {"PBRDeferred::render_scene"});
@@ -485,7 +491,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
 
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
     semaphore_submit_info.semaphore = frame_context.timeline.handle();
-    semaphore_submit_info.wait_value = frame_context.semaphore_value_done;
+    semaphore_submit_info.wait_value = frame_context.current_semaphore_value + frame_context.semaphore_value_done;
     semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     ret.semaphore_infos = {semaphore_submit_info};
     return ret;
@@ -562,9 +568,8 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
 
     // barriers
     VkBuffer buffers[] = {frame_context.bone_buffer->handle(), frame_context.morph_param_buffer->handle()};
-    vierkant::barrier(frame_context.cmd_pre_render.handle(), buffers, 2,VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_WRITE_BIT);
+    vierkant::barrier(frame_context.cmd_pre_render.handle(), buffers, 2, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                      VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
     vierkant::staging_copy_context_t staging_context = {};
     staging_context.staging_buffer = frame_context.staging_anim;
     staging_context.command_buffer = frame_context.cmd_pre_render.handle();
@@ -587,7 +592,7 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_context.timeline.handle();
-    semaphore_info.signal_value = SemaphoreValue::PRE_RENDER;
+    semaphore_info.signal_value = frame_context.current_semaphore_value + SemaphoreValue::PRE_RENDER;
     frame_context.cmd_pre_render.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 
     if(!frame_context.recycle_commands)
@@ -845,10 +850,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     auto cmd_buffer_pre = m_g_renderer_main.render(frame_context.g_buffer_main, frame_context.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_context.timeline.handle();
-    g_buffer_semaphore_submit_info_pre.wait_value = SemaphoreValue::PRE_RENDER;
+    g_buffer_semaphore_submit_info_pre.wait_value = frame_context.current_semaphore_value + SemaphoreValue::PRE_RENDER;
     g_buffer_semaphore_submit_info_pre.wait_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
     g_buffer_semaphore_submit_info_pre.signal_value =
-            use_gpu_culling ? SemaphoreValue::G_BUFFER_LAST_VISIBLE : SemaphoreValue::G_BUFFER_ALL;
+            frame_context.current_semaphore_value +
+            (use_gpu_culling ? SemaphoreValue::G_BUFFER_LAST_VISIBLE : SemaphoreValue::G_BUFFER_ALL);
     frame_context.g_buffer_main.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
 
     if(use_gpu_culling)
@@ -861,9 +867,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         depth_pyramid_params.query_index_start = 2 * SemaphoreValue::DEPTH_PYRAMID;
         depth_pyramid_params.query_index_end = 2 * SemaphoreValue::DEPTH_PYRAMID + 1;
         depth_pyramid_params.semaphore_submit_info.semaphore = frame_context.timeline.handle();
-        depth_pyramid_params.semaphore_submit_info.wait_value = SemaphoreValue::G_BUFFER_LAST_VISIBLE;
+        depth_pyramid_params.semaphore_submit_info.wait_value =
+                frame_context.current_semaphore_value + SemaphoreValue::G_BUFFER_LAST_VISIBLE;
         depth_pyramid_params.semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-        depth_pyramid_params.semaphore_submit_info.signal_value = SemaphoreValue::DEPTH_PYRAMID;
+        depth_pyramid_params.semaphore_submit_info.signal_value =
+                frame_context.current_semaphore_value + SemaphoreValue::DEPTH_PYRAMID;
         frame_context.depth_pyramid = create_depth_pyramid(frame_context.gpu_cull_context, depth_pyramid_params);
 
         // post-render will perform actual culling
@@ -894,9 +902,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.draws_counts_out_post = frame_context.indirect_draw_params_post.draws_counts_out;
 
             gpu_cull_params.semaphore_submit_info.semaphore = frame_context.timeline.handle();
-            gpu_cull_params.semaphore_submit_info.wait_value = SemaphoreValue::DEPTH_PYRAMID;
+            gpu_cull_params.semaphore_submit_info.wait_value =
+                    frame_context.current_semaphore_value + SemaphoreValue::DEPTH_PYRAMID;
             gpu_cull_params.semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-            gpu_cull_params.semaphore_submit_info.signal_value = SemaphoreValue::CULLING;
+            gpu_cull_params.semaphore_submit_info.signal_value =
+                    frame_context.current_semaphore_value + SemaphoreValue::CULLING;
 
             frame_context.stats.draw_cull_result = vierkant::gpu_cull(frame_context.gpu_cull_context, gpu_cull_params);
         };
@@ -904,8 +914,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info = {};
         g_buffer_semaphore_submit_info.semaphore = frame_context.timeline.handle();
         g_buffer_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
-        g_buffer_semaphore_submit_info.wait_value = SemaphoreValue::CULLING;
-        g_buffer_semaphore_submit_info.signal_value = SemaphoreValue::G_BUFFER_ALL;
+        g_buffer_semaphore_submit_info.wait_value = frame_context.current_semaphore_value + SemaphoreValue::CULLING;
+        g_buffer_semaphore_submit_info.signal_value =
+                frame_context.current_semaphore_value + SemaphoreValue::G_BUFFER_ALL;
 
         frame_context.timings_map[G_BUFFER_ALL] = m_g_renderer_post.last_frame_ms();
         auto cmd_buffer = m_g_renderer_post.render(frame_context.g_buffer_post, frame_context.recycle_commands);
@@ -1030,8 +1041,8 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
     lighting_semaphore_info.semaphore = frame_context.timeline.handle();
     lighting_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-    lighting_semaphore_info.wait_value = SemaphoreValue::G_BUFFER_ALL;
-    lighting_semaphore_info.signal_value = SemaphoreValue::LIGHTING;
+    lighting_semaphore_info.wait_value = frame_context.current_semaphore_value + SemaphoreValue::G_BUFFER_ALL;
+    lighting_semaphore_info.signal_value = frame_context.current_semaphore_value + SemaphoreValue::LIGHTING;
     frame_context.semaphore_value_done = SemaphoreValue::LIGHTING;
     vierkant::end_label(frame_context.cmd_lighting.handle());
     frame_context.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE,
@@ -1217,9 +1228,10 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
     {
         vierkant::semaphore_submit_info_t post_fx_semaphore_info = {};
         post_fx_semaphore_info.semaphore = frame_context.timeline.handle();
-        post_fx_semaphore_info.wait_value = semaphore_wait_value;
+        post_fx_semaphore_info.wait_value = frame_context.current_semaphore_value + semaphore_wait_value;
         post_fx_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-        post_fx_semaphore_info.signal_value = frame_context.semaphore_value_done;
+        post_fx_semaphore_info.signal_value =
+                frame_context.current_semaphore_value + frame_context.semaphore_value_done;
         frame_context.cmd_post_fx.submit(m_queue, false, VK_NULL_HANDLE, {post_fx_semaphore_info});
     }
     return output_img;
