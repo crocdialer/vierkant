@@ -9,7 +9,6 @@ void barrier(VkCommandBuffer command_buffer, const VkBuffer *buffers, uint32_t n
 {
     if(buffers && num_buffers)
     {
-
         std::vector<VkBufferMemoryBarrier2> barriers;
 
         for(uint32_t i = 0; i < num_buffers; ++i)
@@ -29,7 +28,6 @@ void barrier(VkCommandBuffer command_buffer, const VkBuffer *buffers, uint32_t n
                 barriers.push_back(barrier);
             }
         }
-
         VkDependencyInfo dependency_info = {};
         dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
         dependency_info.bufferMemoryBarrierCount = barriers.size();
