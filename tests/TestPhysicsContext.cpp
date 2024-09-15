@@ -33,7 +33,7 @@ TEST(PhysicsContext, collision_shapes)
 TEST(PhysicsContext, add_remove_object)
 {
     auto scene = vierkant::PhysicsScene::create();
-    auto &context = scene->context();
+    auto &context = scene->physics_context();
 
     glm::vec3 gravity = {0.f, -9.81f, 0.f};
     context.set_gravity(gravity);
@@ -49,7 +49,7 @@ TEST(PhysicsContext, add_remove_object)
     // now add required component
     vierkant::object_component auto &cmp = a->add_component<vierkant::physics_component_t>();
     cmp.shape = collision::box_t{glm::vec3(0.5f)};
-    scene->context().add_object(a->id(), a->transform, cmp);
+    scene->physics_context().add_object(a->id(), a->transform, cmp);
 
     EXPECT_TRUE(context.contains(a->id()));
     EXPECT_EQ(context.body_interface().velocity(a->id()), glm::vec3(0));
@@ -59,7 +59,7 @@ TEST(PhysicsContext, add_remove_object)
     context.step_simulation(1.f / 60.f, 2);
 
     // TODO: fails, why?
-//    EXPECT_EQ(context.body_interface().velocity(a->id()), test_velocity);
+    //    EXPECT_EQ(context.body_interface().velocity(a->id()), test_velocity);
 
     context.remove_object(a->id());
     EXPECT_FALSE(context.contains(a->id()));
@@ -67,16 +67,16 @@ TEST(PhysicsContext, add_remove_object)
 
 TEST(PhysicsContext, simulation)
 {
-//    spdlog::set_level(spdlog::level::debug);
+    //    spdlog::set_level(spdlog::level::debug);
 
     auto scene = vierkant::PhysicsScene::create();
     auto box = Geometry::Box();
-    auto collision_shape = create_collision_shape(scene->context(), box, true);
+    auto collision_shape = create_collision_shape(scene->physics_context(), box, true);
 
     Object3DPtr a(Object3D::create(scene->registry())), b(Object3D::create(scene->registry())),
             c(Object3D::create(scene->registry())), ground(Object3D::create(scene->registry()));
 
-    auto &body_interface = scene->context().body_interface();
+    auto &body_interface = scene->physics_context().body_interface();
 
     std::map<uint32_t, uint32_t> contact_map, sensor_map;
 
@@ -87,15 +87,13 @@ TEST(PhysicsContext, simulation)
     phys_cmp.shape = collision_shape;
 
     vierkant::PhysicsContext::callbacks_t callbacks;
-    callbacks.contact_begin = [&contact_map](uint32_t obj1, uint32_t obj2)
-    {
-        std::unique_lock<std::mutex> lock;
+    callbacks.contact_begin = [&contact_map, &mutex](uint32_t obj1, uint32_t obj2) {
+        std::unique_lock lock(mutex);
         spdlog::debug("contact_begin: {}", obj1);
         contact_map[obj1]++;
     };
-    callbacks.contact_end = [&contact_map](uint32_t obj1, uint32_t obj2)
-    {
-        std::unique_lock<std::mutex> lock;
+    callbacks.contact_end = [&contact_map, &mutex](uint32_t obj1, uint32_t obj2) {
+        std::unique_lock lock(mutex);
         spdlog::debug("contact_end: {}", obj1);
         contact_map[obj1]--;
     };
@@ -115,8 +113,8 @@ TEST(PhysicsContext, simulation)
     {
         obj->transform.translation.y = i++ * 5.f;
         scene->add_object(obj);
-        scene->context().set_callbacks(obj->id(), callbacks);
-        EXPECT_TRUE(scene->context().contains(obj->id()));
+        scene->physics_context().set_callbacks(obj->id(), callbacks);
+        EXPECT_TRUE(scene->physics_context().contains(obj->id()));
     }
 
     auto sensor = vierkant::Object3D::create(scene->registry());
@@ -127,7 +125,7 @@ TEST(PhysicsContext, simulation)
     phys_cmp.shape = collision::box_t{glm::vec3(4.f, 0.5f, 4.f)};
     sensor->add_component(phys_cmp);
     scene->add_object(sensor);
-    scene->context().set_callbacks(sensor->id(), callbacks);
+    scene->physics_context().set_callbacks(sensor->id(), callbacks);
 
     auto tground = ground->transform;
     auto ta = a->transform;
@@ -171,14 +169,14 @@ TEST(PhysicsContext, simulation)
     EXPECT_FALSE(contact_map.contains(c->id()));
 
     // b got removed
-//    EXPECT_TRUE(contact_map.contains(b->id()));
-//    EXPECT_TRUE(!contact_map[b->id()]);
+    //    EXPECT_TRUE(contact_map.contains(b->id()));
+    //    EXPECT_TRUE(!contact_map[b->id()]);
 
     // sensor was passed -> no contacts now, but there were some
     EXPECT_TRUE(contact_map.contains(sensor->id()));
     EXPECT_TRUE(!contact_map[sensor->id()]);
 
-//    auto debug_lines = context.debug_render();
-//    EXPECT_FALSE(debug_lines->positions.empty());
-//    EXPECT_EQ(debug_lines->positions.size(), debug_lines->colors.size());
+    //    auto debug_lines = context.debug_render();
+    //    EXPECT_FALSE(debug_lines->positions.empty());
+    //    EXPECT_EQ(debug_lines->positions.size(), debug_lines->colors.size());
 }

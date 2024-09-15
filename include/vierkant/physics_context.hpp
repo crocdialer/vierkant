@@ -153,7 +153,7 @@ public:
 
     void update(double time_delta) override;
 
-    vierkant::PhysicsContext &context() { return m_context; };
+    vierkant::PhysicsContext &physics_context() { return m_context; };
 
 private:
     explicit PhysicsScene() = default;
