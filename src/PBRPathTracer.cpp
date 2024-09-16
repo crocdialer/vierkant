@@ -191,7 +191,6 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     post_fx_pass(frame_context);
 
     // stage final output
-    // TODO: add depth-buffer
     m_draw_context.draw_image_fullscreen(renderer, frame_context.out_image, frame_context.out_depth, true,
                                          !frame_context.settings.draw_skybox);
 
