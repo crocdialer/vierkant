@@ -219,6 +219,9 @@ bool Instance::init(const create_info_t &create_info)
         used_extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
     }
 
+    // print instance-extension in use
+    spdlog::debug("instance-extensions: {}", used_extensions);
+
     // check support for validation-layers
     if(create_info.use_validation_layers && !check_validation_layer_support())
     {
