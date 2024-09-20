@@ -49,6 +49,8 @@ public:
 
     Context &operator=(Context other);
 
+    void update(double time_delta, const glm::vec2 &size);
+
     /**
      * @brief   Draw the gui using a provided renderer.
      *          Will invoke the current draw-delegate objects to create all gui elements.
@@ -86,6 +88,8 @@ private:
         vierkant::key_delegate_t key_delegate = {};
         std::chrono::steady_clock::time_point time_point = std::chrono::steady_clock::now();
     };
+
+    ImGuiIO& get_io();
 
     static mesh_asset_t create_mesh_assets(const vierkant::DevicePtr &device);
 

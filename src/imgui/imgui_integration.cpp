@@ -1,8 +1,8 @@
+#include "vierkant/imgui/imgui_integration.h"
+#include "imgui_internal.h"
 #include <crocore/Area.hpp>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/Pipeline.hpp>
-#include "vierkant/imgui/imgui_integration.h"
-#include "imgui_internal.h"
 
 namespace vierkant::gui
 {
@@ -12,55 +12,55 @@ using float_sec_t = std::chrono::duration<float, std::chrono::seconds::period>;
 
 void set_style()
 {
-//    ImVec4* colors = ImGui::GetStyle().Colors;
-//    colors[ImGuiCol_Text]                   = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
-//    colors[ImGuiCol_TextDisabled]           = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
-//    colors[ImGuiCol_WindowBg]               = ImVec4(0.00f, 0.00f, 0.00f, 0.70f);
-//    colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-//    colors[ImGuiCol_PopupBg]                = ImVec4(0.11f, 0.11f, 0.14f, 0.92f);
-//    colors[ImGuiCol_Border]                 = ImVec4(0.50f, 0.50f, 0.50f, 0.50f);
-//    colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
-//    colors[ImGuiCol_FrameBg]                = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
-//    colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.47f, 0.47f, 0.69f, 0.40f);
-//    colors[ImGuiCol_FrameBgActive]          = ImVec4(0.42f, 0.41f, 0.64f, 0.69f);
-//    colors[ImGuiCol_TitleBg]                = ImVec4(0.27f, 0.27f, 0.54f, 0.83f);
-//    colors[ImGuiCol_TitleBgActive]          = ImVec4(0.32f, 0.32f, 0.63f, 0.87f);
-//    colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.40f, 0.40f, 0.80f, 0.20f);
-//    colors[ImGuiCol_MenuBarBg]              = ImVec4(0.40f, 0.40f, 0.55f, 0.80f);
-//    colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.20f, 0.25f, 0.30f, 0.60f);
-//    colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.40f, 0.40f, 0.80f, 0.30f);
-//    colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.40f, 0.40f, 0.80f, 0.40f);
-//    colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.41f, 0.39f, 0.80f, 0.60f);
-//    colors[ImGuiCol_CheckMark]              = ImVec4(0.90f, 0.90f, 0.90f, 0.50f);
-//    colors[ImGuiCol_SliderGrab]             = ImVec4(1.00f, 1.00f, 1.00f, 0.30f);
-//    colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.41f, 0.39f, 0.80f, 0.60f);
-//    colors[ImGuiCol_Button]                 = ImVec4(0.35f, 0.40f, 0.61f, 0.62f);
-//    colors[ImGuiCol_ButtonHovered]          = ImVec4(0.40f, 0.48f, 0.71f, 0.79f);
-//    colors[ImGuiCol_ButtonActive]           = ImVec4(0.46f, 0.54f, 0.80f, 1.00f);
-//    colors[ImGuiCol_Header]                 = ImVec4(0.40f, 0.40f, 0.90f, 0.45f);
-//    colors[ImGuiCol_HeaderHovered]          = ImVec4(0.45f, 0.45f, 0.90f, 0.80f);
-//    colors[ImGuiCol_HeaderActive]           = ImVec4(0.53f, 0.53f, 0.87f, 0.80f);
-//    colors[ImGuiCol_Separator]              = ImVec4(0.50f, 0.50f, 0.50f, 0.60f);
-//    colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.60f, 0.60f, 0.70f, 1.00f);
-//    colors[ImGuiCol_SeparatorActive]        = ImVec4(0.70f, 0.70f, 0.90f, 1.00f);
-//    colors[ImGuiCol_ResizeGrip]             = ImVec4(1.00f, 1.00f, 1.00f, 0.16f);
-//    colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.78f, 0.82f, 1.00f, 0.60f);
-//    colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.78f, 0.82f, 1.00f, 0.90f);
-//    colors[ImGuiCol_Tab]                    = ImVec4(0.34f, 0.34f, 0.68f, 0.79f);
-//    colors[ImGuiCol_TabHovered]             = ImVec4(0.45f, 0.45f, 0.90f, 0.80f);
-//    colors[ImGuiCol_TabActive]              = ImVec4(0.40f, 0.40f, 0.73f, 0.84f);
-//    colors[ImGuiCol_TabUnfocused]           = ImVec4(0.28f, 0.28f, 0.57f, 0.82f);
-//    colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.35f, 0.35f, 0.65f, 0.84f);
-//    colors[ImGuiCol_PlotLines]              = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
-//    colors[ImGuiCol_PlotLinesHovered]       = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
-//    colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
-//    colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
-//    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.00f, 0.00f, 1.00f, 0.35f);
-//    colors[ImGuiCol_DragDropTarget]         = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
-//    colors[ImGuiCol_NavHighlight]           = ImVec4(0.45f, 0.45f, 0.90f, 0.80f);
-//    colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
-//    colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
-//    colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
+    //    ImVec4* colors = ImGui::GetStyle().Colors;
+    //    colors[ImGuiCol_Text]                   = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    //    colors[ImGuiCol_TextDisabled]           = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
+    //    colors[ImGuiCol_WindowBg]               = ImVec4(0.00f, 0.00f, 0.00f, 0.70f);
+    //    colors[ImGuiCol_ChildBg]                = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    //    colors[ImGuiCol_PopupBg]                = ImVec4(0.11f, 0.11f, 0.14f, 0.92f);
+    //    colors[ImGuiCol_Border]                 = ImVec4(0.50f, 0.50f, 0.50f, 0.50f);
+    //    colors[ImGuiCol_BorderShadow]           = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    //    colors[ImGuiCol_FrameBg]                = ImVec4(0.43f, 0.43f, 0.43f, 0.39f);
+    //    colors[ImGuiCol_FrameBgHovered]         = ImVec4(0.47f, 0.47f, 0.69f, 0.40f);
+    //    colors[ImGuiCol_FrameBgActive]          = ImVec4(0.42f, 0.41f, 0.64f, 0.69f);
+    //    colors[ImGuiCol_TitleBg]                = ImVec4(0.27f, 0.27f, 0.54f, 0.83f);
+    //    colors[ImGuiCol_TitleBgActive]          = ImVec4(0.32f, 0.32f, 0.63f, 0.87f);
+    //    colors[ImGuiCol_TitleBgCollapsed]       = ImVec4(0.40f, 0.40f, 0.80f, 0.20f);
+    //    colors[ImGuiCol_MenuBarBg]              = ImVec4(0.40f, 0.40f, 0.55f, 0.80f);
+    //    colors[ImGuiCol_ScrollbarBg]            = ImVec4(0.20f, 0.25f, 0.30f, 0.60f);
+    //    colors[ImGuiCol_ScrollbarGrab]          = ImVec4(0.40f, 0.40f, 0.80f, 0.30f);
+    //    colors[ImGuiCol_ScrollbarGrabHovered]   = ImVec4(0.40f, 0.40f, 0.80f, 0.40f);
+    //    colors[ImGuiCol_ScrollbarGrabActive]    = ImVec4(0.41f, 0.39f, 0.80f, 0.60f);
+    //    colors[ImGuiCol_CheckMark]              = ImVec4(0.90f, 0.90f, 0.90f, 0.50f);
+    //    colors[ImGuiCol_SliderGrab]             = ImVec4(1.00f, 1.00f, 1.00f, 0.30f);
+    //    colors[ImGuiCol_SliderGrabActive]       = ImVec4(0.41f, 0.39f, 0.80f, 0.60f);
+    //    colors[ImGuiCol_Button]                 = ImVec4(0.35f, 0.40f, 0.61f, 0.62f);
+    //    colors[ImGuiCol_ButtonHovered]          = ImVec4(0.40f, 0.48f, 0.71f, 0.79f);
+    //    colors[ImGuiCol_ButtonActive]           = ImVec4(0.46f, 0.54f, 0.80f, 1.00f);
+    //    colors[ImGuiCol_Header]                 = ImVec4(0.40f, 0.40f, 0.90f, 0.45f);
+    //    colors[ImGuiCol_HeaderHovered]          = ImVec4(0.45f, 0.45f, 0.90f, 0.80f);
+    //    colors[ImGuiCol_HeaderActive]           = ImVec4(0.53f, 0.53f, 0.87f, 0.80f);
+    //    colors[ImGuiCol_Separator]              = ImVec4(0.50f, 0.50f, 0.50f, 0.60f);
+    //    colors[ImGuiCol_SeparatorHovered]       = ImVec4(0.60f, 0.60f, 0.70f, 1.00f);
+    //    colors[ImGuiCol_SeparatorActive]        = ImVec4(0.70f, 0.70f, 0.90f, 1.00f);
+    //    colors[ImGuiCol_ResizeGrip]             = ImVec4(1.00f, 1.00f, 1.00f, 0.16f);
+    //    colors[ImGuiCol_ResizeGripHovered]      = ImVec4(0.78f, 0.82f, 1.00f, 0.60f);
+    //    colors[ImGuiCol_ResizeGripActive]       = ImVec4(0.78f, 0.82f, 1.00f, 0.90f);
+    //    colors[ImGuiCol_Tab]                    = ImVec4(0.34f, 0.34f, 0.68f, 0.79f);
+    //    colors[ImGuiCol_TabHovered]             = ImVec4(0.45f, 0.45f, 0.90f, 0.80f);
+    //    colors[ImGuiCol_TabActive]              = ImVec4(0.40f, 0.40f, 0.73f, 0.84f);
+    //    colors[ImGuiCol_TabUnfocused]           = ImVec4(0.28f, 0.28f, 0.57f, 0.82f);
+    //    colors[ImGuiCol_TabUnfocusedActive]     = ImVec4(0.35f, 0.35f, 0.65f, 0.84f);
+    //    colors[ImGuiCol_PlotLines]              = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    //    colors[ImGuiCol_PlotLinesHovered]       = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+    //    colors[ImGuiCol_PlotHistogram]          = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+    //    colors[ImGuiCol_PlotHistogramHovered]   = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+    //    colors[ImGuiCol_TextSelectedBg]         = ImVec4(0.00f, 0.00f, 1.00f, 0.35f);
+    //    colors[ImGuiCol_DragDropTarget]         = ImVec4(1.00f, 1.00f, 0.00f, 0.90f);
+    //    colors[ImGuiCol_NavHighlight]           = ImVec4(0.45f, 0.45f, 0.90f, 0.80f);
+    //    colors[ImGuiCol_NavWindowingHighlight]  = ImVec4(1.00f, 1.00f, 1.00f, 0.70f);
+    //    colors[ImGuiCol_NavWindowingDimBg]      = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
+    //    colors[ImGuiCol_ModalWindowDimBg]       = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
 }
 
 
@@ -84,13 +84,11 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
 {
     // dynamic vertexbuffer objects
     auto vertex_buffer = vierkant::Buffer::create(device, nullptr, 0,
-                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
-                                                  VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                  VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     auto index_buffer = vierkant::Buffer::create(device, nullptr, 0,
-                                                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                 VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                  VMA_MEMORY_USAGE_CPU_TO_GPU);
 
     auto mesh = vierkant::Mesh::create();
@@ -133,16 +131,12 @@ Context::mesh_asset_t Context::create_mesh_assets(const vierkant::DevicePtr &dev
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-ImVec4 im_vec_cast(const glm::vec3 &v)
-{
-    return {v.x, v.y, v.z, 1.f};
-}
+ImVec4 im_vec_cast(const glm::vec3 &v) { return {v.x, v.y, v.z, 1.f}; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_info) :
-        m_imgui_context(ImGui::CreateContext()),
-        m_implot_context(ImPlot::CreateContext())
+Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_info)
+    : m_imgui_context(ImGui::CreateContext()), m_implot_context(ImPlot::CreateContext())
 {
     ImGui::SetCurrentContext(m_imgui_context);
     ImPlot::SetCurrentContext(m_implot_context);
@@ -200,33 +194,29 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     im_style.ScaleAllSizes(create_info.ui_scale);
 
     auto &mouse_delegate = m_imgui_assets.mouse_delegate;
-    mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e){ mouse_press(ctx, e); };
-    mouse_delegate.mouse_release = [ctx = m_imgui_context](const MouseEvent &e){ mouse_release(ctx, e); };
-    mouse_delegate.mouse_wheel = [ctx = m_imgui_context](const MouseEvent &e){ mouse_wheel(ctx, e); };
-    mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e){ mouse_move(ctx, e); };
+    mouse_delegate.mouse_press = [ctx = m_imgui_context](const MouseEvent &e) { mouse_press(ctx, e); };
+    mouse_delegate.mouse_release = [ctx = m_imgui_context](const MouseEvent &e) { mouse_release(ctx, e); };
+    mouse_delegate.mouse_wheel = [ctx = m_imgui_context](const MouseEvent &e) { mouse_wheel(ctx, e); };
+    mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
 
     auto &key_delegate = m_imgui_assets.key_delegate;
-    key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e){ key_press(ctx, e); };
-    key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e){ key_release(ctx, e); };
-    key_delegate.character_input = [ctx = m_imgui_context](uint32_t c){ character_input(ctx, c); };
+    key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e) { key_press(ctx, e); };
+    key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e) { key_release(ctx, e); };
+    key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
 
     create_device_objects(device);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-Context::Context(Context &&other) noexcept:
-        Context()
-{
-    swap(*this, other);
-}
+Context::Context(Context &&other) noexcept : Context() { swap(*this, other); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 Context::~Context()
 {
-    if(m_imgui_context){ ImGui::DestroyContext(m_imgui_context); }
-    if(m_implot_context){ ImPlot::DestroyContext(m_implot_context); }
+    if(m_imgui_context) { ImGui::DestroyContext(m_imgui_context); }
+    if(m_implot_context) { ImPlot::DestroyContext(m_implot_context); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -239,16 +229,21 @@ Context &Context::operator=(Context other)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Context::draw_gui(vierkant::Rasterizer &renderer)
+ImGuiIO &Context::get_io()
 {
     ImGui::SetCurrentContext(m_imgui_context);
     ImPlot::SetCurrentContext(m_implot_context);
+    return ImGui::GetIO();
+}
 
-    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
-    ImGuiIO &io = ImGui::GetIO();
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Context::update(double time_delta, const glm::vec2 &size)
+{
+    ImGuiIO &io = get_io();
 
     // Setup display size (every frame to accommodate for window resizing)
-    io.DisplaySize = {renderer.viewport.width, renderer.viewport.height};
+    io.DisplaySize = {size.x, size.y};
     io.DisplayFramebufferScale = ImVec2(1.f, 1.f);
 
     // start the frame. will update the io.WantCaptureMouse, io.WantCaptureKeyboard flags
@@ -259,19 +254,29 @@ void Context::draw_gui(vierkant::Rasterizer &renderer)
     ImGuizmo::SetRect(0, 0, io.DisplaySize.x, io.DisplaySize.y);
 
     // update time step
-    auto now = std::chrono::steady_clock::now();
-    io.DeltaTime = float_sec_t(now - m_imgui_assets.time_point).count();
-    m_imgui_assets.time_point = now;
+    io.DeltaTime = static_cast<float>(time_delta);
 
     int fb_width = (int) (io.DisplaySize.x * io.DisplayFramebufferScale.x);
     int fb_height = (int) (io.DisplaySize.y * io.DisplayFramebufferScale.y);
-    if(fb_width == 0 || fb_height == 0){ return; }
+    if(fb_width == 0 || fb_height == 0) { return; }
 
     // fire draw delegates
-    for(const auto &[name, delegate] : delegates){ if(delegate){ delegate(); }}
-
+    for(const auto &[name, delegate]: delegates)
+    {
+        if(delegate) { delegate(); }
+    }
     // create imgui drawlists
     ImGui::Render();
+    ImGui::EndFrame();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Context::draw_gui(vierkant::Rasterizer &renderer)
+{
+    // Avoid rendering when minimized, scale coordinates for retina displays (screen coordinates != framebuffer coordinates)
+    ImGuiIO &io = get_io();
+
     ImDrawData *draw_data = ImGui::GetDrawData();
     draw_data->ScaleClipRects(io.DisplayFramebufferScale);
 
@@ -301,11 +306,11 @@ void Context::draw_gui(vierkant::Rasterizer &renderer)
         for(int cmd_i = 0; cmd_i < cmd_list->CmdBuffer.Size; cmd_i++)
         {
             const ImDrawCmd *pcmd = &cmd_list->CmdBuffer[cmd_i];
-            if(pcmd->UserCallback){ pcmd->UserCallback(cmd_list, pcmd); }
+            if(pcmd->UserCallback) { pcmd->UserCallback(cmd_list, pcmd); }
             else
             {
-                auto tex = vierkant::ImagePtr(static_cast<vierkant::Image *>(pcmd->TextureId),
-                                              [](vierkant::Image *){});
+                auto tex =
+                        vierkant::ImagePtr(static_cast<vierkant::Image *>(pcmd->TextureId), [](vierkant::Image *) {});
 
                 // create a new drawable
                 auto drawable = m_imgui_assets.drawable;
@@ -317,8 +322,7 @@ void Context::draw_gui(vierkant::Rasterizer &renderer)
                 drawable.num_indices = pcmd->ElemCount;
 
                 auto &scissor = drawable.pipeline_format.scissor;
-                scissor.offset = {static_cast<int32_t>(pcmd->ClipRect.x),
-                                  static_cast<int32_t>(pcmd->ClipRect.y)};
+                scissor.offset = {static_cast<int32_t>(pcmd->ClipRect.x), static_cast<int32_t>(pcmd->ClipRect.y)};
                 scissor.extent = {static_cast<uint32_t>(pcmd->ClipRect.z - pcmd->ClipRect.x),
                                   static_cast<uint32_t>(pcmd->ClipRect.w - pcmd->ClipRect.y)};
 
@@ -327,22 +331,15 @@ void Context::draw_gui(vierkant::Rasterizer &renderer)
             base_index += pcmd->ElemCount;
         }
     }
-    ImGui::EndFrame();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const vierkant::mouse_delegate_t &Context::mouse_delegate() const
-{
-    return m_imgui_assets.mouse_delegate;
-}
+const vierkant::mouse_delegate_t &Context::mouse_delegate() const { return m_imgui_assets.mouse_delegate; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const vierkant::key_delegate_t &Context::key_delegate() const
-{
-    return m_imgui_assets.key_delegate;
-}
+const vierkant::key_delegate_t &Context::key_delegate() const { return m_imgui_assets.key_delegate; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -350,11 +347,11 @@ Context::CaptureFlags Context::capture_flags() const
 {
     ImGuiIO &io = m_imgui_context->IO;
     Context::CaptureFlags flags = 0;
-    if(io.WantCaptureMouse){ flags |= Context::WantCaptureMouse; }
-    if(io.WantCaptureKeyboard){ flags |= Context::WantCaptureKeyboard; }
-    if(io.WantTextInput){ flags |= Context::WantTextInput; }
-    if(io.WantSetMousePos){ flags |= Context::WantSetMousePos; }
-    if(io.WantSaveIniSettings){ flags |= Context::WantSaveIniSettings; }
+    if(io.WantCaptureMouse) { flags |= Context::WantCaptureMouse; }
+    if(io.WantCaptureKeyboard) { flags |= Context::WantCaptureKeyboard; }
+    if(io.WantTextInput) { flags |= Context::WantTextInput; }
+    if(io.WantSetMousePos) { flags |= Context::WantSetMousePos; }
+    if(io.WantSaveIniSettings) { flags |= Context::WantSaveIniSettings; }
     return flags;
 }
 
@@ -410,9 +407,9 @@ void swap(Context &lhs, Context &rhs) noexcept
 void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    if(e.is_left()){ io.MouseDown[0] = true; }
-    else if(e.is_middle()){ io.MouseDown[2] = true; }
-    else if(e.is_right()){ io.MouseDown[1] = true; }
+    if(e.is_left()) { io.MouseDown[0] = true; }
+    else if(e.is_middle()) { io.MouseDown[2] = true; }
+    else if(e.is_right()) { io.MouseDown[1] = true; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -420,9 +417,9 @@ void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
 void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    if(e.is_left()){ io.MouseDown[0] = false; }
-    else if(e.is_middle()){ io.MouseDown[2] = false; }
-    else if(e.is_right()){ io.MouseDown[1] = false; }
+    if(e.is_left()) { io.MouseDown[0] = false; }
+    else if(e.is_middle()) { io.MouseDown[2] = false; }
+    else if(e.is_right()) { io.MouseDown[1] = false; }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -471,9 +468,9 @@ void key_release(ImGuiContext *ctx, const KeyEvent &e)
 void character_input(ImGuiContext *ctx, uint32_t c)
 {
     ImGuiIO &io = ctx->IO;
-    if(c > 0 && c < 0x10000){ io.AddInputCharacter((unsigned short) c); }
+    if(c > 0 && c < 0x10000) { io.AddInputCharacter((unsigned short) c); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-}//namespace
+}// namespace vierkant::gui
