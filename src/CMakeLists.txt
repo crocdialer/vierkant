@@ -1,5 +1,5 @@
 # 3rd party header-only libs
-set(3RDPARTY_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/3rdparty/include)
+set(3RDPARTY_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include/vierkant/imgui)
 
 # suppress warnings from 3rd party headers
 include_directories(SYSTEM ${3RDPARTY_INCLUDE_DIR})
