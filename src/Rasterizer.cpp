@@ -737,10 +737,10 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         }
         else
         {
+            outbuffer->set_data(nullptr, num_bytes);
             outbuffer->barrier(frame_asset.staging_command_buffer.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                                VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                                VK_ACCESS_2_TRANSFER_WRITE_BIT);
-            outbuffer->set_data(nullptr, num_bytes);
         }
 
         vierkant::staging_copy_info_t info = {};
