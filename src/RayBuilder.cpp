@@ -219,12 +219,16 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         acceleration_asset.vertex_buffer = vertex_buffer;
         acceleration_asset.vertex_buffer_offset = vertex_buffer_offset;
 
-        // Allocate the scratch buffers holding the temporary data of the
-        // acceleration structure builder
-        acceleration_asset.scratch_buffer =
-                vierkant::Buffer::create(m_device, nullptr, std::max<uint64_t>(size_info.buildScratchSize, 1 << 12U),
-                                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                         VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
+        // allocate a scratch buffer for temporary data during acceleration-structure building
+        vierkant::Buffer::create_info_t scratch_buffer_info = {};
+        scratch_buffer_info.device = m_device;
+        scratch_buffer_info.pool = m_memory_pool;
+        scratch_buffer_info.num_bytes = std::max<uint64_t>(size_info.buildScratchSize, 1 << 12U);
+        scratch_buffer_info.alignment =
+                m_device->properties().acceleration_structure.minAccelerationStructureScratchOffsetAlignment;
+        scratch_buffer_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        scratch_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        acceleration_asset.scratch_buffer = vierkant::Buffer::create(scratch_buffer_info);
 
         // assign acceleration structure and scratch_buffer
         build_info.dstAccelerationStructure = acceleration_asset.structure.get();
@@ -902,10 +906,15 @@ RayBuilder::scene_acceleration_context_ptr RayBuilder::create_scene_acceleration
             vierkant::create_query_pool(m_device, 2 * UpdateSemaphoreValue::MAX_VALUE, VK_QUERY_TYPE_TIMESTAMP);
 
     // Create a small scratch buffer used during build of the top level acceleration structure
-    ret->scratch_buffer_top =
-            vierkant::Buffer::create(m_device, nullptr, 1U << 12U,
-                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                     VMA_MEMORY_USAGE_GPU_ONLY, m_memory_pool);
+    vierkant::Buffer::create_info_t scratch_buffer_info = {};
+    scratch_buffer_info.device = m_device;
+    scratch_buffer_info.pool = m_memory_pool;
+    scratch_buffer_info.num_bytes = 1U << 12U;
+    scratch_buffer_info.alignment =
+            m_device->properties().acceleration_structure.minAccelerationStructureScratchOffsetAlignment;
+    scratch_buffer_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+    scratch_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    ret->scratch_buffer_top = vierkant::Buffer::create(scratch_buffer_info);
     return ret;
 }
 

@@ -179,10 +179,16 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
                 aligned_size(group_elements[Group(g)] * handle_size_aligned, ray_props.shaderGroupBaseAlignment);
         binding_table_size += binding_table.strided_address_region[g].size;
     }
-    binding_table.buffer = vierkant::Buffer::create(m_device, nullptr, binding_table_size,
-                                                    VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR |
-                                                            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+    vierkant::Buffer::create_info_t binding_table_buffer_info = {};
+    binding_table_buffer_info.device = m_device;
+    binding_table_buffer_info.num_bytes = binding_table_size;
+    binding_table_buffer_info.alignment = ray_props.shaderGroupBaseAlignment;
+    binding_table_buffer_info.usage =
+            VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+    binding_table_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    binding_table.buffer = vierkant::Buffer::create(binding_table_buffer_info);
+
     // shader groups
     auto group_create_infos = vierkant::raytracing_shader_groups(shader_stages);
 

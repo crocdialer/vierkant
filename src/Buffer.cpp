@@ -131,7 +131,7 @@ BufferPtr Buffer::create(DevicePtr device, const void *data, size_t num_bytes, V
 
 Buffer::Buffer(const create_info_t &create_info)
     : m_device(create_info.device), m_usage(create_info.usage), m_mem_usage(create_info.mem_usage),
-      m_pool(create_info.pool), m_name(create_info.name)
+      m_min_alignment(create_info.alignment), m_pool(create_info.pool), m_name(create_info.name)
 {}
 
 Buffer::~Buffer()
@@ -210,8 +210,8 @@ void Buffer::set_data(const void *data, size_t num_bytes)
         alloc_info.usage = m_mem_usage;
         alloc_info.pool = m_pool.get();
 
-        vmaCreateBuffer(m_device->vk_mem_allocator(), &buffer_info, &alloc_info, &m_buffer, &m_allocation,
-                        &m_allocation_info);
+        vmaCreateBufferWithAlignment(m_device->vk_mem_allocator(), &buffer_info, &alloc_info, m_min_alignment,
+                                     &m_buffer, &m_allocation, &m_allocation_info);
 
         //! set optional name for debugging
         if(!m_name.empty()) { m_device->set_object_name(uint64_t(m_buffer), VK_OBJECT_TYPE_BUFFER, m_name); }

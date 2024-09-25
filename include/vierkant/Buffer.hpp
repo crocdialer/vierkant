@@ -34,7 +34,8 @@ public:
     {
         DevicePtr device;
         const void *data = nullptr;
-        size_t num_bytes = 0;
+        uint64_t num_bytes = 0;
+        uint32_t alignment = 0;
         VkBufferUsageFlags usage = 0;
         VmaMemoryUsage mem_usage = VMA_MEMORY_USAGE_UNKNOWN;
         VmaPoolPtr pool;
@@ -157,6 +158,8 @@ public:
     [[nodiscard]] vierkant::DevicePtr device() const { return m_device; }
 
 private:
+    explicit Buffer(const create_info_t &create_info);
+
     DevicePtr m_device;
 
     VkBuffer m_buffer = VK_NULL_HANDLE;
@@ -175,11 +178,11 @@ private:
 
     VmaMemoryUsage m_mem_usage = VMA_MEMORY_USAGE_UNKNOWN;
 
+    uint32_t m_min_alignment = 0;
+
     VmaPoolPtr m_pool = nullptr;
 
     std::string m_name;
-
-    Buffer(const create_info_t &create_info);
 };
 
 }// namespace vierkant
