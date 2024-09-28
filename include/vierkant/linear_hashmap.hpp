@@ -21,11 +21,10 @@ public:
     using key_t = uint64_t;
     using value_t = uint64_t;
     using hash_fn = std::function<uint64_t(key_t)>;
-
     linear_hashmap() = default;
 
-    explicit linear_hashmap(uint64_t capacity)
-        : m_capacity(crocore::next_pow_2(capacity)), m_storage(std::make_unique<storage_item_t[]>(m_capacity))
+    explicit linear_hashmap(uint64_t min_capacity)
+        : m_capacity(crocore::next_pow_2(min_capacity)), m_storage(std::make_unique<storage_item_t[]>(m_capacity))
     {
         clear();
     }
@@ -44,7 +43,7 @@ public:
 
     void insert(const key_t &key, value_t value)
     {
-        assert(m_capacity);
+        if(m_num_elements >= m_capacity) { throw std::overflow_error("capacity overflow"); }
         for(uint64_t idx = m_hash_fn(key);; idx++)
         {
             idx &= m_capacity - 1;
@@ -73,7 +72,7 @@ public:
 
     [[nodiscard]] std::optional<value_t> get(const key_t &key) const
     {
-        assert(m_capacity);
+        if(!m_capacity) { return {}; }
         for(uint64_t idx = m_hash_fn(key);; idx++)
         {
             idx &= m_capacity - 1;
@@ -85,12 +84,18 @@ public:
 
     [[nodiscard]] inline bool contains(const key_t &key) const { return get(key) != std::nullopt; }
 
+    const uint8_t *storage() const { return reinterpret_cast<const uint8_t *>(m_storage.get()); }
+
+    size_t storage_num_bytes() const { return sizeof(storage_item_t) * m_capacity; }
+
 private:
-    struct storage_item_t
+    struct alignas(16) storage_item_t
     {
         std::atomic<key_t> key;
         value_t value{};
     };
+    static_assert(sizeof(storage_item_t) == sizeof(key_t) + sizeof(value_t));
+
     uint64_t m_capacity{};
     std::atomic<uint64_t> m_num_elements;
     std::unique_ptr<storage_item_t[]> m_storage;
