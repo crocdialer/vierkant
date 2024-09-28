@@ -41,7 +41,7 @@ public:
         for(; ptr != end; ++ptr) { ptr->key = 0; }
     }
 
-    void insert(const key_t &key, value_t value)
+    value_t& insert(const key_t &key, value_t value)
     {
         if(m_num_elements >= m_capacity) { throw std::overflow_error("capacity overflow"); }
         for(uint64_t idx = m_hash_fn(key);; idx++)
@@ -65,8 +65,7 @@ public:
                 }
                 m_num_elements++;
             }
-            item.value = value;
-            return;
+            return item.value = value;
         }
     }
 
