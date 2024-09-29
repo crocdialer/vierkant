@@ -131,7 +131,11 @@ public:
         storage_item_t *item = m_storage.get(), *end = item + m_capacity;
         for(; item != end; ++item, ++output_ptr)
         {
-            if(item->key != key_t() && item->value) { *output_ptr = {item->key, *item->value}; }
+            if(item->key != key_t())
+            {
+                output_ptr->key = item->key;
+                output_ptr->value = item->value ? *item->value : value_t();
+            }
             else { *output_ptr = {}; }
         }
     }
