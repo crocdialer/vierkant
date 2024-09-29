@@ -86,15 +86,33 @@ public:
 
     [[nodiscard]] std::optional<value_t> get(const key_t &key) const
     {
+        if(!m_capacity) { return {}; }
         std::shared_lock lock(m_mutex);
 
-        if(!m_capacity) { return {}; }
         for(uint64_t idx = hash(key);; idx++)
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
             if(item.key == key_t()) { return {}; }
             else if(key == item.key && item.value) { return item.value; }
+        }
+    }
+
+    void remove(const key_t &key)
+    {
+        if(!m_capacity) { return; }
+        std::shared_lock lock(m_mutex);
+
+        for(uint64_t idx = hash(key);; idx++)
+        {
+            idx &= m_capacity - 1;
+            auto &item = m_storage[idx];
+            if(item.key == key_t()) { return; }
+            else if(key == item.key && item.value)
+            {
+                item.value = {};
+                return;
+            }
         }
     }
 
@@ -122,13 +140,13 @@ public:
 
     void resize(size_t new_capacity)
     {
-        if(new_capacity > m_capacity)
+        if(new_capacity >= size())
         {
             auto new_linear_hashmap = linear_hashmap(new_capacity);
             storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
             for(; ptr != end; ++ptr)
             {
-                if(ptr->value) { new_linear_hashmap.put(ptr->key, *ptr->value); }
+                if(ptr->key != key_t() && ptr->value) { new_linear_hashmap.put(ptr->key, *ptr->value); }
             }
             swap(*this, new_linear_hashmap);
         }

@@ -28,7 +28,11 @@ TEST(linear_hashmap, basic)
     EXPECT_EQ(v1, 99);
     auto &v2 = hashmap.put(13, 12);
     EXPECT_EQ(v2, 12);
-    EXPECT_EQ(hashmap.size(), 2);
+    hashmap.put(8, 15);
+    EXPECT_EQ(hashmap.size(), 3);
+
+    hashmap.remove(8);
+    EXPECT_FALSE(hashmap.contains(8));
 
     EXPECT_TRUE(hashmap.contains(69));
     EXPECT_EQ(hashmap.get(69), 99);
