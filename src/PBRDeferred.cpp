@@ -784,15 +784,22 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         if(params.num_draws && !frame_context.recycle_commands)
         {
-            auto drawbuffer = use_gpu_culling ? frame_context.indirect_draw_params_main.draws_in
-                                              : frame_context.indirect_draw_params_main.draws_out;
-            params.draws_in->copy_to(drawbuffer, frame_context.cmd_clear.handle());
-
             auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
             auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
             auto dst_stage = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
             auto dst_access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-            drawbuffer->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, dst_stage, dst_access);
+            params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_out,
+                                     frame_context.cmd_clear.handle());
+            frame_context.indirect_draw_params_main.draws_out->barrier(frame_context.cmd_clear.handle(), src_stage,
+                                                                       src_access, dst_stage, dst_access);
+
+            if(use_gpu_culling)
+            {
+                params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_in,
+                                         frame_context.cmd_clear.handle());
+                frame_context.indirect_draw_params_main.draws_in->barrier(frame_context.cmd_clear.handle(), src_stage,
+                                                                          src_access, dst_stage, dst_access);
+            }
 
             if(use_gpu_culling && !params.draws_counts_out)
             {
