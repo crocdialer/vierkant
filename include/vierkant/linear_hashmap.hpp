@@ -49,7 +49,7 @@ public:
     inline void clear()
     {
         storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
-        for(; ptr != end; ++ptr) { ptr->key = 0; }
+        for(; ptr != end; ++ptr) { ptr->key = key_t(); }
     }
 
     value_t &put(const key_t &key, value_t value)
@@ -68,10 +68,10 @@ public:
             if(probed_key != key)
             {
                 // hit another entry, keep searching
-                if(probed_key != 0) { continue; }
+                if(probed_key != key_t()) { continue; }
 
                 item.key.compare_exchange_strong(probed_key, key, std::memory_order_relaxed, std::memory_order_relaxed);
-                if(probed_key && probed_key != key)
+                if((probed_key != key_t()) && (probed_key != key))
                 {
                     // another thread just stole it
                     continue;
@@ -91,7 +91,7 @@ public:
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
-            if(!item.key) { return {}; }
+            if(item.key == key_t()) { return {}; }
             else if(key == item.key) { return item.value; }
         }
     }
@@ -124,7 +124,7 @@ public:
     }
 
 private:
-    struct alignas(16) storage_item_t
+    struct storage_item_t
     {
         std::atomic<key_t> key;
         value_t value{};

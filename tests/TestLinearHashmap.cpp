@@ -36,9 +36,30 @@ TEST(linear_hashmap, basic)
     EXPECT_EQ(hashmap.get(69), 99);
     EXPECT_TRUE(hashmap.contains(13));
     EXPECT_EQ(hashmap.get(13), 12);
+}
 
-    vierkant::linear_hashmap<uint64_t, uint64_t> other_map;
-    other_map = vierkant::linear_hashmap<uint64_t, uint64_t>(19);
+TEST(linear_hashmap, custom_key)
+{
+    // custom 32-byte key
+    struct custom_key_t
+    {
+        int v[8]{};
+        constexpr bool operator==(const custom_key_t &other) const
+        {
+            for(uint32_t i = 0; i < 8; ++i)
+            {
+                if(v[i] != other.v[i]) { return false; }
+            }
+            return true;
+        }
+    };
+    constexpr uint32_t test_capacity = 100;
+    auto hashmap = vierkant::linear_hashmap<custom_key_t, uint64_t>(test_capacity);
+
+    custom_key_t k1{{1, 2, 3, 4, 5, 6, 7, 8}};
+    hashmap.put(k1, 69);
+    EXPECT_TRUE(hashmap.contains(k1));
+    EXPECT_FALSE(hashmap.contains(custom_key_t()));
 }
 
 TEST(linear_hashmap, resize)
