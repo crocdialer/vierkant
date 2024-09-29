@@ -22,8 +22,7 @@ class linear_hashmap
 public:
     using key_t = K;
     using value_t = V;
-    using hash_fn = std::function<uint32_t(uint32_t)>;
-//    using hash_fn = std::function<uint64_t(uint64_t)>;
+    using hash32_fn = std::function<uint32_t(uint32_t)>;
     static_assert(key_t() == key_t(), "key_t not comparable");
 
     linear_hashmap() = default;
@@ -79,7 +78,7 @@ public:
                 }
                 m_num_elements++;
             }
-            return item.value = value;
+            return *(item.value = value);
         }
     }
 
@@ -93,15 +92,31 @@ public:
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
             if(item.key == key_t()) { return {}; }
-            else if(key == item.key) { return item.value; }
+            else if(key == item.key && item.value) { return item.value; }
         }
     }
 
     [[nodiscard]] inline bool contains(const key_t &key) const { return get(key) != std::nullopt; }
 
-    const uint8_t *storage() const { return reinterpret_cast<const uint8_t *>(m_storage.get()); }
+    void get_storage(void *dst) const
+    {
+        std::unique_lock lock(m_mutex);
 
-    size_t storage_num_bytes() const { return sizeof(storage_item_t) * m_capacity; }
+        struct output_item_t
+        {
+            key_t key = {};
+            value_t value = {};
+        };
+        auto output_ptr = reinterpret_cast<output_item_t *>(dst);
+        storage_item_t *item = m_storage.get(), *end = item + m_capacity;
+        for(; item != end; ++item, ++output_ptr)
+        {
+            if(item->key != key_t() && item->value) { *output_ptr = {item->key, *item->value}; }
+            else { *output_ptr = {}; }
+        }
+    }
+
+    size_t storage_num_bytes() const { return (sizeof(key_t) + sizeof(value_t)) * m_capacity; }
 
     void resize(size_t new_capacity)
     {
@@ -109,7 +124,10 @@ public:
         {
             auto new_linear_hashmap = linear_hashmap(new_capacity);
             storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
-            for(; ptr != end; ++ptr) { new_linear_hashmap.put(ptr->key, ptr->value); }
+            for(; ptr != end; ++ptr)
+            {
+                if(ptr->value) { new_linear_hashmap.put(ptr->key, *ptr->value); }
+            }
             swap(*this, new_linear_hashmap);
         }
     }
@@ -128,10 +146,8 @@ private:
     struct storage_item_t
     {
         std::atomic<key_t> key;
-        value_t value{};
+        std::optional<value_t> value;
     };
-    static_assert(sizeof(storage_item_t) == sizeof(key_t) + sizeof(value_t),
-                  "alignment/size requirements not met for key_t");
 
     inline uint32_t hash(const key_t &key) const
     {
@@ -152,7 +168,7 @@ private:
     uint64_t m_capacity{};
     std::atomic<uint64_t> m_num_elements;
     std::unique_ptr<storage_item_t[]> m_storage;
-    hash_fn m_hash_fn = vierkant::murmur3_fmix32;
+    hash32_fn m_hash_fn = vierkant::murmur3_fmix32;
     mutable std::shared_mutex m_mutex;
 };
 }// namespace vierkant
