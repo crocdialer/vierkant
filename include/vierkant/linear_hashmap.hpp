@@ -22,7 +22,8 @@ class linear_hashmap
 public:
     using key_t = K;
     using value_t = V;
-    using hash_fn = std::function<uint64_t(uint64_t)>;
+    using hash_fn = std::function<uint32_t(uint32_t)>;
+//    using hash_fn = std::function<uint64_t(uint64_t)>;
     static_assert(key_t() == key_t(), "key_t not comparable");
 
     linear_hashmap() = default;
@@ -132,26 +133,26 @@ private:
     static_assert(sizeof(storage_item_t) == sizeof(key_t) + sizeof(value_t),
                   "alignment/size requirements not met for key_t");
 
-    inline uint64_t hash(const key_t &key) const
+    inline uint32_t hash(const key_t &key) const
     {
-        constexpr uint32_t num_hashes = sizeof(key_t) / sizeof(uint64_t);
-        constexpr uint32_t num_excess_bytes = sizeof(key_t) % sizeof(uint64_t);
-        auto ptr = reinterpret_cast<const uint64_t *>(&key), end = ptr + num_hashes;
-        size_t h = 0;
-        for(; ptr != end; ++ptr) { vierkant::hash_combine(h, m_hash_fn(*ptr)); }
+        constexpr uint32_t num_hashes = sizeof(key_t) / sizeof(uint32_t);
+        constexpr uint32_t num_excess_bytes = sizeof(key_t) % sizeof(uint32_t);
+        uint32_t h = 0;
+        auto ptr = reinterpret_cast<const uint32_t *>(&key), end = ptr + num_hashes;
+        for(; ptr != end; ++ptr) { h = vierkant::xxhash32(h, m_hash_fn(*ptr)); }
         if constexpr(num_excess_bytes)
         {
             auto end_u8 = reinterpret_cast<const uint8_t *>(end);
-            uint64_t tail = 0;
+            uint32_t tail = 0;
             for(uint32_t i = 0; i < num_excess_bytes; ++i) { tail |= end_u8[i] << (i * 8); }
-            vierkant::hash_combine(h, m_hash_fn(tail));
+            h = vierkant::xxhash32(h, m_hash_fn(tail));
         }
         return h;
     }
     uint64_t m_capacity{};
     std::atomic<uint64_t> m_num_elements;
     std::unique_ptr<storage_item_t[]> m_storage;
-    hash_fn m_hash_fn = vierkant::murmur3_fmix64;
+    hash_fn m_hash_fn = vierkant::murmur3_fmix32;
     mutable std::shared_mutex m_mutex;
 };
 }// namespace vierkant

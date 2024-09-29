@@ -47,6 +47,16 @@ uint hash(uint a)
     return a;
 }
 
+uint murmur3_fmix32(uint h)
+{
+    h ^= h >> 16;
+    h *= 0x85ebca6b;
+    h ^= h >> 13;
+    h *= 0xc2b2ae35;
+    h ^= h >> 16;
+    return h;
+}
+
 ////! random number generation using pcg32i_random_t, using inc = 1. Our random state is a uint.
 //uint rng_step(uint rng_state)
 //{

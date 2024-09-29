@@ -30,6 +30,20 @@ inline uint64_t murmur3_fmix64(uint64_t k)
     return k;
 }
 
+// Generate a random uint32_t from two uint32_t values
+// @see: "Mark Jarzynski and Marc Olano, Hash Functions for GPU Rendering, Journal of Computer Graphics Techniques (JCGT), vol. 9, no. 3, 21-38, 2020"
+// https://jcgt.org/published/0009/03/02/
+uint32_t xxhash32(uint32_t lhs, uint32_t rhs)
+{
+    const uint32_t PRIME32_2 = 2246822519U, PRIME32_3 = 3266489917U;
+    const uint32_t PRIME32_4 = 668265263U, PRIME32_5 = 374761393U;
+    uint32_t h32 = lhs + PRIME32_5 + rhs * PRIME32_3;
+    h32 = PRIME32_4 * ((h32 << 17) | (h32 >> (32 - 17)));
+    h32 = PRIME32_2 * (h32 ^ (h32 >> 15));
+    h32 = PRIME32_3 * (h32 ^ (h32 >> 13));
+    return h32 ^ (h32 >> 16);
+}
+
 template<class T>
 inline void hash_combine(std::size_t &seed, const T &v)
 {
