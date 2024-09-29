@@ -1,6 +1,9 @@
 include_directories(${vierkant_INCLUDE_DIRS})
 set(LIBS ${vierkant_LIBRARIES} GTest::gtest_main)
-
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # gcc requires additional linking against libatomic, msvc/clang do not provide it.
+    set(LIBS ${LIBS} atomic)
+endif ()
 FILE(GLOB TEST_SOURCES "*.c*")
 FILE(GLOB TEST_HEADERS "*.h")
 
@@ -13,4 +16,4 @@ FOREACH (test_file ${TEST_SOURCES})
     add_executable(${test_name} ${test_file} ${TEST_HEADERS})
     TARGET_LINK_LIBRARIES(${test_name} ${LIBS})
     gtest_discover_tests(${test_name})
-ENDFOREACH(test_file)
+ENDFOREACH (test_file)
