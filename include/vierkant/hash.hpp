@@ -44,6 +44,11 @@ inline uint32_t xxhash32(uint32_t lhs, uint32_t rhs)
     return h32 ^ (h32 >> 16);
 }
 
+inline uint32_t hash_combine32(uint32_t lhs, uint32_t rhs)
+{
+    return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6U) + (lhs >> 2U));
+}
+
 template<class T>
 inline void hash_combine(std::size_t &seed, const T &v)
 {

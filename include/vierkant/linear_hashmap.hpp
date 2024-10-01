@@ -89,7 +89,7 @@ public:
         if(!m_capacity) { return {}; }
         std::shared_lock lock(m_mutex);
 
-        for(uint64_t idx = hash(key);; idx++)
+        for(uint32_t idx = hash(key);; idx++)
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
@@ -103,7 +103,7 @@ public:
         if(!m_capacity) { return; }
         std::shared_lock lock(m_mutex);
 
-        for(uint64_t idx = hash(key);; idx++)
+        for(uint32_t idx = hash(key);; idx++)
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
@@ -118,33 +118,37 @@ public:
 
     [[nodiscard]] inline bool contains(const key_t &key) const { return get(key) != std::nullopt; }
 
-    void get_storage(void *dst) const
+    size_t get_storage(void *dst) const
     {
-        std::unique_lock lock(m_mutex);
+        if(dst)
+        {
+            std::unique_lock lock(m_mutex);
 
-        struct output_item_t
-        {
-            key_t key = {};
-            value_t value = {};
-        };
-        auto output_ptr = reinterpret_cast<output_item_t *>(dst);
-        storage_item_t *item = m_storage.get(), *end = item + m_capacity;
-        for(; item != end; ++item, ++output_ptr)
-        {
-            if(item->key != key_t())
+            struct output_item_t
             {
-                output_ptr->key = item->key;
-                output_ptr->value = item->value ? *item->value : value_t();
+                key_t key = {};
+                value_t value = {};
+            };
+            auto output_ptr = reinterpret_cast<output_item_t *>(dst);
+            storage_item_t *item = m_storage.get(), *end = item + m_capacity;
+            for(; item != end; ++item, ++output_ptr)
+            {
+                if(item->key != key_t())
+                {
+                    output_ptr->key = item->key;
+                    output_ptr->value = item->value ? *item->value : value_t();
+                }
+                else { *output_ptr = {}; }
             }
-            else { *output_ptr = {}; }
         }
+        return (sizeof(key_t) + sizeof(value_t)) * m_capacity;
     }
-
-    size_t storage_num_bytes() const { return (sizeof(key_t) + sizeof(value_t)) * m_capacity; }
 
     void resize(size_t new_capacity)
     {
-        if(new_capacity >= size())
+        new_capacity = crocore::next_pow_2(new_capacity);
+
+        if(new_capacity != m_capacity)
         {
             auto new_linear_hashmap = linear_hashmap(new_capacity);
             storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
@@ -179,13 +183,13 @@ private:
         constexpr uint32_t num_excess_bytes = sizeof(key_t) % sizeof(uint32_t);
         uint32_t h = 0;
         auto ptr = reinterpret_cast<const uint32_t *>(&key), end = ptr + num_hashes;
-        for(; ptr != end; ++ptr) { h = vierkant::xxhash32(h, m_hash_fn(*ptr)); }
+        for(; ptr != end; ++ptr) { h = vierkant::hash_combine32(h, m_hash_fn(*ptr)); }
         if constexpr(num_excess_bytes)
         {
             auto end_u8 = reinterpret_cast<const uint8_t *>(end);
             uint32_t tail = 0;
             for(uint32_t i = 0; i < num_excess_bytes; ++i) { tail |= end_u8[i] << (i * 8); }
-            h = vierkant::xxhash32(h, m_hash_fn(tail));
+            h = vierkant::hash_combine32(h, m_hash_fn(tail));
         }
         return h;
     }
