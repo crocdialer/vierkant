@@ -51,10 +51,14 @@ public:
         std::unique_lock lock(m_mutex);
         m_num_elements = 0;
         storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
-        for(; ptr != end; ++ptr) { ptr->key = key_t(); }
+        for(; ptr != end; ++ptr)
+        {
+            ptr->key = key_t();
+            ptr->value = std::optional<value_t>();
+        }
     }
 
-    value_t &put(const key_t &key, value_t value)
+    void put(const key_t &key, value_t value)
     {
         if(m_num_elements >= m_capacity) { throw std::overflow_error("capacity overflow"); }
         std::shared_lock lock(m_mutex);
@@ -70,7 +74,7 @@ public:
             if(probed_key != key)
             {
                 // hit another valid entry, keep searching
-                if(probed_key != key_t() && item.value) { continue; }
+                if(probed_key != key_t() && item.value.load()) { continue; }
 
                 item.key.compare_exchange_strong(probed_key, key, std::memory_order_relaxed, std::memory_order_relaxed);
                 if((probed_key != key_t()) && (probed_key != key))
@@ -80,7 +84,8 @@ public:
                 }
                 m_num_elements++;
             }
-            return *(item.value = value);
+            item.value = value;
+            return;
         }
     }
 
@@ -94,7 +99,10 @@ public:
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
             if(item.key == key_t()) { return {}; }
-            else if(key == item.key && item.value) { return item.value; }
+            else if(key == item.key)
+            {
+                if(auto value = item.value.load()) { return value; }
+            }
         }
     }
 
@@ -108,9 +116,10 @@ public:
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
             if(item.key == key_t()) { return; }
-            else if(key == item.key && item.value)
+            else if(key == item.key && item.value.load())
             {
-                item.value = {};
+                item.value = std::optional<value_t>();
+                m_num_elements--;
                 return;
             }
         }
@@ -136,7 +145,8 @@ public:
                 if(item->key != key_t())
                 {
                     output_ptr->key = item->key;
-                    output_ptr->value = item->value ? *item->value : value_t();
+                    auto value = item->value.load();
+                    output_ptr->value = value ? *value : value_t();
                 }
                 else { *output_ptr = {}; }
             }
@@ -144,7 +154,7 @@ public:
         return (sizeof(key_t) + sizeof(value_t)) * m_capacity;
     }
 
-    void resize(size_t new_capacity)
+    void reserve(size_t new_capacity)
     {
         new_capacity = crocore::next_pow_2(new_capacity);
 
@@ -154,7 +164,10 @@ public:
             storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
             for(; ptr != end; ++ptr)
             {
-                if(ptr->key != key_t() && ptr->value) { new_linear_hashmap.put(ptr->key, *ptr->value); }
+                if(ptr->key != key_t())
+                {
+                    if(auto value = ptr->value.load()) { new_linear_hashmap.put(ptr->key, *value); }
+                }
             }
             swap(*this, new_linear_hashmap);
         }
@@ -174,7 +187,7 @@ private:
     struct storage_item_t
     {
         std::atomic<key_t> key;
-        std::optional<value_t> value;
+        std::atomic<std::optional<value_t>> value;
     };
 
     inline uint32_t hash(const key_t &key) const

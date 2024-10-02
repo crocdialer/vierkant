@@ -4,7 +4,7 @@
 
 TEST(linear_hashmap, empty)
 {
-    vierkant::linear_hashmap<uint64_t, uint64_t> hashmap;
+    vierkant::linear_hashmap<uint64_t, uint32_t> hashmap;
     EXPECT_TRUE(hashmap.empty());
     EXPECT_EQ(hashmap.capacity(), 0);
     EXPECT_EQ(hashmap.get_storage(nullptr), 0);
@@ -24,14 +24,13 @@ TEST(linear_hashmap, basic)
     EXPECT_FALSE(hashmap.contains(13));
     EXPECT_FALSE(hashmap.contains(42));
 
-    auto &v1 = hashmap.put(69, 99);
-    EXPECT_EQ(v1, 99);
-    auto &v2 = hashmap.put(13, 12);
-    EXPECT_EQ(v2, 12);
+    hashmap.put(69, 99);
+    hashmap.put(13, 12);
     hashmap.put(8, 15);
     EXPECT_EQ(hashmap.size(), 3);
 
     hashmap.remove(8);
+    EXPECT_EQ(hashmap.size(), 2);
     EXPECT_FALSE(hashmap.contains(8));
 
     EXPECT_TRUE(hashmap.contains(69));
@@ -67,7 +66,7 @@ TEST(linear_hashmap, custom_key)
     EXPECT_FALSE(hashmap.contains(custom_key_t()));
 }
 
-TEST(linear_hashmap, resize)
+TEST(linear_hashmap, reserve)
 {
     vierkant::linear_hashmap<uint64_t, uint64_t> hashmap;
 
@@ -75,7 +74,7 @@ TEST(linear_hashmap, resize)
     EXPECT_THROW(hashmap.put(13, 12), std::overflow_error);
 
     // fix by resizing
-    hashmap.resize(17);
+    hashmap.reserve(17);
     EXPECT_TRUE(hashmap.empty());
     hashmap.put(13, 12);
     EXPECT_TRUE(hashmap.contains(13));

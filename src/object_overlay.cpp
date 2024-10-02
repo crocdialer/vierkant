@@ -112,7 +112,7 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     // object_id-map
     if(params.mode != ObjectOverlayMode::None)
     {
-        context->id_map.resize(std::max<size_t>(params.object_ids.size(), 128));
+        context->id_map.reserve(std::max<size_t>(params.object_ids.size(), 128));
         context->id_map.clear();
         for(const uint32_t object_id: params.object_ids) { context->id_map.put(object_id, 1); }
         hash_storage.resize(context->id_map.get_storage(nullptr));
