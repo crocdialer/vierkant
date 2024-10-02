@@ -7,7 +7,7 @@ TEST(linear_hashmap, empty)
     vierkant::linear_hashmap<uint64_t, uint64_t> hashmap;
     EXPECT_TRUE(hashmap.empty());
     EXPECT_EQ(hashmap.capacity(), 0);
-    EXPECT_FALSE(hashmap.storage_num_bytes());
+    EXPECT_EQ(hashmap.get_storage(nullptr), 0);
 }
 
 TEST(linear_hashmap, basic)
@@ -15,7 +15,7 @@ TEST(linear_hashmap, basic)
     constexpr uint32_t test_capacity = 100;
     vierkant::linear_hashmap<uint64_t, uint64_t> hashmap(test_capacity);
     EXPECT_TRUE(hashmap.empty());
-    EXPECT_TRUE(hashmap.storage_num_bytes());
+    EXPECT_GT(hashmap.get_storage(nullptr), 0);
 
     // capacity will be rounded to next pow2
     EXPECT_GE(hashmap.capacity(), test_capacity);
@@ -39,7 +39,7 @@ TEST(linear_hashmap, basic)
     EXPECT_TRUE(hashmap.contains(13));
     EXPECT_EQ(hashmap.get(13), 12);
 
-    auto storage = std::make_unique<uint8_t[]>(hashmap.storage_num_bytes());
+    auto storage = std::make_unique<uint8_t[]>(hashmap.get_storage(nullptr));
     hashmap.get_storage(storage.get());
 }
 
