@@ -6,6 +6,7 @@ TEST(linear_hashmap, empty)
 {
     vierkant::linear_hashmap<uint64_t, uint32_t> hashmap;
     EXPECT_TRUE(hashmap.empty());
+    hashmap.clear();
     EXPECT_EQ(hashmap.capacity(), 0);
     EXPECT_EQ(hashmap.get_storage(nullptr), 0);
 }
@@ -21,6 +22,7 @@ TEST(linear_hashmap, basic)
     EXPECT_GE(hashmap.capacity(), test_capacity);
     EXPECT_TRUE(crocore::is_pow_2(hashmap.capacity()));
 
+    EXPECT_FALSE(hashmap.contains(0));
     EXPECT_FALSE(hashmap.contains(13));
     EXPECT_FALSE(hashmap.contains(42));
 
@@ -78,4 +80,21 @@ TEST(linear_hashmap, reserve)
     EXPECT_TRUE(hashmap.empty());
     hashmap.put(13, 12);
     EXPECT_TRUE(hashmap.contains(13));
+}
+
+TEST(linear_hashmap, probe_length)
+{
+    vierkant::linear_hashmap<uint32_t, uint32_t> hashmap;
+
+    // test a load-factor of 0.25
+    constexpr uint32_t test_capacity = 512;
+    constexpr uint32_t num_insertions = 128;
+    hashmap.reserve(test_capacity);
+
+    uint32_t max_probe_length = 0;
+    for(uint32_t i = 0; i < num_insertions; i++) { max_probe_length = std::max(max_probe_length, hashmap.put(i, 69)); }
+
+    // for a load-factor of 0.25, we expect very short probe-lengths
+    constexpr uint32_t expected_max_probe_length = 2;
+    EXPECT_LE(max_probe_length, expected_max_probe_length);
 }

@@ -58,12 +58,13 @@ public:
         }
     }
 
-    void put(const key_t &key, value_t value)
+    uint32_t put(const key_t &key, value_t value)
     {
         if(m_num_elements >= m_capacity) { throw std::overflow_error("capacity overflow"); }
         std::shared_lock lock(m_mutex);
+        uint32_t probe_length = 0;
 
-        for(uint64_t idx = hash(key);; idx++)
+        for(uint64_t idx = hash(key);; idx++, probe_length++)
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
@@ -85,7 +86,7 @@ public:
                 m_num_elements++;
             }
             item.value = value;
-            return;
+            return probe_length;
         }
     }
 
@@ -156,21 +157,17 @@ public:
 
     void reserve(size_t new_capacity)
     {
-        new_capacity = crocore::next_pow_2(new_capacity);
-
-        if(new_capacity != m_capacity)
+        new_capacity = crocore::next_pow_2(std::max<size_t>(m_num_elements, new_capacity));
+        auto new_linear_hashmap = linear_hashmap(new_capacity);
+        storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
+        for(; ptr != end; ++ptr)
         {
-            auto new_linear_hashmap = linear_hashmap(new_capacity);
-            storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
-            for(; ptr != end; ++ptr)
+            if(ptr->key != key_t())
             {
-                if(ptr->key != key_t())
-                {
-                    if(auto value = ptr->value.load()) { new_linear_hashmap.put(ptr->key, *value); }
-                }
+                if(auto value = ptr->value.load()) { new_linear_hashmap.put(ptr->key, *value); }
             }
-            swap(*this, new_linear_hashmap);
         }
+        swap(*this, new_linear_hashmap);
     }
 
     friend void swap(linear_hashmap &lhs, linear_hashmap &rhs)
