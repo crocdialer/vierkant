@@ -10,7 +10,7 @@ namespace vierkant
 struct object_overlay_context_t
 {
     vierkant::linear_hashmap<uint32_t, uint32_t> id_map;
-    vierkant::BufferPtr id_buffer;
+    vierkant::BufferPtr id_map_storage_buffer;
     vierkant::BufferPtr param_buffer;
     vierkant::BufferPtr staging_buffer;
 
@@ -45,7 +45,7 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     id_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
     id_buffer_info.name = "object_overlay::id_buffer";
 
-    ret->id_buffer = vierkant::Buffer::create(id_buffer_info);
+    ret->id_map_storage_buffer = vierkant::Buffer::create(id_buffer_info);
 
     vierkant::Buffer::create_info_t param_buffer_info = {};
     param_buffer_info.device = device;
@@ -112,7 +112,6 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     // object_id-map
     if(params.mode != ObjectOverlayMode::None)
     {
-        context->id_map.reserve(std::max<size_t>(params.object_ids.size(), 128));
         context->id_map.clear();
         for(const uint32_t object_id: params.object_ids) { context->id_map.put(object_id, 1); }
         hash_storage.resize(context->id_map.get_storage(nullptr));
@@ -127,14 +126,14 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     vierkant::staging_copy_info_t copy_ids = {};
     copy_ids.num_bytes = sizeof(uint8_t) * hash_storage.size();
     copy_ids.data = hash_storage.data();
-    copy_ids.dst_buffer = context->id_buffer;
+    copy_ids.dst_buffer = context->id_map_storage_buffer;
     copy_ids.dst_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     copy_ids.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
 
     object_overlay_ubo_t object_overlay_ubo = {};
     object_overlay_ubo.silhouette = static_cast<uint32_t>(params.mode == ObjectOverlayMode::Silhouette);
 
-    object_overlay_ubo.object_id_map.storage = context->id_buffer->device_address();
+    object_overlay_ubo.object_id_map.storage = context->id_map_storage_buffer->device_address();
     object_overlay_ubo.object_id_map.size = context->id_map.size();
     object_overlay_ubo.object_id_map.capacity = context->id_map.capacity();
 

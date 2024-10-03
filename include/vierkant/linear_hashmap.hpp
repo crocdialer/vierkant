@@ -22,7 +22,7 @@ class linear_hashmap
 public:
     using key_t = K;
     using value_t = V;
-    using hash32_fn = std::function<uint32_t(uint32_t)>;
+    using hash32_fn = std::function<uint32_t(const key_t &)>;
     static_assert(key_t() == key_t(), "key_t not comparable");
 
     linear_hashmap() = default;
@@ -58,36 +58,13 @@ public:
         }
     }
 
-    uint32_t put(const key_t &key, value_t value)
+    uint32_t put(const key_t &key, const value_t &value)
     {
-        if(m_num_elements >= m_capacity) { throw std::overflow_error("capacity overflow"); }
-        std::shared_lock lock(m_mutex);
-        uint32_t probe_length = 0;
-
-        for(uint64_t idx = hash(key);; idx++, probe_length++)
+        if(m_num_elements >= m_capacity * m_max_load_factor)
         {
-            idx &= m_capacity - 1;
-            auto &item = m_storage[idx];
-
-            // load previous key
-            key_t probed_key = m_storage[idx].key;
-
-            if(probed_key != key)
-            {
-                // hit another valid entry, keep searching
-                if(probed_key != key_t() && item.value.load()) { continue; }
-
-                item.key.compare_exchange_strong(probed_key, key, std::memory_order_relaxed, std::memory_order_relaxed);
-                if((probed_key != key_t()) && (probed_key != key))
-                {
-                    // another thread just stole it
-                    continue;
-                }
-                m_num_elements++;
-            }
-            item.value = value;
-            return probe_length;
+            reserve(std::max<size_t>(32, m_grow_factor * m_capacity));
         }
+        return internal_put(key, value);
     }
 
     [[nodiscard]] std::optional<value_t> get(const key_t &key) const
@@ -95,7 +72,7 @@ public:
         if(!m_capacity) { return {}; }
         std::shared_lock lock(m_mutex);
 
-        for(uint32_t idx = hash(key);; idx++)
+        for(uint32_t idx = m_hash_fn(key);; idx++)
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
@@ -112,7 +89,7 @@ public:
         if(!m_capacity) { return; }
         std::shared_lock lock(m_mutex);
 
-        for(uint32_t idx = hash(key);; idx++)
+        for(uint32_t idx = m_hash_fn(key);; idx++)
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
@@ -178,6 +155,8 @@ public:
         lhs.m_num_elements = rhs.m_num_elements.exchange(lhs.m_num_elements);
         std::swap(lhs.m_storage, rhs.m_storage);
         std::swap(lhs.m_hash_fn, rhs.m_hash_fn);
+        std::swap(lhs.m_max_load_factor, rhs.m_max_load_factor);
+        std::swap(lhs.m_grow_factor, rhs.m_grow_factor);
     }
 
 private:
@@ -187,26 +166,45 @@ private:
         std::atomic<std::optional<value_t>> value;
     };
 
-    inline uint32_t hash(const key_t &key) const
+    inline uint32_t internal_put(const key_t key, const value_t &value)
     {
-        constexpr uint32_t num_hashes = sizeof(key_t) / sizeof(uint32_t);
-        constexpr uint32_t num_excess_bytes = sizeof(key_t) % sizeof(uint32_t);
-        uint32_t h = 0;
-        auto ptr = reinterpret_cast<const uint32_t *>(&key), end = ptr + num_hashes;
-        for(; ptr != end; ++ptr) { h = vierkant::hash_combine32(h, m_hash_fn(*ptr)); }
-        if constexpr(num_excess_bytes)
+        std::shared_lock lock(m_mutex);
+        uint32_t probe_length = 0;
+
+        for(uint64_t idx = m_hash_fn(key);; idx++, probe_length++)
         {
-            auto end_u8 = reinterpret_cast<const uint8_t *>(end);
-            uint32_t tail = 0;
-            for(uint32_t i = 0; i < num_excess_bytes; ++i) { tail |= end_u8[i] << (i * 8); }
-            h = vierkant::hash_combine32(h, m_hash_fn(tail));
+            idx &= m_capacity - 1;
+            auto &item = m_storage[idx];
+
+            // load previous key
+            key_t probed_key = m_storage[idx].key;
+
+            if(probed_key != key)
+            {
+                // hit another valid entry, keep probing
+                if(probed_key != key_t() && item.value.load()) { continue; }
+
+                item.key.compare_exchange_strong(probed_key, key, std::memory_order_relaxed, std::memory_order_relaxed);
+                if((probed_key != key_t()) && (probed_key != key))
+                {
+                    // another thread just stole it
+                    continue;
+                }
+                m_num_elements++;
+            }
+            item.value = value;
+            return probe_length;
         }
-        return h;
     }
+
     uint64_t m_capacity{};
     std::atomic<uint64_t> m_num_elements;
     std::unique_ptr<storage_item_t[]> m_storage;
-    hash32_fn m_hash_fn = vierkant::murmur3_fmix32;
+    hash32_fn m_hash_fn = std::bind(vierkant::murmur3_32<key_t>, std::placeholders::_1, 0);
     mutable std::shared_mutex m_mutex;
+
+    // reasonably low load-factor to keep average probe-lengths low
+    float m_max_load_factor = 0.5f;
+    float m_grow_factor = 2.f;
 };
 }// namespace vierkant

@@ -72,12 +72,14 @@ TEST(linear_hashmap, reserve)
 {
     vierkant::linear_hashmap<uint64_t, uint64_t> hashmap;
 
-    // empty / no capacity specified -> expect overflow on insert
-    EXPECT_THROW(hashmap.put(13, 12), std::overflow_error);
-
     // fix by resizing
     hashmap.reserve(17);
     EXPECT_TRUE(hashmap.empty());
+    hashmap.put(13, 12);
+    EXPECT_TRUE(hashmap.contains(13));
+
+    // empty / no capacity specified -> triggers internal resize
+    hashmap = {};
     hashmap.put(13, 12);
     EXPECT_TRUE(hashmap.contains(13));
 }
@@ -91,10 +93,11 @@ TEST(linear_hashmap, probe_length)
     constexpr uint32_t num_insertions = 128;
     hashmap.reserve(test_capacity);
 
-    uint32_t max_probe_length = 0;
-    for(uint32_t i = 0; i < num_insertions; i++) { max_probe_length = std::max(max_probe_length, hashmap.put(i, 69)); }
+    float probe_length_sum = 0.f;
+    for(uint32_t i = 0; i < num_insertions; i++) { probe_length_sum += static_cast<float>(hashmap.put(i, 69)); }
+    float avg_probe_length = probe_length_sum / num_insertions;
 
     // for a load-factor of 0.25, we expect very short probe-lengths
-    constexpr uint32_t expected_max_probe_length = 2;
-    EXPECT_LE(max_probe_length, expected_max_probe_length);
+    constexpr float expected_max_avg_probe_length = 0.15f;
+    EXPECT_LE(avg_probe_length, expected_max_avg_probe_length);
 }
