@@ -5,7 +5,8 @@
 #pragma once
 
 #include <functional>
-#include <string_view>
+#include <cstring>
+#include <cstdint>
 
 namespace vierkant
 {
@@ -51,7 +52,7 @@ static inline uint32_t murmur3_32(const uint8_t *key, size_t len, uint32_t seed)
     {
         // Here is a source of differing results across endiannesses.
         // A swap here has no effects on hash properties though.
-        k = *reinterpret_cast<const uint32_t *>(&key);
+        memcpy(&k, key, sizeof(uint32_t));
         key += sizeof(uint32_t);
         h ^= murmur_32_scramble(k);
         h = (h << 13) | (h >> 19);
