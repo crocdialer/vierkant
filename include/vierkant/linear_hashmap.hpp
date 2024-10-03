@@ -62,7 +62,7 @@ public:
     {
         if(m_num_elements >= m_capacity * m_max_load_factor)
         {
-            reserve(std::max<size_t>(32, m_grow_factor * m_capacity));
+            reserve(std::max<size_t>(32, static_cast<size_t>(m_grow_factor * m_capacity)));
         }
         return internal_put(key, value);
     }
