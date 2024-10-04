@@ -60,10 +60,7 @@ public:
 
     uint32_t put(const key_t &key, const value_t &value)
     {
-        if(m_num_elements >= m_capacity * m_max_load_factor)
-        {
-            reserve(std::max<size_t>(32, static_cast<size_t>(m_grow_factor * m_capacity)));
-        }
+        check_load_factor();
         return internal_put(key, value);
     }
 
@@ -147,6 +144,16 @@ public:
         swap(*this, new_linear_hashmap);
     }
 
+    float load_factor() const { return static_cast<float>(m_num_elements) / m_capacity; }
+
+    float max_load_factor() const { return m_max_load_factor; }
+
+    void max_load_factor(float load_factor)
+    {
+        m_max_load_factor = std::clamp<float>(load_factor, 0.01f, 1.f);
+        check_load_factor();
+    }
+
     friend void swap(linear_hashmap &lhs, linear_hashmap &rhs)
     {
         std::lock(lhs.m_mutex, rhs.m_mutex);
@@ -165,6 +172,14 @@ private:
         std::atomic<key_t> key;
         std::atomic<std::optional<value_t>> value;
     };
+
+    inline void check_load_factor()
+    {
+        if(m_num_elements >= m_capacity * m_max_load_factor)
+        {
+            reserve(std::max<size_t>(32, static_cast<size_t>(m_grow_factor * m_capacity)));
+        }
+    }
 
     inline uint32_t internal_put(const key_t key, const value_t &value)
     {

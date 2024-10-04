@@ -88,7 +88,12 @@ TEST(linear_hashmap, probe_length)
 {
     vierkant::linear_hashmap<uint32_t, uint32_t> hashmap;
 
+    // default load_factor is 0.5
+    EXPECT_EQ(hashmap.max_load_factor(), 0.5f);
+
     // test a load-factor of 0.25
+    hashmap.max_load_factor(0.25f);
+
     constexpr uint32_t test_capacity = 512;
     constexpr uint32_t num_insertions = 128;
     hashmap.reserve(test_capacity);
@@ -100,4 +105,6 @@ TEST(linear_hashmap, probe_length)
     // for a load-factor of 0.25, we expect very short probe-lengths
     constexpr float expected_max_avg_probe_length = 0.15f;
     EXPECT_LE(avg_probe_length, expected_max_avg_probe_length);
+
+    EXPECT_LE(hashmap.load_factor(), 0.25f);
 }
