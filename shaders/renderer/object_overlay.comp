@@ -26,7 +26,7 @@ uint hash(uint v)
 
 uint get(const hashmap_t hashmap, const uint key)
 {
-    if(hashmap.capacity == 0) { return 0; }
+    if(key == 0 || hashmap.capacity == 0) { return 0; }
 
     for(uint idx = hash(key);; idx++)
     {
@@ -63,15 +63,15 @@ float sobel_edge(ivec2 coord)
 {
     // sobel
     float n[9];
-    n[0] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(-1, -1)).x));
-    n[1] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(0, -1)).x));
-    n[2] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(1, -1)).x));
-    n[3] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(-1, 0)).x));
-    n[4] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(0, 0)).x));
-    n[5] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(1, 0)).x));
-    n[6] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(-1, 1)).x));
-    n[7] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(0, 1)).x));
-    n[8] = float(contains(params, MAX_UINT16 - imageLoad(in_object_id_img, coord + ivec2(1, 1)).x));
+    n[0] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(-1, -1)).x));
+    n[1] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(0, -1)).x));
+    n[2] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(1, -1)).x));
+    n[3] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(-1, 0)).x));
+    n[4] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(0, 0)).x));
+    n[5] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(1, 0)).x));
+    n[6] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(-1, 1)).x));
+    n[7] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(0, 1)).x));
+    n[8] = float(contains(params, imageLoad(in_object_id_img, coord + ivec2(1, 1)).x));
     float sobel_edge_h = n[2] + (2.0 * n[5]) + n[8] - (n[0] + (2.0 * n[3]) + n[6]);
     float sobel_edge_v = n[0] + (2.0 * n[1]) + n[2] - (n[6] + (2.0 * n[7]) + n[8]);
     return sqrt((sobel_edge_h * sobel_edge_h) + (sobel_edge_v * sobel_edge_v));
@@ -90,11 +90,8 @@ void main()
     }
     else
     {
-        // retrieve stored object-id
-        uint object_id = MAX_UINT16 - imageLoad(in_object_id_img, in_coords).x;
-
         // generate binary mask
-        result = float(contains(params, object_id));
+        result = float(contains(params, imageLoad(in_object_id_img, in_coords).x));
     }
 
     // store mask/silhouette value for selected objects
