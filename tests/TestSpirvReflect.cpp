@@ -1,6 +1,6 @@
 #include "test_context.hpp"
-#include "vierkant/shaders.hpp"
 #include "vierkant/pipeline_formats.hpp"
+#include "vierkant/shaders.hpp"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -10,7 +10,7 @@ TEST(TestSpirvReflect, GroupCount)
 
     // overlay-compute
     glm::uvec3 local_sizes;
-    auto shader_stage = vierkant::create_shader_module(test_context.device, vierkant::shaders::pbr::object_overlay_comp,
-                                                       &local_sizes);
+    auto shader_stage = vierkant::create_shader_module(test_context.device,
+                                                       vierkant::shaders::renderer::object_overlay_comp, &local_sizes);
     EXPECT_EQ(local_sizes, glm::uvec3(32, 32, 1));
 }

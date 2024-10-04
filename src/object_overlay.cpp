@@ -1,4 +1,5 @@
 #include <vierkant/Compute.hpp>
+#include <vierkant/linear_hashmap.hpp>
 #include <vierkant/object_overlay.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/staging_copy.hpp>
@@ -8,7 +9,8 @@ namespace vierkant
 
 struct object_overlay_context_t
 {
-    vierkant::BufferPtr id_buffer;
+    vierkant::linear_hashmap<uint32_t, uint32_t> id_map;
+    vierkant::BufferPtr id_map_storage_buffer;
     vierkant::BufferPtr param_buffer;
     vierkant::BufferPtr staging_buffer;
 
@@ -18,10 +20,16 @@ struct object_overlay_context_t
     vierkant::ImagePtr result, result_swizzle;
 };
 
+struct alignas(16) hashmap_t
+{
+    VkDeviceAddress storage;
+    uint32_t size;
+    uint32_t capacity;
+};
+
 struct alignas(16) object_overlay_ubo_t
 {
-    VkDeviceAddress id_buffer_address;
-    uint32_t num_object_ids;
+    hashmap_t object_id_map;
     uint32_t silhouette;
 };
 
@@ -37,7 +45,7 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     id_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
     id_buffer_info.name = "object_overlay::id_buffer";
 
-    ret->id_buffer = vierkant::Buffer::create(id_buffer_info);
+    ret->id_map_storage_buffer = vierkant::Buffer::create(id_buffer_info);
 
     vierkant::Buffer::create_info_t param_buffer_info = {};
     param_buffer_info.device = device;
@@ -60,7 +68,7 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
     ret->mask_compute = vierkant::Compute(device, compute_info);
 
     // overlay-compute
-    auto shader_stage = vierkant::create_shader_module(device, vierkant::shaders::pbr::object_overlay_comp,
+    auto shader_stage = vierkant::create_shader_module(device, vierkant::shaders::renderer::object_overlay_comp,
                                                        &ret->mask_compute_local_size);
     ret->mask_computable.pipeline_info.shader_stage = shader_stage;
 
@@ -99,8 +107,16 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     // debug label
     vierkant::begin_label(params.commandbuffer, {"object_overlay"});
 
-    std::vector<uint32_t> id_array = {params.object_ids.begin(), params.object_ids.end()};
-    if(params.mode == ObjectOverlayMode::None) { id_array.clear(); }
+    std::vector<uint8_t> hash_storage;
+
+    // object_id-map
+    if(params.mode != ObjectOverlayMode::None)
+    {
+        context->id_map.clear();
+        for(const uint32_t object_id: params.object_ids) { context->id_map.put(object_id, 1); }
+        hash_storage.resize(context->id_map.get_storage(nullptr));
+        context->id_map.get_storage(hash_storage.data());
+    }
 
     // required to avoid a SYNC-HAZARD-WRITE-AFTER-WRITE
     context->param_buffer->barrier(params.commandbuffer, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
@@ -108,16 +124,18 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
                                    VK_ACCESS_2_TRANSFER_WRITE_BIT);
 
     vierkant::staging_copy_info_t copy_ids = {};
-    copy_ids.num_bytes = sizeof(uint32_t) * id_array.size();
-    copy_ids.data = id_array.data();
-    copy_ids.dst_buffer = context->id_buffer;
+    copy_ids.num_bytes = sizeof(uint8_t) * hash_storage.size();
+    copy_ids.data = hash_storage.data();
+    copy_ids.dst_buffer = context->id_map_storage_buffer;
     copy_ids.dst_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     copy_ids.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
 
     object_overlay_ubo_t object_overlay_ubo = {};
     object_overlay_ubo.silhouette = static_cast<uint32_t>(params.mode == ObjectOverlayMode::Silhouette);
-    object_overlay_ubo.id_buffer_address = context->id_buffer->device_address();
-    object_overlay_ubo.num_object_ids = id_array.size();
+
+    object_overlay_ubo.object_id_map.storage = context->id_map_storage_buffer->device_address();
+    object_overlay_ubo.object_id_map.size = context->id_map.size();
+    object_overlay_ubo.object_id_map.capacity = context->id_map.capacity();
 
     vierkant::staging_copy_info_t copy_ubo = {};
     copy_ubo.num_bytes = sizeof(object_overlay_ubo_t);

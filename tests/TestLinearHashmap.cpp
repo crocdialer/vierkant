@@ -4,10 +4,11 @@
 
 TEST(linear_hashmap, empty)
 {
-    vierkant::linear_hashmap<uint64_t, uint64_t> hashmap;
+    vierkant::linear_hashmap<uint64_t, uint32_t> hashmap;
     EXPECT_TRUE(hashmap.empty());
+    hashmap.clear();
     EXPECT_EQ(hashmap.capacity(), 0);
-    EXPECT_FALSE(hashmap.storage_num_bytes());
+    EXPECT_EQ(hashmap.get_storage(nullptr), 0);
 }
 
 TEST(linear_hashmap, basic)
@@ -15,23 +16,23 @@ TEST(linear_hashmap, basic)
     constexpr uint32_t test_capacity = 100;
     vierkant::linear_hashmap<uint64_t, uint64_t> hashmap(test_capacity);
     EXPECT_TRUE(hashmap.empty());
-    EXPECT_TRUE(hashmap.storage_num_bytes());
+    EXPECT_GT(hashmap.get_storage(nullptr), 0);
 
     // capacity will be rounded to next pow2
     EXPECT_GE(hashmap.capacity(), test_capacity);
     EXPECT_TRUE(crocore::is_pow_2(hashmap.capacity()));
 
+    EXPECT_FALSE(hashmap.contains(0));
     EXPECT_FALSE(hashmap.contains(13));
     EXPECT_FALSE(hashmap.contains(42));
 
-    auto &v1 = hashmap.put(69, 99);
-    EXPECT_EQ(v1, 99);
-    auto &v2 = hashmap.put(13, 12);
-    EXPECT_EQ(v2, 12);
+    hashmap.put(69, 99);
+    hashmap.put(13, 12);
     hashmap.put(8, 15);
     EXPECT_EQ(hashmap.size(), 3);
 
     hashmap.remove(8);
+    EXPECT_EQ(hashmap.size(), 2);
     EXPECT_FALSE(hashmap.contains(8));
 
     EXPECT_TRUE(hashmap.contains(69));
@@ -39,7 +40,7 @@ TEST(linear_hashmap, basic)
     EXPECT_TRUE(hashmap.contains(13));
     EXPECT_EQ(hashmap.get(13), 12);
 
-    auto storage = std::make_unique<uint8_t[]>(hashmap.storage_num_bytes());
+    auto storage = std::make_unique<uint8_t[]>(hashmap.get_storage(nullptr));
     hashmap.get_storage(storage.get());
 }
 
@@ -67,16 +68,43 @@ TEST(linear_hashmap, custom_key)
     EXPECT_FALSE(hashmap.contains(custom_key_t()));
 }
 
-TEST(linear_hashmap, resize)
+TEST(linear_hashmap, reserve)
 {
     vierkant::linear_hashmap<uint64_t, uint64_t> hashmap;
 
-    // empty / no capacity specified -> expect overflow on insert
-    EXPECT_THROW(hashmap.put(13, 12), std::overflow_error);
-
     // fix by resizing
-    hashmap.resize(17);
+    hashmap.reserve(17);
     EXPECT_TRUE(hashmap.empty());
     hashmap.put(13, 12);
     EXPECT_TRUE(hashmap.contains(13));
+
+    // empty / no capacity specified -> triggers internal resize
+    hashmap = {};
+    hashmap.put(13, 12);
+    EXPECT_TRUE(hashmap.contains(13));
+}
+
+TEST(linear_hashmap, probe_length)
+{
+    vierkant::linear_hashmap<uint32_t, uint32_t> hashmap;
+
+    // default load_factor is 0.5
+    EXPECT_EQ(hashmap.max_load_factor(), 0.5f);
+
+    // test a load-factor of 0.25
+    hashmap.max_load_factor(0.25f);
+
+    constexpr uint32_t test_capacity = 512;
+    constexpr uint32_t num_insertions = 128;
+    hashmap.reserve(test_capacity);
+
+    float probe_length_sum = 0.f;
+    for(uint32_t i = 0; i < num_insertions; i++) { probe_length_sum += static_cast<float>(hashmap.put(i, 69)); }
+    float avg_probe_length = probe_length_sum / num_insertions;
+
+    // for a load-factor of 0.25, we expect very short probe-lengths
+    constexpr float expected_max_avg_probe_length = 0.15f;
+    EXPECT_LE(avg_probe_length, expected_max_avg_probe_length);
+
+    EXPECT_LE(hashmap.load_factor(), 0.25f);
 }

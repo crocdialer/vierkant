@@ -36,43 +36,6 @@ uint xxhash32(uint lhs, uint rhs)
     return h32 ^ (h32 >> 16);
 }
 
-uint hash(uint a)
-{
-    a = (a+0x7ed55d16) + (a<<12);
-    a = (a^0xc761c23c) ^ (a>>19);
-    a = (a+0x165667b1) + (a<<5);
-    a = (a+0xd3a2646c) ^ (a<<9);
-    a = (a+0xfd7046c5) + (a<<3);
-    a = (a^0xb55a4f09) ^ (a>>16);
-    return a;
-}
-
-uint murmur3_fmix32(uint h)
-{
-    h ^= h >> 16;
-    h *= 0x85ebca6b;
-    h ^= h >> 13;
-    h *= 0xc2b2ae35;
-    h ^= h >> 16;
-    return h;
-}
-
-////! random number generation using pcg32i_random_t, using inc = 1. Our random state is a uint.
-//uint rng_step(uint rng_state)
-//{
-//    return rng_state * 747796405 + 1;
-//}
-//
-////! steps the RNG and returns a floating-point value between 0 and 1 inclusive.
-//float rng_float(inout uint rng_state)
-//{
-//    // condensed version of pcg_output_rxs_m_xs_32_32, with simple conversion to floating-point [0,1].
-//    rng_state  = rng_step(rng_state);
-//    uint word = ((rng_state >> ((rng_state >> 28) + 4)) ^ rng_state) * 277803737;
-//    word      = (word >> 22) ^ word;
-//    return float(word) / 4294967295.0f;
-//}
-
 // Generate a random unsigned int in [0, 2^24) given the previous RNG state
 // using the Numerical Recipes linear congruential generator
 uint lcg(inout uint prev)

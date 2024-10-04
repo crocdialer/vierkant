@@ -3,13 +3,43 @@
 #extension GL_GOOGLE_include_directive : require
 
 #include "../utils/constants.glsl"
+#include "../utils/hash.glsl"
 
-layout(buffer_reference, std430) buffer readonly ObjectIdPtr{ uint v[]; };
+struct hashmap_item_t
+{
+    uint key;
+    uint value;
+};
+layout(buffer_reference, std430) buffer readonly HashMapStorage{ hashmap_item_t v[]; };
+
+struct hashmap_t
+{
+    HashMapStorage storage;
+    uint size;
+    uint capacity;
+};
+
+uint hash(uint v)
+{
+    return murmur3_32(v, 0);
+}
+
+uint get(const hashmap_t hashmap, const uint key)
+{
+    if(hashmap.capacity == 0) { return 0; }
+
+    for(uint idx = hash(key);; idx++)
+    {
+        idx &= hashmap.capacity - 1;
+        const hashmap_item_t item = hashmap.storage.v[idx];
+        if(item.key == 0) { return 0; }
+        else if(key == item.key && item.value != 0) { return item.value; }
+    }
+}
 
 struct object_overlay_params_t
 {
-    ObjectIdPtr object_ids;
-    uint num_object_ids;
+    hashmap_t object_id_map;
     bool silhouette;
 };
 
@@ -26,11 +56,7 @@ layout(local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
 
 bool contains(const object_overlay_params_t params, uint object_id)
 {
-    for(uint i = 0; i < params.num_object_ids; ++i)
-    {
-        if(object_id == params.object_ids.v[i]){ return true; }
-    }
-    return false;
+    return get(params.object_id_map, object_id) != 0;
 }
 
 float sobel_edge(ivec2 coord)
