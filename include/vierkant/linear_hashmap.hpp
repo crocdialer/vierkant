@@ -23,7 +23,9 @@ public:
     using key_t = K;
     using value_t = V;
     using hash32_fn = std::function<uint32_t(const key_t &)>;
-    static_assert(key_t() == key_t(), "key_t not comparable");
+    static_assert(std::is_default_constructible_v<key_t>, "key_t not default-constructible");
+    static_assert(std::is_default_constructible_v<value_t>, "value_t not default-constructible");
+    static_assert(std::equality_comparable<key_t>, "key_t not comparable");
 
     linear_hashmap() = default;
     linear_hashmap(const linear_hashmap &) = delete;
