@@ -132,7 +132,6 @@ public:
 
     void reserve(size_t new_capacity)
     {
-        new_capacity = crocore::next_pow_2(std::max<size_t>(m_num_elements, new_capacity));
         auto new_linear_hashmap = linear_hashmap(new_capacity);
         storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
         for(; ptr != end; ++ptr)
