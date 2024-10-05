@@ -128,6 +128,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         command_buffer_info.name = "PBRDeferred::cmd_clear";
         frame_context.cmd_clear = vierkant::CommandBuffer(command_buffer_info);
+
+        command_buffer_info.name = "PBRDeferred::cmd_copy_object_id";
+        frame_context.cmd_copy_object_id = vierkant::CommandBuffer(command_buffer_info);
     }
 
     // create renderer for g-buffer-pass
@@ -1451,6 +1454,33 @@ const PBRDeferred::image_bundle_t &PBRDeferred::image_bundle() const
                          m_g_renderer_main.num_concurrent_frames();
     auto &frame_context = m_frame_contexts[frame_index];
     return frame_context.internal_images;
+}
+
+std::vector<uint16_t> PBRDeferred::pick(const glm::vec2 &normalized_coord)
+{
+    size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
+                         m_g_renderer_main.num_concurrent_frames();
+    auto &frame_context = m_frame_contexts[frame_index];
+    const auto &img_bundle = frame_context.internal_images;
+
+    frame_context.cmd_copy_object_id.begin();
+
+    auto img_size = glm::vec2(img_bundle.object_ids->width(), img_bundle.object_ids->height());
+    glm::vec2 adjusted_pos = normalized_coord * img_size;
+    adjusted_pos = glm::clamp(adjusted_pos, glm::vec2(0), img_size - glm::vec2(1));
+
+    constexpr VkExtent3D img_extent = {1, 1, 1};
+    VkOffset3D img_offset = {static_cast<int32_t>(adjusted_pos.x), static_cast<int32_t>(adjusted_pos.y), 0};
+
+    auto buf = vierkant::Buffer::create(m_device, nullptr, 512, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR,
+                                        VMA_MEMORY_USAGE_CPU_ONLY);
+    auto prev_layout = img_bundle.object_ids->image_layout();
+    img_bundle.object_ids->copy_to(buf, frame_context.cmd_copy_object_id.handle(), 0, img_offset, img_extent);
+    img_bundle.object_ids->transition_layout(prev_layout, frame_context.cmd_copy_object_id.handle());
+    frame_context.cmd_copy_object_id.submit(m_queue, true);
+    uint16_t val = std::numeric_limits<uint16_t>::max() - *static_cast<uint16_t *>(buf->map());
+    if(val != std::numeric_limits<uint16_t>::max()) { return {val}; }
+    return {};
 }
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)

@@ -98,6 +98,9 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         cmd_buffer_info.name = "cmd_post_fx";
         frame_context.cmd_post_fx = vierkant::CommandBuffer(cmd_buffer_info);
 
+        cmd_buffer_info.name = "cmd_copy_object_id";
+        frame_context.cmd_copy_object_id = vierkant::CommandBuffer(cmd_buffer_info);
+
         frame_context.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
 
         frame_context.query_pool =
@@ -628,6 +631,33 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
             post_fx_ping_pong.clear_color = {{0.f, 0.f, 0.f, 0.f}};
         }
     }
+}
+
+std::vector<uint16_t> PBRPathTracer::pick(const glm::vec2 &normalized_coord)
+{
+    size_t frame_index = (m_ray_tracer.current_index() + m_ray_tracer.num_concurrent_frames() - 1) %
+                         m_ray_tracer.num_concurrent_frames();
+    auto &frame_context = m_frame_contexts[frame_index];
+
+    frame_context.cmd_copy_object_id.begin();
+
+    const auto & id_img = m_storage_images.object_ids;
+    auto img_size = glm::vec2(id_img->width(), id_img->height());
+    glm::vec2 adjusted_pos = normalized_coord * img_size;
+    adjusted_pos = glm::clamp(adjusted_pos, glm::vec2(0), img_size - glm::vec2(1));
+
+    constexpr VkExtent3D img_extent = {1, 1, 1};
+    VkOffset3D img_offset = {static_cast<int32_t>(adjusted_pos.x), static_cast<int32_t>(adjusted_pos.y), 0};
+
+    auto buf = vierkant::Buffer::create(m_device, nullptr, 512, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR,
+                                        VMA_MEMORY_USAGE_CPU_ONLY);
+    auto prev_layout = id_img->image_layout();
+    id_img->copy_to(buf, frame_context.cmd_copy_object_id.handle(), 0, img_offset, img_extent);
+    id_img->transition_layout(prev_layout, frame_context.cmd_copy_object_id.handle());
+    frame_context.cmd_copy_object_id.submit(m_queue, true);
+    uint16_t val = std::numeric_limits<uint16_t>::max() - *static_cast<uint16_t *>(buf->map());
+    if(val != std::numeric_limits<uint16_t>::max()) { return {val}; }
+    return {};
 }
 
 }// namespace vierkant
