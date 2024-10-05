@@ -44,7 +44,7 @@ public:
     virtual render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
                                          const CameraPtr &cam, const std::set<std::string> &tags) = 0;
 
-    virtual std::vector<uint16_t> pick(const glm::vec2 &/*normalized_coord*/) { return {}; };
+    virtual std::vector<uint16_t> pick(const glm::vec2 &normalized_coord) = 0;
 
     virtual ~SceneRenderer() = default;
 };

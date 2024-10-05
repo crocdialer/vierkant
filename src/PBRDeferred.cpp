@@ -1477,7 +1477,14 @@ std::vector<uint16_t> PBRDeferred::pick(const glm::vec2 &normalized_coord)
     auto prev_layout = img_bundle.object_ids->image_layout();
     img_bundle.object_ids->copy_to(buf, frame_context.cmd_copy_object_id.handle(), 0, img_offset, img_extent);
     img_bundle.object_ids->transition_layout(prev_layout, frame_context.cmd_copy_object_id.handle());
-    frame_context.cmd_copy_object_id.submit(m_queue, true);
+
+    // wait for frame, copy draw-ids
+    vierkant::semaphore_submit_info_t semaphore_info = {};
+    semaphore_info.semaphore = frame_context.timeline.handle();
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    semaphore_info.wait_value = frame_context.current_semaphore_value + frame_context.semaphore_value_done;
+    frame_context.cmd_copy_object_id.submit(m_queue, true, VK_NULL_HANDLE, {semaphore_info});
+
     uint16_t val = std::numeric_limits<uint16_t>::max() - *static_cast<uint16_t *>(buf->map());
     if(val != std::numeric_limits<uint16_t>::max()) { return {val}; }
     return {};

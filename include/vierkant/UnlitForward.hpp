@@ -15,7 +15,6 @@ DEFINE_CLASS_PTR(UnlitForward)
 class UnlitForward : public vierkant::SceneRenderer
 {
 public:
-
     static UnlitForwardPtr create(const vierkant::DevicePtr &device);
 
     UnlitForward(const UnlitForward &) = delete;
@@ -33,17 +32,15 @@ public:
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
      * @return  ta render_result_t object.
      */
-    render_result_t render_scene(vierkant::Rasterizer &renderer,
-                                 const vierkant::SceneConstPtr &scene,
-                                 const CameraPtr &cam,
-                                 const std::set<std::string> &tags) override;
+    render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
+                                 const CameraPtr &cam, const std::set<std::string> &tags) override;
+
+    std::vector<uint16_t> pick(const glm::vec2 & /*normalized_coord*/) override { return {}; };
 
 private:
-
     explicit UnlitForward(const vierkant::DevicePtr &device);
 
     vierkant::PipelineCachePtr m_pipeline_cache;
 };
 
-}
-
+}// namespace vierkant
