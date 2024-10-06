@@ -774,6 +774,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                                 use_gpu_culling](Rasterizer::indirect_draw_bundle_t &params) {
         frame_context.cmd_clear.begin(0);
 
+        auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        auto dst_stage = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+        auto dst_access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+
         resize_indirect_draw_buffers(params.num_draws, frame_context.indirect_draw_params_main);
         frame_context.indirect_draw_params_main.draws_out = params.draws_out;
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
@@ -785,10 +790,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         if(params.num_draws && !frame_context.recycle_commands)
         {
-            auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-            auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            auto dst_stage = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
-            auto dst_access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
             params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_out,
                                      frame_context.cmd_clear.handle());
             frame_context.indirect_draw_params_main.draws_out->barrier(frame_context.cmd_clear.handle(), src_stage,
@@ -816,6 +817,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         else if(params.num_draws && !frame_context.dirty_drawable_indices.empty())
         {
+            VkBuffer buffers[] = {params.mesh_draws->handle(),
+                                  frame_context.indirect_draw_params_post.mesh_draws->handle()};
+            vierkant::barrier(frame_context.cmd_clear.handle(), buffers, 2, src_stage, src_access, src_stage,
+                              src_access);
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
@@ -840,7 +845,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
                 copy_transforms.push_back(copy_transform);
 
-                // TODO: get back to this, reproduce fail with transform-update
                 if(frame_context.indirect_draw_params_post.mesh_draws)
                 {
                     // extra copy into post-meshdraws, not most elegant way
