@@ -44,7 +44,15 @@ public:
     virtual render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
                                          const CameraPtr &cam, const std::set<std::string> &tags) = 0;
 
-    virtual std::vector<uint16_t> pick(const glm::vec2 &normalized_coord) = 0;
+    /**
+     * @brief   Pick or select draw-ids from provided normalized rendering-coords.
+     *
+     * @param   normalized_coord    top-left coord of selection-area
+     * @param   normalized_size     width/height of selection-area, can provide {0, 0} for points
+     * @return  an array containing a list of selected and unique draw-ids
+     */
+    virtual std::vector<uint16_t> pick(const glm::vec2 &normalized_coord,
+                                       const glm::vec2 &normalized_size) = 0;
 
     virtual ~SceneRenderer() = default;
 };

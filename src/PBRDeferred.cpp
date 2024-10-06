@@ -1460,7 +1460,7 @@ const PBRDeferred::image_bundle_t &PBRDeferred::image_bundle() const
     return frame_context.internal_images;
 }
 
-std::vector<uint16_t> PBRDeferred::pick(const glm::vec2 &normalized_coord)
+std::vector<uint16_t> PBRDeferred::pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size)
 {
     size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
                          m_g_renderer_main.num_concurrent_frames();
@@ -1471,12 +1471,15 @@ std::vector<uint16_t> PBRDeferred::pick(const glm::vec2 &normalized_coord)
 
     auto img_size = glm::vec2(img_bundle.object_ids->width(), img_bundle.object_ids->height());
     glm::vec2 adjusted_pos = normalized_coord * img_size;
+    glm::uvec2 adjusted_size = glm::max(normalized_size * img_size, {1, 1});
     adjusted_pos = glm::clamp(adjusted_pos, glm::vec2(0), img_size - glm::vec2(1));
 
-    constexpr VkExtent3D img_extent = {1, 1, 1};
+    VkExtent3D img_extent = {adjusted_size.x, adjusted_size.y, 1};
     VkOffset3D img_offset = {static_cast<int32_t>(adjusted_pos.x), static_cast<int32_t>(adjusted_pos.y), 0};
 
-    auto buf = vierkant::Buffer::create(m_device, nullptr, 512, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR,
+    uint32_t num_object_ids = img_extent.width * img_extent.height;
+    uint32_t num_bytes = std::max<uint32_t>(sizeof(uint16_t) * num_object_ids, 512);
+    auto buf = vierkant::Buffer::create(m_device, nullptr, num_bytes, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR,
                                         VMA_MEMORY_USAGE_CPU_ONLY);
     auto prev_layout = img_bundle.object_ids->image_layout();
     img_bundle.object_ids->copy_to(buf, frame_context.cmd_copy_object_id.handle(), 0, img_offset, img_extent);
@@ -1489,9 +1492,13 @@ std::vector<uint16_t> PBRDeferred::pick(const glm::vec2 &normalized_coord)
     semaphore_info.wait_value = frame_context.current_semaphore_value + frame_context.semaphore_value_done;
     frame_context.cmd_copy_object_id.submit(m_queue, true, VK_NULL_HANDLE, {semaphore_info});
 
-    uint16_t val = std::numeric_limits<uint16_t>::max() - *static_cast<uint16_t *>(buf->map());
-    if(val != std::numeric_limits<uint16_t>::max()) { return {val}; }
-    return {};
+    std::unordered_set<uint16_t> value_set;
+    auto ptr = static_cast<const uint16_t *>(buf->map());
+    for(uint32_t i = 0; i < num_object_ids; ++i)
+    {
+        if(ptr[i]) { value_set.insert(std::numeric_limits<uint16_t>::max() - ptr[i]); }
+    }
+    return {value_set.begin(), value_set.end()};
 }
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)

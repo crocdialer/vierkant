@@ -195,7 +195,7 @@ public:
     render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
                                  const CameraPtr &cam, const std::set<std::string> &tags) override;
 
-    std::vector<uint16_t> pick(const glm::vec2 &normalized_coord) override;
+    std::vector<uint16_t> pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size) override;
 
     void set_environment(const vierkant::ImagePtr &lambert, const vierkant::ImagePtr &ggx);
 
