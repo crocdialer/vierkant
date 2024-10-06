@@ -779,8 +779,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
         frame_context.indirect_draw_params_main.mesh_entries = params.mesh_entries;
 
-        std::vector<VkBufferMemoryBarrier2> barriers;
-
         vierkant::staging_copy_context_t staging_context = {};
         staging_context.staging_buffer = frame_context.staging_main;
         staging_context.command_buffer = frame_context.cmd_clear.handle();
@@ -798,6 +796,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             if(use_gpu_culling)
             {
+                frame_context.indirect_draw_params_main.draws_in->barrier(frame_context.cmd_clear.handle(), dst_stage,
+                                                                          dst_access, src_stage, src_access);
                 params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_in,
                                          frame_context.cmd_clear.handle());
                 frame_context.indirect_draw_params_main.draws_in->barrier(frame_context.cmd_clear.handle(), src_stage,
