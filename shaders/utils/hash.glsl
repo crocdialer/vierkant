@@ -34,7 +34,7 @@ uint murmur_32_scramble(uint k)
 //! condensed version of murmur3_32 for uint32_t
 uint murmur3_32(const uint key, uint seed)
 {
-    uint len = 4;// sizeof(key_t)
+    const uint len = 4;// sizeof(key_t)
     uint h = seed;
     h ^= murmur_32_scramble(key);
     h = (h << 13) | (h >> 19);

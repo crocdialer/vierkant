@@ -203,6 +203,15 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
         extensions.push_back(g_portability_ext_name);
     }
 
+    // check if mesh-shading was requested and if so, enable fragment-rate-shading as well.
+    // this is for some weird reason required by primitive-culling in mesh-shaders
+    if(crocore::contains(extensions, VK_EXT_MESH_SHADER_EXTENSION_NAME) &&
+       vierkant::check_device_extension_support(create_info.physical_device,
+                                                {VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME}))
+    {
+        extensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+    }
+
     if(!vierkant::check_device_extension_support(create_info.physical_device, extensions))
     {
         spdlog::critical("unsupported extension(s): {}", extensions);
@@ -260,6 +269,11 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
             pNext = (void **) &feature_struct.pNext;
         }
     };
+
+    //------------------------------------ VK_KHR_fragment_shading_rate ------------------------------------------------
+    VkPhysicalDeviceFragmentShadingRateFeaturesKHR fragment_shading_rate_features = {};
+    fragment_shading_rate_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR;
+    update_pnext(fragment_shading_rate_features, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
 
     //------------------------------------ VK_KHR_acceleration_structure -----------------------------------------------
     VkPhysicalDeviceAccelerationStructureFeaturesKHR acceleration_structure_features = {};

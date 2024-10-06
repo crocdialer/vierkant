@@ -20,7 +20,7 @@
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = 64) out;
 
-#define CULLING 0
+#define CULLING 1
 
 layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
 layout(binding = BINDING_VERTICES, set = 0) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
@@ -126,9 +126,8 @@ void main()
 
         gl_PrimitiveTriangleIndicesEXT[i] = uvec3(a, b, c);
 
-//        // TODO: writing this causes a validation-bug (https://github.com/KhronosGroup/glslang/issues/3103)
-//        // keep track of primitive-id
-//        gl_MeshPrimitivesEXT[i].gl_PrimitiveID = int(base_index / 3);
+        // keep track of primitive-id // TODO: nice try, but no
+        gl_MeshPrimitivesEXT[i].gl_PrimitiveID = int(base_index / 3);
 #if CULLING
         bool culled = false;
 
