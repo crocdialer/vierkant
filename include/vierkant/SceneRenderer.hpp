@@ -17,7 +17,6 @@ DEFINE_CLASS_PTR(SceneRenderer)
 class SceneRenderer
 {
 public:
-
     //! signature for a function. returns an id_entry_t for internal draw-indices
     using object_id_by_index_fn_t = std::function<vierkant::id_entry_t(uint32_t idx)>;
 
@@ -42,12 +41,20 @@ public:
      * @param   tags        if not empty, only objects with at least one of the provided tags are rendered.
      * @return  a render_result_t object.
      */
-    virtual render_result_t render_scene(vierkant::Rasterizer &renderer,
-                                         const vierkant::SceneConstPtr &scene,
-                                         const CameraPtr &cam,
-                                         const std::set<std::string> &tags) = 0;
+    virtual render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
+                                         const CameraPtr &cam, const std::set<std::string> &tags) = 0;
+
+    /**
+     * @brief   Pick or select draw-ids from provided normalized rendering-coords.
+     *
+     * @param   normalized_coord    top-left coord of selection-area
+     * @param   normalized_size     width/height of selection-area, can provide {0, 0} for points
+     * @return  an array containing a list of selected and unique draw-ids
+     */
+    virtual std::vector<uint16_t> pick(const glm::vec2 &normalized_coord,
+                                       const glm::vec2 &normalized_size) = 0;
 
     virtual ~SceneRenderer() = default;
 };
 
-}
+}// namespace vierkant

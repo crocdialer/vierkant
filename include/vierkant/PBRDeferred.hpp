@@ -195,6 +195,8 @@ public:
     render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
                                  const CameraPtr &cam, const std::set<std::string> &tags) override;
 
+    std::vector<uint16_t> pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size) override;
+
     void set_environment(const vierkant::ImagePtr &lambert, const vierkant::ImagePtr &ggx);
 
     /**
@@ -282,7 +284,7 @@ private:
         vierkant::Framebuffer g_buffer_main, g_buffer_post;
 
         vierkant::ImagePtr depth_map, depth_pyramid;
-        vierkant::CommandBuffer cmd_pre_render, cmd_clear, cmd_lighting, cmd_post_fx;
+        vierkant::CommandBuffer cmd_pre_render, cmd_clear, cmd_lighting, cmd_post_fx, cmd_copy_object_id;
 
         vierkant::gpu_cull_context_ptr gpu_cull_context;
 

@@ -128,6 +128,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         command_buffer_info.name = "PBRDeferred::cmd_clear";
         frame_context.cmd_clear = vierkant::CommandBuffer(command_buffer_info);
+
+        command_buffer_info.name = "PBRDeferred::cmd_copy_object_id";
+        frame_context.cmd_copy_object_id = vierkant::CommandBuffer(command_buffer_info);
     }
 
     // create renderer for g-buffer-pass
@@ -771,12 +774,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                                 use_gpu_culling](Rasterizer::indirect_draw_bundle_t &params) {
         frame_context.cmd_clear.begin(0);
 
+        auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+        auto dst_stage = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+        auto dst_access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+
         resize_indirect_draw_buffers(params.num_draws, frame_context.indirect_draw_params_main);
         frame_context.indirect_draw_params_main.draws_out = params.draws_out;
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
         frame_context.indirect_draw_params_main.mesh_entries = params.mesh_entries;
-
-        std::vector<VkBufferMemoryBarrier2> barriers;
 
         vierkant::staging_copy_context_t staging_context = {};
         staging_context.staging_buffer = frame_context.staging_main;
@@ -784,10 +790,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
         if(params.num_draws && !frame_context.recycle_commands)
         {
-            auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-            auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-            auto dst_stage = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
-            auto dst_access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
             params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_out,
                                      frame_context.cmd_clear.handle());
             frame_context.indirect_draw_params_main.draws_out->barrier(frame_context.cmd_clear.handle(), src_stage,
@@ -795,6 +797,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             if(use_gpu_culling)
             {
+                frame_context.indirect_draw_params_main.draws_in->barrier(frame_context.cmd_clear.handle(), dst_stage,
+                                                                          dst_access, src_stage, src_access);
                 params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_in,
                                          frame_context.cmd_clear.handle());
                 frame_context.indirect_draw_params_main.draws_in->barrier(frame_context.cmd_clear.handle(), src_stage,
@@ -813,6 +817,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         else if(params.num_draws && !frame_context.dirty_drawable_indices.empty())
         {
+            VkBuffer buffers[] = {params.mesh_draws->handle(),
+                                  frame_context.indirect_draw_params_post.mesh_draws->handle()};
+            vierkant::barrier(frame_context.cmd_clear.handle(), buffers, 2, src_stage, src_access, src_stage,
+                              src_access);
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
@@ -837,7 +845,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
                 copy_transforms.push_back(copy_transform);
 
-                // TODO: get back to this, reproduce fail with transform-update
                 if(frame_context.indirect_draw_params_post.mesh_draws)
                 {
                     // extra copy into post-meshdraws, not most elegant way
@@ -1451,6 +1458,47 @@ const PBRDeferred::image_bundle_t &PBRDeferred::image_bundle() const
                          m_g_renderer_main.num_concurrent_frames();
     auto &frame_context = m_frame_contexts[frame_index];
     return frame_context.internal_images;
+}
+
+std::vector<uint16_t> PBRDeferred::pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size)
+{
+    size_t frame_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
+                         m_g_renderer_main.num_concurrent_frames();
+    auto &frame_context = m_frame_contexts[frame_index];
+    const auto &img_bundle = frame_context.internal_images;
+
+    frame_context.cmd_copy_object_id.begin();
+
+    auto img_size = glm::vec2(img_bundle.object_ids->width(), img_bundle.object_ids->height());
+    glm::vec2 adjusted_pos = normalized_coord * img_size;
+    glm::uvec2 adjusted_size = glm::max(normalized_size * img_size, {1, 1});
+    adjusted_pos = glm::clamp(adjusted_pos, glm::vec2(0), img_size - glm::vec2(1));
+
+    VkExtent3D img_extent = {adjusted_size.x, adjusted_size.y, 1};
+    VkOffset3D img_offset = {static_cast<int32_t>(adjusted_pos.x), static_cast<int32_t>(adjusted_pos.y), 0};
+
+    uint32_t num_object_ids = img_extent.width * img_extent.height;
+    uint32_t num_bytes = std::max<uint32_t>(sizeof(uint16_t) * num_object_ids, 512);
+    auto buf = vierkant::Buffer::create(m_device, nullptr, num_bytes, VK_BUFFER_USAGE_2_TRANSFER_DST_BIT_KHR,
+                                        VMA_MEMORY_USAGE_CPU_ONLY);
+    auto prev_layout = img_bundle.object_ids->image_layout();
+    img_bundle.object_ids->copy_to(buf, frame_context.cmd_copy_object_id.handle(), 0, img_offset, img_extent);
+    img_bundle.object_ids->transition_layout(prev_layout, frame_context.cmd_copy_object_id.handle());
+
+    // wait for frame, copy draw-ids
+    vierkant::semaphore_submit_info_t semaphore_info = {};
+    semaphore_info.semaphore = frame_context.timeline.handle();
+    semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+    semaphore_info.wait_value = frame_context.current_semaphore_value + frame_context.semaphore_value_done;
+    frame_context.cmd_copy_object_id.submit(m_queue, true, VK_NULL_HANDLE, {semaphore_info});
+
+    std::unordered_set<uint16_t> value_set;
+    auto ptr = static_cast<const uint16_t *>(buf->map());
+    for(uint32_t i = 0; i < num_object_ids; ++i)
+    {
+        if(ptr[i]) { value_set.insert(std::numeric_limits<uint16_t>::max() - ptr[i]); }
+    }
+    return {value_set.begin(), value_set.end()};
 }
 
 bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_t &rhs)

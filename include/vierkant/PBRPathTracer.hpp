@@ -128,6 +128,8 @@ public:
     render_result_t render_scene(vierkant::Rasterizer &renderer, const vierkant::SceneConstPtr &scene,
                                  const CameraPtr &cam, const std::set<std::string> &tags) override;
 
+    std::vector<uint16_t> pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size) override;
+
     /**
      * @return the accumulator's current batch-index
      */
@@ -170,7 +172,7 @@ private:
         SemaphoreValue semaphore_value_done = SemaphoreValue::INVALID;
 
         //! re-usable command-buffers for all stages
-        vierkant::CommandBuffer cmd_pre_render, cmd_trace, cmd_denoise, cmd_post_fx;
+        vierkant::CommandBuffer cmd_pre_render, cmd_trace, cmd_denoise, cmd_post_fx, cmd_copy_object_id;
 
         //! context for providing bottom-lvl acceleration structures
         RayBuilder::scene_acceleration_context_ptr scene_acceleration_context;
