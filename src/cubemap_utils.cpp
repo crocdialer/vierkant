@@ -303,8 +303,6 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     fb_create_info.queue = queue;
     auto cube_fb = vierkant::Framebuffer(device, fb_create_info);
 
-    // create cube pipeline with vertex- + geometry-stages
-
     // render
     vierkant::Rasterizer::create_info_t cuber_render_create_info = {};
     //    cuber_render_create_info.renderpass = cube_fb.renderpass();
@@ -320,37 +318,8 @@ cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t
     vierkant::drawable_t drawable = {};
     drawable.pipeline_format.shader_stages[VK_SHADER_STAGE_VERTEX_BIT] =
             vierkant::create_shader_module(device, vierkant::shaders::cube::cube_vert);
-
-    auto cmd_buffer = vierkant::CommandBuffer(device, command_pool.get());
-    cmd_buffer.begin();
-
-    auto box = vierkant::Geometry::Box();
-    box->colors.clear();
-    box->tex_coords.clear();
-    box->normals.clear();
-    box->tangents.clear();
-
-    vierkant::Mesh::create_info_t mesh_create_info = {};
-    mesh_create_info.command_buffer = cmd_buffer.handle();
-    mesh_create_info.staging_buffer =
-            vierkant::Buffer::create(device, nullptr, 0, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
-
-    drawable.mesh = vierkant::Mesh::create_from_geometry(device, box, mesh_create_info);
-    cmd_buffer.submit(queue, true);
-
     drawable.num_instances = 6;
-    const auto &mesh_entry = drawable.mesh->entries.front();
-    const auto &lod_0 = mesh_entry.lods.front();
-    drawable.base_index = lod_0.base_index;
-    drawable.num_indices = lod_0.num_indices;
-    drawable.vertex_offset = mesh_entry.vertex_offset;
-    drawable.num_vertices = mesh_entry.num_vertices;
-
-    drawable.pipeline_format.binding_descriptions =
-            vierkant::create_binding_descriptions(drawable.mesh->vertex_attribs);
-    drawable.pipeline_format.attribute_descriptions =
-            vierkant::create_attribute_descriptions(drawable.mesh->vertex_attribs);
-    drawable.pipeline_format.primitive_topology = mesh_entry.primitive_type;
+    drawable.num_vertices = 36;
     drawable.pipeline_format.blend_state.blendEnable = false;
     drawable.pipeline_format.depth_test = false;
     drawable.pipeline_format.depth_write = false;
