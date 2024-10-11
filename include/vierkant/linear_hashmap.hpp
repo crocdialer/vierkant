@@ -59,7 +59,7 @@ public:
         }
     }
 
-    uint32_t put(const key_t &key, const value_t &value)
+    inline uint32_t put(const key_t &key, const value_t &value)
     {
         check_load_factor();
         return internal_put(key, value);
@@ -105,15 +105,16 @@ public:
 
     size_t get_storage(void *dst) const
     {
+        struct output_item_t
+        {
+            key_t key = {};
+            value_t value = {};
+        };
+
         if(dst)
         {
             std::unique_lock lock(m_mutex);
 
-            struct output_item_t
-            {
-                key_t key = {};
-                value_t value = {};
-            };
             auto output_ptr = reinterpret_cast<output_item_t *>(dst);
             storage_item_t *item = m_storage.get(), *end = item + m_capacity;
             for(; item != end; ++item, ++output_ptr)
@@ -127,7 +128,7 @@ public:
                 else { *output_ptr = {}; }
             }
         }
-        return (sizeof(key_t) + sizeof(value_t)) * m_capacity;
+        return sizeof(output_item_t) * m_capacity;
     }
 
     void reserve(size_t new_capacity)
