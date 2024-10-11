@@ -13,7 +13,6 @@ namespace vierkant
 struct cube_pipeline_t
 {
     vierkant::DevicePtr device;
-    vierkant::CommandPoolPtr command_pool;
     vierkant::Framebuffer framebuffer;
     vierkant::Rasterizer renderer;
     vierkant::drawable_t drawable;
@@ -25,12 +24,14 @@ struct cube_pipeline_t
  * @brief   Create assets for a cube-pipeline.
  *
  * @param   device
+ * @param   command_pool
  * @param   size
  * @param   color_format
  * @param   depth
  * @return  a struct grouping assets for a cube-pipeline.
  */
-cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, uint32_t size, VkFormat color_format,
+cube_pipeline_t create_cube_pipeline(const vierkant::DevicePtr &device, const vierkant::CommandPoolPtr &command_pool,
+                                     uint32_t size, VkFormat color_format,
                                      VkQueue queue, bool depth = false, VkImageUsageFlags usage_flags = 0,
                                      const vierkant::DescriptorPoolPtr &descriptor_pool = nullptr);
 
