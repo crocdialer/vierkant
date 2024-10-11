@@ -69,8 +69,8 @@ TEST(Semaphore, WaitBeforeSignal)
     auto semaphore = vierkant::Semaphore(testContext.device, 0);
 
     // two independent queues
-    auto queue1 = testContext.device->queues(vierkant::Device::Queue::COMPUTE).front();
-    auto queue2 = testContext.device->queues(vierkant::Device::Queue::GRAPHICS).back();
+    auto queue1 = testContext.device->queues(vierkant::Device::Queue::COMPUTE).front().queue;
+    auto queue2 = testContext.device->queues(vierkant::Device::Queue::GRAPHICS).back().queue;
 
     constexpr uint64_t signal1 = 42, signal2 = 666;
 

@@ -52,6 +52,12 @@ public:
         uint32_t num_queues = 0;
     };
 
+    struct queue_asset_t
+    {
+        VkQueue queue = VK_NULL_HANDLE;
+        std::unique_ptr<std::mutex> mutex;
+    };
+
     struct properties_t
     {
         VkPhysicalDeviceProperties core;
@@ -78,6 +84,9 @@ public:
 
         //! short-circuit function-pointers directly to device/driver entries (useful if only a single device exists)
         bool direct_function_pointers = false;
+
+        //! maximum number of queues to create, default: 0 (no limit)
+        uint32_t max_num_queues = 0;
 
         //! optional VkSurface
         VkSurfaceKHR surface = VK_NULL_HANDLE;
@@ -129,7 +138,7 @@ public:
     /**
      * @return  handle for queues
      */
-    [[nodiscard]] const std::vector<VkQueue> &queues(Queue type) const;
+    [[nodiscard]] const std::vector<queue_asset_t> &queues(Queue type) const;
 
     /**
      * @return  const ref to the used QueueFamilyIndices
@@ -183,7 +192,7 @@ private:
     VkSampleCountFlagBits m_max_usable_samples = VK_SAMPLE_COUNT_1_BIT;
 
     // a map holding all queues for logical device
-    std::map<Queue, std::vector<VkQueue>> m_queues;
+    std::map<Queue, std::vector<queue_asset_t>> m_queues;
 
     // keeps track of queue family indices
     std::map<Queue, queue_family_info_t> m_queue_indices;

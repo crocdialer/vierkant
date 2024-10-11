@@ -44,6 +44,9 @@ public:
         device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
+
+        // limit testing to two queues
+        device_info.max_num_queues = 2;
         device_info.surface = surface;
         device_info.extensions = device_extensions;
         device = vierkant::Device::create(device_info);
