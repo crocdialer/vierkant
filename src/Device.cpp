@@ -91,7 +91,7 @@ const char *g_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::vector<VkQueue> g_empty_queue;
+const std::vector<Device::queue_asset_t> g_empty_queue;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -345,16 +345,18 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     // short-circuit function-pointers to point directly add device/driver entries
     if(create_info.direct_function_pointers) { volkLoadDevice(m_device); }
 
-    auto get_all_queues = [this](Queue type) {
+    auto get_all_queues = [this, create_info](Queue type) {
         if(m_queue_indices[type].index >= 0)
         {
             auto num_queues = m_queue_indices[type].num_queues;
-
-            m_queues[type].resize(num_queues);
+            num_queues = create_info.max_num_queues ? std::min(num_queues, create_info.max_num_queues) : num_queues;
 
             for(uint32_t i = 0; i < num_queues; ++i)
             {
-                vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i, &m_queues[type][i]);
+                queue_asset_t queue_asset = {};
+                queue_asset.mutex = std::make_unique<std::mutex>();
+                vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i, &queue_asset.queue);
+                m_queues[type].push_back(std::move(queue_asset));
             }
         }
     };
@@ -431,13 +433,13 @@ VkQueue Device::queue(Queue type) const
 {
     auto queue_it = m_queues.find(type);
 
-    if(queue_it != m_queues.end() && !queue_it->second.empty()) { return queue_it->second.front(); }
+    if(queue_it != m_queues.end() && !queue_it->second.empty()) { return queue_it->second.front().queue; }
     return VK_NULL_HANDLE;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const std::vector<VkQueue> &Device::queues(Queue type) const
+const std::vector<Device::queue_asset_t> &Device::queues(Queue type) const
 {
     auto queue_it = m_queues.find(type);
 
