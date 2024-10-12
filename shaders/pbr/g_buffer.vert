@@ -5,6 +5,7 @@
 #extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_scalar_block_layout : enable
 
+#include "g_buffer_vertex_data.glsl"
 #include "../renderer/types.glsl"
 #include "../utils/packed_vertex.glsl"
 #include "../utils/camera.glsl"
@@ -31,12 +32,8 @@ layout(push_constant) uniform PushConstants
 layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices;
 layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
 {
-    vec2 tex_coord;
-    vec3 normal;
-    vec3 tangent;
-    vec4 current_position;
-    vec4 last_position;
-} vertex_out;
+    g_buffer_vertex_data_t vertex_out;
+};
 
 void main()
 {
