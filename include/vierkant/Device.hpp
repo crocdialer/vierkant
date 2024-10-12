@@ -79,9 +79,6 @@ public:
         //! enable validation layers
         bool use_validation = false;
 
-        //! use debug_utils extension
-        bool debug_labels = false;
-
         //! short-circuit function-pointers directly to device/driver entries (useful if only a single device exists)
         bool direct_function_pointers = false;
 
