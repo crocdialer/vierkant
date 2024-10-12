@@ -2,7 +2,9 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_fragment_shader_barycentric : require
 
+#include "g_buffer_vertex_data.glsl"
 #include "../renderer/types.glsl"
 
 // rnd(state)
@@ -28,12 +30,8 @@ layout(set = 1, binding = BINDING_TEXTURES) uniform sampler2D u_sampler_2D[];
 layout(location = LOCATION_INDEX_BUNDLE) flat in index_bundle_t indices;
 layout(location = LOCATION_VERTEX_BUNDLE) in VertexData
 {
-    vec2 tex_coord;
-    vec3 normal;
-    vec3 tangent;
-    vec4 current_position;
-    vec4 last_position;
-} vertex_in;
+    g_buffer_vertex_data_t vertex_in;
+};
 
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out vec4 out_normal;
@@ -98,7 +96,10 @@ void main()
     if(context.debug_draw_ids)
     {
         uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
-        out_color.rgb *= vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+        out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+
+        float min_bary = min(min(gl_BaryCoordEXT.x, gl_BaryCoordEXT.y), gl_BaryCoordEXT.z) < 0.05 ? 0.0 : 1.0;
+        out_color.rgb *= min_bary;
     }
 
     // invert normals for two-sided/backface surfels

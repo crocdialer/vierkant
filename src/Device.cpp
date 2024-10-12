@@ -196,21 +196,22 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     auto extensions = create_info.extensions;
     if(create_info.surface) { extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
 
-    // check if a portability-extension is available/required
-    if(vierkant::check_device_extension_support(create_info.physical_device, {g_portability_ext_name}))
-    {
-        // if this extension is available, it's also mandatory
-        extensions.push_back(g_portability_ext_name);
-    }
+    auto check_extension = [&extensions, &physical_device = create_info.physical_device](const char *ext_name) {
+        if(vierkant::check_device_extension_support(physical_device, {ext_name}))
+        {
+            // if this extension is available, it's also mandatory
+            extensions.push_back(ext_name);
+        }
+    };
+    check_extension(g_portability_ext_name);
 
     // check if mesh-shading was requested and if so, enable fragment-rate-shading as well.
     // this is for some weird reason required by primitive-culling in mesh-shaders
-    if(crocore::contains(extensions, VK_EXT_MESH_SHADER_EXTENSION_NAME) &&
-       vierkant::check_device_extension_support(create_info.physical_device,
-                                                {VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME}))
+    if(crocore::contains(extensions, VK_EXT_MESH_SHADER_EXTENSION_NAME))
     {
-        extensions.push_back(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+        check_extension(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
     }
+    check_extension(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
 
     if(!vierkant::check_device_extension_support(create_info.physical_device, extensions))
     {
@@ -304,6 +305,11 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer_features = {};
     descriptor_buffer_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
     update_pnext(descriptor_buffer_features, VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+
+    //------------------------------------ VK_KHR_fragment_shader_barycentric ----------------------------------------------------
+    VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR barycentric_features = {};
+    barycentric_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
+    update_pnext(barycentric_features, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
 
     //------------------------------------------------------------------------------------------------------------------
     *pNext = create_info.create_device_pNext;
