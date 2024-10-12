@@ -132,7 +132,7 @@ void main()
         out_ao_rough_metal.b = 0.0;
 
         // black triangle edges
-        float min_bary = min(min(gl_BaryCoordEXT.x, gl_BaryCoordEXT.y), gl_BaryCoordEXT.z) < 0.05 ? 0.0 : 1.0;
-        out_color.rgb *= min_bary;
+        float min_bary = min(min(gl_BaryCoordEXT.x, gl_BaryCoordNoPerspEXT.y), gl_BaryCoordNoPerspEXT.z);
+        out_color.rgb *= smoothstep(0.045, 0.055, min_bary);
     }
 }
