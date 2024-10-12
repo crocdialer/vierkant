@@ -15,12 +15,12 @@
 #include "../utils/camera.glsl"
 #include "../utils/packed_vertex.glsl"
 
+// TODO: not really worth it? not sure ...
+#define CULLING 0
 
 // NOTE: local_size_x_id coming from specialization-constant
 layout(local_size_x_id = 1, local_size_y = 1, local_size_z = 1) in;
 layout(triangles, max_vertices = MESHLET_MAX_VERTICES, max_primitives = MESHLET_MAX_TRIANGLES) out;
-
-#define CULLING 1
 
 layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
 layout(binding = BINDING_VERTICES, set = 0) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };

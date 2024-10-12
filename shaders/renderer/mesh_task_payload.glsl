@@ -5,7 +5,7 @@
 
 // TODO: reasonable default setting for nvidia only!?
 #define MESHLET_MAX_VERTICES 64
-#define MESHLET_MAX_TRIANGLES 126
+#define MESHLET_MAX_TRIANGLES 84
 
 // TODO: mesh/task workgroup sizes are still vendor-specific (NV -> 32/32, AMD -> 64/128)
 // TODO: those sizes directly influence some array-sizes in meshlet-codepath: needs shader-permuations
