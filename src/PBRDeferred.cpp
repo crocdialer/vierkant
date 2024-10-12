@@ -727,6 +727,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 auto &mesh_shader_props = m_device->properties().mesh_shader;
                 vierkant::pipeline_specialization pipeline_specialization;
                 pipeline_specialization.set(0, mesh_shader_props.maxPreferredTaskWorkGroupInvocations);
+                pipeline_specialization.set(1, mesh_shader_props.maxPreferredMeshWorkGroupInvocations);
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
             }
 

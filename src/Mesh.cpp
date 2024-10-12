@@ -553,9 +553,13 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                 auto index_data = ret.index_buffer.data() + lod.base_index;
                 auto vertices = ret.vertex_buffer.data() + offsets.base_vertex * ret.vertex_stride;
 
+                // round down to multiple of 4 (alignment reasons in mesh_opt)
+                auto meshlet_max_vertices = params.meshlet_max_vertices & ~3;
+                auto meshlet_max_triangles = params.meshlet_max_triangles & ~3;
+
                 // determine size
-                size_t max_meshlets = meshopt_buildMeshletsBound(lod.num_indices, params.meshlet_max_vertices,
-                                                                 params.meshlet_max_triangles);
+                size_t max_meshlets =
+                        meshopt_buildMeshletsBound(lod.num_indices, meshlet_max_vertices, meshlet_max_triangles);
                 if(!max_meshlets) { break; }
 
                 std::vector<meshopt_Meshlet> meshlets(max_meshlets);
@@ -566,7 +570,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                 size_t meshlet_count = meshopt_buildMeshlets(
                         meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), index_data, lod.num_indices,
                         reinterpret_cast<const float *>(vertices), geom->positions.size(), ret.vertex_stride,
-                        params.meshlet_max_vertices, params.meshlet_max_triangles, params.meshlet_cone_weight);
+                        meshlet_max_vertices, meshlet_max_triangles, params.meshlet_cone_weight);
 
                 spdlog::trace("generate_meshlets (lod-lvl: {}): {} ({} triangles -> {} meshlets)", lod_idx,
                               std::chrono::duration_cast<std::chrono::milliseconds>(single_timer.elapsed()),

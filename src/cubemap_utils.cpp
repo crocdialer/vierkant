@@ -190,6 +190,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
     ret_fmt.num_layers = 6;
     ret_fmt.use_mipmap = true;
     ret_fmt.autogenerate_mipmaps = false;
+    ret_fmt.initial_layout_transition = false;
     ret_fmt.extent = {size, size, 1};
 
     vierkant::ImagePtr ret = vierkant::Image::create(device, ret_fmt);
