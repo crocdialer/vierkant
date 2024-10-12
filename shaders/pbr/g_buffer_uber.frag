@@ -92,16 +92,6 @@ void main()
         out_emission.rgb *= out_emission.a;
     }
 
-    // debug object-ids
-    if(context.debug_draw_ids)
-    {
-        uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
-        out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
-
-        float min_bary = min(min(gl_BaryCoordEXT.x, gl_BaryCoordEXT.y), gl_BaryCoordEXT.z) < 0.05 ? 0.0 : 1.0;
-        out_color.rgb *= min_bary;
-    }
-
     // invert normals for two-sided/backface surfels
     vec3 normal = (material.two_sided && !gl_FrontFacing) ? -vertex_in.normal : vertex_in.normal;
 
@@ -131,4 +121,18 @@ void main()
 
     // motion
     out_motion = 0.5 * (vertex_in.current_position.xy / vertex_in.current_position.w - vertex_in.last_position.xy / vertex_in.last_position.w);
+
+    // debug object-ids
+    if(context.debug_draw_ids)
+    {
+        uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
+        out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+
+        // no metallic
+        out_ao_rough_metal.b = 0.0;
+
+        // black triangle edges
+        float min_bary = min(min(gl_BaryCoordEXT.x, gl_BaryCoordEXT.y), gl_BaryCoordEXT.z) < 0.05 ? 0.0 : 1.0;
+        out_color.rgb *= min_bary;
+    }
 }
