@@ -64,7 +64,7 @@ void main()
     out_color = vec4(1);
     out_emission = vec4(0);
 
-    if(!context.disable_material)
+    if(!context.disable_material && !context.debug_draw_ids)
     {
         out_color = material.color;
         out_color.a *= 1.0 - material.transmission;
@@ -131,8 +131,10 @@ void main()
         // no metallic
         out_ao_rough_metal.b = 0.0;
 
-        // black triangle edges
-        float min_bary = min(min(gl_BaryCoordEXT.x, gl_BaryCoordNoPerspEXT.y), gl_BaryCoordNoPerspEXT.z);
-        out_color.rgb *= smoothstep(0.045, 0.055, min_bary);
+        // black triangle edges, fade out for small/micro-triangles
+        float min_bary = min(min(gl_BaryCoordNoPerspEXT.x, gl_BaryCoordNoPerspEXT.y), gl_BaryCoordNoPerspEXT.z);
+        float edge = smoothstep(0.045, 0.055, min_bary);
+        edge = mix(edge, 1.0, smoothstep(0.15, 0.25, fwidth(dot(gl_BaryCoordNoPerspEXT.xy, gl_BaryCoordNoPerspEXT.xy))));
+        out_color.rgb *= edge;
     }
 }
