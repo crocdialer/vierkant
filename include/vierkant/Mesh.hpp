@@ -58,6 +58,9 @@ struct mesh_buffer_params_t
     //! maximum number of lods to be generated
     uint32_t max_num_lods = 7;
 
+    //! shrink-factor for num_indices in successive lods
+    float lod_shrink_factor = 0.5f;
+
     //! flag indicating if meshlet/cluster information shall be generated.
     bool generate_meshlets = false;
 
@@ -289,10 +292,10 @@ struct mesh_buffer_bundle_t
     //! combined meshlet-buffer
     std::vector<Mesh::meshlet_t> meshlets;
 
-    //! indices into vertex-buffer, referenced my meshlets
+    //! indices into vertex-buffer, referenced by meshlets
     std::vector<index_t> meshlet_vertices;
 
-    //! micro-indices into meshlet_vertices, referenced my meshlets
+    //! micro-indices into meshlet_vertices, referenced by meshlets
     std::vector<uint8_t> meshlet_triangles;
 };
 

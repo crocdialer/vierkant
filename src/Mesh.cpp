@@ -478,14 +478,13 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
             for(uint32_t i = 0; i < params.max_num_lods; ++i)
             {
-                // shrink num_indices to 50%
-                constexpr float shrink_factor = .5f;
                 constexpr float max_mismatch = .1f;
                 constexpr float target_error = 0.05f;
                 float result_error = 0.f;
                 float result_factor = 1.f;
 
-                auto target_index_count = static_cast<size_t>(static_cast<float>(num_indices) * shrink_factor);
+                auto target_index_count =
+                        static_cast<size_t>(static_cast<float>(num_indices) * params.lod_shrink_factor);
 
                 constexpr bool sloppy = false;
 
@@ -509,10 +508,11 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
                 spdlog::trace("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
                               "target/actual error: {} / {}",
-                              i + 1, num_indices / 3, shrink_factor, result_factor, target_error, result_error);
+                              i + 1, num_indices / 3, params.lod_shrink_factor, result_factor, target_error,
+                              result_error);
 
                 // not getting any simpler
-                if(result_factor - shrink_factor > max_mismatch) { break; }
+                if(result_factor - params.lod_shrink_factor > max_mismatch) { break; }
 
                 min_num = num_indices;
                 lod_indices.resize(num_indices);
@@ -687,6 +687,7 @@ size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(vierkant::mesh_buff
     vierkant::hash_combine(hash_val, params.optimize_vertex_cache);
     vierkant::hash_combine(hash_val, params.generate_lods);
     vierkant::hash_combine(hash_val, params.max_num_lods);
+    vierkant::hash_combine(hash_val, params.lod_shrink_factor);
     vierkant::hash_combine(hash_val, params.generate_meshlets);
     vierkant::hash_combine(hash_val, params.use_vertex_colors);
     vierkant::hash_combine(hash_val, params.pack_vertices);
