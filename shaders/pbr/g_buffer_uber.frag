@@ -61,10 +61,35 @@ void main()
 
     material_struct_t material = materials[indices.material_index];
 
+    // invert normals for two-sided/backface surfels
+    vec3 normal = (material.two_sided && !gl_FrontFacing) ? -vertex_in.normal : vertex_in.normal;
+    out_normal = vec4(normal, 1);
+
     out_color = vec4(1);
     out_emission = vec4(0);
+    out_ao_rough_metal = vec4(material.ambient, material.roughness, material.metalness, 1);
 
-    if(!context.disable_material && !context.debug_draw_ids)
+    // motion
+    out_motion = 0.5 * (vertex_in.current_position.xy / vertex_in.current_position.w - vertex_in.last_position.xy / vertex_in.last_position.w);
+
+    // debug object-ids
+    if(context.debug_draw_ids)
+    {
+        uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
+        out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+
+        // no metallic
+        out_ao_rough_metal.b = 0.0;
+
+        // black triangle edges, fade out for small/micro-triangles
+        float min_bary = min(min(gl_BaryCoordNoPerspEXT.x, gl_BaryCoordNoPerspEXT.y), gl_BaryCoordNoPerspEXT.z);
+        float edge = smoothstep(0.045, 0.055, min_bary);
+        edge = mix(edge, 1.0, smoothstep(0.15, 0.25, fwidth(dot(gl_BaryCoordNoPerspEXT.xy, gl_BaryCoordNoPerspEXT.xy))));
+        out_color.rgb *= edge;
+        return;
+    }
+
+    if(!context.disable_material)
     {
         out_color = material.color;
         out_color.a *= 1.0 - material.transmission;
@@ -92,9 +117,6 @@ void main()
         out_emission.rgb *= out_emission.a;
     }
 
-    // invert normals for two-sided/backface surfels
-    vec3 normal = (material.two_sided && !gl_FrontFacing) ? -vertex_in.normal : vertex_in.normal;
-
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
         uint offset = tex_offset(TEXTURE_TYPE_NORMAL, material.texture_type_flags);
@@ -107,34 +129,13 @@ void main()
         vec3 b = normalize(cross(n, t));
         mat3 transpose_tbn = mat3(t, b, n);
         normal = transpose_tbn * normal;
+        out_normal = vec4(normalize(normal), 1);
     }
-    out_normal = vec4(normalize(normal), 1);
-
-    out_ao_rough_metal = vec4(material.ambient, material.roughness, material.metalness, 1);
 
     if((material.texture_type_flags & TEXTURE_TYPE_AO_ROUGH_METAL) != 0)
     {
         uint offset = tex_offset(TEXTURE_TYPE_AO_ROUGH_METAL, material.texture_type_flags);
         out_ao_rough_metal = vec4(texture(u_sampler_2D[material.base_texture_index + offset],
                                           vertex_in.tex_coord).xyz, 1.0);
-    }
-
-    // motion
-    out_motion = 0.5 * (vertex_in.current_position.xy / vertex_in.current_position.w - vertex_in.last_position.xy / vertex_in.last_position.w);
-
-    // debug object-ids
-    if(context.debug_draw_ids)
-    {
-        uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
-        out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
-
-        // no metallic
-        out_ao_rough_metal.b = 0.0;
-
-        // black triangle edges, fade out for small/micro-triangles
-        float min_bary = min(min(gl_BaryCoordNoPerspEXT.x, gl_BaryCoordNoPerspEXT.y), gl_BaryCoordNoPerspEXT.z);
-        float edge = smoothstep(0.045, 0.055, min_bary);
-        edge = mix(edge, 1.0, smoothstep(0.15, 0.25, fwidth(dot(gl_BaryCoordNoPerspEXT.xy, gl_BaryCoordNoPerspEXT.xy))));
-        out_color.rgb *= edge;
     }
 }

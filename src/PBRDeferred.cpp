@@ -331,9 +331,9 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     for(const auto &[entity, mesh_component]: mesh_view.each())
     {
         auto object = scene->object_by_id(static_cast<uint32_t>(entity));
+        if(!object) { continue; }
         auto obj_global_transform = object->global_transform();
 
-        // TODO: figure out wtf is racing mesh-component after scene-changes
         auto mesh = mesh_component.mesh;
         if(!mesh) { continue; }
 
