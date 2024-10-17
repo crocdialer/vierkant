@@ -287,6 +287,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
             ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
             ImGui::BulletText("num_meshlets: %d", draw_result.num_meshlets);
             ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
+            ImGui::BulletText("num_contribution_culled: %d", draw_result.num_contribution_culled);
             ImGui::BulletText("num_occlusion_culled: %d", draw_result.num_occlusion_culled);
 
             // drawcall/culling plots
@@ -613,7 +614,7 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
                 ImGui::PopID();
                 ImGui::SameLine();
 
-                if(ImGui::TreeNode((void *) ((uint64_t)cam->id()), "%s", cam->name.c_str()))
+                if(ImGui::TreeNode((void *) ((uint64_t) cam->id()), "%s", cam->name.c_str()))
                 {
                     vierkant::gui::draw_camera_param_ui(cam->perspective_params);
                     ImGui::Spacing();
@@ -987,14 +988,14 @@ void draw_object_ui(const Object3DPtr &object)
         if(ImGui::TreeNodeEx(&phys_cmp, ImGuiTreeNodeFlags_DefaultOpen, "mass: %.2f", phys_cmp.mass))
         {
             bool change = false;
-//            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
+            //            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
             change |= ImGui::InputFloat("mass", &phys_cmp.mass);
-            change |=ImGui::InputFloat("friction", &phys_cmp.friction);
-            change |=ImGui::InputFloat("restitution", &phys_cmp.restitution);
-            change |=ImGui::InputFloat("linear_damping", &phys_cmp.linear_damping);
-            change |=ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
-            change |=ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
-            change |=ImGui::Checkbox("sensor", &phys_cmp.sensor);
+            change |= ImGui::InputFloat("friction", &phys_cmp.friction);
+            change |= ImGui::InputFloat("restitution", &phys_cmp.restitution);
+            change |= ImGui::InputFloat("linear_damping", &phys_cmp.linear_damping);
+            change |= ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
+            change |= ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
+            change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
             phys_cmp.need_update |= change;
             ImGui::TreePop();
         }

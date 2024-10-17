@@ -489,7 +489,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     ret.num_draws = frame_context.cull_result.drawables.size();
     ret.num_frustum_culled = frame_context.stats.draw_cull_result.num_frustum_culled;
     ret.num_occlusion_culled = frame_context.stats.draw_cull_result.num_occlusion_culled;
-    ret.num_distance_culled = frame_context.stats.draw_cull_result.num_distance_culled;
+    ret.num_contribution_culled = frame_context.stats.draw_cull_result.num_contribution_culled;
     ret.object_ids = frame_context.internal_images.object_ids;
 
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};

@@ -26,7 +26,7 @@ public:
         uint32_t num_draws = 0;
         uint32_t num_frustum_culled = 0;
         uint32_t num_occlusion_culled = 0;
-        uint32_t num_distance_culled = 0;
+        uint32_t num_contribution_culled = 0;
         vierkant::ImagePtr object_ids;
         object_id_by_index_fn_t object_by_index_fn;
         std::vector<semaphore_submit_info_t> semaphore_infos;
@@ -51,8 +51,7 @@ public:
      * @param   normalized_size     width/height of selection-area, can provide {0, 0} for points
      * @return  an array containing a list of selected and unique draw-ids
      */
-    virtual std::vector<uint16_t> pick(const glm::vec2 &normalized_coord,
-                                       const glm::vec2 &normalized_size) = 0;
+    virtual std::vector<uint16_t> pick(const glm::vec2 &normalized_coord, const glm::vec2 &normalized_size) = 0;
 
     virtual ~SceneRenderer() = default;
 };

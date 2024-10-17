@@ -49,7 +49,7 @@ struct alignas(16) draw_cull_data_t
 
     VkBool32 frustum_cull = false;
     VkBool32 occlusion_cull = false;
-    VkBool32 distance_cull = false;
+    VkBool32 contribution_cull = false;
     VkBool32 backface_cull = false;
     VkBool32 lod_enabled = false;
 
@@ -219,7 +219,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.num_draws = params.num_draws;
     draw_cull_data.pyramid_size = {params.depth_pyramid->width(), params.depth_pyramid->height()};
     draw_cull_data.occlusion_cull = params.occlusion_cull;
-    draw_cull_data.distance_cull = params.distance_cull;
+    draw_cull_data.contribution_cull = params.contribution_cull;
     draw_cull_data.frustum_cull = params.frustum_cull;
     draw_cull_data.lod_enabled = params.lod_enabled;
 

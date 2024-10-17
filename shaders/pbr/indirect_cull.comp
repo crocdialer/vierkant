@@ -13,7 +13,7 @@ struct draw_cull_result_t
     uint num_draws;
     uint num_frustum_culled;
     uint num_occlusion_culled;
-    uint num_distance_culled;
+    uint num_contribution_culled;
     uint num_triangles;
     uint num_meshlets;
 };
@@ -50,7 +50,7 @@ struct draw_cull_data_t
 
     bool frustum_cull;
     bool occlusion_cull;
-    bool distance_cull;
+    bool contribution_cull;
     bool backface_cull;
     bool lod_enabled;
 
@@ -114,6 +114,9 @@ void main()
     vec4 aabb;
     bool sphere_visible = project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
 
+    // object bound's area in NDC
+    vec2 screen_area = aabb.zw - aabb.xy;//vec2(aabb.z - aabb.x, aabb.w - aabb.y);
+
     if(cull_data.frustum_cull)
     {
         // the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
@@ -122,17 +125,20 @@ void main()
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_frustum_culled, 1); }
     }
 
-    if(visible && cull_data.distance_cull)
+    if(visible && cull_data.contribution_cull && sphere_visible)
     {
-        visible = visible && (-center.z - radius) <= cull_data.zfar;
-        if(!visible){ atomicAdd(cull_data.draw_result.v.num_distance_culled, 1); }
+        // contribution cull (based on screen-area threshold, ~1 px)
+        const float size_thresh = 1.0 / cull_data.pyramid_size.x;
+        visible = visible && max(screen_area.x, screen_area.y) >= size_thresh;
+
+        if(!visible){ atomicAdd(cull_data.draw_result.v.num_contribution_culled, 1); }
     }
 
     if(visible && cull_data.occlusion_cull && sphere_visible)
     {
         // get cracking with depth-pyramid
-        float width = (aabb.z - aabb.x) * cull_data.pyramid_size.x;
-        float height = (aabb.w - aabb.y) * cull_data.pyramid_size.y;
+        float width = screen_area.x * cull_data.pyramid_size.x;
+        float height = screen_area.y * cull_data.pyramid_size.y;
 
         float level = floor(log2(max(width, height)));
 
