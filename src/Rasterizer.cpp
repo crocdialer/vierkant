@@ -343,7 +343,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
                 auto &desc_material = drawable.descriptors[Rasterizer::BINDING_MATERIAL];
                 desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+                desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_TASK_BIT_EXT;
 
                 auto &desc_texture = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
                 desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;

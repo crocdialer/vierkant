@@ -82,9 +82,9 @@ void main()
         out_ao_rough_metal.b = 0.0;
 
         // black triangle edges, fade out for small/micro-triangles
-        float min_bary = min(min(gl_BaryCoordNoPerspEXT.x, gl_BaryCoordNoPerspEXT.y), gl_BaryCoordNoPerspEXT.z);
+        float min_bary = min(min(gl_BaryCoordEXT.x, gl_BaryCoordEXT.y), gl_BaryCoordEXT.z);
         float edge = smoothstep(0.045, 0.055, min_bary);
-        edge = mix(edge, 1.0, smoothstep(0.15, 0.25, fwidth(dot(gl_BaryCoordNoPerspEXT.xy, gl_BaryCoordNoPerspEXT.xy))));
+        edge = mix(edge, 1.0, smoothstep(0.15, 0.25, fwidth(dot(gl_BaryCoordEXT.xy, gl_BaryCoordEXT.xy))));
         out_color.rgb *= edge;
         return;
     }

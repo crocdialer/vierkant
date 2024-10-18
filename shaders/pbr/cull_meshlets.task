@@ -28,6 +28,11 @@ layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
     camera_t last_camera;
 };
 
+layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuffer
+{
+    material_struct_t materials[];
+};
+
 layout(push_constant) uniform PushConstants
 {
     render_context_t context;
@@ -38,6 +43,7 @@ taskPayloadSharedEXT mesh_task_payload_t task_payload;
 // NOTE: local_size_x_id coming from specialization-constant
 layout(local_size_x_id = 0, local_size_y = 1, local_size_z = 1) in;
 
+//! return true if the cone is facing away from camera_position and should be culled
 bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec3 camera_position)
 {
     return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
@@ -70,7 +76,8 @@ void main()
     float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
 
     // backface-culling
-    bool accept = !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
+    bool accept = materials[draws[object_index].material_index].two_sided ||
+        !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
 
     // frustum-culling
     accept = accept && !frustum_cull(center, radius, camera.frustum);
