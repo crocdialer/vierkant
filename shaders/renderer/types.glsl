@@ -133,6 +133,7 @@ struct render_context_t
 #define BINDING_MESHLETS 13
 #define BINDING_MESHLET_VERTICES 14
 #define BINDING_MESHLET_TRIANGLES 15
+#define BINDING_MESHLET_VISIBILITY 16
 
 //! combined indirect-draw struct
 struct indexed_indirect_command_t

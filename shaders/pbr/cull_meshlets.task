@@ -1,6 +1,7 @@
 #version 460
 #extension GL_EXT_mesh_shader : require
 #extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference2: require
 #extension GL_KHR_shader_subgroup_ballot: require
 
 #include "../renderer/types.glsl"
@@ -20,6 +21,13 @@ layout(set = 0, binding = BINDING_MESHLETS) readonly buffer MeshletBuffer
 layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
     mesh_draw_t draws[];
+};
+
+// read/write meshlet-visibility buffers
+layout(buffer_reference, std430) buffer MeshletVisibilityBufferPtr { uint v[]; };
+layout(binding = BINDING_MESHLET_VISIBILITY, set = 0) readonly buffer MeshletVisibilities
+{
+    MeshletVisibilityBufferPtr meshlet_visibilities [];
 };
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
