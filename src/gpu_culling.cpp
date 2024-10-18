@@ -50,7 +50,7 @@ struct alignas(16) draw_cull_data_t
     VkBool32 frustum_cull = false;
     VkBool32 occlusion_cull = false;
     VkBool32 contribution_cull = false;
-    VkBool32 backface_cull = false;
+    VkBool32 meshlet_pipeline = false;
     VkBool32 lod_enabled = false;
 
     // buffer references

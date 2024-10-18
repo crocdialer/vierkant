@@ -51,7 +51,10 @@ struct draw_cull_data_t
     bool frustum_cull;
     bool occlusion_cull;
     bool contribution_cull;
-    bool backface_cull;
+
+    // meshlet pipelines need to run main & post passes, culling per meshlet
+    bool meshlet_pipeline;
+
     bool lod_enabled;
 
     // buffer references
@@ -85,6 +88,8 @@ bool project_sphere(vec3 C, float r, float znear, float P00, float P11, out vec4
 
     return true;
 }
+
+uint div_up(uint nom, uint denom) { return (nom + denom - 1) / denom; }
 
 layout(binding = 0) uniform sampler2D u_depth_pyramid;
 
@@ -166,10 +171,15 @@ void main()
         draw.vertexOffset = int(mesh_entry.vertex_offset);
         draw.indexCount = lod.num_indices;
         draw.firstIndex = lod.base_index;
-        draw.groupCountX = (lod.num_meshlets + TASK_WORKGROUP_SIZE - 1) / TASK_WORKGROUP_SIZE;
+        draw.groupCountX = div_up(lod.num_meshlets, TASK_WORKGROUP_SIZE);
         draw.groupCountY = draw.groupCountZ = 1;
         draw.base_meshlet = lod.base_meshlet;
         draw.num_meshlets = lod.num_meshlets;
+
+        for(uint i = 0; i < lod_index; ++i)
+        {
+            draw.meshlet_visibility_index += div_up(mesh_entry.lods[i].num_meshlets, 32);
+        }
     }
 
     // count managment
@@ -180,7 +190,11 @@ void main()
         atomicAdd(cull_data.draw_result.v.num_meshlets, draw.num_meshlets);
 
         // became visible this frame -> not drawn in 1st-pass
-        if(!cull_data.draws_in.v[gid].visible)
+        bool needs_post_draw = !cull_data.draws_in.v[gid].visible;
+
+        needs_post_draw = needs_post_draw || (cull_data.meshlet_pipeline && draw.num_meshlets > 0);
+
+        if(needs_post_draw)
         {
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;

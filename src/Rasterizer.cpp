@@ -306,10 +306,14 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     struct indexed_drawable_t
     {
         uint32_t object_index = 0;
+        uint32_t meshlet_visibility_index = 0;
         vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
         drawable_t *drawable = nullptr;
     };
     std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipeline_drawables;
+
+    // meshlet-visibility index
+    uint32_t meshlet_visibility_index = 0;
 
     // preprocess drawables
     for(uint32_t i = 0; i < frame_assets.drawables.size(); i++)
@@ -370,6 +374,15 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
+        if(drawable.mesh && drawable.mesh->entries.size() < drawable.entry_index)
+        {
+            indexed_drawable.meshlet_visibility_index = meshlet_visibility_index;
+            for(const auto &lod: drawable.mesh->entries[drawable.entry_index].lods)
+            {
+                meshlet_visibility_index += div_up(lod.num_meshlets, 32);
+            }
+        }
+
         // push intermediate struct
         pipeline_drawables[pipeline_format].push_back(indexed_drawable);
     }
@@ -386,9 +399,6 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
     // batch/pipeline index
     uint32_t count_buffer_offset = 0;
-
-    // meshlet-visibility index
-    uint32_t meshlet_visibility_index = 0;
 
     // fill up indirect draw buffers
     for(const auto &[pipe_fmt, indexed_drawables]: pipeline_drawables)
@@ -463,9 +473,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 //! VkDrawMeshTasksIndirectCommandEXT
                 draw_command->vk_mesh_draw.groupCountX = div_up(drawable->num_meshlets, m_mesh_task_count);
                 draw_command->vk_mesh_draw.groupCountY = draw_command->vk_mesh_draw.groupCountZ = 1;
-
-                draw_command->meshlet_visibility_index = meshlet_visibility_index;
-                meshlet_visibility_index += div_up(drawable->num_meshlets, 32);
+                draw_command->meshlet_visibility_index = indexed_drawable.meshlet_visibility_index;
             }
             else
             {
@@ -719,10 +727,10 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
             }
 
             // set all meshlet-bits hi/visible for all entry-lods
-            size_t num_meshlets = 0;
+            size_t num_array_elems = 0;
             const auto &entry = drawable.mesh->entries[drawable.entry_index];
-            for(const auto &lod: entry.lods) { num_meshlets += div_up(lod.num_meshlets, 32); }
-            meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_meshlets, 0xFFFFFFFF);
+            for(const auto &lod: entry.lods) { num_array_elems += div_up(lod.num_meshlets, 32); }
+            meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, 0xFFFFFFFF);
         }
         else { material_data.push_back(drawable.material); }
 
