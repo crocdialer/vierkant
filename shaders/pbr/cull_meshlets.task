@@ -23,11 +23,10 @@ layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBu
     mesh_draw_t draws[];
 };
 
-// read/write meshlet-visibility buffers
-layout(buffer_reference, std430) buffer MeshletVisibilityBufferPtr { uint v[]; };
-layout(binding = BINDING_MESHLET_VISIBILITY, set = 0) readonly buffer MeshletVisibilities
+// read/write meshlet-visibility buffer
+layout(binding = BINDING_MESHLET_VISIBILITY, set = 0) buffer MeshletVisibilities
 {
-    MeshletVisibilityBufferPtr meshlet_visibilities [];
+    uint meshlet_visibilities[];
 };
 
 layout(std140, binding = BINDING_JITTER_OFFSET) uniform UBOJitter
@@ -57,6 +56,23 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
     return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
 }
 
+bool is_visible(uint visibility_base_index, uint meshlet_index)
+{
+    return (meshlet_visibilities[visibility_base_index + meshlet_index / 32]  & (1 << (meshlet_index & 31U))) != 0;
+}
+
+void set_visible(uint visibility_base_index, uint meshlet_index, bool visible)
+{
+    if(visible)
+    {
+        meshlet_visibilities[visibility_base_index + meshlet_index / 32] |= (1 << (meshlet_index & 31U));
+    }
+    else
+    {
+        meshlet_visibilities[visibility_base_index + meshlet_index / 32] &= ~(1 << (meshlet_index & 31U));
+    }
+}
+
 #define CULLING 1
 
 void main()
@@ -76,6 +92,8 @@ void main()
     task_payload.meshlet_base_index = meshlet_base_index;
 
 #if CULLING
+    bool accept = is_visible(draw_command.meshlet_visibility_index, mi);
+
     // transform bounding volume and normal-cone
     mat4 m = camera.view * mat4_cast(draws[object_index].current_matrices.transform);
     vec3 cone_axis = normalize(mat3(m) * meshlets[mi].cone_axis);
@@ -84,8 +102,8 @@ void main()
     float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
 
     // backface-culling
-    bool accept = materials[draws[object_index].material_index].two_sided ||
-        !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
+    accept = accept && (materials[draws[object_index].material_index].two_sided ||
+                        !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0)));
 
     // frustum-culling
     accept = accept && !frustum_cull(center, radius, camera.frustum);
