@@ -94,8 +94,8 @@ void Compute::dispatch(std::vector<computable_t> computables, VkCommandBuffer co
 
             // fetch descriptor set
             auto descriptor_set = vierkant::find_or_create_descriptor_set(
-                    m_device, set_layout, computable.descriptors, m_descriptor_pool, compute_asset.descriptor_set_cache,
-                    next_descriptor_set_cache, false);
+                    m_device, set_layout.get(), computable.descriptors, m_descriptor_pool,
+                    compute_asset.descriptor_set_cache, next_descriptor_set_cache, false);
 
             // update descriptor-set with actual descriptors
             vierkant::update_descriptor_set(m_device, computable.descriptors, descriptor_set);

@@ -239,8 +239,11 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         uint32_t num_draws = 0;
         uint32_t first_draw_index = 0;
         uint32_t first_indexed_draw_index = 0;
-        std::vector<VkDescriptorSet> descriptor_set_handles;
         VkRect2D scissor = {};
+        std::vector<VkDescriptorSet> descriptor_set_handles;
+        VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
+
+        const drawable_t *drawable = nullptr;
     };
     using draw_batch_t = std::vector<std::pair<const Mesh *, indirect_draw_asset_t>>;
     std::unordered_map<graphics_pipeline_info_t, draw_batch_t> pipelines;
@@ -387,16 +390,6 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         pipeline_drawables[pipeline_format].push_back(indexed_drawable);
     }
 
-    vierkant::BufferPtr draw_buffer = frame_assets.indirect_bundle.draws_in;
-    vierkant::BufferPtr draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_in;
-
-    // hook up GPU frustum/occlusion/distance culling here
-    if(indirect_draw && draw_indirect_delegate)
-    {
-        draw_buffer = frame_assets.indirect_bundle.draws_out;
-        draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_out;
-    }
-
     // batch/pipeline index
     uint32_t count_buffer_offset = 0;
 
@@ -418,31 +411,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 new_draw.first_draw_index = frame_assets.indirect_bundle.num_draws;
                 new_draw.first_indexed_draw_index = frame_assets.indirect_indexed_bundle.num_draws;
                 new_draw.scissor = drawable->pipeline_format.scissor;
-
-                // predefined buffers
-                if(!drawable->use_own_buffers)
-                {
-                    drawable->descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
-                    drawable->descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.mesh_draw_buffer};
-                    drawable->descriptors[BINDING_MATERIAL].buffers = {frame_assets.material_buffer};
-                    drawable->descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
-
-                    if(drawable->descriptors.contains(BINDING_MESHLET_VISIBILITY))
-                    {
-                        drawable->descriptors[BINDING_MESHLET_VISIBILITY].buffers = {
-                                frame_assets.meshlet_visibility_buffer};
-                    }
-                }
-
-                auto descriptor_set = vierkant::find_or_create_descriptor_set(
-                        m_device, indexed_drawable.descriptor_set_layout, drawable->descriptors, m_descriptor_pool,
-                        frame_assets.descriptor_sets, next_descriptor_sets, false);
-                auto bindless_texture_set = vierkant::find_or_create_descriptor_set(
-                        m_device, bindless_texture_layout, bindless_texture_desc, m_descriptor_pool,
-                        frame_assets.descriptor_sets, next_descriptor_sets, false);
-
-                new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
-
+                new_draw.drawable = drawable;
+                new_draw.descriptor_set_layout = indexed_drawable.descriptor_set_layout.get();
                 indirect_draws.emplace_back(drawable->mesh.get(), std::move(new_draw));
             }
             auto &indirect_draw_asset = indirect_draws.back().second;
@@ -488,11 +458,53 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         }
     }
 
+    vierkant::BufferPtr draw_buffer = frame_assets.indirect_bundle.draws_in;
+    vierkant::BufferPtr draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_in;
+
     // hook up GPU frustum/occlusion/distance culling here
     if(indirect_draw && draw_indirect_delegate)
     {
         // invoke delegate
         draw_indirect_delegate(frame_assets.indirect_indexed_bundle);
+
+        // set buffers
+        draw_buffer = frame_assets.indirect_bundle.draws_out;
+        draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_out;
+    }
+
+    // set buffer-descriptors after delegate
+    for(const auto &[pipe_fmt, indexed_drawables]: pipeline_drawables)
+    {
+        if(indexed_drawables.empty()) { continue; }
+        auto &indirect_draws = pipelines[pipe_fmt];
+
+        for(auto &[mesh, draw_asset]: indirect_draws)
+        {
+            auto descriptors = draw_asset.drawable->descriptors;
+
+            // predefined buffers
+            if(!draw_asset.drawable->use_own_buffers)
+            {
+                descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
+                descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.mesh_draw_buffer};
+                descriptors[BINDING_MATERIAL].buffers = {frame_assets.material_buffer};
+                descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
+
+                if(descriptors.contains(BINDING_MESHLET_VISIBILITY))
+                {
+                    descriptors[BINDING_MESHLET_VISIBILITY].buffers = {frame_assets.meshlet_visibility_buffer};
+                }
+            }
+
+            auto descriptor_set = vierkant::find_or_create_descriptor_set(
+                    m_device, draw_asset.descriptor_set_layout, descriptors, m_descriptor_pool,
+                    frame_assets.descriptor_sets, next_descriptor_sets, false);
+            auto bindless_texture_set = vierkant::find_or_create_descriptor_set(
+                    m_device, bindless_texture_layout.get(), bindless_texture_desc, m_descriptor_pool,
+                    frame_assets.descriptor_sets, next_descriptor_sets, false);
+
+            draw_asset.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
+        }
     }
 
     // push constants
