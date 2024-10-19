@@ -15,36 +15,28 @@ struct UniformBuffer
     glm::mat4 projection;
 };
 
-const std::vector<Vertex> vertices =
-        {
-                {{-0.5f, -0.5f, 0.f},   {1.0f, 0.0f, 0.0f, 1.f}, {0.f, 0.f}},
-                {{-0.5f, 0.5f,  0.f},   {1.0f, 1.0f, 1.0f, 1.f}, {0.f, 1.f}},
-                {{0.5f,  0.5f,  0.f},   {0.0f, 0.0f, 1.0f, 1.f}, {1.f, 1.f}},
-                {{0.5f,  -0.5f, 0.f},   {0.0f, 1.0f, 0.0f, 1.f}, {1.f, 0.f}},
+const std::vector<Vertex> vertices = {{{-0.5f, -0.5f, 0.f}, {1.0f, 0.0f, 0.0f, 1.f}, {0.f, 0.f}},
+                                      {{-0.5f, 0.5f, 0.f}, {1.0f, 1.0f, 1.0f, 1.f}, {0.f, 1.f}},
+                                      {{0.5f, 0.5f, 0.f}, {0.0f, 0.0f, 1.0f, 1.f}, {1.f, 1.f}},
+                                      {{0.5f, -0.5f, 0.f}, {0.0f, 1.0f, 0.0f, 1.f}, {1.f, 0.f}},
 
-                {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f, 1.f}, {0.f, 0.f}},
-                {{-0.5f, 0.5f,  -0.5f}, {1.0f, 1.0f, 1.0f, 1.f}, {0.f, 1.f}},
-                {{0.5f,  0.5f,  -0.5f}, {0.0f, 0.0f, 1.0f, 1.f}, {1.f, 1.f}},
-                {{0.5f,  -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f, 1.f}, {1.f, 0.f}}
-        };
+                                      {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f, 1.f}, {0.f, 0.f}},
+                                      {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f, 1.f}, {0.f, 1.f}},
+                                      {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f, 1.f}, {1.f, 1.f}},
+                                      {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f, 1.f}, {1.f, 0.f}}};
 
-const std::vector<uint32_t> indices =
-        {
-                0, 1, 2, 0, 2, 3,
-                4, 5, 6, 4, 6, 7
-        };
+const std::vector<uint32_t> indices = {0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::MeshPtr create_mesh(const vierkant::DevicePtr &device,
-                              const std::vector<Vertex> &vertices,
+vierkant::MeshPtr create_mesh(const vierkant::DevicePtr &device, const std::vector<Vertex> &vertices,
                               const std::vector<uint32_t> &indices)
 {
     auto ret = vierkant::Mesh::create();
 
     // vertex attributes
-    auto vertex_buffer = vierkant::Buffer::create(device, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                                  VMA_MEMORY_USAGE_GPU_ONLY);
+    auto vertex_buffer =
+            vierkant::Buffer::create(device, vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
     vierkant::vertex_attrib_t position, color, tex_coord;
     position.offset = offsetof(Vertex, position);
@@ -65,8 +57,8 @@ vierkant::MeshPtr create_mesh(const vierkant::DevicePtr &device,
     tex_coord.format = vierkant::format<decltype(Vertex::tex_coord)>();
     ret->vertex_attribs[2] = tex_coord;
 
-    ret->index_buffer = vierkant::Buffer::create(device, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                                                 VMA_MEMORY_USAGE_GPU_ONLY);
+    ret->index_buffer =
+            vierkant::Buffer::create(device, indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
     return ret;
 }
 
@@ -74,8 +66,7 @@ vierkant::descriptor_map_t create_descriptors(const vierkant::DevicePtr &device)
 {
     // host visible, empty uniform-buffer
     auto uniform_buffer = vierkant::Buffer::create(device, nullptr, sizeof(UniformBuffer),
-                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                   VMA_MEMORY_USAGE_CPU_ONLY);
+                                                   VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
     // fill Uniformbuffer
     auto ubo = static_cast<UniformBuffer *>(uniform_buffer->map());
     ubo->model = glm::mat4(1);
@@ -96,8 +87,7 @@ vierkant::descriptor_map_t create_descriptors(const vierkant::DevicePtr &device)
     desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     desc_texture.images = {texture};
 
-    return {{0, desc_ubo},
-            {1, desc_texture}};
+    return {{0, desc_ubo}, {1, desc_texture}};
 }
 
 TEST(Mesh, Constructor)
@@ -117,17 +107,17 @@ TEST(Mesh, basic)
     auto descriptor_set_layout = vierkant::create_descriptor_set_layout(test_context.device, descriptors);
 
     // construct a pool to hold enough descriptors for the mesh
-    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         1},
+    vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
                                                       {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
 
     auto pool = vierkant::create_descriptor_pool(test_context.device, descriptor_counts, 16);
 
     // use the pool to allocate the actual descriptor-set
-    auto descriptor_set = vierkant::create_descriptor_set(test_context.device, pool, descriptor_set_layout, false);
+    auto descriptor_set =
+            vierkant::create_descriptor_set(test_context.device, pool, descriptor_set_layout.get(), false);
 
     // update the descriptor set
     vierkant::update_descriptor_set(test_context.device, descriptors, descriptor_set);
-
 }
 
 TEST(Mesh, Format)

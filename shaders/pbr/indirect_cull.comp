@@ -184,6 +184,6 @@ void main()
         cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
     }
 
-    // record visiblity
+    // update visiblity
     cull_data.draws_in.v[gid].visible = visible;
 }

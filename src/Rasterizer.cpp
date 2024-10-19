@@ -486,8 +486,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             if(!draw_asset.drawable->use_own_buffers)
             {
                 descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
-                descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.mesh_draw_buffer};
-                descriptors[BINDING_MATERIAL].buffers = {frame_assets.material_buffer};
+                descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.indirect_indexed_bundle.mesh_draws};
+                descriptors[BINDING_MATERIAL].buffers = {frame_assets.indirect_indexed_bundle.materials};
                 descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
 
                 if(descriptors.contains(BINDING_MESHLET_VISIBILITY))

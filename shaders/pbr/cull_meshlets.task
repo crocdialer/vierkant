@@ -98,7 +98,6 @@ void main()
     task_payload.meshlet_base_index = meshlet_base_index;
 
 #if CULLING
-    bool accept = is_visible(draw_command.meshlet_visibility_index, mi);
 
     // transform bounding volume and normal-cone
     mat4 m = camera.view * mat4_cast(draws[object_index].current_matrices.transform);
@@ -108,11 +107,11 @@ void main()
     float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
 
     // cone-culling
-    accept = accept && (materials[draws[object_index].material_index].two_sided ||
-                        !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0)));
+    bool visible = materials[draws[object_index].material_index].two_sided ||
+                  !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
 
     // frustum-culling
-    accept = accept && !frustum_cull(center, radius, camera.frustum);
+    visible = visible && !frustum_cull(center, radius, camera.frustum);
 
     // occlusion-culling / visibility recording
     if(post_pass)
@@ -131,18 +130,25 @@ void main()
         float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
         float depth_sphere = camera.near / (-center.z - radius);
 
-        accept = accept && (depth_sphere >= depth);
-        set_visible(draw_command.meshlet_visibility_index, mi, mi % 2 != 0);
+        visible = visible && (depth_sphere >= depth);
+
+        // became visible this frame -> not drawn in 1st-pass
+        visible = visible && !is_visible(draw_command.meshlet_visibility_index, mi);
+
         //    if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
+
+        // update visiblity
+        set_visible(draw_command.meshlet_visibility_index, mi, visible);
     }
+    else{ visible = visible && is_visible(draw_command.meshlet_visibility_index, mi); }
 
     // determine indices/count via ballot
-    uvec4 ballot = subgroupBallot(accept);
+    uvec4 ballot = subgroupBallot(visible);
     uint index = subgroupBallotExclusiveBitCount(ballot);
     uint count = subgroupBallotBitCount(ballot);
 
     // write payload delta-index
-    if (accept){ task_payload.meshlet_delta_indices[index] = uint8_t(ti); }
+    if (visible){ task_payload.meshlet_delta_indices[index] = uint8_t(ti); }
     EmitMeshTasksEXT(count, 1, 1);
 
 #else
