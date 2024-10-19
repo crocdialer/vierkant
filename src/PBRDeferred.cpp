@@ -818,10 +818,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         else if(params.num_draws && !frame_context.dirty_drawable_indices.empty())
         {
-            VkBuffer buffers[] = {params.mesh_draws->handle(),
-                                  frame_context.indirect_draw_params_post.mesh_draws->handle()};
-            vierkant::barrier(frame_context.cmd_clear.handle(), buffers, 2, src_stage, src_access, src_stage,
-                              src_access);
+            params.mesh_draws->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage, src_access);
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
@@ -845,13 +842,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 copy_transform.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
                 copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
                 copy_transforms.push_back(copy_transform);
-
-                if(frame_context.indirect_draw_params_post.mesh_draws)
-                {
-                    // extra copy into post-meshdraws, not most elegant way
-                    copy_transform.dst_buffer = frame_context.indirect_draw_params_post.mesh_draws;
-                    copy_transforms.push_back(copy_transform);
-                }
                 i++;
             }
             vierkant::staging_copy(staging_context, copy_transforms);
@@ -893,7 +883,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         m_g_renderer_post.draw_indirect_delegate = [this, &frame_context](Rasterizer::indirect_draw_bundle_t &params) {
             resize_indirect_draw_buffers(params.num_draws, frame_context.indirect_draw_params_post);
             params.draws_counts_out = frame_context.indirect_draw_params_post.draws_counts_out;
-            frame_context.indirect_draw_params_post.mesh_draws = params.mesh_draws;
+
+            // re-use mesh-draws/transforms/visibilities from main-pass
+            params.mesh_draws = frame_context.indirect_draw_params_main.mesh_draws;
+            params.mesh_entries = frame_context.indirect_draw_params_main.mesh_entries;
+            params.meshlet_visibilies = frame_context.indirect_draw_params_main.meshlet_visibilies;
 
             // populate gpu-culling params
             vierkant::gpu_cull_params_t gpu_cull_params = {};
@@ -914,7 +908,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.draws_out_pre = frame_context.indirect_draw_params_main.draws_out;
             gpu_cull_params.draws_counts_out_pre = frame_context.indirect_draw_params_main.draws_counts_out;
             gpu_cull_params.draws_out_post = params.draws_out;
-            gpu_cull_params.draws_counts_out_post = frame_context.indirect_draw_params_post.draws_counts_out;
+            gpu_cull_params.draws_counts_out_post = params.draws_counts_out;
 
             gpu_cull_params.semaphore_submit_info.semaphore = frame_context.timeline.handle();
             gpu_cull_params.semaphore_submit_info.wait_value =

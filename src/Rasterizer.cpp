@@ -845,8 +845,9 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     }
 
     frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
-    frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
     frame_asset.indirect_indexed_bundle.mesh_entries = frame_asset.mesh_entry_buffer;
+    frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
+    frame_asset.indirect_indexed_bundle.meshlet_visibilies = frame_asset.meshlet_visibility_buffer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
