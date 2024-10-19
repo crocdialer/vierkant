@@ -729,6 +729,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 pipeline_specialization.set(0, mesh_shader_props.maxPreferredTaskWorkGroupInvocations);
                 pipeline_specialization.set(1, mesh_shader_props.maxPreferredMeshWorkGroupInvocations);
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
+
+                auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
+                desc_depth_pyramid.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                desc_depth_pyramid.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
+                desc_depth_pyramid.images = {frame_context.depth_pyramid};
             }
 
             // check if morph-targets are available
@@ -758,10 +763,19 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             // add descriptor for a jitter-offset
             drawable.descriptors[Rasterizer::BINDING_JITTER_OFFSET] = camera_desc;
+
+            // stage drawables
+            m_g_renderer_main.stage_drawable(drawable);
+            if(use_gpu_culling)
+            {
+                if(drawable.descriptors.contains(Rasterizer::BINDING_DEPTH_PYRAMID) &&
+                   drawable.pipeline_format.specialization)
+                {
+                    drawable.pipeline_format.specialization->set(2, VK_TRUE);
+                }
+                m_g_renderer_post.stage_drawable(drawable);
+            }
         }
-        // stage drawables
-        m_g_renderer_main.stage_drawables(cull_result.drawables);
-        if(use_gpu_culling) { m_g_renderer_post.stage_drawables(cull_result.drawables); }
     }
 
     // apply current settings for both renderers
@@ -900,6 +914,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.frustum_cull = frame_context.settings.frustum_culling;
             gpu_cull_params.occlusion_cull = frame_context.settings.occlusion_culling;
             gpu_cull_params.lod_enabled = frame_context.settings.enable_lod;
+//            gpu_cull_params.skip_meshlets = frame_context.settings.use_meshlet_pipeline;
             gpu_cull_params.depth_pyramid = frame_context.depth_pyramid;
             gpu_cull_params.draws_in = frame_context.indirect_draw_params_main.draws_in;
             gpu_cull_params.mesh_draws_in = frame_context.indirect_draw_params_main.mesh_draws;

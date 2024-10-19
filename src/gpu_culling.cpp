@@ -50,7 +50,7 @@ struct alignas(16) draw_cull_data_t
     VkBool32 frustum_cull = false;
     VkBool32 occlusion_cull = false;
     VkBool32 contribution_cull = false;
-    VkBool32 meshlet_pipeline = false;
+    VkBool32 skip_meshlets = false;
     VkBool32 lod_enabled = false;
 
     // buffer references
@@ -222,6 +222,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.contribution_cull = params.contribution_cull;
     draw_cull_data.frustum_cull = params.frustum_cull;
     draw_cull_data.lod_enabled = params.lod_enabled;
+    draw_cull_data.skip_meshlets = params.skip_meshlets;
 
     // buffer references
     draw_cull_data.draw_commands_in = params.draws_in->device_address();

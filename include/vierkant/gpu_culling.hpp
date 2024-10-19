@@ -35,6 +35,8 @@ struct gpu_cull_params_t
     //! limit number of LoDs (0: no limit)
     uint32_t max_num_lods = 0;
 
+    bool skip_meshlets = false;
+
     VkQueue queue = VK_NULL_HANDLE;
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
 

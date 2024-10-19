@@ -7,6 +7,10 @@
 #include "../renderer/types.glsl"
 #include "../renderer/mesh_task_payload.glsl"
 #include "../utils/camera.glsl"
+#include "../utils/project_sphere.glsl"
+
+//! specialization constant for main/post pass
+layout (constant_id = 2) const bool post_pass = false;
 
 layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 {
@@ -39,6 +43,8 @@ layout(std140, set = 0, binding = BINDING_MATERIAL) readonly buffer MaterialBuff
 {
     material_struct_t materials[];
 };
+
+layout(set = 0, binding = BINDING_DEPTH_PYRAMID) uniform sampler2D u_depth_pyramid;
 
 layout(push_constant) uniform PushConstants
 {
@@ -101,15 +107,34 @@ void main()
     vec3 center = (m * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
     float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
 
-    // backface-culling
+    // cone-culling
     accept = accept && (materials[draws[object_index].material_index].two_sided ||
                         !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0)));
 
     // frustum-culling
     accept = accept && !frustum_cull(center, radius, camera.frustum);
 
-    // TODO: occlusion-culling / visibility recording
-//    set_visible(draw_command.meshlet_visibility_index, mi, mi % 2 != 0);
+    // occlusion-culling / visibility recording
+    if(post_pass)
+    {
+        vec4 aabb;
+        bool sphere_visible = project_sphere(center, radius, camera.near, camera.projection[0][0],
+                                             camera.projection[1][1], aabb);
+        // cluster bound area in NDC
+        vec2 screen_area = aabb.zw - aabb.xy;
+        vec2 pyramid_size = textureSize(u_depth_pyramid, 0);
+        float width = screen_area.x * pyramid_size.x;
+        float height = screen_area.y * pyramid_size.y;
+        float level = floor(log2(max(width, height)));
+
+        // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+        float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+        float depth_sphere = camera.near / (-center.z - radius);
+
+        accept = accept && (depth_sphere >= depth);
+        set_visible(draw_command.meshlet_visibility_index, mi, mi % 2 != 0);
+        //    if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
+    }
 
     // determine indices/count via ballot
     uvec4 ballot = subgroupBallot(accept);
