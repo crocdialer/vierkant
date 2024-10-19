@@ -58,18 +58,18 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
 
 bool is_visible(uint visibility_base_index, uint meshlet_index)
 {
-    return (meshlet_visibilities[visibility_base_index + meshlet_index / 32]  & (1 << (meshlet_index & 31U))) != 0;
+    return (meshlet_visibilities[visibility_base_index + meshlet_index >> 5]  & (1 << (meshlet_index & 31U))) != 0;
 }
 
 void set_visible(uint visibility_base_index, uint meshlet_index, bool visible)
 {
     if(visible)
     {
-        meshlet_visibilities[visibility_base_index + meshlet_index / 32] |= (1 << (meshlet_index & 31U));
+        meshlet_visibilities[visibility_base_index + meshlet_index >> 5] |= (1 << (meshlet_index & 31U));
     }
     else
     {
-        meshlet_visibilities[visibility_base_index + meshlet_index / 32] &= ~(1 << (meshlet_index & 31U));
+        meshlet_visibilities[visibility_base_index + meshlet_index >> 5] &= ~(1 << (meshlet_index & 31U));
     }
 }
 
@@ -109,6 +109,7 @@ void main()
     accept = accept && !frustum_cull(center, radius, camera.frustum);
 
     // TODO: occlusion-culling / visibility recording
+//    set_visible(draw_command.meshlet_visibility_index, mi, mi % 2 != 0);
 
     // determine indices/count via ballot
     uvec4 ballot = subgroupBallot(accept);

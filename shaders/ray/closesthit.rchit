@@ -295,7 +295,7 @@ void main()
             normal.xy = 2.0 * (sample_texture_lod(u_textures[material.normalmap_index],
                 v.tex_coord, NoV, payload.cone.width, triangle_lod).xy - vec2(0.5));
             normal.z = sqrt(1.0 - normal.x * normal.x - normal.y * normal.y);
-            
+
             // normal, tangent, bi-tangent
             vec3 b = normalize(cross(v.normal, v.tangent));
             payload.normal = mat3(v.tangent, b, payload.normal) * normal;
