@@ -124,15 +124,28 @@ void main()
         // cluster bound area in NDC
         vec2 screen_area = aabb.zw - aabb.xy;
         vec2 pyramid_size = textureSize(u_depth_pyramid, 0);
-        float width = screen_area.x * pyramid_size.x;
-        float height = screen_area.y * pyramid_size.y;
-        float level = floor(log2(max(width, height)));
 
-        // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-        float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
-        float depth_sphere = camera.near / (-center.z - radius);
+        // contribution-culling
+        if(visible && sphere_visible)
+        {
+            // contribution cull (based on screen-area threshold, ~1 px)
+            const float size_thresh = 1.0 / pyramid_size.x;
+            visible = max(screen_area.x, screen_area.y) >= size_thresh;
+        }
 
-        visible = visible && (depth_sphere >= depth);
+        // occlusion-culling
+        if(visible && sphere_visible)
+        {
+            float width = screen_area.x * pyramid_size.x;
+            float height = screen_area.y * pyramid_size.y;
+            float level = floor(log2(max(width, height)));
+
+            // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+            float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+            float depth_sphere = camera.near / (-center.z - radius);
+
+            visible = depth_sphere >= depth;
+        }
 
         // became visible this frame -> not drawn in 1st-pass
         bool needs_post_draw = visible && !is_visible(draw_command.meshlet_visibility_index, mi);
