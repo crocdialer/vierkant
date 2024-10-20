@@ -492,7 +492,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
                 if(descriptors.contains(BINDING_MESHLET_VISIBILITY))
                 {
-                    descriptors[BINDING_MESHLET_VISIBILITY].buffers = {frame_assets.meshlet_visibility_buffer};
+                    descriptors[BINDING_MESHLET_VISIBILITY].buffers = {
+                            frame_assets.indirect_indexed_bundle.meshlet_visibilities};
                 }
             }
 
@@ -738,11 +739,12 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 material_data.push_back(drawable.material);
             }
 
-            // set all meshlet-bits hi/visible for all entry-lods
+            // set visibility-bits low/hi for all lods
             size_t num_array_elems = 0;
+            uint32_t vis = indirect_draw ? 0 : 0xFFFFFFFF;
             const auto &entry = drawable.mesh->entries[drawable.entry_index];
             for(const auto &lod: entry.lods) { num_array_elems += div_up(lod.num_meshlets, 32); }
-            meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, 0xFFFFFFFF);
+            meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, vis);
         }
         else { material_data.push_back(drawable.material); }
 
@@ -847,7 +849,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
     frame_asset.indirect_indexed_bundle.mesh_entries = frame_asset.mesh_entry_buffer;
     frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
-    frame_asset.indirect_indexed_bundle.meshlet_visibilies = frame_asset.meshlet_visibility_buffer;
+    frame_asset.indirect_indexed_bundle.meshlet_visibilities = frame_asset.meshlet_visibility_buffer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

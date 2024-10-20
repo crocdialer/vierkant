@@ -64,18 +64,18 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
 
 bool is_visible(uint visibility_base_index, uint meshlet_index)
 {
-    return (meshlet_visibilities[visibility_base_index + meshlet_index >> 5]  & (1 << (meshlet_index & 31U))) != 0;
+    return (meshlet_visibilities[visibility_base_index + (meshlet_index >> 5)]  & (1 << (meshlet_index & 31U))) != 0;
 }
 
 void set_visible(uint visibility_base_index, uint meshlet_index, bool visible)
 {
     if(visible)
     {
-        atomicOr(meshlet_visibilities[visibility_base_index + meshlet_index >> 5], 1 << (meshlet_index & 31U));
+        atomicOr(meshlet_visibilities[visibility_base_index + (meshlet_index >> 5)], 1 << (meshlet_index & 31U));
     }
     else
     {
-        atomicAnd(meshlet_visibilities[visibility_base_index + meshlet_index >> 5], ~(1 << (meshlet_index & 31U)));
+        atomicAnd(meshlet_visibilities[visibility_base_index + (meshlet_index >> 5)], ~(1 << (meshlet_index & 31U)));
     }
 }
 
@@ -135,12 +135,14 @@ void main()
         visible = visible && (depth_sphere >= depth);
 
         // became visible this frame -> not drawn in 1st-pass
-        visible = visible && !is_visible(draw_command.meshlet_visibility_index, mi);
-
+        bool needs_post_draw = visible && !is_visible(draw_command.meshlet_visibility_index, mi);
         //    if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
 
         // update visiblity
         set_visible(draw_command.meshlet_visibility_index, mi, visible);
+
+        // post_draw
+        visible = needs_post_draw;
     }
     else{ visible = visible && is_visible(draw_command.meshlet_visibility_index, mi); }
 

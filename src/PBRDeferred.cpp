@@ -771,6 +771,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 if(drawable.descriptors.contains(Rasterizer::BINDING_DEPTH_PYRAMID) &&
                    drawable.pipeline_format.specialization)
                 {
+                    //layout (constant_id = 2) const bool post_pass
                     drawable.pipeline_format.specialization->set(2, VK_TRUE);
                 }
                 m_g_renderer_post.stage_drawable(drawable);
@@ -798,6 +799,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_context.indirect_draw_params_main.draws_out = params.draws_out;
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
         frame_context.indirect_draw_params_main.mesh_entries = params.mesh_entries;
+        frame_context.indirect_draw_params_main.meshlet_visibilities = params.meshlet_visibilities;
 
         vierkant::staging_copy_context_t staging_context = {};
         staging_context.staging_buffer = frame_context.staging_main;
@@ -901,7 +903,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             // re-use mesh-draws/transforms/visibilities from main-pass
             params.mesh_draws = frame_context.indirect_draw_params_main.mesh_draws;
             params.mesh_entries = frame_context.indirect_draw_params_main.mesh_entries;
-            params.meshlet_visibilies = frame_context.indirect_draw_params_main.meshlet_visibilies;
+            params.meshlet_visibilities = frame_context.indirect_draw_params_main.meshlet_visibilities;
 
             // populate gpu-culling params
             vierkant::gpu_cull_params_t gpu_cull_params = {};

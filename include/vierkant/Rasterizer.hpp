@@ -108,7 +108,7 @@ public:
         vierkant::BufferPtr materials;
 
         //! device array a visibility bitfield for all meshlets
-        vierkant::BufferPtr meshlet_visibilies;
+        vierkant::BufferPtr meshlet_visibilities;
 
         //! host-visible array of indexed_indirect_command_t
         vierkant::BufferPtr draws_in;
