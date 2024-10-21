@@ -128,10 +128,10 @@ void main()
         float level = floor(log2(max(width, height)));
 
         // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-        float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
-        float depth_sphere = cull_data.znear / (-center.z - radius);
+        float depth = cull_data.znear / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+        float depth_sphere = -center.z - radius;
 
-        visible = visible && (depth_sphere >= depth);
+        visible = depth_sphere <= depth;
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
     }
 

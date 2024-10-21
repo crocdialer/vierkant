@@ -64,7 +64,7 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
 
 bool is_visible(uint visibility_base_index, uint meshlet_index)
 {
-    return (meshlet_visibilities[visibility_base_index + (meshlet_index >> 5)]  & (1 << (meshlet_index & 31U))) != 0;
+    return (meshlet_visibilities[visibility_base_index + (meshlet_index >> 5)] & (1 << (meshlet_index & 31U))) != 0;
 }
 
 void set_visible(uint visibility_base_index, uint meshlet_index, bool visible)
@@ -109,7 +109,9 @@ void main()
         vec3 cone_axis = normalize(mat3(m) * meshlets[mi].cone_axis);
         float cone_cutoff = meshlets[mi].cone_cutoff;
         vec3 center = (m * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
-        float radius = meshlets[mi].sphere_radius * length(m[0].xyz);
+        float radius = meshlets[mi].sphere_radius * max(max(abs(draws[object_index].current_matrices.transform.scale_x),
+                                                            abs(draws[object_index].current_matrices.transform.scale_y)),
+                                                        abs(draws[object_index].current_matrices.transform.scale_z));
 
         // cone-culling
         visible = materials[draws[object_index].material_index].two_sided ||
@@ -133,19 +135,19 @@ void main()
             visible = max(screen_area.x, screen_area.y) >= size_thresh;
         }
 
-        // occlusion-culling
-        if(visible && sphere_visible)
-        {
-            float width = screen_area.x * pyramid_size.x;
-            float height = screen_area.y * pyramid_size.y;
-            float level = floor(log2(max(width, height)));
-
-            // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-            float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
-            float depth_sphere = camera.near / (-center.z - radius);
-
-            visible = depth_sphere >= depth;
-        }
+//        // occlusion-culling
+//        if(visible && sphere_visible)
+//        {
+//            float width = screen_area.x * pyramid_size.x;
+//            float height = screen_area.y * pyramid_size.y;
+//            float level = floor(log2(max(width, height)));
+//
+//            // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+//            float depth = camera.near / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+//            float depth_sphere = -center.z - radius;
+//
+//            visible = depth_sphere <= depth;
+//        }
 
         // became visible this frame -> not drawn in 1st-pass
         bool needs_post_draw = visible && !is_visible(draw_command.meshlet_visibility_index, mi);
