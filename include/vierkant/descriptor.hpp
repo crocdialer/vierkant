@@ -87,15 +87,15 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
                                                     const descriptor_map_t &descriptors);
 
 /**
- * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a provided DescriptorLayout
+ * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a provided set-layout.
  *
- * @param   device  handle for the vierkant::Device to create the DescriptorSet
- * @param   pool    handle for a shared VkDescriptorPool to allocate the DescriptorSet from
- * @param   layout  handle for a shared VkDescriptorSetLayout to use as blueprint
+ * @param   device      handle for the vierkant::Device to create the DescriptorSet
+ * @param   pool        handle for a shared VkDescriptorPool to allocate the DescriptorSet from
+ * @param   set_layout  handle for a VkDescriptorSetLayout
  * @return  the newly created DescriptorSetPtr
  */
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const DescriptorPoolPtr &pool,
-                                       const DescriptorSetLayoutPtr &layout, bool variable_count);
+                                       VkDescriptorSetLayout set_layout, bool variable_count);
 
 /**
  * @brief   Update an existing shared VkDescriptorSet with a provided array of vierkant::descriptor_t.
@@ -146,7 +146,7 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
  * @return  a retrieved or newly created, shared VkDescriptorSet.
  */
 DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device,
-                                               const DescriptorSetLayoutPtr &set_layout,
+                                               VkDescriptorSetLayout set_layout,
                                                const descriptor_map_t &descriptors,
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
                                                descriptor_set_map_t &current, bool variable_count,

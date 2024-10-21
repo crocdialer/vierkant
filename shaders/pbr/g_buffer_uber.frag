@@ -120,8 +120,9 @@ void main()
     if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
     {
         uint offset = tex_offset(TEXTURE_TYPE_NORMAL, material.texture_type_flags);
-        normal = normalize(2.0 * (texture(u_sampler_2D[material.base_texture_index + offset],
-        vertex_in.tex_coord.xy).xyz - vec3(0.5)));
+        normal.xy = 2.0 * (texture(u_sampler_2D[material.base_texture_index + offset],
+            vertex_in.tex_coord.xy).xy - vec2(0.5));
+        normal.z = sqrt(1.0 - normal.x * normal.x - normal.y * normal.y);
 
         // normal, tangent, bi-tangent
         vec3 t = normalize(vertex_in.tangent);
