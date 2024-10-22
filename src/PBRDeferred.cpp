@@ -733,7 +733,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
                 desc_depth_pyramid.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 desc_depth_pyramid.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
-                desc_depth_pyramid.images = {frame_context.depth_pyramid};
+                desc_depth_pyramid.images = {vierkant::get_depth_pyramid(frame_context.gpu_cull_context)};
             }
 
             // check if morph-targets are available

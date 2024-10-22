@@ -381,4 +381,9 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const vier
     return ret;
 }
 
+vierkant::ImagePtr get_depth_pyramid(const vierkant::gpu_cull_context_ptr &context)
+{
+    return context->depth_pyramid_img;
+}
+
 }// namespace vierkant

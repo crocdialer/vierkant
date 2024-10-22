@@ -86,9 +86,18 @@ gpu_cull_context_ptr create_gpu_cull_context(const vierkant::DevicePtr &device,
                                              const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
 
 /**
- * @brief   create_depth_pyramid can be used to create a 'hierarchical z-buffer (hzb)' or 'depth-pyramid'.
+ * @brief   retrieve internally stored 'hierarchical z-buffer (hzb)' / depth-pyramid.
  *
- * @param   context     a provided vierkant::Device.
+ * @param   context     a provided gpu_cull_context_t
+ * @param   params      a provided struct with parameters
+ * @return  a vierkant::ImagePtr containing the created depth-pyramid
+ */
+vierkant::ImagePtr get_depth_pyramid(const vierkant::gpu_cull_context_ptr &context);
+
+/**
+ * @brief   create_depth_pyramid can be used to create a 'hierarchical z-buffer (hzb)' /depth-pyramid.
+ *
+ * @param   context     a provided gpu_cull_context_t
  * @param   params      a provided struct with parameters
  * @return  a vierkant::ImagePtr containing the created depth-pyramid
  */
