@@ -177,9 +177,7 @@ void main()
 
 #else
     task_payload.meshlet_delta_indices[ti] = uint8_t(ti);
-
-    // TODO: wonky, emitting too many meshlets in last workgroup
-    uint count = gl_WorkGroupSize.x;
+    uint count = min(draw_command.num_meshlets - gl_WorkGroupID.x * gl_WorkGroupSize.x, gl_WorkGroupSize.x);
     EmitMeshTasksEXT(count, 1, 1);
 #endif
 }
