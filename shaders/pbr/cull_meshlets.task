@@ -2,7 +2,7 @@
 #extension GL_EXT_mesh_shader : require
 #extension GL_GOOGLE_include_directive : require
 #extension GL_EXT_buffer_reference2: require
-#extension GL_KHR_shader_subgroup_ballot: require
+#extension GL_EXT_null_initializer: require
 
 #include "../renderer/types.glsl"
 #include "../renderer/mesh_task_payload.glsl"
@@ -81,6 +81,10 @@ void set_visible(uint visibility_base_index, uint meshlet_index, bool visible)
 
 #define CULLING 1
 
+#if CULLING
+shared uint shared_count = {};
+#endif
+
 void main()
 {
     uint gid = gl_GlobalInvocationID.x;
@@ -101,7 +105,7 @@ void main()
 
     bool visible = valid;
     bool visible_last_frame = valid && is_visible(draw_command.meshlet_visibility_index, mi);
-    barrier();
+//    barrier();
 
     // occlusion-culling / visibility recording
     if(post_pass && valid)
@@ -166,14 +170,15 @@ void main()
     }
     else{ visible = visible && visible_last_frame; }
 
-    // determine indices/count via ballot
-    uvec4 ballot = subgroupBallot(visible);
-    uint index = subgroupBallotExclusiveBitCount(ballot);
-    uint count = subgroupBallotBitCount(ballot);
-
     // write payload delta-index
-    if (visible){ task_payload.meshlet_delta_indices[index] = uint8_t(ti); }
-    EmitMeshTasksEXT(count, 1, 1);
+    if (visible)
+    {
+        // determine indices/count via atomic
+        uint index = atomicAdd(shared_count, 1);
+        task_payload.meshlet_delta_indices[index] = uint8_t(ti);
+    }
+    barrier();
+    EmitMeshTasksEXT(shared_count, 1, 1);
 
 #else
     task_payload.meshlet_delta_indices[ti] = uint8_t(ti);
