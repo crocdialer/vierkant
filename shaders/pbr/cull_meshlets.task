@@ -64,7 +64,7 @@ bool cone_cull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff, vec
 
 bool is_visible(uint visibility_base_index, uint meshlet_index)
 {
-    return (meshlet_visibilities[visibility_base_index + (meshlet_index >> 5)] & (1 << (meshlet_index & 31U))) != 0;
+    return (meshlet_visibilities[visibility_base_index + (meshlet_index >> 5u)] & (1u << (meshlet_index & 31u))) != 0;
 }
 
 void set_visible(uint visibility_base_index, uint meshlet_index, bool visible)
@@ -85,7 +85,7 @@ void main()
 {
     uint gid = gl_GlobalInvocationID.x;
     const indexed_indirect_command_t draw_command = draw_commands[context.base_draw_index + gl_DrawID];
-    if(gid >= draw_command.num_meshlets){ return; }
+    bool valid = gid < draw_command.num_meshlets;
 
     uint object_index = draw_command.object_index;
     uint meshlet_base_index = gl_WorkGroupID.x * gl_WorkGroupSize.x + draw_command.base_meshlet;
@@ -99,12 +99,12 @@ void main()
 
 #if CULLING
 
-    bool visible = true;
-    bool visible_last_frame = is_visible(draw_command.meshlet_visibility_index, mi);
+    bool visible = valid;
+    bool visible_last_frame = valid && is_visible(draw_command.meshlet_visibility_index, mi);
     barrier();
 
     // occlusion-culling / visibility recording
-    if(post_pass)
+    if(post_pass && valid)
     {
         mesh_draw_t draw = draws[object_index];
 
@@ -164,7 +164,7 @@ void main()
         // post_draw
         visible = needs_post_draw;
     }
-    else{ visible = visible_last_frame; }
+    else{ visible = visible && visible_last_frame; }
 
     // determine indices/count via ballot
     uvec4 ballot = subgroupBallot(visible);
