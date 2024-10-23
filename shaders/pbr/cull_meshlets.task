@@ -10,7 +10,8 @@
 #include "../utils/project_sphere.glsl"
 
 //! specialization constant for main/post pass
-layout (constant_id = 2) const bool post_pass = false;
+layout (constant_id = 2) const bool use_culling = false;
+layout (constant_id = 3) const bool post_pass = false;
 
 layout(set = 0, binding = BINDING_DRAW_COMMANDS) readonly buffer DrawBuffer
 {
@@ -79,11 +80,7 @@ void set_visible(uint visibility_base_index, uint meshlet_index, bool visible)
     }
 }
 
-#define CULLING 1
-
-#if CULLING
 shared uint shared_count = {};
-#endif
 
 void main()
 {
@@ -101,88 +98,89 @@ void main()
     task_payload.object_index = object_index;
     task_payload.meshlet_base_index = meshlet_base_index;
 
-#if CULLING
-
-    bool visible = valid;
-    bool visible_last_frame = valid && is_visible(draw_command.meshlet_visibility_index, mi);
-//    barrier();
-
-    // occlusion-culling / visibility recording
-    if(post_pass && valid)
+    if(use_culling)
     {
-        mesh_draw_t draw = draws[object_index];
+        bool visible = valid;
+        bool visible_last_frame = valid && is_visible(draw_command.meshlet_visibility_index, mi);
+        //    barrier();
 
-        // transform bounding volume and normal-cone
-        mat4 m = camera.view * mat4_cast(draw.current_matrices.transform);
-        vec3 cone_axis = normalize(mat3(m) * meshlets[mi].cone_axis);
-        float cone_cutoff = meshlets[mi].cone_cutoff;
-        vec3 center = (m * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
-        float radius = meshlets[mi].sphere_radius * max(max(abs(draw.current_matrices.transform.scale_x),
-                                                            abs(draw.current_matrices.transform.scale_y)),
-                                                        abs(draw.current_matrices.transform.scale_z));
-
-        // cone-culling
-        visible = materials[draw.material_index].two_sided ||
-                  !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
-
-        // frustum-culling
-        visible = visible && !frustum_cull(center, radius, camera.frustum);
-
-        vec4 aabb;
-        bool sphere_visible = project_sphere(center, radius, camera.near, camera.projection[0][0],
-                                             camera.projection[1][1], aabb);
-        // cluster bound area in NDC
-        vec2 screen_area = aabb.zw - aabb.xy;
-        vec2 pyramid_size = textureSize(u_depth_pyramid, 0);
-
-        // contribution-culling
-        if(visible && sphere_visible)
+        // occlusion-culling / visibility recording
+        if(post_pass && valid)
         {
-            // contribution cull (based on screen-area threshold, ~1 px)
-            const float size_thresh = 1.0 / pyramid_size.x;
-            visible = max(screen_area.x, screen_area.y) >= size_thresh;
-        }
+            mesh_draw_t draw = draws[object_index];
 
-        // occlusion-culling
-        if(visible && sphere_visible)
+            // transform bounding volume and normal-cone
+            mat4 m = camera.view * mat4_cast(draw.current_matrices.transform);
+            vec3 cone_axis = normalize(mat3(m) * meshlets[mi].cone_axis);
+            float cone_cutoff = meshlets[mi].cone_cutoff;
+            vec3 center = (m * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
+            float radius = meshlets[mi].sphere_radius * max(max(abs(draw.current_matrices.transform.scale_x),
+                                                                abs(draw.current_matrices.transform.scale_y)),
+                                                            abs(draw.current_matrices.transform.scale_z));
+
+            // cone-culling
+            visible = materials[draw.material_index].two_sided ||
+            !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
+
+            // frustum-culling
+            visible = visible && !frustum_cull(center, radius, camera.frustum);
+
+            vec4 aabb;
+            bool sphere_visible = project_sphere(center, radius, camera.near, camera.projection[0][0],
+                                                 camera.projection[1][1], aabb);
+            // cluster bound area in NDC
+            vec2 screen_area = aabb.zw - aabb.xy;
+            vec2 pyramid_size = textureSize(u_depth_pyramid, 0);
+
+            // contribution-culling
+            if(visible && sphere_visible)
+            {
+                // contribution cull (based on screen-area threshold, ~1 px)
+                const float size_thresh = 1.0 / pyramid_size.x;
+                visible = max(screen_area.x, screen_area.y) >= size_thresh;
+            }
+
+            // occlusion-culling
+            if(visible && sphere_visible)
+            {
+                float width = screen_area.x * pyramid_size.x;
+                float height = screen_area.y * pyramid_size.y;
+                float level = floor(log2(max(width, height)));
+
+                // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
+                float depth = clamp(camera.near / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x,
+                                    camera.near, camera.far);
+                float depth_sphere = -center.z - radius;
+
+                visible = depth_sphere <= depth;
+            }
+
+            // became visible this frame -> not drawn in 1st-pass
+            bool needs_post_draw = visible && !visible_last_frame;
+            //    if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
+
+            // update visiblity
+            set_visible(draw_command.meshlet_visibility_index, mi, visible);
+
+            // post_draw
+            visible = needs_post_draw;
+        }
+        else{ visible = visible && visible_last_frame; }
+
+        // write payload delta-index
+        if (visible)
         {
-            float width = screen_area.x * pyramid_size.x;
-            float height = screen_area.y * pyramid_size.y;
-            float level = floor(log2(max(width, height)));
-
-            // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-            float depth = clamp(camera.near / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x,
-                                camera.near, camera.far);
-            float depth_sphere = -center.z - radius;
-
-            visible = depth_sphere <= depth;
+            // determine indices/count via atomic
+            uint index = atomicAdd(shared_count, 1);
+            task_payload.meshlet_delta_indices[index] = uint8_t(ti);
         }
-
-        // became visible this frame -> not drawn in 1st-pass
-        bool needs_post_draw = visible && !visible_last_frame;
-        //    if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
-
-        // update visiblity
-        set_visible(draw_command.meshlet_visibility_index, mi, visible);
-
-        // post_draw
-        visible = needs_post_draw;
+        barrier();
+        EmitMeshTasksEXT(shared_count, 1, 1);
     }
-    else{ visible = visible && visible_last_frame; }
-
-    // write payload delta-index
-    if (visible)
+    else
     {
-        // determine indices/count via atomic
-        uint index = atomicAdd(shared_count, 1);
-        task_payload.meshlet_delta_indices[index] = uint8_t(ti);
+        task_payload.meshlet_delta_indices[ti] = uint8_t(ti);
+        uint count = min(draw_command.num_meshlets - gl_WorkGroupID.x * gl_WorkGroupSize.x, gl_WorkGroupSize.x);
+        EmitMeshTasksEXT(count, 1, 1);
     }
-    barrier();
-    EmitMeshTasksEXT(shared_count, 1, 1);
-
-#else
-    task_payload.meshlet_delta_indices[ti] = uint8_t(ti);
-    uint count = min(draw_command.num_meshlets - gl_WorkGroupID.x * gl_WorkGroupSize.x, gl_WorkGroupSize.x);
-    EmitMeshTasksEXT(count, 1, 1);
-#endif
 }

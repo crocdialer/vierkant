@@ -728,6 +728,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 vierkant::pipeline_specialization pipeline_specialization;
                 pipeline_specialization.set(0, mesh_shader_props.maxPreferredTaskWorkGroupInvocations);
                 pipeline_specialization.set(1, mesh_shader_props.maxPreferredMeshWorkGroupInvocations);
+
+                //layout (constant_id = 2) const bool use_culling
+                pipeline_specialization.set(2, VkBool32(use_gpu_culling));
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
 
                 auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
@@ -771,8 +774,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 if(drawable.descriptors.contains(Rasterizer::BINDING_DEPTH_PYRAMID) &&
                    drawable.pipeline_format.specialization)
                 {
-                    //layout (constant_id = 2) const bool post_pass
-                    drawable.pipeline_format.specialization->set(2, VK_TRUE);
+                    //layout (constant_id = 3) const bool post_pass
+                    drawable.pipeline_format.specialization->set(3, VK_TRUE);
                 }
                 m_g_renderer_post.stage_drawable(drawable);
             }
