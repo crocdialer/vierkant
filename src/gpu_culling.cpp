@@ -312,7 +312,8 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     return *reinterpret_cast<draw_cull_result_t *>(context->draw_cull_result_buffer_host->map());
 }
 
-gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const vierkant::PipelineCachePtr &pipeline_cache)
+gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm::vec2 &size,
+                                             const vierkant::PipelineCachePtr &pipeline_cache)
 {
     auto ret = gpu_cull_context_ptr(new gpu_cull_context_t, std::default_delete<gpu_cull_context_t>());
     ret->device = device;
@@ -378,6 +379,25 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const vier
     buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     buffer_info.name = "depth_pyramid_ubo";
     ret->depth_pyramid_ubo = vierkant::Buffer::create(buffer_info);
+
+    {
+        VkExtent3D extent_pyramid_lvl0 = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
+        extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
+        extent_pyramid_lvl0.height = crocore::next_pow_2(1 + extent_pyramid_lvl0.height / 2);
+
+        vierkant::Image::Format depth_pyramid_fmt = {};
+        depth_pyramid_fmt.extent = extent_pyramid_lvl0;
+        depth_pyramid_fmt.format = VK_FORMAT_R32_SFLOAT;
+        depth_pyramid_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        depth_pyramid_fmt.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        depth_pyramid_fmt.use_mipmap = true;
+        depth_pyramid_fmt.autogenerate_mipmaps = false;
+        depth_pyramid_fmt.reduction_mode = VK_SAMPLER_REDUCTION_MODE_MIN;
+        depth_pyramid_fmt.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
+        // TODO: pass in cmd-buffer for layout-transition
+//        depth_pyramid_fmt.initial_layout_transition = false;
+        ret->depth_pyramid_img = vierkant::Image::create(device, depth_pyramid_fmt);
+    }
     return ret;
 }
 

@@ -99,7 +99,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         frame_context.query_pool =
                 vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE * 2, VK_QUERY_TYPE_TIMESTAMP);
-        frame_context.gpu_cull_context = vierkant::create_gpu_cull_context(device, m_pipeline_cache);
 
         // create staging-buffers
         vierkant::Buffer::create_info_t staging_buffer_info = {};
@@ -1319,6 +1318,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
         auto depth_fmt = frame_context.g_buffer_main.depth_attachment()->format();
         depth_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         frame_context.depth_map = vierkant::Image::create(m_device, depth_fmt);
+
+        // culling context, containing depth-pyramid / HZB
+        frame_context.gpu_cull_context =
+                vierkant::create_gpu_cull_context(m_device, {size.width, size.height}, m_pipeline_cache);
 
         // init lighting framebuffer
         vierkant::attachment_map_t lighting_attachments;

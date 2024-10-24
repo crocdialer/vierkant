@@ -79,10 +79,12 @@ struct create_depth_pyramid_params_t
  * @brief   create_gpu_cull_context is a factory to create an opaque gpu_cull_context_ptr.
  *
  * @param   device          a provided vierkant::Device.
+ * @param   size            context framebuffer-size
  * @param   pipeline_cache  an optional pipeline_cache.
  * @return  an opaque pointer, owning a gpu_cull_context.
  */
 gpu_cull_context_ptr create_gpu_cull_context(const vierkant::DevicePtr &device,
+                                             const glm::vec2 &size,
                                              const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
 
 /**
