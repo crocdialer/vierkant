@@ -9,7 +9,7 @@ namespace vierkant
 
 struct object_overlay_context_t
 {
-    vierkant::linear_hashmap<uint32_t, uint32_t> id_map;
+    vierkant::linear_hashmap_mt<uint32_t, uint32_t> id_map;
     vierkant::BufferPtr id_map_storage_buffer;
     vierkant::BufferPtr param_buffer;
     vierkant::BufferPtr staging_buffer;
