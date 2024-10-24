@@ -10,10 +10,11 @@
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 
-#include "../renderer/mesh_task_payload.glsl"
+#include "g_buffer_vertex_data.glsl"
 #include "../renderer/types.glsl"
-#include "../utils/camera.glsl"
+#include "../renderer/mesh_task_payload.glsl"
 #include "../utils/packed_vertex.glsl"
+#include "../utils/camera.glsl"
 
 // TODO: not really worth it? not sure ...
 #define CULLING 0
@@ -59,14 +60,7 @@ layout(push_constant) uniform PushConstants
 taskPayloadSharedEXT mesh_task_payload_t task_payload;
 
 layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices[];
-layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
-{
-    vec2 tex_coord;
-    vec3 normal;
-    vec3 tangent;
-    vec4 current_position;
-    vec4 last_position;
-} vertex_out[];
+layout(location = LOCATION_VERTEX_BUNDLE) out g_buffer_vertex_data_t vertex_out[];
 
 #if CULLING
 shared vec3 vertex_clip[MESHLET_MAX_VERTICES];

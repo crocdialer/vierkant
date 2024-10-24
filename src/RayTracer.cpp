@@ -102,9 +102,9 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     }
 
     // fetch descriptor set
-    auto descriptor_set = vierkant::find_or_create_descriptor_set(m_device, descriptor_set_layout, tracable.descriptors,
-                                                                  m_descriptor_pool, trace_asset.descriptor_set_cache,
-                                                                  next_descriptor_set_cache, false, true);
+    auto descriptor_set = vierkant::find_or_create_descriptor_set(
+            m_device, descriptor_set_layout.get(), tracable.descriptors, m_descriptor_pool,
+            trace_asset.descriptor_set_cache, next_descriptor_set_cache, false, true);
 
     // update descriptor-set with actual descriptors
     vierkant::update_descriptor_set(m_device, tracable.descriptors, descriptor_set);
@@ -209,12 +209,9 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
     {
         auto &address_region = binding_table.strided_address_region[g];
         address_region.deviceAddress = binding_table.buffer->device_address() + buffer_offset;
-        auto data_ptr = buf_ptr + buffer_offset;
-        buffer_offset += address_region.size;
-
-        memcpy(data_ptr, group_handle_data.data() + handle_size * handle_index, handle_size);
-        data_ptr += address_region.stride;
+        memcpy(buf_ptr + buffer_offset, group_handle_data.data() + handle_size * handle_index, handle_size);
         handle_index++;
+        buffer_offset += address_region.size;
     }
     binding_table.buffer->unmap();
     return binding_table;

@@ -99,7 +99,6 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         frame_context.query_pool =
                 vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE * 2, VK_QUERY_TYPE_TIMESTAMP);
-        frame_context.gpu_cull_context = vierkant::create_gpu_cull_context(device, m_pipeline_cache);
 
         // create staging-buffers
         vierkant::Buffer::create_info_t staging_buffer_info = {};
@@ -728,7 +727,15 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 vierkant::pipeline_specialization pipeline_specialization;
                 pipeline_specialization.set(0, mesh_shader_props.maxPreferredTaskWorkGroupInvocations);
                 pipeline_specialization.set(1, mesh_shader_props.maxPreferredMeshWorkGroupInvocations);
+
+                //layout (constant_id = 2) const bool use_culling
+                pipeline_specialization.set(2, VkBool32(use_gpu_culling));
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
+
+                auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
+                desc_depth_pyramid.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                desc_depth_pyramid.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
+                desc_depth_pyramid.images = {vierkant::get_depth_pyramid(frame_context.gpu_cull_context)};
             }
 
             // check if morph-targets are available
@@ -758,10 +765,20 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             // add descriptor for a jitter-offset
             drawable.descriptors[Rasterizer::BINDING_JITTER_OFFSET] = camera_desc;
+
+            // stage drawables
+            m_g_renderer_main.stage_drawable(drawable);
+            if(use_gpu_culling)
+            {
+                if(drawable.descriptors.contains(Rasterizer::BINDING_DEPTH_PYRAMID) &&
+                   drawable.pipeline_format.specialization)
+                {
+                    //layout (constant_id = 3) const bool post_pass
+                    drawable.pipeline_format.specialization->set(3, VK_TRUE);
+                }
+                m_g_renderer_post.stage_drawable(drawable);
+            }
         }
-        // stage drawables
-        m_g_renderer_main.stage_drawables(cull_result.drawables);
-        if(use_gpu_culling) { m_g_renderer_post.stage_drawables(cull_result.drawables); }
     }
 
     // apply current settings for both renderers
@@ -784,6 +801,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_context.indirect_draw_params_main.draws_out = params.draws_out;
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
         frame_context.indirect_draw_params_main.mesh_entries = params.mesh_entries;
+        frame_context.indirect_draw_params_main.meshlet_visibilities = params.meshlet_visibilities;
 
         vierkant::staging_copy_context_t staging_context = {};
         staging_context.staging_buffer = frame_context.staging_main;
@@ -818,10 +836,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         }
         else if(params.num_draws && !frame_context.dirty_drawable_indices.empty())
         {
-            VkBuffer buffers[] = {params.mesh_draws->handle(),
-                                  frame_context.indirect_draw_params_post.mesh_draws->handle()};
-            vierkant::barrier(frame_context.cmd_clear.handle(), buffers, 2, src_stage, src_access, src_stage,
-                              src_access);
+            params.mesh_draws->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage, src_access);
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
@@ -845,13 +860,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 copy_transform.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
                 copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
                 copy_transforms.push_back(copy_transform);
-
-                if(frame_context.indirect_draw_params_post.mesh_draws)
-                {
-                    // extra copy into post-meshdraws, not most elegant way
-                    copy_transform.dst_buffer = frame_context.indirect_draw_params_post.mesh_draws;
-                    copy_transforms.push_back(copy_transform);
-                }
                 i++;
             }
             vierkant::staging_copy(staging_context, copy_transforms);
@@ -870,6 +878,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     g_buffer_semaphore_submit_info_pre.signal_value =
             frame_context.current_semaphore_value +
             (use_gpu_culling ? SemaphoreValue::G_BUFFER_LAST_VISIBLE : SemaphoreValue::G_BUFFER_ALL);
+    g_buffer_semaphore_submit_info_pre.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     frame_context.g_buffer_main.submit({cmd_buffer_pre}, m_queue, {g_buffer_semaphore_submit_info_pre});
 
     if(use_gpu_culling)
@@ -893,7 +902,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         m_g_renderer_post.draw_indirect_delegate = [this, &frame_context](Rasterizer::indirect_draw_bundle_t &params) {
             resize_indirect_draw_buffers(params.num_draws, frame_context.indirect_draw_params_post);
             params.draws_counts_out = frame_context.indirect_draw_params_post.draws_counts_out;
-            frame_context.indirect_draw_params_post.mesh_draws = params.mesh_draws;
+
+            // re-use mesh-draws/transforms/visibilities from main-pass
+            params.mesh_draws = frame_context.indirect_draw_params_main.mesh_draws;
+            params.mesh_entries = frame_context.indirect_draw_params_main.mesh_entries;
+            params.meshlet_visibilities = frame_context.indirect_draw_params_main.meshlet_visibilities;
 
             // populate gpu-culling params
             vierkant::gpu_cull_params_t gpu_cull_params = {};
@@ -906,6 +919,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.frustum_cull = frame_context.settings.frustum_culling;
             gpu_cull_params.occlusion_cull = frame_context.settings.occlusion_culling;
             gpu_cull_params.lod_enabled = frame_context.settings.enable_lod;
+            gpu_cull_params.skip_meshlets = frame_context.settings.use_meshlet_pipeline;
             gpu_cull_params.depth_pyramid = frame_context.depth_pyramid;
             gpu_cull_params.draws_in = frame_context.indirect_draw_params_main.draws_in;
             gpu_cull_params.mesh_draws_in = frame_context.indirect_draw_params_main.mesh_draws;
@@ -914,7 +928,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.draws_out_pre = frame_context.indirect_draw_params_main.draws_out;
             gpu_cull_params.draws_counts_out_pre = frame_context.indirect_draw_params_main.draws_counts_out;
             gpu_cull_params.draws_out_post = params.draws_out;
-            gpu_cull_params.draws_counts_out_post = frame_context.indirect_draw_params_post.draws_counts_out;
+            gpu_cull_params.draws_counts_out_post = params.draws_counts_out;
 
             gpu_cull_params.semaphore_submit_info.semaphore = frame_context.timeline.handle();
             gpu_cull_params.semaphore_submit_info.wait_value =
@@ -1304,6 +1318,10 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
         auto depth_fmt = frame_context.g_buffer_main.depth_attachment()->format();
         depth_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
         frame_context.depth_map = vierkant::Image::create(m_device, depth_fmt);
+
+        // culling context, containing depth-pyramid / HZB
+        frame_context.gpu_cull_context =
+                vierkant::create_gpu_cull_context(m_device, {size.width, size.height}, m_pipeline_cache);
 
         // init lighting framebuffer
         vierkant::attachment_map_t lighting_attachments;

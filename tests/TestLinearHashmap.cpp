@@ -1,20 +1,21 @@
 #include <gtest/gtest.h>
 #include <vierkant/linear_hashmap.hpp>
 
-
-TEST(linear_hashmap, empty)
+template<template<typename, typename> class hashmap_t>
+void test_empty()
 {
-    vierkant::linear_hashmap<uint64_t, uint32_t> hashmap;
+    hashmap_t<uint64_t, uint32_t> hashmap;
     EXPECT_TRUE(hashmap.empty());
     hashmap.clear();
     EXPECT_EQ(hashmap.capacity(), 0);
     EXPECT_EQ(hashmap.get_storage(nullptr), 0);
-}
+};
 
-TEST(linear_hashmap, basic)
+template<template<typename, typename> class hashmap_t>
+void test_basic()
 {
     constexpr uint32_t test_capacity = 100;
-    vierkant::linear_hashmap<uint64_t, uint64_t> hashmap(test_capacity);
+    hashmap_t<uint64_t, uint64_t> hashmap(test_capacity);
     EXPECT_TRUE(hashmap.empty());
     EXPECT_GT(hashmap.get_storage(nullptr), 0);
 
@@ -44,7 +45,8 @@ TEST(linear_hashmap, basic)
     hashmap.get_storage(storage.get());
 }
 
-TEST(linear_hashmap, custom_key)
+template<template<typename, typename> class hashmap_t>
+void test_custom_key()
 {
     // custom 32-byte key
     struct custom_key_t
@@ -60,7 +62,7 @@ TEST(linear_hashmap, custom_key)
         }
     };
     constexpr uint32_t test_capacity = 100;
-    auto hashmap = vierkant::linear_hashmap<custom_key_t, uint64_t>(test_capacity);
+    auto hashmap = hashmap_t<custom_key_t, uint64_t>(test_capacity);
 
     custom_key_t k1{{1, 2, 3, 4, 5, 6, 7, 8}};
     hashmap.put(k1, 69);
@@ -68,25 +70,10 @@ TEST(linear_hashmap, custom_key)
     EXPECT_FALSE(hashmap.contains(custom_key_t()));
 }
 
-TEST(linear_hashmap, reserve)
+template<template<typename, typename> class hashmap_t>
+void test_probe_length()
 {
-    vierkant::linear_hashmap<uint64_t, uint64_t> hashmap;
-
-    // fix by resizing
-    hashmap.reserve(17);
-    EXPECT_TRUE(hashmap.empty());
-    hashmap.put(13, 12);
-    EXPECT_TRUE(hashmap.contains(13));
-
-    // empty / no capacity specified -> triggers internal resize
-    hashmap = {};
-    hashmap.put(13, 12);
-    EXPECT_TRUE(hashmap.contains(13));
-}
-
-TEST(linear_hashmap, probe_length)
-{
-    vierkant::linear_hashmap<uint32_t, uint32_t> hashmap;
+    hashmap_t<uint32_t, uint32_t> hashmap;
 
     // default load_factor is 0.5
     EXPECT_EQ(hashmap.max_load_factor(), 0.5f);
@@ -107,4 +94,51 @@ TEST(linear_hashmap, probe_length)
     EXPECT_LE(avg_probe_length, expected_max_avg_probe_length);
 
     EXPECT_LE(hashmap.load_factor(), 0.25f);
+}
+
+TEST(linear_hashmap, empty)
+{
+    test_empty<vierkant::linear_hashmap>();
+    test_empty<vierkant::linear_hashmap_mt>();
+}
+
+TEST(linear_hashmap, basic)
+{
+    test_basic<vierkant::linear_hashmap>();
+    test_basic<vierkant::linear_hashmap_mt>();
+}
+
+TEST(linear_hashmap, custom_key)
+{
+    test_custom_key<vierkant::linear_hashmap>();
+    test_custom_key<vierkant::linear_hashmap_mt>();
+}
+
+template<template<typename, typename> class hashmap_t>
+void test_reserve()
+{
+    hashmap_t<uint64_t, uint64_t> hashmap;
+
+    // fix by resizing
+    hashmap.reserve(17);
+    EXPECT_TRUE(hashmap.empty());
+    hashmap.put(13, 12);
+    EXPECT_TRUE(hashmap.contains(13));
+
+    // empty / no capacity specified -> triggers internal resize
+    hashmap = {};
+    hashmap.put(13, 12);
+    EXPECT_TRUE(hashmap.contains(13));
+}
+
+TEST(linear_hashmap, reserve)
+{
+    test_reserve<vierkant::linear_hashmap>();
+    test_reserve<vierkant::linear_hashmap_mt>();
+}
+
+TEST(linear_hashmap, probe_length)
+{
+    test_probe_length<vierkant::linear_hashmap>();
+    test_probe_length<vierkant::linear_hashmap_mt>();
 }

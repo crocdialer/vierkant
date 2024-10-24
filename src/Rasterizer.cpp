@@ -7,6 +7,8 @@
 namespace vierkant
 {
 
+inline uint32_t div_up(uint32_t nom, uint32_t denom) { return (nom + denom - 1) / denom; }
+
 using std::chrono::duration_cast;
 using std::chrono::steady_clock;
 using duration_t = std::chrono::duration<float>;
@@ -237,8 +239,11 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         uint32_t num_draws = 0;
         uint32_t first_draw_index = 0;
         uint32_t first_indexed_draw_index = 0;
-        std::vector<VkDescriptorSet> descriptor_set_handles;
         VkRect2D scissor = {};
+        std::vector<VkDescriptorSet> descriptor_set_handles;
+        VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
+
+        const drawable_t *drawable = nullptr;
     };
     using draw_batch_t = std::vector<std::pair<const Mesh *, indirect_draw_asset_t>>;
     std::unordered_map<graphics_pipeline_info_t, draw_batch_t> pipelines;
@@ -304,10 +309,14 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     struct indexed_drawable_t
     {
         uint32_t object_index = 0;
+        uint32_t meshlet_visibility_index = 0;
         vierkant::DescriptorSetLayoutPtr descriptor_set_layout = nullptr;
         drawable_t *drawable = nullptr;
     };
     std::unordered_map<graphics_pipeline_info_t, std::vector<indexed_drawable_t>> pipeline_drawables;
+
+    // meshlet-visibility index
+    uint32_t meshlet_visibility_index = 0;
 
     // preprocess drawables
     for(uint32_t i = 0; i < frame_assets.drawables.size(); i++)
@@ -348,6 +357,13 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 auto &desc_texture = drawable.descriptors[vierkant::Rasterizer::BINDING_TEXTURES];
                 desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+                if(vkCmdDrawMeshTasksEXT && use_mesh_shader && drawable.mesh && drawable.mesh->meshlets)
+                {
+                    auto &desc_meshlet_vis = drawable.descriptors[Rasterizer::BINDING_MESHLET_VISIBILITY];
+                    desc_meshlet_vis.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                    desc_meshlet_vis.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
+                }
             }
             // only provide a global texture-array for indirect draws
             if(indirect_draw) { drawable.descriptors.erase(BINDING_TEXTURES); }
@@ -361,18 +377,17 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
+        if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size())
+        {
+            indexed_drawable.meshlet_visibility_index = meshlet_visibility_index;
+            for(const auto &lod: drawable.mesh->entries[drawable.entry_index].lods)
+            {
+                meshlet_visibility_index += div_up(lod.num_meshlets, 32);
+            }
+        }
+
         // push intermediate struct
         pipeline_drawables[pipeline_format].push_back(indexed_drawable);
-    }
-
-    vierkant::BufferPtr draw_buffer = frame_assets.indirect_bundle.draws_in;
-    vierkant::BufferPtr draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_in;
-
-    // hook up GPU frustum/occlusion/distance culling here
-    if(indirect_draw && draw_indirect_delegate)
-    {
-        draw_buffer = frame_assets.indirect_bundle.draws_out;
-        draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_out;
     }
 
     // batch/pipeline index
@@ -396,25 +411,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 new_draw.first_draw_index = frame_assets.indirect_bundle.num_draws;
                 new_draw.first_indexed_draw_index = frame_assets.indirect_indexed_bundle.num_draws;
                 new_draw.scissor = drawable->pipeline_format.scissor;
-
-                // predefined buffers
-                if(!drawable->use_own_buffers)
-                {
-                    drawable->descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
-                    drawable->descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.mesh_draw_buffer};
-                    drawable->descriptors[BINDING_MATERIAL].buffers = {frame_assets.material_buffer};
-                    drawable->descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
-                }
-
-                auto descriptor_set = vierkant::find_or_create_descriptor_set(
-                        m_device, indexed_drawable.descriptor_set_layout, drawable->descriptors, m_descriptor_pool,
-                        frame_assets.descriptor_sets, next_descriptor_sets, false);
-                auto bindless_texture_set = vierkant::find_or_create_descriptor_set(
-                        m_device, bindless_texture_layout, bindless_texture_desc, m_descriptor_pool,
-                        frame_assets.descriptor_sets, next_descriptor_sets, false);
-
-                new_draw.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
-
+                new_draw.drawable = drawable;
+                new_draw.descriptor_set_layout = indexed_drawable.descriptor_set_layout.get();
                 indirect_draws.emplace_back(drawable->mesh.get(), std::move(new_draw));
             }
             auto &indirect_draw_asset = indirect_draws.back().second;
@@ -443,9 +441,9 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 draw_command->num_meshlets = drawable->num_meshlets;
 
                 //! VkDrawMeshTasksIndirectCommandEXT
-                draw_command->vk_mesh_draw.groupCountX =
-                        (m_mesh_task_count + drawable->num_meshlets - 1) / m_mesh_task_count;
+                draw_command->vk_mesh_draw.groupCountX = div_up(drawable->num_meshlets, m_mesh_task_count);
                 draw_command->vk_mesh_draw.groupCountY = draw_command->vk_mesh_draw.groupCountZ = 1;
+                draw_command->meshlet_visibility_index = indexed_drawable.meshlet_visibility_index;
             }
             else
             {
@@ -460,11 +458,54 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         }
     }
 
+    vierkant::BufferPtr draw_buffer = frame_assets.indirect_bundle.draws_in;
+    vierkant::BufferPtr draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_in;
+
     // hook up GPU frustum/occlusion/distance culling here
     if(indirect_draw && draw_indirect_delegate)
     {
         // invoke delegate
         draw_indirect_delegate(frame_assets.indirect_indexed_bundle);
+
+        // set buffers
+        draw_buffer = frame_assets.indirect_bundle.draws_out;
+        draw_buffer_indexed = frame_assets.indirect_indexed_bundle.draws_out;
+    }
+
+    // set buffer-descriptors after delegate
+    for(const auto &[pipe_fmt, indexed_drawables]: pipeline_drawables)
+    {
+        if(indexed_drawables.empty()) { continue; }
+        auto &indirect_draws = pipelines[pipe_fmt];
+
+        for(auto &[mesh, draw_asset]: indirect_draws)
+        {
+            auto descriptors = draw_asset.drawable->descriptors;
+
+            // predefined buffers
+            if(!draw_asset.drawable->use_own_buffers)
+            {
+                descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
+                descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.indirect_indexed_bundle.mesh_draws};
+                descriptors[BINDING_MATERIAL].buffers = {frame_assets.indirect_indexed_bundle.materials};
+                descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
+
+                if(descriptors.contains(BINDING_MESHLET_VISIBILITY))
+                {
+                    descriptors[BINDING_MESHLET_VISIBILITY].buffers = {
+                            frame_assets.indirect_indexed_bundle.meshlet_visibilities};
+                }
+            }
+
+            auto descriptor_set = vierkant::find_or_create_descriptor_set(
+                    m_device, draw_asset.descriptor_set_layout, descriptors, m_descriptor_pool,
+                    frame_assets.descriptor_sets, next_descriptor_sets, false);
+            auto bindless_texture_set = vierkant::find_or_create_descriptor_set(
+                    m_device, bindless_texture_layout.get(), bindless_texture_desc, m_descriptor_pool,
+                    frame_assets.descriptor_sets, next_descriptor_sets, false);
+
+            draw_asset.descriptor_set_handles = {descriptor_set.get(), bindless_texture_set.get()};
+        }
     }
 
     // push constants
@@ -660,6 +701,9 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     std::vector<mesh_draw_t> mesh_draws(drawables.size());
     std::vector<material_struct_t> material_data;
 
+    // joined meshlet-visibilities (1 bit per meshlet)
+    std::vector<uint32_t> meshlet_visibility_data;
+
     for(uint32_t i = 0; i < drawables.size(); i++)
     {
         const auto &drawable = drawables[i];
@@ -694,6 +738,13 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 material_index_map[mat] = material_data.size();
                 material_data.push_back(drawable.material);
             }
+
+            // set visibility-bits low/hi for all lods
+            size_t num_array_elems = 0;
+            uint32_t vis = indirect_draw ? 0 : 0xFFFFFFFF;
+            const auto &entry = drawable.mesh->entries[drawable.entry_index];
+            for(const auto &lod: entry.lods) { num_array_elems += div_up(lod.num_meshlets, 32); }
+            meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, vis);
         }
         else { material_data.push_back(drawable.material); }
 
@@ -775,7 +826,9 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_draws");
         add_staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: material_data");
-
+        add_staging_copy(meshlet_visibility_data, frame_asset.meshlet_visibility_buffer,
+                         VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT, VK_ACCESS_2_SHADER_READ_BIT,
+                         "Rasterizer: meshlet_visibility_data");
         vierkant::staging_copy_context_t staging_context = {};
         staging_context.command_buffer = frame_asset.staging_command_buffer.handle();
         staging_context.staging_buffer = frame_asset.staging_buffer;
@@ -790,11 +843,13 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         copy_to_buffer(mesh_entries, frame_asset.mesh_entry_buffer);
         copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
         copy_to_buffer(material_data, frame_asset.material_buffer);
+        copy_to_buffer(meshlet_visibility_data, frame_asset.meshlet_visibility_buffer);
     }
 
     frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
-    frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
     frame_asset.indirect_indexed_bundle.mesh_entries = frame_asset.mesh_entry_buffer;
+    frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
+    frame_asset.indirect_indexed_bundle.meshlet_visibilities = frame_asset.meshlet_visibility_buffer;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
