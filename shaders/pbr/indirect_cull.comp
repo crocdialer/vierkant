@@ -29,36 +29,36 @@ struct draw_cull_data_t
 {
     mat4 view;
 
-    //! symmetric projection parameters
+//! symmetric projection parameters
     float P00, P11, znear, zfar;
 
-    //! left/right/top/bottom frustum planes
+//! left/right/top/bottom frustum planes
     vec4 frustum;
 
     uint num_draws;
 
-    //! base screenspace-area for LoD-0
+//! base screenspace-area for LoD-0
     float lod_base;
 
-    //! step/factor for LoD-selection
+//! step/factor for LoD-selection
     float lod_step;
 
-    //! limit the number of LoDs to use
+//! limit the number of LoDs to use
     uint max_num_lods;
 
-    //! depth pyramid size in texels
+//! depth pyramid size in texels
     vec2 pyramid_size;
 
     bool frustum_cull;
     bool occlusion_cull;
     bool contribution_cull;
 
-    // do not cull objects cntaining meshlets
+// do not cull objects cntaining meshlets
     bool skip_meshlets;
 
     bool lod_enabled;
 
-    // buffer references
+// buffer references
     DrawBufferPtr draws_in;
     MeshDrawBufferPtr mesh_draws_in;
     MeshEntryBufferPtr mesh_entries_in;
@@ -90,8 +90,8 @@ void main()
 
     vec3 center = (cull_data.view * vec4(apply_transform(mesh_draw.current_matrices.transform, mesh_entry.center), 1.0)).xyz;
     float radius = mesh_entry.radius * max(max(abs(mesh_draw.current_matrices.transform.scale_x),
-                                               abs(mesh_draw.current_matrices.transform.scale_y)),
-                                           abs(mesh_draw.current_matrices.transform.scale_z));
+    abs(mesh_draw.current_matrices.transform.scale_y)),
+    abs(mesh_draw.current_matrices.transform.scale_z));
 
     bool visible = true;
 
@@ -129,7 +129,7 @@ void main()
 
         // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
         float depth = clamp(cull_data.znear / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x,
-                            cull_data.znear, cull_data.zfar);
+        cull_data.znear, cull_data.zfar);
         float depth_sphere = -center.z - radius;
 
         visible = depth_sphere <= depth;
@@ -143,7 +143,7 @@ void main()
         float lod_index_f = log2(cull_data.lod_base / aabb_area) / log2(cull_data.lod_step);
 
         uint max_lod_index = (cull_data.max_num_lods > 0 ? min(cull_data.max_num_lods, mesh_entry.lod_count)
-                                                         : mesh_entry.lod_count) - 1;
+        : mesh_entry.lod_count) - 1;
         uint lod_index = sphere_visible ? clamp(uint(lod_index_f + 1), 0, max_lod_index) : 0;
 
         // select lod
@@ -170,9 +170,11 @@ void main()
         atomicAdd(cull_data.draw_result.v.num_triangles, draw.indexCount / 3);
         atomicAdd(cull_data.draw_result.v.num_meshlets, draw.num_meshlets);
 
+        uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
+        cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
+
         // became visible this frame -> not drawn in 1st-pass
         bool needs_post_draw = !cull_data.draws_in.v[gid].visible;
-
         needs_post_draw = needs_post_draw || (cull_data.skip_meshlets && draw.num_meshlets > 0);
 
         if(needs_post_draw)
@@ -181,9 +183,6 @@ void main()
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }
-
-        uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
-        cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
     }
 
     // update visiblity
