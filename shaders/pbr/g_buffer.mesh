@@ -70,6 +70,7 @@ void main()
 {
     uint ti = gl_LocalInvocationID.x;
     uint mi = task_payload.meshlet_base_index + uint(task_payload.meshlet_delta_indices[gl_WorkGroupID.x]);
+    uint wg_size = gl_WorkGroupSize.x;
     SetMeshOutputsEXT(meshlets[mi].vertex_count, meshlets[mi].triangle_count);
 
     matrix_struct_t m = draws[task_payload.object_index].current_matrices;
@@ -77,7 +78,7 @@ void main()
 
     //    //! would work when MESH_WORKGROUP_SIZE >= max_vertices -> iff >=1 thread per vertex
     //    if(ti < meshlets[mi].vertex_count)
-    for(uint i = ti; i < meshlets[mi].vertex_count; i += MESH_WORKGROUP_SIZE)
+    for(uint i = ti; i < meshlets[mi].vertex_count; i += wg_size)
     {
         uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
 
@@ -109,7 +110,7 @@ void main()
     barrier();
 #endif
 
-    for(uint i = ti; i < meshlets[mi].triangle_count; i += MESH_WORKGROUP_SIZE)
+    for(uint i = ti; i < meshlets[mi].triangle_count; i += wg_size)
 //    if(ti < meshlets[mi].triangle_count)
     {
         uint base_index = meshlets[mi].triangle_offset + 3 * i;

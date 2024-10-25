@@ -37,28 +37,30 @@ struct draw_cull_data_t
 
     uint num_draws;
 
-//! base screenspace-area for LoD-0
+    //! base screenspace-area for LoD-0
     float lod_base;
 
-//! step/factor for LoD-selection
+    //! step/factor for LoD-selection
     float lod_step;
 
-//! limit the number of LoDs to use
+    //! limit the number of LoDs to use
     uint max_num_lods;
 
-//! depth pyramid size in texels
+    //! depth pyramid size in texels
     vec2 pyramid_size;
 
     bool frustum_cull;
     bool occlusion_cull;
     bool contribution_cull;
 
-// do not cull objects cntaining meshlets
+    // do not cull objects cntaining meshlets
     bool skip_meshlets;
 
     bool lod_enabled;
 
-// buffer references
+    uint task_workgroup_size;
+
+    // buffer references
     DrawBufferPtr draws_in;
     MeshDrawBufferPtr mesh_draws_in;
     MeshEntryBufferPtr mesh_entries_in;
@@ -152,7 +154,7 @@ void main()
         draw.vertexOffset = int(mesh_entry.vertex_offset);
         draw.indexCount = lod.num_indices;
         draw.firstIndex = lod.base_index;
-        draw.groupCountX = div_up(lod.num_meshlets, TASK_WORKGROUP_SIZE);
+        draw.groupCountX = div_up(lod.num_meshlets, cull_data.task_workgroup_size);
         draw.groupCountY = draw.groupCountZ = 1;
         draw.base_meshlet = lod.base_meshlet;
         draw.num_meshlets = lod.num_meshlets;

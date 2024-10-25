@@ -52,6 +52,7 @@ struct alignas(16) draw_cull_data_t
     VkBool32 contribution_cull = false;
     VkBool32 skip_meshlets = false;
     VkBool32 lod_enabled = false;
+    uint32_t task_workgroup_size = 0;
 
     // buffer references
     uint64_t draw_commands_in = 0;
@@ -223,6 +224,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.frustum_cull = params.frustum_cull;
     draw_cull_data.lod_enabled = params.lod_enabled;
     draw_cull_data.skip_meshlets = params.skip_meshlets;
+    draw_cull_data.task_workgroup_size = context->device->properties().mesh_shader.maxPreferredTaskWorkGroupInvocations;
 
     // buffer references
     draw_cull_data.draw_commands_in = params.draws_in->device_address();
@@ -395,7 +397,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
         depth_pyramid_fmt.reduction_mode = VK_SAMPLER_REDUCTION_MODE_MIN;
         depth_pyramid_fmt.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
         // TODO: pass in cmd-buffer for layout-transition
-//        depth_pyramid_fmt.initial_layout_transition = false;
+        //        depth_pyramid_fmt.initial_layout_transition = false;
         ret->depth_pyramid_img = vierkant::Image::create(device, depth_pyramid_fmt);
     }
     return ret;

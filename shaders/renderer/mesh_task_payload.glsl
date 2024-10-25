@@ -7,15 +7,14 @@
 #define MESHLET_MAX_VERTICES 64
 #define MESHLET_MAX_TRIANGLES 84
 
-// TODO: mesh/task workgroup sizes are still vendor-specific (NV -> 32/32, AMD -> 64/128)
-// TODO: those sizes directly influence some array-sizes in meshlet-codepath: needs shader-permuations
-#define TASK_WORKGROUP_SIZE 32
-#define MESH_WORKGROUP_SIZE 32
+// NOTE: mesh/task workgroup sizes are vendor-specific (NV -> 32/32, AMD -> 64/128)
+// we reserve a maximum value for task-payloads to avoid shader-permutations per vendor
+#define MAX_MESH_WORKGROUP_SIZE 128
 
 struct mesh_task_payload_t
 {
     uint meshlet_base_index;
-    uint8_t meshlet_delta_indices[MESH_WORKGROUP_SIZE];
+    uint8_t meshlet_delta_indices[MAX_MESH_WORKGROUP_SIZE];
     uint object_index;
 };
 
