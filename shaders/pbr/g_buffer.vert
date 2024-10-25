@@ -30,10 +30,7 @@ layout(push_constant) uniform PushConstants
 };
 
 layout(location = LOCATION_INDEX_BUNDLE) flat out index_bundle_t indices;
-layout(location = LOCATION_VERTEX_BUNDLE) out VertexData
-{
-    g_buffer_vertex_data_t vertex_out;
-};
+layout(location = LOCATION_VERTEX_BUNDLE) out g_buffer_vertex_data_t vertex_out;
 
 void main()
 {

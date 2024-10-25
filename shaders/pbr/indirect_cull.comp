@@ -7,6 +7,7 @@
 #include "../renderer/types.glsl"
 #include "../renderer/mesh_task_payload.glsl"
 #include "../utils/camera.glsl"
+#include "../utils/project_sphere.glsl"
 
 struct draw_cull_result_t
 {
@@ -51,7 +52,10 @@ struct draw_cull_data_t
     bool frustum_cull;
     bool occlusion_cull;
     bool contribution_cull;
-    bool backface_cull;
+
+    // do not cull objects cntaining meshlets
+    bool skip_meshlets;
+
     bool lod_enabled;
 
     // buffer references
@@ -65,26 +69,7 @@ struct draw_cull_data_t
     DrawResultPtr draw_result;
 };
 
-// 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
-bool project_sphere(vec3 C, float r, float znear, float P00, float P11, out vec4 aabb)
-{
-    if (-C.z < r + znear){ return false; }
-
-    vec2 cx = vec2(-C.x, C.z);
-    vec2 vx = vec2(sqrt(dot(cx, cx) - r * r), r);
-    vec2 minx = mat2(vx.x, vx.y, -vx.y, vx.x) * cx;
-    vec2 maxx = mat2(vx.x, -vx.y, vx.y, vx.x) * cx;
-
-    vec2 cy = C.yz;
-    vec2 vy = vec2(sqrt(dot(cy, cy) - r * r), r);
-    vec2 miny = mat2(vy.x, vy.y, -vy.y, vy.x) * cy;
-    vec2 maxy = mat2(vy.x, -vy.y, vy.y, vy.x) * cy;
-
-    aabb = vec4(minx.x / minx.y * P00, miny.x / miny.y * P11, maxx.x / maxx.y * P00, maxy.x / maxy.y * P11);
-    aabb = aabb * vec4(0.5f, -0.5f, 0.5f, -0.5f) + vec4(0.5f); // clip space -> uv space
-
-    return true;
-}
+uint div_up(uint nom, uint denom) { return (nom + denom - 1) / denom; }
 
 layout(binding = 0) uniform sampler2D u_depth_pyramid;
 
@@ -115,7 +100,7 @@ void main()
     bool sphere_visible = project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
 
     // object bound's area in NDC
-    vec2 screen_area = aabb.zw - aabb.xy;//vec2(aabb.z - aabb.x, aabb.w - aabb.y);
+    vec2 screen_area = aabb.zw - aabb.xy;
 
     if(cull_data.frustum_cull)
     {
@@ -143,10 +128,11 @@ void main()
         float level = floor(log2(max(width, height)));
 
         // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-        float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
-        float depth_sphere = cull_data.znear / (-center.z - radius);
+        float depth = clamp(cull_data.znear / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x,
+                            cull_data.znear, cull_data.zfar);
+        float depth_sphere = -center.z - radius;
 
-        visible = visible && (depth_sphere >= depth);
+        visible = depth_sphere <= depth;
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
     }
 
@@ -166,10 +152,15 @@ void main()
         draw.vertexOffset = int(mesh_entry.vertex_offset);
         draw.indexCount = lod.num_indices;
         draw.firstIndex = lod.base_index;
-        draw.groupCountX = (lod.num_meshlets + TASK_WORKGROUP_SIZE - 1) / TASK_WORKGROUP_SIZE;
+        draw.groupCountX = div_up(lod.num_meshlets, TASK_WORKGROUP_SIZE);
         draw.groupCountY = draw.groupCountZ = 1;
         draw.base_meshlet = lod.base_meshlet;
         draw.num_meshlets = lod.num_meshlets;
+
+        for(uint i = 0; i < lod_index; ++i)
+        {
+            draw.meshlet_visibility_index += div_up(mesh_entry.lods[i].num_meshlets, 32);
+        }
     }
 
     // count managment
@@ -180,8 +171,13 @@ void main()
         atomicAdd(cull_data.draw_result.v.num_meshlets, draw.num_meshlets);
 
         // became visible this frame -> not drawn in 1st-pass
-        if(!cull_data.draws_in.v[gid].visible)
+        bool needs_post_draw = !cull_data.draws_in.v[gid].visible;
+
+        needs_post_draw = needs_post_draw || (cull_data.skip_meshlets && draw.num_meshlets > 0);
+
+        if(needs_post_draw)
         {
+            draw.late_visible = true;
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }
@@ -190,6 +186,6 @@ void main()
         cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
     }
 
-    // record visiblity
+    // update visiblity
     cull_data.draws_in.v[gid].visible = visible;
 }

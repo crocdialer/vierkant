@@ -80,10 +80,9 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const DescriptorPoolPtr &pool,
-                                       const DescriptorSetLayoutPtr &layout, bool variable_count)
+                                       VkDescriptorSetLayout set_layout, bool variable_count)
 {
     VkDescriptorSet descriptor_set;
-    VkDescriptorSetLayout layout_handle = layout.get();
 
     // max allocatable count
     uint32_t max_binding = g_max_bindless_resources - 1;
@@ -98,7 +97,7 @@ DescriptorSetPtr create_descriptor_set(const vierkant::DevicePtr &device, const 
     alloc_info.pNext = variable_count ? &descriptor_count_allocate_info : nullptr;
     alloc_info.descriptorPool = pool.get();
     alloc_info.descriptorSetCount = 1;
-    alloc_info.pSetLayouts = &layout_handle;
+    alloc_info.pSetLayouts = &set_layout;
 
     spdlog::trace("create_descriptor_set - variable_count: {}", variable_count);
 
@@ -447,7 +446,7 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device,
-                                               const DescriptorSetLayoutPtr &set_layout,
+                                               VkDescriptorSetLayout set_layout,
                                                const descriptor_map_t &descriptors,
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
                                                descriptor_set_map_t &current, bool variable_count, bool relax_reuse)

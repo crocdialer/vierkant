@@ -24,13 +24,12 @@ using double_millisecond_t = std::chrono::duration<double, std::milli>;
 /**
  * @brief   Rasterizer can be used to run arbitrary rasterization/graphics pipelines.
  *
- *          It will not render anything on its own, only record secondary command-buffers,
- *          meant to be executed within an existing renderpass.
+ *  It will not submit anything on its own, only record drawing commands into command-buffers.
  *
- *          Required resources like descriptor-sets and uniform-buffers will be created
- *          and kept alive, depending on the requested number of in-flight (pending) frames.
+ *  Required resources like descriptor-sets and uniform-buffers will be created
+ *  and kept alive, depending on the requested number of in-flight (pending) frames.
  *
- *          Renderer is NOT thread-safe, with the exception of stage_drawables(...).
+ *  Renderer is NOT thread-safe, with the exception of stage_drawables(...).
  */
 class Rasterizer
 {
@@ -53,6 +52,8 @@ public:
         BINDING_MESHLETS = 13,
         BINDING_MESHLET_VERTICES = 14,
         BINDING_MESHLET_TRIANGLES = 15,
+        BINDING_MESHLET_VISIBILITY = 16,
+        BINDING_DEPTH_PYRAMID = 17,
         BINDING_MAX_RANGE
     };
 
@@ -76,16 +77,18 @@ public:
         vierkant::Mesh::lod_t lods[8];
     };
 
-    struct indexed_indirect_command_t
+    struct alignas(16) indexed_indirect_command_t
     {
         VkDrawIndexedIndirectCommand vk_draw = {};// size: 5
 
         VkDrawMeshTasksIndirectCommandEXT vk_mesh_draw = {};// size: 3
 
         uint32_t visible = false;
+        uint32_t late_visible = false;
         uint32_t object_index = 0;
         uint32_t base_meshlet = 0;
         uint32_t num_meshlets = 0;
+        uint32_t meshlet_visibility_index = 0;
         uint32_t count_buffer_offset = 0;
         uint32_t first_draw_index = 0;
     };
@@ -103,6 +106,9 @@ public:
 
         //! device array containing any array of material_t
         vierkant::BufferPtr materials;
+
+        //! device array a visibility bitfield for all meshlets
+        vierkant::BufferPtr meshlet_visibilities;
 
         //! host-visible array of indexed_indirect_command_t
         vierkant::BufferPtr draws_in;
@@ -271,6 +277,7 @@ private:
         vierkant::BufferPtr mesh_draw_buffer;
         vierkant::BufferPtr mesh_entry_buffer;
         vierkant::BufferPtr material_buffer;
+        vierkant::BufferPtr meshlet_visibility_buffer;
 
         // host visible keep-alive staging-buffer
         vierkant::BufferPtr staging_buffer;

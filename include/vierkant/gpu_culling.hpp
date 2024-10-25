@@ -35,6 +35,8 @@ struct gpu_cull_params_t
     //! limit number of LoDs (0: no limit)
     uint32_t max_num_lods = 0;
 
+    bool skip_meshlets = false;
+
     VkQueue queue = VK_NULL_HANDLE;
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
 
@@ -77,16 +79,27 @@ struct create_depth_pyramid_params_t
  * @brief   create_gpu_cull_context is a factory to create an opaque gpu_cull_context_ptr.
  *
  * @param   device          a provided vierkant::Device.
+ * @param   size            context framebuffer-size
  * @param   pipeline_cache  an optional pipeline_cache.
  * @return  an opaque pointer, owning a gpu_cull_context.
  */
 gpu_cull_context_ptr create_gpu_cull_context(const vierkant::DevicePtr &device,
+                                             const glm::vec2 &size,
                                              const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
 
 /**
- * @brief   create_depth_pyramid can be used to create a 'hierarchical z-buffer (hzb)' or 'depth-pyramid'.
+ * @brief   retrieve internally stored 'hierarchical z-buffer (hzb)' / depth-pyramid.
  *
- * @param   context     a provided vierkant::Device.
+ * @param   context     a provided gpu_cull_context_t
+ * @param   params      a provided struct with parameters
+ * @return  a vierkant::ImagePtr containing the created depth-pyramid
+ */
+vierkant::ImagePtr get_depth_pyramid(const vierkant::gpu_cull_context_ptr &context);
+
+/**
+ * @brief   create_depth_pyramid can be used to create a 'hierarchical z-buffer (hzb)' /depth-pyramid.
+ *
+ * @param   context     a provided gpu_cull_context_t
  * @param   params      a provided struct with parameters
  * @return  a vierkant::ImagePtr containing the created depth-pyramid
  */

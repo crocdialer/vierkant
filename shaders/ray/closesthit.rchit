@@ -291,9 +291,10 @@ void main()
             v.tangent = normalize(v.tangent);
 
             // sample normalmap
-            vec3 normal = normalize(2.0 * (sample_texture_lod(u_textures[material.normalmap_index],
-            v.tex_coord, NoV, payload.cone.width, triangle_lod).xyz -
-            vec3(0.5)));
+            vec3 normal;
+            normal.xy = 2.0 * (sample_texture_lod(u_textures[material.normalmap_index],
+                v.tex_coord, NoV, payload.cone.width, triangle_lod).xy - vec2(0.5));
+            normal.z = sqrt(1.0 - normal.x * normal.x - normal.y * normal.y);
 
             // normal, tangent, bi-tangent
             vec3 b = normalize(cross(v.normal, v.tangent));
