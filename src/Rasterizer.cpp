@@ -816,6 +816,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
             frame_asset.staging_buffer = vierkant::Buffer::create(buffer_info);
         }
         frame_asset.staging_command_buffer.begin();
+        if(debug_label) { vierkant::begin_label(frame_asset.staging_command_buffer.handle(), *debug_label); }
 
         add_staging_copy(vertex_buffer_refs, frame_asset.vertex_buffer_refs, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: vertex_buffer_refs");
@@ -834,6 +835,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         staging_context.staging_buffer = frame_asset.staging_buffer;
         vierkant::staging_copy(staging_context, staging_copies);
 
+        if(debug_label) { vierkant::end_label(frame_asset.staging_command_buffer.handle()); }
         frame_asset.staging_command_buffer.submit(m_queue);
     }
     else

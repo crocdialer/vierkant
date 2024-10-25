@@ -152,11 +152,13 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     render_create_info.indirect_draw = false;
     auto light_render_create_info = render_create_info;
     light_render_create_info.num_frames_in_flight = 2 * create_info.num_frames_in_flight;
+    light_render_create_info.debug_label = {.text = "renderer_lighting"};
     m_renderer_lighting = vierkant::Rasterizer(device, light_render_create_info);
 
     // create renderer for post-fx-passes
     constexpr size_t max_num_post_fx_passes = SemaphoreValue::MAX_VALUE - SemaphoreValue::LIGHTING;
     render_create_info.num_frames_in_flight = create_info.num_frames_in_flight * max_num_post_fx_passes;
+    render_create_info.debug_label = {.text = "renderer_post_fx"};
     m_renderer_post_fx = vierkant::Rasterizer(m_device, render_create_info);
 
     // create drawable for environment lighting-pass
@@ -966,118 +968,121 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                    m_g_renderer_main.num_concurrent_frames();
     auto &frame_context = m_frame_contexts[index];
 
-    frame_context.cmd_lighting.begin(0);
-    vierkant::begin_label(frame_context.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
-    vierkant::ImagePtr occlusion_img = m_util_img_white;
-
-    if(frame_context.settings.ambient_occlusion)
+//    if(!frame_context.recycle_commands)
     {
-        size_t last_index = (index - 1) % m_g_renderer_main.num_concurrent_frames();
-        auto &last_frame_context = m_frame_contexts[last_index];
+        frame_context.cmd_lighting.begin(0);
+        vierkant::begin_label(frame_context.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
+        vierkant::ImagePtr occlusion_img = m_util_img_white;
 
-        if(frame_context.settings.use_ray_queries)
+        if(frame_context.settings.ambient_occlusion)
         {
-            if(!frame_context.scene_acceleration_context)
+            size_t last_index = (index - 1) % m_g_renderer_main.num_concurrent_frames();
+            auto &last_frame_context = m_frame_contexts[last_index];
+
+            if(frame_context.settings.use_ray_queries)
             {
-                frame_context.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
+                if(!frame_context.scene_acceleration_context)
+                {
+                    frame_context.scene_acceleration_context = m_ray_builder.create_scene_acceleration_context();
+                }
+
+                RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
+                build_scene_params.scene = cull_result.scene;
+                build_scene_params.use_compaction = false;
+                build_scene_params.use_scene_assets = false;
+                build_scene_params.previous_context = last_frame_context.scene_acceleration_context.get();
+                frame_context.scene_ray_acceleration = m_ray_builder.build_scene_acceleration(
+                        frame_context.scene_acceleration_context, build_scene_params);
             }
 
-            RayBuilder::build_scene_acceleration_params_t build_scene_params = {};
-            build_scene_params.scene = cull_result.scene;
-            build_scene_params.use_compaction = false;
-            build_scene_params.use_scene_assets = false;
-            build_scene_params.previous_context = last_frame_context.scene_acceleration_context.get();
-            frame_context.scene_ray_acceleration = m_ray_builder.build_scene_acceleration(
-                    frame_context.scene_acceleration_context, build_scene_params);
+            vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                                 frame_context.query_pool.get(), 2 * SemaphoreValue::AMBIENT_OCCLUSION);
+
+            // ambient occlusion (optional)
+            vierkant::ambient_occlusion_params_t ambient_occlusion_params = {};
+            ambient_occlusion_params.use_ray_queries = frame_context.settings.use_ray_queries;
+            ambient_occlusion_params.top_level = frame_context.scene_ray_acceleration.top_lvl.structure;
+            ambient_occlusion_params.projection = cull_result.camera->projection_matrix();
+            ambient_occlusion_params.camera_transform = cull_result.camera->transform;
+            ambient_occlusion_params.normal_img = frame_context.g_buffer_post.color_attachment(G_BUFFER_NORMAL);
+            ambient_occlusion_params.depth_img = frame_context.g_buffer_post.depth_attachment();
+            ambient_occlusion_params.max_distance = frame_context.settings.max_ao_distance;
+            ambient_occlusion_params.num_rays = 5;
+            ambient_occlusion_params.commandbuffer = frame_context.cmd_lighting.handle();
+            occlusion_img =
+                    vierkant::ambient_occlusion(frame_context.ambient_occlusion_context, ambient_occlusion_params);
+            vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+                                 frame_context.query_pool.get(), 2 * SemaphoreValue::AMBIENT_OCCLUSION + 1);
+
+            frame_context.internal_images.occlusion = occlusion_img;
         }
+
+        environment_lighting_ubo_t ubo = {};
+        ubo.camera_transform = mat4_cast(cull_result.camera->global_transform());
+        ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
+        ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
+        ubo.environment_factor = frame_context.settings.environment_factor;
+        ubo.num_lights = frame_context.cull_result.lights.size();
+        frame_context.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
+        frame_context.lights_ubo->set_data(frame_context.cull_result.lights);
+
+        // environment lighting-pass
+        auto drawable = m_drawable_lighting_env;
+        drawable.descriptors[0].buffers = {frame_context.lighting_param_ubo};
+        drawable.descriptors[1].images = {frame_context.g_buffer_post.color_attachment(G_BUFFER_ALBEDO),
+                                          frame_context.g_buffer_post.color_attachment(G_BUFFER_NORMAL),
+                                          frame_context.g_buffer_post.color_attachment(G_BUFFER_EMISSION),
+                                          frame_context.g_buffer_post.color_attachment(G_BUFFER_AO_ROUGH_METAL),
+                                          occlusion_img,
+                                          frame_context.g_buffer_post.color_attachment(G_BUFFER_MOTION),
+                                          frame_context.g_buffer_post.depth_attachment(),
+                                          m_brdf_lut};
+        drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
+        drawable.descriptors[3].buffers = {frame_context.lights_ubo};
+
+        // stage, render, submit
+        m_renderer_lighting.stage_drawable(drawable);
+
+        vierkant::Rasterizer::rendering_info_t rendering_info = {};
+        rendering_info.command_buffer = frame_context.cmd_lighting.handle();
+        rendering_info.color_attachment_formats = {frame_context.lighting_buffer.color_attachment()->format().format};
+        rendering_info.depth_attachment_format = frame_context.lighting_buffer.depth_attachment()->format().format;
+
+        vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
+        begin_rendering_info.commandbuffer = frame_context.cmd_lighting.handle();
+        begin_rendering_info.use_depth_attachment = false;
+        begin_rendering_info.clear_depth_attachment = false;
 
         vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                             frame_context.query_pool.get(), 2 * SemaphoreValue::AMBIENT_OCCLUSION);
+                             frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING);
+        frame_context.lighting_buffer.begin_rendering(begin_rendering_info);
+        m_renderer_lighting.render(rendering_info);
+        vkCmdEndRendering(frame_context.cmd_lighting.handle());
 
-        // ambient occlusion (optional)
-        vierkant::ambient_occlusion_params_t ambient_occlusion_params = {};
-        ambient_occlusion_params.use_ray_queries = frame_context.settings.use_ray_queries;
-        ambient_occlusion_params.top_level = frame_context.scene_ray_acceleration.top_lvl.structure;
-        ambient_occlusion_params.projection = cull_result.camera->projection_matrix();
-        ambient_occlusion_params.camera_transform = cull_result.camera->transform;
-        ambient_occlusion_params.normal_img = frame_context.g_buffer_post.color_attachment(G_BUFFER_NORMAL);
-        ambient_occlusion_params.depth_img = frame_context.g_buffer_post.depth_attachment();
-        ambient_occlusion_params.max_distance = frame_context.settings.max_ao_distance;
-        ambient_occlusion_params.num_rays = 5;
-        ambient_occlusion_params.commandbuffer = frame_context.cmd_lighting.handle();
-        occlusion_img = vierkant::ambient_occlusion(frame_context.ambient_occlusion_context, ambient_occlusion_params);
-        vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-                             frame_context.query_pool.get(), 2 * SemaphoreValue::AMBIENT_OCCLUSION + 1);
-
-        frame_context.internal_images.occlusion = occlusion_img;
-    }
-
-    environment_lighting_ubo_t ubo = {};
-    ubo.camera_transform = mat4_cast(cull_result.camera->global_transform());
-    ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
-    ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
-    ubo.environment_factor = frame_context.settings.environment_factor;
-    ubo.num_lights = frame_context.cull_result.lights.size();
-    frame_context.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
-    frame_context.lights_ubo->set_data(frame_context.cull_result.lights);
-
-    // environment lighting-pass
-    auto drawable = m_drawable_lighting_env;
-    drawable.descriptors[0].buffers = {frame_context.lighting_param_ubo};
-    drawable.descriptors[1].images = {frame_context.g_buffer_post.color_attachment(G_BUFFER_ALBEDO),
-                                      frame_context.g_buffer_post.color_attachment(G_BUFFER_NORMAL),
-                                      frame_context.g_buffer_post.color_attachment(G_BUFFER_EMISSION),
-                                      frame_context.g_buffer_post.color_attachment(G_BUFFER_AO_ROUGH_METAL),
-                                      occlusion_img,
-                                      frame_context.g_buffer_post.color_attachment(G_BUFFER_MOTION),
-                                      frame_context.g_buffer_post.depth_attachment(),
-                                      m_brdf_lut};
-    drawable.descriptors[2].images = {m_conv_lambert, m_conv_ggx};
-    drawable.descriptors[3].buffers = {frame_context.lights_ubo};
-
-    // stage, render, submit
-    m_renderer_lighting.stage_drawable(drawable);
-
-    vierkant::Rasterizer::rendering_info_t rendering_info = {};
-    rendering_info.command_buffer = frame_context.cmd_lighting.handle();
-    rendering_info.color_attachment_formats = {frame_context.lighting_buffer.color_attachment()->format().format};
-    rendering_info.depth_attachment_format = frame_context.lighting_buffer.depth_attachment()->format().format;
-
-    vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
-    begin_rendering_info.commandbuffer = frame_context.cmd_lighting.handle();
-    begin_rendering_info.use_depth_attachment = false;
-    begin_rendering_info.clear_depth_attachment = false;
-
-    vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                         frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING);
-    frame_context.lighting_buffer.begin_rendering(begin_rendering_info);
-    m_renderer_lighting.render(rendering_info);
-    vkCmdEndRendering(frame_context.cmd_lighting.handle());
-
-    // skybox rendering
-    if(frame_context.settings.draw_skybox)
-    {
-        if(cull_result.scene->environment())
+        // skybox rendering
+        if(frame_context.settings.draw_skybox)
         {
-            m_draw_context.draw_skybox(m_renderer_lighting, cull_result.scene->environment(), cull_result.camera);
+            if(cull_result.scene->environment())
+            {
+                m_draw_context.draw_skybox(m_renderer_lighting, cull_result.scene->environment(), cull_result.camera);
 
-            begin_rendering_info.clear_color_attachment = false;
-            begin_rendering_info.use_depth_attachment = true;
-            frame_context.lighting_buffer.begin_rendering(begin_rendering_info);
-            m_renderer_lighting.render(rendering_info);
-            vkCmdEndRendering(frame_context.cmd_lighting.handle());
+                begin_rendering_info.clear_color_attachment = false;
+                begin_rendering_info.use_depth_attachment = true;
+                frame_context.lighting_buffer.begin_rendering(begin_rendering_info);
+                m_renderer_lighting.render(rendering_info);
+                vkCmdEndRendering(frame_context.cmd_lighting.handle());
+            }
         }
+        vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+                             frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING + 1);
+        vierkant::end_label(frame_context.cmd_lighting.handle());
     }
-    vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-                         frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING + 1);
-
     vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
     lighting_semaphore_info.semaphore = frame_context.timeline.handle();
     lighting_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     lighting_semaphore_info.wait_value = frame_context.current_semaphore_value + SemaphoreValue::G_BUFFER_ALL;
     lighting_semaphore_info.signal_value = frame_context.current_semaphore_value + SemaphoreValue::LIGHTING;
     frame_context.semaphore_value_done = SemaphoreValue::LIGHTING;
-    vierkant::end_label(frame_context.cmd_lighting.handle());
     frame_context.cmd_lighting.submit(m_queue, false, VK_NULL_HANDLE,
                                       {frame_context.scene_ray_acceleration.semaphore_info, lighting_semaphore_info});
     return frame_context.lighting_buffer;
@@ -1339,6 +1344,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
         // use depth from g_buffer
         lighting_attachments[vierkant::AttachmentType::DepthStencil] = {frame_context.g_buffer_post.depth_attachment()};
         frame_context.lighting_buffer = vierkant::Framebuffer(m_device, lighting_attachments);
+        frame_context.lighting_buffer.debug_label = {.text = "lighting_buffer"};
 
         // resize ambient occlusion context
         auto ao_resolution = glm::max(glm::vec2(frame_context.settings.resolution) / 2.f, glm::vec2(1.f));
