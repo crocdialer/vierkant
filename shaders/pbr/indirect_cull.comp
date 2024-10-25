@@ -177,6 +177,7 @@ void main()
 
         if(needs_post_draw)
         {
+            draw.late_visible = true;
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }

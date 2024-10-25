@@ -152,13 +152,13 @@ struct indexed_indirect_command_t
     uint groupCountZ;
 
     bool visible;
+    bool late_visible;
     uint object_index;
     uint base_meshlet;
     uint num_meshlets;
     uint meshlet_visibility_index;
     uint count_buffer_offset;
     uint first_draw_index;
-    uint pad;
 };
 
 //! meshlet parameters

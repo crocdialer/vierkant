@@ -101,8 +101,7 @@ void main()
     if(use_culling)
     {
         bool visible = valid;
-        bool visible_last_frame = valid && is_visible(draw_command.meshlet_visibility_index, mi);
-        //    barrier();
+        bool visible_last_frame = !draw_command.late_visible && is_visible(draw_command.meshlet_visibility_index, mi);
 
         // occlusion-culling / visibility recording
         if(post_pass && valid)
@@ -157,6 +156,8 @@ void main()
 
             // became visible this frame -> not drawn in 1st-pass
             bool needs_post_draw = visible && !visible_last_frame;
+
+            // TODO: culling statistics
             //    if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
 
             // update visiblity
