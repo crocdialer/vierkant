@@ -567,6 +567,7 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
     }
 
     frame_context.cmd_pre_render.begin(0);
+    vierkant::begin_label(frame_context.cmd_pre_render.handle(), {"update animations"});
 
     // barriers
     VkBuffer buffers[] = {frame_context.bone_buffer->handle(), frame_context.morph_param_buffer->handle()};
@@ -592,6 +593,7 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
 
     vierkant::staging_copy(staging_context, {copy_bones, copy_morphs});
 
+    vierkant::end_label(frame_context.cmd_pre_render.handle());
     vierkant::semaphore_submit_info_t semaphore_info = {};
     semaphore_info.semaphore = frame_context.timeline.handle();
     semaphore_info.signal_value = frame_context.current_semaphore_value + SemaphoreValue::PRE_RENDER;
@@ -791,6 +793,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     m_g_renderer_main.draw_indirect_delegate = [this, &frame_context,
                                                 use_gpu_culling](Rasterizer::indirect_draw_bundle_t &params) {
         frame_context.cmd_clear.begin(0);
+        vierkant::begin_label(frame_context.cmd_clear.handle(), {"update transforms"});
 
         auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
         auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
@@ -864,6 +867,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             }
             vierkant::staging_copy(staging_context, copy_transforms);
         }
+        vierkant::end_label(frame_context.cmd_clear.handle());
         frame_context.cmd_clear.submit(m_queue);
     };
 
