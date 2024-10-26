@@ -462,7 +462,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
     if(params.generate_lods)
     {
         // corresponds to mesh.entries
-        for(auto &[geom, offsets]: splicer.offsets)
+        for(const auto &[geom, offsets]: splicer.offsets)
         {
             spdlog::stopwatch single_timer;
 
@@ -498,10 +498,12 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                 else
                 {
                     constexpr uint32_t options = 0;
-                    num_indices = meshopt_simplify(lod_indices.data(), lod_indices.data(), lod_indices.size(),
-                                                   reinterpret_cast<const float *>(vertices), geom->positions.size(),
-                                                   ret.vertex_stride, target_index_count, target_error, options,
-                                                   &result_error);
+                    float normal_weights[3] = {1.f, 1.f, 1.f};
+                    num_indices = meshopt_simplifyWithAttributes(
+                            lod_indices.data(), lod_indices.data(), lod_indices.size(),
+                            reinterpret_cast<const float *>(vertices), geom->positions.size(), ret.vertex_stride,
+                            &geom->normals[0].x, sizeof(glm::vec3), normal_weights, 3, nullptr, target_index_count,
+                            target_error, options, &result_error);
                 }
 
                 result_factor = static_cast<float>(num_indices) / static_cast<float>(lod_indices.size());
