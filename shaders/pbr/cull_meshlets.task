@@ -101,10 +101,7 @@ void main()
     if(use_culling)
     {
         bool visible = valid;
-        bool visible_last_frame = !draw_command.late_visible && is_visible(draw_command.meshlet_visibility_index, mi);
-
-        // stupid force redraw in post
-        visible_last_frame = visible_last_frame && !post_pass;
+        bool visible_last_frame = !draw_command.late_visible && is_visible(draw_command.meshlet_visibility_index, gid);
 
         // occlusion-culling / visibility recording
         if(post_pass && valid)
@@ -164,7 +161,7 @@ void main()
             //    if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
 
             // update visiblity
-            set_visible(draw_command.meshlet_visibility_index, mi, visible);
+            set_visible(draw_command.meshlet_visibility_index, gid, visible);
 
             // post_draw
             visible = needs_post_draw;
