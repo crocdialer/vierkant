@@ -177,11 +177,10 @@ void main()
 
         // became visible this frame -> not drawn in 1st-pass
         bool needs_post_draw = !cull_data.draws_in.v[gid].visible;
-        needs_post_draw = needs_post_draw || (cull_data.skip_meshlets && draw.num_meshlets > 0);
 
-        if(needs_post_draw)
+        if(needs_post_draw || (cull_data.skip_meshlets && draw.num_meshlets > 0))
         {
-            draw.late_visible = true;
+            draw.late_visible = needs_post_draw;
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }

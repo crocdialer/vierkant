@@ -103,6 +103,9 @@ void main()
         bool visible = valid;
         bool visible_last_frame = !draw_command.late_visible && is_visible(draw_command.meshlet_visibility_index, mi);
 
+        // stupid force redraw in post
+        visible_last_frame = visible_last_frame && !post_pass;
+
         // occlusion-culling / visibility recording
         if(post_pass && valid)
         {
