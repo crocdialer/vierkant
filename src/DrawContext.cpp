@@ -241,8 +241,9 @@ void DrawContext::draw_text(vierkant::Rasterizer &renderer, const std::string &t
 void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                              const crocore::Area_<int> &area, const glm::vec4 &color)
 {
-    float w = area.width ? area.width : renderer.viewport.width;
-    float h = area.height ? area.height : renderer.viewport.height;
+    if(!image) { return; }
+    float w = area.width ? static_cast<float>(area.width) : renderer.viewport.width;
+    float h = area.height ? static_cast<float>(area.height) : renderer.viewport.height;
     glm::vec2 scale = glm::vec2(w, h) / glm::vec2(renderer.viewport.width, renderer.viewport.height);
 
     // copy image-drawable
