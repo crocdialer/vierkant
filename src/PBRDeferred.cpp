@@ -812,9 +812,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         staging_context.staging_buffer = frame_context.staging_main;
         staging_context.command_buffer = frame_context.cmd_clear.handle();
 
-        params.meshlet_visibilities->barrier(frame_context.cmd_clear.handle(), VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT,
-                                             VK_ACCESS_2_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_TASK_SHADER_BIT_EXT,
-                                             VK_ACCESS_2_SHADER_READ_BIT);
         if(params.num_draws && !frame_context.recycle_commands)
         {
             params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_out,

@@ -396,8 +396,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
         depth_pyramid_fmt.autogenerate_mipmaps = false;
         depth_pyramid_fmt.reduction_mode = VK_SAMPLER_REDUCTION_MODE_MIN;
         depth_pyramid_fmt.initial_layout = VK_IMAGE_LAYOUT_GENERAL;
-        // TODO: pass in cmd-buffer for layout-transition
-        //        depth_pyramid_fmt.initial_layout_transition = false;
+        depth_pyramid_fmt.initial_layout_transition = false;
         ret->depth_pyramid_img = vierkant::Image::create(device, depth_pyramid_fmt);
     }
     return ret;
