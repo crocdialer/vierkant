@@ -175,8 +175,8 @@ void main()
         // became visible this frame -> not drawn in 1st-pass
         bool needs_post_draw = !cull_data.draws_in.v[gid].visible;
 
-        // forces draw after lod-change
-        draw.late_visible = needs_post_draw;
+        // force visibility after lod-change
+        draw.late_visible = needs_post_draw || draw.base_meshlet != cull_data.draws_in.v[gid].base_meshlet;
 
         uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
         cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
@@ -190,4 +190,5 @@ void main()
 
     // update visiblity
     cull_data.draws_in.v[gid].visible = visible;
+    cull_data.draws_in.v[gid].base_meshlet = draw.base_meshlet;
 }
