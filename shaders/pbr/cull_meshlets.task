@@ -101,7 +101,7 @@ void main()
     if(use_culling)
     {
         bool visible = valid;
-        bool visible_last_frame = !draw_command.late_visible && is_visible(draw_command.meshlet_visibility_index, gid);
+        bool visible_last_frame = is_visible(draw_command.meshlet_visibility_index, gid);
 
         // occlusion-culling / visibility recording
         if(post_pass && valid)
@@ -155,7 +155,7 @@ void main()
             }
 
             // became visible this frame -> not drawn in 1st-pass
-            bool needs_post_draw = visible && !visible_last_frame;
+            bool needs_post_draw = visible && (draw_command.late_visible || !visible_last_frame);
 
             // TODO: culling statistics
             //    if(!visible){ atomicAdd(cull_data.draw_result.v.num_occlusion_culled, 1); }
@@ -166,7 +166,7 @@ void main()
             // post_draw
             visible = needs_post_draw;
         }
-        else{ visible = visible && visible_last_frame; }
+        else{ visible = visible && (visible_last_frame || draw_command.late_visible); }
 
         // write payload delta-index
         if (visible)

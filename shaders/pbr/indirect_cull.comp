@@ -172,15 +172,17 @@ void main()
         atomicAdd(cull_data.draw_result.v.num_triangles, draw.indexCount / 3);
         atomicAdd(cull_data.draw_result.v.num_meshlets, draw.num_meshlets);
 
-        uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
-        cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
-
         // became visible this frame -> not drawn in 1st-pass
         bool needs_post_draw = !cull_data.draws_in.v[gid].visible;
 
+        // forces draw after lod-change
+        draw.late_visible = needs_post_draw;
+
+        uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
+        cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
+
         if(needs_post_draw || (cull_data.skip_meshlets && draw.num_meshlets > 0))
         {
-            draw.late_visible = needs_post_draw;
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }
