@@ -58,8 +58,11 @@ struct mesh_buffer_params_t
     //! maximum number of lods to be generated
     uint32_t max_num_lods = 7;
 
-    //! shrink-factor for num_indices in successive lods
+    //! shrink-factor for num_indices for successive lods
     float lod_shrink_factor = 0.5f;
+
+    //! target error in successive lods
+    float lod_target_error = 0.1f;
 
     //! flag indicating if meshlet/cluster information shall be generated.
     bool generate_meshlets = false;

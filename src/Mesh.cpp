@@ -479,7 +479,6 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
             for(uint32_t i = 0; i < params.max_num_lods; ++i)
             {
                 constexpr float max_mismatch = .1f;
-                constexpr float target_error = 0.05f;
                 float result_error = 0.f;
                 float result_factor = 1.f;
 
@@ -490,10 +489,10 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
 
                 if(sloppy)
                 {
-                    num_indices =
-                            meshopt_simplifySloppy(lod_indices.data(), lod_indices.data(), lod_indices.size(),
-                                                   reinterpret_cast<const float *>(vertices), geom->positions.size(),
-                                                   ret.vertex_stride, target_index_count, target_error, &result_error);
+                    num_indices = meshopt_simplifySloppy(lod_indices.data(), lod_indices.data(), lod_indices.size(),
+                                                         reinterpret_cast<const float *>(vertices),
+                                                         geom->positions.size(), ret.vertex_stride, target_index_count,
+                                                         params.lod_target_error, &result_error);
                 }
                 else
                 {
@@ -503,14 +502,14 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                             lod_indices.data(), lod_indices.data(), lod_indices.size(),
                             reinterpret_cast<const float *>(vertices), geom->positions.size(), ret.vertex_stride,
                             &geom->normals[0].x, sizeof(glm::vec3), normal_weights, 3, nullptr, target_index_count,
-                            target_error, options, &result_error);
+                            params.lod_target_error, options, &result_error);
                 }
 
                 result_factor = static_cast<float>(num_indices) / static_cast<float>(lod_indices.size());
 
                 spdlog::trace("level-of-detail #{}: {} triangles - target/actual shrink_factor: {} / {} - "
                               "target/actual error: {} / {}",
-                              i + 1, num_indices / 3, params.lod_shrink_factor, result_factor, target_error,
+                              i + 1, num_indices / 3, params.lod_shrink_factor, result_factor, params.lod_target_error,
                               result_error);
 
                 // not getting any simpler
