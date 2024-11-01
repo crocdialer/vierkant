@@ -166,7 +166,7 @@ void main()
             // post_draw
             visible = needs_post_draw;
         }
-        else{ visible = visible && (visible_last_frame || draw_command.late_visible); }
+        else{ visible = visible && (visible_last_frame && !draw_command.late_visible); }
 
         // write payload delta-index
         if (visible)
