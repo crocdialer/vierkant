@@ -642,10 +642,15 @@ void draw_material_ui(const MaterialPtr &mesh_material)
 
             if(img)
             {
+                char buf[16];
+                bool is_bc5 = img->format().format == VK_FORMAT_BC5_UNORM_BLOCK ||
+                              img->format().format == VK_FORMAT_BC5_SNORM_BLOCK;
                 bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
                               img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
+                sprintf(buf, "%s", is_bc7 ? " - BC7" : is_bc5 ? " - BC5" : "");
+
                 ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
-                ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), is_bc7 ? ", BC7" : "");
+                ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), buf);
                 ImGui::Image((ImTextureID) (img.get()), sz);
                 ImGui::Separator();
             }

@@ -1,5 +1,5 @@
-#include <cstring>
 #include <cmath>
+#include <cstring>
 #define RGBCX_IMPLEMENTATION
 
 #if defined(__clang__) || defined(__GNUC__)
@@ -16,11 +16,11 @@
 
 //#include <bc7e/bc7e_avx2.h>
 
-#include <vierkant/bc7.hpp>
+#include <vierkant/texture_block_compression.hpp>
 
 using duration_t = std::chrono::duration<float>;
 
-namespace vierkant::bc7
+namespace vierkant::bcn
 {
 
 struct color_quad_u8
@@ -39,6 +39,7 @@ struct init_helper_t
 {
     init_helper_t()
     {
+        rgbcx::init(rgbcx::bc1_approx_mode::cBC1Ideal);
         bc7enc_compress_block_init();
         //        ispc::bc7e_compress_block_init();
     }
@@ -69,7 +70,7 @@ inline void get_block(const crocore::Image_<uint8_t>::ConstPtr &img, uint32_t bx
 
 inline uint32_t round4(uint32_t v) { return (v + 3) & ~3; }
 
-bc7::compress_result_t compress(const compress_info_t &compress_info)
+bcn::compress_result_t compress(const compress_info_t &compress_info)
 {
     static init_helper_t init_helper;
 
@@ -79,7 +80,7 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     auto start_time = std::chrono::steady_clock::now();
 
     bc7enc_compress_block_params pack_params;
-    bc7enc_compress_block_params_init(&pack_params);
+    if(compress_info.mode == BC7) { bc7enc_compress_block_params_init(&pack_params); }
 
     //    // faster(wtf!?) alternative bc7e
     //    ispc::bc7e_compress_block_params bc7e_params = {};
@@ -94,6 +95,7 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     uint32_t num_levels = compress_info.generate_mipmaps ? max_levels : 1;
 
     compress_result_t ret = {};
+    ret.mode = compress_info.mode;
     ret.base_width = width;
     ret.base_height = height;
     ret.levels.resize(num_levels);
@@ -120,7 +122,8 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
             uint32_t end = std::min(num_blocks_y, (i + 1) * num_rows_per_batch);
 
             // function to encode one row of compressed blocks
-            auto fn = [first_row, end, num_blocks_x, source_image, has_alpha, &blocks, &pack_params] {
+            auto fn = [mode = compress_info.mode, first_row, end, num_blocks_x, source_image, has_alpha, &blocks,
+                       &pack_params] {
                 // scratch-space for block-encoding
                 color_quad_u8 pixels[16];
 
@@ -132,7 +135,11 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
                         block_t *pBlock = &blocks[bx + by * num_blocks_x];
 
                         // encode one block
-                        bc7enc_compress_block(pBlock, pixels, &pack_params);
+                        switch(mode)
+                        {
+                            case BC5: rgbcx::encode_bc5(pBlock, reinterpret_cast<uint8_t *>(pixels), 0, 1, 4); break;
+                            case BC7: bc7enc_compress_block(pBlock, pixels, &pack_params); break;
+                        }
                     }
                 }
             };
@@ -155,4 +162,4 @@ bc7::compress_result_t compress(const compress_info_t &compress_info)
     return ret;
 }
 
-}// namespace vierkant::bc7
+}// namespace vierkant::bcn

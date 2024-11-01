@@ -80,23 +80,39 @@ bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::Th
     std::chrono::milliseconds compress_total_duration(0);
     size_t num_pixels = 0;
 
+    auto check_normal_map = [&mesh_assets](TextureSourceId tex_id) -> bool {
+        return std::ranges::any_of(mesh_assets.materials.begin(), mesh_assets.materials.end(),
+                                   [&tex_id](const auto &m) -> bool
+
+                                   {
+                                       auto it = m.textures.find(TextureType::Normal);
+                                       return it != m.textures.end() && it->second == tex_id;
+                                   });
+    };
+
     for(auto &[tex_id, texture_variant]: mesh_assets.textures)
     {
+        bool is_normal_map = check_normal_map(tex_id);
+
         try
         {
             texture_variant = std::visit(
-                    [pool, &compress_total_duration, &num_pixels](auto &&img) -> texture_variant_t {
+                    [pool, is_normal_map, &compress_total_duration, &num_pixels](auto &&img) -> texture_variant_t {
                         using T = std::decay_t<decltype(img)>;
 
                         if constexpr(std::is_same_v<T, crocore::ImagePtr>)
                         {
                             if(img)
                             {
-                                bc7::compress_info_t compress_info = {};
+                                bcn::compress_info_t compress_info = {};
                                 compress_info.image = img;
+                                compress_info.mode = is_normal_map ? bcn::BC5 : bcn::BC7;
                                 compress_info.generate_mipmaps = true;
-                                if(pool){compress_info.delegate_fn = [pool](auto fn) { return pool->post(fn); };}
-                                auto compressed_img = bc7::compress(compress_info);
+                                if(pool)
+                                {
+                                    compress_info.delegate_fn = [pool](auto fn) { return pool->post(fn); };
+                                }
+                                auto compressed_img = bcn::compress(compress_info);
                                 compress_total_duration += compressed_img.duration;
                                 num_pixels += img->width() * img->height();
                                 return compressed_img;
@@ -199,7 +215,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                     using T = std::decay_t<decltype(img)>;
 
                     if constexpr(std::is_same_v<T, crocore::ImagePtr>) { texture_cache[tex_id] = create_texture(img); }
-                    else if constexpr(std::is_same_v<T, vierkant::bc7::compress_result_t>)
+                    else if constexpr(std::is_same_v<T, vierkant::bcn::compress_result_t>)
                     {
                         vierkant::Image::Format fmt;
                         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -255,7 +271,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
 
 // TODO: fix unnecessary blocking, rework with commandbuffer-handle and staging-buffer!?
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
-                                             const vierkant::bc7::compress_result_t &compression_result,
+                                             const vierkant::bcn::compress_result_t &compression_result,
                                              vierkant::Image::Format format, VkQueue load_queue)
 {
     // adhoc using global pool
@@ -265,7 +281,7 @@ vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
     command_buffer.begin();
 
     format.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    format.format = VK_FORMAT_BC7_UNORM_BLOCK;
+    format.format = compression_result.mode == bcn::BC7 ? VK_FORMAT_BC7_UNORM_BLOCK : VK_FORMAT_BC5_UNORM_BLOCK;
     format.extent = {compression_result.base_width, compression_result.base_height, 1};
     format.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
     format.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;

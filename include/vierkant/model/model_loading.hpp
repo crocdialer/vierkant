@@ -13,18 +13,18 @@
 #include <vierkant/Geometry.hpp>
 #include <vierkant/Material.hpp>
 #include <vierkant/Mesh.hpp>
-#include <vierkant/bc7.hpp>
 #include <vierkant/camera_params.hpp>
+#include <vierkant/texture_block_compression.hpp>
 
 namespace vierkant
 {
 
 //! contains uncompressed or BC7-compressed images
-using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bc7::compress_result_t>;
+using texture_variant_t = std::variant<crocore::ImagePtr, vierkant::bcn::compress_result_t>;
 
 //! contains raw or packed geometry-information. either way 'can' be used to construct a mesh
-using geometry_variant_t = std::variant<std::vector<vierkant::Mesh::entry_create_info_t>,
-                                        vierkant::mesh_buffer_bundle_t>;
+using geometry_variant_t =
+        std::variant<std::vector<vierkant::Mesh::entry_create_info_t>, vierkant::mesh_buffer_bundle_t>;
 
 }// namespace vierkant
 
@@ -74,7 +74,7 @@ struct model_assets_t
     std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
 
     //! texture-sample-states for all materials
-    std::unordered_map<vierkant::SamplerId , texture_sampler_t> texture_samplers;
+    std::unordered_map<vierkant::SamplerId, texture_sampler_t> texture_samplers;
 
     //! optional lights defined in model-file
     std::vector<lightsource_t> lights;
@@ -134,17 +134,17 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
 bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::ThreadPoolClassic *pool = nullptr);
 
 /**
- * @brief   create_compressed_texture can be used to create a texture from pre-compressed bc7 blocks.
- *          used format will be VK_FORMAT_BC7_UNORM_BLOCK.
+ * @brief   create_compressed_texture can be used to create a texture from pre-compressed block-compressed blocks.
+ *          used format will be either VK_FORMAT_BC5_UNORM_BLOCK or VK_FORMAT_BC7_UNORM_BLOCK.
  *
  * @param   device              handle to a vierkant::Device
- * @param   compression_result  a struct providing compressed bc7-blocks
+ * @param   compression_result  a struct providing compressed blocks
  * @param   format              a vierkant::Image::Format struct providing sampler+texture settings
  * @param   load_queue          the VkQueue that shall be used for required image-transfers.
  * @return  a newly created texture
  */
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
-                                             const vierkant::bc7::compress_result_t &compression_result,
+                                             const vierkant::bcn::compress_result_t &compression_result,
                                              vierkant::Image::Format format, VkQueue load_queue);
 
 }// namespace vierkant::model

@@ -1,5 +1,5 @@
 #include "test_context.hpp"
-#include <vierkant/bc7.hpp>
+#include <vierkant/texture_block_compression.hpp>
 
 // 4x4 black/white checkerboard RGBA
 uint32_t checker_board_4x4[] = {0xFFFFFFFF, 0xFF000000, 0xFFFFFFFF, 0xFF000000,
@@ -37,7 +37,7 @@ inline uint32_t num_blocks(uint32_t base_width, uint32_t base_height, uint32_t l
     return base_width * base_height;
 }
 
-void check(const vierkant::bc7::compress_info_t &compress_info, const vierkant::bc7::compress_result_t &compress_result)
+void check(const vierkant::bcn::compress_info_t &compress_info, const vierkant::bcn::compress_result_t &compress_result)
 {
     EXPECT_TRUE(compress_info.image);
 
@@ -63,9 +63,9 @@ TEST(CompressionBC7, basic)
     uint32_t width = 512, height = 256;
     auto img8u = img->resize(width, height);
 
-    vierkant::bc7::compress_info_t compress_info = {};
+    vierkant::bcn::compress_info_t compress_info = {};
     compress_info.image = img8u;
-    auto compress_result = vierkant::bc7::compress(compress_info);
+    auto compress_result = vierkant::bcn::compress(compress_info);
     check(compress_info, compress_result);
 }
 
@@ -78,9 +78,9 @@ TEST(CompressionBC7, missing_alpha)
     uint32_t width = 64, height = 128;
     auto img8u = img->resize(width, height);
 
-    vierkant::bc7::compress_info_t compress_info = {};
+    vierkant::bcn::compress_info_t compress_info = {};
     compress_info.image = img8u;
-    auto compress_result = vierkant::bc7::compress(compress_info);
+    auto compress_result = vierkant::bcn::compress(compress_info);
     check(compress_info, compress_result);
 }
 
@@ -92,10 +92,10 @@ TEST(CompressionBC7, mips)
     uint32_t width = 512, height = 256;
     auto img8u = img->resize(width, height);
 
-    vierkant::bc7::compress_info_t compress_info = {};
+    vierkant::bcn::compress_info_t compress_info = {};
     compress_info.image = img8u;
     compress_info.generate_mipmaps = true;
-    auto compress_result = vierkant::bc7::compress(compress_info);
+    auto compress_result = vierkant::bcn::compress(compress_info);
     check(compress_info, compress_result);
 }
 
@@ -107,9 +107,9 @@ TEST(CompressionBC7, odd_size)
     uint32_t width = 123, height = 81;
     auto img8u = img->resize(width, height);
 
-    vierkant::bc7::compress_info_t compress_info = {};
+    vierkant::bcn::compress_info_t compress_info = {};
     compress_info.image = img8u;
     compress_info.generate_mipmaps = true;
-    auto compress_result = vierkant::bc7::compress(compress_info);
+    auto compress_result = vierkant::bcn::compress(compress_info);
     check(compress_info, compress_result);
 }
