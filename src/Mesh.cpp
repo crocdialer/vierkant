@@ -689,6 +689,7 @@ size_t std::hash<vierkant::mesh_buffer_params_t>::operator()(vierkant::mesh_buff
     vierkant::hash_combine(hash_val, params.generate_lods);
     vierkant::hash_combine(hash_val, params.max_num_lods);
     vierkant::hash_combine(hash_val, params.lod_shrink_factor);
+    vierkant::hash_combine(hash_val, params.lod_target_error);
     vierkant::hash_combine(hash_val, params.generate_meshlets);
     vierkant::hash_combine(hash_val, params.use_vertex_colors);
     vierkant::hash_combine(hash_val, params.pack_vertices);
