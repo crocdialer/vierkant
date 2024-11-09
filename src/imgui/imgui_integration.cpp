@@ -154,27 +154,50 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     // Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
-    io.KeyMap[ImGuiKey_Tab] = Key::_TAB;
-    io.KeyMap[ImGuiKey_LeftArrow] = Key::_LEFT;
-    io.KeyMap[ImGuiKey_RightArrow] = Key::_RIGHT;
-    io.KeyMap[ImGuiKey_UpArrow] = Key::_UP;
-    io.KeyMap[ImGuiKey_DownArrow] = Key::_DOWN;
-    io.KeyMap[ImGuiKey_PageUp] = Key::_PAGE_UP;
-    io.KeyMap[ImGuiKey_PageDown] = Key::_PAGE_DOWN;
-    io.KeyMap[ImGuiKey_Home] = Key::_HOME;
-    io.KeyMap[ImGuiKey_End] = Key::_END;
-    io.KeyMap[ImGuiKey_Insert] = Key::_INSERT;
-    io.KeyMap[ImGuiKey_Delete] = Key::_DELETE;
-    io.KeyMap[ImGuiKey_Backspace] = Key::_BACKSPACE;
-    io.KeyMap[ImGuiKey_Space] = Key::_SPACE;
-    io.KeyMap[ImGuiKey_Enter] = Key::_ENTER;
-    io.KeyMap[ImGuiKey_Escape] = Key::_ESCAPE;
-    io.KeyMap[ImGuiKey_A] = Key::_A;
-    io.KeyMap[ImGuiKey_C] = Key::_C;
-    io.KeyMap[ImGuiKey_V] = Key::_V;
-    io.KeyMap[ImGuiKey_X] = Key::_X;
-    io.KeyMap[ImGuiKey_Y] = Key::_Y;
-    io.KeyMap[ImGuiKey_Z] = Key::_Z;
+
+    m_key_map[Key::_TAB] = ImGuiKey_Tab;
+    m_key_map[Key::_LEFT] = ImGuiKey_LeftArrow;
+    m_key_map[Key::_RIGHT] = ImGuiKey_RightArrow;
+    m_key_map[Key::_UP] = ImGuiKey_UpArrow;
+    m_key_map[Key::_DOWN] = ImGuiKey_DownArrow;
+    m_key_map[Key::_PAGE_UP] = ImGuiKey_PageUp;
+    m_key_map[Key::_PAGE_DOWN] = ImGuiKey_PageDown;
+    m_key_map[Key::_HOME] = ImGuiKey_Home;
+    m_key_map[Key::_END] = ImGuiKey_End;
+    m_key_map[Key::_INSERT] = ImGuiKey_Insert;
+    m_key_map[Key::_DELETE] = ImGuiKey_Delete;
+    m_key_map[Key::_BACKSPACE] = ImGuiKey_Backspace;
+    m_key_map[Key::_SPACE] = ImGuiKey_Space;
+    m_key_map[Key::_ENTER] = ImGuiKey_Enter;
+    m_key_map[Key::_ESCAPE] = ImGuiKey_Escape;
+    m_key_map[Key::_A] = ImGuiKey_A;
+    m_key_map[Key::_C] = ImGuiKey_C;
+    m_key_map[Key::_V] = ImGuiKey_V;
+    m_key_map[Key::_X] = ImGuiKey_X;
+    m_key_map[Key::_Y] = ImGuiKey_Y;
+    m_key_map[Key::_Z] = ImGuiKey_Z;
+
+    //    io.KeyMap[ImGuiKey_Tab] = Key::_TAB;
+    //    io.KeyMap[ImGuiKey_LeftArrow] = Key::_LEFT;
+    //    io.KeyMap[ImGuiKey_RightArrow] = Key::_RIGHT;
+    //    io.KeyMap[ImGuiKey_UpArrow] = Key::_UP;
+    //    io.KeyMap[ImGuiKey_DownArrow] = Key::_DOWN;
+    //    io.KeyMap[ImGuiKey_PageUp] = Key::_PAGE_UP;
+    //    io.KeyMap[ImGuiKey_PageDown] = Key::_PAGE_DOWN;
+    //    io.KeyMap[ImGuiKey_Home] = Key::_HOME;
+    //    io.KeyMap[ImGuiKey_End] = Key::_END;
+    //    io.KeyMap[ImGuiKey_Insert] = Key::_INSERT;
+    //    io.KeyMap[ImGuiKey_Delete] = Key::_DELETE;
+    //    io.KeyMap[ImGuiKey_Backspace] = Key::_BACKSPACE;
+    //    io.KeyMap[ImGuiKey_Space] = Key::_SPACE;
+    //    io.KeyMap[ImGuiKey_Enter] = Key::_ENTER;
+    //    io.KeyMap[ImGuiKey_Escape] = Key::_ESCAPE;
+    //    io.KeyMap[ImGuiKey_A] = Key::_A;
+    //    io.KeyMap[ImGuiKey_C] = Key::_C;
+    //    io.KeyMap[ImGuiKey_V] = Key::_V;
+    //    io.KeyMap[ImGuiKey_X] = Key::_X;
+    //    io.KeyMap[ImGuiKey_Y] = Key::_Y;
+    //    io.KeyMap[ImGuiKey_Z] = Key::_Z;
 
     if(!create_info.font_data.empty())
     {
@@ -400,6 +423,7 @@ void swap(Context &lhs, Context &rhs) noexcept
     std::swap(lhs.m_imgui_context, rhs.m_imgui_context);
     std::swap(lhs.m_implot_context, rhs.m_implot_context);
     std::swap(lhs.m_imgui_assets, rhs.m_imgui_assets);
+    std::swap(lhs.m_key_map, rhs.m_key_map);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -407,9 +431,9 @@ void swap(Context &lhs, Context &rhs) noexcept
 void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    if(e.is_left()) { io.MouseDown[0] = true; }
-    else if(e.is_middle()) { io.MouseDown[2] = true; }
-    else if(e.is_right()) { io.MouseDown[1] = true; }
+    if(e.is_left()) { io.AddMouseButtonEvent(0, true); }
+    else if(e.is_middle()) { io.AddMouseButtonEvent(2, true); }
+    else if(e.is_right()) { io.AddMouseButtonEvent(1, true); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -417,9 +441,9 @@ void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
 void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    if(e.is_left()) { io.MouseDown[0] = false; }
-    else if(e.is_middle()) { io.MouseDown[2] = false; }
-    else if(e.is_right()) { io.MouseDown[1] = false; }
+    if(e.is_left()) { io.AddMouseButtonEvent(0, false); }
+    else if(e.is_middle()) { io.AddMouseButtonEvent(2, false); }
+    else if(e.is_right()) { io.AddMouseButtonEvent(1, false); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -427,8 +451,7 @@ void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
 void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    io.MouseWheelH += static_cast<float>(e.wheel_increment().x);
-    io.MouseWheel += static_cast<float>(e.wheel_increment().y);
+    io.AddMouseWheelEvent(static_cast<float>(e.wheel_increment().x), static_cast<float>(e.wheel_increment().y));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -436,7 +459,7 @@ void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e)
 void mouse_move(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    io.MousePos = {static_cast<float>(e.get_x()), static_cast<float>(e.get_y())};
+    io.AddMousePosEvent(static_cast<float>(e.get_x()), static_cast<float>(e.get_y()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
