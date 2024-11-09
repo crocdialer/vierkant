@@ -449,9 +449,6 @@ void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer)
     constexpr char window_name[] = "scene_renderer";
     scoped_child_window_t child_window(window_name);
 
-    auto ctx = ImGui::GetCurrentContext();
-    assert(ctx);
-
     if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
     {
         draw_scene_renderer_ui_intern(pbr_renderer);
