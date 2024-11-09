@@ -318,8 +318,8 @@ void Context::draw_gui(vierkant::Rasterizer &renderer)
             if(pcmd->UserCallback) { pcmd->UserCallback(cmd_list, pcmd); }
             else
             {
-                auto tex =
-                        vierkant::ImagePtr(static_cast<vierkant::Image *>(pcmd->TextureId), [](vierkant::Image *) {});
+                auto tex = vierkant::ImagePtr(reinterpret_cast<vierkant::Image *>(pcmd->TextureId),
+                                              [](vierkant::Image *) {});
 
                 // create a new drawable
                 auto drawable = m_imgui_assets.drawable;
@@ -380,7 +380,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                              VK_COMPONENT_SWIZZLE_R};
     m_imgui_assets.font_texture = vierkant::Image::create(device, pixels, fmt);
-    io.Fonts->TexID = m_imgui_assets.font_texture.get();
+    io.Fonts->TexID = reinterpret_cast<ImTextureID>(m_imgui_assets.font_texture.get());
 
     // create dummy mesh instance
     auto mesh = create_mesh_assets(device).mesh;
