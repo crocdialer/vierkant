@@ -72,9 +72,9 @@ void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e);
 
 void mouse_move(ImGuiContext *ctx, const MouseEvent &e);
 
-void key_press(ImGuiContext *ctx, const KeyEvent &e);
+void key_press(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap);
 
-void key_release(ImGuiContext *ctx, const KeyEvent &e);
+void key_release(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap);
 
 void character_input(ImGuiContext *ctx, uint32_t c);
 
@@ -153,8 +153,12 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     // enable window-docking
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    // Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
-
+    m_key_map[Key::_LEFT_CONTROL] = ImGuiKey_LeftCtrl;
+    m_key_map[Key::_RIGHT_CONTROL] = ImGuiKey_RightCtrl;
+    m_key_map[Key::_LEFT_ALT] = ImGuiKey_LeftAlt;
+    m_key_map[Key::_RIGHT_ALT] = ImGuiKey_RightAlt;
+    m_key_map[Key::_LEFT_SHIFT] = ImGuiKey_LeftShift;
+    m_key_map[Key::_RIGHT_SHIFT] = ImGuiKey_RightShift;
     m_key_map[Key::_TAB] = ImGuiKey_Tab;
     m_key_map[Key::_LEFT] = ImGuiKey_LeftArrow;
     m_key_map[Key::_RIGHT] = ImGuiKey_RightArrow;
@@ -223,8 +227,12 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
 
     auto &key_delegate = m_imgui_assets.key_delegate;
-    key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e) { key_press(ctx, e); };
-    key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e) { key_release(ctx, e); };
+    key_delegate.key_press = [ctx = m_imgui_context, keymap = m_key_map](const KeyEvent &e) {
+        key_press(ctx, e, keymap);
+    };
+    key_delegate.key_release = [ctx = m_imgui_context, keymap = m_key_map](const KeyEvent &e) {
+        key_release(ctx, e, keymap);
+    };
     key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
 
     create_device_objects(device);
@@ -464,26 +472,30 @@ void mouse_move(ImGuiContext *ctx, const MouseEvent &e)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void key_press(ImGuiContext *ctx, const KeyEvent &e)
+void key_press(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap)
 {
     ImGuiIO &io = ctx->IO;
-    io.KeysDown[e.code()] = true;
-    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
-    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
-    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
-    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
+    io.KeyCtrl = e.is_control_down();
+    io.KeyShift = e.is_shift_down();
+    io.KeyAlt = e.is_alt_down();
+    io.KeySuper = e.is_meta_down();
+
+    auto it = keymap.find(e.code());
+    if(it != keymap.end()) { io.AddKeyEvent(it->second, true); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void key_release(ImGuiContext *ctx, const KeyEvent &e)
+void key_release(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap)
 {
     ImGuiIO &io = ctx->IO;
-    io.KeysDown[e.code()] = false;
-    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
-    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
-    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
-    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
+    io.KeyCtrl = e.is_control_down();
+    io.KeyShift = e.is_shift_down();
+    io.KeyAlt = e.is_alt_down();
+    io.KeySuper = e.is_meta_down();
+
+    auto it = keymap.find(e.code());
+    if(it != keymap.end()) { io.AddKeyEvent(it->second, false); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
