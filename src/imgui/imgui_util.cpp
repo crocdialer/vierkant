@@ -523,7 +523,7 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
             // add / remove an object from selection
             if(clicked_obj && selection)
             {
-                if(ImGui::GetIO().KeyCtrl)
+                if(ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
                 {
                     if(selection->contains(clicked_obj)) { selection->erase(clicked_obj); }
                     else { selection->insert(clicked_obj); }

@@ -181,28 +181,6 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     m_key_map[Key::_Y] = ImGuiKey_Y;
     m_key_map[Key::_Z] = ImGuiKey_Z;
 
-    //    io.KeyMap[ImGuiKey_Tab] = Key::_TAB;
-    //    io.KeyMap[ImGuiKey_LeftArrow] = Key::_LEFT;
-    //    io.KeyMap[ImGuiKey_RightArrow] = Key::_RIGHT;
-    //    io.KeyMap[ImGuiKey_UpArrow] = Key::_UP;
-    //    io.KeyMap[ImGuiKey_DownArrow] = Key::_DOWN;
-    //    io.KeyMap[ImGuiKey_PageUp] = Key::_PAGE_UP;
-    //    io.KeyMap[ImGuiKey_PageDown] = Key::_PAGE_DOWN;
-    //    io.KeyMap[ImGuiKey_Home] = Key::_HOME;
-    //    io.KeyMap[ImGuiKey_End] = Key::_END;
-    //    io.KeyMap[ImGuiKey_Insert] = Key::_INSERT;
-    //    io.KeyMap[ImGuiKey_Delete] = Key::_DELETE;
-    //    io.KeyMap[ImGuiKey_Backspace] = Key::_BACKSPACE;
-    //    io.KeyMap[ImGuiKey_Space] = Key::_SPACE;
-    //    io.KeyMap[ImGuiKey_Enter] = Key::_ENTER;
-    //    io.KeyMap[ImGuiKey_Escape] = Key::_ESCAPE;
-    //    io.KeyMap[ImGuiKey_A] = Key::_A;
-    //    io.KeyMap[ImGuiKey_C] = Key::_C;
-    //    io.KeyMap[ImGuiKey_V] = Key::_V;
-    //    io.KeyMap[ImGuiKey_X] = Key::_X;
-    //    io.KeyMap[ImGuiKey_Y] = Key::_Y;
-    //    io.KeyMap[ImGuiKey_Z] = Key::_Z;
-
     if(!create_info.font_data.empty())
     {
         ImFontConfig font_cfg;
@@ -475,11 +453,6 @@ void mouse_move(ImGuiContext *ctx, const MouseEvent &e)
 void key_press(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap)
 {
     ImGuiIO &io = ctx->IO;
-    io.KeyCtrl = e.is_control_down();
-    io.KeyShift = e.is_shift_down();
-    io.KeyAlt = e.is_alt_down();
-    io.KeySuper = e.is_meta_down();
-
     auto it = keymap.find(e.code());
     if(it != keymap.end()) { io.AddKeyEvent(it->second, true); }
 }
@@ -489,11 +462,6 @@ void key_press(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<in
 void key_release(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap)
 {
     ImGuiIO &io = ctx->IO;
-    io.KeyCtrl = e.is_control_down();
-    io.KeyShift = e.is_shift_down();
-    io.KeyAlt = e.is_alt_down();
-    io.KeySuper = e.is_meta_down();
-
     auto it = keymap.find(e.code());
     if(it != keymap.end()) { io.AddKeyEvent(it->second, false); }
 }
