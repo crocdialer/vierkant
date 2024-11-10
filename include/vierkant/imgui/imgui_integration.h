@@ -1,4 +1,5 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
+//#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 #include "imgui.h"
 #include "implot.h"
 #include "ImGuizmo.h"
@@ -100,6 +101,8 @@ private:
     ImPlotContext *m_implot_context = nullptr;
 
     imgui_assets_t m_imgui_assets = {};
+
+    std::unordered_map<int, ImGuiKey> m_key_map;
 };
 
 }// namespace

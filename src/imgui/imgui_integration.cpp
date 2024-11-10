@@ -72,9 +72,9 @@ void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e);
 
 void mouse_move(ImGuiContext *ctx, const MouseEvent &e);
 
-void key_press(ImGuiContext *ctx, const KeyEvent &e);
+void key_press(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap);
 
-void key_release(ImGuiContext *ctx, const KeyEvent &e);
+void key_release(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap);
 
 void character_input(ImGuiContext *ctx, uint32_t c);
 
@@ -153,28 +153,33 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     // enable window-docking
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    // Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
-    io.KeyMap[ImGuiKey_Tab] = Key::_TAB;
-    io.KeyMap[ImGuiKey_LeftArrow] = Key::_LEFT;
-    io.KeyMap[ImGuiKey_RightArrow] = Key::_RIGHT;
-    io.KeyMap[ImGuiKey_UpArrow] = Key::_UP;
-    io.KeyMap[ImGuiKey_DownArrow] = Key::_DOWN;
-    io.KeyMap[ImGuiKey_PageUp] = Key::_PAGE_UP;
-    io.KeyMap[ImGuiKey_PageDown] = Key::_PAGE_DOWN;
-    io.KeyMap[ImGuiKey_Home] = Key::_HOME;
-    io.KeyMap[ImGuiKey_End] = Key::_END;
-    io.KeyMap[ImGuiKey_Insert] = Key::_INSERT;
-    io.KeyMap[ImGuiKey_Delete] = Key::_DELETE;
-    io.KeyMap[ImGuiKey_Backspace] = Key::_BACKSPACE;
-    io.KeyMap[ImGuiKey_Space] = Key::_SPACE;
-    io.KeyMap[ImGuiKey_Enter] = Key::_ENTER;
-    io.KeyMap[ImGuiKey_Escape] = Key::_ESCAPE;
-    io.KeyMap[ImGuiKey_A] = Key::_A;
-    io.KeyMap[ImGuiKey_C] = Key::_C;
-    io.KeyMap[ImGuiKey_V] = Key::_V;
-    io.KeyMap[ImGuiKey_X] = Key::_X;
-    io.KeyMap[ImGuiKey_Y] = Key::_Y;
-    io.KeyMap[ImGuiKey_Z] = Key::_Z;
+    m_key_map[Key::_LEFT_CONTROL] = ImGuiKey_LeftCtrl;
+    m_key_map[Key::_RIGHT_CONTROL] = ImGuiKey_RightCtrl;
+    m_key_map[Key::_LEFT_ALT] = ImGuiKey_LeftAlt;
+    m_key_map[Key::_RIGHT_ALT] = ImGuiKey_RightAlt;
+    m_key_map[Key::_LEFT_SHIFT] = ImGuiKey_LeftShift;
+    m_key_map[Key::_RIGHT_SHIFT] = ImGuiKey_RightShift;
+    m_key_map[Key::_TAB] = ImGuiKey_Tab;
+    m_key_map[Key::_LEFT] = ImGuiKey_LeftArrow;
+    m_key_map[Key::_RIGHT] = ImGuiKey_RightArrow;
+    m_key_map[Key::_UP] = ImGuiKey_UpArrow;
+    m_key_map[Key::_DOWN] = ImGuiKey_DownArrow;
+    m_key_map[Key::_PAGE_UP] = ImGuiKey_PageUp;
+    m_key_map[Key::_PAGE_DOWN] = ImGuiKey_PageDown;
+    m_key_map[Key::_HOME] = ImGuiKey_Home;
+    m_key_map[Key::_END] = ImGuiKey_End;
+    m_key_map[Key::_INSERT] = ImGuiKey_Insert;
+    m_key_map[Key::_DELETE] = ImGuiKey_Delete;
+    m_key_map[Key::_BACKSPACE] = ImGuiKey_Backspace;
+    m_key_map[Key::_SPACE] = ImGuiKey_Space;
+    m_key_map[Key::_ENTER] = ImGuiKey_Enter;
+    m_key_map[Key::_ESCAPE] = ImGuiKey_Escape;
+    m_key_map[Key::_A] = ImGuiKey_A;
+    m_key_map[Key::_C] = ImGuiKey_C;
+    m_key_map[Key::_V] = ImGuiKey_V;
+    m_key_map[Key::_X] = ImGuiKey_X;
+    m_key_map[Key::_Y] = ImGuiKey_Y;
+    m_key_map[Key::_Z] = ImGuiKey_Z;
 
     if(!create_info.font_data.empty())
     {
@@ -200,8 +205,12 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
 
     auto &key_delegate = m_imgui_assets.key_delegate;
-    key_delegate.key_press = [ctx = m_imgui_context](const KeyEvent &e) { key_press(ctx, e); };
-    key_delegate.key_release = [ctx = m_imgui_context](const KeyEvent &e) { key_release(ctx, e); };
+    key_delegate.key_press = [ctx = m_imgui_context, keymap = m_key_map](const KeyEvent &e) {
+        key_press(ctx, e, keymap);
+    };
+    key_delegate.key_release = [ctx = m_imgui_context, keymap = m_key_map](const KeyEvent &e) {
+        key_release(ctx, e, keymap);
+    };
     key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
 
     create_device_objects(device);
@@ -309,8 +318,8 @@ void Context::draw_gui(vierkant::Rasterizer &renderer)
             if(pcmd->UserCallback) { pcmd->UserCallback(cmd_list, pcmd); }
             else
             {
-                auto tex =
-                        vierkant::ImagePtr(static_cast<vierkant::Image *>(pcmd->TextureId), [](vierkant::Image *) {});
+                auto tex = vierkant::ImagePtr(reinterpret_cast<vierkant::Image *>(pcmd->TextureId),
+                                              [](vierkant::Image *) {});
 
                 // create a new drawable
                 auto drawable = m_imgui_assets.drawable;
@@ -371,7 +380,7 @@ bool Context::create_device_objects(const vierkant::DevicePtr &device)
     fmt.component_swizzle = {VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE, VK_COMPONENT_SWIZZLE_ONE,
                              VK_COMPONENT_SWIZZLE_R};
     m_imgui_assets.font_texture = vierkant::Image::create(device, pixels, fmt);
-    io.Fonts->TexID = m_imgui_assets.font_texture.get();
+    io.Fonts->TexID = reinterpret_cast<ImTextureID>(m_imgui_assets.font_texture.get());
 
     // create dummy mesh instance
     auto mesh = create_mesh_assets(device).mesh;
@@ -400,6 +409,7 @@ void swap(Context &lhs, Context &rhs) noexcept
     std::swap(lhs.m_imgui_context, rhs.m_imgui_context);
     std::swap(lhs.m_implot_context, rhs.m_implot_context);
     std::swap(lhs.m_imgui_assets, rhs.m_imgui_assets);
+    std::swap(lhs.m_key_map, rhs.m_key_map);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -407,9 +417,9 @@ void swap(Context &lhs, Context &rhs) noexcept
 void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    if(e.is_left()) { io.MouseDown[0] = true; }
-    else if(e.is_middle()) { io.MouseDown[2] = true; }
-    else if(e.is_right()) { io.MouseDown[1] = true; }
+    if(e.is_left()) { io.AddMouseButtonEvent(0, true); }
+    else if(e.is_middle()) { io.AddMouseButtonEvent(2, true); }
+    else if(e.is_right()) { io.AddMouseButtonEvent(1, true); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -417,9 +427,9 @@ void mouse_press(ImGuiContext *ctx, const MouseEvent &e)
 void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    if(e.is_left()) { io.MouseDown[0] = false; }
-    else if(e.is_middle()) { io.MouseDown[2] = false; }
-    else if(e.is_right()) { io.MouseDown[1] = false; }
+    if(e.is_left()) { io.AddMouseButtonEvent(0, false); }
+    else if(e.is_middle()) { io.AddMouseButtonEvent(2, false); }
+    else if(e.is_right()) { io.AddMouseButtonEvent(1, false); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -427,8 +437,7 @@ void mouse_release(ImGuiContext *ctx, const MouseEvent &e)
 void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    io.MouseWheelH += static_cast<float>(e.wheel_increment().x);
-    io.MouseWheel += static_cast<float>(e.wheel_increment().y);
+    io.AddMouseWheelEvent(static_cast<float>(e.wheel_increment().x), static_cast<float>(e.wheel_increment().y));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -436,31 +445,25 @@ void mouse_wheel(ImGuiContext *ctx, const MouseEvent &e)
 void mouse_move(ImGuiContext *ctx, const MouseEvent &e)
 {
     ImGuiIO &io = ctx->IO;
-    io.MousePos = {static_cast<float>(e.get_x()), static_cast<float>(e.get_y())};
+    io.AddMousePosEvent(static_cast<float>(e.get_x()), static_cast<float>(e.get_y()));
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void key_press(ImGuiContext *ctx, const KeyEvent &e)
+void key_press(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap)
 {
     ImGuiIO &io = ctx->IO;
-    io.KeysDown[e.code()] = true;
-    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
-    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
-    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
-    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
+    auto it = keymap.find(e.code());
+    if(it != keymap.end()) { io.AddKeyEvent(it->second, true); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void key_release(ImGuiContext *ctx, const KeyEvent &e)
+void key_release(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<int, ImGuiKey> &keymap)
 {
     ImGuiIO &io = ctx->IO;
-    io.KeysDown[e.code()] = false;
-    io.KeyCtrl = io.KeysDown[Key::_LEFT_CONTROL] || io.KeysDown[Key::_RIGHT_CONTROL];
-    io.KeyShift = io.KeysDown[Key::_LEFT_SHIFT] || io.KeysDown[Key::_RIGHT_SHIFT];
-    io.KeyAlt = io.KeysDown[Key::_LEFT_ALT] || io.KeysDown[Key::_RIGHT_ALT];
-    io.KeySuper = io.KeysDown[Key::_LEFT_SUPER] || io.KeysDown[Key::_RIGHT_SUPER];
+    auto it = keymap.find(e.code());
+    if(it != keymap.end()) { io.AddKeyEvent(it->second, false); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
