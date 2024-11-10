@@ -153,33 +153,34 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     // enable window-docking
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-    m_key_map[Key::_LEFT_CONTROL] = ImGuiKey_LeftCtrl;
-    m_key_map[Key::_RIGHT_CONTROL] = ImGuiKey_RightCtrl;
-    m_key_map[Key::_LEFT_ALT] = ImGuiKey_LeftAlt;
-    m_key_map[Key::_RIGHT_ALT] = ImGuiKey_RightAlt;
-    m_key_map[Key::_LEFT_SHIFT] = ImGuiKey_LeftShift;
-    m_key_map[Key::_RIGHT_SHIFT] = ImGuiKey_RightShift;
-    m_key_map[Key::_TAB] = ImGuiKey_Tab;
-    m_key_map[Key::_LEFT] = ImGuiKey_LeftArrow;
-    m_key_map[Key::_RIGHT] = ImGuiKey_RightArrow;
-    m_key_map[Key::_UP] = ImGuiKey_UpArrow;
-    m_key_map[Key::_DOWN] = ImGuiKey_DownArrow;
-    m_key_map[Key::_PAGE_UP] = ImGuiKey_PageUp;
-    m_key_map[Key::_PAGE_DOWN] = ImGuiKey_PageDown;
-    m_key_map[Key::_HOME] = ImGuiKey_Home;
-    m_key_map[Key::_END] = ImGuiKey_End;
-    m_key_map[Key::_INSERT] = ImGuiKey_Insert;
-    m_key_map[Key::_DELETE] = ImGuiKey_Delete;
-    m_key_map[Key::_BACKSPACE] = ImGuiKey_Backspace;
-    m_key_map[Key::_SPACE] = ImGuiKey_Space;
-    m_key_map[Key::_ENTER] = ImGuiKey_Enter;
-    m_key_map[Key::_ESCAPE] = ImGuiKey_Escape;
-    m_key_map[Key::_A] = ImGuiKey_A;
-    m_key_map[Key::_C] = ImGuiKey_C;
-    m_key_map[Key::_V] = ImGuiKey_V;
-    m_key_map[Key::_X] = ImGuiKey_X;
-    m_key_map[Key::_Y] = ImGuiKey_Y;
-    m_key_map[Key::_Z] = ImGuiKey_Z;
+    std::unordered_map<int, ImGuiKey> keymap;
+    keymap[Key::_LEFT_CONTROL] = ImGuiKey_LeftCtrl;
+    keymap[Key::_RIGHT_CONTROL] = ImGuiKey_RightCtrl;
+    keymap[Key::_LEFT_ALT] = ImGuiKey_LeftAlt;
+    keymap[Key::_RIGHT_ALT] = ImGuiKey_RightAlt;
+    keymap[Key::_LEFT_SHIFT] = ImGuiKey_LeftShift;
+    keymap[Key::_RIGHT_SHIFT] = ImGuiKey_RightShift;
+    keymap[Key::_TAB] = ImGuiKey_Tab;
+    keymap[Key::_LEFT] = ImGuiKey_LeftArrow;
+    keymap[Key::_RIGHT] = ImGuiKey_RightArrow;
+    keymap[Key::_UP] = ImGuiKey_UpArrow;
+    keymap[Key::_DOWN] = ImGuiKey_DownArrow;
+    keymap[Key::_PAGE_UP] = ImGuiKey_PageUp;
+    keymap[Key::_PAGE_DOWN] = ImGuiKey_PageDown;
+    keymap[Key::_HOME] = ImGuiKey_Home;
+    keymap[Key::_END] = ImGuiKey_End;
+    keymap[Key::_INSERT] = ImGuiKey_Insert;
+    keymap[Key::_DELETE] = ImGuiKey_Delete;
+    keymap[Key::_BACKSPACE] = ImGuiKey_Backspace;
+    keymap[Key::_SPACE] = ImGuiKey_Space;
+    keymap[Key::_ENTER] = ImGuiKey_Enter;
+    keymap[Key::_ESCAPE] = ImGuiKey_Escape;
+    keymap[Key::_A] = ImGuiKey_A;
+    keymap[Key::_C] = ImGuiKey_C;
+    keymap[Key::_V] = ImGuiKey_V;
+    keymap[Key::_X] = ImGuiKey_X;
+    keymap[Key::_Y] = ImGuiKey_Y;
+    keymap[Key::_Z] = ImGuiKey_Z;
 
     if(!create_info.font_data.empty())
     {
@@ -205,10 +206,8 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     mouse_delegate.mouse_move = [ctx = m_imgui_context](const MouseEvent &e) { mouse_move(ctx, e); };
 
     auto &key_delegate = m_imgui_assets.key_delegate;
-    key_delegate.key_press = [ctx = m_imgui_context, keymap = m_key_map](const KeyEvent &e) {
-        key_press(ctx, e, keymap);
-    };
-    key_delegate.key_release = [ctx = m_imgui_context, keymap = m_key_map](const KeyEvent &e) {
+    key_delegate.key_press = [ctx = m_imgui_context, keymap](const KeyEvent &e) { key_press(ctx, e, keymap); };
+    key_delegate.key_release = [ctx = m_imgui_context, keymap](const KeyEvent &e) {
         key_release(ctx, e, keymap);
     };
     key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
@@ -409,7 +408,6 @@ void swap(Context &lhs, Context &rhs) noexcept
     std::swap(lhs.m_imgui_context, rhs.m_imgui_context);
     std::swap(lhs.m_implot_context, rhs.m_implot_context);
     std::swap(lhs.m_imgui_assets, rhs.m_imgui_assets);
-    std::swap(lhs.m_key_map, rhs.m_key_map);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
