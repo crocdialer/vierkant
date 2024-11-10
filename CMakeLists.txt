@@ -62,7 +62,8 @@ include(vierkant_utils)
 
 set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/include/vierkant/bundled
-        ${PROJECT_BINARY_DIR}/include)
+        ${PROJECT_BINARY_DIR}/include
+        ${PROJECT_SOURCE_DIR}/submodules/imgui)
 
 # suppress warnings from bundles headers
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/include/vierkant/bundled")
@@ -167,5 +168,9 @@ install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/entt/single_include/en
 
 # install glm-headers
 install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include/vierkant/bundled")
+
+# install imgui-headers
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/submodules/imgui)
+install (FILES ${IMGUI_DIR}/imconfig.h ${IMGUI_DIR}/imgui.h DESTINATION "include/vierkant/bundled")
 
 install (TARGETS ${LIB_NAME} DESTINATION lib)

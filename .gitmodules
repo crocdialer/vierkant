@@ -34,3 +34,8 @@
 	path = submodules/SPIRV-Reflect
 	url = https://github.com/KhronosGroup/SPIRV-Reflect.git
 	shallow = true
+[submodule "submodules/imgui"]
+	path = submodules/imgui
+	url = https://github.com/ocornut/imgui.git
+	branch = docking
+	shallow = true

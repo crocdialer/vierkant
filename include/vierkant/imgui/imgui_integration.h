@@ -101,8 +101,6 @@ private:
     ImPlotContext *m_implot_context = nullptr;
 
     imgui_assets_t m_imgui_assets = {};
-
-    std::unordered_map<int, ImGuiKey> m_key_map;
 };
 
 }// namespace

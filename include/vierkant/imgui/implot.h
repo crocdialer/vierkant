@@ -45,7 +45,7 @@
 // [SECTION] Obsolete API
 
 #pragma once
-#include <vierkant/imgui/imgui.h>
+#include <imgui.h>
 
 //-----------------------------------------------------------------------------
 // [SECTION] Macros and Defines
