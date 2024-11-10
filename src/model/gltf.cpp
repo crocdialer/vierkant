@@ -929,8 +929,11 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
     {
         try
         {
-            out_assets.materials.push_back(
-                    convert_material(tiny_mat, model, image_cache, tex_id_cache, sampler_id_cache));
+            auto mat = convert_material(tiny_mat, model, image_cache, tex_id_cache, sampler_id_cache);
+
+            // deterministic material-ids when loading same path
+            mat.id = MaterialId::from_name(path.string() + "/" + mat.name);
+            out_assets.materials.push_back(std::move(mat));
         } catch(std::exception &e)
         {
             spdlog::warn("could not convert material '{}' for: '{}' ({})", tiny_mat.name, path.string(), e.what());
@@ -1043,7 +1046,7 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
                 entry_create_infos.push_back(std::move(create_info));
 
             }// for all primitives
-        }    // mesh
+        }// mesh
 
         // node references camera
         if(tiny_node.camera >= 0 && static_cast<uint32_t>(tiny_node.camera) < model.cameras.size())

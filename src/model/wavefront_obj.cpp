@@ -86,6 +86,7 @@ std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, c
     for(const auto &mat: materials)
     {
         vierkant::material_t m = {};
+        m.id = MaterialId::from_name(path.string() + "/" + mat.name);
         m.name = mat.name;
         m.base_color = {mat.diffuse[0], mat.diffuse[1], mat.diffuse[2], std::clamp(1.f - mat.dissolve, 0.f, 1.f)};
         m.emission = {mat.emission[0], mat.emission[1], mat.emission[2]};
