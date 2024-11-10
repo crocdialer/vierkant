@@ -144,9 +144,6 @@ Vertex interpolate_vertex(Triangle t)
                      entry.transform.rotation_w);
     out_vert.normal = rotate_quat(quat, out_vert.normal);
     out_vert.tangent = rotate_quat(quat, out_vert.tangent);
-
-    // account for two-sided materials seen from backside, flip normals
-    if(gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT){ out_vert.normal *= -1.0; }
     return out_vert;
 }
 
