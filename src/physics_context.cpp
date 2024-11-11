@@ -45,6 +45,8 @@ namespace vierkant
 
 inline glm::vec3 type_cast(const JPH::Vec3 &v) { return {v.GetX(), v.GetY(), v.GetZ()}; }
 inline JPH::Vec3 type_cast(const glm::vec3 &v) { return {v.x, v.y, v.z}; }
+inline glm::vec4 type_cast(const JPH::Vec4 &v) { return {v.GetX(), v.GetY(), v.GetZ(), v.GetW()}; }
+inline JPH::Vec4 type_cast(const glm::vec4 &v) { return {v.x, v.y, v.z, v.w}; }
 inline glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
 inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 
@@ -54,6 +56,44 @@ inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 {
     spdlog::error("{} : {} : ({}) {}", inFile, inLine, inExpression, inMessage ? inMessage : "");
     return true;
+};
+
+class JoltDebugRenderer final : public JPH::DebugRenderer
+{
+public:
+    JoltDebugRenderer() { Initialize(); }
+
+    /// Draw a single back face culled triangle
+    void DrawTriangle(JPH::RVec3Arg /*inV1*/, JPH::RVec3Arg /*inV2*/, JPH::RVec3Arg /*inV3*/, JPH::ColorArg /*inColor*/,
+                      ECastShadow /*inCastShadow*/) override
+    {}
+
+    void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override
+    {
+        line_geometry->positions.push_back(type_cast(inFrom));
+        line_geometry->positions.push_back(type_cast(inTo));
+        line_geometry->colors.push_back(type_cast(inColor.ToVec4()));
+        line_geometry->colors.push_back(type_cast(inColor.ToVec4()));
+    }
+
+    Batch CreateTriangleBatch(const Triangle *inTriangles, int inTriangleCount) override
+    {
+        return CreateTriangleBatch(inTriangles->mV, inTriangleCount * 3, nullptr, 0);
+    };
+    Batch CreateTriangleBatch(const Vertex * /*inVertices*/, int /*inVertexCount*/, const uint32_t * /*inIndices*/,
+                              int /*inIndexCount*/) override
+    {
+        return {};
+    };
+    void DrawGeometry(JPH::RMat44Arg /*inModelMatrix*/, const JPH::AABox & /*inWorldSpaceBounds*/,
+                      float /*inLODScaleSq*/, JPH::ColorArg /*inModelColor*/, const GeometryRef & /*inGeometry*/,
+                      ECullMode /*inCullMode*/, ECastShadow /*inCastShadow*/, EDrawMode /*inDrawMode*/) override {};
+
+    void DrawText3D(JPH::RVec3Arg /*inPosition*/, const JPH::string_view & /*inString*/, JPH::ColorArg /*inColor*/,
+                    float /*inHeight*/) override {};
+
+    GeometryPtr line_geometry = vierkant::Geometry::create();
+    std::unordered_map<GeometryRef, vierkant::GeometryPtr> geometries;
 };
 
 ///// Implementation of a JoltJobSystem using a thread pool
@@ -365,6 +405,20 @@ public:
         physics_system.SetSoftBodyContactListener(this);
 
         body_system = std::make_unique<BodyInterfaceImpl>(physics_system.GetBodyInterfaceNoLock(), body_id_map);
+
+        JPH::DebugRenderer::sInstance = nullptr;
+        debug_render = std::make_unique<JoltDebugRenderer>();
+    }
+
+    ~JoltContext() override
+    {
+        // stupid singleton-hack
+        JPH::DebugRenderer::sInstance = debug_render.get();
+        debug_render.reset();
+
+        // Unregisters all types with the factory and cleans up the default material
+        JPH::UnregisterTypes();
+        JPH::Factory::sInstance = nullptr;
     }
 
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
@@ -448,13 +502,6 @@ public:
                                 [[maybe_unused]] const JPH::SoftBodyManifold &inManifold) override
     {}
 
-    ~JoltContext() override
-    {
-        // Unregisters all types with the factory and cleans up the default material
-        JPH::UnregisterTypes();
-        JPH::Factory::sInstance = nullptr;
-    }
-
     //! collision-shape storage
     std::unordered_map<vierkant::CollisionShapeId, JPH::Ref<JPH::Shape>> shapes;
 
@@ -474,6 +521,8 @@ public:
     //! job-system backing physics-jobs
     std::unique_ptr<JPH::JobSystemWithBarrier> job_system;
     crocore::ThreadPool *thread_pool = nullptr;
+
+    std::unique_ptr<JoltDebugRenderer> debug_render;
 
 private:
     // This is the max amount of rigid bodies that you can add to the physics system.
@@ -650,7 +699,16 @@ bool PhysicsContext::contains(uint32_t objectId) const { return m_engine->jolt.b
 
 vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
 
-GeometryConstPtr PhysicsContext::debug_render() { return nullptr; }
+GeometryConstPtr PhysicsContext::debug_render()
+{
+    m_engine->jolt.debug_render->line_geometry->positions.clear();
+    m_engine->jolt.debug_render->line_geometry->colors.clear();
+
+    JPH::BodyManager::DrawSettings ds;
+    ds.mDrawVelocity = true;
+    m_engine->jolt.physics_system.DrawBodies(ds, m_engine->jolt.debug_render.get());
+    return m_engine->jolt.debug_render->line_geometry;
+}
 
 void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->jolt.physics_system.SetGravity(type_cast(g)); }
 
@@ -685,6 +743,11 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 else if constexpr(std::is_same_v<T, collision::capsule_t>)
                 {
                     m_engine->jolt.shapes[new_id] = new JPH::CapsuleShape(s.height / 2.f, s.radius);
+                }
+                else if constexpr(std::is_same_v<T, collision::mesh_t>)
+                {
+                    std::unordered_map<vierkant::MeshId, vierkant::mesh_buffer_bundle_t> mesh_map;
+                    new_id = create_convex_collision_shape(mesh_map[s.mesh_id]);
                 }
                 else { return CollisionShapeId::nil(); }
                 return new_id;

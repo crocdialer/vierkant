@@ -52,7 +52,7 @@ struct mesh_t
 };
 
 using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t, collision::capsule_t,
-                             vierkant::CollisionShapeId>;
+                             collision::mesh_t, vierkant::CollisionShapeId>;
 }// namespace collision
 
 struct physics_component_t
