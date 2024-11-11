@@ -410,7 +410,8 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_geometry(vierkant::Rasterizer &renderer, const vierkant::GeometryConstPtr &geom,
-                                const vierkant::transform_t &transform, const glm::mat4 &projection)
+                                const glm::vec4 &color, const vierkant::transform_t &transform,
+                                const glm::mat4 &projection)
 {
     if(!geom || geom->positions.empty()) { return; }
 
@@ -423,8 +424,8 @@ void DrawContext::draw_geometry(vierkant::Rasterizer &renderer, const vierkant::
 
         auto &fmt = drawable.pipeline_format;
         fmt.blend_state.blendEnable = true;
-        fmt.depth_test = false;
-        fmt.depth_write = false;
+        fmt.depth_test = true;
+        fmt.depth_write = true;
         fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
@@ -469,9 +470,8 @@ void DrawContext::draw_geometry(vierkant::Rasterizer &renderer, const vierkant::
             vierkant::Buffer::create(renderer.device(), geom->positions, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                      VMA_MEMORY_USAGE_CPU_TO_GPU, m_memory_pool);
     auto &color_attrib = mesh->vertex_attribs.at(vierkant::Mesh::ATTRIB_COLOR);
-    color_attrib.buffer =
-            vierkant::Buffer::create(renderer.device(), geom->positions, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                                     VMA_MEMORY_USAGE_CPU_TO_GPU, m_memory_pool);
+    color_attrib.buffer = vierkant::Buffer::create(renderer.device(), geom->colors, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                                   VMA_MEMORY_USAGE_CPU_TO_GPU, m_memory_pool);
     mesh->index_buffer = vierkant::Buffer::create(renderer.device(), geom->indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
                                                   VMA_MEMORY_USAGE_CPU_TO_GPU, m_memory_pool);
     drawable.mesh = mesh;
@@ -481,6 +481,7 @@ void DrawContext::draw_geometry(vierkant::Rasterizer &renderer, const vierkant::
     drawable.num_indices = geom->indices.size();
     drawable.matrices.transform = transform;
     drawable.matrices.projection = projection;
+    drawable.material.color = color;
     renderer.stage_drawable(std::move(drawable));
 }
 

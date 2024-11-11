@@ -60,7 +60,7 @@ public:
                     const std::vector<glm::vec4> &colors, const vierkant::transform_t &transform,
                     const glm::mat4 &projection);
 
-    void draw_geometry(vierkant::Rasterizer &renderer, const vierkant::GeometryConstPtr &geom,
+    void draw_geometry(vierkant::Rasterizer &renderer, const vierkant::GeometryConstPtr &geom, const glm::vec4 &color,
                        const vierkant::transform_t &transform, const glm::mat4 &projection);
     /**
      * @brief   Draws an image in a 2D context.

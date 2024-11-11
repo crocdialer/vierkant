@@ -55,11 +55,11 @@ inline vierkant::AABB type_cast(const JPH::AABox &in_aabb)
     return {type_cast(in_aabb.mMin), type_cast(in_aabb.mMax)};
 }
 
-inline vierkant::transform_t type_cast(JPH::RMat44Arg &mat)
+inline vierkant::transform_t type_cast(const JPH::Mat44 &mat)
 {
-    vierkant::transform_t ret;
-    ret.translation = type_cast(mat.GetTranslation());
-    ret.rotation = type_cast(mat.GetQuaternion());
+    glm::mat4 tmp(type_cast(mat.GetColumn4(0)), type_cast(mat.GetColumn4(1)), type_cast(mat.GetColumn4(2)),
+                  type_cast(mat.GetColumn4(3)));
+    vierkant::transform_t ret = vierkant::transform_cast(tmp);
     return ret;
 }
 
@@ -101,13 +101,14 @@ public:
         geom->positions.resize(inVertexCount);
         geom->normals.resize(inVertexCount);
         geom->tex_coords.resize(inVertexCount);
-        geom->colors.resize(inVertexCount);
+        geom->colors.resize(inVertexCount, glm::vec4(1));
         for(int i = 0; i < inVertexCount; ++i)
         {
-            geom->positions[i] = *reinterpret_cast<const glm::vec3 *>(&inVertices[i].mPosition);
-            geom->normals[i] = *reinterpret_cast<const glm::vec3 *>(&inVertices[i].mNormal);
-            geom->tex_coords[i] = *reinterpret_cast<const glm::vec2 *>(&inVertices[i].mUV);
-            geom->colors[i] = type_cast(inVertices[i].mColor.ToVec4());
+            const auto &v = inVertices[i];
+            geom->positions[i] = {v.mPosition.x, v.mPosition.y, v.mPosition.z};
+            geom->normals[i] = {v.mNormal.x, v.mNormal.y, v.mNormal.z};
+            geom->tex_coords[i] = {v.mUV.x, v.mUV.y};
+            geom->colors[i] = type_cast(v.mColor.ToVec4());
         }
         if(inIndices) { geom->indices = {inIndices, inIndices + inIndexCount}; }
 
@@ -117,13 +118,14 @@ public:
     };
 
     void DrawGeometry(JPH::RMat44Arg inModelMatrix, const JPH::AABox &inWorldSpaceBounds, float /*inLODScaleSq*/,
-                      JPH::ColorArg /*inModelColor*/, const GeometryRef &inGeometry, ECullMode /*inCullMode*/,
+                      JPH::ColorArg inModelColor, const GeometryRef &inGeometry, ECullMode /*inCullMode*/,
                       ECastShadow /*inCastShadow*/, EDrawMode /*inDrawMode*/) override
     {
         if(!inGeometry->mLODs.empty())
         {
             auto batch = (Batch *) (inGeometry->mLODs.front().mTriangleBatch.GetPtr());
             aabbs.push_back(type_cast(inWorldSpaceBounds));
+            colors.push_back(type_cast(inModelColor.ToVec4()));
             triangle_meshes.emplace_back(type_cast(inModelMatrix), batch->triangles);
         }
     };
@@ -136,11 +138,13 @@ public:
         line_geometry->positions.clear();
         line_geometry->colors.clear();
         aabbs.clear();
+        colors.clear();
         triangle_meshes.clear();
     }
 
     GeometryPtr line_geometry = vierkant::Geometry::create();
     std::vector<vierkant::AABB> aabbs;
+    std::vector<glm::vec4> colors;
     std::vector<std::pair<vierkant::transform_t, GeometryConstPtr>> triangle_meshes;
 
 private:
@@ -769,7 +773,7 @@ PhysicsContext::debug_draw_result_t PhysicsContext::debug_render()
     ds.mDrawVelocity = true;
     m_engine->jolt.physics_system.DrawBodies(ds, m_engine->jolt.debug_render.get());
     return {m_engine->jolt.debug_render->line_geometry, m_engine->jolt.debug_render->aabbs,
-            m_engine->jolt.debug_render->triangle_meshes};
+            m_engine->jolt.debug_render->colors, m_engine->jolt.debug_render->triangle_meshes};
 }
 
 void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->jolt.physics_system.SetGravity(type_cast(g)); }
