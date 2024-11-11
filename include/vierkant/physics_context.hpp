@@ -86,8 +86,8 @@ public:
 
     struct debug_draw_result_t
     {
-        const GeometryConstPtr &lines;
-        const std::vector<vierkant::AABB> &aabbs;
+        GeometryConstPtr lines;
+        std::vector<vierkant::AABB> aabbs;
         const std::vector<std::pair<vierkant::transform_t, GeometryConstPtr>> &triangle_meshes;
     };
 

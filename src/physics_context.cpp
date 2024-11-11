@@ -50,11 +50,9 @@ inline JPH::Vec4 type_cast(const glm::vec4 &v) { return {v.x, v.y, v.z, v.w}; }
 inline glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
 inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 
-inline const JPH::AABox &type_cast(const vierkant::AABB &aabb) { return *reinterpret_cast<const JPH::AABox *>(&aabb); }
-
 inline vierkant::AABB type_cast(const JPH::AABox &in_aabb)
 {
-    return *reinterpret_cast<const vierkant::AABB *>(&in_aabb);
+    return {type_cast(in_aabb.mMin), type_cast(in_aabb.mMax)};
 }
 
 inline vierkant::transform_t type_cast(JPH::RMat44Arg &mat)
