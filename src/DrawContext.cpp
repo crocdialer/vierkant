@@ -409,6 +409,81 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void DrawContext::draw_geometry(vierkant::Rasterizer &renderer, const vierkant::GeometryConstPtr &geom,
+                                const vierkant::transform_t &transform, const glm::mat4 &projection)
+{
+    if(!geom || geom->positions.empty()) { return; }
+
+    // search drawable
+    auto drawable_it = m_drawables.find(DrawableType::TrianglesColor);
+
+    if(drawable_it == m_drawables.end())
+    {
+        vierkant::drawable_t drawable = {};
+
+        auto &fmt = drawable.pipeline_format;
+        fmt.blend_state.blendEnable = true;
+        fmt.depth_test = false;
+        fmt.depth_write = false;
+        fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
+        fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+        // descriptors
+        vierkant::descriptor_t desc_matrix = {};
+        desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
+        drawable.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
+
+        vierkant::descriptor_t desc_material = {};
+        desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        drawable.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
+
+        auto mesh = vierkant::Mesh::create();
+
+        // vertex attrib -> position
+        auto &position_attrib = mesh->vertex_attribs[vierkant::Mesh::ATTRIB_POSITION];
+        position_attrib.offset = 0;
+        position_attrib.stride = sizeof(glm::vec3);
+        position_attrib.buffer = nullptr;
+        position_attrib.buffer_offset = 0;
+        position_attrib.format = vierkant::format<glm::vec3>();
+
+        // vertex attrib -> colors
+        auto &color_attrib = mesh->vertex_attribs[vierkant::Mesh::ATTRIB_COLOR];
+        color_attrib.offset = 0;
+        color_attrib.stride = sizeof(glm::vec4);
+        color_attrib.buffer = nullptr;
+        color_attrib.buffer_offset = 0;
+        color_attrib.format = vierkant::format<glm::vec4>();
+
+        drawable.mesh = mesh;
+        drawable_it = m_drawables.insert({DrawableType::TrianglesColor, std::move(drawable)}).first;
+    }
+    auto drawable = drawable_it->second;
+    auto mesh = vierkant::Mesh::create();
+    mesh->vertex_attribs = drawable.mesh->vertex_attribs;
+
+    auto &position_attrib = mesh->vertex_attribs.at(vierkant::Mesh::ATTRIB_POSITION);
+    position_attrib.buffer =
+            vierkant::Buffer::create(renderer.device(), geom->positions, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                     VMA_MEMORY_USAGE_CPU_TO_GPU, m_memory_pool);
+    auto &color_attrib = mesh->vertex_attribs.at(vierkant::Mesh::ATTRIB_COLOR);
+    color_attrib.buffer =
+            vierkant::Buffer::create(renderer.device(), geom->positions, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                                     VMA_MEMORY_USAGE_CPU_TO_GPU, m_memory_pool);
+    mesh->index_buffer = vierkant::Buffer::create(renderer.device(), geom->indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                                                  VMA_MEMORY_USAGE_CPU_TO_GPU, m_memory_pool);
+    drawable.mesh = mesh;
+    drawable.pipeline_format.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
+    drawable.pipeline_format.binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
+    drawable.num_vertices = geom->positions.size();
+    drawable.num_indices = geom->indices.size();
+    drawable.matrices.transform = transform;
+    drawable.matrices.projection = projection;
+    renderer.stage_drawable(std::move(drawable));
+}
+
 void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth,
                                         bool depth_test, bool blend)
 {

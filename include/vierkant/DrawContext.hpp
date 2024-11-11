@@ -59,6 +59,9 @@ public:
     void draw_lines(vierkant::Rasterizer &renderer, const std::vector<glm::vec3> &lines,
                     const std::vector<glm::vec4> &colors, const vierkant::transform_t &transform,
                     const glm::mat4 &projection);
+
+    void draw_geometry(vierkant::Rasterizer &renderer, const vierkant::GeometryConstPtr &geom,
+                       const vierkant::transform_t &transform, const glm::mat4 &projection);
     /**
      * @brief   Draws an image in a 2D context.
      *
@@ -139,6 +142,7 @@ private:
         Points,
         Lines,
         LinesColor,
+        TrianglesColor,
         Text,
         Image,
         ImageFullscreen,

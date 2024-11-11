@@ -84,6 +84,13 @@ public:
         contact_cb_t contact_end;
     };
 
+    struct debug_draw_result_t
+    {
+        const GeometryConstPtr &lines;
+        const std::vector<vierkant::AABB> &aabbs;
+        const std::vector<std::pair<vierkant::transform_t, GeometryConstPtr>> &triangle_meshes;
+    };
+
     class BodyInterface
     {
     public:
@@ -108,7 +115,7 @@ public:
 
     void step_simulation(float timestep, int max_sub_steps = 1);
 
-    GeometryConstPtr debug_render();
+    debug_draw_result_t debug_render();
 
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;

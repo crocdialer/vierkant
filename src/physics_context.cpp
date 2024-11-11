@@ -50,6 +50,21 @@ inline JPH::Vec4 type_cast(const glm::vec4 &v) { return {v.x, v.y, v.z, v.w}; }
 inline glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
 inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 
+inline const JPH::AABox &type_cast(const vierkant::AABB &aabb) { return *reinterpret_cast<const JPH::AABox *>(&aabb); }
+
+inline vierkant::AABB type_cast(const JPH::AABox &in_aabb)
+{
+    return *reinterpret_cast<const vierkant::AABB *>(&in_aabb);
+}
+
+inline vierkant::transform_t type_cast(JPH::RMat44Arg &mat)
+{
+    vierkant::transform_t ret;
+    ret.translation = type_cast(mat.GetTranslation());
+    ret.rotation = type_cast(mat.GetQuaternion());
+    return ret;
+}
+
 // Callback for asserts, connect this to your own assert handler if you have one
 [[maybe_unused]] static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
                                               uint32_t inLine)
@@ -76,24 +91,73 @@ public:
         line_geometry->colors.push_back(type_cast(inColor.ToVec4()));
     }
 
-    Batch CreateTriangleBatch(const Triangle *inTriangles, int inTriangleCount) override
+    JPH::DebugRenderer::Batch CreateTriangleBatch(const Triangle *inTriangles, int inTriangleCount) override
     {
         return CreateTriangleBatch(inTriangles->mV, inTriangleCount * 3, nullptr, 0);
     };
-    Batch CreateTriangleBatch(const Vertex * /*inVertices*/, int /*inVertexCount*/, const uint32_t * /*inIndices*/,
-                              int /*inIndexCount*/) override
+
+    JPH::DebugRenderer::Batch CreateTriangleBatch(const Vertex *inVertices, int inVertexCount,
+                                                  const uint32_t *inIndices, int inIndexCount) override
     {
-        return {};
+        auto geom = vierkant::Geometry::create();
+        geom->positions.resize(inVertexCount);
+        geom->normals.resize(inVertexCount);
+        geom->tex_coords.resize(inVertexCount);
+        geom->colors.resize(inVertexCount);
+        for(int i = 0; i < inVertexCount; ++i)
+        {
+            geom->positions[i] = *reinterpret_cast<const glm::vec3 *>(&inVertices[i].mPosition);
+            geom->normals[i] = *reinterpret_cast<const glm::vec3 *>(&inVertices[i].mNormal);
+            geom->tex_coords[i] = *reinterpret_cast<const glm::vec2 *>(&inVertices[i].mUV);
+            geom->colors[i] = type_cast(inVertices[i].mColor.ToVec4());
+        }
+        if(inIndices) { geom->indices = {inIndices, inIndices + inIndexCount}; }
+
+        auto out_batch = new Batch;
+        out_batch->triangles = geom;
+        return out_batch;
     };
-    void DrawGeometry(JPH::RMat44Arg /*inModelMatrix*/, const JPH::AABox & /*inWorldSpaceBounds*/,
-                      float /*inLODScaleSq*/, JPH::ColorArg /*inModelColor*/, const GeometryRef & /*inGeometry*/,
-                      ECullMode /*inCullMode*/, ECastShadow /*inCastShadow*/, EDrawMode /*inDrawMode*/) override {};
+
+    void DrawGeometry(JPH::RMat44Arg inModelMatrix, const JPH::AABox &inWorldSpaceBounds, float /*inLODScaleSq*/,
+                      JPH::ColorArg /*inModelColor*/, const GeometryRef &inGeometry, ECullMode /*inCullMode*/,
+                      ECastShadow /*inCastShadow*/, EDrawMode /*inDrawMode*/) override
+    {
+        if(!inGeometry->mLODs.empty())
+        {
+            auto batch = (Batch *) (inGeometry->mLODs.front().mTriangleBatch.GetPtr());
+            aabbs.push_back(type_cast(inWorldSpaceBounds));
+            triangle_meshes.emplace_back(type_cast(inModelMatrix), batch->triangles);
+        }
+    };
 
     void DrawText3D(JPH::RVec3Arg /*inPosition*/, const JPH::string_view & /*inString*/, JPH::ColorArg /*inColor*/,
                     float /*inHeight*/) override {};
 
+    void clear()
+    {
+        line_geometry->positions.clear();
+        line_geometry->colors.clear();
+        aabbs.clear();
+        triangle_meshes.clear();
+    }
+
     GeometryPtr line_geometry = vierkant::Geometry::create();
-    std::unordered_map<GeometryRef, vierkant::GeometryPtr> geometries;
+    std::vector<vierkant::AABB> aabbs;
+    std::vector<std::pair<vierkant::transform_t, GeometryConstPtr>> triangle_meshes;
+
+private:
+    struct Batch : public JPH::RefTargetVirtual
+    {
+        // stores an indexed triangle geometry
+        vierkant::GeometryPtr triangles;
+
+        std::atomic<uint32_t> m_ref_count = 0;
+        void AddRef() override { ++m_ref_count; }
+        void Release() override
+        {
+            if(--m_ref_count == 0) delete this;
+        }
+    };
 };
 
 ///// Implementation of a JoltJobSystem using a thread pool
@@ -699,15 +763,15 @@ bool PhysicsContext::contains(uint32_t objectId) const { return m_engine->jolt.b
 
 vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
 
-GeometryConstPtr PhysicsContext::debug_render()
+PhysicsContext::debug_draw_result_t PhysicsContext::debug_render()
 {
-    m_engine->jolt.debug_render->line_geometry->positions.clear();
-    m_engine->jolt.debug_render->line_geometry->colors.clear();
+    m_engine->jolt.debug_render->clear();
 
     JPH::BodyManager::DrawSettings ds;
     ds.mDrawVelocity = true;
     m_engine->jolt.physics_system.DrawBodies(ds, m_engine->jolt.debug_render.get());
-    return m_engine->jolt.debug_render->line_geometry;
+    return {m_engine->jolt.debug_render->line_geometry, m_engine->jolt.debug_render->aabbs,
+            m_engine->jolt.debug_render->triangle_meshes};
 }
 
 void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->jolt.physics_system.SetGravity(type_cast(g)); }
