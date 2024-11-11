@@ -789,7 +789,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 if constexpr(std::is_same_v<T, CollisionShapeId>)
                 {
                     if(m_engine->jolt.shapes.contains(s)) { return s; }
-                    assert(false);
+                    return vierkant::CollisionShapeId::nil();
+//                    assert(false);
                 }
 
                 vierkant::CollisionShapeId new_id;
@@ -869,12 +870,12 @@ void PhysicsScene::update(double time_delta)
     auto view = registry()->view<physics_component_t>();
     for(const auto &[entity, cmp]: view.each())
     {
-        if(cmp.need_update)
+        if(cmp.mode == physics_component_t::UPDATE)
         {
             auto obj = object_by_id(static_cast<uint32_t>(entity))->shared_from_this();
             m_context.remove_object(obj->id());
             m_context.add_object(obj->id(), obj->transform, cmp);
-            cmp.need_update = false;
+            cmp.mode = physics_component_t::ACTIVE;
         }
 
         auto obj = object_by_id(static_cast<uint32_t>(entity));
@@ -899,6 +900,7 @@ std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<Ph
 size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_component_t const &c) const
 {
     size_t h = 0;
+    vierkant::hash_combine(h, c.mode);
     vierkant::hash_combine(h, c.mass);
     vierkant::hash_combine(h, c.friction);
     vierkant::hash_combine(h, c.restitution);
@@ -906,6 +908,5 @@ size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_co
     vierkant::hash_combine(h, c.angular_damping);
     vierkant::hash_combine(h, c.kinematic);
     vierkant::hash_combine(h, c.sensor);
-    vierkant::hash_combine(h, c.need_update);
     return h;
 }

@@ -59,6 +59,14 @@ struct physics_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
 
+    enum Mode : uint32_t
+    {
+        INACTIVE = 0,
+        ACTIVE,
+        UPDATE,
+        REMOVE
+    } mode = ACTIVE;
+
     collision::shape_t shape = CollisionShapeId::nil();
     float mass = 0.f;
     float friction = 0.2f;
@@ -67,9 +75,6 @@ struct physics_component_t
     float angular_damping = 0.05f;
     bool kinematic = false;
     bool sensor = false;
-
-    bool need_update = false;
-
     constexpr bool operator==(const vierkant::physics_component_t &) const = default;
 };
 
