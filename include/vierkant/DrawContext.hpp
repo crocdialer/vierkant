@@ -59,9 +59,6 @@ public:
     void draw_lines(vierkant::Rasterizer &renderer, const std::vector<glm::vec3> &lines,
                     const std::vector<glm::vec4> &colors, const vierkant::transform_t &transform,
                     const glm::mat4 &projection);
-
-    void draw_geometry(vierkant::Rasterizer &renderer, const vierkant::GeometryConstPtr &geom, const glm::vec4 &color,
-                       const vierkant::transform_t &transform, const glm::mat4 &projection);
     /**
      * @brief   Draws an image in a 2D context.
      *
@@ -108,7 +105,7 @@ public:
      */
     void draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh,
                    const vierkant::transform_t &transform, const glm::mat4 &projection,
-                   vierkant::ShaderType shader_type);
+                   vierkant::ShaderType shader_type, bool depth_test = true, bool depth_write = true);
 
     /**
      * @brief   Draws a node hierarchy as set of lines.
@@ -142,7 +139,6 @@ private:
         Points,
         Lines,
         LinesColor,
-        TrianglesColor,
         Text,
         Image,
         ImageFullscreen,

@@ -26,7 +26,6 @@
 
 // STL includes
 #include <cstdarg>
-#include <iostream>
 
 // Callback for traces, connect this to your own trace function if you have one
 static void trace_impl(const char *inFMT, ...)
@@ -119,14 +118,18 @@ public:
 
     void DrawGeometry(JPH::RMat44Arg inModelMatrix, const JPH::AABox &inWorldSpaceBounds, float /*inLODScaleSq*/,
                       JPH::ColorArg inModelColor, const GeometryRef &inGeometry, ECullMode /*inCullMode*/,
-                      ECastShadow /*inCastShadow*/, EDrawMode /*inDrawMode*/) override
+                      ECastShadow /*inCastShadow*/, EDrawMode inDrawMode) override
     {
         if(!inGeometry->mLODs.empty())
         {
             auto batch = (Batch *) (inGeometry->mLODs.front().mTriangleBatch.GetPtr());
-            aabbs.push_back(type_cast(inWorldSpaceBounds));
-            colors.push_back(type_cast(inModelColor.ToVec4()));
-            triangle_meshes.emplace_back(type_cast(inModelMatrix), batch->triangles);
+
+            if(inDrawMode == JPH::DebugRenderer::EDrawMode::Solid)
+            {
+                aabbs.push_back(type_cast(inWorldSpaceBounds));
+                colors.push_back(type_cast(inModelColor.ToVec4()));
+                triangle_meshes.emplace_back(type_cast(inModelMatrix), batch->triangles);
+            }
         }
     };
 
@@ -638,7 +641,7 @@ private:
 struct PhysicsContext::engine
 {
     JoltContext jolt;
-    engine(crocore::ThreadPool *const thread_pool = nullptr) : jolt(thread_pool) {}
+    explicit engine(crocore::ThreadPool *const thread_pool = nullptr) : jolt(thread_pool) {}
 };
 
 PhysicsContext::PhysicsContext(crocore::ThreadPool *const thread_pool)

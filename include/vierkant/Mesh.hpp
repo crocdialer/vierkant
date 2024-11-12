@@ -122,7 +122,7 @@ public:
     struct entry_create_info_t
     {
         std::string name;
-        GeometryPtr geometry = nullptr;
+        GeometryConstPtr geometry = nullptr;
         vierkant::transform_t transform = {};
         uint32_t node_index = 0;
         uint32_t material_index = 0;
@@ -184,7 +184,7 @@ public:
      * @param   geometry    a Geometry struct to extract the vertex information from
      * @return  the newly created vierkant::MeshPtr
      */
-    static vierkant::MeshPtr create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
+    static vierkant::MeshPtr create_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geometry,
                                                   const create_info_t &create_info);
 
     /**
