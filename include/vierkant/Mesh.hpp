@@ -16,6 +16,8 @@
 namespace vierkant
 {
 
+DEFINE_NAMED_UUID(MeshId)
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -122,7 +124,7 @@ public:
     struct entry_create_info_t
     {
         std::string name;
-        GeometryPtr geometry = nullptr;
+        GeometryConstPtr geometry = nullptr;
         vierkant::transform_t transform = {};
         uint32_t node_index = 0;
         uint32_t material_index = 0;
@@ -184,7 +186,7 @@ public:
      * @param   geometry    a Geometry struct to extract the vertex information from
      * @return  the newly created vierkant::MeshPtr
      */
-    static vierkant::MeshPtr create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
+    static vierkant::MeshPtr create_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geometry,
                                                   const create_info_t &create_info);
 
     /**
@@ -223,6 +225,9 @@ public:
      * @param   command_buffer  handle to an VkCommandBuffer to record the bind-operation into
      */
     void bind_buffers(VkCommandBuffer command_buffer) const;
+
+    //! useful for lookup/persistence and association with other mesh-related assets
+    MeshId id;
 
     //! vertex attributes
     vertex_attrib_map_t vertex_attribs;

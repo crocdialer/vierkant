@@ -733,7 +733,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
             mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
 
-            if(!material_index_map.contains(mat))
+            if(!drawable.share_material || !material_index_map.contains(mat))
             {
                 material_index_map[mat] = material_data.size();
                 material_data.push_back(drawable.material);

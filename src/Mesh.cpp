@@ -132,7 +132,7 @@ VkFormat format<glm::vec<4, uint16_t>>()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-vierkant::MeshPtr Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryPtr &geometry,
+vierkant::MeshPtr Mesh::create_from_geometry(const vierkant::DevicePtr &device, const GeometryConstPtr &geometry,
                                              const create_info_t &create_info)
 {
     entry_create_info_t entry_create_info = {};

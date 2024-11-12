@@ -1,15 +1,13 @@
 #pragma once
 
 #include <optional>
-#include <set>
+#include <unordered_set>
 #include <vector>
 #include <vierkant/Mesh.hpp>
 #include <vierkant/object_component.hpp>
 
 namespace vierkant
 {
-
-DEFINE_NAMED_UUID(MeshId)
 
 struct mesh_component_t
 {
@@ -19,7 +17,7 @@ struct mesh_component_t
     vierkant::MeshConstPtr mesh;
 
     //! optional set of used entry-indices.
-    std::optional<std::set<uint32_t>> entry_indices = {};
+    std::optional<std::unordered_set<uint32_t>> entry_indices = {};
 };
 
 //! struct grouping host/gpu versions of a mesh

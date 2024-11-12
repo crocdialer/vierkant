@@ -47,17 +47,27 @@ struct capsule_t
 struct mesh_t
 {
     vierkant::MeshId mesh_id = vierkant::MeshId::nil();
-    bool convex_hull = true;
+    bool convex_hull = false;
     constexpr bool operator==(const vierkant::collision::mesh_t &other) const = default;
 };
 
+using mesh_provider_fn = std::function<vierkant::mesh_asset_t(vierkant::MeshId)>;
+
 using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t, collision::capsule_t,
-                             vierkant::CollisionShapeId>;
+                             collision::mesh_t, vierkant::CollisionShapeId>;
 }// namespace collision
 
 struct physics_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
+
+    enum Mode : uint32_t
+    {
+        INACTIVE = 0,
+        ACTIVE,
+        UPDATE,
+        REMOVE
+    } mode = ACTIVE;
 
     collision::shape_t shape = CollisionShapeId::nil();
     float mass = 0.f;
@@ -67,9 +77,6 @@ struct physics_component_t
     float angular_damping = 0.05f;
     bool kinematic = false;
     bool sensor = false;
-
-    bool need_update = false;
-
     constexpr bool operator==(const vierkant::physics_component_t &) const = default;
 };
 
@@ -82,6 +89,14 @@ public:
         contact_cb_t collision;
         contact_cb_t contact_begin;
         contact_cb_t contact_end;
+    };
+
+    struct debug_draw_result_t
+    {
+        GeometryConstPtr lines;
+        const std::vector<vierkant::AABB> &aabbs;
+        const std::vector<glm::vec4> &colors;
+        const std::vector<std::pair<vierkant::transform_t, GeometryConstPtr>> &triangle_meshes;
     };
 
     class BodyInterface
@@ -108,7 +123,7 @@ public:
 
     void step_simulation(float timestep, int max_sub_steps = 1);
 
-    GeometryConstPtr debug_render();
+    debug_draw_result_t debug_render();
 
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
@@ -131,6 +146,8 @@ public:
                                                    const glm::vec3 &scale = glm::vec3(1));
 
     CollisionShapeId create_collision_shape(const collision::shape_t &shape);
+
+    collision::mesh_provider_fn mesh_provider;
 
 private:
     struct engine;

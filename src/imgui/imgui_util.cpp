@@ -819,7 +819,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
             {
                 if(!mesh_component.entry_indices)
                 {
-                    mesh_component.entry_indices = std::set<uint32_t>();
+                    mesh_component.entry_indices = std::unordered_set<uint32_t>();
                     for(uint32_t i = 0; i < mesh->entries.size(); ++i) { mesh_component.entry_indices->insert(i); }
                 }
                 if(entry_enabled) { mesh_component.entry_indices->insert(entry_idx); }
@@ -977,11 +977,12 @@ void draw_object_ui(const Object3DPtr &object)
         if(has_physics && !object->has_component<vierkant::physics_component_t>())
         {
             vierkant::object_component auto &cmp = object->add_component<vierkant::physics_component_t>();
-            cmp.need_update = true;
+            cmp.mode = physics_component_t::UPDATE;
         }
         else if(!has_physics && object->has_component<vierkant::physics_component_t>())
         {
-            object->remove_component<vierkant::physics_component_t>();
+            vierkant::object_component auto &cmp = object->add_component<vierkant::physics_component_t>();
+            cmp.mode = physics_component_t::REMOVE;
         }
     }
 
@@ -994,6 +995,58 @@ void draw_object_ui(const Object3DPtr &object)
         {
             bool change = false;
             //            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
+
+            const char *shape_items[] = {"None", "Box", "Sphere", "Cylinder", "Capsule", "Mesh"};
+            int shape_index = 0;
+
+            std::visit(
+                    [&change, &shape_index](auto &&shape) {
+                        using T = std::decay_t<decltype(shape)>;
+                        if constexpr(std::is_same_v<T, collision::box_t>) { shape_index = 1; }
+                        if constexpr(std::is_same_v<T, collision::sphere_t>) { shape_index = 2; }
+                        if constexpr(std::is_same_v<T, collision::cylinder_t>) { shape_index = 3; }
+                        if constexpr(std::is_same_v<T, collision::capsule_t>) { shape_index = 4; }
+                        if constexpr(std::is_same_v<T, collision::mesh_t>) { shape_index = 5; }
+                    },
+                    phys_cmp.shape);
+            if(ImGui::Combo("shape", &shape_index, shape_items, IM_ARRAYSIZE(shape_items)))
+            {
+                change = true;
+                switch(shape_index)
+                {
+                    case 0: phys_cmp.shape = CollisionShapeId::nil(); break;
+                    case 1: phys_cmp.shape = collision::box_t(); break;
+                    case 2: phys_cmp.shape = collision::sphere_t(); break;
+                    case 3: phys_cmp.shape = collision::cylinder_t(); break;
+                    case 4: phys_cmp.shape = collision::capsule_t(); break;
+                    case 5: phys_cmp.shape = collision::mesh_t(); break;
+                    default: break;
+                }
+            }
+
+            std::visit(
+                    [&change](auto &&shape) {
+                        using T = std::decay_t<decltype(shape)>;
+                        if constexpr(std::is_same_v<T, collision::box_t>)
+                        {
+                            change |= ImGui::InputFloat3("half-extents", &shape.half_extents.x);
+                        }
+                        if constexpr(std::is_same_v<T, collision::sphere_t>)
+                        {
+                            change |= ImGui::InputFloat("radius", &shape.radius);
+                        }
+                        if constexpr(std::is_same_v<T, collision::cylinder_t> || std::is_same_v<T, collision::capsule_t>)
+                        {
+                            change |= ImGui::InputFloat("radius", &shape.radius);
+                            change |= ImGui::InputFloat("height", &shape.height);
+                        }
+                        if constexpr(std::is_same_v<T, collision::mesh_t>)
+                        {
+                            change |= ImGui::Checkbox("convex_hull", &shape.convex_hull);
+                        }
+                    },
+                    phys_cmp.shape);
+
             change |= ImGui::InputFloat("mass", &phys_cmp.mass);
             change |= ImGui::InputFloat("friction", &phys_cmp.friction);
             change |= ImGui::InputFloat("restitution", &phys_cmp.restitution);
@@ -1001,7 +1054,7 @@ void draw_object_ui(const Object3DPtr &object)
             change |= ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
             change |= ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
-            phys_cmp.need_update |= change;
+            if(change) { phys_cmp.mode = physics_component_t::UPDATE; };
             ImGui::TreePop();
         }
     }

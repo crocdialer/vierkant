@@ -15,6 +15,7 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/CompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
@@ -25,8 +26,9 @@
 #include <Jolt/RegisterTypes.h>
 
 // STL includes
+#include <Physics/Collision/Shape/ScaledShape.h>
+#include <Physics/Collision/Shape/StaticCompoundShape.h>
 #include <cstdarg>
-#include <iostream>
 
 // Callback for traces, connect this to your own trace function if you have one
 static void trace_impl(const char *inFMT, ...)
@@ -45,8 +47,23 @@ namespace vierkant
 
 inline glm::vec3 type_cast(const JPH::Vec3 &v) { return {v.GetX(), v.GetY(), v.GetZ()}; }
 inline JPH::Vec3 type_cast(const glm::vec3 &v) { return {v.x, v.y, v.z}; }
+inline glm::vec4 type_cast(const JPH::Vec4 &v) { return {v.GetX(), v.GetY(), v.GetZ(), v.GetW()}; }
+inline JPH::Vec4 type_cast(const glm::vec4 &v) { return {v.x, v.y, v.z, v.w}; }
 inline glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.GetY(), q.GetZ()}; }
 inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
+
+inline vierkant::AABB type_cast(const JPH::AABox &in_aabb)
+{
+    return {type_cast(in_aabb.mMin), type_cast(in_aabb.mMax)};
+}
+
+inline vierkant::transform_t type_cast(const JPH::Mat44 &mat)
+{
+    glm::mat4 tmp(type_cast(mat.GetColumn4(0)), type_cast(mat.GetColumn4(1)), type_cast(mat.GetColumn4(2)),
+                  type_cast(mat.GetColumn4(3)));
+    vierkant::transform_t ret = vierkant::transform_cast(tmp);
+    return ret;
+}
 
 // Callback for asserts, connect this to your own assert handler if you have one
 [[maybe_unused]] static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
@@ -54,6 +71,101 @@ inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 {
     spdlog::error("{} : {} : ({}) {}", inFile, inLine, inExpression, inMessage ? inMessage : "");
     return true;
+};
+
+class JoltDebugRenderer final : public JPH::DebugRenderer
+{
+public:
+    JoltDebugRenderer() { Initialize(); }
+
+    /// Draw a single back face culled triangle
+    void DrawTriangle(JPH::RVec3Arg /*inV1*/, JPH::RVec3Arg /*inV2*/, JPH::RVec3Arg /*inV3*/, JPH::ColorArg /*inColor*/,
+                      ECastShadow /*inCastShadow*/) override
+    {}
+
+    void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo, JPH::ColorArg inColor) override
+    {
+        line_geometry->positions.push_back(type_cast(inFrom));
+        line_geometry->positions.push_back(type_cast(inTo));
+        line_geometry->colors.push_back(type_cast(inColor.ToVec4()));
+        line_geometry->colors.push_back(type_cast(inColor.ToVec4()));
+    }
+
+    JPH::DebugRenderer::Batch CreateTriangleBatch(const Triangle *inTriangles, int inTriangleCount) override
+    {
+        return CreateTriangleBatch(inTriangles->mV, inTriangleCount * 3, nullptr, 0);
+    };
+
+    JPH::DebugRenderer::Batch CreateTriangleBatch(const Vertex *inVertices, int inVertexCount,
+                                                  const uint32_t *inIndices, int inIndexCount) override
+    {
+        auto geom = vierkant::Geometry::create();
+        geom->positions.resize(inVertexCount);
+        geom->normals.resize(inVertexCount);
+        geom->tex_coords.resize(inVertexCount);
+        geom->colors.resize(inVertexCount, glm::vec4(1));
+        for(int i = 0; i < inVertexCount; ++i)
+        {
+            const auto &v = inVertices[i];
+            geom->positions[i] = {v.mPosition.x, v.mPosition.y, v.mPosition.z};
+            geom->normals[i] = {v.mNormal.x, v.mNormal.y, v.mNormal.z};
+            geom->tex_coords[i] = {v.mUV.x, v.mUV.y};
+            geom->colors[i] = type_cast(v.mColor.ToVec4());
+        }
+        if(inIndices) { geom->indices = {inIndices, inIndices + inIndexCount}; }
+
+        auto out_batch = new Batch;
+        out_batch->triangles = geom;
+        return out_batch;
+    };
+
+    void DrawGeometry(JPH::RMat44Arg inModelMatrix, const JPH::AABox &inWorldSpaceBounds, float /*inLODScaleSq*/,
+                      JPH::ColorArg inModelColor, const GeometryRef &inGeometry, ECullMode /*inCullMode*/,
+                      ECastShadow /*inCastShadow*/, EDrawMode inDrawMode) override
+    {
+        if(!inGeometry->mLODs.empty())
+        {
+            auto batch = (Batch *) (inGeometry->mLODs.front().mTriangleBatch.GetPtr());
+
+            if(inDrawMode == JPH::DebugRenderer::EDrawMode::Solid)
+            {
+                aabbs.push_back(type_cast(inWorldSpaceBounds));
+                colors.push_back(type_cast(inModelColor.ToVec4()));
+                triangle_meshes.emplace_back(type_cast(inModelMatrix), batch->triangles);
+            }
+        }
+    };
+
+    void DrawText3D(JPH::RVec3Arg /*inPosition*/, const JPH::string_view & /*inString*/, JPH::ColorArg /*inColor*/,
+                    float /*inHeight*/) override {};
+
+    void clear()
+    {
+        line_geometry->positions.clear();
+        line_geometry->colors.clear();
+        aabbs.clear();
+        colors.clear();
+        triangle_meshes.clear();
+    }
+
+    GeometryPtr line_geometry = vierkant::Geometry::create();
+    std::vector<vierkant::AABB> aabbs;
+    std::vector<glm::vec4> colors;
+    std::vector<std::pair<vierkant::transform_t, GeometryConstPtr>> triangle_meshes;
+
+private:
+    struct Batch : public JPH::RefTargetVirtual
+    {
+        // stores an indexed triangle geometry
+        vierkant::GeometryPtr triangles;
+
+        std::atomic<uint32_t> m_ref_count = 0;
+        void AddRef() override { ++m_ref_count; }
+        void Release() override
+        {
+            if(--m_ref_count == 0) delete this;
+        }
+    };
 };
 
 ///// Implementation of a JoltJobSystem using a thread pool
@@ -365,6 +477,20 @@ public:
         physics_system.SetSoftBodyContactListener(this);
 
         body_system = std::make_unique<BodyInterfaceImpl>(physics_system.GetBodyInterfaceNoLock(), body_id_map);
+
+        JPH::DebugRenderer::sInstance = nullptr;
+        debug_render = std::make_unique<JoltDebugRenderer>();
+    }
+
+    ~JoltContext() override
+    {
+        // stupid singleton-hack
+        JPH::DebugRenderer::sInstance = debug_render.get();
+        debug_render.reset();
+
+        // Unregisters all types with the factory and cleans up the default material
+        JPH::UnregisterTypes();
+        JPH::Factory::sInstance = nullptr;
     }
 
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
@@ -448,13 +574,6 @@ public:
                                 [[maybe_unused]] const JPH::SoftBodyManifold &inManifold) override
     {}
 
-    ~JoltContext() override
-    {
-        // Unregisters all types with the factory and cleans up the default material
-        JPH::UnregisterTypes();
-        JPH::Factory::sInstance = nullptr;
-    }
-
     //! collision-shape storage
     std::unordered_map<vierkant::CollisionShapeId, JPH::Ref<JPH::Shape>> shapes;
 
@@ -474,6 +593,8 @@ public:
     //! job-system backing physics-jobs
     std::unique_ptr<JPH::JobSystemWithBarrier> job_system;
     crocore::ThreadPool *thread_pool = nullptr;
+
+    std::unique_ptr<JoltDebugRenderer> debug_render;
 
 private:
     // This is the max amount of rigid bodies that you can add to the physics system.
@@ -523,7 +644,7 @@ private:
 struct PhysicsContext::engine
 {
     JoltContext jolt;
-    engine(crocore::ThreadPool *const thread_pool = nullptr) : jolt(thread_pool) {}
+    explicit engine(crocore::ThreadPool *const thread_pool = nullptr) : jolt(thread_pool) {}
 };
 
 PhysicsContext::PhysicsContext(crocore::ThreadPool *const thread_pool)
@@ -545,6 +666,8 @@ void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
 
 CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, const glm::vec3 &scale)
 {
+    JPH::StaticCompoundShapeSettings compound_shape_settings;
+
     for(const auto &entry: mesh_bundle.entries)
     {
         const auto &lod0 = entry.lods.front();
@@ -560,18 +683,28 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
         }
         for(uint32_t i = 0; i < num_triangles; i++)
         {
-            triangles[i] = JPH::IndexedTriangle(mesh_bundle.index_buffer[3 * i], mesh_bundle.index_buffer[3 * i + 1],
-                                                mesh_bundle.index_buffer[3 * i + 2], 0);
+            uint32_t base_index = lod0.base_index + 3 * i;
+            triangles[i] =
+                    JPH::IndexedTriangle(mesh_bundle.index_buffer[base_index], mesh_bundle.index_buffer[base_index + 1],
+                                         mesh_bundle.index_buffer[base_index + 2], 0);
         }
         JPH::MeshShapeSettings mesh_shape_settings(points, triangles);
         JPH::Shape::ShapeResult shape_result = mesh_shape_settings.Create();
 
         if(shape_result.IsValid())
         {
-            vierkant::CollisionShapeId new_id;
-            m_engine->jolt.shapes[new_id] = shape_result.Get();
-            return new_id;
+            auto scaled_shape = new JPH::ScaledShape(shape_result.Get(), type_cast(entry.transform.scale));
+            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
+                                             type_cast(entry.transform.rotation), scaled_shape);
         }
+    }
+
+    JPH::Shape::ShapeResult shape_result = compound_shape_settings.Create();
+    if(shape_result.IsValid())
+    {
+        vierkant::CollisionShapeId new_id;
+        m_engine->jolt.shapes[new_id] = shape_result.Get();
+        return new_id;
     }
     return CollisionShapeId::nil();
 }
@@ -579,23 +712,33 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
 CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle,
                                                                const glm::vec3 &scale)
 {
+    JPH::StaticCompoundShapeSettings compound_shape_settings;
+
     for(const auto &entry: mesh_bundle.entries)
     {
         JPH::Array<JPH::Vec3> points(entry.num_vertices);
         auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset;
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
         {
-            points[i] = type_cast(*reinterpret_cast<const glm::vec3 *>(data) * scale);
+            auto v = *reinterpret_cast<const glm::vec3 *>(data) * scale;
+            points[i] = {v.x, v.y, v.z};
         }
         JPH::ConvexHullShapeSettings hull_shape_settings(points);
         JPH::Shape::ShapeResult shape_result = hull_shape_settings.Create();
 
         if(shape_result.IsValid())
         {
-            vierkant::CollisionShapeId new_id;
-            m_engine->jolt.shapes[new_id] = shape_result.Get();
-            return new_id;
+            auto scaled_shape = new JPH::ScaledShape(shape_result.Get(), type_cast(entry.transform.scale));
+            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
+                                             type_cast(entry.transform.rotation), scaled_shape);
         }
+    }
+    JPH::Shape::ShapeResult shape_result = compound_shape_settings.Create();
+    if(shape_result.IsValid())
+    {
+        vierkant::CollisionShapeId new_id;
+        m_engine->jolt.shapes[new_id] = shape_result.Get();
+        return new_id;
     }
     return CollisionShapeId::nil();
 }
@@ -610,12 +753,28 @@ void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
         const auto &shape = m_engine->jolt.shapes.at(shape_id);
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
 
-        bool dynamic = cmp.mass > 0.f && !cmp.sensor;
+        float mass = cmp.mass;
+        if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
+        {
+            // no mass for static triangle-shapes, explodes otherwise
+            if(!mesh_shape->convex_hull) { mass = 0.f; }
+        }
+
+        bool dynamic = mass > 0.f && !cmp.sensor;
+        bool kinematic = mass > 0.f && !cmp.kinematic;
         auto layer = dynamic ? Layers::MOVING : Layers::NON_MOVING;
         auto motion_type = dynamic ? JPH::EMotionType::Dynamic
-                                   : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
-        auto body_create_info = JPH::BodyCreationSettings(shape, type_cast(transform.translation),
+                                   : (kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
+
+        auto scaled_shape = new JPH::ScaledShape(shape, type_cast(transform.scale));
+        auto body_create_info = JPH::BodyCreationSettings(scaled_shape, type_cast(transform.translation),
                                                           type_cast(transform.rotation), motion_type, layer);
+
+        auto mass_properties = body_create_info.GetMassProperties();
+        mass_properties.ScaleToMass(mass);
+        body_create_info.mMassPropertiesOverride = mass_properties;
+        body_create_info.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
+
         body_create_info.mIsSensor = cmp.sensor;
         body_create_info.mFriction = cmp.friction;
         body_create_info.mRestitution = cmp.restitution;
@@ -628,6 +787,7 @@ void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
             body_interface.SetUserData(jolt_bodyId, objectId);
             m_engine->jolt.body_id_map[objectId] = jolt_bodyId;
+            spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
         }
     }
 }
@@ -638,6 +798,7 @@ void PhysicsContext::remove_object(uint32_t objectId)
     auto it = m_engine->jolt.body_id_map.find(objectId);
     if(it != m_engine->jolt.body_id_map.end())
     {
+        spdlog::trace("PhysicsContext::remove_object: obj: {} / body {}", objectId, it->second.GetIndex());
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
         body_interface.RemoveBody(it->second);
         body_interface.DestroyBody(it->second);
@@ -650,7 +811,16 @@ bool PhysicsContext::contains(uint32_t objectId) const { return m_engine->jolt.b
 
 vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
 
-GeometryConstPtr PhysicsContext::debug_render() { return nullptr; }
+PhysicsContext::debug_draw_result_t PhysicsContext::debug_render()
+{
+    m_engine->jolt.debug_render->clear();
+
+    JPH::BodyManager::DrawSettings ds;
+    ds.mDrawVelocity = true;
+    m_engine->jolt.physics_system.DrawBodies(ds, m_engine->jolt.debug_render.get());
+    return {m_engine->jolt.debug_render->line_geometry, m_engine->jolt.debug_render->aabbs,
+            m_engine->jolt.debug_render->colors, m_engine->jolt.debug_render->triangle_meshes};
+}
 
 void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->jolt.physics_system.SetGravity(type_cast(g)); }
 
@@ -665,7 +835,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 if constexpr(std::is_same_v<T, CollisionShapeId>)
                 {
                     if(m_engine->jolt.shapes.contains(s)) { return s; }
-                    assert(false);
+                    return vierkant::CollisionShapeId::nil();
+                    //                    assert(false);
                 }
 
                 vierkant::CollisionShapeId new_id;
@@ -686,7 +857,20 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 {
                     m_engine->jolt.shapes[new_id] = new JPH::CapsuleShape(s.height / 2.f, s.radius);
                 }
-                else { return CollisionShapeId::nil(); }
+                else if constexpr(std::is_same_v<T, collision::mesh_t>)
+                {
+                    if(mesh_provider)
+                    {
+                        auto assets = mesh_provider(s.mesh_id);
+                        if(assets.bundle)
+                        {
+                            new_id = s.convex_hull ? create_convex_collision_shape(*assets.bundle)
+                                                   : create_collision_shape(*assets.bundle);
+                            return new_id;
+                        }
+                    }
+                    return CollisionShapeId::nil();
+                }
                 return new_id;
             },
             shape);
@@ -740,15 +924,27 @@ void PhysicsScene::update(double time_delta)
     auto view = registry()->view<physics_component_t>();
     for(const auto &[entity, cmp]: view.each())
     {
-        if(cmp.need_update)
+        auto obj = object_by_id(static_cast<uint32_t>(entity));
+        if(cmp.mode == physics_component_t::UPDATE)
         {
-            auto obj = object_by_id(static_cast<uint32_t>(entity))->shared_from_this();
+            if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
+            {
+                if(auto mesh_cmp = obj->get_component_ptr<vierkant::mesh_component_t>())
+                {
+                    mesh_shape->mesh_id = mesh_cmp->mesh->id;
+                }
+            }
             m_context.remove_object(obj->id());
             m_context.add_object(obj->id(), obj->transform, cmp);
-            cmp.need_update = false;
+            cmp.mode = physics_component_t::ACTIVE;
+        }
+        else if(cmp.mode == physics_component_t::REMOVE)
+        {
+            m_context.remove_object(obj->id());
+            obj->remove_component<physics_component_t>();
+            continue;
         }
 
-        auto obj = object_by_id(static_cast<uint32_t>(entity));
         if(cmp.kinematic)
         {
             // object -> physics
@@ -770,6 +966,7 @@ std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<Ph
 size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_component_t const &c) const
 {
     size_t h = 0;
+    vierkant::hash_combine(h, c.mode);
     vierkant::hash_combine(h, c.mass);
     vierkant::hash_combine(h, c.friction);
     vierkant::hash_combine(h, c.restitution);
@@ -777,6 +974,5 @@ size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_co
     vierkant::hash_combine(h, c.angular_damping);
     vierkant::hash_combine(h, c.kinematic);
     vierkant::hash_combine(h, c.sensor);
-    vierkant::hash_combine(h, c.need_update);
     return h;
 }

@@ -135,13 +135,18 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
 void DrawContext::draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh,
                             const vierkant::transform_t &transform, const glm::mat4 &projection,
-                            vierkant::ShaderType shader_type)
+                            vierkant::ShaderType shader_type, const std::optional<glm::vec4> &color, bool depth_test,
+                            bool depth_write)
 {
     vierkant::create_drawables_params_t drawable_params = {};
     auto drawables = vierkant::create_drawables({mesh}, drawable_params);
 
     for(auto &drawable: drawables)
     {
+        if(color) { drawable.material.color = *color; }
+        drawable.share_material = false;
+        drawable.pipeline_format.depth_test = depth_test;
+        drawable.pipeline_format.depth_write = depth_write;
         drawable.pipeline_format.shader_stages = m_pipeline_cache->shader_stages(shader_type);
         drawable.matrices.transform = transform * drawable.matrices.transform;
         drawable.matrices.projection = projection;

@@ -4,13 +4,13 @@
 
 std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePtr &device)
 {
-
     // create some drawables for a template-shape
     vierkant::Mesh::entry_create_info_t entry_info = {};
-    entry_info.geometry = vierkant::Geometry::Box();
-    entry_info.geometry->normals.clear();
-    entry_info.geometry->tangents.clear();
-    entry_info.geometry->tex_coords.clear();
+    auto box = vierkant::Geometry::Box();
+    box->normals.clear();
+    box->tangents.clear();
+    box->tex_coords.clear();
+    entry_info.geometry = box;
 
     // use sub-entry information to create a mesh (owns a combined + interleaved vertex-buffer)
     vierkant::Mesh::create_info_t mesh_create_info = {};
@@ -26,7 +26,7 @@ std::vector<vierkant::drawable_t> create_test_drawables(const vierkant::DevicePt
 
     // manually inject shader-stages which cannot be just guessed by above utility
     auto unlit_shader_stages = vierkant::create_shader_stages(device, vierkant::ShaderType::UNLIT_COLOR);
-    for(auto &drawable: drawables){ drawable.pipeline_format.shader_stages = unlit_shader_stages; }
+    for(auto &drawable: drawables) { drawable.pipeline_format.shader_stages = unlit_shader_stages; }
     return drawables;
 }
 
