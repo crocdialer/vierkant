@@ -730,15 +730,29 @@ void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
         const auto &shape = m_engine->jolt.shapes.at(shape_id);
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
 
-        bool dynamic = cmp.mass > 0.f && !cmp.sensor;
+        float mass = cmp.mass;
+        if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
+        {
+            // no mass for static triangle-shapes, explodes otherwise
+            if(!mesh_shape->convex_hull) { mass = 0.f; }
+        }
+
+        bool dynamic = mass > 0.f && !cmp.sensor;
+        bool kinematic = mass > 0.f && !cmp.kinematic;
         auto layer = dynamic ? Layers::MOVING : Layers::NON_MOVING;
         auto motion_type = dynamic ? JPH::EMotionType::Dynamic
-                                   : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
+                                   : (kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
 
         auto scaled_shape = new JPH::ScaledShape(shape, type_cast(transform.scale));
         auto body_create_info = JPH::BodyCreationSettings(scaled_shape, type_cast(transform.translation),
                                                           type_cast(transform.rotation), motion_type, layer);
-        body_create_info.mMassPropertiesOverride.mMass = cmp.mass;
+
+        //        if(!body_create_info.HasMassProperties())
+        {
+            body_create_info.mMassPropertiesOverride.mMass = mass;
+            body_create_info.mMassPropertiesOverride.mInertia = body_create_info.GetMassProperties().mInertia;
+            body_create_info.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
+        }
         body_create_info.mIsSensor = cmp.sensor;
         body_create_info.mFriction = cmp.friction;
         body_create_info.mRestitution = cmp.restitution;
