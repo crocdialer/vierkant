@@ -15,6 +15,7 @@
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 #include <Jolt/Physics/Collision/Shape/BoxShape.h>
 #include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/CompoundShape.h>
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
@@ -26,6 +27,7 @@
 
 // STL includes
 #include <Physics/Collision/Shape/ScaledShape.h>
+#include <Physics/Collision/Shape/StaticCompoundShape.h>
 #include <cstdarg>
 
 // Callback for traces, connect this to your own trace function if you have one
@@ -664,6 +666,8 @@ void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
 
 CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, const glm::vec3 &scale)
 {
+    JPH::StaticCompoundShapeSettings compound_shape_settings;
+
     for(const auto &entry: mesh_bundle.entries)
     {
         const auto &lod0 = entry.lods.front();
@@ -675,7 +679,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
         {
             auto p = *reinterpret_cast<const glm::vec3 *>(data) * scale;
-            points[i] = {p.x, p.y, -p.z};
+            points[i] = {p.x, p.y, p.z};
         }
         for(uint32_t i = 0; i < num_triangles; i++)
         {
@@ -687,10 +691,18 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
 
         if(shape_result.IsValid())
         {
-            vierkant::CollisionShapeId new_id;
-            m_engine->jolt.shapes[new_id] = shape_result.Get();
-            return new_id;
+            auto scaled_shape = new JPH::ScaledShape(shape_result.Get(), type_cast(entry.transform.scale));
+            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
+                                             type_cast(entry.transform.rotation), scaled_shape);
         }
+    }
+
+    JPH::Shape::ShapeResult shape_result = compound_shape_settings.Create();
+    if(shape_result.IsValid())
+    {
+        vierkant::CollisionShapeId new_id;
+        m_engine->jolt.shapes[new_id] = shape_result.Get();
+        return new_id;
     }
     return CollisionShapeId::nil();
 }
@@ -698,6 +710,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
 CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle,
                                                                const glm::vec3 &scale)
 {
+    JPH::StaticCompoundShapeSettings compound_shape_settings;
+
     for(const auto &entry: mesh_bundle.entries)
     {
         JPH::Array<JPH::Vec3> points(entry.num_vertices);
@@ -705,17 +719,24 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
         {
             auto v = *reinterpret_cast<const glm::vec3 *>(data) * scale;
-            points[i] = {v.x, v.y, -v.z};
+            points[i] = {v.x, v.y, v.z};
         }
         JPH::ConvexHullShapeSettings hull_shape_settings(points);
         JPH::Shape::ShapeResult shape_result = hull_shape_settings.Create();
 
         if(shape_result.IsValid())
         {
-            vierkant::CollisionShapeId new_id;
-            m_engine->jolt.shapes[new_id] = shape_result.Get();
-            return new_id;
+            auto scaled_shape = new JPH::ScaledShape(shape_result.Get(), type_cast(entry.transform.scale));
+            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
+                                             type_cast(entry.transform.rotation), scaled_shape);
         }
+    }
+    JPH::Shape::ShapeResult shape_result = compound_shape_settings.Create();
+    if(shape_result.IsValid())
+    {
+        vierkant::CollisionShapeId new_id;
+        m_engine->jolt.shapes[new_id] = shape_result.Get();
+        return new_id;
     }
     return CollisionShapeId::nil();
 }
