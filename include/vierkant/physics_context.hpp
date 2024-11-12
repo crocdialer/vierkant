@@ -47,7 +47,7 @@ struct capsule_t
 struct mesh_t
 {
     vierkant::MeshId mesh_id = vierkant::MeshId::nil();
-    bool convex_hull = true;
+    bool convex_hull = false;
     constexpr bool operator==(const vierkant::collision::mesh_t &other) const = default;
 };
 

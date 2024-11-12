@@ -16,6 +16,8 @@
 namespace vierkant
 {
 
+DEFINE_NAMED_UUID(MeshId)
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
@@ -223,6 +225,9 @@ public:
      * @param   command_buffer  handle to an VkCommandBuffer to record the bind-operation into
      */
     void bind_buffers(VkCommandBuffer command_buffer) const;
+
+    //! useful for lookup/persistence and association with other mesh-related assets
+    MeshId id;
 
     //! vertex attributes
     vertex_attrib_map_t vertex_attribs;

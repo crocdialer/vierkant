@@ -819,7 +819,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
             {
                 if(!mesh_component.entry_indices)
                 {
-                    mesh_component.entry_indices = std::set<uint32_t>();
+                    mesh_component.entry_indices = std::unordered_set<uint32_t>();
                     for(uint32_t i = 0; i < mesh->entries.size(); ++i) { mesh_component.entry_indices->insert(i); }
                 }
                 if(entry_enabled) { mesh_component.entry_indices->insert(entry_idx); }

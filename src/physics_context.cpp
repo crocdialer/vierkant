@@ -746,6 +746,7 @@ void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
             body_interface.SetUserData(jolt_bodyId, objectId);
             m_engine->jolt.body_id_map[objectId] = jolt_bodyId;
+            spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
         }
     }
 }
@@ -756,6 +757,7 @@ void PhysicsContext::remove_object(uint32_t objectId)
     auto it = m_engine->jolt.body_id_map.find(objectId);
     if(it != m_engine->jolt.body_id_map.end())
     {
+        spdlog::trace("PhysicsContext::remove_object: obj: {} / body {}", objectId, it->second.GetIndex());
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
         body_interface.RemoveBody(it->second);
         body_interface.DestroyBody(it->second);
@@ -819,8 +821,13 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                     if(mesh_provider)
                     {
                         auto assets = mesh_provider(s.mesh_id);
-                        if(assets.bundle) { new_id = create_convex_collision_shape(*assets.bundle); }
+                        if(assets.bundle)
+                        {
+                            new_id = create_convex_collision_shape(*assets.bundle);
+                            return new_id;
+                        }
                     }
+                    return CollisionShapeId::nil();
                 }
                 return new_id;
             },
@@ -878,6 +885,13 @@ void PhysicsScene::update(double time_delta)
         if(cmp.mode == physics_component_t::UPDATE)
         {
             auto obj = object_by_id(static_cast<uint32_t>(entity));
+            if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
+            {
+                if(auto mesh_cmp = obj->get_component_ptr<vierkant::mesh_component_t>())
+                {
+                    mesh_shape->mesh_id = mesh_cmp->mesh->id;
+                }
+            }
             m_context.remove_object(obj->id());
             m_context.add_object(obj->id(), obj->transform, cmp);
             cmp.mode = physics_component_t::ACTIVE;
