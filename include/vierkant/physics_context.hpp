@@ -51,6 +51,8 @@ struct mesh_t
     constexpr bool operator==(const vierkant::collision::mesh_t &other) const = default;
 };
 
+using mesh_provider_fn = std::function<vierkant::mesh_asset_t(vierkant::MeshId)>;
+
 using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t, collision::capsule_t,
                              collision::mesh_t, vierkant::CollisionShapeId>;
 }// namespace collision
@@ -144,6 +146,8 @@ public:
                                                    const glm::vec3 &scale = glm::vec3(1));
 
     CollisionShapeId create_collision_shape(const collision::shape_t &shape);
+
+    collision::mesh_provider_fn mesh_provider;
 
 private:
     struct engine;

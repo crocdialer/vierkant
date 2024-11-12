@@ -790,7 +790,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 {
                     if(m_engine->jolt.shapes.contains(s)) { return s; }
                     return vierkant::CollisionShapeId::nil();
-//                    assert(false);
+                    //                    assert(false);
                 }
 
                 vierkant::CollisionShapeId new_id;
@@ -813,10 +813,12 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 }
                 else if constexpr(std::is_same_v<T, collision::mesh_t>)
                 {
-                    std::unordered_map<vierkant::MeshId, vierkant::mesh_buffer_bundle_t> mesh_map;
-                    new_id = create_convex_collision_shape(mesh_map[s.mesh_id]);
+                    if(mesh_provider)
+                    {
+                        auto assets = mesh_provider(s.mesh_id);
+                        if(assets.bundle) { new_id = create_convex_collision_shape(*assets.bundle); }
+                    }
                 }
-                else { return CollisionShapeId::nil(); }
                 return new_id;
             },
             shape);
@@ -872,7 +874,7 @@ void PhysicsScene::update(double time_delta)
     {
         if(cmp.mode == physics_component_t::UPDATE)
         {
-            auto obj = object_by_id(static_cast<uint32_t>(entity))->shared_from_this();
+            auto obj = object_by_id(static_cast<uint32_t>(entity));
             m_context.remove_object(obj->id());
             m_context.add_object(obj->id(), obj->transform, cmp);
             cmp.mode = physics_component_t::ACTIVE;
