@@ -683,8 +683,10 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
         }
         for(uint32_t i = 0; i < num_triangles; i++)
         {
-            triangles[i] = JPH::IndexedTriangle(mesh_bundle.index_buffer[3 * i], mesh_bundle.index_buffer[3 * i + 1],
-                                                mesh_bundle.index_buffer[3 * i + 2], 0);
+            uint32_t base_index = lod0.base_index + 3 * i;
+            triangles[i] =
+                    JPH::IndexedTriangle(mesh_bundle.index_buffer[base_index], mesh_bundle.index_buffer[base_index + 1],
+                                         mesh_bundle.index_buffer[base_index + 2], 0);
         }
         JPH::MeshShapeSettings mesh_shape_settings(points, triangles);
         JPH::Shape::ShapeResult shape_result = mesh_shape_settings.Create();
@@ -768,12 +770,11 @@ void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
         auto body_create_info = JPH::BodyCreationSettings(scaled_shape, type_cast(transform.translation),
                                                           type_cast(transform.rotation), motion_type, layer);
 
-        //        if(!body_create_info.HasMassProperties())
-        {
-            body_create_info.mMassPropertiesOverride.mMass = mass;
-            body_create_info.mMassPropertiesOverride.mInertia = body_create_info.GetMassProperties().mInertia;
-            body_create_info.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
-        }
+        auto mass_properties = body_create_info.GetMassProperties();
+        mass_properties.ScaleToMass(mass);
+        body_create_info.mMassPropertiesOverride = mass_properties;
+        body_create_info.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
+
         body_create_info.mIsSensor = cmp.sensor;
         body_create_info.mFriction = cmp.friction;
         body_create_info.mRestitution = cmp.restitution;
