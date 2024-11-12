@@ -108,6 +108,7 @@ struct drawable_t
     uint32_t num_instances = 1;
 
     bool use_own_buffers = false;
+    bool share_material = true;
 };
 
 struct create_drawables_params_t

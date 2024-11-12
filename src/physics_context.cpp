@@ -738,6 +738,7 @@ void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
         auto scaled_shape = new JPH::ScaledShape(shape, type_cast(transform.scale));
         auto body_create_info = JPH::BodyCreationSettings(scaled_shape, type_cast(transform.translation),
                                                           type_cast(transform.rotation), motion_type, layer);
+        body_create_info.mMassPropertiesOverride.mMass = cmp.mass;
         body_create_info.mIsSensor = cmp.sensor;
         body_create_info.mFriction = cmp.friction;
         body_create_info.mRestitution = cmp.restitution;
