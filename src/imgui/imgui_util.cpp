@@ -981,7 +981,8 @@ void draw_object_ui(const Object3DPtr &object)
         }
         else if(!has_physics && object->has_component<vierkant::physics_component_t>())
         {
-            object->remove_component<vierkant::physics_component_t>();
+            vierkant::object_component auto &cmp = object->add_component<vierkant::physics_component_t>();
+            cmp.mode = physics_component_t::REMOVE;
         }
     }
 

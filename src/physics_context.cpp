@@ -902,9 +902,9 @@ void PhysicsScene::update(double time_delta)
     auto view = registry()->view<physics_component_t>();
     for(const auto &[entity, cmp]: view.each())
     {
+        auto obj = object_by_id(static_cast<uint32_t>(entity));
         if(cmp.mode == physics_component_t::UPDATE)
         {
-            auto obj = object_by_id(static_cast<uint32_t>(entity));
             if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
             {
                 if(auto mesh_cmp = obj->get_component_ptr<vierkant::mesh_component_t>())
@@ -916,8 +916,13 @@ void PhysicsScene::update(double time_delta)
             m_context.add_object(obj->id(), obj->transform, cmp);
             cmp.mode = physics_component_t::ACTIVE;
         }
+        else if(cmp.mode == physics_component_t::REMOVE)
+        {
+            m_context.remove_object(obj->id());
+            obj->remove_component<physics_component_t>();
+            continue;
+        }
 
-        auto obj = object_by_id(static_cast<uint32_t>(entity));
         if(cmp.kinematic)
         {
             // object -> physics

@@ -105,7 +105,7 @@ public:
      */
     void draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh,
                    const vierkant::transform_t &transform, const glm::mat4 &projection,
-                   vierkant::ShaderType shader_type, const glm::vec4 &color = glm::vec4(1.f), bool depth_test = true,
+                   vierkant::ShaderType shader_type, const std::optional<glm::vec4> &color = glm::vec4(1.f), bool depth_test = true,
                    bool depth_write = true);
 
     /**
