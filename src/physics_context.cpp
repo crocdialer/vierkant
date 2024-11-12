@@ -25,6 +25,7 @@
 #include <Jolt/RegisterTypes.h>
 
 // STL includes
+#include <Physics/Collision/Shape/ScaledShape.h>
 #include <cstdarg>
 
 // Callback for traces, connect this to your own trace function if you have one
@@ -674,7 +675,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
         {
             auto p = *reinterpret_cast<const glm::vec3 *>(data) * scale;
-            points[i] = {p.x, p.y, p.z};
+            points[i] = {p.x, p.y, -p.z};
         }
         for(uint32_t i = 0; i < num_triangles; i++)
         {
@@ -703,7 +704,8 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
         auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset;
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
         {
-            points[i] = type_cast(*reinterpret_cast<const glm::vec3 *>(data) * scale);
+            auto v = *reinterpret_cast<const glm::vec3 *>(data) * scale;
+            points[i] = {v.x, v.y, -v.z};
         }
         JPH::ConvexHullShapeSettings hull_shape_settings(points);
         JPH::Shape::ShapeResult shape_result = hull_shape_settings.Create();
@@ -732,7 +734,9 @@ void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
         auto layer = dynamic ? Layers::MOVING : Layers::NON_MOVING;
         auto motion_type = dynamic ? JPH::EMotionType::Dynamic
                                    : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
-        auto body_create_info = JPH::BodyCreationSettings(shape, type_cast(transform.translation),
+
+        auto scaled_shape = new JPH::ScaledShape(shape, type_cast(transform.scale));
+        auto body_create_info = JPH::BodyCreationSettings(scaled_shape, type_cast(transform.translation),
                                                           type_cast(transform.rotation), motion_type, layer);
         body_create_info.mIsSensor = cmp.sensor;
         body_create_info.mFriction = cmp.friction;
@@ -823,7 +827,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                         auto assets = mesh_provider(s.mesh_id);
                         if(assets.bundle)
                         {
-                            new_id = create_convex_collision_shape(*assets.bundle);
+                            new_id = s.convex_hull ? create_convex_collision_shape(*assets.bundle)
+                                                   : create_collision_shape(*assets.bundle);
                             return new_id;
                         }
                     }
