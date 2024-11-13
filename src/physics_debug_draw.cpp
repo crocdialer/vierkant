@@ -76,11 +76,14 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
 PhysicsDebugRenderer::PhysicsDebugRenderer(const create_info_t &create_info)
     : m_draw_context(create_info.device), m_pipeline_cache(create_info.pipeline_cache), m_queue(create_info.queue)
 {
+    vierkant::debug_label_t debug_label = {"physics debug"};
     vierkant::Rasterizer::create_info_t raster_info = {};
     raster_info.viewport.width = static_cast<float>(create_info.settings.resolution.x);
     raster_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
+    raster_info.indirect_draw = true;
     raster_info.pipeline_cache = create_info.pipeline_cache;
     raster_info.num_frames_in_flight = create_info.num_frames_in_flight;
+    raster_info.debug_label = debug_label;
     m_rasterizer = vierkant::Rasterizer(create_info.device, raster_info);
 
     // albedo / ao_rough_metal
@@ -103,7 +106,7 @@ PhysicsDebugRenderer::PhysicsDebugRenderer(const create_info_t &create_info)
     frame_buffer_info.color_attachment_format = color_format;
     frame_buffer_info.depth_attachment_format = depth_format;
     frame_buffer_info.depth = true;
-    frame_buffer_info.debug_label = {"physics debug"};
+    frame_buffer_info.debug_label = debug_label;
 
     m_frame_contexts.resize(create_info.num_frames_in_flight);
     for(auto &asset: m_frame_contexts)
@@ -111,6 +114,7 @@ PhysicsDebugRenderer::PhysicsDebugRenderer(const create_info_t &create_info)
         asset.semaphore = Semaphore(create_info.device);
         asset.frame_buffer = vierkant::Framebuffer(create_info.device, frame_buffer_info);
         asset.frame_buffer.clear_color = glm::vec4(0.f);
+        asset.frame_buffer.debug_label = debug_label;
     }
 }
 
