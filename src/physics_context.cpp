@@ -743,7 +743,7 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
     return CollisionShapeId::nil();
 }
 
-void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &transform,
+bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &transform,
                                 const vierkant::physics_component_t &cmp)
 {
     auto shape_id = create_collision_shape(cmp.shape);
@@ -788,8 +788,11 @@ void PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             body_interface.SetUserData(jolt_bodyId, objectId);
             m_engine->jolt.body_id_map[objectId] = jolt_bodyId;
             spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
+
+            return !jolt_bodyId.IsInvalid();
         }
     }
+    return false;
 }
 
 void PhysicsContext::remove_object(uint32_t objectId)
@@ -836,7 +839,6 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 {
                     if(m_engine->jolt.shapes.contains(s)) { return s; }
                     return vierkant::CollisionShapeId::nil();
-                    //                    assert(false);
                 }
 
                 vierkant::CollisionShapeId new_id;
@@ -937,6 +939,16 @@ void PhysicsScene::update(double time_delta)
             m_context.remove_object(obj->id());
             m_context.add_object(obj->id(), obj->transform, cmp);
             cmp.mode = physics_component_t::ACTIVE;
+        }
+        else if(obj->enabled && cmp.mode == physics_component_t::INACTIVE)
+        {
+            cmp.mode = physics_component_t::ACTIVE;
+            m_context.add_object(obj->id(), obj->transform, cmp);
+        }
+        else if(!obj->enabled)
+        {
+            cmp.mode = physics_component_t::INACTIVE;
+            m_context.remove_object(obj->id());
         }
         else if(cmp.mode == physics_component_t::REMOVE)
         {

@@ -128,7 +128,7 @@ public:
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
 
-    void add_object(uint32_t objectId, const vierkant::transform_t &transform,
+    bool add_object(uint32_t objectId, const vierkant::transform_t &transform,
                     const vierkant::physics_component_t &cmp);
     void remove_object(uint32_t objectId);
     [[nodiscard]] bool contains(uint32_t objectId) const;
