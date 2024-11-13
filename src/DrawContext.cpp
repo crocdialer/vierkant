@@ -69,11 +69,14 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
         // descriptors
-        vierkant::descriptor_t desc_texture = {};
+        vierkant::descriptor_t &desc_texture = m_drawable_image_fullscreen.descriptors[0];
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-        m_drawable_image_fullscreen.descriptors[0] = desc_texture;
+        vierkant::descriptor_t &desc_color = m_drawable_image_fullscreen.descriptors[1];
+        desc_color.type = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
+        desc_color.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
         m_drawable_image_fullscreen.num_vertices = 3;
         m_drawable_image_fullscreen.pipeline_format = fmt;
         m_drawable_image_fullscreen.use_own_buffers = true;
@@ -416,7 +419,7 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth,
-                                        bool depth_test, bool blend)
+                                        bool depth_test, bool blend, const glm::vec4 &color)
 {
     if(!image) { return; }
 
@@ -434,7 +437,8 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
         drawable = m_drawable_image_fullscreen;
         drawable.descriptors[0].images = {image};
     }
-
+    drawable.descriptors[1].inline_uniform_block.resize(sizeof(glm::vec4));
+    memcpy(drawable.descriptors[1].inline_uniform_block.data(), &color, sizeof(glm::vec4));
     drawable.pipeline_format.depth_test = depth_test;
     drawable.pipeline_format.blend_state.blendEnable = blend;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);

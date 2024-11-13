@@ -41,7 +41,6 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
             mesh->materials.front()->m.blend_mode = vierkant::BlendMode::Blend;
         }
         auto color = physics_debug_result.colors[i];
-        color.w = 0.6f;
         m_draw_context.draw_mesh(m_rasterizer, mesh, cam->view_transform() * transform, cam->projection_matrix(),
                                  vierkant::ShaderType::UNLIT_COLOR, color, true, true);
     }
@@ -55,8 +54,9 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
     frame_context.frame_buffer.submit({cmd_buf}, m_queue, {signal_info});
 
     // draw triangle-image
+    constexpr auto overlay_tint = glm::vec4(1.f, 1.f, 1.f, .4f);
     m_draw_context.draw_image_fullscreen(renderer, frame_context.frame_buffer.color_attachment(),
-                                         frame_context.frame_buffer.depth_attachment());
+                                         frame_context.frame_buffer.depth_attachment(), false, true, overlay_tint);
     if(physics_debug_result.lines)
     {
         m_draw_context.draw_lines(renderer, physics_debug_result.lines->positions, physics_debug_result.lines->colors,

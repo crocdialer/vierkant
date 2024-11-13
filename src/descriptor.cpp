@@ -48,6 +48,8 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
         layout_binding.descriptorCount = std::max<uint32_t>(1, static_cast<uint32_t>(desc.images.size()));
         layout_binding.descriptorCount =
                 std::max<uint32_t>(layout_binding.descriptorCount, static_cast<uint32_t>(desc.buffers.size()));
+        layout_binding.descriptorCount = std::max<uint32_t>(layout_binding.descriptorCount,
+                                                            static_cast<uint32_t>(desc.inline_uniform_block.size()));
         layout_binding.descriptorCount =
                 desc.variable_count ? g_max_bindless_resources : layout_binding.descriptorCount;
         layout_binding.descriptorType = desc.type;
@@ -261,7 +263,7 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
         for(auto &img: descriptor.images) { img.reset(); }
         for(auto &buf: descriptor.buffers) { buf.reset(); }
         for(auto &as: descriptor.acceleration_structures) { as.reset(); }
-        descriptor.inline_uniform_block.clear();
+        memset(descriptor.inline_uniform_block.data(), 0, descriptor.inline_uniform_block.size());
     }
 
     // retrieve set-layout
@@ -445,8 +447,7 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device,
-                                               VkDescriptorSetLayout set_layout,
+DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device, VkDescriptorSetLayout set_layout,
                                                const descriptor_map_t &descriptors,
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
                                                descriptor_set_map_t &current, bool variable_count, bool relax_reuse)

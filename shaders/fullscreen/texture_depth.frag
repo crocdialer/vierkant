@@ -6,6 +6,11 @@
 
 layout(binding = 0) uniform sampler2D u_sampler_2D[2];
 
+layout(std140, binding = 1) uniform UBO
+{
+    vec4 u_color;
+};
+
 layout(location = 0) in VertexData
 {
     vec2 tex_coord;
@@ -16,5 +21,5 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
     gl_FragDepth = texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x;
-    out_color = texture(u_sampler_2D[COLOR], vertex_in.tex_coord);
+    out_color = u_color * texture(u_sampler_2D[COLOR], vertex_in.tex_coord);
 }

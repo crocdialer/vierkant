@@ -69,7 +69,8 @@ public:
      * @param   blend       an optional flag to enable alpha-blending.
      */
     void draw_image_fullscreen(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
-                               const vierkant::ImagePtr &depth = nullptr, bool depth_test = false, bool blend = true);
+                               const vierkant::ImagePtr &depth = nullptr, bool depth_test = false, bool blend = true,
+                               const glm::vec4 &color = glm::vec4(1.f));
 
     /**
      * @brief   Draws an axis-aligned bounding box.
@@ -105,8 +106,8 @@ public:
      */
     void draw_mesh(vierkant::Rasterizer &renderer, const vierkant::MeshPtr &mesh,
                    const vierkant::transform_t &transform, const glm::mat4 &projection,
-                   vierkant::ShaderType shader_type, const std::optional<glm::vec4> &color = glm::vec4(1.f), bool depth_test = true,
-                   bool depth_write = true);
+                   vierkant::ShaderType shader_type, const std::optional<glm::vec4> &color = glm::vec4(1.f),
+                   bool depth_test = true, bool depth_write = true);
 
     /**
      * @brief   Draws a node hierarchy as set of lines.
