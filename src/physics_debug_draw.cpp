@@ -77,6 +77,8 @@ PhysicsDebugRenderer::PhysicsDebugRenderer(const create_info_t &create_info)
     : m_draw_context(create_info.device), m_pipeline_cache(create_info.pipeline_cache), m_queue(create_info.queue)
 {
     vierkant::Rasterizer::create_info_t raster_info = {};
+    raster_info.viewport.width = static_cast<float>(create_info.settings.resolution.x);
+    raster_info.viewport.height = static_cast<float>(create_info.settings.resolution.y);
     raster_info.pipeline_cache = create_info.pipeline_cache;
     raster_info.num_frames_in_flight = create_info.num_frames_in_flight;
     m_rasterizer = vierkant::Rasterizer(create_info.device, raster_info);
