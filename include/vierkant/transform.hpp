@@ -28,7 +28,7 @@ using transform_t = transform_t_<float>;
  * @return  a transformed vector.
  */
 template<typename T1, typename T2>
-inline glm::vec<3, T2> operator*(const transform_t_<T1> &t, const glm::vec<3, T2> &v)
+inline constexpr glm::vec<3, T2> operator*(const transform_t_<T1> &t, const glm::vec<3, T2> &v)
 {
     return t.rotation * (v * t.scale) + t.translation;
 }
@@ -41,7 +41,7 @@ inline glm::vec<3, T2> operator*(const transform_t_<T1> &t, const glm::vec<3, T2
  * @return  a combined vierkant::transform.
  */
 template<typename T>
-inline transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
+inline constexpr transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
     transform_t_<T> ret = lhs;
     ret.translation += lhs.rotation * (rhs.translation * lhs.scale);
@@ -51,7 +51,7 @@ inline transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<
 }
 
 template<typename T>
-inline bool operator==(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
+inline constexpr bool operator==(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
     if(lhs.translation != rhs.translation) { return false; }
     if(lhs.rotation != rhs.rotation) { return false; }
@@ -60,7 +60,7 @@ inline bool operator==(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 }
 
 template<typename T>
-inline bool operator!=(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
+inline constexpr bool operator!=(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
     return !(lhs == rhs);
 }
@@ -80,7 +80,7 @@ inline bool epsilon_equal(const transform_t_<T> &lhs, const transform_t_<T> &rhs
  * @return  the inverted vierkant::transform.
  */
 template<typename T>
-inline transform_t_<T> inverse(const transform_t_<T> &t)
+inline constexpr transform_t_<T> inverse(const transform_t_<T> &t)
 {
     using vec3_t = typename std::decay<decltype(t.scale)>::type;
     transform_t_<T> ret;
@@ -91,7 +91,7 @@ inline transform_t_<T> inverse(const transform_t_<T> &t)
 }
 
 template<typename T1 = float, typename T2>
-inline glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
+inline constexpr glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
 {
     glm::mat<4, 4, T1> tmp = glm::mat4_cast(t.rotation);
     tmp[0] *= static_cast<T1>(t.scale.x);
@@ -102,7 +102,7 @@ inline glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
 }
 
 template<typename T1 = float, typename T2>
-inline transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
+inline constexpr transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
 {
     transform_t_<T1> ret;
     glm::vec<3, T1> skew;
@@ -112,7 +112,7 @@ inline transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
 }
 
 template<typename T, typename U>
-inline transform_t_<T> mix(const transform_t_<T> &lhs, const transform_t_<T> &rhs, U v)
+inline constexpr transform_t_<T> mix(const transform_t_<T> &lhs, const transform_t_<T> &rhs, U v)
 {
     transform_t_<T> ret;
     ret.translation = glm::mix(lhs.translation, rhs.translation, v);

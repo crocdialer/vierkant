@@ -788,7 +788,6 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             body_interface.SetUserData(jolt_bodyId, objectId);
             m_engine->jolt.body_id_map[objectId] = jolt_bodyId;
             spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
-
             return !jolt_bodyId.IsInvalid();
         }
     }
@@ -965,7 +964,9 @@ void PhysicsScene::update(double time_delta)
         else
         {
             // physics -> object
-            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform);
+            vierkant::transform_t t;
+            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), t);
+            obj->transform = t * vierkant::inverse(cmp.shape_transform);
         }
     }
     m_context.step_simulation(static_cast<float>(time_delta), 2);
