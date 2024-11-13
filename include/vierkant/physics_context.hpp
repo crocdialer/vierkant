@@ -70,7 +70,7 @@ struct physics_component_t
     } mode = ACTIVE;
 
     collision::shape_t shape = CollisionShapeId::nil();
-    vierkant::transform_t shape_transform = {};
+    std::optional<vierkant::transform_t> shape_transform = {};
     float mass = 0.f;
     float friction = 0.2f;
     float restitution = 0.f;

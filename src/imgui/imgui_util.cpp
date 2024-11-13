@@ -1055,7 +1055,19 @@ void draw_object_ui(const Object3DPtr &object)
                         {
                             change |= ImGui::Checkbox("convex_hull", &shape.convex_hull);
                         }
-                        change |= draw_transform(phys_cmp.shape_transform, "offset");
+
+                        bool has_offset = phys_cmp.shape_transform.has_value();
+                        if(ImGui::Checkbox("offset", &has_offset))
+                        {
+                            if(has_offset) { phys_cmp.shape_transform = vierkant::transform_t{}; }
+                            else { phys_cmp.shape_transform = {}; }
+                        }
+
+                        if(phys_cmp.shape_transform)
+                        {
+                            ImGui::SameLine();
+                            change |= draw_transform(*phys_cmp.shape_transform);
+                        }
                     },
                     phys_cmp.shape);
 

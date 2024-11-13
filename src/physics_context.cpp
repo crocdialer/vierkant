@@ -964,9 +964,13 @@ void PhysicsScene::update(double time_delta)
         else
         {
             // physics -> object
-            vierkant::transform_t t;
-            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), t);
-            obj->transform = t * vierkant::inverse(cmp.shape_transform);
+            if(cmp.shape_transform)
+            {
+                vierkant::transform_t t = obj->transform;
+                m_context.body_interface().get_transform(static_cast<uint32_t>(entity), t);
+                obj->transform = t * vierkant::inverse(*cmp.shape_transform);
+            }
+            else { m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform); }
         }
     }
     m_context.step_simulation(static_cast<float>(time_delta), 2);

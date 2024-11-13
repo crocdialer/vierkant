@@ -404,6 +404,7 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
     color_attrib.buffer = vierkant::Buffer::create(renderer.device(), colors, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
                                                    VMA_MEMORY_USAGE_CPU_TO_GPU, m_memory_pool);
     drawable.mesh = mesh;
+    drawable.share_material = false;
     drawable.pipeline_format.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
     drawable.pipeline_format.binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
     drawable.num_vertices = lines.size();
