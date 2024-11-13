@@ -628,7 +628,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         for(auto &post_fx_ping_pong: frame_context.post_fx_ping_pongs)
         {
             post_fx_ping_pong = vierkant::Framebuffer(m_device, post_fx_buffer_info);
-            post_fx_ping_pong.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+            post_fx_ping_pong.clear_color = glm::vec4(0.f);
         }
     }
 }

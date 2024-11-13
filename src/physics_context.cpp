@@ -766,9 +766,10 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
         auto motion_type = dynamic ? JPH::EMotionType::Dynamic
                                    : (kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
 
-        auto scaled_shape = new JPH::ScaledShape(shape, type_cast(transform.scale));
-        auto body_create_info = JPH::BodyCreationSettings(scaled_shape, type_cast(transform.translation),
-                                                          type_cast(transform.rotation), motion_type, layer);
+        auto t = cmp.shape_transform ? transform * *cmp.shape_transform : transform;
+        auto scaled_shape = new JPH::ScaledShape(shape, type_cast(t.scale));
+        auto body_create_info = JPH::BodyCreationSettings(scaled_shape, type_cast(t.translation), type_cast(t.rotation),
+                                                          motion_type, layer);
 
         auto mass_properties = body_create_info.GetMassProperties();
         mass_properties.ScaleToMass(mass);
@@ -788,7 +789,6 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             body_interface.SetUserData(jolt_bodyId, objectId);
             m_engine->jolt.body_id_map[objectId] = jolt_bodyId;
             spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
-
             return !jolt_bodyId.IsInvalid();
         }
     }
@@ -814,7 +814,7 @@ bool PhysicsContext::contains(uint32_t objectId) const { return m_engine->jolt.b
 
 vierkant::PhysicsContext::BodyInterface &PhysicsContext::body_interface() { return *m_engine->jolt.body_system; }
 
-PhysicsContext::debug_draw_result_t PhysicsContext::debug_render()
+PhysicsContext::debug_draw_result_t PhysicsContext::debug_render() const
 {
     m_engine->jolt.debug_render->clear();
 
@@ -965,7 +965,13 @@ void PhysicsScene::update(double time_delta)
         else
         {
             // physics -> object
-            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform);
+            if(cmp.shape_transform)
+            {
+                vierkant::transform_t t = obj->transform;
+                m_context.body_interface().get_transform(static_cast<uint32_t>(entity), t);
+                obj->transform = t * vierkant::inverse(*cmp.shape_transform);
+            }
+            else { m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform); }
         }
     }
     m_context.step_simulation(static_cast<float>(time_delta), 2);

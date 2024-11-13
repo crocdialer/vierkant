@@ -116,7 +116,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
     auto clear_color = window->swapchain().framebuffers().front().clear_color;
 
-    if(ImGui::ColorEdit4("clear color", clear_color.float32))
+    if(ImGui::ColorEdit4("clear color", glm::value_ptr(clear_color)))
     {
         for(auto &framebuffer: window->swapchain().framebuffers()) { framebuffer.clear_color = clear_color; }
     }
@@ -933,6 +933,33 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
     }
 }
 
+bool draw_transform(vierkant::transform_t &t, const std::string &label = "transform")
+{
+    bool changed = false;
+
+    // transform
+    if(ImGui::TreeNode(label.c_str()))
+    {
+        glm::vec3 position = t.translation;
+        glm::vec3 rotation = glm::degrees(glm::eulerAngles(t.rotation));
+        glm::vec3 scale = t.scale;
+
+        constexpr char fmt[] = "%.4f";
+        changed = ImGui::InputFloat3("position", glm::value_ptr(position), fmt);
+        changed = ImGui::InputFloat3("rotation", glm::value_ptr(rotation), fmt) || changed;
+        changed = ImGui::InputFloat3("scale", glm::value_ptr(scale), fmt) || changed;
+
+        if(changed)
+        {
+            t.translation = position;
+            t.rotation = glm::quat(glm::radians(rotation));
+            t.scale = scale;
+        }
+        ImGui::TreePop();
+    }
+    return changed;
+}
+
 void draw_object_ui(const Object3DPtr &object)
 {
     constexpr char window_name[] = "object";
@@ -951,25 +978,7 @@ void draw_object_ui(const Object3DPtr &object)
     ImGui::Separator();
 
     // transform
-    if(object && ImGui::TreeNode("transform"))
-    {
-        glm::vec3 position = object->transform.translation;
-        glm::vec3 rotation = glm::degrees(glm::eulerAngles(object->transform.rotation));
-        glm::vec3 scale = object->transform.scale;
-
-        constexpr char fmt[] = "%.4f";
-        bool changed = ImGui::InputFloat3("position", glm::value_ptr(position), fmt);
-        changed = ImGui::InputFloat3("rotation", glm::value_ptr(rotation), fmt) || changed;
-        changed = ImGui::InputFloat3("scale", glm::value_ptr(scale), fmt) || changed;
-
-        if(changed)
-        {
-            object->transform.translation = position;
-            object->transform.rotation = glm::quat(glm::radians(rotation));
-            object->transform.scale = scale;
-        }
-        ImGui::TreePop();
-    }
+    if(object) { draw_transform(object->transform); }
 
     bool has_physics = object->has_component<vierkant::physics_component_t>();
     if(ImGui::Checkbox("physics", &has_physics))
@@ -1025,8 +1034,9 @@ void draw_object_ui(const Object3DPtr &object)
             }
 
             std::visit(
-                    [&change](auto &&shape) {
+                    [&change, &phys_cmp](auto &&shape) mutable {
                         using T = std::decay_t<decltype(shape)>;
+                        if constexpr(std::is_same_v<T, CollisionShapeId>) { return; }
                         if constexpr(std::is_same_v<T, collision::box_t>)
                         {
                             change |= ImGui::InputFloat3("half-extents", &shape.half_extents.x);
@@ -1035,7 +1045,8 @@ void draw_object_ui(const Object3DPtr &object)
                         {
                             change |= ImGui::InputFloat("radius", &shape.radius);
                         }
-                        if constexpr(std::is_same_v<T, collision::cylinder_t> || std::is_same_v<T, collision::capsule_t>)
+                        if constexpr(std::is_same_v<T, collision::cylinder_t> ||
+                                     std::is_same_v<T, collision::capsule_t>)
                         {
                             change |= ImGui::InputFloat("radius", &shape.radius);
                             change |= ImGui::InputFloat("height", &shape.height);
@@ -1043,6 +1054,19 @@ void draw_object_ui(const Object3DPtr &object)
                         if constexpr(std::is_same_v<T, collision::mesh_t>)
                         {
                             change |= ImGui::Checkbox("convex_hull", &shape.convex_hull);
+                        }
+
+                        bool has_offset = phys_cmp.shape_transform.has_value();
+                        if(ImGui::Checkbox("offset", &has_offset))
+                        {
+                            if(has_offset) { phys_cmp.shape_transform = vierkant::transform_t{}; }
+                            else { phys_cmp.shape_transform = {}; }
+                        }
+
+                        if(phys_cmp.shape_transform)
+                        {
+                            ImGui::SameLine();
+                            change |= draw_transform(*phys_cmp.shape_transform);
                         }
                     },
                     phys_cmp.shape);

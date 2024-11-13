@@ -254,7 +254,9 @@ void Framebuffer::begin_renderpass(VkCommandBuffer commandbuffer, VkSubpassConte
 
                 switch(type)
                 {
-                    case AttachmentType::Color: v.color = clear_color; break;
+                    case AttachmentType::Color:
+                        v.color = {{clear_color.x, clear_color.y, clear_color.z, clear_color.w}};
+                        break;
                     case AttachmentType::DepthStencil: v.depthStencil = clear_depth_stencil; break;
 
                     default: break;
@@ -564,7 +566,7 @@ void Framebuffer::begin_rendering(const begin_rendering_info_t &info) const
                 color_attachment.loadOp =
                         info.clear_color_attachment ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_LOAD;
                 color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-                color_attachment.clearValue.color = clear_color;
+                color_attachment.clearValue.color = {{clear_color.x, clear_color.y, clear_color.z, clear_color.w}};
 
                 if(has_resolve && img->format().sample_count != VK_SAMPLE_COUNT_1_BIT)
                 {

@@ -445,7 +445,10 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     frame_context.current_semaphore_value += frame_context.semaphore_value_done;
 
     // start label
-    vierkant::begin_label(m_queue, {"PBRDeferred::render_scene"});
+    {
+        std::unique_lock lock(*m_device->queue_asset(m_queue)->mutex);
+        vierkant::begin_label(m_queue, {"PBRDeferred::render_scene"});
+    }
 
     resize_storage(frame_context, settings.resolution, settings.output_resolution);
 
@@ -474,7 +477,10 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     m_draw_context.draw_image_fullscreen(renderer, out_img, depth_img, true);
 
     // end debug label
-    vierkant::end_label(m_queue);
+    {
+        std::unique_lock lock(*m_device->queue_asset(m_queue)->mutex);
+        vierkant::end_label(m_queue);
+    }
 
     SceneRenderer::render_result_t ret = {};
     ret.object_by_index_fn = [scene,
@@ -1322,7 +1328,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
         frame_context.g_buffer_post =
                 vierkant::Framebuffer(m_device, frame_context.g_buffer_main.attachments(), renderpass_no_clear_depth);
         frame_context.g_buffer_post.debug_label = {.text = "g_buffer_post"};
-        frame_context.g_buffer_post.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+        frame_context.g_buffer_post.clear_color = glm::vec4(0.f);
 
         auto depth_fmt = frame_context.g_buffer_main.depth_attachment()->format();
         depth_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
@@ -1372,7 +1378,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
         for(auto &post_fx_ping_pong: frame_context.post_fx_ping_pongs)
         {
             post_fx_ping_pong = vierkant::Framebuffer(m_device, post_fx_buffer_info);
-            post_fx_ping_pong.clear_color = {{0.f, 0.f, 0.f, 0.f}};
+            post_fx_ping_pong.clear_color = glm::vec4(0.f);
         }
 
         // create bloom

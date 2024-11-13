@@ -70,6 +70,7 @@ struct physics_component_t
     } mode = ACTIVE;
 
     collision::shape_t shape = CollisionShapeId::nil();
+    std::optional<vierkant::transform_t> shape_transform = {};
     float mass = 0.f;
     float friction = 0.2f;
     float restitution = 0.f;
@@ -123,7 +124,7 @@ public:
 
     void step_simulation(float timestep, int max_sub_steps = 1);
 
-    debug_draw_result_t debug_render();
+    debug_draw_result_t debug_render() const;
 
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
@@ -171,6 +172,7 @@ public:
     void update(double time_delta) override;
 
     vierkant::PhysicsContext &physics_context() { return m_context; };
+    [[nodiscard]] const vierkant::PhysicsContext &physics_context() const { return m_context; };
 
 private:
     explicit PhysicsScene() = default;
