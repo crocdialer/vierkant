@@ -195,7 +195,7 @@ public:
     /**
      * @brief   the clear-value used for Color-Attachments
      */
-    VkClearColorValue clear_color = {{0.f, 0.f, 0.f, 1.f}};
+    glm::vec4 clear_color = {0.f, 0.f, 0.f, 1.f};
 
     /**
      * @brief   the clear-value used for DepthStencil-Attachments

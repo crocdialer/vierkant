@@ -138,6 +138,11 @@ public:
     [[nodiscard]] const std::vector<queue_asset_t> &queues(Queue type) const;
 
     /**
+     * @return  nullptr or a pointer to an asset-struct for a queue
+     */
+    [[nodiscard]] const queue_asset_t* queue_asset(VkQueue queue) const;
+
+    /**
      * @return  const ref to the used QueueFamilyIndices
      */
     [[nodiscard]] const std::map<Queue, queue_family_info_t> &queue_family_indices() const { return m_queue_indices; }
@@ -190,6 +195,7 @@ private:
 
     // a map holding all queues for logical device
     std::map<Queue, std::vector<queue_asset_t>> m_queues;
+    std::unordered_map<VkQueue, const queue_asset_t*> m_queue_map;
 
     // keeps track of queue family indices
     std::map<Queue, queue_family_info_t> m_queue_indices;

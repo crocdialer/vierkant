@@ -53,7 +53,14 @@ void submit(const vierkant::DevicePtr &device, VkQueue queue, const std::vector<
         submit_info.commandBufferInfoCount = command_submit_infos.size();
         submit_info.pCommandBufferInfos = command_submit_infos.data();
 
-        if(semaphore_infos.empty()) { vkQueueSubmit2(queue, 1, &submit_info, fence); }
+        auto queue_asset = device->queue_asset(queue);
+        assert(queue_asset);
+
+        if(semaphore_infos.empty())
+        {
+            std::unique_lock lock(*queue_asset->mutex);
+            vkQueueSubmit2(queue, 1, &submit_info, fence);
+        }
         else
         {
             // submit with synchronization-infos
@@ -96,6 +103,7 @@ void submit(const vierkant::DevicePtr &device, VkQueue queue, const std::vector<
                 fence = local_fence.get();
             }
 
+            std::unique_lock lock(*queue_asset->mutex);
             vkQueueSubmit2(queue, 1, &submit_info, fence);
         }
 
@@ -224,26 +232,7 @@ void CommandBuffer::submit(VkQueue queue, bool wait_fence, VkFence fence,
             vkResetFences(m_device->handle(), 1, &m_fence);
             fence = m_fence;
         }
-
-        if(semaphore_infos.empty())
-        {
-            VkCommandBufferSubmitInfo cmd_submit_info = {};
-            cmd_submit_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
-            cmd_submit_info.commandBuffer = m_handle;
-
-            VkSubmitInfo2 submit_info = {};
-            submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
-            submit_info.commandBufferInfoCount = 1;
-            submit_info.pCommandBufferInfos = &cmd_submit_info;
-
-            vkQueueSubmit2(queue, 1, &submit_info, fence);
-
-            if(wait_fence)
-            {
-                vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-            }
-        }
-        else { vierkant::submit(m_device, queue, {m_handle}, wait_fence, fence, semaphore_infos); }
+        vierkant::submit(m_device, queue, {m_handle}, wait_fence, fence, semaphore_infos);
     }
 }
 

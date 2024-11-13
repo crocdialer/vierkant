@@ -116,7 +116,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
     auto clear_color = window->swapchain().framebuffers().front().clear_color;
 
-    if(ImGui::ColorEdit4("clear color", clear_color.float32))
+    if(ImGui::ColorEdit4("clear color", glm::value_ptr(clear_color)))
     {
         for(auto &framebuffer: window->swapchain().framebuffers()) { framebuffer.clear_color = clear_color; }
     }

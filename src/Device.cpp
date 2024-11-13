@@ -356,13 +356,15 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
         {
             auto num_queues = m_queue_indices[type].num_queues;
             num_queues = create_info.max_num_queues ? std::min(num_queues, create_info.max_num_queues) : num_queues;
+            m_queues[type].resize(num_queues);
 
             for(uint32_t i = 0; i < num_queues; ++i)
             {
                 queue_asset_t queue_asset = {};
                 queue_asset.mutex = std::make_unique<std::mutex>();
                 vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i, &queue_asset.queue);
-                m_queues[type].push_back(std::move(queue_asset));
+                m_queue_map[queue_asset.queue] = &m_queues[type][i];
+                m_queues[type][i] = std::move(queue_asset);
             }
         }
     };
@@ -451,6 +453,15 @@ const std::vector<Device::queue_asset_t> &Device::queues(Queue type) const
 
     if(queue_it != m_queues.end()) { return queue_it->second; }
     return g_empty_queue;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const Device::queue_asset_t *Device::queue_asset(VkQueue queue) const
+{
+    auto it = m_queue_map.find(queue);
+    if(it != m_queue_map.end()) { return it->second; }
+    return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

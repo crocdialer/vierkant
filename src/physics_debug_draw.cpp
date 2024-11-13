@@ -15,11 +15,16 @@ namespace vierkant
 SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rasterizer &renderer,
                                                                   const vierkant::SceneConstPtr &scene,
                                                                   const vierkant::CameraPtr &cam,
-                                                                  const std::set<std::string> &/*tags*/)
+                                                                  const std::set<std::string> & /*tags*/)
 {
     auto physics_scene = std::dynamic_pointer_cast<const vierkant::PhysicsScene>(scene);
     if(!physics_scene) { return {}; }
     auto physics_debug_result = physics_scene->physics_context().debug_render();
+
+    // reference to current frame-assets
+    auto &frame_context = m_frame_contexts[m_rasterizer.current_index()];
+    frame_context.semaphore.wait(frame_context.current_semaphore_value);
+    frame_context.current_semaphore_value++;
 
     for(uint32_t i = 0; i < physics_debug_result.aabbs.size(); ++i)
     {
@@ -32,34 +37,84 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
         {
             vierkant::Mesh::create_info_t mesh_create_info = {};
             mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
-            mesh = vierkant::Mesh::create_from_geometry(renderer.device(), geom, mesh_create_info);
+            mesh = vierkant::Mesh::create_from_geometry(m_rasterizer.device(), geom, mesh_create_info);
             mesh->materials.front()->m.blend_mode = vierkant::BlendMode::Blend;
         }
         auto color = physics_debug_result.colors[i];
         color.w = 0.6f;
-        m_draw_context.draw_mesh(renderer, mesh, cam->view_transform() * transform, cam->projection_matrix(),
-                                 vierkant::ShaderType::UNLIT_COLOR, color, false, false);
+        m_draw_context.draw_mesh(m_rasterizer, mesh, cam->view_transform() * transform, cam->projection_matrix(),
+                                 vierkant::ShaderType::UNLIT_COLOR, color, true, true);
     }
 
+    auto cmd_buf = m_rasterizer.render(frame_context.frame_buffer);
 
+    vierkant::semaphore_submit_info_t signal_info = {};
+    signal_info.semaphore = frame_context.semaphore.handle();
+    signal_info.signal_value = frame_context.current_semaphore_value;
+    signal_info.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+    frame_context.frame_buffer.submit({cmd_buf}, m_queue, {signal_info});
+
+    // draw triangle-image
+    m_draw_context.draw_image_fullscreen(renderer, frame_context.frame_buffer.color_attachment(),
+                                         frame_context.frame_buffer.depth_attachment());
     if(physics_debug_result.lines)
     {
         m_draw_context.draw_lines(renderer, physics_debug_result.lines->positions, physics_debug_result.lines->colors,
                                   cam->view_transform(), cam->projection_matrix());
     }
 
+    vierkant::semaphore_submit_info_t wait_info = {};
+    wait_info.semaphore = frame_context.semaphore.handle();
+    wait_info.wait_value = frame_context.current_semaphore_value;
+    wait_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
     render_result_t ret = {};
+    ret.semaphore_infos = {wait_info};
     ret.num_draws = physics_debug_result.aabbs.size();
     return ret;
 }
 
-PhysicsDebugRenderer::PhysicsDebugRenderer(const vierkant::DevicePtr &device)
-    : m_draw_context(device), m_pipeline_cache(vierkant::PipelineCache::create(device))
-{}
-
-PhysicsDebugRendererPtr PhysicsDebugRenderer::create(const vierkant::DevicePtr &device)
+PhysicsDebugRenderer::PhysicsDebugRenderer(const create_info_t &create_info)
+    : m_draw_context(create_info.device), m_pipeline_cache(create_info.pipeline_cache), m_queue(create_info.queue)
 {
-    return vierkant::PhysicsDebugRendererPtr(new PhysicsDebugRenderer(device));
+    vierkant::Rasterizer::create_info_t raster_info = {};
+    raster_info.pipeline_cache = create_info.pipeline_cache;
+    raster_info.num_frames_in_flight = create_info.num_frames_in_flight;
+    m_rasterizer = vierkant::Rasterizer(create_info.device, raster_info);
+
+    // albedo / ao_rough_metal
+    Image::Format color_format = {};
+    color_format.format = VK_FORMAT_R8G8B8A8_UNORM;
+    color_format.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    color_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    color_format.name = "color";
+
+    Image::Format depth_format = {};
+    depth_format.format = VK_FORMAT_D32_SFLOAT;
+    depth_format.aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+    depth_format.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    depth_format.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+    depth_format.name = "depth";
+
+    vierkant::Framebuffer::create_info_t frame_buffer_info = {};
+    frame_buffer_info.size = {create_info.settings.resolution.x, create_info.settings.resolution.y, 1};
+    frame_buffer_info.queue = m_queue;
+    frame_buffer_info.color_attachment_format = color_format;
+    frame_buffer_info.depth_attachment_format = depth_format;
+    frame_buffer_info.depth = true;
+    frame_buffer_info.debug_label = {"physics debug"};
+
+    m_frame_contexts.resize(create_info.num_frames_in_flight);
+    for(auto &asset: m_frame_contexts)
+    {
+        asset.semaphore = Semaphore(create_info.device);
+        asset.frame_buffer = vierkant::Framebuffer(create_info.device, frame_buffer_info);
+        asset.frame_buffer.clear_color = glm::vec4(0.f);
+    }
+}
+
+PhysicsDebugRendererPtr PhysicsDebugRenderer::create(const create_info_t &create_info)
+{
+    return vierkant::PhysicsDebugRendererPtr(new PhysicsDebugRenderer(create_info));
 }
 
 }// namespace vierkant
