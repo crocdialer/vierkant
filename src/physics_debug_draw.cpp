@@ -56,7 +56,8 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
     // draw triangle-image
     constexpr auto overlay_tint = glm::vec4(1.f, 1.f, 1.f, .4f);
     m_draw_context.draw_image_fullscreen(renderer, frame_context.frame_buffer.color_attachment(),
-                                         frame_context.frame_buffer.depth_attachment(), false, true, overlay_tint);
+                                         frame_context.frame_buffer.depth_attachment(), true, true, overlay_tint,
+                                         0.01f);
     if(physics_debug_result.lines)
     {
         m_draw_context.draw_lines(renderer, physics_debug_result.lines->positions, physics_debug_result.lines->colors,

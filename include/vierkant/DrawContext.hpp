@@ -70,7 +70,8 @@ public:
      */
     void draw_image_fullscreen(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                                const vierkant::ImagePtr &depth = nullptr, bool depth_test = false, bool blend = true,
-                               const glm::vec4 &color = glm::vec4(1.f));
+                               const glm::vec4 &color = glm::vec4(1.f),
+                               float depth_bias = 0.f, float depth_scale = 1.f);
 
     /**
      * @brief   Draws an axis-aligned bounding box.

@@ -419,7 +419,8 @@ void DrawContext::draw_lines(vierkant::Rasterizer &renderer, const std::vector<g
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &image, const vierkant::ImagePtr &depth,
-                                        bool depth_test, bool blend, const glm::vec4 &color)
+                                        bool depth_test, bool blend, const glm::vec4 &color, float depth_bias,
+                                        float depth_scale)
 {
     if(!image) { return; }
 
@@ -437,8 +438,19 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
         drawable = m_drawable_image_fullscreen;
         drawable.descriptors[0].images = {image};
     }
-    drawable.descriptors[1].inline_uniform_block.resize(sizeof(glm::vec4));
-    memcpy(drawable.descriptors[1].inline_uniform_block.data(), &color, sizeof(glm::vec4));
+    struct params_t
+    {
+        glm::vec4 color = glm::vec4(1.f);
+        float depth_scale = 1.f;
+        float depth_bias = 0.f;
+    };
+    drawable.descriptors[1].inline_uniform_block.resize(sizeof(params_t));
+    auto params = reinterpret_cast<params_t *>(drawable.descriptors[1].inline_uniform_block.data());
+    *params = {};
+    params->color = color;
+    params->depth_bias = depth_bias;
+    params->depth_scale = depth_scale;
+
     drawable.pipeline_format.depth_test = depth_test;
     drawable.pipeline_format.blend_state.blendEnable = blend;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);

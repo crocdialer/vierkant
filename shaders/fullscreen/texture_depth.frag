@@ -6,10 +6,14 @@
 
 layout(binding = 0) uniform sampler2D u_sampler_2D[2];
 
-layout(std140, binding = 1) uniform UBO
+struct params_t
 {
-    vec4 u_color;
+    vec4 color;
+    float depth_scale;
+    float depth_bias;
 };
+
+layout(std140, binding = 1) uniform UBO { params_t params; };
 
 layout(location = 0) in VertexData
 {
@@ -20,6 +24,6 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-    gl_FragDepth = texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x;
-    out_color = u_color * texture(u_sampler_2D[COLOR], vertex_in.tex_coord);
+    gl_FragDepth = params.depth_scale * texture(u_sampler_2D[DEPTH], vertex_in.tex_coord).x + params.depth_bias;
+    out_color = params.color * texture(u_sampler_2D[COLOR], vertex_in.tex_coord);
 }
