@@ -26,6 +26,7 @@
 #include <Jolt/RegisterTypes.h>
 
 // STL includes
+#include <Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Physics/Collision/Shape/ScaledShape.h>
 #include <Physics/Collision/Shape/StaticCompoundShape.h>
 #include <cstdarg>
@@ -693,9 +694,13 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
 
         if(shape_result.IsValid())
         {
-            auto scaled_shape = new JPH::ScaledShape(shape_result.Get(), type_cast(entry.transform.scale));
-            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
-                                             type_cast(entry.transform.rotation), scaled_shape);
+            auto scale_result = shape_result.Get()->ScaleShape(type_cast(entry.transform.scale));
+
+            if(scale_result.IsValid())
+            {
+                compound_shape_settings.AddShape(type_cast(entry.transform.translation),
+                                                 type_cast(entry.transform.rotation), scale_result.Get());
+            }
         }
     }
 
@@ -728,9 +733,12 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
 
         if(shape_result.IsValid())
         {
-            auto scaled_shape = new JPH::ScaledShape(shape_result.Get(), type_cast(entry.transform.scale));
-            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
-                                             type_cast(entry.transform.rotation), scaled_shape);
+            auto scale_result = shape_result.Get()->ScaleShape(type_cast(entry.transform.scale));
+            if(scale_result.IsValid())
+            {
+                compound_shape_settings.AddShape(type_cast(entry.transform.translation),
+                                                 type_cast(entry.transform.rotation), scale_result.Get());
+            }
         }
     }
     JPH::Shape::ShapeResult shape_result = compound_shape_settings.Create();
@@ -766,30 +774,41 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
         auto motion_type = dynamic ? JPH::EMotionType::Dynamic
                                    : (kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
 
-        auto t = cmp.shape_transform ? transform * *cmp.shape_transform : transform;
-        auto scaled_shape = new JPH::ScaledShape(shape, type_cast(t.scale));
-        auto body_create_info = JPH::BodyCreationSettings(scaled_shape, type_cast(t.translation), type_cast(t.rotation),
-                                                          motion_type, layer);
-
-        auto mass_properties = body_create_info.GetMassProperties();
-        mass_properties.ScaleToMass(mass);
-        body_create_info.mMassPropertiesOverride = mass_properties;
-        body_create_info.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
-
-        body_create_info.mIsSensor = cmp.sensor;
-        body_create_info.mFriction = cmp.friction;
-        body_create_info.mRestitution = cmp.restitution;
-        body_create_info.mLinearDamping = cmp.linear_damping;
-        body_create_info.mAngularDamping = cmp.angular_damping;
-        body_create_info.mMotionQuality = JPH::EMotionQuality::LinearCast;
-
+        glm::vec3 scale = cmp.shape_transform ? transform.scale * cmp.shape_transform->scale : transform.scale;
+        auto shape_result = shape->ScaleShape(type_cast(scale));
+        if(cmp.shape_transform && shape_result.IsValid())
         {
-            std::unique_lock lock(m_engine->jolt.mutex);
-            JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
-            body_interface.SetUserData(jolt_bodyId, objectId);
-            m_engine->jolt.body_id_map[objectId] = jolt_bodyId;
-            spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
-            return !jolt_bodyId.IsInvalid();
+            JPH::RotatedTranslatedShapeSettings rotate_settings(type_cast(cmp.shape_transform->translation),
+                                                                type_cast(cmp.shape_transform->rotation),
+                                                                shape_result.Get());
+            shape_result = rotate_settings.Create();
+        }
+
+        if(shape_result.IsValid())
+        {
+            auto body_create_info = JPH::BodyCreationSettings(shape_result.Get(), type_cast(transform.translation),
+                                                              type_cast(transform.rotation), motion_type, layer);
+
+            auto mass_properties = body_create_info.GetMassProperties();
+            mass_properties.ScaleToMass(mass);
+            body_create_info.mMassPropertiesOverride = mass_properties;
+            body_create_info.mOverrideMassProperties = JPH::EOverrideMassProperties::MassAndInertiaProvided;
+
+            body_create_info.mIsSensor = cmp.sensor;
+            body_create_info.mFriction = cmp.friction;
+            body_create_info.mRestitution = cmp.restitution;
+            body_create_info.mLinearDamping = cmp.linear_damping;
+            body_create_info.mAngularDamping = cmp.angular_damping;
+            body_create_info.mMotionQuality = JPH::EMotionQuality::LinearCast;
+
+            {
+                std::unique_lock lock(m_engine->jolt.mutex);
+                JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
+                body_interface.SetUserData(jolt_bodyId, objectId);
+                m_engine->jolt.body_id_map[objectId] = jolt_bodyId;
+                spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
+                return !jolt_bodyId.IsInvalid();
+            }
         }
     }
     return false;
@@ -965,13 +984,7 @@ void PhysicsScene::update(double time_delta)
         else
         {
             // physics -> object
-            if(cmp.shape_transform)
-            {
-                vierkant::transform_t t = obj->transform;
-                m_context.body_interface().get_transform(static_cast<uint32_t>(entity), t);
-                obj->transform = t * vierkant::inverse(*cmp.shape_transform);
-            }
-            else { m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform); }
+            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform);
         }
     }
     m_context.step_simulation(static_cast<float>(time_delta), 2);
