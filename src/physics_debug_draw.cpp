@@ -24,30 +24,37 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
     auto &frame_context = m_frame_contexts[m_rasterizer.current_index()];
     frame_context.semaphore.wait(frame_context.current_semaphore_value);
     frame_context.current_semaphore_value++;
+    frame_context.settings = settings;
 
     for(uint32_t i = 0; i < physics_debug_result.aabbs.size(); ++i)
     {
-        const auto &aabb = physics_debug_result.aabbs[i];
-        m_draw_context.draw_boundingbox(m_rasterizer, aabb, cam->view_transform(), cam->projection_matrix());
-
-        const auto &[transform, geom] = physics_debug_result.triangle_meshes[i];
-        auto &mesh = m_physics_meshes[geom];
-        if(!mesh)
+        if(frame_context.settings.draw_aabbs)
         {
-            vierkant::Mesh::create_info_t mesh_create_info = {};
-            mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
-            mesh = vierkant::Mesh::create_from_geometry(m_rasterizer.device(), geom, mesh_create_info);
-            mesh->materials.front()->m.blend_mode = vierkant::BlendMode::Blend;
+            const auto &aabb = physics_debug_result.aabbs[i];
+            m_draw_context.draw_boundingbox(m_rasterizer, aabb, cam->view_transform(), cam->projection_matrix());
         }
-        auto color = physics_debug_result.colors[i];
-        m_draw_context.draw_mesh(m_rasterizer, mesh, cam->view_transform() * transform, cam->projection_matrix(),
-                                 vierkant::ShaderType::UNLIT_COLOR, color, true, true);
+
+        if(frame_context.settings.draw_meshes)
+        {
+            const auto &[transform, geom] = physics_debug_result.triangle_meshes[i];
+            auto &mesh = m_physics_meshes[geom];
+            if(!mesh)
+            {
+                vierkant::Mesh::create_info_t mesh_create_info = {};
+                mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
+                mesh = vierkant::Mesh::create_from_geometry(m_rasterizer.device(), geom, mesh_create_info);
+                mesh->materials.front()->m.blend_mode = vierkant::BlendMode::Blend;
+            }
+            auto color = settings.use_mesh_colors ? physics_debug_result.colors[i] : glm::vec4(1.f);
+            m_draw_context.draw_mesh(m_rasterizer, mesh, cam->view_transform() * transform, cam->projection_matrix(),
+                                     vierkant::ShaderType::UNLIT_COLOR, color, true, true);
+        }
     }
 
-    if(physics_debug_result.lines)
+    if(frame_context.settings.draw_lines && physics_debug_result.lines)
     {
-        m_draw_context.draw_lines(m_rasterizer, physics_debug_result.lines->positions, physics_debug_result.lines->colors,
-                                  cam->view_transform(), cam->projection_matrix());
+        m_draw_context.draw_lines(m_rasterizer, physics_debug_result.lines->positions,
+                                  physics_debug_result.lines->colors, cam->view_transform(), cam->projection_matrix());
     }
 
     auto cmd_buf = m_rasterizer.render(frame_context.frame_buffer);
@@ -59,10 +66,9 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
     frame_context.frame_buffer.submit({cmd_buf}, m_queue, {signal_info});
 
     // draw overlay-image
-    constexpr auto overlay_tint = glm::vec4(1.f, 1.f, 1.f, .4f);
     m_draw_context.draw_image_fullscreen(renderer, frame_context.frame_buffer.color_attachment(),
-                                         frame_context.frame_buffer.depth_attachment(), true, true, overlay_tint,
-                                         0.01f);
+                                         frame_context.frame_buffer.depth_attachment(), true, true,
+                                         frame_context.settings.overlay_color, 0.01f);
 
     vierkant::semaphore_submit_info_t wait_info = {};
     wait_info.semaphore = frame_context.semaphore.handle();

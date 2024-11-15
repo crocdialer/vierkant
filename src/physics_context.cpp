@@ -856,6 +856,7 @@ PhysicsContext::debug_draw_result_t PhysicsContext::debug_render() const
 
     JPH::BodyManager::DrawSettings ds;
     ds.mDrawVelocity = true;
+//    ds.mDrawGetSupportingFace = true;
     m_engine->jolt.physics_system.DrawBodies(ds, m_engine->jolt.debug_render.get());
     return {m_engine->jolt.debug_render->line_geometry, m_engine->jolt.debug_render->aabbs,
             m_engine->jolt.debug_render->colors, m_engine->jolt.debug_render->triangle_meshes};

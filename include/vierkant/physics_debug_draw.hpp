@@ -15,6 +15,11 @@ public:
     {
         //! internal resolution
         glm::uvec2 resolution = {1920, 1080};
+        bool draw_aabbs = true;
+        bool draw_meshes = true;
+        bool draw_lines = true;
+        bool use_mesh_colors = true;
+        glm::vec4 overlay_color = glm::vec4(1.f, 1.f, 1.f, .6f);
 
         constexpr bool operator==(const settings_t &lhs) const = default;
         constexpr bool operator!=(const settings_t &lhs) const = default;
