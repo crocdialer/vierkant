@@ -84,6 +84,16 @@ std::vector<Object3D *> Scene::objects_by_name(const std::string_view &name) con
     return ret;
 }
 
+Object3D *Scene::any_object_by_name(const std::string_view &name) const
+{
+    auto view = m_registry->view<Object3D *>();
+    for(const auto &[entity, object]: view.each())
+    {
+        if(object->name == name) { return object; }
+    }
+    return nullptr;
+}
+
 Object3DPtr Scene::pick(const Ray &ray) const
 {
     Object3DPtr ret;

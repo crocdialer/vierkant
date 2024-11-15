@@ -951,23 +951,6 @@ void PhysicsContext::set_callbacks(uint32_t objectId, const PhysicsContext::call
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void PhysicsScene::add_object(const Object3DPtr &object)
-{
-    vierkant::Scene::add_object(object);
-
-    if(object)
-    {
-        vierkant::LambdaVisitor visitor;
-        visitor.traverse(*object, [this](const auto &obj) -> bool {
-            if(auto phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
-            {
-                m_context.add_object(obj.id(), obj.global_transform(), *phy_cmp_ptr);
-            }
-            return true;
-        });
-    }
-}
-
 void PhysicsScene::remove_object(const Object3DPtr &object)
 {
     if(object)

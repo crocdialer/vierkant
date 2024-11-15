@@ -72,7 +72,7 @@ struct physics_component_t
         ACTIVE,
         UPDATE,
         REMOVE
-    } mode = ACTIVE;
+    } mode = INACTIVE;
 
     collision::shape_t shape = collision::none_t{};
     std::optional<vierkant::transform_t> shape_transform = {};
@@ -167,8 +167,6 @@ public:
     ~PhysicsScene() override = default;
 
     static std::shared_ptr<PhysicsScene> create();
-
-    void add_object(const Object3DPtr &object) override;
 
     void remove_object(const Object3DPtr &object) override;
 
