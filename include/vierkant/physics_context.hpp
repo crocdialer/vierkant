@@ -136,7 +136,7 @@ public:
 
     bool add_object(uint32_t objectId, const vierkant::transform_t &transform,
                     const vierkant::physics_component_t &cmp);
-    void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp);
+    void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
 
     void set_callbacks(uint32_t objectId, const callbacks_t &callbacks);
