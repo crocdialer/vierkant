@@ -1023,7 +1023,7 @@ void draw_object_ui(const Object3DPtr &object)
                 change = true;
                 switch(shape_index)
                 {
-                    case 0: phys_cmp.shape = CollisionShapeId::nil(); break;
+                    case 0: phys_cmp.shape = collision::none_t(); break;
                     case 1: phys_cmp.shape = collision::box_t(); break;
                     case 2: phys_cmp.shape = collision::sphere_t(); break;
                     case 3: phys_cmp.shape = collision::cylinder_t(); break;

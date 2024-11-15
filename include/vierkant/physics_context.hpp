@@ -18,6 +18,11 @@ DEFINE_NAMED_UUID(CollisionShapeId)
 namespace collision
 {
 
+struct none_t
+{
+    constexpr bool operator==(const vierkant::collision::none_t &other) const = default;
+};
+
 struct box_t
 {
     glm::vec3 half_extents = glm::vec3(.5f);
@@ -53,8 +58,8 @@ struct mesh_t
 
 using mesh_provider_fn = std::function<vierkant::mesh_asset_t(vierkant::MeshId)>;
 
-using shape_t = std::variant<collision::sphere_t, collision::box_t, collision::cylinder_t, collision::capsule_t,
-                             collision::mesh_t, vierkant::CollisionShapeId>;
+using shape_t = std::variant<vierkant::CollisionShapeId, collision::none_t, collision::sphere_t, collision::box_t,
+                             collision::cylinder_t, collision::capsule_t, collision::mesh_t>;
 }// namespace collision
 
 struct physics_component_t
@@ -69,7 +74,7 @@ struct physics_component_t
         REMOVE
     } mode = ACTIVE;
 
-    collision::shape_t shape = CollisionShapeId::nil();
+    collision::shape_t shape = collision::none_t{};
     std::optional<vierkant::transform_t> shape_transform = {};
     float mass = 0.f;
     float friction = 0.2f;
@@ -124,7 +129,7 @@ public:
 
     void step_simulation(float timestep, int max_sub_steps = 1);
 
-    debug_draw_result_t debug_render() const;
+    [[nodiscard]] debug_draw_result_t debug_render() const;
 
     void set_gravity(const glm::vec3 &g);
     [[nodiscard]] glm::vec3 gravity() const;
@@ -191,4 +196,41 @@ struct hash<vierkant::physics_component_t>
 {
     size_t operator()(vierkant::physics_component_t const &c) const;
 };
+
+template<>
+struct hash<vierkant::collision::none_t>
+{
+    size_t operator()(vierkant::collision::none_t const &) const { return 0; };
+};
+
+template<>
+struct hash<vierkant::collision::sphere_t>
+{
+    size_t operator()(vierkant::collision::sphere_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::box_t>
+{
+    size_t operator()(vierkant::collision::box_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::cylinder_t>
+{
+    size_t operator()(vierkant::collision::cylinder_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::capsule_t>
+{
+    size_t operator()(vierkant::collision::capsule_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::mesh_t>
+{
+    size_t operator()(vierkant::collision::mesh_t const &) const;
+};
+
 }// namespace std

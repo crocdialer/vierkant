@@ -577,6 +577,7 @@ public:
 
     //! collision-shape storage
     std::unordered_map<vierkant::CollisionShapeId, JPH::Ref<JPH::Shape>> shapes;
+    std::unordered_map<vierkant::collision::shape_t, vierkant::CollisionShapeId> shape_ids;
 
     //! lookup of body-ids
     std::unordered_map<uint32_t, JPH::BodyID> body_id_map;
@@ -850,6 +851,13 @@ glm::vec3 PhysicsContext::gravity() const { return type_cast(m_engine->jolt.phys
 
 CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collision::shape_t &shape)
 {
+    auto it = m_engine->jolt.shape_ids.find(shape);
+    if(it != m_engine->jolt.shape_ids.end())
+    {
+        vierkant::CollisionShapeId found_id = it->second;
+        return m_engine->jolt.shapes.contains(found_id) ? found_id : CollisionShapeId::nil();
+    }
+
     auto shape_id = std::visit(
             [this](auto &&s) -> CollisionShapeId {
                 using T = std::decay_t<decltype(s)>;
@@ -859,6 +867,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                     if(m_engine->jolt.shapes.contains(s)) { return s; }
                     return vierkant::CollisionShapeId::nil();
                 }
+                if constexpr(std::is_same_v<T, collision::none_t>) { return vierkant::CollisionShapeId::nil(); }
 
                 vierkant::CollisionShapeId new_id;
 
@@ -892,6 +901,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                     }
                     return CollisionShapeId::nil();
                 }
+                m_engine->jolt.shape_ids[s] = new_id;
                 return new_id;
             },
             shape);
@@ -962,6 +972,7 @@ void PhysicsScene::update(double time_delta)
         else if(obj->enabled && cmp.mode == physics_component_t::INACTIVE)
         {
             cmp.mode = physics_component_t::ACTIVE;
+            m_context.remove_object(obj->id());
             m_context.add_object(obj->id(), obj->transform, cmp);
         }
         else if(!obj->enabled)
@@ -998,6 +1009,7 @@ size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_co
 {
     size_t h = 0;
     vierkant::hash_combine(h, c.mode);
+    vierkant::hash_combine(h, c.shape);
     vierkant::hash_combine(h, c.mass);
     vierkant::hash_combine(h, c.friction);
     vierkant::hash_combine(h, c.restitution);
@@ -1005,5 +1017,39 @@ size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_co
     vierkant::hash_combine(h, c.angular_damping);
     vierkant::hash_combine(h, c.kinematic);
     vierkant::hash_combine(h, c.sensor);
+    return h;
+}
+
+size_t std::hash<vierkant::collision::sphere_t>::operator()(const vierkant::collision::sphere_t &s) const
+{
+    return std::hash<float>()(s.radius);
+}
+
+size_t std::hash<vierkant::collision::box_t>::operator()(const vierkant::collision::box_t &s) const
+{
+    return std::hash<glm::vec3>()(s.half_extents);
+}
+
+size_t std::hash<vierkant::collision::cylinder_t>::operator()(const vierkant::collision::cylinder_t &s) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, s.radius);
+    vierkant::hash_combine(h, s.height);
+    return h;
+}
+
+size_t std::hash<vierkant::collision::capsule_t>::operator()(const vierkant::collision::capsule_t &s) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, s.radius);
+    vierkant::hash_combine(h, s.height);
+    return h;
+}
+
+size_t std::hash<vierkant::collision::mesh_t>::operator()(const vierkant::collision::mesh_t &s) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, s.mesh_id);
+    vierkant::hash_combine(h, s.convex_hull);
     return h;
 }
