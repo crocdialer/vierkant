@@ -1028,10 +1028,13 @@ void PhysicsScene::update(double time_delta)
             continue;
         }
 
-        if(cmp.kinematic || cmp.mass == 0.f)
+        auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape);
+        bool is_movable = cmp.kinematic || cmp.mass == 0.f || (mesh_shape && !mesh_shape->convex_hull);
+
+        if(is_movable)
         {
             // object -> physics
-            m_context.body_interface().set_transform(static_cast<uint32_t>(entity), obj->transform);
+            m_context.body_interface().set_transform(static_cast<uint32_t>(entity), obj->global_transform());
         }
         else
         {
