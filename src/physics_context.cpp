@@ -755,6 +755,9 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
 bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &transform,
                                 const vierkant::physics_component_t &cmp)
 {
+    // avoid duplicates
+    remove_object(objectId, cmp);
+
     auto shape_id = create_collision_shape(cmp.shape);
 
     if(shape_id)
@@ -919,10 +922,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                         {
                             new_id = s.convex_hull ? create_convex_collision_shape(*assets.bundle)
                                                    : create_collision_shape(*assets.bundle);
-//                            return new_id;
                         }
                     }
-//                    return CollisionShapeId::nil();
                 }
                 if(new_id)
                 {
@@ -995,14 +996,12 @@ void PhysicsScene::update(double time_delta)
                     mesh_shape->mesh_id = mesh_cmp->mesh->id;
                 }
             }
-            m_context.remove_object(obj->id(), cmp);
             m_context.add_object(obj->id(), obj->transform, cmp);
             cmp.mode = physics_component_t::ACTIVE;
         }
         else if(obj->enabled && cmp.mode == physics_component_t::INACTIVE)
         {
             cmp.mode = physics_component_t::ACTIVE;
-            m_context.remove_object(obj->id(), cmp);
             m_context.add_object(obj->id(), obj->transform, cmp);
         }
         else if(!obj->enabled)
