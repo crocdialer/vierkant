@@ -28,7 +28,7 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
     for(uint32_t i = 0; i < physics_debug_result.aabbs.size(); ++i)
     {
         const auto &aabb = physics_debug_result.aabbs[i];
-        m_draw_context.draw_boundingbox(renderer, aabb, cam->view_transform(), cam->projection_matrix());
+        m_draw_context.draw_boundingbox(m_rasterizer, aabb, cam->view_transform(), cam->projection_matrix());
 
         const auto &[transform, geom] = physics_debug_result.triangle_meshes[i];
         auto &mesh = m_physics_meshes[geom];
@@ -44,6 +44,12 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
                                  vierkant::ShaderType::UNLIT_COLOR, color, true, true);
     }
 
+    if(physics_debug_result.lines)
+    {
+        m_draw_context.draw_lines(m_rasterizer, physics_debug_result.lines->positions, physics_debug_result.lines->colors,
+                                  cam->view_transform(), cam->projection_matrix());
+    }
+
     auto cmd_buf = m_rasterizer.render(frame_context.frame_buffer);
 
     vierkant::semaphore_submit_info_t signal_info = {};
@@ -52,16 +58,11 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
     signal_info.signal_stage = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
     frame_context.frame_buffer.submit({cmd_buf}, m_queue, {signal_info});
 
-    // draw triangle-image
+    // draw overlay-image
     constexpr auto overlay_tint = glm::vec4(1.f, 1.f, 1.f, .4f);
     m_draw_context.draw_image_fullscreen(renderer, frame_context.frame_buffer.color_attachment(),
                                          frame_context.frame_buffer.depth_attachment(), true, true, overlay_tint,
                                          0.01f);
-    if(physics_debug_result.lines)
-    {
-        m_draw_context.draw_lines(renderer, physics_debug_result.lines->positions, physics_debug_result.lines->colors,
-                                  cam->view_transform(), cam->projection_matrix());
-    }
 
     vierkant::semaphore_submit_info_t wait_info = {};
     wait_info.semaphore = frame_context.semaphore.handle();
