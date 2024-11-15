@@ -796,6 +796,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
         num_faces += e.lods.empty() ? 0 : e.lods[0].num_indices / 3;
     }
     ImGui::Separator();
+    ImGui::BulletText("mesh: %s", mesh->id.str().c_str());
     ImGui::BulletText("%zu positions", num_vertices);
     ImGui::BulletText("%zu faces", num_faces);
     ImGui::BulletText("%d bones", vierkant::nodes::num_nodes_in_hierarchy(mesh->root_bone));
