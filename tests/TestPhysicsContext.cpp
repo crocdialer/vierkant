@@ -61,7 +61,7 @@ TEST(PhysicsContext, add_remove_object)
     // TODO: fails, why?
     //    EXPECT_EQ(context.body_interface().velocity(a->id()), test_velocity);
 
-    context.remove_object(a->id());
+    context.remove_object(a->id(), cmp);
     EXPECT_FALSE(context.contains(a->id()));
 }
 
