@@ -55,6 +55,8 @@ public:
 
     void set_global_transform(const vierkant::transform_t &t);
 
+    bool global_enable() const;
+
     /**
      * @return the axis-aligned boundingbox (AABB) in object coords.
      */

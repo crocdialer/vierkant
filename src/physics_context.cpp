@@ -1,6 +1,7 @@
 #include <unordered_set>
 
 #include <crocore/ThreadPool.hpp>
+#include <vierkant/Visitor.hpp>
 #include <vierkant/physics_context.hpp>
 
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
@@ -925,10 +926,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                         }
                     }
                 }
-                if(new_id)
-                {
-                    m_engine->jolt.shape_ids[s] = {new_id, 1};
-                }
+                if(new_id) { m_engine->jolt.shape_ids[s] = {new_id, 1}; }
                 return new_id;
             },
             shape);
@@ -959,8 +957,14 @@ void PhysicsScene::add_object(const Object3DPtr &object)
 
     if(object)
     {
-        auto phy_cmp_ptr = object->get_component_ptr<vierkant::physics_component_t>();
-        if(phy_cmp_ptr) { m_context.add_object(object->id(), object->transform, *phy_cmp_ptr); }
+        vierkant::LambdaVisitor visitor;
+        visitor.traverse(*object, [this](const auto &obj) -> bool {
+            if(auto phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
+            {
+                m_context.add_object(obj.id(), obj.global_transform(), *phy_cmp_ptr);
+            }
+            return true;
+        });
     }
 }
 
@@ -968,8 +972,14 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
 {
     if(object)
     {
-        auto phy_cmp_ptr = object->get_component_ptr<vierkant::physics_component_t>();
-        if(phy_cmp_ptr) { m_context.remove_object(object->id(), *phy_cmp_ptr); }
+        vierkant::LambdaVisitor visitor;
+        visitor.traverse(*object, [this](const auto &obj) -> bool {
+            if(auto phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
+            {
+                m_context.remove_object(obj.id(), *phy_cmp_ptr);
+            }
+            return true;
+        });
     }
     vierkant::Scene::remove_object(object);
 }
@@ -987,6 +997,8 @@ void PhysicsScene::update(double time_delta)
     for(const auto &[entity, cmp]: view.each())
     {
         auto obj = object_by_id(static_cast<uint32_t>(entity));
+        bool obj_enabled = obj->global_enable();
+
         if(cmp.mode == physics_component_t::UPDATE)
         {
             if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
@@ -999,12 +1011,12 @@ void PhysicsScene::update(double time_delta)
             m_context.add_object(obj->id(), obj->transform, cmp);
             cmp.mode = physics_component_t::ACTIVE;
         }
-        else if(obj->enabled && cmp.mode == physics_component_t::INACTIVE)
+        else if(obj_enabled && cmp.mode == physics_component_t::INACTIVE)
         {
             cmp.mode = physics_component_t::ACTIVE;
             m_context.add_object(obj->id(), obj->transform, cmp);
         }
-        else if(!obj->enabled)
+        else if(!obj_enabled)
         {
             cmp.mode = physics_component_t::INACTIVE;
             m_context.remove_object(obj->id(), cmp);
@@ -1016,7 +1028,7 @@ void PhysicsScene::update(double time_delta)
             continue;
         }
 
-        if(cmp.kinematic)
+        if(cmp.kinematic || cmp.mass == 0.f)
         {
             // object -> physics
             m_context.body_interface().set_transform(static_cast<uint32_t>(entity), obj->transform);

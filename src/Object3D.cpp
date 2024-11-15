@@ -44,6 +44,18 @@ void Object3D::set_global_transform(const vierkant::transform_t &t)
     transform = parent_inverse * t;
 }
 
+bool Object3D::global_enable() const
+{
+    if(!enabled) { return false; }
+    Object3DPtr ancestor = parent();
+    while(ancestor)
+    {
+        if(!ancestor->enabled) { return false; }
+        ancestor = ancestor->parent();
+    }
+    return true;
+}
+
 void Object3D::set_parent(const Object3DPtr &parent_object)
 {
     // detach object from former parent
