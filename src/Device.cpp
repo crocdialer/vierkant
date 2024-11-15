@@ -361,7 +361,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
             for(uint32_t i = 0; i < num_queues; ++i)
             {
                 queue_asset_t queue_asset = {};
-                queue_asset.mutex = std::make_unique<std::mutex>();
+                queue_asset.mutex = std::make_unique<std::recursive_mutex>();
                 vkGetDeviceQueue(m_device, static_cast<uint32_t>(m_queue_indices[type].index), i, &queue_asset.queue);
                 m_queue_map[queue_asset.queue] = &m_queues[type][i];
                 m_queues[type][i] = std::move(queue_asset);

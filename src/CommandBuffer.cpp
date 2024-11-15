@@ -58,7 +58,7 @@ void submit(const vierkant::DevicePtr &device, VkQueue queue, const std::vector<
 
         if(semaphore_infos.empty())
         {
-            std::unique_lock lock(*queue_asset->mutex);
+            std::lock_guard lock(*queue_asset->mutex);
             vkQueueSubmit2(queue, 1, &submit_info, fence);
         }
         else
@@ -103,7 +103,7 @@ void submit(const vierkant::DevicePtr &device, VkQueue queue, const std::vector<
                 fence = local_fence.get();
             }
 
-            std::unique_lock lock(*queue_asset->mutex);
+            std::lock_guard lock(*queue_asset->mutex);
             vkQueueSubmit2(queue, 1, &submit_info, fence);
         }
 

@@ -55,7 +55,7 @@ public:
     struct queue_asset_t
     {
         VkQueue queue = VK_NULL_HANDLE;
-        std::unique_ptr<std::mutex> mutex;
+        std::unique_ptr<std::recursive_mutex> mutex;
     };
 
     struct properties_t
