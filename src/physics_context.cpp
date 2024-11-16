@@ -856,7 +856,7 @@ PhysicsContext::debug_draw_result_t PhysicsContext::debug_render() const
 
     JPH::BodyManager::DrawSettings ds;
     ds.mDrawVelocity = true;
-//    ds.mDrawGetSupportingFace = true;
+    //    ds.mDrawGetSupportingFace = true;
     m_engine->jolt.physics_system.DrawBodies(ds, m_engine->jolt.debug_render.get());
     return {m_engine->jolt.debug_render->line_geometry, m_engine->jolt.debug_render->aabbs,
             m_engine->jolt.debug_render->colors, m_engine->jolt.debug_render->triangle_meshes};
@@ -952,6 +952,25 @@ void PhysicsContext::set_callbacks(uint32_t objectId, const PhysicsContext::call
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void PhysicsScene::add_object(const Object3DPtr &object)
+{
+    vierkant::Scene::add_object(object);
+
+    if(object)
+    {
+        vierkant::LambdaVisitor visitor;
+        visitor.traverse(*object, [](auto &obj) -> bool {
+            if(auto phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
+            {
+                phy_cmp_ptr->mode = vierkant::physics_component_t::INACTIVE;
+            }
+            return true;
+        });
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void PhysicsScene::remove_object(const Object3DPtr &object)
 {
     if(object)
@@ -968,11 +987,15 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
     vierkant::Scene::remove_object(object);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void PhysicsScene::clear()
 {
     m_context = vierkant::PhysicsContext(&m_thread_pool);
     Scene::clear();
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void PhysicsScene::update(double time_delta)
 {
@@ -1028,6 +1051,8 @@ void PhysicsScene::update(double time_delta)
     }
     m_context.step_simulation(static_cast<float>(time_delta), 2);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
 

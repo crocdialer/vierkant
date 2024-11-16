@@ -168,6 +168,8 @@ public:
 
     static std::shared_ptr<PhysicsScene> create();
 
+    void add_object(const Object3DPtr &object) override;
+
     void remove_object(const Object3DPtr &object) override;
 
     void clear() override;
