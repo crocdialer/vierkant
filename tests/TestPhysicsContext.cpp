@@ -114,6 +114,17 @@ TEST(PhysicsContext, simulation)
         obj->transform.translation.y = i++ * 5.f;
         scene->add_object(obj);
         scene->physics_context().set_callbacks(obj->id(), callbacks);
+
+        // will be added after an update
+        EXPECT_FALSE(scene->physics_context().contains(obj->id()));
+    }
+
+    // next update will pick up newly added objects
+    scene->update(0.f);
+
+    for(const auto &obj: objects)
+    {
+        // will be added after an update
         EXPECT_TRUE(scene->physics_context().contains(obj->id()));
     }
 
