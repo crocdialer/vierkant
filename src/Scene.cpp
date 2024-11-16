@@ -58,13 +58,37 @@ void Scene::clear() { m_root = vierkant::Object3D::create(m_registry, "scene roo
 
 void Scene::update(double time_delta)
 {
-    auto mesh_animations_view = m_registry->view<animation_component_t, vierkant::mesh_component_t>();
+    LambdaVisitor visitor;
+    visitor.traverse(*m_root, [time_delta](Object3D &obj) -> bool {
+        if(obj.enabled)
+        {
+            auto animation_cmp = obj.get_component_ptr<animation_component_t>();
+            auto mesh_cmp = obj.get_component_ptr<mesh_component_t>();
 
-    for(const auto &[entity, animation_state, mesh_component]: mesh_animations_view.each())
-    {
-        vierkant::update_animation(mesh_component.mesh->node_animations[animation_state.index], time_delta,
-                                   animation_state);
-    }
+            if(animation_cmp && mesh_cmp)
+            {
+                vierkant::update_animation(mesh_cmp->mesh->node_animations[animation_cmp->index], time_delta,
+                                           *animation_cmp);
+            }
+            if(auto update_cmp = obj.get_component_ptr<update_component_t>())
+            {
+                if(update_cmp->update_fn) { update_cmp->update_fn(obj, time_delta); }
+            }
+            if(auto timer_cmp = obj.get_component_ptr<timer_component_t>())
+            {
+                timer_cmp->duration -= timer_component_t::duration_t(time_delta);
+                if(timer_cmp->duration <= timer_component_t::duration_t(0) && timer_cmp->timer_fn)
+                {
+                    timer_cmp->timer_fn(obj);
+
+                    if(timer_cmp->repeat) { timer_cmp->duration += timer_cmp->total; }
+                    else { timer_cmp->timer_fn = {}; }
+                }
+            }
+            return true;
+        }
+        return false;
+    });
 }
 
 Object3D *Scene::object_by_id(uint32_t object_id) const

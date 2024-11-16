@@ -34,6 +34,29 @@ struct aabb_component_t
     sub_aabb_fn_t sub_aabb_fn;
 };
 
+struct update_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+
+    //! signature for a function to update an object
+    using update_fn_t = std::function<void(const vierkant::Object3D &obj, double delta)>;
+
+    update_fn_t update_fn;
+};
+
+struct timer_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+    using duration_t = std::chrono::duration<double, std::chrono::seconds::period>;
+
+    //! signature for a function to update an object
+    using timer_fn_t = std::function<void(const vierkant::Object3D &obj)>;
+
+    duration_t duration, total;
+    timer_fn_t timer_fn;
+    bool repeat = false;
+};
+
 class Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
