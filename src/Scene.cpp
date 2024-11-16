@@ -113,7 +113,7 @@ Object3D *Scene::any_object_by_name(const std::string_view &name) const
     auto view = m_registry->view<Object3D *>();
     for(const auto &[entity, object]: view.each())
     {
-        if(object->name == name) { return object; }
+        if(object->name.find(name) != std::string::npos) { return object; }
     }
     return nullptr;
 }
