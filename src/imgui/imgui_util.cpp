@@ -642,13 +642,13 @@ void draw_material_ui(const MaterialPtr &mesh_material)
 
             if(img)
             {
-                char buf[16];
+                constexpr uint32_t buf_size = 16;
+                char buf[buf_size];
                 bool is_bc5 = img->format().format == VK_FORMAT_BC5_UNORM_BLOCK ||
                               img->format().format == VK_FORMAT_BC5_SNORM_BLOCK;
                 bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
                               img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
-                sprintf(buf, "%s", is_bc7 ? " - BC7" : is_bc5 ? " - BC5" : "");
-
+                snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : is_bc5 ? " - BC5" : "");
                 ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
                 ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), buf);
                 ImGui::Image((ImTextureID) (img.get()), sz);
@@ -1010,7 +1010,7 @@ void draw_object_ui(const Object3DPtr &object)
             int shape_index = 0;
 
             std::visit(
-                    [&change, &shape_index](auto &&shape) {
+                    [&shape_index](auto &&shape) {
                         using T = std::decay_t<decltype(shape)>;
                         if constexpr(std::is_same_v<T, collision::box_t>) { shape_index = 1; }
                         if constexpr(std::is_same_v<T, collision::sphere_t>) { shape_index = 2; }
