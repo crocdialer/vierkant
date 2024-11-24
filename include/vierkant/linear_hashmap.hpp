@@ -28,7 +28,7 @@ public:
 
     linear_hashmap() = default;
     linear_hashmap(const linear_hashmap &) = delete;
-    linear_hashmap(linear_hashmap &other) : linear_hashmap() { swap(*this, other); };
+    linear_hashmap(linear_hashmap &&other) noexcept : linear_hashmap() { swap(*this, other); };
     linear_hashmap &operator=(linear_hashmap other)
     {
         swap(*this, other);
@@ -220,7 +220,7 @@ public:
 
     linear_hashmap_mt() = default;
     linear_hashmap_mt(const linear_hashmap_mt &) = delete;
-    linear_hashmap_mt(linear_hashmap_mt &other) : linear_hashmap_mt() { swap(*this, other); };
+    linear_hashmap_mt(linear_hashmap_mt &&other) noexcept : linear_hashmap_mt() { swap(*this, other); };
     linear_hashmap_mt &operator=(linear_hashmap_mt other)
     {
         swap(*this, other);

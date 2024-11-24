@@ -53,6 +53,10 @@ struct mesh_t
 {
     vierkant::MeshId mesh_id = vierkant::MeshId::nil();
     bool convex_hull = false;
+
+    //! lod-bias. use negative number to request max-lod (lowest detail)
+    int lod_bias = 0;
+
     constexpr bool operator==(const vierkant::collision::mesh_t &other) const = default;
 };
 
@@ -145,10 +149,10 @@ public:
 
     BodyInterface &body_interface();
 
-    CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
+    CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle, int lod_bias = 0,
                                             const glm::vec3 &scale = glm::vec3(1));
 
-    CollisionShapeId create_convex_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
+    CollisionShapeId create_convex_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle, int lod_bias = 0,
                                                    const glm::vec3 &scale = glm::vec3(1));
 
     CollisionShapeId create_collision_shape(const collision::shape_t &shape);

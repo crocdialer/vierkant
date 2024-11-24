@@ -667,18 +667,23 @@ void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
     m_engine->jolt.update(timestep, max_sub_steps);
 }
 
-CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, const glm::vec3 &scale)
+CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, int lod_bias,
+                                                        const glm::vec3 &scale)
 {
     JPH::StaticCompoundShapeSettings compound_shape_settings;
 
     for(const auto &entry: mesh_bundle.entries)
     {
-        const auto &lod0 = entry.lods.front();
+        assert(!entry.lods.empty());
+        if(entry.lods.empty()) { continue; }
+        uint32_t lod_index = lod_bias < 0 ? entry.lods.size() - 1 : std::min<uint32_t>(lod_bias, entry.lods.size() - 1);
+        const auto &lod0 = entry.lods[lod_index];
+
         JPH::VertexList points(entry.num_vertices);
         uint32_t num_triangles = lod0.num_indices / 3;
         JPH::IndexedTriangleList triangles(num_triangles);
 
-        auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset;
+        auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
         for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
         {
             auto p = *reinterpret_cast<const glm::vec3 *>(data) * scale;
@@ -716,20 +721,28 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
     return CollisionShapeId::nil();
 }
 
-CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle,
+CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, int lod_bias,
                                                                const glm::vec3 &scale)
 {
     JPH::StaticCompoundShapeSettings compound_shape_settings;
 
     for(const auto &entry: mesh_bundle.entries)
     {
-        JPH::Array<JPH::Vec3> points(entry.num_vertices);
-        auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset;
-        for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
+        assert(!entry.lods.empty());
+        if(entry.lods.empty()) { continue; }
+        uint32_t lod_index = lod_bias < 0 ? entry.lods.size() - 1 : std::min<uint32_t>(lod_bias, entry.lods.size() - 1);
+        const auto &lod = entry.lods[lod_index];
+
+        JPH::Array<JPH::Vec3> points(lod.num_indices);
+
+        auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
+        auto indices = mesh_bundle.index_buffer.data() + lod.base_index;
+        for(uint32_t i = 0; i < lod.num_indices; ++i)
         {
-            auto v = *reinterpret_cast<const glm::vec3 *>(data) * scale;
+            auto v = *reinterpret_cast<const glm::vec3 *>(data + indices[i] * mesh_bundle.vertex_stride) * scale;
             points[i] = {v.x, v.y, v.z};
         }
+
         JPH::ConvexHullShapeSettings hull_shape_settings(points);
         JPH::Shape::ShapeResult shape_result = hull_shape_settings.Create();
 
@@ -922,8 +935,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                         auto assets = mesh_provider(s.mesh_id);
                         if(assets.bundle)
                         {
-                            new_id = s.convex_hull ? create_convex_collision_shape(*assets.bundle)
-                                                   : create_collision_shape(*assets.bundle);
+                            new_id = s.convex_hull ? create_convex_collision_shape(*assets.bundle, s.lod_bias)
+                                                   : create_collision_shape(*assets.bundle, s.lod_bias);
                         }
                     }
                 }
