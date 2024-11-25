@@ -1055,7 +1055,13 @@ void draw_object_ui(const Object3DPtr &object)
                         if constexpr(std::is_same_v<T, collision::mesh_t>)
                         {
                             change |= ImGui::Checkbox("convex_hull", &shape.convex_hull);
-                            change |= ImGui::InputInt("lod-bias", &shape.lod_bias);
+
+                            int lod_bias = shape.lod_bias;
+                            if(ImGui::InputInt("lod-bias", &lod_bias))
+                            {
+                                change = true;
+                                shape.lod_bias = static_cast<uint32_t>(lod_bias);
+                            }
                         }
 
                         bool has_offset = phys_cmp.shape_transform.has_value();

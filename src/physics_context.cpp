@@ -667,7 +667,7 @@ void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
     m_engine->jolt.update(timestep, max_sub_steps);
 }
 
-CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, int lod_bias,
+CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, uint32_t lod_bias,
                                                         const glm::vec3 &scale)
 {
     JPH::StaticCompoundShapeSettings compound_shape_settings;
@@ -676,11 +676,10 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
     {
         assert(!entry.lods.empty());
         if(entry.lods.empty()) { continue; }
-        uint32_t lod_index = lod_bias < 0 ? entry.lods.size() - 1 : std::min<uint32_t>(lod_bias, entry.lods.size() - 1);
-        const auto &lod0 = entry.lods[lod_index];
+        const auto &lod = entry.lods[std::min<uint32_t>(lod_bias, entry.lods.size() - 1)];
 
         JPH::VertexList points(entry.num_vertices);
-        uint32_t num_triangles = lod0.num_indices / 3;
+        uint32_t num_triangles = lod.num_indices / 3;
         JPH::IndexedTriangleList triangles(num_triangles);
 
         auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
@@ -691,7 +690,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
         }
         for(uint32_t i = 0; i < num_triangles; i++)
         {
-            uint32_t base_index = lod0.base_index + 3 * i;
+            uint32_t base_index = lod.base_index + 3 * i;
             triangles[i] =
                     JPH::IndexedTriangle(mesh_bundle.index_buffer[base_index], mesh_bundle.index_buffer[base_index + 1],
                                          mesh_bundle.index_buffer[base_index + 2], 0);
@@ -721,8 +720,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
     return CollisionShapeId::nil();
 }
 
-CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, int lod_bias,
-                                                               const glm::vec3 &scale)
+CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle,
+                                                               uint32_t lod_bias, const glm::vec3 &scale)
 {
     JPH::StaticCompoundShapeSettings compound_shape_settings;
 
@@ -730,8 +729,7 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
     {
         assert(!entry.lods.empty());
         if(entry.lods.empty()) { continue; }
-        uint32_t lod_index = lod_bias < 0 ? entry.lods.size() - 1 : std::min<uint32_t>(lod_bias, entry.lods.size() - 1);
-        const auto &lod = entry.lods[lod_index];
+        const auto &lod = entry.lods[std::min<uint32_t>(lod_bias, entry.lods.size() - 1)];
 
         JPH::Array<JPH::Vec3> points(lod.num_indices);
 
