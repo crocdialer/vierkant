@@ -672,41 +672,52 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
 {
     JPH::StaticCompoundShapeSettings compound_shape_settings;
 
+    // avoid duplicates
+    std::map<std::tuple<uint32_t, uint32_t>, JPH::Ref<JPH::Shape>> shape_map;
+
     for(const auto &entry: mesh_bundle.entries)
     {
         assert(!entry.lods.empty());
         if(entry.lods.empty()) { continue; }
         const auto &lod = entry.lods[std::min<uint32_t>(lod_bias, entry.lods.size() - 1)];
 
-        JPH::VertexList points(entry.num_vertices);
-        uint32_t num_triangles = lod.num_indices / 3;
-        JPH::IndexedTriangleList triangles(num_triangles);
-
-        auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
-        for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
+        auto shape_it = shape_map.find({entry.vertex_offset, lod.base_index});
+        if(shape_it == shape_map.end())
         {
-            auto p = *reinterpret_cast<const glm::vec3 *>(data) * scale;
-            points[i] = {p.x, p.y, p.z};
-        }
-        for(uint32_t i = 0; i < num_triangles; i++)
-        {
-            uint32_t base_index = lod.base_index + 3 * i;
-            triangles[i] =
-                    JPH::IndexedTriangle(mesh_bundle.index_buffer[base_index], mesh_bundle.index_buffer[base_index + 1],
-                                         mesh_bundle.index_buffer[base_index + 2], 0);
-        }
-        JPH::MeshShapeSettings mesh_shape_settings(points, triangles);
-        JPH::Shape::ShapeResult shape_result = mesh_shape_settings.Create();
+            JPH::VertexList points(entry.num_vertices);
+            uint32_t num_triangles = lod.num_indices / 3;
+            JPH::IndexedTriangleList triangles(num_triangles);
 
-        if(shape_result.IsValid())
-        {
-            auto scale_result = shape_result.Get()->ScaleShape(type_cast(entry.transform.scale));
-
-            if(scale_result.IsValid())
+            auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
+            for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
             {
-                compound_shape_settings.AddShape(type_cast(entry.transform.translation),
-                                                 type_cast(entry.transform.rotation), scale_result.Get());
+                auto p = *reinterpret_cast<const glm::vec3 *>(data) * scale;
+                points[i] = {p.x, p.y, p.z};
             }
+            for(uint32_t i = 0; i < num_triangles; i++)
+            {
+                uint32_t base_index = lod.base_index + 3 * i;
+                triangles[i] = JPH::IndexedTriangle(mesh_bundle.index_buffer[base_index],
+                                                    mesh_bundle.index_buffer[base_index + 1],
+                                                    mesh_bundle.index_buffer[base_index + 2], 0);
+            }
+            JPH::MeshShapeSettings mesh_shape_settings(points, triangles);
+            JPH::Shape::ShapeResult shape_result = mesh_shape_settings.Create();
+
+            if(shape_result.IsValid())
+            {
+                auto [new_it, success] = shape_map.insert({{entry.vertex_offset, lod.base_index}, shape_result.Get()});
+                assert(success);
+                shape_it = new_it;
+            }
+        }
+
+        auto scale_result = shape_it->second->ScaleShape(type_cast(entry.transform.scale));
+
+        if(scale_result.IsValid())
+        {
+            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
+                                             type_cast(entry.transform.rotation), scale_result.Get());
         }
     }
 
@@ -725,33 +736,44 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer
 {
     JPH::StaticCompoundShapeSettings compound_shape_settings;
 
+    // avoid duplicates
+    std::map<std::tuple<uint32_t, uint32_t>, JPH::Ref<JPH::Shape>> shape_map;
+
     for(const auto &entry: mesh_bundle.entries)
     {
         assert(!entry.lods.empty());
         if(entry.lods.empty()) { continue; }
         const auto &lod = entry.lods[std::min<uint32_t>(lod_bias, entry.lods.size() - 1)];
 
-        JPH::Array<JPH::Vec3> points(lod.num_indices);
-
-        auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
-        auto indices = mesh_bundle.index_buffer.data() + lod.base_index;
-        for(uint32_t i = 0; i < lod.num_indices; ++i)
+        auto shape_it = shape_map.find({entry.vertex_offset, lod.base_index});
+        if(shape_it == shape_map.end())
         {
-            auto v = *reinterpret_cast<const glm::vec3 *>(data + indices[i] * mesh_bundle.vertex_stride) * scale;
-            points[i] = {v.x, v.y, v.z};
+            JPH::Array<JPH::Vec3> points(lod.num_indices);
+
+            auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
+            auto indices = mesh_bundle.index_buffer.data() + lod.base_index;
+            for(uint32_t i = 0; i < lod.num_indices; ++i)
+            {
+                auto v = *reinterpret_cast<const glm::vec3 *>(data + indices[i] * mesh_bundle.vertex_stride) * scale;
+                points[i] = {v.x, v.y, v.z};
+            }
+
+            JPH::ConvexHullShapeSettings hull_shape_settings(points);
+            JPH::Shape::ShapeResult shape_result = hull_shape_settings.Create();
+
+            if(shape_result.IsValid())
+            {
+                auto [new_it, success] = shape_map.insert({{entry.vertex_offset, lod.base_index}, shape_result.Get()});
+                assert(success);
+                shape_it = new_it;
+            }
         }
 
-        JPH::ConvexHullShapeSettings hull_shape_settings(points);
-        JPH::Shape::ShapeResult shape_result = hull_shape_settings.Create();
-
-        if(shape_result.IsValid())
+        auto scale_result = shape_it->second->ScaleShape(type_cast(entry.transform.scale));
+        if(scale_result.IsValid())
         {
-            auto scale_result = shape_result.Get()->ScaleShape(type_cast(entry.transform.scale));
-            if(scale_result.IsValid())
-            {
-                compound_shape_settings.AddShape(type_cast(entry.transform.translation),
-                                                 type_cast(entry.transform.rotation), scale_result.Get());
-            }
+            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
+                                             type_cast(entry.transform.rotation), scale_result.Get());
         }
     }
     JPH::Shape::ShapeResult shape_result = compound_shape_settings.Create();
