@@ -23,6 +23,13 @@ struct none_t
     constexpr bool operator==(const vierkant::collision::none_t &other) const = default;
 };
 
+struct plane_t
+{
+    glm::vec4 coefficients = glm::vec4(0.f, 1.f, 0.f, 0.f);
+    float half_extent = 1000.f;
+    constexpr bool operator==(const vierkant::collision::plane_t &other) const = default;
+};
+
 struct box_t
 {
     glm::vec3 half_extents = glm::vec3(.5f);
@@ -64,8 +71,8 @@ struct mesh_t
 
 using mesh_provider_fn = std::function<vierkant::mesh_asset_t(vierkant::MeshId)>;
 
-using shape_t = std::variant<vierkant::CollisionShapeId, collision::none_t, collision::sphere_t, collision::box_t,
-                             collision::cylinder_t, collision::capsule_t, collision::mesh_t>;
+using shape_t = std::variant<vierkant::CollisionShapeId, collision::plane_t, collision::none_t, collision::sphere_t,
+                             collision::box_t, collision::cylinder_t, collision::capsule_t, collision::mesh_t>;
 }// namespace collision
 
 struct physics_component_t
@@ -207,6 +214,12 @@ template<>
 struct hash<vierkant::collision::none_t>
 {
     size_t operator()(vierkant::collision::none_t const &) const { return 0; };
+};
+
+template<>
+struct hash<vierkant::collision::plane_t>
+{
+    size_t operator()(vierkant::collision::plane_t const &) const;
 };
 
 template<>

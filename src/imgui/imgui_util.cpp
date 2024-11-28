@@ -1006,17 +1006,18 @@ void draw_object_ui(const Object3DPtr &object)
             bool change = false;
             //            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
 
-            const char *shape_items[] = {"None", "Box", "Sphere", "Cylinder", "Capsule", "Mesh"};
+            const char *shape_items[] = {"None", "Plane", "Box", "Sphere", "Cylinder", "Capsule", "Mesh"};
             int shape_index = 0;
 
             std::visit(
                     [&shape_index](auto &&shape) {
                         using T = std::decay_t<decltype(shape)>;
-                        if constexpr(std::is_same_v<T, collision::box_t>) { shape_index = 1; }
-                        if constexpr(std::is_same_v<T, collision::sphere_t>) { shape_index = 2; }
-                        if constexpr(std::is_same_v<T, collision::cylinder_t>) { shape_index = 3; }
-                        if constexpr(std::is_same_v<T, collision::capsule_t>) { shape_index = 4; }
-                        if constexpr(std::is_same_v<T, collision::mesh_t>) { shape_index = 5; }
+                        if constexpr(std::is_same_v<T, collision::plane_t>) { shape_index = 1; }
+                        if constexpr(std::is_same_v<T, collision::box_t>) { shape_index = 2; }
+                        if constexpr(std::is_same_v<T, collision::sphere_t>) { shape_index = 3; }
+                        if constexpr(std::is_same_v<T, collision::cylinder_t>) { shape_index = 4; }
+                        if constexpr(std::is_same_v<T, collision::capsule_t>) { shape_index = 5; }
+                        if constexpr(std::is_same_v<T, collision::mesh_t>) { shape_index = 6; }
                     },
                     phys_cmp.shape);
             if(ImGui::Combo("shape", &shape_index, shape_items, IM_ARRAYSIZE(shape_items)))
@@ -1025,11 +1026,12 @@ void draw_object_ui(const Object3DPtr &object)
                 switch(shape_index)
                 {
                     case 0: phys_cmp.shape = collision::none_t(); break;
-                    case 1: phys_cmp.shape = collision::box_t(); break;
-                    case 2: phys_cmp.shape = collision::sphere_t(); break;
-                    case 3: phys_cmp.shape = collision::cylinder_t(); break;
-                    case 4: phys_cmp.shape = collision::capsule_t(); break;
-                    case 5: phys_cmp.shape = collision::mesh_t(); break;
+                    case 1: phys_cmp.shape = collision::plane_t(); break;
+                    case 2: phys_cmp.shape = collision::box_t(); break;
+                    case 3: phys_cmp.shape = collision::sphere_t(); break;
+                    case 4: phys_cmp.shape = collision::cylinder_t(); break;
+                    case 5: phys_cmp.shape = collision::capsule_t(); break;
+                    case 6: phys_cmp.shape = collision::mesh_t(); break;
                     default: break;
                 }
             }
@@ -1038,6 +1040,11 @@ void draw_object_ui(const Object3DPtr &object)
                     [&change, &phys_cmp](auto &&shape) mutable {
                         using T = std::decay_t<decltype(shape)>;
                         if constexpr(std::is_same_v<T, CollisionShapeId>) { return; }
+                        if constexpr(std::is_same_v<T, collision::plane_t>)
+                        {
+                            change |= ImGui::InputFloat4("coefficients", glm::value_ptr(shape.coefficients));
+                            change |= ImGui::InputFloat("half_extent", &shape.half_extent);
+                        }
                         if constexpr(std::is_same_v<T, collision::box_t>)
                         {
                             change |= ImGui::InputFloat3("half-extents", &shape.half_extents.x);

@@ -24,6 +24,7 @@ TEST(PhysicsContext, collision_shapes)
     auto box = Geometry::Box();
     EXPECT_TRUE(create_collision_shape(context, box, true));
     EXPECT_TRUE(create_collision_shape(context, box, false));
+    EXPECT_TRUE(context.create_collision_shape(collision::plane_t()));
     EXPECT_TRUE(context.create_collision_shape(collision::box_t()));
     EXPECT_TRUE(context.create_collision_shape(collision::sphere_t()));
     EXPECT_TRUE(context.create_collision_shape(collision::cylinder_t()));

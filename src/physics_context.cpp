@@ -20,16 +20,16 @@
 #include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
 #include <Jolt/Physics/Collision/Shape/CylinderShape.h>
 #include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/PlaneShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 #include <Jolt/Physics/SoftBody/SoftBodyShape.h>
 #include <Jolt/RegisterTypes.h>
 
 // STL includes
-#include <Physics/Collision/Shape/RotatedTranslatedShape.h>
-#include <Physics/Collision/Shape/ScaledShape.h>
-#include <Physics/Collision/Shape/StaticCompoundShape.h>
 #include <cstdarg>
 
 // Callback for traces, connect this to your own trace function if you have one
@@ -928,7 +928,13 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
 
                 vierkant::CollisionShapeId new_id = CollisionShapeId::nil();
 
-                if constexpr(std::is_same_v<T, collision::box_t>)
+                if constexpr(std::is_same_v<T, collision::plane_t>)
+                {
+                    new_id = {};
+                    m_engine->jolt.shapes[new_id] =
+                            new JPH::PlaneShape(JPH::Plane(type_cast(s.coefficients)), nullptr, s.half_extent);
+                }
+                else if constexpr(std::is_same_v<T, collision::box_t>)
                 {
                     new_id = {};
                     m_engine->jolt.shapes[new_id] = new JPH::BoxShape(type_cast(s.half_extents));
@@ -1106,14 +1112,22 @@ size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_co
     return h;
 }
 
-size_t std::hash<vierkant::collision::sphere_t>::operator()(const vierkant::collision::sphere_t &s) const
+size_t std::hash<vierkant::collision::plane_t>::operator()(const vierkant::collision::plane_t &s) const
 {
-    return std::hash<float>()(s.radius);
+    size_t h = 0;
+    vierkant::hash_combine(h, s.coefficients);
+    vierkant::hash_combine(h, s.half_extent);
+    return h;
 }
 
 size_t std::hash<vierkant::collision::box_t>::operator()(const vierkant::collision::box_t &s) const
 {
     return std::hash<glm::vec3>()(s.half_extents);
+}
+
+size_t std::hash<vierkant::collision::sphere_t>::operator()(const vierkant::collision::sphere_t &s) const
+{
+    return std::hash<float>()(s.radius);
 }
 
 size_t std::hash<vierkant::collision::cylinder_t>::operator()(const vierkant::collision::cylinder_t &s) const
