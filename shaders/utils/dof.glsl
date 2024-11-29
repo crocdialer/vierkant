@@ -1,6 +1,7 @@
 #ifndef DOF_GLSL
 #define DOF_GLSL
 
+#include "../utils/colormap.glsl"
 #include "../utils/random.glsl"
 #include "../utils/bsdf.glsl"
 
@@ -69,6 +70,7 @@ vec4 depth_of_field(sampler2D color_map, sampler2D depth_map, vec2 coord, vec2 v
     }
     color /= num_taps;
     return vec4(color, 1.0);
+//    return vec4(mix(color, jet(1.0 - clamp(circle_of_confusion_sz * (p.focal_distance) / p.focal_length, 0.0, 1.0)), 0.2), 1.0);
 }
 
 #endif // DOF_GLSL
