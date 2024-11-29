@@ -154,14 +154,12 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     std::unordered_map<int, ImGuiKey> keymap;
-    keymap[Key::_LEFT_CONTROL] = ImGuiMod_Ctrl;
-    keymap[Key::_RIGHT_CONTROL] = ImGuiMod_Ctrl;
-    keymap[Key::_LEFT_ALT] = ImGuiMod_Alt;
-    keymap[Key::_RIGHT_ALT] = ImGuiMod_Alt;
-    keymap[Key::_LEFT_SHIFT] = ImGuiMod_Shift;
-    keymap[Key::_RIGHT_SHIFT] = ImGuiMod_Shift;
-    keymap[Key::_LEFT_SUPER] = ImGuiMod_Super;
-    keymap[Key::_RIGHT_SUPER] = ImGuiMod_Super;
+    keymap[Key::_LEFT_CONTROL] = ImGuiKey_LeftCtrl;
+    keymap[Key::_RIGHT_CONTROL] = ImGuiKey_RightCtrl;
+    keymap[Key::_LEFT_ALT] = ImGuiKey_LeftAlt;
+    keymap[Key::_RIGHT_ALT] = ImGuiKey_RightAlt;
+    keymap[Key::_LEFT_SHIFT] = ImGuiKey_LeftShift;
+    keymap[Key::_RIGHT_SHIFT] = ImGuiKey_RightShift;
     keymap[Key::_TAB] = ImGuiKey_Tab;
     keymap[Key::_LEFT] = ImGuiKey_LeftArrow;
     keymap[Key::_RIGHT] = ImGuiKey_RightArrow;
@@ -209,9 +207,7 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
 
     auto &key_delegate = m_imgui_assets.key_delegate;
     key_delegate.key_press = [ctx = m_imgui_context, keymap](const KeyEvent &e) { key_press(ctx, e, keymap); };
-    key_delegate.key_release = [ctx = m_imgui_context, keymap](const KeyEvent &e) {
-        key_release(ctx, e, keymap);
-    };
+    key_delegate.key_release = [ctx = m_imgui_context, keymap](const KeyEvent &e) { key_release(ctx, e, keymap); };
     key_delegate.character_input = [ctx = m_imgui_context](uint32_t c) { character_input(ctx, c); };
 
     create_device_objects(device);
@@ -454,7 +450,22 @@ void key_press(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<in
 {
     ImGuiIO &io = ctx->IO;
     auto it = keymap.find(e.code());
-    if(it != keymap.end()) { io.AddKeyEvent(it->second, true); }
+    if(it != keymap.end())
+    {
+        switch(it->second)
+        {
+            case ImGuiKey_LeftCtrl:
+            case ImGuiKey_RightCtrl: io.AddKeyEvent(ImGuiMod_Ctrl, true); break;
+            case ImGuiKey_LeftShift:
+            case ImGuiKey_RightShift: io.AddKeyEvent(ImGuiMod_Shift, true); break;
+            case ImGuiKey_LeftAlt:
+            case ImGuiKey_RightAlt: io.AddKeyEvent(ImGuiMod_Alt, true); break;
+            case ImGuiKey_LeftSuper:
+            case ImGuiKey_RightSuper: io.AddKeyEvent(ImGuiMod_Super, true); break;
+            default: break;
+        }
+        io.AddKeyEvent(it->second, true);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -463,7 +474,22 @@ void key_release(ImGuiContext *ctx, const KeyEvent &e, const std::unordered_map<
 {
     ImGuiIO &io = ctx->IO;
     auto it = keymap.find(e.code());
-    if(it != keymap.end()) { io.AddKeyEvent(it->second, false); }
+    if(it != keymap.end())
+    {
+        switch(it->second)
+        {
+            case ImGuiKey_LeftCtrl:
+            case ImGuiKey_RightCtrl: io.AddKeyEvent(ImGuiMod_Ctrl, false); break;
+            case ImGuiKey_LeftShift:
+            case ImGuiKey_RightShift: io.AddKeyEvent(ImGuiMod_Shift, false); break;
+            case ImGuiKey_LeftAlt:
+            case ImGuiKey_RightAlt: io.AddKeyEvent(ImGuiMod_Alt, false); break;
+            case ImGuiKey_LeftSuper:
+            case ImGuiKey_RightSuper: io.AddKeyEvent(ImGuiMod_Super, false); break;
+            default: break;
+        }
+        io.AddKeyEvent(it->second, false);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
