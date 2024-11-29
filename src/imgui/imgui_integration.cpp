@@ -154,12 +154,14 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
     std::unordered_map<int, ImGuiKey> keymap;
-    keymap[Key::_LEFT_CONTROL] = ImGuiKey_LeftCtrl;
-    keymap[Key::_RIGHT_CONTROL] = ImGuiKey_RightCtrl;
-    keymap[Key::_LEFT_ALT] = ImGuiKey_LeftAlt;
-    keymap[Key::_RIGHT_ALT] = ImGuiKey_RightAlt;
-    keymap[Key::_LEFT_SHIFT] = ImGuiKey_LeftShift;
-    keymap[Key::_RIGHT_SHIFT] = ImGuiKey_RightShift;
+    keymap[Key::_LEFT_CONTROL] = ImGuiMod_Ctrl;
+    keymap[Key::_RIGHT_CONTROL] = ImGuiMod_Ctrl;
+    keymap[Key::_LEFT_ALT] = ImGuiMod_Alt;
+    keymap[Key::_RIGHT_ALT] = ImGuiMod_Alt;
+    keymap[Key::_LEFT_SHIFT] = ImGuiMod_Shift;
+    keymap[Key::_RIGHT_SHIFT] = ImGuiMod_Shift;
+    keymap[Key::_LEFT_SUPER] = ImGuiMod_Super;
+    keymap[Key::_RIGHT_SUPER] = ImGuiMod_Super;
     keymap[Key::_TAB] = ImGuiKey_Tab;
     keymap[Key::_LEFT] = ImGuiKey_LeftArrow;
     keymap[Key::_RIGHT] = ImGuiKey_RightArrow;
