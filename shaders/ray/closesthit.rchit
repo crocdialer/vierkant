@@ -60,7 +60,7 @@ RayCone propagate(RayCone cone, float surface_spread_angle, float hitT)
 Triangle get_triangle()
 {
     // entry aka instance
-    entry_t entry = entries[gl_InstanceCustomIndexEXT];
+    nonuniformEXT entry_t entry = entries[nonuniformEXT(gl_InstanceCustomIndexEXT)];
 
     // triangle indices
     ivec3 ind = ivec3(indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 0],
@@ -83,7 +83,7 @@ vec3 triangle_normal(Triangle t)
 float lod_constant(Triangle t)
 {
     // transform vertices
-    entry_t entry = entries[gl_InstanceCustomIndexEXT];
+    nonuniformEXT entry_t entry = entries[nonuniformEXT(gl_InstanceCustomIndexEXT)];
     t.v0.position = apply_transform(entry.transform, t.v0.position);
     t.v1.position = apply_transform(entry.transform, t.v1.position);
     t.v2.position = apply_transform(entry.transform, t.v2.position);
@@ -94,7 +94,7 @@ float lod_constant(Triangle t)
     return 0.5 * log2(t_a / p_a);
 }
 
-vec4 sample_texture_lod(sampler2D tex, vec2 tex_coord, float NoV, float cone_width, float lambda)
+vec4 sample_texture_lod(nonuniformEXT sampler2D tex, vec2 tex_coord, float NoV, float cone_width, float lambda)
 {
     vec2 sz = textureSize(tex, 0);
 
@@ -154,7 +154,7 @@ void main()
     Vertex v = interpolate_vertex(triangle);
     float triangle_lod = lod_constant(triangle);
 
-    material_t material = materials[entries[gl_InstanceCustomIndexEXT].material_index];
+    nonuniformEXT material_t material = materials[nonuniformEXT(entries[gl_InstanceCustomIndexEXT].material_index)];
 
     vec3 V = -gl_WorldRayDirectionEXT;
     float NoV = abs(dot(V, payload.normal));
@@ -326,7 +326,7 @@ void main()
         // transmission
         if((material.texture_type_flags & TEXTURE_TYPE_TRANSMISSION) != 0)
         {
-            material.transmission *= sample_texture_lod(u_textures[material.ao_rough_metal_index],
+            material.transmission *= sample_texture_lod(u_textures[material.transmission_index],
             v.tex_coord, NoV, payload.cone.width, triangle_lod).x;
         }
 
