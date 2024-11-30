@@ -40,8 +40,8 @@ void main()
     uint rng_state = payload.rng_state;
 
     // entry aka instance
-    entry_t entry = entries[gl_InstanceCustomIndexEXT];
-    material_t material = materials[entry.material_index];
+    nonuniformEXT entry_t entry = entries[nonuniformEXT(gl_InstanceCustomIndexEXT)];
+    nonuniformEXT material_t material = materials[nonuniformEXT(entry.material_index)];
 
     if(!material.null_surface && (material.blend_mode == BLEND_MODE_MASK || material.blend_mode == BLEND_MODE_BLEND))
     {
