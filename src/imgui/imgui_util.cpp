@@ -1165,7 +1165,7 @@ void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
 
     // focal distance (dof)
     ImGui::SliderFloat("focal distance (m)", &camera_params.focal_distance, camera_params.clipping_distances.x,
-                       camera_params.clipping_distances.y);
+                       camera_params.clipping_distances.y, "%.2f", ImGuiSliderFlags_Logarithmic);
 
     // f-stop/aperture
     constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
