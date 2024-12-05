@@ -7,9 +7,9 @@
 
 #pragma once
 
+#include <vector>
 #include <vierkant/math.hpp>
 #include <vierkant/transform.hpp>
-#include <vector>
 
 namespace vierkant
 {
@@ -314,6 +314,21 @@ struct AABB
     {
         min = glm::min(min, aabb.min);
         max = glm::max(max, aabb.max);
+        return *this;
+    }
+
+    AABB operator*(float grow_factor) const
+    {
+        AABB ret(*this);
+        ret *= grow_factor;
+        return ret;
+    }
+
+    AABB &operator*=(float grow_factor)
+    {
+        auto c = center();
+        min = c + (min - c) * grow_factor;
+        max = c + (max - c) * grow_factor;
         return *this;
     }
 

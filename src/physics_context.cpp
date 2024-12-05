@@ -1014,6 +1014,7 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
 {
     if(object)
     {
+        // remove all children
         vierkant::LambdaVisitor visitor;
         visitor.traverse(*object, [this](const auto &obj) -> bool {
             if(auto phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
@@ -1022,6 +1023,10 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
             }
             return true;
         });
+
+        // grow aabb by a factor, wake up other objects there
+        constexpr float aabb_grow_factor = 1.2f;
+        m_context.body_interface().activate_in_aabb(object->aabb() * aabb_grow_factor);
     }
     vierkant::Scene::remove_object(object);
 }
