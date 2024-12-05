@@ -60,8 +60,8 @@ template<typename T>
 class SelectVisitor : public Visitor
 {
 public:
-    explicit SelectVisitor(std::set<std::string> tags = {}, bool select_only_enabled = true)
-        : tags(std::move(tags)), select_only_enabled(select_only_enabled)
+    explicit SelectVisitor(std::set<std::string> tags_ = {}, bool select_only_enabled_ = true)
+        : tags(std::move(tags_)), select_only_enabled(select_only_enabled_)
     {}
     void visit(T &object) override
     {
@@ -87,7 +87,6 @@ public:
 class LambdaVisitor : public Visitor
 {
 public:
-
     using visit_fn_t = std::function<bool(vierkant::Object3D &object)>;
 
     void traverse(vierkant::Object3D &object, visit_fn_t fn)

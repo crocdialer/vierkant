@@ -250,9 +250,9 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
     std::vector<vierkant::ImagePtr> textures;
 
-    auto create_texture_hash = [](const std::vector<vierkant::ImagePtr> &textures) -> uint64_t {
+    auto create_texture_hash = [](const std::vector<vierkant::ImagePtr> &textures_) -> uint64_t {
         size_t texture_hash = 0;
-        for(const auto &tex: textures) { vierkant::hash_combine(texture_hash, tex); }
+        for(const auto &tex: textures_) { vierkant::hash_combine(texture_hash, tex); }
         return texture_hash;
     };
 

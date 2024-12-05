@@ -13,7 +13,7 @@ struct scoped_stack_push
 {
     std::stack<vierkant::transform_t> &stack;
 
-    scoped_stack_push(std::stack<vierkant::transform_t> &stack, const vierkant::transform_t &t) : stack(stack)
+    scoped_stack_push(std::stack<vierkant::transform_t> &stack_, const vierkant::transform_t &t) : stack(stack_)
     {
         stack.push(t);
     }
@@ -68,11 +68,11 @@ public:
                 // move drawables into cull_result
                 std::move(mesh_drawables.begin(), mesh_drawables.end(), std::back_inserter(m_cull_result.drawables));
             }
-//            if(object.has_component<vierkant::model::lightsource_t>())
-//            {
-//                const auto &lightsource = object.get_component<vierkant::model::lightsource_t>();
-//                m_cull_result.lights.push_back(vierkant::convert_light(lightsource));
-//            }
+            //            if(object.has_component<vierkant::model::lightsource_t>())
+            //            {
+            //                const auto &lightsource = object.get_component<vierkant::model::lightsource_t>();
+            //                m_cull_result.lights.push_back(vierkant::convert_light(lightsource));
+            //            }
 
             scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform);
             for(Object3DPtr &child: object.children) { child->accept(*this); }
