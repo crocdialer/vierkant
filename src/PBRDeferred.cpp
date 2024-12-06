@@ -1247,6 +1247,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
             dof_params.aperture = static_cast<float>(cam_params.aperture_size());
             dof_params.near = cam_params.clipping_distances.x;
             dof_params.far = cam_params.clipping_distances.y;
+            dof_params.debug = frame_context.settings.use_dof_focus_overlay;
             vierkant::staging_copy_info_t staging_copy_info = {};
             staging_copy_info.data = &dof_params;
             staging_copy_info.num_bytes = sizeof(dof_params);
@@ -1564,6 +1565,7 @@ bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_
     if(lhs.use_ray_queries != rhs.use_ray_queries) { return false; }
     if(lhs.timing_history_size != rhs.timing_history_size) { return false; }
     if(lhs.depth_of_field != rhs.depth_of_field) { return false; }
+    if(lhs.use_dof_focus_overlay != rhs.use_dof_focus_overlay) { return false; }
     return true;
     //    return memcmp(&lhs, &rhs, sizeof(PBRDeferred::settings_t)) == 0;
 }

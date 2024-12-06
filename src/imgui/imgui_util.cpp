@@ -259,6 +259,7 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
     ImGui::Checkbox("bloom", &pbr_renderer->settings.bloom);
     ImGui::Checkbox("motionblur", &pbr_renderer->settings.motionblur);
     ImGui::Checkbox("depth of field", &pbr_renderer->settings.depth_of_field);
+    ImGui::Checkbox("dof focus-overlay", &pbr_renderer->settings.use_dof_focus_overlay);
 
     // motionblur gain
     ImGui::SliderFloat("motionblur gain", &pbr_renderer->settings.motionblur_gain, 0.f, 10.f);
@@ -1170,7 +1171,7 @@ void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
     // f-stop/aperture
     constexpr float f_stop_min = 0.1f, f_stop_max = 128.f;
     ImGui::BulletText("aperture: %.1f mm", camera_params.aperture_size() * 1000);
-    ImGui::SliderFloat("f-stop", &camera_params.fstop, f_stop_min, f_stop_max);
+    ImGui::SliderFloat("f-stop", &camera_params.fstop, f_stop_min, f_stop_max, "%.2f", ImGuiSliderFlags_Logarithmic);
 }
 
 }// namespace vierkant::gui

@@ -99,6 +99,9 @@ public:
         //! enable depth of field
         bool depth_of_field = false;
 
+        //! enable depth of field focus-visualization
+        bool use_dof_focus_overlay = false;
+
         //! enable ray-query support
         bool use_ray_queries = true;
 
@@ -249,6 +252,7 @@ private:
         float sensor_width;
         float near;
         float far;
+        VkBool32 debug = false;
     };
 
     //! morph_params_t contains information to access a morph-target buffer
