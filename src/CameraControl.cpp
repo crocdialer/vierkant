@@ -31,7 +31,7 @@ void OrbitCamera::update(double time_delta)
                             glm::length2(state.analog_left()) > deadzone_thresh ||
                             glm::length2(trigger) > deadzone_thresh;
 
-        glm::vec2 pan_diff = pan_sensitivity * glm::vec2(1, -1) * state.analog_left() * static_cast<float>(time_delta);
+        glm::vec2 pan_diff = pan_sensitivity * glm::vec2(-1, 1) * state.analog_left() * static_cast<float>(time_delta);
 
         glm::vec2 orbit_diff = js_sensitivity * -state.analog_right() * static_cast<float>(time_delta);
 
