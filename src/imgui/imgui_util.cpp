@@ -837,13 +837,10 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
 
             if(ImGui::TreeNodeEx((void *) (mesh_id + entry_idx), 0, "%s", entry_name.c_str()))
             {
-                std::stringstream ss;
-                ss << "positions: " << std::to_string(e.num_vertices) << "\n";
-                ss << "faces: " << std::to_string(e.lods.empty() ? 0 : e.lods[0].num_indices / 3);
-                ss << "lods: " << std::to_string(e.lods.size());
-                ss << "material_index: " << std::to_string(e.material_index);
-                ImGui::Text("%s", ss.str().c_str());
-
+                auto mesh_info_str =
+                        spdlog::fmt_lib::format("positions: {}\nfaces: {}\nlods: {}\nmaterial_index: {}",
+                                                e.num_vertices, e.lods[0].num_indices, e.lods.size(), e.material_index);
+                ImGui::Text("%s", mesh_info_str.c_str());
                 ImGui::Separator();
 
                 // material ui

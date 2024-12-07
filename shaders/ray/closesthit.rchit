@@ -143,6 +143,7 @@ Vertex interpolate_vertex(Triangle t)
     vec4 quat = vec4(entry.transform.rotation_x, entry.transform.rotation_y, entry.transform.rotation_z,
                      entry.transform.rotation_w);
     out_vert.normal = rotate_quat(quat, out_vert.normal);
+    out_vert.normal = gl_HitKindEXT == gl_HitKindBackFacingTriangleEXT ? -out_vert.normal : out_vert.normal;
     out_vert.tangent = rotate_quat(quat, out_vert.tangent);
     return out_vert;
 }
@@ -299,7 +300,7 @@ void main()
         }
 
         // flip the normal so it points against the ray direction:
-        payload.ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
+        vec3 ff_normal = faceforward(payload.normal, gl_WorldRayDirectionEXT, payload.normal);
 
         // max emission from material/map
         if((material.texture_type_flags & TEXTURE_TYPE_EMISSION) != 0)
@@ -309,7 +310,7 @@ void main()
             triangle_lod).rgb);
 
         }
-        material.emission.rgb *= dot(payload.normal, payload.ff_normal) > 0 ? material.emission.a : 0.0;
+        material.emission.rgb *= dot(payload.normal, ff_normal) > 0 ? material.emission.a : 0.0;
 
         // add radiance from emission
         payload.radiance += payload.beta * material.emission.rgb;
@@ -334,7 +335,7 @@ void main()
         payload.cone = propagate(payload.cone, 0.0, gl_HitTEXT);
 
         // take sample from burley/disney BSDF
-        bsdf_sample_t bsdf_sample = sample_disney(material, payload.ff_normal, V, eta, rng_state);
+        bsdf_sample_t bsdf_sample = sample_disney(material, payload.normal, V, eta, rng_state);
 
         // TODO: check wtf/when pdf turns out NaN here
         if(bsdf_sample.pdf <= 0.0 || isnan(bsdf_sample.pdf)){ payload.stop = true; return; }

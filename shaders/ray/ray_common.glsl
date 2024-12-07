@@ -64,9 +64,6 @@ struct payload_t
     // worldspace normal
     vec3 normal;
 
-    // faceforward worldspace normal
-    vec3 ff_normal;
-
     // accumulated radiance along a path
     vec3 radiance;
 
