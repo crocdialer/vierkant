@@ -289,6 +289,9 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
         ret.F *= (1.0 - trans_weight);
         ret.pdf *= (1.0 - trans_weight);
     }
+
+    // TODO: make nan-correction obsolete
+    ret.pdf = isnan(ret.pdf) ? 0.0 : ret.pdf;
     return ret;
 }
     

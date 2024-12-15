@@ -296,7 +296,8 @@ void main()
 
             // normal, tangent, bi-tangent
             vec3 b = normalize(cross(v.normal, v.tangent));
-            payload.normal = mat3(v.tangent, b, payload.normal) * normal;
+            normal = mat3(v.tangent, b, payload.normal) * normal;
+            payload.normal = dot(payload.normal, normal) > 0.0 ? normal : payload.normal;
         }
 
         // flip the normal so it points against the ray direction:
@@ -337,8 +338,8 @@ void main()
         // take sample from burley/disney BSDF
         bsdf_sample_t bsdf_sample = sample_disney(material, payload.normal, V, eta, rng_state);
 
-        // TODO: check wtf/when pdf turns out NaN here
-        if(bsdf_sample.pdf <= 0.0 || isnan(bsdf_sample.pdf)){ payload.stop = true; return; }
+        // bail out on zero pdf
+        if(bsdf_sample.pdf <= 0.0){ payload.stop = true; return; }
 
         payload.ray.direction = bsdf_sample.direction;
         float cos_theta = abs(dot(payload.normal, bsdf_sample.direction));
