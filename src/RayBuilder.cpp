@@ -792,6 +792,10 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             vertex_buffer = mesh_compute_result.result_buffer;
             vertex_buffer_offset = mesh_compute_result.vertex_buffer_offsets.at(object->id());
             build_key = mesh_compute_entities.at(object->id());
+            if(previous_builds.contains(build_key))
+            {
+                context->build_results[build_key] = std::move(previous_builds.at(build_key));
+            }
         }
         else
         {
@@ -817,8 +821,10 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             }
         }
 
-        if((!use_mesh_compute && !context->mesh_assets.contains(mesh)) ||
-           (use_mesh_compute && !context->build_results.contains(build_key)))
+        bool needs_rebuild = !context->mesh_assets.contains(mesh);
+        if(use_mesh_compute) { needs_rebuild = !previous_builds.contains(build_key); }
+
+        if(needs_rebuild)
         {
             // create bottom-lvl
             vierkant::RayBuilder::create_mesh_structures_params_t create_mesh_structures_params = {};
