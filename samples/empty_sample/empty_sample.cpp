@@ -134,8 +134,7 @@ void HelloTriangleApplication::update(double time_delta)
 
 vierkant::window_delegate_t::draw_result_t HelloTriangleApplication::draw(const vierkant::WindowPtr &w)
 {
-    auto image_index = w->swapchain().image_index();
-    const auto &framebuffer = m_window->swapchain().framebuffers()[image_index];
+    const auto &framebuffer = m_window->swapchain().current_framebuffer();
 
     auto render_mesh = [this, &framebuffer]() -> VkCommandBuffer
     {
