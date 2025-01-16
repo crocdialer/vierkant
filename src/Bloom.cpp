@@ -96,7 +96,7 @@ vierkant::ImagePtr Bloom::apply(const ImagePtr &image, VkCommandBuffer commandbu
 
     vierkant::Rasterizer::rendering_info_t rendering_info = {};
     rendering_info.command_buffer = commandbuffer;
-    rendering_info.color_attachment_formats.push_back(m_thresh_framebuffer.color_attachment()->format().format);
+    rendering_info.color_attachment_formats = {m_thresh_framebuffer.color_attachment()->format().format};
 
     m_drawable.descriptors[0].images = {image};
     m_thresh_renderer.stage_drawable(m_drawable);
