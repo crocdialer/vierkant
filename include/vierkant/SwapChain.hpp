@@ -5,8 +5,8 @@
 #pragma once
 
 #include "vierkant/Device.hpp"
-#include "vierkant/Image.hpp"
 #include "vierkant/Framebuffer.hpp"
+#include "vierkant/Image.hpp"
 
 namespace vierkant
 {
@@ -14,7 +14,6 @@ namespace vierkant
 class SwapChain
 {
 public:
-
     static constexpr uint32_t max_frames_in_flight = 3;
 
     struct acquire_image_result_t
@@ -35,9 +34,7 @@ public:
      * @param   num_samples     an optional VkSampleCountFlagBits value to request multisampling
      * @param   use_vsync       flag to request vertical synchronisation (cap fps to refresh rate)
      */
-    SwapChain(DevicePtr device,
-              VkSurfaceKHR surface,
-              VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
+    SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
               bool use_vsync = true);
 
     SwapChain(SwapChain &&other) noexcept;
@@ -63,14 +60,19 @@ public:
     VkResult present();
 
     /**
+     * @return  a reference to the currently provided framebuffer from swapchain
+     */
+    [[nodiscard]] vierkant::Framebuffer &current_framebuffer() { return m_framebuffers[m_current_frame_index]; };
+
+    /**
      * @return  handle for the managed VkSwapchainKHR
      */
-    [[nodiscard]] VkSwapchainKHR handle() const{ return m_swap_chain; }
+    [[nodiscard]] VkSwapchainKHR handle() const { return m_swap_chain; }
 
     /**
      * @return  handle for the device
      */
-    [[nodiscard]] DevicePtr device() const{ return m_device; }
+    [[nodiscard]] DevicePtr device() const { return m_device; }
 
     /**
      * @return  handle for the shared VkRenderPass, used by all contained Framebuffers
@@ -80,39 +82,38 @@ public:
     /**
      * @return  a reference for the contained array of Framebuffers
      */
-    std::vector<vierkant::Framebuffer> &framebuffers(){ return m_framebuffers; }
+    std::vector<vierkant::Framebuffer> &framebuffers() { return m_framebuffers; }
 
     /**
      * @return  a reference for array of SwapChain-Images
      */
-    [[nodiscard]] const std::vector<vierkant::ImagePtr> &images() const{ return m_images; }
+    [[nodiscard]] const std::vector<vierkant::ImagePtr> &images() const { return m_images; }
 
     /**
      * @return  the VkExtent2D (size) of the SwapChain-Images
      */
-    [[nodiscard]] const VkExtent2D &extent() const{ return m_extent; }
+    [[nodiscard]] const VkExtent2D &extent() const { return m_extent; }
 
     /**
      * @return  the VkSampleCountFlagBits stating the number of samples per pixel (MSAA)
      */
-    [[nodiscard]] VkSampleCountFlagBits sample_count() const{ return m_num_samples; }
+    [[nodiscard]] VkSampleCountFlagBits sample_count() const { return m_num_samples; }
 
     /**
      * @return  a flag indicating if vertical synchronization is used
      */
-    [[nodiscard]] bool v_sync() const{ return m_use_v_sync; }
+    [[nodiscard]] bool v_sync() const { return m_use_v_sync; }
 
     /**
      * @return  the current image index inside the SwapChain
      */
-    [[nodiscard]] uint32_t image_index() const{ return m_swapchain_image_index; }
+    [[nodiscard]] uint32_t image_index() const { return m_swapchain_image_index; }
 
     friend void swap(SwapChain &lhs, SwapChain &rhs);
 
-    inline explicit operator bool() const{ return static_cast<bool>(m_swap_chain); };
+    inline explicit operator bool() const { return static_cast<bool>(m_swap_chain); };
 
 private:
-
     /**
      * @brief   sync_objects_t is a helper struct to bundle synchronization data for the SwapChain
      */
@@ -120,7 +121,6 @@ private:
     {
         VkSemaphore image_available = VK_NULL_HANDLE;
         VkSemaphore render_finished = VK_NULL_HANDLE;
-        VkFence fence = VK_NULL_HANDLE;
     };
 
     void create_framebuffers();
@@ -154,4 +154,4 @@ private:
     uint32_t m_swapchain_image_index = 0;
 };
 
-}//namespace vulkan
+}// namespace vierkant
