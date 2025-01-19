@@ -761,9 +761,8 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         {
             if(object->has_component<vierkant::mesh_component_t>())
             {
-                const auto &mesh_component = object->get_component<vierkant::mesh_component_t>();
-                const auto &mesh = mesh_component.mesh;
-                if(!context->mesh_micromap_assets.contains(mesh)) { micromap_params.meshes.push_back(mesh); }
+                const auto &mesh = object->get_component<vierkant::mesh_component_t>().mesh;
+                if(!context->mesh_micromap_assets.contains(mesh)) { micromap_params.meshes.insert(mesh); }
             }
         }
         auto micromap_result = vierkant::micromap_compute(context->micromap_context, micromap_params);
