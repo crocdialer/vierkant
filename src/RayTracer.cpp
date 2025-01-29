@@ -174,9 +174,11 @@ RayTracer::create_shader_binding_table(VkPipeline pipeline, const vierkant::rayt
     // hit/miss/callable
     for(uint32_t g = Group::Hit; g < Group::MAX_ENUM; ++g)
     {
-        binding_table.strided_address_region[g].stride = handle_size_aligned;
+        uint32_t num_handles = group_elements[Group(g)];
         binding_table.strided_address_region[g].size =
-                aligned_size(group_elements[Group(g)] * handle_size_aligned, ray_props.shaderGroupBaseAlignment);
+                aligned_size(num_handles * handle_size_aligned, ray_props.shaderGroupBaseAlignment);
+        binding_table.strided_address_region[g].stride =
+                num_handles ? binding_table.strided_address_region[g].size / num_handles : 0;
         binding_table_size += binding_table.strided_address_region[g].size;
     }
 
