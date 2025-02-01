@@ -29,7 +29,7 @@ struct micromap_compute_params_t
     VkCommandBuffer command_buffer;
 
     //! set of mesh_compute_items
-    std::vector<vierkant::MeshConstPtr> meshes = {};
+    std::unordered_set<vierkant::MeshConstPtr> meshes = {};
 
     vierkant::QueryPoolPtr query_pool = nullptr;
     uint32_t query_index_start = 0, query_index_end = 0;

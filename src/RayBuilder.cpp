@@ -751,19 +751,18 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     build_bottom_semaphore_info.semaphore = context->semaphore.handle();
     build_bottom_semaphore_info.wait_value = semaphore_wait_value;
 
-    if(context->micromap_context && params.use_micromaps)
+    if(context->micromap_context && params.num_micromap_subdivisions)
     {
         vierkant::micromap_compute_params_t micromap_params = {};
         micromap_params.command_buffer = context->cmd_build_bottom_start.handle();
-        micromap_params.num_subdivisions = 5;
+        micromap_params.num_subdivisions = params.num_micromap_subdivisions;
 
         for(const auto &object: visitor.objects)
         {
             if(object->has_component<vierkant::mesh_component_t>())
             {
-                const auto &mesh_component = object->get_component<vierkant::mesh_component_t>();
-                const auto &mesh = mesh_component.mesh;
-                if(!context->mesh_micromap_assets.contains(mesh)) { micromap_params.meshes.push_back(mesh); }
+                const auto &mesh = object->get_component<vierkant::mesh_component_t>().mesh;
+                if(!context->mesh_micromap_assets.contains(mesh)) { micromap_params.meshes.insert(mesh); }
             }
         }
         auto micromap_result = vierkant::micromap_compute(context->micromap_context, micromap_params);

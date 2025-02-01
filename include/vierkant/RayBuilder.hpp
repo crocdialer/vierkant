@@ -196,8 +196,8 @@ public:
         //! enable mesh-compute for baking animated meshes per frame
         bool use_mesh_compute = true;
 
-        //! enable micromap-compute for baking (opacity) triangle-micromaps per mesh-entry
-        bool use_micromaps = false;
+        //! enables micromap-compute for baking (opacity) triangle-micromaps per mesh-entry
+        uint32_t num_micromap_subdivisions = 0;
 
         //! enable compaction for bottom-lvl structures
         bool use_compaction = true;
