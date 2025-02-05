@@ -4,11 +4,11 @@
 
 #pragma once
 
+#include "vierkant/Input.hpp"
 #include "vierkant/Instance.hpp"
 #include "vierkant/Semaphore.hpp"
 #include "vierkant/SwapChain.hpp"
 #include "vierkant/intersection.hpp"
-#include "vierkant/Input.hpp"
 
 struct GLFWwindow;
 struct GLFWmonitor;
@@ -42,7 +42,6 @@ struct window_delegate_t
 class Window : public std::enable_shared_from_this<Window>
 {
 public:
-
     struct create_info_t
     {
         VkInstance instance = VK_NULL_HANDLE;
@@ -50,6 +49,7 @@ public:
         glm::ivec2 position = {};
         bool fullscreen = false;
         bool vsync = true;
+        bool joysticks = true;
         uint32_t monitor_index = 0;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
         std::string title = "Vierkant";
@@ -82,8 +82,7 @@ public:
      * @param create_info   a struct grouping all parameters
      * @return              the newly created WindowPtr
      */
-    static WindowPtr
-    create(const create_info_t &create_info);
+    static WindowPtr create(const create_info_t &create_info);
 
     ~Window();
 
@@ -134,7 +133,7 @@ public:
     /**
      * @return  true if the window is fullscreen
      */
-    bool fullscreen() const{ return m_fullscreen; }
+    bool fullscreen() const { return m_fullscreen; }
 
     /**
      * @brief   set the window to fullscreen or back.
@@ -206,12 +205,12 @@ public:
     /**
      * @return  the VkSurfaceKHR handle for this Window
      */
-    VkSurfaceKHR surface() const{ return m_surface; }
+    VkSurfaceKHR surface() const { return m_surface; }
 
     /**
      * @return  the contained SwapChain, which holds the Framebuffers for this Window
      */
-    SwapChain &swapchain(){ return m_swap_chain; }
+    SwapChain &swapchain() { return m_swap_chain; }
 
     /**
      * @brief   create an internal SwapChain for this Window.
@@ -225,7 +224,6 @@ public:
                           bool v_sync = true);
 
 private:
-
     explicit Window(const create_info_t &create_info);
 
     void init_handles(int width, int height, const std::string &title, GLFWmonitor *monitor);
@@ -244,6 +242,8 @@ private:
 
     bool m_fullscreen = false;
 
+    bool m_enable_joysticks = true;
+
     // keep track of window params when switching between window/fullscreen
     glm::ivec2 m_window_size{}, m_window_pos{};
 
@@ -251,4 +251,4 @@ private:
     std::vector<vierkant::Joystick> m_joysticks;
 };
 
-}//namespace vulkan
+}// namespace vierkant

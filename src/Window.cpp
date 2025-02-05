@@ -225,7 +225,7 @@ void Window::poll_events()
 {
     glfwPollEvents();
 
-    if(!joystick_delegates.empty())
+    if(m_enable_joysticks && !joystick_delegates.empty())
     {
         m_joysticks = get_joystick_states(m_joysticks);
 
