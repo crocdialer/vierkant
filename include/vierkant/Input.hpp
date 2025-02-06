@@ -1,8 +1,8 @@
 #pragma once
 
-#include <vierkant/math.hpp>
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
+#include <vierkant/math.hpp>
 
 namespace vierkant
 {
@@ -62,58 +62,53 @@ struct joystick_delegate_t
 class MouseEvent
 {
 public:
-
     MouseEvent() = default;
 
-    MouseEvent(int initiator, int x, int y, unsigned int modifiers,
-               glm::ivec2 wheel_inc) :
-            m_initiator(initiator),
-            m_x(x),
-            m_y(y),
-            m_modifiers(modifiers),
-            m_wheel_inc(wheel_inc){}
+    MouseEvent(int initiator, int x, int y, unsigned int modifiers, glm::ivec2 wheel_inc)
+        : m_initiator(initiator), m_x(x), m_y(y), m_modifiers(modifiers), m_wheel_inc(wheel_inc)
+    {}
 
     //! Returns the X coordinate of the mouse event
-    int get_x() const{ return m_x; }
+    int get_x() const { return m_x; }
 
     //! Returns the Y coordinate of the mouse event
-    int get_y() const{ return m_y; }
+    int get_y() const { return m_y; }
 
     //! Returns the coordinates of the mouse event
-    [[nodiscard]] glm::ivec2 position() const{ return {m_x, m_y}; }
+    [[nodiscard]] glm::ivec2 position() const { return {m_x, m_y}; }
 
     //! Returns the number of detents the user has wheeled through. Positive values correspond to wheel-up and negative to wheel-down.
-    [[nodiscard]] glm::ivec2 wheel_increment() const{ return m_wheel_inc; }
+    [[nodiscard]] glm::ivec2 wheel_increment() const { return m_wheel_inc; }
 
     //! Returns whether the initiator for the event was the left mouse button
-    bool is_left() const{ return m_initiator & BUTTON_LEFT; }
+    bool is_left() const { return m_initiator & BUTTON_LEFT; }
 
     //! Returns whether the initiator for the event was the right mouse button
-    bool is_right() const{ return m_initiator & BUTTON_RIGHT; }
+    bool is_right() const { return m_initiator & BUTTON_RIGHT; }
 
     //! Returns whether the initiator for the event was the middle mouse button
-    bool is_middle() const{ return m_initiator & BUTTON_MIDDLE; }
+    bool is_middle() const { return m_initiator & BUTTON_MIDDLE; }
 
     //! Returns whether the left mouse button was pressed during the event
-    bool is_left_down() const{ return m_modifiers & BUTTON_LEFT; }
+    bool is_left_down() const { return m_modifiers & BUTTON_LEFT; }
 
     //! Returns whether the right mouse button was pressed during the event
-    bool is_right_down() const{ return m_modifiers & BUTTON_RIGHT; }
+    bool is_right_down() const { return m_modifiers & BUTTON_RIGHT; }
 
     //! Returns whether the middle mouse button was pressed during the event
-    bool is_middle_down() const{ return m_modifiers & BUTTON_MIDDLE; }
+    bool is_middle_down() const { return m_modifiers & BUTTON_MIDDLE; }
 
     //! Returns whether the Shift key was pressed during the event.
-    bool is_shift_down() const{ return m_modifiers & SHIFT_DOWN; }
+    bool is_shift_down() const { return m_modifiers & SHIFT_DOWN; }
 
     //! Returns whether the Alt (or Option) key was pressed during the event.
-    bool is_alt_down() const{ return m_modifiers & ALT_DOWN; }
+    bool is_alt_down() const { return m_modifiers & ALT_DOWN; }
 
     //! Returns whether the Control key was pressed during the event.
-    bool is_control_down() const{ return m_modifiers & CTRL_DOWN; }
+    bool is_control_down() const { return m_modifiers & CTRL_DOWN; }
 
     //! Returns whether the meta key was pressed during the event. Maps to the Windows key on Windows and the Command key on Mac OS X.
-    bool is_meta_down() const{ return m_modifiers & META_DOWN; }
+    bool is_meta_down() const { return m_modifiers & META_DOWN; }
 
     enum
     {
@@ -138,29 +133,26 @@ private:
 class KeyEvent
 {
 public:
-
-    KeyEvent(int code, uint32_t character, uint32_t modifiers) :
-            m_code(code),
-            m_char(character),
-            m_modifiers(modifiers){}
+    KeyEvent(int code, uint32_t character, uint32_t modifiers) : m_code(code), m_char(character), m_modifiers(modifiers)
+    {}
 
     //! Returns the key code associated with the event (maps into Key::Type enum)
-    int code() const{ return m_code; }
+    int code() const { return m_code; }
 
     //! Returns the Unicode character associated with the event.
-    uint32_t character() const{ return m_char; }
+    uint32_t character() const { return m_char; }
 
     //! Returns whether the Shift key was pressed during the event.
-    bool is_shift_down() const{ return m_modifiers & SHIFT_DOWN; }
+    bool is_shift_down() const { return m_modifiers & SHIFT_DOWN; }
 
     //! Returns whether the Alt (or Option) key was pressed during the event.
-    bool is_alt_down() const{ return m_modifiers & ALT_DOWN; }
+    bool is_alt_down() const { return m_modifiers & ALT_DOWN; }
 
     //! Returns whether the Control key was pressed during the event.
-    bool is_control_down() const{ return m_modifiers & CTRL_DOWN; }
+    bool is_control_down() const { return m_modifiers & CTRL_DOWN; }
 
     //! Returns whether the meta key was pressed during the event. Maps to the Windows key on Windows and the Command key on Mac OS X.
-    bool is_meta_down() const{ return m_modifiers & META_DOWN; }
+    bool is_meta_down() const { return m_modifiers & META_DOWN; }
 
     enum
     {
@@ -179,7 +171,6 @@ private:
 class Joystick
 {
 public:
-
     enum class Event
     {
         BUTTON_PRESS,
@@ -188,17 +179,29 @@ public:
 
     enum class Input : uint32_t
     {
-        ANALOG_LEFT_X, ANALOG_LEFT_Y, ANALOG_RIGHT_X, ANALOG_RIGHT_Y,
-        DPAD_X, DPAD_Y, TRIGGER_LEFT, TRIGGER_RIGHT,
-        BUTTON_A, BUTTON_B, BUTTON_X, BUTTON_Y, BUTTON_MENU, BUTTON_BACK,
-        BUTTON_BUMPER_LEFT, BUTTON_BUMPER_RIGHT, BUTTON_STICK_LEFT, BUTTON_STICK_RIGHT
+        ANALOG_LEFT_X,
+        ANALOG_LEFT_Y,
+        ANALOG_RIGHT_X,
+        ANALOG_RIGHT_Y,
+        DPAD_X,
+        DPAD_Y,
+        TRIGGER_LEFT,
+        TRIGGER_RIGHT,
+        BUTTON_A,
+        BUTTON_B,
+        BUTTON_X,
+        BUTTON_Y,
+        BUTTON_MENU,
+        BUTTON_BACK,
+        BUTTON_BUMPER_LEFT,
+        BUTTON_BUMPER_RIGHT,
+        BUTTON_STICK_LEFT,
+        BUTTON_STICK_RIGHT
     };
 
     float dead_zone = 0.15f;
 
-    Joystick(std::string name,
-             std::vector<uint8_t> buttons,
-             std::vector<float> axis,
+    Joystick(std::string name, std::vector<uint8_t> buttons, std::vector<float> axis,
              const std::vector<uint8_t> &previous_buttons = {});
 
     const std::string &name() const;
@@ -215,10 +218,9 @@ public:
 
     glm::vec2 dpad() const;
 
-    const std::unordered_map<Input, Event>& input_events() const;
+    const std::unordered_map<Input, Event> &input_events() const;
 
 private:
-
     std::string m_name;
     std::vector<uint8_t> m_buttons;
     std::vector<float> m_axis;
@@ -226,19 +228,18 @@ private:
 };
 
 std::string to_string(Joystick::Input input);
-#undef _SPACE
 
 struct Key
 {
     enum Type
     {
         _UNKNOWN = -1,
-        _SPACE = 32,
-        _APOSTROPHE = 39,  /* ' */
-        _COMMA = 44,  /* , */
-        _MINUS = 45,  /* - */
-        _PERIOD = 46,  /* . */
-        _SLASH = 47,  /* / */
+        _SPACEBAR = 32,
+        _APOSTROPHE = 39, /* ' */
+        _COMMA = 44,      /* , */
+        _MINUS = 45,      /* - */
+        _PERIOD = 46,     /* . */
+        _SLASH = 47,      /* / */
         _0 = 48,
         _1 = 49,
         _2 = 50,
@@ -249,8 +250,8 @@ struct Key
         _7 = 55,
         _8 = 56,
         _9 = 57,
-        _SEMICOLON = 59,  /* ; */
-        _EQUAL = 61,  /* = */
+        _SEMICOLON = 59, /* ; */
+        _EQUAL = 61,     /* = */
         _A = 65,
         _B = 66,
         _C = 67,
@@ -278,11 +279,11 @@ struct Key
         _Y = 89,
         _Z = 90,
         _LEFT_BRACKET = 91,  /* [ */
-        _BACKSLASH = 92,  /* \ */
-        _RIGHT_BRACKET = 93,  /* ] */
+        _BACKSLASH = 92,     /* \ */
+        _RIGHT_BRACKET = 93, /* ] */
         _GRAVE_ACCENT = 96,  /* ` */
-        _WORLD_1 = 161, /* non-US #1 */
-        _WORLD_2 = 162, /* non-US #2 */
+        _WORLD_1 = 161,      /* non-US #1 */
+        _WORLD_2 = 162,      /* non-US #2 */
         _ESCAPE = 256,
         _ENTER = 257,
         _TAB = 258,
@@ -356,4 +357,4 @@ struct Key
         _LAST = _MENU
     };
 };
-}
+}// namespace vierkant

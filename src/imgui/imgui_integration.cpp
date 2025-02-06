@@ -172,7 +172,7 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     keymap[Key::_INSERT] = ImGuiKey_Insert;
     keymap[Key::_DELETE] = ImGuiKey_Delete;
     keymap[Key::_BACKSPACE] = ImGuiKey_Backspace;
-    keymap[Key::_SPACE] = ImGuiKey_Space;
+    keymap[Key::_SPACEBAR] = ImGuiKey_Space;
     keymap[Key::_ENTER] = ImGuiKey_Enter;
     keymap[Key::_ESCAPE] = ImGuiKey_Escape;
     keymap[Key::_A] = ImGuiKey_A;
