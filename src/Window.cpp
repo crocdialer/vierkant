@@ -37,9 +37,9 @@ static void glfw_joystick_cb(int joy, int event);
 class glfw_init_t
 {
 public:
-    glfw_init_t(){ glfwInit(); }
+    glfw_init_t() { glfwInit(); }
 
-    ~glfw_init_t(){ glfwTerminate(); }
+    ~glfw_init_t() { glfwTerminate(); }
 };
 
 static std::shared_ptr<glfw_init_t> g_glfw_init;
@@ -48,7 +48,7 @@ static std::shared_ptr<glfw_init_t> g_glfw_init;
 
 std::vector<const char *> Window::required_extensions()
 {
-    if(!g_glfw_init){ g_glfw_init = std::make_shared<glfw_init_t>(); }
+    if(!g_glfw_init) { g_glfw_init = std::make_shared<glfw_init_t>(); }
 
     uint32_t num_extensions = 0;
     const char **extensions = glfwGetRequiredInstanceExtensions(&num_extensions);
@@ -61,18 +61,9 @@ std::vector<const char *> Window::required_extensions()
 void get_modifiers(GLFWwindow *window, uint32_t &buttonModifiers, uint32_t &keyModifiers)
 {
     buttonModifiers = 0;
-    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT))
-    {
-        buttonModifiers |= MouseEvent::BUTTON_LEFT;
-    }
-    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE))
-    {
-        buttonModifiers |= MouseEvent::BUTTON_MIDDLE;
-    }
-    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT))
-    {
-        buttonModifiers |= MouseEvent::BUTTON_RIGHT;
-    }
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT)) { buttonModifiers |= MouseEvent::BUTTON_LEFT; }
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE)) { buttonModifiers |= MouseEvent::BUTTON_MIDDLE; }
+    if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT)) { buttonModifiers |= MouseEvent::BUTTON_RIGHT; }
 
     keyModifiers = 0;
     if(glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) || glfwGetKey(window, GLFW_KEY_RIGHT_CONTROL))
@@ -101,7 +92,7 @@ std::vector<Joystick> get_joystick_states(const std::vector<Joystick> &previous_
     int count;
     for(int i = GLFW_JOYSTICK_1; i <= GLFW_JOYSTICK_LAST; i++)
     {
-        if(!glfwJoystickPresent(i)){ continue; }
+        if(!glfwJoystickPresent(i)) { continue; }
 
         const float *glfw_axis = glfwGetJoystickAxes(i, &count);
         std::vector<float> axis(glfw_axis, glfw_axis + count);
@@ -112,7 +103,7 @@ std::vector<Joystick> get_joystick_states(const std::vector<Joystick> &previous_
         std::string name(glfwGetJoystickName(i));
 
         std::vector<uint8_t> previous_buttons;
-        if(static_cast<uint32_t>(i) < previous_joysticks.size()){ previous_buttons = previous_joysticks[i].buttons(); }
+        if(static_cast<uint32_t>(i) < previous_joysticks.size()) { previous_buttons = previous_joysticks[i].buttons(); }
         ret.emplace_back(std::move(name), std::move(buttons), std::move(axis), previous_buttons);
     }
     return ret;
@@ -120,20 +111,15 @@ std::vector<Joystick> get_joystick_states(const std::vector<Joystick> &previous_
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-WindowPtr Window::create(const create_info_t &create_info)
-{
-    return WindowPtr(new Window(create_info));
-}
+WindowPtr Window::create(const create_info_t &create_info) { return WindowPtr(new Window(create_info)); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Window::Window(const create_info_t &create_info) :
-        m_instance(create_info.instance),
-        m_fullscreen(create_info.fullscreen),
-        m_window_size(create_info.size),
-        m_window_pos(create_info.position)
+Window::Window(const create_info_t &create_info)
+    : m_instance(create_info.instance), m_fullscreen(create_info.fullscreen), m_enable_joysticks(create_info.joysticks),
+      m_window_size(create_info.size), m_window_pos(create_info.position)
 {
-    if(!g_glfw_init){ g_glfw_init = std::make_shared<glfw_init_t>(); }
+    if(!g_glfw_init) { g_glfw_init = std::make_shared<glfw_init_t>(); }
 
     int monitor_count = 0;
     GLFWmonitor **monitors = glfwGetMonitors(&monitor_count);
@@ -145,10 +131,7 @@ Window::Window(const create_info_t &create_info) :
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Window::~Window()
-{
-    clear_handles();
-}
+Window::~Window() { clear_handles(); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -168,17 +151,16 @@ void Window::init_handles(int width, int height, const std::string &title, GLFWm
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
     m_handle = glfwCreateWindow(width, height, title.c_str(), monitor, nullptr);
-    if(!m_handle){ throw std::runtime_error("could not init window-handles"); }
+    if(!m_handle) { throw std::runtime_error("could not init window-handles"); }
 
-    vkCheck(glfwCreateWindowSurface(m_instance, m_handle, nullptr, &m_surface),
-            "failed to create window surface!");
+    vkCheck(glfwCreateWindowSurface(m_instance, m_handle, nullptr, &m_surface), "failed to create window surface!");
 
     // set user-pointer
     glfwSetWindowUserPointer(m_handle, this);
 
     // init callbacks
     glfwSetErrorCallback(&glfw_error_cb);
-//    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
+    //    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
     glfwSetWindowCloseCallback(m_handle, &glfw_close_cb);
     glfwSetMouseButtonCallback(m_handle, &glfw_mouse_button_cb);
     glfwSetCursorPosCallback(m_handle, &glfw_mouse_move_cb);
@@ -195,8 +177,8 @@ void Window::init_handles(int width, int height, const std::string &title, GLFWm
 void Window::clear_handles()
 {
     m_swap_chain = SwapChain();
-    if(m_instance && m_surface){ vkDestroySurfaceKHR(m_instance, m_surface, nullptr); }
-    if(m_handle){ glfwDestroyWindow(m_handle); }
+    if(m_instance && m_surface) { vkDestroySurfaceKHR(m_instance, m_surface, nullptr); }
+    if(m_handle) { glfwDestroyWindow(m_handle); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -204,7 +186,7 @@ void Window::clear_handles()
 void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples, bool v_sync)
 {
     // while window is minimized
-    while(is_minimized()){ glfwWaitEvents(); }
+    while(is_minimized()) { glfwWaitEvents(); }
 
     // make sure everything is cleaned up
     // prevents: vkCreateSwapChainKHR(): surface has an existing swapchain other than oldSwapchain
@@ -215,7 +197,7 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
 
     for(auto &pair: window_delegates)
     {
-        if(pair.second.resize_fn){ pair.second.resize_fn(m_swap_chain.extent().width, m_swap_chain.extent().height); }
+        if(pair.second.resize_fn) { pair.second.resize_fn(m_swap_chain.extent().width, m_swap_chain.extent().height); }
     }
 }
 
@@ -231,7 +213,7 @@ void Window::poll_events()
 
         for(auto &[name, delegate]: joystick_delegates)
         {
-            if(delegate.joystick_cb && (!delegate.enabled || delegate.enabled())){ delegate.joystick_cb(m_joysticks); }
+            if(delegate.joystick_cb && (!delegate.enabled || delegate.enabled())) { delegate.joystick_cb(m_joysticks); }
         }
     }
 }
@@ -264,10 +246,7 @@ glm::ivec2 Window::framebuffer_size() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::set_size(const glm::ivec2 &extent)
-{
-    glfwSetWindowSize(m_handle, extent.x, extent.y);
-}
+void Window::set_size(const glm::ivec2 &extent) { glfwSetWindowSize(m_handle, extent.x, extent.y); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -280,17 +259,11 @@ glm::ivec2 Window::position() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::set_position(const glm::ivec2 &position)
-{
-    glfwSetWindowPos(m_handle, position.x, position.y);
-}
+void Window::set_position(const glm::ivec2 &position) { glfwSetWindowPos(m_handle, position.x, position.y); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::string Window::title() const
-{
-    return m_title;
-}
+std::string Window::title() const { return m_title; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -311,17 +284,11 @@ glm::vec2 Window::cursor_position() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::set_cursor_position(const glm::vec2 &pos)
-{
-    glfwSetCursorPos(m_handle, pos.x, pos.y);
-}
+void Window::set_cursor_position(const glm::vec2 &pos) { glfwSetCursorPos(m_handle, pos.x, pos.y); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Window::cursor_visible() const
-{
-    return glfwGetInputMode(m_handle, GLFW_CURSOR) != GLFW_CURSOR_HIDDEN;
-}
+bool Window::cursor_visible() const { return glfwGetInputMode(m_handle, GLFW_CURSOR) != GLFW_CURSOR_HIDDEN; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -334,7 +301,7 @@ void Window::set_cursor_visible(bool b)
 
 void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos)
 {
-    if(!m_swap_chain){ return; }
+    if(!m_swap_chain) { return; }
 
     auto &framebuffer = swapchain().current_framebuffer();
 
@@ -358,11 +325,9 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
         if(delegate.draw_fn)
         {
             auto draw_result = delegate.draw_fn(shared_from_this());
-            commandbuffers.insert(commandbuffers.end(),
-                                  draw_result.command_buffers.begin(),
+            commandbuffers.insert(commandbuffers.end(), draw_result.command_buffers.begin(),
                                   draw_result.command_buffers.end());
-            semaphore_infos.insert(semaphore_infos.end(),
-                                   draw_result.semaphore_infos.begin(),
+            semaphore_infos.insert(semaphore_infos.end(), draw_result.semaphore_infos.begin(),
                                    draw_result.semaphore_infos.end());
         }
     }
@@ -428,10 +393,7 @@ uint32_t Window::monitor_index() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool Window::should_close() const
-{
-    return static_cast<bool>(glfwWindowShouldClose(m_handle));
-}
+bool Window::should_close() const { return static_cast<bool>(glfwWindowShouldClose(m_handle)); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -448,20 +410,17 @@ void glfw_close_cb(GLFWwindow *window)
 
     for(auto &pair: self->window_delegates)
     {
-        if(pair.second.close_fn){ pair.second.close_fn(); }
+        if(pair.second.close_fn) { pair.second.close_fn(); }
     }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_error_cb(int error_code, const char *error_msg)
-{
-    spdlog::error("{} ({})", error_msg, error_code);
-}
+void glfw_error_cb(int error_code, const char *error_msg) { spdlog::error("{} ({})", error_msg, error_code); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_refresh_cb(GLFWwindow */*window*/)
+void glfw_refresh_cb(GLFWwindow * /*window*/)
 {
     // like resizing!?
 }
@@ -481,9 +440,9 @@ void glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 
         for(auto &pair: self->mouse_delegates)
         {
-            if(pair.second.enabled && !pair.second.enabled()){ continue; }
-            if(pair.second.mouse_move){ pair.second.mouse_move(e); }
-            if(button_mods && pair.second.mouse_drag){ pair.second.mouse_drag(e); }
+            if(pair.second.enabled && !pair.second.enabled()) { continue; }
+            if(pair.second.mouse_move) { pair.second.mouse_move(e); }
+            if(button_mods && pair.second.mouse_drag) { pair.second.mouse_drag(e); }
         }
     }
 }
@@ -499,13 +458,10 @@ void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int /*modi
         uint32_t initiator = 0;
         switch(button)
         {
-            case GLFW_MOUSE_BUTTON_LEFT:initiator = MouseEvent::BUTTON_LEFT;
-                break;
-            case GLFW_MOUSE_BUTTON_MIDDLE:initiator = MouseEvent::BUTTON_MIDDLE;
-                break;
-            case GLFW_MOUSE_BUTTON_RIGHT:initiator = MouseEvent::BUTTON_RIGHT;
-                break;
-            default:break;
+            case GLFW_MOUSE_BUTTON_LEFT: initiator = MouseEvent::BUTTON_LEFT; break;
+            case GLFW_MOUSE_BUTTON_MIDDLE: initiator = MouseEvent::BUTTON_MIDDLE; break;
+            case GLFW_MOUSE_BUTTON_RIGHT: initiator = MouseEvent::BUTTON_RIGHT; break;
+            default: break;
         }
         uint32_t button_mods, key_mods, all_mods;
         get_modifiers(window, button_mods, key_mods);
@@ -517,12 +473,9 @@ void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int /*modi
 
         for(auto &pair: self->mouse_delegates)
         {
-            if(pair.second.enabled && !pair.second.enabled()){ continue; }
-            if(action == GLFW_PRESS && pair.second.mouse_press){ pair.second.mouse_press(e); }
-            else if(action == GLFW_RELEASE && pair.second.mouse_release)
-            {
-                pair.second.mouse_release(e);
-            }
+            if(pair.second.enabled && !pair.second.enabled()) { continue; }
+            if(action == GLFW_PRESS && pair.second.mouse_press) { pair.second.mouse_press(e); }
+            else if(action == GLFW_RELEASE && pair.second.mouse_release) { pair.second.mouse_release(e); }
         }
     }
 }
@@ -537,7 +490,7 @@ void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
     {
         for(auto &pair: self->mouse_delegates)
         {
-            if(pair.second.enabled && !pair.second.enabled()){ continue; }
+            if(pair.second.enabled && !pair.second.enabled()) { continue; }
             glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
             double posX, posY;
             glfwGetCursorPos(window, &posX, &posY);
@@ -545,7 +498,7 @@ void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
             get_modifiers(window, button_mods, key_mods);
             MouseEvent e(0, (int) posX, (int) posY, key_mods, offset);
 
-            if(pair.second.mouse_wheel){ pair.second.mouse_wheel(e); }
+            if(pair.second.mouse_wheel) { pair.second.mouse_wheel(e); }
         }
     }
 }
@@ -564,18 +517,20 @@ void glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int action, int 
 
         for(auto &pair: self->key_delegates)
         {
-            if(pair.second.enabled && !pair.second.enabled()){ continue; }
+            if(pair.second.enabled && !pair.second.enabled()) { continue; }
 
             switch(action)
             {
                 case GLFW_REPEAT:
-                case GLFW_PRESS:if(pair.second.key_press){ pair.second.key_press(e); }
+                case GLFW_PRESS:
+                    if(pair.second.key_press) { pair.second.key_press(e); }
                     break;
 
-                case GLFW_RELEASE:if(pair.second.key_release){ pair.second.key_release(e); }
+                case GLFW_RELEASE:
+                    if(pair.second.key_release) { pair.second.key_release(e); }
                     break;
 
-                default:break;
+                default: break;
             }
         }
     }
@@ -589,8 +544,8 @@ void glfw_char_cb(GLFWwindow *window, unsigned int key)
 
     for(auto &pair: self->key_delegates)
     {
-        if(pair.second.enabled && !pair.second.enabled()){ continue; }
-        if(pair.second.character_input){ pair.second.character_input(key); }
+        if(pair.second.enabled && !pair.second.enabled()) { continue; }
+        if(pair.second.character_input) { pair.second.character_input(key); }
     }
 }
 
@@ -603,7 +558,7 @@ void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
     if(!self->mouse_delegates.empty())
     {
         std::vector<std::string> files(num_files);
-        for(int i = 0; i < num_files; i++){ files[i] = paths[i]; }
+        for(int i = 0; i < num_files; i++) { files[i] = paths[i]; }
         uint32_t button_mods, key_mods, all_mods;
         get_modifiers(window, button_mods, key_mods);
         all_mods = button_mods | key_mods;
@@ -613,8 +568,8 @@ void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
 
         for(auto &pair: self->mouse_delegates)
         {
-            if(pair.second.enabled && !pair.second.enabled()){ continue; }
-            if(pair.second.file_drop){ pair.second.file_drop(e, files); }
+            if(pair.second.enabled && !pair.second.enabled()) { continue; }
+            if(pair.second.file_drop) { pair.second.file_drop(e, files); }
         }
     }
 }
@@ -632,19 +587,19 @@ void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
 
 void glfw_joystick_cb(int joy, int event)
 {
-    if(event == GLFW_CONNECTED){ spdlog::debug("{} connected ({})", glfwGetJoystickName(joy), joy); }
-    else if(event == GLFW_DISCONNECTED){ spdlog::debug("disconnected joystick ({})", joy); }
+    if(event == GLFW_CONNECTED) { spdlog::debug("{} connected ({})", glfwGetJoystickName(joy), joy); }
+    else if(event == GLFW_DISCONNECTED) { spdlog::debug("disconnected joystick ({})", joy); }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Window::set_fullscreen(bool b, uint32_t monitor_index)
 {
-    if(b == m_fullscreen){ return; }
+    if(b == m_fullscreen) { return; }
 
     int num;
     GLFWmonitor **monitors = glfwGetMonitors(&num);
-    if(monitor_index >= static_cast<uint32_t>(num)){ return; }
+    if(monitor_index >= static_cast<uint32_t>(num)) { return; }
     const GLFWvidmode *mode = glfwGetVideoMode(monitors[monitor_index]);
 
     int w, h, x, y;
@@ -669,4 +624,4 @@ void Window::set_fullscreen(bool b, uint32_t monitor_index)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
-}//namespace vulkan
+}// namespace vierkant
