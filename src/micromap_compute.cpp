@@ -7,10 +7,10 @@
 namespace vierkant
 {
 
-inline size_t align_size(size_t size, size_t align)
+inline size_t aligned_size(size_t size, size_t alignment)
 {
-    auto align_mod = size % align;
-    return align_mod ? size + align - (size % align) : size;
+    assert(crocore::is_pow_2(alignment));
+    return alignment ? (size + alignment - 1) & ~(alignment - 1) : size;
 }
 
 struct mesh_build_data_t
@@ -179,11 +179,11 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
                 size_t num_index_data_bytes = num_triangles * sizeof(uint32_t);
 
                 buffer_sizes[i].data = num_data_bytes;
-                buffer_size_sum.data += align_size(num_data_bytes, context->data_alignment);
+                buffer_size_sum.data += aligned_size(num_data_bytes, context->data_alignment);
                 buffer_sizes[i].index_data = num_index_data_bytes;
-                buffer_size_sum.index_data += align_size(num_index_data_bytes, context->data_alignment);
+                buffer_size_sum.index_data += aligned_size(num_index_data_bytes, context->data_alignment);
                 buffer_sizes[i].triangle_data = num_triangle_data_bytes;
-                buffer_size_sum.triangle_data += align_size(num_triangle_data_bytes, context->data_alignment);
+                buffer_size_sum.triangle_data += aligned_size(num_triangle_data_bytes, context->data_alignment);
             }
 
             // per entry
@@ -204,9 +204,9 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
 
             // store micromap/scratch-sizes
             buffer_sizes[i].micromap = micromap_size_info.micromapSize;
-            buffer_size_sum.micromap += align_size(micromap_size_info.micromapSize, context->data_alignment);
+            buffer_size_sum.micromap += aligned_size(micromap_size_info.micromapSize, context->data_alignment);
             buffer_sizes[i].scratch = micromap_size_info.buildScratchSize;
-            buffer_size_sum.scratch += align_size(micromap_size_info.buildScratchSize, scratch_alignment);
+            buffer_size_sum.scratch += aligned_size(micromap_size_info.buildScratchSize, scratch_alignment);
         }// entries
 
         auto &build_data = context->build_data[mesh];
@@ -224,6 +224,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             vierkant::Buffer::create_info_t micromap_input_buffer_format = {};
             micromap_input_buffer_format.device = context->device;
             micromap_input_buffer_format.num_bytes = buffer_size_sum.data;
+            micromap_input_buffer_format.alignment = 256;
             micromap_input_buffer_format.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                                                  VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                                  VK_BUFFER_USAGE_MICROMAP_BUILD_INPUT_READ_ONLY_BIT_EXT;
