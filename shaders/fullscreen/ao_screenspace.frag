@@ -7,6 +7,7 @@
 
 // rnd(state)
 #include "../utils/random.glsl"
+#include "../utils/hash.glsl"
 
 // bsdf utils
 #include "../utils/bsdf.glsl"
