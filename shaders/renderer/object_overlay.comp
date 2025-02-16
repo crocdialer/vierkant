@@ -21,7 +21,7 @@ struct hashmap_t
 
 uint hash(uint v)
 {
-    return murmur3_32(v, 0);
+    return xxhash32(v, 0);
 }
 
 uint get(const hashmap_t hashmap, const uint key)

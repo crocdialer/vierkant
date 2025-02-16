@@ -201,7 +201,7 @@ private:
     uint64_t m_capacity = 0;
     uint64_t m_num_elements = 0;
     std::unique_ptr<storage_item_t[]> m_storage;
-    hash32_fn m_hash_fn = std::bind(murmur3_32<key_t>, std::placeholders::_1, 0);
+    hash32_fn m_hash_fn = std::bind(xxhash32<key_t>, std::placeholders::_1, 0);
 
     // reasonably low load-factor to keep average probe-lengths low
     float m_max_load_factor = 0.5f;
@@ -408,7 +408,7 @@ private:
     uint64_t m_capacity{};
     std::atomic<uint64_t> m_num_elements;
     std::unique_ptr<storage_item_t[]> m_storage;
-    hash32_fn m_hash_fn = std::bind(vierkant::murmur3_32<key_t>, std::placeholders::_1, 0);
+    hash32_fn m_hash_fn = std::bind(vierkant::xxhash32<key_t>, std::placeholders::_1, 0);
     mutable std::shared_mutex m_mutex;
 
     // reasonably low load-factor to keep average probe-lengths low

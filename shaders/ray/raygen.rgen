@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/random.glsl"
+#include "../utils/hash.glsl"
 #include "../utils/bsdf.glsl"
 #include "ray_common.glsl"
 #include "reservoir.glsl"
