@@ -14,7 +14,6 @@ namespace vierkant
 class SwapChain
 {
 public:
-
     static constexpr uint32_t max_frames_in_flight = 3;
 
     struct acquire_image_result_t
@@ -82,6 +81,8 @@ public:
      */
     std::vector<vierkant::Framebuffer> &framebuffers(){ return m_framebuffers; }
 
+    vierkant::Framebuffer &current_framebuffer(){ return m_framebuffers[m_swapchain_image_index]; }
+
     /**
      * @return  a reference for array of SwapChain-Images
      */
@@ -120,7 +121,6 @@ private:
     {
         VkSemaphore image_available = VK_NULL_HANDLE;
         VkSemaphore render_finished = VK_NULL_HANDLE;
-        VkFence fence = VK_NULL_HANDLE;
     };
 
     void create_framebuffers();
