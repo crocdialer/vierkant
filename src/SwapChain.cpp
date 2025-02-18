@@ -202,6 +202,8 @@ SwapChain::acquire_image_result_t SwapChain::acquire_next_image(uint64_t timeout
 {
     acquire_image_result_t ret = {};
 
+    m_framebuffers[m_current_frame_index].wait_fence();
+
     ret.image_available = m_sync_objects[m_current_frame_index].image_available;
     ret.render_finished = m_sync_objects[m_current_frame_index].render_finished;
     ret.result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain, timeout, ret.image_available, VK_NULL_HANDLE,
