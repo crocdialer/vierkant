@@ -179,12 +179,17 @@ SwapChain::~SwapChain()
         vkDeviceWaitIdle(m_device->handle());
         vkDestroySwapchainKHR(m_device->handle(), m_swap_chain, nullptr);
         m_swap_chain = VK_NULL_HANDLE;
+        std::vector<VkFence> fences;
 
         for(auto &so: m_sync_objects)
         {
             vkDestroySemaphore(m_device->handle(), so.render_finished, nullptr);
             vkDestroySemaphore(m_device->handle(), so.image_available, nullptr);
+            fences.push_back(so.fence);
         }
+        uint64_t wait_nanos = 1000000;//std::numeric_limits<uint64_t>::max();
+        vkWaitForFences(m_device->handle(), fences.size(), fences.data(), VK_TRUE, wait_nanos);
+        for(auto &fence: fences) { vkDestroyFence(m_device->handle(), fence, nullptr); }
     }
 }
 
@@ -202,9 +207,15 @@ SwapChain::acquire_image_result_t SwapChain::acquire_next_image(uint64_t timeout
 {
     acquire_image_result_t ret = {};
 
+    auto fence = m_sync_objects[m_current_frame_index].fence;
     ret.image_available = m_sync_objects[m_current_frame_index].image_available;
     ret.render_finished = m_sync_objects[m_current_frame_index].render_finished;
-    ret.result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain, timeout, ret.image_available, VK_NULL_HANDLE,
+
+    // wait for prior submission
+    vkWaitForFences(m_device->handle(), 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vkResetFences(m_device->handle(), 1, &fence);
+
+    ret.result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain, timeout, ret.image_available, fence,
                                        &m_swapchain_image_index);
     ret.image_index = m_swapchain_image_index;
     m_last_acquired_image = ret;
@@ -330,6 +341,12 @@ void SwapChain::create_sync_objects()
         {
             throw std::runtime_error("failed to create sync object");
         }
+
+        VkFenceCreateInfo fence_create_info = {};
+        fence_create_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_create_info.pNext = nullptr;
+        fence_create_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        vkCreateFence(m_device->handle(), &fence_create_info, nullptr, &m_sync_objects[i].fence);
     }
 }
 
