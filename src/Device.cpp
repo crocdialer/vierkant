@@ -263,7 +263,7 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_features_12.pNext = &device_features_13;
 
     void **pNext = &device_features_13.pNext;
-    auto update_pnext = [&pNext, &extensions](const auto &feature_struct, const char *ext_name) {
+    auto update_pnext = [&pNext, &extensions](const auto &feature_struct, std::string_view ext_name) {
         if(crocore::contains(extensions, ext_name))
         {
             *pNext = (void *) &feature_struct;
@@ -306,10 +306,10 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     descriptor_buffer_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT;
     update_pnext(descriptor_buffer_features, VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
 
-    //------------------------------------ VK_KHR_fragment_shader_barycentric ----------------------------------------------------
+    //------------------------------------ VK_KHR_fragment_shader_barycentric ------------------------------------------
     VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR barycentric_features = {};
     barycentric_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
-    update_pnext(barycentric_features, VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+    update_pnext(barycentric_features, VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
 
     //------------------------------------------------------------------------------------------------------------------
     *pNext = create_info.create_device_pNext;
