@@ -228,7 +228,7 @@ VkResult SwapChain::present()
 
     // swap buffers
     VkResult result = vkQueuePresentKHR(m_device->queue(Device::Queue::PRESENT), &present_info);
-    m_current_frame_index = (m_swapchain_image_index + 1) % m_images.size();
+    m_current_frame_index = (m_current_frame_index + 1) % m_images.size();
     return result;
 }
 
