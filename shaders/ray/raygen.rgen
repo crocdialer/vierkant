@@ -94,12 +94,11 @@ trace_result_t trace(vec2 coord, vec2 size)
         air.ior = 1.0;
         air.phase_g = 0.0;
         air.sigma_s = air.sigma_a = vec3(0);
-        media_t current_medium = air, last_medium = air;
 
         // assumes we start in air
         uint media_index = 0;
-        //        media_t media[MAX_MEDIA_STACK_SIZE];
-        //        media[media_index] = air;
+        media_t media[MAX_MEDIA_STACK_SIZE];
+        media[media_index] = air;
 
         vec3 beta = vec3(1);
         vec3 path_radiance = vec3(0);
@@ -114,10 +113,8 @@ trace_result_t trace(vec2 coord, vec2 size)
             payload.stop = false;
             payload.radiance = path_radiance;
             payload.beta = beta;
-//            payload.media = media[media_index]; // TODO: media-stack
-            payload.media = current_medium;
-//            payload.last_ior = media[max(media_index - 1, 0)].ior; // TODO: media-stack
-            payload.last_ior = last_medium.ior;
+            payload.media = media[media_index];
+            payload.last_ior = media[max(media_index - 1, 0)].ior;
             payload.ray = ray;
             payload.cone = cone;
             payload.entity_index = MAX_UINT16;
@@ -145,14 +142,11 @@ trace_result_t trace(vec2 coord, vec2 size)
             if(payload.media_op == MEDIA_ENTER)
             {
                 media_index = min(media_index + 1, MAX_MEDIA_STACK_SIZE - 1);
-//                media[media_index] = payload.media;
-                last_medium = current_medium;
-                current_medium = payload.media;
+                media[media_index] = payload.media;
             }
             else if(payload.media_op == MEDIA_LEAVE)
             {
                 media_index = max(media_index - 1, 0);
-                current_medium = last_medium;
             }
 
             path_radiance = payload.radiance;
