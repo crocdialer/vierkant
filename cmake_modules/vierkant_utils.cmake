@@ -53,7 +53,13 @@ endfunction(GET_SHADER_SOURCES)
 function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME SHADER_COMPILER SPIRV_OUT_DIR SOURCE_OUT_DIR)
 
     # NOTE: seeing some issues with spirv-reflect/local-sizes between 1.2<->1.3
-    set(SPIRV_TARGET_ENV vulkan1.2)
+    set(SPIRV_TARGET_ENV vulkan1.3)
+
+    # use VK_KHR_shader_non_semantic_info
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(GLSLANG_EXTRA_PARAMS "-gVS")
+    endif ()
+
     set(TOP_NAMESPACE "vierkant::shaders")
 
     # remove existing spirv files
@@ -66,8 +72,8 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME SHADER_COMPILER SPIRV_OUT_DIR
     set(OUTPUT_HEADER "${SOURCE_OUT_DIR}/include/${TARGET_NAME}/shaders.hpp")
     set(OUTPUT_SOURCE "${SOURCE_OUT_DIR}/src/shaders.cpp")
 
-#    message("OUTPUT_HEADER: ${OUTPUT_HEADER}")
-#    message("OUTPUT_SOURCE: ${OUTPUT_SOURCE}")
+    #    message("OUTPUT_HEADER: ${OUTPUT_HEADER}")
+    #    message("OUTPUT_SOURCE: ${OUTPUT_SOURCE}")
 
     # create output implementation and header
     file(WRITE ${OUTPUT_HEADER}
@@ -112,7 +118,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME SHADER_COMPILER SPIRV_OUT_DIR
 
             execute_process(
                     COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OUT_DIR}/shaders/"
-                    COMMAND ${SHADER_COMPILER} --target-env ${SPIRV_TARGET_ENV} ${GLSL} -o ${SPIRV}
+                    COMMAND ${SHADER_COMPILER} --target-env ${SPIRV_TARGET_ENV} ${GLSLANG_EXTRA_PARAMS} ${GLSL} -o ${SPIRV}
                     OUTPUT_VARIABLE glslang_std_out
                     ERROR_VARIABLE glslang_std_err
                     RESULT_VARIABLE ret
