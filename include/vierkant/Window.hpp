@@ -213,6 +213,11 @@ public:
     SwapChain &swapchain() { return m_swap_chain; }
 
     /**
+     * @return  the total number of frames drawn
+     */
+    uint64_t num_frames() const { return m_num_frames; }
+
+    /**
      * @brief   create an internal SwapChain for this Window.
      *          this is necessary after creating or resizing the Window
      *
@@ -249,6 +254,9 @@ private:
 
     // keep track of previous joystick-states
     std::vector<vierkant::Joystick> m_joysticks;
+
+    // keep track of total number of frames drawn
+    uint64_t m_num_frames = 0;
 };
 
 }// namespace vierkant
