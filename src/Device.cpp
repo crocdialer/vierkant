@@ -203,7 +203,6 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
             extensions.push_back(ext_name);
         }
     };
-    check_extension(g_portability_ext_name);
 
     // check if mesh-shading was requested and if so, enable fragment-rate-shading as well.
     // this is for some weird reason required by primitive-culling in mesh-shaders
@@ -211,7 +210,11 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     {
         check_extension(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
     }
+
+    // shader barycentric
     check_extension(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
+
+    if(create_info.use_validation) { check_extension(VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME); }
 
     if(!vierkant::check_device_extension_support(create_info.physical_device, extensions))
     {
@@ -310,6 +313,12 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     VkPhysicalDeviceFragmentShaderBarycentricFeaturesKHR barycentric_features = {};
     barycentric_features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
     update_pnext(barycentric_features, VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
+
+    //------------------------------------ VK_KHR_shader_relaxed_extended_instruction ----------------------------------
+    VkPhysicalDeviceShaderRelaxedExtendedInstructionFeaturesKHR extended_instruction_features = {};
+    extended_instruction_features.sType =
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_RELAXED_EXTENDED_INSTRUCTION_FEATURES_KHR;
+    update_pnext(extended_instruction_features, VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME);
 
     //------------------------------------------------------------------------------------------------------------------
     *pNext = create_info.create_device_pNext;
