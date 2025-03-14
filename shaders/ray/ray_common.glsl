@@ -1,8 +1,8 @@
 #ifndef RAY_COMMON_GLSL
 #define RAY_COMMON_GLSL
 
-#define EPS 0.0001
-#define PDF_EPS 0.001
+#define EPS 1e-4
+#define PDF_EPS 1e-3
 
 #include "../utils/packed_vertex.glsl"
 

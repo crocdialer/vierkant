@@ -168,7 +168,7 @@ void main()
     bool sample_medium = false;
     vec3 sigma_t = payload.media.sigma_s + payload.media.sigma_a;
 
-    if(all(greaterThan(sigma_t, vec3(0))))
+    if(any(greaterThan(sigma_t, vec3(0))))
     {
         float t = 0;
         int channel = int(min(rnd(rng_state) * 3, 2));
@@ -180,7 +180,7 @@ void main()
         if(homogenous_medium)
         {
             // sample a ray hit_t
-            t = min(-log(1 - rnd(rng_state)) / sigma_t[channel], gl_HitTEXT);
+            t = min(-log(1 - rnd(rng_state)) / max(sigma_t[channel], EPS), gl_HitTEXT);
 
             // determine scattering
             sample_medium = t < gl_HitTEXT;
@@ -188,7 +188,7 @@ void main()
             // beam_transmittance (Beer's law)
             vec3 beam_tr = exp(-sigma_t * t);
             vec3 density = sample_medium ? beam_tr * sigma_t : beam_tr;
-            float pdf = channel_avg(density);
+            float pdf = max(channel_avg(density), PDF_EPS);
             payload.beta *= sample_medium ? (sigma_s * beam_tr / pdf) : (beam_tr / pdf);
         }
         else
@@ -222,7 +222,6 @@ void main()
                     break;
                 }
             }
-            payload.beta *= sample_medium ? (sigma_s / sigma_t) : vec3(1.0);
         }
 
         // sample scattering event
@@ -358,7 +357,7 @@ void main()
             sun_params.intensity = 1.0;
             sun_params.direction = normalize(vec3(.4, 1.0, 0.7));
             sun_params.angular_size = 0.524167 *  PI / 180.0;
-            vec3 sun_L = sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.ff_normal, V, eta,
+            vec3 sun_L = sample_sun_light(material, sun_params, topLevelAS, payload.position, payload.normal, V, eta,
                                           rng_state);
             payload.radiance += payload.beta * sun_L;
         }
