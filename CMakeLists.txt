@@ -43,8 +43,9 @@ endif ()
 option(BUILD_SHARED_LIBS "Build Shared Libraries" OFF)
 option(BUILD_TESTS "Build Tests" ON)
 option(BUILD_EXAMPLES "Build Examples" ON)
+option(BUILD_SPIRV_DEBUG_SYMBOLS "Build SPIRV debug symbols" OFF)
 
-if( MSVC)
+if (MSVC)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE INTERNAL "")
 endif ()
 
@@ -55,6 +56,12 @@ else ()
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
     set(LIB_TYPE SHARED)
 endif (NOT BUILD_SHARED_LIBS)
+
+if (BUILD_SPIRV_DEBUG_SYMBOLS)
+    set(SPIRV_DEBUG_SYMBOLS ON CACHE INTERNAL "")
+else ()
+    set(SPIRV_DEBUG_SYMBOLS OFF CACHE INTERNAL "")
+endif ()
 
 ## cmake modules
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake_modules ${CMAKE_MODULE_PATH})
@@ -126,6 +133,7 @@ add_custom_command(OUTPUT ${SHADERS_CPP}
         -D SPIRV_OUTPUT_DIR="${PROJECT_BINARY_DIR}"
         -D SOURCE_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
         -D TARGET_NAME="${PROJECT_NAME}"
+        -D SPIRV_DEBUG_SYMBOLS=SPIRV_DEBUG_SYMBOLS
         -P cmake_modules/build_shaders.cmake
         DEPENDS ${GLSL_SOURCE_FILES}
         COMMENT "recompiling shaders -> SPIRV -> shaders.hpp/cpp")
@@ -160,17 +168,17 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 # install vierkant-headers
-install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include")
-install (DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "include")
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include")
 
 # install entt-headers
-install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/entt/single_include/entt DESTINATION "include/vierkant/bundled")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/entt/single_include/entt DESTINATION "include/vierkant/bundled")
 
 # install glm-headers
-install (DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include/vierkant/bundled")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include/vierkant/bundled")
 
 # install imgui-headers
 set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/submodules/imgui)
-install (FILES ${IMGUI_DIR}/imconfig.h ${IMGUI_DIR}/imgui.h DESTINATION "include/vierkant/bundled")
+install(FILES ${IMGUI_DIR}/imconfig.h ${IMGUI_DIR}/imgui.h DESTINATION "include/vierkant/bundled")
 
-install (TARGETS ${LIB_NAME} DESTINATION lib)
+install(TARGETS ${LIB_NAME} DESTINATION lib)
