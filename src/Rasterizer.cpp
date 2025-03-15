@@ -377,7 +377,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
-        if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size())
+        if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size() && !drawable.mesh->root_bone &&
+           !drawable.mesh->morph_buffer)
         {
             indexed_drawable.meshlet_visibility_index = meshlet_visibility_index;
             for(const auto &lod: drawable.mesh->entries[drawable.entry_index].lods)
@@ -712,6 +713,8 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
         {
+            bool skip_meshlets = drawable.mesh->root_bone || drawable.mesh->morph_buffer;
+
             auto mesh_entry_it = mesh_entry_map.find({drawable.mesh, drawable.entry_index});
             if(mesh_entry_it == mesh_entry_map.end())
             {
@@ -724,6 +727,15 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 mesh_entry.lod_count = e.lods.size();
                 memcpy(mesh_entry.lods, e.lods.data(),
                        std::min(sizeof(mesh_entry.lods), e.lods.size() * sizeof(Mesh::lod_t)));
+
+                if(skip_meshlets)
+                {
+                    for(uint32_t j = 0; j < mesh_entry.lod_count; ++j)
+                    {
+                        mesh_entry.lods[j].num_meshlets = 0;
+                        mesh_entry.lods[j].base_meshlet = 0;
+                    }
+                }
                 mesh_entry.center = e.bounding_sphere.center;
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
@@ -739,12 +751,15 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 material_data.push_back(drawable.material);
             }
 
-            // set visibility-bits low/hi for all lods
-            size_t num_array_elems = 0;
-            uint32_t vis = indirect_draw ? 0 : 0xFFFFFFFF;
-            const auto &entry = drawable.mesh->entries[drawable.entry_index];
-            for(const auto &lod: entry.lods) { num_array_elems += div_up(lod.num_meshlets, 32); }
-            meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, vis);
+            if(!skip_meshlets)
+            {
+                // set visibility-bits low/hi for all lods
+                size_t num_array_elems = 0;
+                uint32_t vis = indirect_draw ? 0 : 0xFFFFFFFF;
+                const auto &entry = drawable.mesh->entries[drawable.entry_index];
+                for(const auto &lod: entry.lods) { num_array_elems += div_up(lod.num_meshlets, 32); }
+                meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, vis);
+            }
         }
         else { material_data.push_back(drawable.material); }
 
