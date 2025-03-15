@@ -36,6 +36,10 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, params.animation_time, node_transforms);
         vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, params.animation_time, node_morph_weights);
     }
+
+    bool use_meshlets = mesh->meshlets && mesh->meshlet_vertices && mesh->meshlet_triangles && !mesh->root_bone &&
+                        !mesh->morph_buffer;
+
     for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
         if(mesh_component.entry_indices && !mesh_component.entry_indices->contains(i)) { continue; }
@@ -102,7 +106,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
                 desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
             }
 
-            if(drawable.mesh->meshlets && drawable.mesh->meshlet_vertices && drawable.mesh->meshlet_triangles)
+            if(use_meshlets)
             {
                 auto &desc_meshlets = drawable.descriptors[Rasterizer::BINDING_MESHLETS];
                 desc_meshlets.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
