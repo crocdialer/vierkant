@@ -1,5 +1,5 @@
-#include <set>
 #include "vierkant/staging_copy.hpp"
+#include <set>
 
 namespace vierkant
 {
@@ -15,7 +15,7 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
     context.staging_buffer->set_data(nullptr, num_staging_bytes);
 
     std::vector<VkBufferMemoryBarrier2> barriers;
-    std::map<vierkant::Buffer*, std::vector<VkBufferCopy2>> buffer_copies;
+    std::map<vierkant::Buffer *, std::vector<VkBufferCopy2>> buffer_copies;
 
     for(const auto &info: staging_copy_infos)
     {
@@ -25,9 +25,6 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
         // copy array into staging-buffer
         auto staging_data = static_cast<uint8_t *>(context.staging_buffer->map()) + context.offset;
         memcpy(staging_data, info.data, info.num_bytes);
-
-        // resize if necessary
-        info.dst_buffer->set_data(nullptr, info.num_bytes);
 
         VkBufferCopy2 copy_region = {};
         copy_region.sType = VK_STRUCTURE_TYPE_BUFFER_COPY_2;
@@ -54,8 +51,14 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
         }
     }
 
-    for(const auto &[buf, copies] : buffer_copies)
+    for(const auto &[buf, copies]: buffer_copies)
     {
+        VkDeviceSize num_bytes = 0;
+        for(const auto &copy: copies) { num_bytes = std::max(num_bytes, copy.size + copy.dstOffset); }
+        
+        // resize if necessary
+        buf->set_data(nullptr, num_bytes);
+
         VkCopyBufferInfo2 copy_info2 = {};
         copy_info2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
         copy_info2.srcBuffer = context.staging_buffer->handle();
