@@ -421,6 +421,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
+                bool use_meshlets = !drawable->mesh->morph_buffer && !drawable->mesh->bone_vertex_buffer;
                 auto draw_command = static_cast<indexed_indirect_command_t *>(
                                             frame_assets.indirect_indexed_bundle.draws_in->map()) +
                                     frame_assets.indirect_indexed_bundle.num_draws++;
@@ -438,13 +439,16 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 draw_command->object_index = indexed_drawable.object_index;
                 draw_command->visible = false;
 
-                draw_command->base_meshlet = drawable->base_meshlet;
-                draw_command->num_meshlets = drawable->num_meshlets;
+                if(use_meshlets)
+                {
+                    draw_command->base_meshlet = drawable->base_meshlet;
+                    draw_command->num_meshlets = drawable->num_meshlets;
 
-                //! VkDrawMeshTasksIndirectCommandEXT
-                draw_command->vk_mesh_draw.groupCountX = div_up(drawable->num_meshlets, m_mesh_task_count);
-                draw_command->vk_mesh_draw.groupCountY = draw_command->vk_mesh_draw.groupCountZ = 1;
-                draw_command->meshlet_visibility_index = indexed_drawable.meshlet_visibility_index;
+                    //! VkDrawMeshTasksIndirectCommandEXT
+                    draw_command->vk_mesh_draw.groupCountX = div_up(drawable->num_meshlets, m_mesh_task_count);
+                    draw_command->vk_mesh_draw.groupCountY = draw_command->vk_mesh_draw.groupCountZ = 1;
+                    draw_command->meshlet_visibility_index = indexed_drawable.meshlet_visibility_index;
+                }
             }
             else
             {
@@ -713,7 +717,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
         {
-            bool skip_meshlets = drawable.mesh->root_bone || drawable.mesh->morph_buffer;
+            bool use_meshlets = !drawable.mesh->bone_vertex_buffer && !drawable.mesh->morph_buffer;
 
             auto mesh_entry_it = mesh_entry_map.find({drawable.mesh, drawable.entry_index});
             if(mesh_entry_it == mesh_entry_map.end())
@@ -728,7 +732,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 memcpy(mesh_entry.lods, e.lods.data(),
                        std::min(sizeof(mesh_entry.lods), e.lods.size() * sizeof(Mesh::lod_t)));
 
-                if(skip_meshlets)
+                if(!use_meshlets)
                 {
                     for(uint32_t j = 0; j < mesh_entry.lod_count; ++j)
                     {
@@ -751,11 +755,11 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 material_data.push_back(drawable.material);
             }
 
-            if(!skip_meshlets)
+            if(use_meshlets)
             {
                 // set visibility-bits low/hi for all lods
                 size_t num_array_elems = 0;
-                uint32_t vis = indirect_draw ? 0 : 0xFFFFFFFF;
+                uint32_t vis = 0xFFFFFFFF;
                 const auto &entry = drawable.mesh->entries[drawable.entry_index];
                 for(const auto &lod: entry.lods) { num_array_elems += div_up(lod.num_meshlets, 32); }
                 meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, vis);
