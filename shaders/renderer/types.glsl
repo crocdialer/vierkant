@@ -136,6 +136,21 @@ struct render_context_t
 #define BINDING_MESHLET_VISIBILITY 16
 #define BINDING_DEPTH_PYRAMID 17
 
+//! draw-command flag bits
+#define DRAW_COMMAND_FLAG_VISIBLE 0x01
+#define DRAW_COMMAND_FLAG_LATE_VISIBLE 0x02
+#define DRAW_COMMAND_FLAG_MESHLETS 0x04
+
+bool has_flag(uint flag_bits, uint flag)
+{
+    return (flag_bits & flag) != 0;
+}
+
+void set_flag(inout uint flag_bits, uint flag, bool value)
+{
+    flag_bits = value ? (flag_bits | flag) : (flag_bits & ~flag);
+}
+
 //! combined indirect-draw struct
 struct indexed_indirect_command_t
 {
@@ -151,14 +166,14 @@ struct indexed_indirect_command_t
     uint groupCountY;
     uint groupCountZ;
 
-    bool visible;
-    bool late_visible;
+    uint flags;
     uint object_index;
     uint base_meshlet;
     uint num_meshlets;
     uint meshlet_visibility_index;
     uint count_buffer_offset;
     uint first_draw_index;
+    uint pad;
 };
 
 //! meshlet parameters

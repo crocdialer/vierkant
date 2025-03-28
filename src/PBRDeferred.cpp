@@ -931,7 +931,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.frustum_cull = frame_context.settings.frustum_culling;
             gpu_cull_params.occlusion_cull = frame_context.settings.occlusion_culling;
             gpu_cull_params.lod_enabled = frame_context.settings.enable_lod;
-            gpu_cull_params.skip_meshlets = frame_context.settings.use_meshlet_pipeline;
+            gpu_cull_params.use_meshlets = frame_context.settings.use_meshlet_pipeline;
             gpu_cull_params.depth_pyramid = frame_context.depth_pyramid;
             gpu_cull_params.draws_in = frame_context.indirect_draw_params_main.draws_in;
             gpu_cull_params.mesh_draws_in = frame_context.indirect_draw_params_main.mesh_draws;

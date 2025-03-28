@@ -77,20 +77,29 @@ public:
         vierkant::Mesh::lod_t lods[8];
     };
 
+    //! draw-command flag bits
+    enum DrawCommandFlag
+    {
+        DRAW_COMMAND_FLAG_VISIBLE = 0x01,
+        DRAW_COMMAND_FLAG_LATE_VISIBLE = 0x02,
+        DRAW_COMMAND_FLAG_MESHLETS = 0x04
+    };
+
+
     struct alignas(16) indexed_indirect_command_t
     {
         VkDrawIndexedIndirectCommand vk_draw = {};// size: 5
 
         VkDrawMeshTasksIndirectCommandEXT vk_mesh_draw = {};// size: 3
 
-        uint32_t visible = false;
-        uint32_t late_visible = false;
+        uint32_t flags = 0;
         uint32_t object_index = 0;
         uint32_t base_meshlet = 0;
         uint32_t num_meshlets = 0;
         uint32_t meshlet_visibility_index = 0;
         uint32_t count_buffer_offset = 0;
         uint32_t first_draw_index = 0;
+        uint32_t pad = 0;
     };
 
     struct indirect_draw_bundle_t
