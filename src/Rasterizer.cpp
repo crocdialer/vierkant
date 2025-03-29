@@ -377,7 +377,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
-        if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size())
+        if(drawable.mesh && drawable.mesh->meshlets && drawable.entry_index < drawable.mesh->entries.size())
         {
             indexed_drawable.meshlet_visibility_index = meshlet_visibility_index;
             for(const auto &lod: drawable.mesh->entries[drawable.entry_index].lods)
@@ -420,7 +420,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
-                bool use_meshlets = !drawable->mesh->morph_buffer && !drawable->mesh->bone_vertex_buffer;
+                bool use_meshlets = drawable->mesh->meshlets && !drawable->mesh->morph_buffer &&
+                                    !drawable->mesh->bone_vertex_buffer;
                 auto draw_command = static_cast<indexed_indirect_command_t *>(
                                             frame_assets.indirect_indexed_bundle.draws_in->map()) +
                                     frame_assets.indirect_indexed_bundle.num_draws++;

@@ -33,9 +33,8 @@ OrthoCamera::OrthoCamera(const std::shared_ptr<entt::registry> &registry) : Obje
 
 glm::mat4 OrthoCamera::projection_matrix() const
 {
-    auto m = glm::orthoRH(orth_params.left, orth_params.right, orth_params.bottom, orth_params.top, orth_params.near_,
-                          orth_params.far_);
-    m[1][1] *= -1;
+    auto m = ortho_reverse_RH_ZO(orth_params.left, orth_params.right, orth_params.bottom, orth_params.top,
+                                 orth_params.near_, orth_params.far_);
     return m;
 }
 

@@ -336,8 +336,8 @@ Frustum::Frustum(float aspect, float fov, float near, float far)
 
 Frustum::Frustum(float left, float right, float bottom, float top, float near, float far)
 {
-    static glm::vec3 lookAt = glm::vec3(0, 0, -1), eyePos = glm::vec3(0), side = glm::vec3(1, 0, 0),
-                     up = glm::vec3(0, 1, 0);
+    constexpr glm::vec3 lookAt = glm::vec3(0, 0, -1), eyePos = glm::vec3(0), side = glm::vec3(1, 0, 0),
+                        up = glm::vec3(0, 1, 0);
     planes[0] = Plane(eyePos + (near * lookAt), lookAt);// near plane
     planes[1] = Plane(eyePos + (far * lookAt), -lookAt);// far plane
     planes[2] = Plane(eyePos + (left * side), side);    // left plane

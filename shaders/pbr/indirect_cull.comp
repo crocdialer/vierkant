@@ -96,6 +96,7 @@ void main()
     abs(mesh_draw.current_matrices.transform.scale_z));
 
     bool visible = true;
+    bool meshlet_draw = cull_data.use_meshlets && has_flag(draw.flags, DRAW_COMMAND_FLAG_MESHLETS);
 
     // 2D-screenspace AABB for a 3D-boundingsphere
     vec4 aabb;
@@ -178,11 +179,11 @@ void main()
         uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
         cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
 
-        if(needs_post_draw || (cull_data.use_meshlets && has_flag(draw.flags, DRAW_COMMAND_FLAG_MESHLETS)))
+        if(needs_post_draw || meshlet_draw)
         {
             // force visibility after lod-change
             set_flag(draw.flags, DRAW_COMMAND_FLAG_LATE_VISIBLE, needs_post_draw ||
-                     (cull_data.use_meshlets && (draw.base_meshlet != cull_data.draws_in.v[gid].base_meshlet)));
+                     (meshlet_draw && (draw.base_meshlet != cull_data.draws_in.v[gid].base_meshlet)));
 
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
