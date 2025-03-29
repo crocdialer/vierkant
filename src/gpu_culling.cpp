@@ -223,7 +223,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.contribution_cull = params.contribution_cull;
     draw_cull_data.frustum_cull = params.frustum_cull;
     draw_cull_data.lod_enabled = params.lod_enabled;
-    draw_cull_data.skip_meshlets = params.skip_meshlets;
+    draw_cull_data.skip_meshlets = params.use_meshlets;
     draw_cull_data.task_workgroup_size = context->device->properties().mesh_shader.maxPreferredTaskWorkGroupInvocations;
 
     // buffer references

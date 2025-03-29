@@ -377,7 +377,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
-        if(drawable.mesh && drawable.entry_index < drawable.mesh->entries.size())
+        if(drawable.mesh && drawable.mesh->meshlets && drawable.entry_index < drawable.mesh->entries.size())
         {
             indexed_drawable.meshlet_visibility_index = meshlet_visibility_index;
             for(const auto &lod: drawable.mesh->entries[drawable.entry_index].lods)
@@ -420,6 +420,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
+                bool use_meshlets = drawable->mesh->meshlets && !drawable->mesh->morph_buffer &&
+                                    !drawable->mesh->bone_vertex_buffer;
                 auto draw_command = static_cast<indexed_indirect_command_t *>(
                                             frame_assets.indirect_indexed_bundle.draws_in->map()) +
                                     frame_assets.indirect_indexed_bundle.num_draws++;
@@ -435,7 +437,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->object_index = indexed_drawable.object_index;
-                draw_command->visible = false;
+                draw_command->flags = use_meshlets ? DRAW_COMMAND_FLAG_MESHLETS : 0;
 
                 draw_command->base_meshlet = drawable->base_meshlet;
                 draw_command->num_meshlets = drawable->num_meshlets;
@@ -724,6 +726,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 mesh_entry.lod_count = e.lods.size();
                 memcpy(mesh_entry.lods, e.lods.data(),
                        std::min(sizeof(mesh_entry.lods), e.lods.size() * sizeof(Mesh::lod_t)));
+
                 mesh_entry.center = e.bounding_sphere.center;
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
@@ -741,7 +744,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
             // set visibility-bits low/hi for all lods
             size_t num_array_elems = 0;
-            uint32_t vis = indirect_draw ? 0 : 0xFFFFFFFF;
+            uint32_t vis = 0xFFFFFFFF;
             const auto &entry = drawable.mesh->entries[drawable.entry_index];
             for(const auto &lod: entry.lods) { num_array_elems += div_up(lod.num_meshlets, 32); }
             meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, vis);

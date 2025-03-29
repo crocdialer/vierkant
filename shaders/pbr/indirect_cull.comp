@@ -29,10 +29,10 @@ struct draw_cull_data_t
 {
     mat4 view;
 
-//! symmetric projection parameters
+    //! symmetric projection parameters
     float P00, P11, znear, zfar;
 
-//! left/right/top/bottom frustum planes
+    //! left/right/top/bottom frustum planes
     vec4 frustum;
 
     uint num_draws;
@@ -54,7 +54,7 @@ struct draw_cull_data_t
     bool contribution_cull;
 
     // do not cull objects cntaining meshlets
-    bool skip_meshlets;
+    bool use_meshlets;
 
     bool lod_enabled;
 
@@ -96,6 +96,7 @@ void main()
     abs(mesh_draw.current_matrices.transform.scale_z));
 
     bool visible = true;
+    bool meshlet_draw = cull_data.use_meshlets && has_flag(draw.flags, DRAW_COMMAND_FLAG_MESHLETS);
 
     // 2D-screenspace AABB for a 3D-boundingsphere
     vec4 aabb;
@@ -144,8 +145,8 @@ void main()
         float aabb_area = (aabb.z - aabb.x) * (aabb.w - aabb.y);
         float lod_index_f = log2(cull_data.lod_base / aabb_area) / log2(cull_data.lod_step);
 
-        uint max_lod_index = (cull_data.max_num_lods > 0 ? min(cull_data.max_num_lods, mesh_entry.lod_count)
-        : mesh_entry.lod_count) - 1;
+        uint max_lod_index = max((cull_data.max_num_lods > 0 ? min(cull_data.max_num_lods, mesh_entry.lod_count)
+                                                             : mesh_entry.lod_count) - 1, 0);
         uint lod_index = sphere_visible ? clamp(uint(lod_index_f + 1), 0, max_lod_index) : 0;
 
         // select lod
@@ -173,16 +174,16 @@ void main()
         atomicAdd(cull_data.draw_result.v.num_meshlets, draw.num_meshlets);
 
         // became visible this frame -> not drawn in 1st-pass
-        bool needs_post_draw = !draw.visible;
+        bool needs_post_draw = !has_flag(draw.flags, DRAW_COMMAND_FLAG_VISIBLE);
 
         uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
         cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
 
-        if(needs_post_draw || (cull_data.skip_meshlets && draw.num_meshlets > 0))
+        if(needs_post_draw || meshlet_draw)
         {
             // force visibility after lod-change
-            draw.late_visible = needs_post_draw ||
-                (cull_data.skip_meshlets && (draw.base_meshlet != cull_data.draws_in.v[gid].base_meshlet));
+            set_flag(draw.flags, DRAW_COMMAND_FLAG_LATE_VISIBLE, needs_post_draw ||
+                     (meshlet_draw && (draw.base_meshlet != cull_data.draws_in.v[gid].base_meshlet)));
 
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
@@ -190,6 +191,6 @@ void main()
     }
 
     // update visiblity
-    cull_data.draws_in.v[gid].visible = visible;
+    set_flag(cull_data.draws_in.v[gid].flags, DRAW_COMMAND_FLAG_VISIBLE, visible);
     cull_data.draws_in.v[gid].base_meshlet = draw.base_meshlet;
 }
