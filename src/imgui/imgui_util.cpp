@@ -1120,20 +1120,32 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
         }
         auto global_transform = object->global_transform();
         glm::mat4 m = vierkant::mat4_cast(global_transform);
-        bool is_ortho = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
+        auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
         auto z_val = m[3].z;
-        ImGuizmo::SetOrthographic(is_ortho);
+        ImGuizmo::SetOrthographic(ortho_cam);
 
         auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(camera);
-        const auto &cam_params = perspective_cam->perspective_params;
-        float fovy = is_ortho ? 0.f : cam_params.fovy();
 
         auto sz = ImGui::GetIO().DisplaySize;
-        auto proj = glm::perspectiveRH(fovy, sz.x / sz.y, camera->near(), camera->far());
+        bool changed = false;
         auto view = vierkant::mat4_cast(camera->view_transform());
-        bool changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
-                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
-        if(is_ortho) { m[3].z = z_val; }
+
+        if(ortho_cam)
+        {
+            const auto &cam_params = ortho_cam->orth_params;
+            auto proj = glm::orthoRH(cam_params.left, cam_params.right, cam_params.bottom, cam_params.top,
+                                     cam_params.near_, cam_params.far_);
+            changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
+                                           ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
+        }
+        else if(perspective_cam)
+        {
+            const auto &cam_params = perspective_cam->perspective_params;
+            auto proj = glm::perspectiveRH(cam_params.fovy(), sz.x / sz.y, camera->near(), camera->far());
+            changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
+                                           ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
+        }
+        if(ortho_cam) { m[3].z = z_val; }
         if(changed) { object->set_global_transform(vierkant::transform_cast(m)); }
     }
 }
