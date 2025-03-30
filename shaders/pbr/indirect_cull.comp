@@ -95,7 +95,7 @@ void main()
     abs(mesh_draw.current_matrices.transform.scale_y)),
     abs(mesh_draw.current_matrices.transform.scale_z));
 
-    bool visible = true;
+    bool visible = has_flag(draw.flags, DRAW_COMMAND_FLAG_ENABLED);
     bool meshlet_draw = cull_data.use_meshlets && has_flag(draw.flags, DRAW_COMMAND_FLAG_MESHLETS);
 
     // 2D-screenspace AABB for a 3D-boundingsphere
@@ -105,7 +105,7 @@ void main()
     // object bound's area in NDC
     vec2 screen_area = aabb.zw - aabb.xy;
 
-    if(cull_data.frustum_cull)
+    if(visible && cull_data.frustum_cull)
     {
         // the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
         visible = visible && !frustum_cull(center, radius, cull_data.frustum);
