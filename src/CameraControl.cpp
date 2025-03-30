@@ -2,8 +2,8 @@
 // Created by crocdialer on 12/20/19.
 //
 
-#include <algorithm>
 #include "vierkant/CameraControl.hpp"
+#include <algorithm>
 
 namespace vierkant
 {
@@ -78,16 +78,20 @@ void OrbitCamera::mouse_press(const MouseEvent &e)
 
 void OrbitCamera::mouse_drag(const MouseEvent &e)
 {
+    if(!enabled) { return; }
     glm::vec2 diff = m_last_pos - e.position();
     m_last_pos = e.position();
 
-    if(enabled && e.is_left()) { orbit(diff); }
-    else if(enabled && e.is_right())
+    if(e.is_middle())
     {
-        diff *= glm::vec2(-1, 1) * distance / screen_size;
-        pan(diff);
+        if(e.is_shift_down())
+        {
+            diff *= glm::vec2(-1, 1) * distance / screen_size;
+            pan(diff);
+        }
+        else { orbit(diff); }
+        if(transform_cb) { transform_cb(transform()); }
     }
-    if(enabled && transform_cb) { transform_cb(transform()); }
 }
 
 vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
