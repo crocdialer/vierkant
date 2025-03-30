@@ -437,7 +437,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->object_index = indexed_drawable.object_index;
-                draw_command->flags = use_meshlets ? DRAW_COMMAND_FLAG_MESHLETS : 0;
+                draw_command->flags = DRAW_COMMAND_FLAG_ENABLED | (use_meshlets ? DRAW_COMMAND_FLAG_MESHLETS : 0);
 
                 draw_command->base_meshlet = drawable->base_meshlet;
                 draw_command->num_meshlets = drawable->num_meshlets;

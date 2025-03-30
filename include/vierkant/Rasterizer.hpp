@@ -80,9 +80,10 @@ public:
     //! draw-command flag bits
     enum DrawCommandFlag
     {
-        DRAW_COMMAND_FLAG_VISIBLE = 0x01,
-        DRAW_COMMAND_FLAG_LATE_VISIBLE = 0x02,
-        DRAW_COMMAND_FLAG_MESHLETS = 0x04
+        DRAW_COMMAND_FLAG_ENABLED = 0x01,
+        DRAW_COMMAND_FLAG_VISIBLE = 0x02,
+        DRAW_COMMAND_FLAG_LATE_VISIBLE = 0x04,
+        DRAW_COMMAND_FLAG_MESHLETS = 0x08
     };
 
 

@@ -137,13 +137,14 @@ struct render_context_t
 #define BINDING_DEPTH_PYRAMID 17
 
 //! draw-command flag bits
-#define DRAW_COMMAND_FLAG_VISIBLE 0x01
-#define DRAW_COMMAND_FLAG_LATE_VISIBLE 0x02
-#define DRAW_COMMAND_FLAG_MESHLETS 0x04
+#define DRAW_COMMAND_FLAG_ENABLED 0x01
+#define DRAW_COMMAND_FLAG_VISIBLE 0x02
+#define DRAW_COMMAND_FLAG_LATE_VISIBLE 0x04
+#define DRAW_COMMAND_FLAG_MESHLETS 0x08
 
 bool has_flag(uint flag_bits, uint flag)
 {
-    return (flag_bits & flag) != 0;
+    return (flag_bits & flag) == flag;
 }
 
 void set_flag(inout uint flag_bits, uint flag, bool value)
