@@ -133,7 +133,7 @@ add_custom_command(OUTPUT ${SHADERS_CPP}
         -D SPIRV_OUTPUT_DIR="${PROJECT_BINARY_DIR}"
         -D SOURCE_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
         -D TARGET_NAME="${PROJECT_NAME}"
-        -D SPIRV_DEBUG_SYMBOLS=SPIRV_DEBUG_SYMBOLS
+        -D SPIRV_DEBUG_SYMBOLS=${SPIRV_DEBUG_SYMBOLS}
         -P cmake_modules/build_shaders.cmake
         DEPENDS ${GLSL_SOURCE_FILES}
         COMMENT "recompiling shaders -> SPIRV -> shaders.hpp/cpp")

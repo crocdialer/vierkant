@@ -17,6 +17,10 @@ if (NOT DEFINED SOURCE_OUTPUT_DIR)
     set(SOURCE_OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 endif ()
 
+if (NOT DEFINED SPIRV_DEBUG_SYMBOLS)
+    set(SPIRV_DEBUG_SYMBOLS OFF)
+endif ()
+
 # set glsl-compiler
 find_program(SHADER_COMPILER "glslang" REQUIRED)
 
