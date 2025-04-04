@@ -496,7 +496,7 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                 }
                 else
                 {
-                    constexpr uint32_t options = 0;
+                    constexpr uint32_t options = meshopt_SimplifyPrune;
                     float normal_weights[3] = {1.f, 1.f, 1.f};
                     num_indices = meshopt_simplifyWithAttributes(
                             lod_indices.data(), lod_indices.data(), lod_indices.size(),

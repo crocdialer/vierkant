@@ -75,8 +75,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_context.composition_ubo =
                 vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-        frame_context.ray_camera_ubo =
-                vierkant::Buffer::create(m_device, nullptr, sizeof(camera_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        frame_context.ray_gen_ubo =
+                vierkant::Buffer::create(m_device, nullptr, sizeof(camera_params_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
         frame_context.ray_miss_ubo =
                 vierkant::Buffer::create(device, &frame_context.settings.environment_factor, sizeof(float),
@@ -429,7 +429,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[4];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_matrices.buffers = {frame_context.ray_camera_ubo};
+    desc_matrices.buffers = {frame_context.ray_gen_ubo};
 
     vierkant::descriptor_t &desc_vertex_buffers = frame_context.tracable.descriptors[5];
     desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -467,18 +467,25 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
 
     // assemble camera-ubo
-    camera_ubo_t camera_ubo = {};
-    camera_ubo.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
-    camera_ubo.projection_inverse = glm::inverse(cam->projection_matrix());
-    camera_ubo.view_inverse = vierkant::mat4_cast(cam->global_transform());
-    camera_ubo.fov = perspective_cam->perspective_params.fovy();
-    camera_ubo.aperture = frame_context.settings.depth_of_field
-                                  ? static_cast<float>(perspective_cam->perspective_params.aperture_size())
-                                  : 0.f;
-    camera_ubo.focal_distance = perspective_cam->perspective_params.focal_distance;
+    struct ray_gen_ubo_t
+    {
+        camera_params_t camera = {};
 
+        // default: air
+        media_t camera_media = {};
+    };
+    ray_gen_ubo_t ray_gen_ubo = {};
+    ray_gen_ubo.camera.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
+    ray_gen_ubo.camera.projection_inverse = glm::inverse(cam->projection_matrix());
+    ray_gen_ubo.camera.view_inverse = vierkant::mat4_cast(cam->global_transform());
+    ray_gen_ubo.camera.fov = perspective_cam->perspective_params.fovy();
+    ray_gen_ubo.camera.aperture = frame_context.settings.depth_of_field
+                                     ? static_cast<float>(perspective_cam->perspective_params.aperture_size())
+                                     : 0.f;
+    ray_gen_ubo.camera.focal_distance = perspective_cam->perspective_params.focal_distance;
+    
     // update uniform-buffers
-    frame_context.ray_camera_ubo->set_data(&camera_ubo, sizeof(camera_ubo_t));
+    frame_context.ray_gen_ubo->set_data(&ray_gen_ubo, sizeof(ray_gen_ubo_t));
     frame_context.ray_miss_ubo->set_data(&frame_context.settings.environment_factor, sizeof(float));
 
     if(m_environment)

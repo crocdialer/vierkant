@@ -186,7 +186,7 @@ private:
 
         vierkant::ImagePtr denoise_image, out_image, out_depth;
 
-        vierkant::BufferPtr ray_camera_ubo, ray_miss_ubo, composition_ubo;
+        vierkant::BufferPtr ray_gen_ubo, ray_miss_ubo, composition_ubo;
 
         BloomUPtr bloom;
 
@@ -223,7 +223,7 @@ private:
         uint32_t random_seed = 0;
     };
 
-    struct alignas(16) camera_ubo_t
+    struct alignas(16) camera_params_t
     {
         glm::mat4 projection_view{};
         glm::mat4 projection_inverse{};
@@ -231,6 +231,14 @@ private:
         float fov = glm::quarter_pi<float>();
         float aperture = 0.f;
         float focal_distance = 1.f;
+    };
+
+    struct media_t
+    {
+        glm::vec3 sigma_s = glm::vec3(0.f);
+        float ior = 1.f;
+        glm::vec3 sigma_a = glm::vec3(0.f);
+        float phase_g = 0.f;
     };
 
     struct alignas(16) composition_ubo_t
