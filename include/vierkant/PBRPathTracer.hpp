@@ -288,6 +288,9 @@ private:
     {
         vierkant::ImagePtr radiance;
         vierkant::ImagePtr normals;
+
+        vierkant::BufferPtr pixel_buffer;
+
         vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
     } m_storage;

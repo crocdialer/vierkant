@@ -13,6 +13,8 @@ struct pixel_buffer_t
     uint normal;
 
     uint object_id;
+
+    uint pad[2];
 };
 
 pixel_buffer_t pack(vec3 radiance, vec3 normal, float depth, uint object_id)

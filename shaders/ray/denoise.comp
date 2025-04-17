@@ -1,6 +1,6 @@
 #version 460
-
 #extension GL_GOOGLE_include_directive : require
+#include "pixel_buffer.glsl"
 
 #define COLOR 0
 #define NORMALS 1
@@ -9,6 +9,15 @@
 layout(binding = 0, rgba32f) readonly uniform image2D u_input[2];
 
 layout(binding = 1, rgba32f) writeonly uniform image2D u_out_image;
+
+layout(binding = 2, set = 0) readonly buffer Pixel{ pixel_buffer_t in_pixel[]; };
+
+layout(binding = 3, set = 0) writeonly buffer Depth{ float out_depth[]; };
+
+layout(push_constant) uniform PushConstants
+{
+    uvec2 size;
+};
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -72,4 +81,7 @@ void main()
 {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
     imageStore(u_out_image, coords, denoise(coords));
+
+    uint buffer_idx = gl_GlobalInvocationID.y * size.x + gl_GlobalInvocationID.x;
+    out_depth[buffer_idx] = in_pixel[buffer_idx].depth;
 }
