@@ -1,10 +1,10 @@
 #version 460
 #extension GL_GOOGLE_include_directive : require
+#include "../utils/constants.glsl"
 #include "pixel_buffer.glsl"
 
 #define COLOR 0
 #define NORMALS 1
-//#define POSITIONS 2
 
 layout(binding = 0, rgba32f) readonly uniform image2D u_input[2];
 
@@ -13,6 +13,8 @@ layout(binding = 1, rgba32f) writeonly uniform image2D u_out_image;
 layout(binding = 2, set = 0) readonly buffer Pixel{ pixel_buffer_t in_pixel[]; };
 
 layout(binding = 3, set = 0) writeonly buffer Depth{ float out_depth[]; };
+
+layout(binding = 4, r16ui) writeonly uniform uimage2D out_object_ids;
 
 layout(push_constant) uniform PushConstants
 {
@@ -80,8 +82,14 @@ vec4 denoise(ivec2 coords)
 void main()
 {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
-    imageStore(u_out_image, coords, denoise(coords));
+//    imageStore(u_out_image, coords, denoise(coords));
 
     uint buffer_idx = gl_GlobalInvocationID.y * size.x + gl_GlobalInvocationID.x;
     out_depth[buffer_idx] = in_pixel[buffer_idx].depth;
+
+    // store radiance
+    imageStore(u_out_image, coords, vec4(in_pixel[buffer_idx].radiance, in_pixel[buffer_idx].alpha));
+
+    // store object-ids
+    imageStore(out_object_ids, coords, uvec4(MAX_UINT16 - in_pixel[buffer_idx].object_id));
 }

@@ -10,6 +10,7 @@ using duration_t = std::chrono::duration<float>;
 struct alignas(16) pixel_buffer_t
 {
     glm::vec3 radiance;
+    float coverage;
     float depth;
 
     // normal in octahedral encoding
@@ -627,6 +628,11 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         desc_depth_out.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_depth_out.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
         desc_depth_out.buffers = {m_storage.depth};
+
+        vierkant::descriptor_t &desc_object_id = frame_context.denoise_computable.descriptors[4];
+        desc_object_id.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        desc_object_id.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_object_id.images = {m_storage.object_ids};
 
         frame_context.denoise_computable.push_constants.resize(sizeof(glm::uvec2));
         *reinterpret_cast<glm::uvec2 *>(frame_context.denoise_computable.push_constants.data()) =

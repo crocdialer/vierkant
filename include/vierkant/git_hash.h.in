@@ -1,4 +1,5 @@
 // template-header file, populated by cmake
 
+#define GIT_BRANCH_NAME "@GIT_BRANCH_NAME@"
 #define GIT_COMMIT_HASH "@GIT_COMMIT_HASH@"
 #define GIT_COMMIT_DATE "@GIT_COMMIT_DATE@"
