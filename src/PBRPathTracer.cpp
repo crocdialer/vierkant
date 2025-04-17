@@ -564,8 +564,8 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
 
         frame_context.tracable.extent = size;
 
-        // not really needed, idk. maybe prepare for shadow-rays
-        frame_context.tracable.pipeline_info.max_recursion = 3;
+        // no recursion required, shadow-rays via ray-queries
+        frame_context.tracable.pipeline_info.max_recursion = 1;
 
         frame_context.denoise_computable.extent = size;
         frame_context.denoise_computable.extent.width = vierkant::group_count(size.width, 16);
