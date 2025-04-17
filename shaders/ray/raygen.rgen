@@ -11,18 +11,11 @@
 
 #define MAX_MEDIA_STACK_SIZE 4
 
-#define RADIANCE 0
-#define NORMALS 1
-
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
-layout(binding = 1, set = 0, rgba32f) uniform image2D out_images[2];
+layout(binding = 1, set = 0) writeonly buffer Pixel{ pixel_buffer_t out_pixel[]; };
 
-layout(binding = 2, set = 0) writeonly buffer Pixel{ pixel_buffer_t out_pixel[]; };
-
-layout(binding = 3, r16ui) writeonly uniform uimage2D out_object_ids;
-
-layout(binding = 4, set = 0) uniform CameraProperties
+layout(binding = 2, set = 0) uniform CameraProperties
 {
     camera_ubo_t cam;
     media_t cam_media;

@@ -76,7 +76,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     denoise_computable.extent.height = vierkant::group_count(size.height, group_count.y);
 
     VkPushConstantRange push_constant_range = {};
-    push_constant_range.size = sizeof(glm::uvec2);
+    push_constant_range.size = sizeof(denoise_params_t);
     push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     denoise_computable.pipeline_info.push_constant_ranges = {push_constant_range};
 
@@ -321,24 +321,18 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     vkCmdWriteTimestamp2(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          frame_context.query_pool.get(), 2 * SemaphoreValue::DENOISER);
 
-    //    if(frame_context.settings.denoising)
-    {
-        // transition storage image
-        frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
+    auto &denoise_params =
+            *reinterpret_cast<denoise_params_t *>(frame_context.denoise_computable.push_constants.data());
+    denoise_params = {frame_context.settings.resolution, frame_context.settings.denoising};
 
-        // dispatch denoising-kernel
-        m_compute.dispatch({frame_context.denoise_computable}, frame_context.cmd_denoise.handle());
+    // transition storage image
+    frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
 
-        m_storage.depth->barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                                 VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                                 VK_ACCESS_TRANSFER_READ_BIT);
-    }
-    //    else
-    //    {
-    //        // actual copy command
-    //        m_storage.radiance->copy_to(frame_context.denoise_image, frame_context.cmd_denoise.handle());
-    //        m_storage.radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
-    //    }
+    // dispatch denoising-kernel
+    m_compute.dispatch({frame_context.denoise_computable}, frame_context.cmd_denoise.handle());
+
+    m_storage.depth->barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                             VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 
     frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
                                                    frame_context.cmd_denoise.handle());
@@ -431,22 +425,12 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_acceleration_structure.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_acceleration_structure.acceleration_structures = {frame_context.scene_ray_acceleration.top_lvl.structure};
 
-    auto &desc_storage_images = frame_context.tracable.descriptors[1];
-    desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_storage_images.images = {m_storage.radiance, m_storage.normals};
-
-    auto &desc_depth_buffer = frame_context.tracable.descriptors[2];
+    auto &desc_depth_buffer = frame_context.tracable.descriptors[1];
     desc_depth_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_depth_buffer.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_depth_buffer.buffers = {m_storage.pixel_buffer};
 
-    auto &desc_object_id_image = frame_context.tracable.descriptors[3];
-    desc_object_id_image.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    desc_object_id_image.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_object_id_image.images = {m_storage.object_ids};
-
-    vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[4];
+    vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[2];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_matrices.buffers = {frame_context.ray_gen_ubo};
@@ -547,7 +531,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
 {
     VkExtent3D size = {resolution.x, resolution.y, 1};
 
-    if(!m_storage.radiance || m_storage.radiance->extent() != size)
+    if(!m_storage.object_ids || m_storage.object_ids->extent() != size)
     {
         // create storage images
         vierkant::Image::Format storage_format = {};
@@ -558,9 +542,6 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         storage_format.initial_cmd_buffer = frame_context.cmd_pre_render.handle();
 
         // shared path-tracer-storage for all frame-assets
-        m_storage.radiance = vierkant::Image::create(m_device, storage_format);
-        m_storage.normals = vierkant::Image::create(m_device, storage_format);
-
         auto object_id_fmt = storage_format;
         object_id_fmt.format = VK_FORMAT_R16_UINT;
         m_storage.object_ids = vierkant::Image::create(m_device, object_id_fmt);
@@ -609,34 +590,29 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         frame_context.denoise_image = vierkant::Image::create(m_device, denoise_format);
 
         // denoise-compute
-        vierkant::descriptor_t &desc_denoise_input = frame_context.denoise_computable.descriptors[0];
-        desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_input.images = {m_storage.radiance, m_storage.normals};
+        vierkant::descriptor_t &desc_pixel_in = frame_context.denoise_computable.descriptors[0];
+        desc_pixel_in.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_pixel_in.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_pixel_in.buffers = {m_storage.pixel_buffer};
 
         vierkant::descriptor_t &desc_denoise_output = frame_context.denoise_computable.descriptors[1];
         desc_denoise_output.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         desc_denoise_output.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
         desc_denoise_output.images = {frame_context.denoise_image};
 
-        vierkant::descriptor_t &desc_pixel_in = frame_context.denoise_computable.descriptors[2];
-        desc_pixel_in.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        desc_pixel_in.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_pixel_in.buffers = {m_storage.pixel_buffer};
-
-        vierkant::descriptor_t &desc_depth_out = frame_context.denoise_computable.descriptors[3];
+        vierkant::descriptor_t &desc_depth_out = frame_context.denoise_computable.descriptors[2];
         desc_depth_out.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_depth_out.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
         desc_depth_out.buffers = {m_storage.depth};
 
-        vierkant::descriptor_t &desc_object_id = frame_context.denoise_computable.descriptors[4];
+        vierkant::descriptor_t &desc_object_id = frame_context.denoise_computable.descriptors[3];
         desc_object_id.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         desc_object_id.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
         desc_object_id.images = {m_storage.object_ids};
 
-        frame_context.denoise_computable.push_constants.resize(sizeof(glm::uvec2));
-        *reinterpret_cast<glm::uvec2 *>(frame_context.denoise_computable.push_constants.data()) =
-                frame_context.settings.resolution;
+        frame_context.denoise_computable.push_constants.resize(sizeof(denoise_params_t));
+        *reinterpret_cast<denoise_params_t *>(frame_context.denoise_computable.push_constants.data()) = {
+                frame_context.settings.resolution, frame_context.settings.denoising};
 
         // depth-image
         Image::Format depth_image_format = {};
