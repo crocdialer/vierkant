@@ -283,14 +283,14 @@ private:
 
     size_t m_batch_index = 0;
 
-    //! path-tracing storage images
+    //! path-tracing storage buffers and images
     struct
     {
         vierkant::ImagePtr radiance;
         vierkant::ImagePtr normals;
         vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
-    } m_storage_images;
+    } m_storage;
 
     //! owns raytracing pipelines and shader-bindingtables
     vierkant::RayTracer m_ray_tracer;
