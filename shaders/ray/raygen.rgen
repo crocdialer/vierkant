@@ -6,22 +6,16 @@
 #include "../utils/hash.glsl"
 #include "../utils/bsdf.glsl"
 #include "ray_common.glsl"
+#include "pixel_buffer.glsl"
 #include "reservoir.glsl"
 
 #define MAX_MEDIA_STACK_SIZE 4
 
-#define RADIANCE 0
-#define NORMALS 1
-
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
-layout(binding = 1, set = 0, rgba32f) uniform image2D out_images[2];
+layout(binding = 1, set = 0) writeonly buffer Pixel{ pixel_buffer_t out_pixel[]; };
 
-layout(binding = 2, set = 0) writeonly buffer Depth{ float out_depth[]; };
-
-layout(binding = 3, r16ui) writeonly uniform uimage2D out_object_ids;
-
-layout(binding = 4, set = 0) uniform CameraProperties
+layout(binding = 2, set = 0) uniform CameraProperties
 {
     camera_ubo_t cam;
     media_t cam_media;
@@ -170,20 +164,20 @@ trace_result_t trace(vec2 coord, vec2 size)
 void main()
 {
     trace_result_t trace_result = trace(gl_LaunchIDEXT.xy, gl_LaunchSizeEXT.xy);
+    uint buffer_idx = gl_LaunchIDEXT.x + gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x;
     vec4 accumulated_radiance = vec4(trace_result.radiance, smoothstep(0, 1, trace_result.coverage));
 
     if(push_constants.batch_index != 0)
     {
         uint size = push_constants.batch_index;
-        accumulated_radiance += size * imageLoad(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy));
+        accumulated_radiance += size * vec4(out_pixel[buffer_idx].radiance, out_pixel[buffer_idx].alpha);
         accumulated_radiance /= size + 1;
     }
-    imageStore(out_images[RADIANCE], ivec2(gl_LaunchIDEXT.xy), accumulated_radiance);
-    imageStore(out_images[NORMALS], ivec2(gl_LaunchIDEXT.xy), vec4(trace_result.normal, 0.0));
 
-    // store object-ids
-    imageStore(out_object_ids, ivec2(gl_LaunchIDEXT.xy), uvec4(MAX_UINT16 - trace_result.entity_index));
-
-    // store depth
-    out_depth[gl_LaunchIDEXT.x + gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x] = trace_result.depth;
+    // store pixel
+    out_pixel[buffer_idx] =  pack(accumulated_radiance.rgb,
+                                  trace_result.coverage,
+                                  trace_result.normal,
+                                  trace_result.depth,
+                                  trace_result.entity_index);
 }

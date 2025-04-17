@@ -223,6 +223,12 @@ private:
         uint32_t random_seed = 0;
     };
 
+    struct denoise_params_t
+    {
+        glm::uvec2 size;
+        VkBool32 denoise;
+    };
+
     struct alignas(16) camera_params_t
     {
         glm::mat4 projection_view{};
@@ -283,14 +289,13 @@ private:
 
     size_t m_batch_index = 0;
 
-    //! path-tracing storage images
+    //! path-tracing storage buffers and images
     struct
     {
-        vierkant::ImagePtr radiance;
-        vierkant::ImagePtr normals;
+        vierkant::BufferPtr pixel_buffer;
         vierkant::BufferPtr depth;
         vierkant::ImagePtr object_ids;
-    } m_storage_images;
+    } m_storage;
 
     //! owns raytracing pipelines and shader-bindingtables
     vierkant::RayTracer m_ray_tracer;

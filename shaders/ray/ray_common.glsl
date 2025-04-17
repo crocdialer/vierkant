@@ -55,30 +55,30 @@ struct payload_t
     // current depth of path
     uint depth;
 
-    // terminate path
-    bool stop;
-
     // worldspace position
     vec3 position;
+
+    // terminate path
+    bool stop;
 
     // worldspace normal
     vec3 normal;
 
+    float last_ior;
+
     // accumulated radiance along a path
     vec3 radiance;
-
-    // path throughput
-    vec3 beta;
-
-    media_t media;
-
-    float last_ior;
 
     // media-transition in/out/no-op
     uint media_op;
 
+    // path throughput
+    vec3 beta;
+
     // object/entity
     uint entity_index;
+
+    media_t media;
 };
 
 struct push_constants_t

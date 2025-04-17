@@ -1,14 +1,23 @@
 #version 460
-
 #extension GL_GOOGLE_include_directive : require
+#include "../utils/constants.glsl"
+#include "pixel_buffer.glsl"
 
-#define COLOR 0
-#define NORMALS 1
-//#define POSITIONS 2
-
-layout(binding = 0, rgba32f) readonly uniform image2D u_input[2];
+layout(binding = 0, set = 0) readonly buffer Pixel{ pixel_buffer_t in_pixel[]; };
 
 layout(binding = 1, rgba32f) writeonly uniform image2D u_out_image;
+
+layout(binding = 2, set = 0) writeonly buffer Depth{ float out_depth[]; };
+
+layout(binding = 3, r16ui) writeonly uniform uimage2D out_object_ids;
+
+struct push_constants_t
+{
+    uvec2 size;
+    bool denoise;
+};
+
+layout(push_constant) uniform PushConstant{push_constants_t constants;};
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -35,23 +44,25 @@ vec4 denoise(ivec2 coords)
     float normalPhi = 1.0 / .3f; // ubo.normalPhi;
     float positionPhi = 1.0 / .6f; //ubo.positionPhi;
 
-    vec3 cval = imageLoad(u_input[COLOR], coords).rgb;     // color
-    vec3 nval = imageLoad(u_input[NORMALS], coords).rgb;   // normal
+    uint buffer_idx = coords.y * constants.size.x + coords.x;
+    vec3 cval = in_pixel[buffer_idx].radiance.rgb;//imageLoad(u_input[COLOR], coords).rgb;     // color
+    vec3 nval = octahedral_mapping_to_normalized_vector(unpack_snorm_2x16(in_pixel[buffer_idx].normal));   // normal
 //    vec3 pval = imageLoad(u_input[POSITIONS], coords).rgb; // position
 
     float cum_w = 0.0;
 
     for(uint i = 0; i < 25; ++i)
     {
-        ivec2 uv = ivec2(fragCoord + offset[i] * 2);
+        ivec2 uv = clamp(ivec2(fragCoord + offset[i] * 2), ivec2(0), ivec2(constants.size - 1));
+        buffer_idx = uv.y * constants.size.x + uv.x;
 
         // Color
-        vec3 ctmp = imageLoad(u_input[COLOR], uv).rgb;
+        vec3 ctmp = in_pixel[buffer_idx].radiance.rgb;
         vec3 t = cval - ctmp;							// Ip - Iq		(color difference)
         float dist2 = dot(t, t);						// ||Ip - Iq||	(distance squared)
         float c_w = min(exp(-(dist2) * colorPhi), 1.0); // w(p,q)		(weight function)
 
-        vec3 ntmp = imageLoad(u_input[NORMALS], uv).rgb;
+        vec3 ntmp = octahedral_mapping_to_normalized_vector(unpack_snorm_2x16(in_pixel[buffer_idx].normal));//imageLoad(u_input[NORMALS], uv).rgb;
         t = nval - ntmp;
         dist2 = dot(t, t);
         float n_w = min(exp(-(dist2) * normalPhi), 1.0);
@@ -71,5 +82,20 @@ vec4 denoise(ivec2 coords)
 void main()
 {
     ivec2 coords = ivec2(gl_GlobalInvocationID.xy);
-    imageStore(u_out_image, coords, denoise(coords));
+
+    uint buffer_idx = gl_GlobalInvocationID.y * constants.size.x + gl_GlobalInvocationID.x;
+    out_depth[buffer_idx] = in_pixel[buffer_idx].depth;
+
+    if(constants.denoise)
+    {
+        imageStore(u_out_image, coords, denoise(coords));
+    }
+    else
+    {
+        // store radiance
+        imageStore(u_out_image, coords, vec4(in_pixel[buffer_idx].radiance, in_pixel[buffer_idx].alpha));
+    }
+
+    // store object-ids
+    imageStore(out_object_ids, coords, uvec4(MAX_UINT16 - in_pixel[buffer_idx].object_id));
 }

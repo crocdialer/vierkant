@@ -7,6 +7,18 @@ namespace vierkant
 
 using duration_t = std::chrono::duration<float>;
 
+struct alignas(16) pixel_buffer_t
+{
+    glm::vec3 radiance;
+    float coverage;
+    float depth;
+
+    // normal in octahedral encoding
+    uint32_t normal;
+
+    uint32_t object_id;
+};
+
 PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
 {
     return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info));
@@ -63,6 +75,10 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
     denoise_computable.extent.width = vierkant::group_count(size.width, group_count.x);
     denoise_computable.extent.height = vierkant::group_count(size.height, group_count.y);
 
+    VkPushConstantRange push_constant_range = {};
+    push_constant_range.size = sizeof(denoise_params_t);
+    push_constant_range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    denoise_computable.pipeline_info.push_constant_ranges = {push_constant_range};
 
     m_frame_contexts.resize(create_info.num_frames_in_flight);
 
@@ -199,7 +215,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
 
     render_result_t ret;
     //    for(const auto &[id, assets]: frame_context.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
-    ret.object_ids = m_storage_images.object_ids;
+    ret.object_ids = m_storage.object_ids;
     ret.object_by_index_fn =
             [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t object_idx) -> vierkant::id_entry_t {
         auto it = scene_asset.entry_idx_to_object_id.find(object_idx);
@@ -305,25 +321,23 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     vkCmdWriteTimestamp2(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          frame_context.query_pool.get(), 2 * SemaphoreValue::DENOISER);
 
-    if(frame_context.settings.denoising)
-    {
-        // transition storage image
-        frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
+    auto &denoise_params =
+            *reinterpret_cast<denoise_params_t *>(frame_context.denoise_computable.push_constants.data());
+    denoise_params = {frame_context.settings.resolution, frame_context.settings.denoising};
 
-        // dispatch denoising-kernel
-        m_compute.dispatch({frame_context.denoise_computable}, frame_context.cmd_denoise.handle());
-    }
-    else
-    {
-        // actual copy command
-        m_storage_images.radiance->copy_to(frame_context.denoise_image, frame_context.cmd_denoise.handle());
-        m_storage_images.radiance->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
-    }
+    // transition storage image
+    frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
+
+    // dispatch denoising-kernel
+    m_compute.dispatch({frame_context.denoise_computable}, frame_context.cmd_denoise.handle());
+
+    m_storage.depth->barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                             VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 
     frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
                                                    frame_context.cmd_denoise.handle());
 
-    frame_context.out_depth->copy_from(m_storage_images.depth, frame_context.cmd_denoise.handle());
+    frame_context.out_depth->copy_from(m_storage.depth, frame_context.cmd_denoise.handle());
     frame_context.out_depth->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, frame_context.cmd_denoise.handle());
 
     vierkant::semaphore_submit_info_t semaphore_info = {};
@@ -411,22 +425,12 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_acceleration_structure.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_acceleration_structure.acceleration_structures = {frame_context.scene_ray_acceleration.top_lvl.structure};
 
-    auto &desc_storage_images = frame_context.tracable.descriptors[1];
-    desc_storage_images.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    desc_storage_images.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_storage_images.images = {m_storage_images.radiance, m_storage_images.normals};
-
-    auto &desc_depth_buffer = frame_context.tracable.descriptors[2];
+    auto &desc_depth_buffer = frame_context.tracable.descriptors[1];
     desc_depth_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     desc_depth_buffer.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_depth_buffer.buffers = {m_storage_images.depth};
+    desc_depth_buffer.buffers = {m_storage.pixel_buffer};
 
-    auto &desc_object_id_image = frame_context.tracable.descriptors[3];
-    desc_object_id_image.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    desc_object_id_image.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_object_id_image.images = {m_storage_images.object_ids};
-
-    vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[4];
+    vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[2];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_matrices.buffers = {frame_context.ray_gen_ubo};
@@ -480,10 +484,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     ray_gen_ubo.camera.view_inverse = vierkant::mat4_cast(cam->global_transform());
     ray_gen_ubo.camera.fov = perspective_cam->perspective_params.fovy();
     ray_gen_ubo.camera.aperture = frame_context.settings.depth_of_field
-                                     ? static_cast<float>(perspective_cam->perspective_params.aperture_size())
-                                     : 0.f;
+                                          ? static_cast<float>(perspective_cam->perspective_params.aperture_size())
+                                          : 0.f;
     ray_gen_ubo.camera.focal_distance = perspective_cam->perspective_params.focal_distance;
-    
+
     // update uniform-buffers
     frame_context.ray_gen_ubo->set_data(&ray_gen_ubo, sizeof(ray_gen_ubo_t));
     frame_context.ray_miss_ubo->set_data(&frame_context.settings.environment_factor, sizeof(float));
@@ -527,7 +531,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
 {
     VkExtent3D size = {resolution.x, resolution.y, 1};
 
-    if(!m_storage_images.radiance || m_storage_images.radiance->extent() != size)
+    if(!m_storage.object_ids || m_storage.object_ids->extent() != size)
     {
         // create storage images
         vierkant::Image::Format storage_format = {};
@@ -538,12 +542,9 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         storage_format.initial_cmd_buffer = frame_context.cmd_pre_render.handle();
 
         // shared path-tracer-storage for all frame-assets
-        m_storage_images.radiance = vierkant::Image::create(m_device, storage_format);
-        m_storage_images.normals = vierkant::Image::create(m_device, storage_format);
-
         auto object_id_fmt = storage_format;
         object_id_fmt.format = VK_FORMAT_R16_UINT;
-        m_storage_images.object_ids = vierkant::Image::create(m_device, object_id_fmt);
+        m_storage.object_ids = vierkant::Image::create(m_device, object_id_fmt);
 
         vierkant::Buffer::create_info_t depth_buf_info;
         depth_buf_info.name = "depth storage buffer";
@@ -551,8 +552,15 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         depth_buf_info.usage = VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR | VK_BUFFER_USAGE_2_TRANSFER_SRC_BIT_KHR;
         depth_buf_info.device = m_device;
         depth_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-        m_storage_images.depth = vierkant::Buffer::create(depth_buf_info);
+        m_storage.depth = vierkant::Buffer::create(depth_buf_info);
 
+        vierkant::Buffer::create_info_t pix_buf_info;
+        pix_buf_info.name = "pixel storage buffer";
+        pix_buf_info.num_bytes = size.width * size.height * sizeof(pixel_buffer_t);
+        pix_buf_info.usage = VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR;
+        pix_buf_info.device = m_device;
+        pix_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        m_storage.pixel_buffer = vierkant::Buffer::create(pix_buf_info);
         m_batch_index = 0;
     }
 
@@ -582,17 +590,29 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         frame_context.denoise_image = vierkant::Image::create(m_device, denoise_format);
 
         // denoise-compute
-        vierkant::descriptor_t desc_denoise_input = {};
-        desc_denoise_input.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-        desc_denoise_input.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-        desc_denoise_input.images = {m_storage_images.radiance, m_storage_images.normals};
-        frame_context.denoise_computable.descriptors[0] = desc_denoise_input;
+        vierkant::descriptor_t &desc_pixel_in = frame_context.denoise_computable.descriptors[0];
+        desc_pixel_in.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_pixel_in.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_pixel_in.buffers = {m_storage.pixel_buffer};
 
-        vierkant::descriptor_t desc_denoise_output = {};
+        vierkant::descriptor_t &desc_denoise_output = frame_context.denoise_computable.descriptors[1];
         desc_denoise_output.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
         desc_denoise_output.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
         desc_denoise_output.images = {frame_context.denoise_image};
-        frame_context.denoise_computable.descriptors[1] = desc_denoise_output;
+
+        vierkant::descriptor_t &desc_depth_out = frame_context.denoise_computable.descriptors[2];
+        desc_depth_out.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        desc_depth_out.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_depth_out.buffers = {m_storage.depth};
+
+        vierkant::descriptor_t &desc_object_id = frame_context.denoise_computable.descriptors[3];
+        desc_object_id.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+        desc_object_id.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+        desc_object_id.images = {m_storage.object_ids};
+
+        frame_context.denoise_computable.push_constants.resize(sizeof(denoise_params_t));
+        *reinterpret_cast<denoise_params_t *>(frame_context.denoise_computable.push_constants.data()) = {
+                frame_context.settings.resolution, frame_context.settings.denoising};
 
         // depth-image
         Image::Format depth_image_format = {};
@@ -649,7 +669,7 @@ std::vector<uint16_t> PBRPathTracer::pick(const glm::vec2 &normalized_coord, con
 
     frame_context.cmd_copy_object_id.begin();
 
-    const auto &id_img = m_storage_images.object_ids;
+    const auto &id_img = m_storage.object_ids;
     auto img_size = glm::vec2(id_img->width(), id_img->height());
     glm::vec2 adjusted_pos = normalized_coord * img_size;
     glm::uvec2 adjusted_size = glm::max(normalized_size * img_size, {1, 1});
