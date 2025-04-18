@@ -237,6 +237,8 @@ private:
         float fov = glm::quarter_pi<float>();
         float aperture = 0.f;
         float focal_distance = 1.f;
+        VkBool32 ortho = false;
+        float left, right, bottom, top;
     };
 
     struct media_t
