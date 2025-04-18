@@ -38,6 +38,34 @@ struct trace_result_t
     uint entity_index;
 };
 
+Ray camera_ray(vec2 coord, vec2 size, vec2 Xi)
+{
+    const vec2 inUV = coord / size;
+    vec2 d = inUV * 2.0 - 1.0;
+    vec3 origin, direction;
+
+    if(cam.ortho)
+    {
+        origin = (cam.view_inverse * vec4(mix(cam.left, cam.right, inUV.x), mix(cam.top, cam.bottom, inUV.y), 0, 1)).xyz;
+        direction = -cam.view_inverse[2].xyz;
+    }
+    else
+    {
+        // lens-offset and ray-origin
+        vec3 lens_offset = vec3(cam.aperture / 2.0 * sample_unit_disc(Xi), 0.0);
+        origin = (cam.view_inverse * vec4(lens_offset, 1)).xyz;
+
+        // ray direction
+        vec3 target_dir = normalize((cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz);
+        vec3 fpoint = target_dir * cam.focal_distance / abs(target_dir.z);
+        direction = normalize(mat3(cam.view_inverse) * (fpoint - lens_offset));
+    }
+
+    // next ray + cone
+    Ray ray = Ray(origin, direction, 0.0001, 10000.0);
+    return ray;
+}
+
 trace_result_t trace(vec2 coord, vec2 size)
 {
     trace_result_t trace_result;
@@ -64,24 +92,12 @@ trace_result_t trace(vec2 coord, vec2 size)
     //          -1
     for (int sampleIdx = 0; sampleIdx < push_constants.num_samples; sampleIdx++)
     {
-        // random+stratified sampling
-        const vec2 randomPixelCenter = coord + fract(Hammersley(sampleIdx,
-                                                                push_constants.num_samples) + vec2(sample_offset));
-        const vec2 inUV = randomPixelCenter / size;
-        vec2 d = inUV * 2.0 - 1.0;
-
-        // lens-offset and ray-origin
+        // cobine random and stratified sampling
+        const vec2 rnd_coord = coord + fract(Hammersley(sampleIdx, push_constants.num_samples) + vec2(sample_offset));
         vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
-        vec3 lens_offset = vec3(cam.aperture / 2.0 * sample_unit_disc(Xi), 0.0);
-        vec3 origin = (cam.view_inverse * vec4(lens_offset, 1)).xyz;
-
-        // ray direction
-        vec3 target_dir = normalize((cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz);
-        vec3 fpoint = target_dir * cam.focal_distance / abs(target_dir.z);
-        vec3 direction = normalize(mat3(cam.view_inverse) * (fpoint - lens_offset));
 
         // next ray + cone
-        Ray ray = Ray(origin, direction, 0.0001, 10000.0);
+        Ray ray = camera_ray(rnd_coord, size, Xi);
         RayCone cone = RayCone(spread_angle, 0.0);
 
         // start in camera-defined medium

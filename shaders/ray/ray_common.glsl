@@ -113,6 +113,8 @@ struct camera_ubo_t
     float fov;
     float aperture;
     float focal_distance;
+    bool ortho;
+    float left, right, bottom, top;
 };
 
 #endif // RAY_COMMON_GLSL
