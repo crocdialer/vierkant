@@ -35,7 +35,7 @@ struct physical_camera_params_t
     float aspect = 16.f / 9.f;
 
     //! camera near/far clipping distances in meter
-    glm::vec2 clipping_distances = {0.1f, 100.f};
+    glm::vec2 clipping_distances = {0.1f, 1000.f};
 
     //! focal distance in meter
     float focal_distance = 10.f;
