@@ -81,6 +81,11 @@ RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkan
 
 RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_structures_params_t &params) const
 {
+    if(!params.mesh)
+    {
+        assert(false);
+        return {};
+    }
     // raytracing flags
     VkBuildAccelerationStructureFlagsKHR flags = 0;
     if(params.compaction) { flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR; }
@@ -94,7 +99,13 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
     else { flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR; }
 
     // optionally override mesh-vertexbuffer
-    const auto &vertex_attrib = params.mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+    auto vertex_attrib_it = params.mesh->vertex_attribs.find(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+    if(vertex_attrib_it == params.mesh->vertex_attribs.end())
+    {
+        spdlog::warn("RayBuilder::create_mesh_structures: no position-attribute found");
+        return {};
+    }
+    const auto &vertex_attrib = vertex_attrib_it->second;
 
     const auto &vertex_buffer = params.vertex_buffer ? params.vertex_buffer : vertex_attrib.buffer;
     size_t vertex_buffer_offset = params.vertex_buffer ? params.vertex_buffer_offset : 0;
@@ -269,6 +280,7 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 
 void RayBuilder::compact(build_result_t &build_result) const
 {
+    if(!build_result.semaphore) { return; }
     // memory-compaction for bottom-lvl-structures
     std::vector<acceleration_asset_ptr> entry_assets_compact(build_result.acceleration_assets.size());
 
@@ -395,7 +407,13 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
         const auto &acceleration_assets = context->entity_assets.at(object->id());
         assert(mesh->entries.size() == acceleration_assets.size());
 
-        const auto &vertex_attrib = mesh->vertex_attribs.at(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+        auto vertex_attrib_it = mesh->vertex_attribs.find(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
+        if(vertex_attrib_it == mesh->vertex_attribs.end())
+        {
+            spdlog::warn("RayBuilder::create_toplevel: no position-attribute found");
+            continue;
+        }
+        const auto &vertex_attrib = vertex_attrib_it->second;
         const auto &vertex_buffer =
                 acceleration_assets[0]->vertex_buffer ? acceleration_assets[0]->vertex_buffer : vertex_attrib.buffer;
         size_t vertex_buffer_offset = acceleration_assets[0]->vertex_buffer
