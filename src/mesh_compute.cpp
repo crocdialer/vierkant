@@ -251,7 +251,7 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
 
                     // advance offset, respect alignment
                     vertex_offset += entry.num_vertices * vertex_stride;
-                    vertex_offset += vertex_offset % min_alignment;
+                    vertex_offset = vierkant::aligned_size(vertex_offset, min_alignment);
                 }
             }
         }

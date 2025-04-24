@@ -3,8 +3,6 @@
 namespace vierkant
 {
 
-inline uint32_t aligned_size(uint32_t size, uint32_t alignment) { return (size + alignment - 1) & ~(alignment - 1); }
-
 inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
 {
     VkTransformMatrixKHR ret;

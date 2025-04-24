@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include <volk.h>
 #include <crocore/crocore.hpp>
+#include <volk.h>
 
 namespace vierkant
 {
@@ -43,6 +43,18 @@ VkFormat find_depth_format(VkPhysicalDevice device);
  * @param   fail_msg
  */
 void vkCheck(VkResult res, const std::string &fail_msg);
+
+/**
+ * @brief   Helper function to return an aligned size
+ *
+ * @param   size        a size
+ * @param   alignment   required alignment
+ */
+static inline uint32_t aligned_size(uint32_t size, uint32_t alignment)
+{
+    assert(crocore::is_pow_2(alignment));
+    return (size + alignment - 1) & ~(alignment - 1);
+}
 
 /**
  * Instance encapsulates a VkInstance.

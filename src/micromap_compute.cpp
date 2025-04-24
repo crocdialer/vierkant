@@ -7,12 +7,6 @@
 namespace vierkant
 {
 
-inline size_t aligned_size(size_t size, size_t alignment)
-{
-    assert(crocore::is_pow_2(alignment));
-    return alignment ? (size + alignment - 1) & ~(alignment - 1) : size;
-}
-
 struct mesh_build_data_t
 {
     vierkant::BufferPtr micromap;
