@@ -1132,7 +1132,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
 
         if(ortho_cam)
         {
-            const auto &cam_params = ortho_cam->orth_params;
+            const auto &cam_params = ortho_cam->ortho_params;
             auto proj = glm::orthoRH(cam_params.left, cam_params.right, cam_params.bottom, cam_params.top,
                                      cam_params.near_, cam_params.far_);
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),

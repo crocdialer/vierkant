@@ -42,14 +42,14 @@ public:
 class OrthoCamera : public Camera
 {
 public:
-    vierkant::ortho_camera_params_t orth_params;
+    vierkant::ortho_camera_params_t ortho_params;
 
     static OrthoCameraPtr create(const std::shared_ptr<entt::registry> &registry,
                                  vierkant::ortho_camera_params_t params = {})
     {
         {
             auto ret = OrthoCameraPtr(new OrthoCamera(registry));
-            ret->orth_params = params;
+            ret->ortho_params = params;
             return ret;
         }
     }
@@ -58,13 +58,13 @@ public:
 
     vierkant::Frustum frustum() const override;
 
-    float near() const override { return orth_params.near_; };
+    float near() const override { return ortho_params.near_; };
 
-    float far() const override { return orth_params.far_; };
+    float far() const override { return ortho_params.far_; };
 
     vierkant::Ray calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const override;
 
-    vierkant::camera_params_variant_t params() const override { return orth_params; }
+    vierkant::camera_params_variant_t params() const override { return ortho_params; }
 
     void accept(class Visitor &v) override;
 

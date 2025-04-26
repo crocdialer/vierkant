@@ -33,8 +33,8 @@ OrthoCamera::OrthoCamera(const std::shared_ptr<entt::registry> &registry) : Obje
 
 glm::mat4 OrthoCamera::projection_matrix() const
 {
-    auto m = ortho_reverse_RH_ZO(orth_params.left, orth_params.right, orth_params.bottom, orth_params.top,
-                                 orth_params.near_, orth_params.far_);
+    auto m = ortho_reverse_RH_ZO(ortho_params.left, ortho_params.right, ortho_params.bottom, ortho_params.top,
+                                 ortho_params.near_, ortho_params.far_);
     return m;
 }
 
@@ -42,8 +42,8 @@ glm::mat4 OrthoCamera::projection_matrix() const
 
 vierkant::Frustum OrthoCamera::frustum() const
 {
-    return {orth_params.left, orth_params.right, orth_params.bottom,
-            orth_params.top,  orth_params.near_, orth_params.far_};
+    return {ortho_params.left, ortho_params.right, ortho_params.bottom,
+            ortho_params.top,  ortho_params.near_, ortho_params.far_};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -52,8 +52,8 @@ vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &
 {
     glm::vec3 click_world_pos, ray_dir;
 
-    glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, orth_params.left, orth_params.right),
-                    crocore::map_value<float>(pos.y, extent.y, 0, orth_params.bottom, orth_params.top));
+    glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, ortho_params.left, ortho_params.right),
+                    crocore::map_value<float>(pos.y, extent.y, 0, ortho_params.bottom, ortho_params.top));
 
     glm::mat3 m = glm::mat3_cast(transform.rotation);
     click_world_pos = glm::vec3(transform.translation) - m[2] * near() + m[0] * coord.x + m[1] * coord.y;

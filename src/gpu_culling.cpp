@@ -33,10 +33,23 @@ struct gpu_cull_context_t
 
 struct alignas(16) draw_cull_data_t
 {
+    // buffer references
+    VkDeviceAddress draw_commands_in = 0;
+    VkDeviceAddress mesh_draws_in = 0;
+    VkDeviceAddress mesh_entries_in = 0;
+    VkDeviceAddress draws_out_pre = 0;
+    VkDeviceAddress draws_out_post = 0;
+    VkDeviceAddress draw_count_pre = 0;
+    VkDeviceAddress draw_count_post = 0;
+    VkDeviceAddress draw_result = 0;
+
     glm::mat4 view = glm::mat4(1);
 
     float P00, P11, znear, zfar;// symmetric projection parameters
     glm::vec4 frustum;          // data for left/right/top/bottom frustum planes
+
+    // optional ortho params
+    float left, right, bottom, top;
 
     uint32_t num_draws = 0;
 
@@ -47,22 +60,13 @@ struct alignas(16) draw_cull_data_t
     // depth pyramid size in texels
     glm::vec2 pyramid_size = glm::vec2(0);
 
+    VkBool32 ortho = false;
     VkBool32 frustum_cull = false;
     VkBool32 occlusion_cull = false;
     VkBool32 contribution_cull = false;
     VkBool32 skip_meshlets = false;
     VkBool32 lod_enabled = false;
     uint32_t task_workgroup_size = 0;
-
-    // buffer references
-    uint64_t draw_commands_in = 0;
-    uint64_t mesh_draws_in = 0;
-    uint64_t mesh_entries_in = 0;
-    uint64_t draws_out_pre = 0;
-    uint64_t draws_out_post = 0;
-    uint64_t draw_count_pre = 0;
-    uint64_t draw_count_post = 0;
-    uint64_t draw_result = 0;
 };
 
 vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &context,
@@ -241,6 +245,14 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.P11 = projection[1][1];
     draw_cull_data.znear = params.camera->near();
     draw_cull_data.zfar = params.camera->far();
+    if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(params.camera))
+    {
+        draw_cull_data.ortho = true;
+        draw_cull_data.left = ortho_cam->ortho_params.left;
+        draw_cull_data.right = ortho_cam->ortho_params.right;
+        draw_cull_data.bottom = ortho_cam->ortho_params.bottom;
+        draw_cull_data.top = ortho_cam->ortho_params.top;
+    }
     draw_cull_data.view = vierkant::mat4_cast(params.camera->view_transform());
 
     glm::mat4 projectionT = transpose(projection);
