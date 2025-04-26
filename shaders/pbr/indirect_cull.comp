@@ -110,18 +110,23 @@ void main()
     if(cull_data.ortho)
     {
         sphere_visible = true;
-//        sphere_visible = cull_data.left <= center.x - radius && cull_data.right >= center.x + radius &&
-//                            cull_data.bottom <= center.y - radius && cull_data.top >= center.y + radius;
-        aabb = vec4(0, 0, 1, 1);
+        float f_w = 1.0 / (cull_data.right - cull_data.left);
+        float f_h = 1.0 / (cull_data.bottom - cull_data.top);
+        aabb = vec4((center.x - radius) * f_w , (center.y - radius) * f_h,
+                    (center.x + radius) * f_w, (center.y + radius) * f_h);
     }
 
     // object bound's area in NDC
     vec2 screen_area = aabb.zw - aabb.xy;
 
-    if(visible && cull_data.frustum_cull && !cull_data.ortho)
+    if(visible && cull_data.frustum_cull)
     {
-        // the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-        visible = visible && !frustum_cull(center, radius, cull_data.frustum);
+        // (perspective) left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
+        bool inside_frustum = cull_data.ortho ? cull_data.left <= center.x + radius && cull_data.right >= center.x - radius &&
+                                                cull_data.bottom <= center.y + radius && cull_data.top >= center.y - radius :
+                                                !frustum_cull(center, radius, cull_data.frustum);
+
+        visible = visible && inside_frustum;
 
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_frustum_culled, 1); }
     }
@@ -135,7 +140,7 @@ void main()
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_contribution_culled, 1); }
     }
 
-    if(visible && cull_data.occlusion_cull && sphere_visible && !cull_data.ortho)
+    if(visible && cull_data.occlusion_cull && sphere_visible)
     {
         // get cracking with depth-pyramid
         float width = screen_area.x * cull_data.pyramid_size.x;
@@ -144,8 +149,9 @@ void main()
         float level = floor(log2(max(width, height)));
 
         // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-        float depth = clamp(cull_data.znear / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x,
-        cull_data.znear, cull_data.zfar);
+        float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+        depth = cull_data.ortho ? mix(cull_data.zfar, cull_data.znear, depth) :
+                                  clamp(cull_data.znear / depth, cull_data.znear, cull_data.zfar);
         float depth_sphere = -center.z - radius;
 
         visible = depth_sphere <= depth;
