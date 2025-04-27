@@ -688,13 +688,21 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     frame_context.camera_params.near = cull_result.camera->near();
     frame_context.camera_params.far = cull_result.camera->far();
 
-    glm::mat4 projectionT = transpose(cull_result.camera->projection_matrix());
-    glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
-    frustumX /= glm::length(frustumX.xyz());
-    glm::vec4 frustumY = projectionT[3] + projectionT[1];// y + w < 0
-    frustumY /= glm::length(frustumY.xyz());
-    frame_context.camera_params.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
-
+    if(auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(cull_result.camera))
+    {
+        glm::mat4 projectionT = transpose(cull_result.camera->projection_matrix());
+        glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
+        frustumX /= glm::length(frustumX.xyz());
+        glm::vec4 frustumY = projectionT[3] + projectionT[1];// y + w < 0
+        frustumY /= glm::length(frustumY.xyz());
+        frame_context.camera_params.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
+    }
+    else if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(cull_result.camera))
+    {
+        frame_context.camera_params.ortho = true;
+        frame_context.camera_params.frustum = {ortho_cam->ortho_params.left, ortho_cam->ortho_params.right,
+                                               ortho_cam->ortho_params.bottom, ortho_cam->ortho_params.top};
+    }
     camera_params_t cameras[2] = {frame_context.camera_params, last_frame_context.camera_params};
     frame_context.g_buffer_camera_ubo->set_data(&cameras, sizeof(cameras));
 
@@ -1235,10 +1243,10 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
     {
         auto drawable = m_drawable_dof;
         drawable.descriptors[0].images = {output_img, depth};
+        auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
 
-        if(!drawable.descriptors[1].buffers.empty())
+        if(perspective_cam && !drawable.descriptors[1].buffers.empty())
         {
-            auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam);
             const auto &cam_params = perspective_cam->perspective_params;
             depth_of_field_params_t dof_params = {};
             dof_params.focal_distance = cam_params.focal_distance;

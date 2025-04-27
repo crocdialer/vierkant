@@ -120,14 +120,23 @@ void main()
 
             // cone-culling
             visible = materials[draw.material_index].two_sided ||
-            !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
+                      !cone_cull(center, radius, cone_axis, cone_cutoff, vec3(0));
 
             // frustum-culling
-            visible = visible && !frustum_cull(center, radius, camera.frustum);
+            bool inside_frustum = camera.ortho ? !frustum_cull_ortho(center, radius, camera.frustum) :
+                                                 !frustum_cull(center, radius, camera.frustum);
+
+            visible = visible && inside_frustum;
 
             vec4 aabb;
-            bool sphere_visible = project_sphere(center, radius, camera.near, camera.projection[0][0],
-                                                 camera.projection[1][1], aabb);
+            bool sphere_visible = !camera.ortho && project_sphere(center, radius, camera.near, camera.projection[0][0],
+                                                                  camera.projection[1][1], aabb);
+
+            if(camera.ortho)
+            {
+                aabb = vec4(0, 0, 1, 1);
+            }
+
             // cluster bound area in NDC
             vec2 screen_area = aabb.zw - aabb.xy;
             vec2 pyramid_size = textureSize(u_depth_pyramid, 0);

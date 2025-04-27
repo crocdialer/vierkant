@@ -11,13 +11,15 @@ struct camera_t
 
     // left/right/top/bottom frustum planes
     vec4 frustum;
+    bool ortho;
+    int pad0, pad1, pad3;
 };
 
 // left/right/bottom/top frustum planes
 bool frustum_cull_ortho(vec3 center, float radius, vec4 frustum)
 {
-    return frustum[0] > center.x + radius || frustum[1] < center.x - radius &&
-           frustum[2] > center.y + radius && frustum[3] < center.y - radius;
+    return frustum[0] > center.x + radius || frustum[1] < center.x - radius ||
+           frustum[2] > center.y + radius || frustum[3] < center.y - radius;
 }
 
 // perspective symmetric case:
@@ -30,7 +32,7 @@ bool frustum_cull_ortho(vec3 center, float radius, vec4 frustum)
 bool frustum_cull(vec3 center, float radius, vec4 frustum)
 {
     return  !(center.z * frustum[1] - abs(center.x) * frustum[0] > -radius &&
-    -center.z * frustum[3] - abs(center.y) * frustum[2] < radius);
+              -center.z * frustum[3] - abs(center.y) * frustum[2] < radius);
 }
 
 #endif // CAMERA_GLSL
