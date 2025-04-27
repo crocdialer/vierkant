@@ -242,6 +242,8 @@ private:
 
         // left/right/top/bottom frustum planes
         glm::vec4 frustum;
+
+        VkBool32 ortho = false;
     };
 
     struct alignas(16) depth_of_field_params_t

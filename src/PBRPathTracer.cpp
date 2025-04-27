@@ -492,10 +492,10 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     else if(auto ortho_cam = std::dynamic_pointer_cast<vierkant::OrthoCamera>(cam))
     {
         ray_gen_ubo.camera.ortho = true;
-        ray_gen_ubo.camera.left = ortho_cam->orth_params.left;
-        ray_gen_ubo.camera.right = ortho_cam->orth_params.right;
-        ray_gen_ubo.camera.bottom = ortho_cam->orth_params.bottom;
-        ray_gen_ubo.camera.top = ortho_cam->orth_params.top;
+        ray_gen_ubo.camera.left = ortho_cam->ortho_params.left;
+        ray_gen_ubo.camera.right = ortho_cam->ortho_params.right;
+        ray_gen_ubo.camera.bottom = ortho_cam->ortho_params.bottom;
+        ray_gen_ubo.camera.top = ortho_cam->ortho_params.top;
     }
 
     // update uniform-buffers

@@ -27,6 +27,16 @@ layout(buffer_reference, std430) buffer DrawResultPtr{ draw_cull_result_t v; };
 
 struct draw_cull_data_t
 {
+    // buffer references
+    DrawBufferPtr draws_in;
+    MeshDrawBufferPtr mesh_draws_in;
+    MeshEntryBufferPtr mesh_entries_in;
+    DrawBufferPtr draws_out_pre;
+    DrawBufferPtr draws_out_post;
+    DrawCountBufferPtr draw_count_pre;
+    DrawCountBufferPtr draw_count_post;
+    DrawResultPtr draw_result;
+
     mat4 view;
 
     //! symmetric projection parameters
@@ -49,6 +59,7 @@ struct draw_cull_data_t
     //! depth pyramid size in texels
     vec2 pyramid_size;
 
+    bool ortho;
     bool frustum_cull;
     bool occlusion_cull;
     bool contribution_cull;
@@ -59,16 +70,6 @@ struct draw_cull_data_t
     bool lod_enabled;
 
     uint task_workgroup_size;
-
-    // buffer references
-    DrawBufferPtr draws_in;
-    MeshDrawBufferPtr mesh_draws_in;
-    MeshEntryBufferPtr mesh_entries_in;
-    DrawBufferPtr draws_out_pre;
-    DrawBufferPtr draws_out_post;
-    DrawCountBufferPtr draw_count_pre;
-    DrawCountBufferPtr draw_count_post;
-    DrawResultPtr draw_result;
 };
 
 uint div_up(uint nom, uint denom) { return (nom + denom - 1) / denom; }
@@ -92,23 +93,33 @@ void main()
 
     vec3 center = (cull_data.view * vec4(apply_transform(mesh_draw.current_matrices.transform, mesh_entry.center), 1.0)).xyz;
     float radius = mesh_entry.radius * max(max(abs(mesh_draw.current_matrices.transform.scale_x),
-    abs(mesh_draw.current_matrices.transform.scale_y)),
-    abs(mesh_draw.current_matrices.transform.scale_z));
+                                               abs(mesh_draw.current_matrices.transform.scale_y)),
+                                           abs(mesh_draw.current_matrices.transform.scale_z));
 
     bool visible = has_flag(draw.flags, DRAW_COMMAND_FLAG_ENABLED);
     bool meshlet_draw = cull_data.use_meshlets && has_flag(draw.flags, DRAW_COMMAND_FLAG_MESHLETS);
 
-    // 2D-screenspace AABB for a 3D-boundingsphere
+    // uv-screenspace AABB for a 3D-boundingsphere
     vec4 aabb;
-    bool sphere_visible = project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
+    bool sphere_visible = cull_data.ortho ||
+                          project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
+
+    if(cull_data.ortho)
+    {
+        sphere_visible = true;
+        aabb = vec4(0, 0, 1, 1);
+    }
 
     // object bound's area in NDC
     vec2 screen_area = aabb.zw - aabb.xy;
 
     if(visible && cull_data.frustum_cull)
     {
-        // the left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-        visible = visible && !frustum_cull(center, radius, cull_data.frustum);
+        // (perspective) left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
+        bool inside_frustum = cull_data.ortho ? !frustum_cull_ortho(center, radius, cull_data.frustum) :
+                                                !frustum_cull(center, radius, cull_data.frustum);
+
+        visible = visible && inside_frustum;
 
         if(!visible){ atomicAdd(cull_data.draw_result.v.num_frustum_culled, 1); }
     }
@@ -131,8 +142,9 @@ void main()
         float level = floor(log2(max(width, height)));
 
         // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-        float depth = clamp(cull_data.znear / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x,
-        cull_data.znear, cull_data.zfar);
+        float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+        depth = cull_data.ortho ? mix(cull_data.zfar, cull_data.znear, depth) :
+                                  clamp(cull_data.znear / depth, cull_data.znear, cull_data.zfar);
         float depth_sphere = -center.z - radius;
 
         visible = depth_sphere <= depth;
