@@ -107,10 +107,7 @@ void main()
     if(cull_data.ortho)
     {
         sphere_visible = true;
-        float f_w = 1.0 / (cull_data.frustum[1] - cull_data.frustum[0]);
-        float f_h = 1.0 / (cull_data.frustum[2] - cull_data.frustum[3]);
-        aabb = vec4((center.x - radius) * f_w , (center.y - radius) * f_h,
-                    (center.x + radius) * f_w, (center.y + radius) * f_h);
+        aabb = vec4(0, 0, 1, 1);
     }
 
     // object bound's area in NDC
