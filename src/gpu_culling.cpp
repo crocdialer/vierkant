@@ -48,9 +48,6 @@ struct alignas(16) draw_cull_data_t
     float P00, P11, znear, zfar;// symmetric projection parameters
     glm::vec4 frustum;          // data for left/right/top/bottom frustum planes
 
-    // optional ortho params
-    float left, right, bottom, top;
-
     uint32_t num_draws = 0;
 
     float lod_base = 15.f;
@@ -245,23 +242,22 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.P11 = projection[1][1];
     draw_cull_data.znear = params.camera->near();
     draw_cull_data.zfar = params.camera->far();
-    if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(params.camera))
+    if(auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(params.camera))
+    {
+        glm::mat4 projectionT = transpose(projection);
+        glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
+        frustumX /= glm::length(frustumX.xyz());
+        glm::vec4 frustumY = projectionT[3] + projectionT[1];// y + w < 0
+        frustumY /= glm::length(frustumY.xyz());
+        draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
+    }
+    else if(auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(params.camera))
     {
         draw_cull_data.ortho = true;
-        draw_cull_data.left = ortho_cam->ortho_params.left;
-        draw_cull_data.right = ortho_cam->ortho_params.right;
-        draw_cull_data.bottom = ortho_cam->ortho_params.bottom;
-        draw_cull_data.top = ortho_cam->ortho_params.top;
+        draw_cull_data.frustum = {ortho_cam->ortho_params.left, ortho_cam->ortho_params.right,
+                                  ortho_cam->ortho_params.bottom, ortho_cam->ortho_params.top};
     }
     draw_cull_data.view = vierkant::mat4_cast(params.camera->view_transform());
-
-    glm::mat4 projectionT = transpose(projection);
-    glm::vec4 frustumX = projectionT[3] + projectionT[0];// x + w < 0
-    frustumX /= glm::length(frustumX.xyz());
-    glm::vec4 frustumY = projectionT[3] + projectionT[1];// y + w < 0
-    frustumY /= glm::length(frustumY.xyz());
-
-    draw_cull_data.frustum = {frustumX.x, frustumX.z, frustumY.y, frustumY.z};
     draw_cull_data.lod_base = params.lod_base;
     draw_cull_data.lod_step = params.lod_step;
 
@@ -324,7 +320,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
 
     // return results from host-buffer
     return *reinterpret_cast<draw_cull_result_t *>(context->draw_cull_result_buffer_host->map());
-}
+}// namespace vierkant
 
 gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm::vec2 &size,
                                              const vierkant::PipelineCachePtr &pipeline_cache)

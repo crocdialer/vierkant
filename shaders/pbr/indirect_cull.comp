@@ -45,9 +45,6 @@ struct draw_cull_data_t
     //! left/right/top/bottom frustum planes
     vec4 frustum;
 
-    //! left/right/top/bottom frustum planes
-    float left, right, bottom, top;
-
     uint num_draws;
 
     //! base screenspace-area for LoD-0
@@ -110,8 +107,8 @@ void main()
     if(cull_data.ortho)
     {
         sphere_visible = true;
-        float f_w = 1.0 / (cull_data.right - cull_data.left);
-        float f_h = 1.0 / (cull_data.bottom - cull_data.top);
+        float f_w = 1.0 / (cull_data.frustum[1] - cull_data.frustum[0]);
+        float f_h = 1.0 / (cull_data.frustum[2] - cull_data.frustum[3]);
         aabb = vec4((center.x - radius) * f_w , (center.y - radius) * f_h,
                     (center.x + radius) * f_w, (center.y + radius) * f_h);
     }
@@ -122,8 +119,7 @@ void main()
     if(visible && cull_data.frustum_cull)
     {
         // (perspective) left/top/right/bottom plane culling utilizes frustum symmetry to cull against two planes at the same time
-        bool inside_frustum = cull_data.ortho ? cull_data.left <= center.x + radius && cull_data.right >= center.x - radius &&
-                                                cull_data.bottom <= center.y + radius && cull_data.top >= center.y - radius :
+        bool inside_frustum = cull_data.ortho ? !frustum_cull_ortho(center, radius, cull_data.frustum) :
                                                 !frustum_cull(center, radius, cull_data.frustum);
 
         visible = visible && inside_frustum;
