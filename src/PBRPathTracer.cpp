@@ -203,7 +203,7 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     }
     else { frame_context.semaphore.signal(frame_context.semaphore_value + SemaphoreValue::RAYTRACING); }
 
-    // edge-aware atrous-wavelet denoiser
+    // image-composition, denoising
     denoise_pass(frame_context);
 
     // bloom + tonemap
@@ -214,12 +214,17 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
                                          !frame_context.settings.draw_skybox);
 
     render_result_t ret;
-    //    for(const auto &[id, assets]: frame_context.scene_acceleration_context.entity_assets) { ret.num_draws += assets.size(); }
     ret.object_ids = m_storage.object_ids;
     ret.object_by_index_fn =
-            [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t object_idx) -> vierkant::id_entry_t {
-        auto it = scene_asset.entry_idx_to_object_id.find(object_idx);
+            [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t draw_id) -> vierkant::id_entry_t {
+        auto it = scene_asset.entry_idx_to_object_id.find(draw_id);
         if(it != scene_asset.entry_idx_to_object_id.end()) { return it->second; }
+        return {};
+    };
+    ret.indices_by_id_fn =
+            [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t object_id) -> std::vector<uint32_t> {
+        auto it = scene_asset.object_id_to_entry_indices.find(object_id);
+        if(it != scene_asset.object_id_to_entry_indices.end()) { return it->second; }
         return {};
     };
 

@@ -390,7 +390,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     vierkant::SelectVisitor<Object3D> visitor;
     params.scene->root()->accept(visitor);
 
-    for(const auto &object: visitor.objects)
+    //  cache-lookup / non-blocking build of acceleration structures
+    for(auto object: visitor.objects)
     {
         if(!object->has_component<vierkant::mesh_component_t>()) { continue; }
 
@@ -476,6 +477,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             // store next entry-index
             size_t entry_idx = entries.size();
             ret.entry_idx_to_object_id[entry_idx] = {object->id(), i};
+            ret.object_id_to_entry_indices[object->id()].push_back(entry_idx);
+
             instance.instanceCustomIndex = entry_idx;
             instance.mask = 0xFF;
             instance.instanceShaderBindingTableRecordOffset = 0;

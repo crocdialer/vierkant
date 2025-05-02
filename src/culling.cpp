@@ -63,10 +63,12 @@ public:
 
                     id_entry_t key = {object.id(), drawable.entry_index};
                     m_cull_result.index_map[key] = i + m_cull_result.drawables.size();
-                }
 
-                // move drawables into cull_result
-                std::move(mesh_drawables.begin(), mesh_drawables.end(), std::back_inserter(m_cull_result.drawables));
+                    m_cull_result.object_id_to_drawable_indices[object.id()].push_back(m_cull_result.drawables.size());
+
+                    // move drawable into cull_result
+                    m_cull_result.drawables.push_back(std::move(drawable));
+                }
             }
             //            if(object.has_component<vierkant::model::lightsource_t>())
             //            {
