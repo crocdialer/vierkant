@@ -31,6 +31,9 @@ struct cull_result_t
     //! lookup: drawable-id -> entity/entry
     std::unordered_map<vierkant::DrawableId, id_entry_t> entity_map;
 
+    //! lookup: object-id -> drawable-indices
+    std::unordered_map<uint32_t, std::vector<uint32_t>> object_id_to_drawable_indices;
+
     //! lookup: (id/entry) -> drawable-index
     index_cache_t index_map;
 

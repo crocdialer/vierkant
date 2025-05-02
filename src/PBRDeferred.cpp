@@ -483,14 +483,18 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
     }
 
     SceneRenderer::render_result_t ret = {};
-    ret.object_by_index_fn = [scene,
-                              &cull_result = frame_context.cull_result](uint32_t object_idx) -> vierkant::id_entry_t {
-        if(object_idx < cull_result.drawables.size())
+    ret.object_by_index_fn = [&cull_result = frame_context.cull_result](uint32_t draw_idx) -> vierkant::id_entry_t {
+        if(draw_idx < cull_result.drawables.size())
         {
             // picked_idx is an index into an array of drawables
-            auto drawable_id = cull_result.drawables[object_idx].id;
+            auto drawable_id = cull_result.drawables[draw_idx].id;
             return cull_result.entity_map.at(drawable_id);
         }
+        return {};
+    };
+    ret.indices_by_id_fn = [&cull_result = frame_context.cull_result](uint32_t object_id) -> std::vector<uint32_t> {
+        auto it = cull_result.object_id_to_drawable_indices.find(object_id);
+        if(it != cull_result.object_id_to_drawable_indices.end()) { return it->second; }
         return {};
     };
     ret.num_draws = frame_context.cull_result.drawables.size();
