@@ -17,8 +17,11 @@ DEFINE_CLASS_PTR(SceneRenderer)
 class SceneRenderer
 {
 public:
-    //! signature for a function. returns an id_entry_t for internal draw-indices
+    //! signature for a lookup function. returns an id_entry_t for internal draw-indices
     using object_id_by_index_fn_t = std::function<vierkant::id_entry_t(uint32_t idx)>;
+
+    //! signature for a lookup function. returns an array of draw-indices for an object-id
+    using indices_by_id_fn_t = std::function<std::vector<uint32_t>(uint32_t id)>;
 
     //! groups results of rendering operations.
     struct render_result_t
@@ -29,6 +32,7 @@ public:
         uint32_t num_contribution_culled = 0;
         vierkant::ImagePtr object_ids;
         object_id_by_index_fn_t object_by_index_fn;
+        indices_by_id_fn_t indices_by_id_fn;
         std::vector<semaphore_submit_info_t> semaphore_infos;
     };
 
