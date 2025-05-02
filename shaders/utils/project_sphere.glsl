@@ -22,4 +22,15 @@ bool project_sphere(vec3 C, float r, float znear, float P00, float P11, out vec4
     return true;
 }
 
+// vec4 frustum: left/right/top/bottom
+bool project_sphere_ortho(vec3 C, float r, float znear, vec4 frustum, out vec4 aabb)
+{
+    if (-C.z < r + znear){ return false; }
+    float w = frustum.y - frustum.x;
+    float h = frustum.z - frustum.w;
+    aabb = vec4((C.x - r - frustum.x) / w, (C.y - r - frustum.w) / h,
+                (C.x + r - frustum.x) / w, (C.y + r - frustum.w) / h);
+    return true;
+}
+
 #endif //UTILS_PROJECT_SPHERE_GLSL

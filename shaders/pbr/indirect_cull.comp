@@ -106,8 +106,7 @@ void main()
 
     if(cull_data.ortho)
     {
-        sphere_visible = true;
-        aabb = vec4(0, 0, 1, 1);
+        sphere_visible = project_sphere_ortho(center, radius, cull_data.znear, cull_data.frustum, aabb);
     }
 
     // object bound's area in NDC
