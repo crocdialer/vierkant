@@ -134,7 +134,7 @@ void main()
 
             if(camera.ortho)
             {
-                aabb = vec4(0, 0, 1, 1);
+                sphere_visible = project_sphere_ortho(center, radius, camera.near, camera.frustum, aabb);
             }
 
             // cluster bound area in NDC
@@ -157,8 +157,9 @@ void main()
                 float level = floor(log2(max(width, height)));
 
                 // Sampler is set up to do min reduction, so this computes the minimum depth of a 2x2 texel quad
-                float depth = clamp(camera.near / textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x,
-                                    camera.near, camera.far);
+                float depth = textureLod(u_depth_pyramid, (aabb.xy + aabb.zw) * 0.5, level).x;
+                depth = camera.ortho ? mix(camera.far, camera.near, depth) :
+                                       clamp(camera.near / depth, camera.near, camera.far);
                 float depth_sphere = -center.z - radius;
 
                 visible = depth_sphere <= depth;
