@@ -100,9 +100,8 @@ void main()
     bool meshlet_draw = cull_data.use_meshlets && has_flag(draw.flags, DRAW_COMMAND_FLAG_MESHLETS);
 
     // uv-screenspace AABB for a 3D-boundingsphere
-    vec4 aabb;
-    bool sphere_visible = cull_data.ortho ||
-                          project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
+    vec4 aabb = vec4(0, 0, 1, 1);
+    bool sphere_visible = project_sphere(center, radius, cull_data.znear, cull_data.P00, cull_data.P11, aabb);
 
     if(cull_data.ortho)
     {
