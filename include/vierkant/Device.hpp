@@ -61,6 +61,7 @@ public:
     struct properties_t
     {
         VkPhysicalDeviceProperties core;
+        VkPhysicalDeviceVulkan13Properties vulkan13;
         VkPhysicalDeviceAccelerationStructurePropertiesKHR acceleration_structure;
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR ray_pipeline;
         VkPhysicalDeviceOpacityMicromapPropertiesEXT micromap_opacity;
@@ -140,7 +141,7 @@ public:
     /**
      * @return  nullptr or a pointer to an asset-struct for a queue
      */
-    [[nodiscard]] const queue_asset_t* queue_asset(VkQueue queue) const;
+    [[nodiscard]] const queue_asset_t *queue_asset(VkQueue queue) const;
 
     /**
      * @return  const ref to the used QueueFamilyIndices
@@ -195,7 +196,7 @@ private:
 
     // a map holding all queues for logical device
     std::map<Queue, std::vector<queue_asset_t>> m_queues;
-    std::unordered_map<VkQueue, const queue_asset_t*> m_queue_map;
+    std::unordered_map<VkQueue, const queue_asset_t *> m_queue_map;
 
     // keeps track of queue family indices
     std::map<Queue, queue_family_info_t> m_queue_indices;

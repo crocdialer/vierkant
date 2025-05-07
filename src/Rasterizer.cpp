@@ -84,8 +84,10 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
     else
     {
         vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
+                                                          {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 256},
                                                           {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
-                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
+                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256},
+                                                          {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, 4096}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 256);
     }
 

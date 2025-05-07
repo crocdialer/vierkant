@@ -178,13 +178,15 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     {
         VkPhysicalDeviceProperties2 physical_device_properties = {};
         physical_device_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        m_properties.vulkan13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_PROPERTIES;
         m_properties.acceleration_structure.sType =
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR;
         m_properties.ray_pipeline.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
         m_properties.mesh_shader.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
         m_properties.micromap_opacity.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_OPACITY_MICROMAP_PROPERTIES_EXT;
         m_properties.descriptor_buffer.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT;
-        physical_device_properties.pNext = &m_properties.acceleration_structure;
+        physical_device_properties.pNext = &m_properties.vulkan13;
+        m_properties.vulkan13.pNext = &m_properties.acceleration_structure;
         m_properties.acceleration_structure.pNext = &m_properties.ray_pipeline;
         m_properties.ray_pipeline.pNext = &m_properties.mesh_shader;
         m_properties.mesh_shader.pNext = &m_properties.micromap_opacity;

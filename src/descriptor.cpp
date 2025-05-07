@@ -14,8 +14,13 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, cons
     std::vector<VkDescriptorPoolSize> pool_sizes;
     for(const auto &[type, count]: counts) { pool_sizes.push_back({type, count}); }
 
+    VkDescriptorPoolInlineUniformBlockCreateInfo inline_uniform_block_info = {};
+    inline_uniform_block_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_INLINE_UNIFORM_BLOCK_CREATE_INFO;
+    inline_uniform_block_info.maxInlineUniformBlockBindings = device->properties().vulkan13.maxInlineUniformTotalSize;
+
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.pNext = &inline_uniform_block_info;
     pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
     pool_info.pPoolSizes = pool_sizes.data();
     pool_info.maxSets = max_sets;

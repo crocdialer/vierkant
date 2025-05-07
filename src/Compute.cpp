@@ -40,7 +40,8 @@ Compute::Compute(const vierkant::DevicePtr &device, const create_info_t &create_
     if(create_info.descriptor_pool) { m_descriptor_pool = create_info.descriptor_pool; }
     else
     {
-        vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 512},
+        vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 256},
+                                                          {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 256},
                                                           {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
                                                           {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 128);
