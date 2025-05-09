@@ -8,8 +8,6 @@
 namespace vierkant
 {
 
-constexpr char g_portability_ext_name[] = "VK_KHR_portability_subset";
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 QueryPoolPtr create_query_pool(const vierkant::DevicePtr &device, uint32_t query_count, VkQueryType query_type)
