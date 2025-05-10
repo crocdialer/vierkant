@@ -39,7 +39,7 @@ object_overlay_context_ptr create_object_overlay_context(const DevicePtr &device
             object_overlay_context_ptr(new object_overlay_context_t, std::default_delete<object_overlay_context_t>());
     vierkant::Buffer::create_info_t id_buffer_info = {};
     id_buffer_info.device = device;
-    id_buffer_info.num_bytes = 1U << 10U;
+    id_buffer_info.num_bytes = 1U << 14U;
     id_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
                            VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     id_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
