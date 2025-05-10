@@ -64,9 +64,22 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.blend_state.blendEnable = true;
         fmt.depth_test = false;
         fmt.depth_write = false;
-        fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE);
         fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
         fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+
+        drawable_t drawable_fullscreen = {};
+        drawable_fullscreen.num_vertices = 3;
+        drawable_fullscreen.pipeline_format = fmt;
+        drawable_fullscreen.use_own_buffers = true;
+
+        //        m_drawable_grid = drawable_fullscreen;
+        //        m_drawable_grid.pipeline_format.depth_write = true;
+        //        m_drawable_grid.pipeline_format.shader_stages =
+        //                m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_GRID);
+
+        m_drawable_image_fullscreen = drawable_fullscreen;
+        m_drawable_image_fullscreen.pipeline_format.shader_stages =
+                m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE);
 
         // descriptors
         vierkant::descriptor_t &desc_texture = m_drawable_image_fullscreen.descriptors[0];
@@ -76,10 +89,6 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         vierkant::descriptor_t &desc_color = m_drawable_image_fullscreen.descriptors[1];
         desc_color.type = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
         desc_color.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-        m_drawable_image_fullscreen.num_vertices = 3;
-        m_drawable_image_fullscreen.pipeline_format = fmt;
-        m_drawable_image_fullscreen.use_own_buffers = true;
 
         m_drawable_color_depth_fullscreen = m_drawable_image_fullscreen;
         m_drawable_color_depth_fullscreen.pipeline_format.depth_test = false;
