@@ -72,10 +72,11 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         drawable_fullscreen.pipeline_format = fmt;
         drawable_fullscreen.use_own_buffers = true;
 
-        //        m_drawable_grid = drawable_fullscreen;
-        //        m_drawable_grid.pipeline_format.depth_write = true;
-        //        m_drawable_grid.pipeline_format.shader_stages =
-        //                m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_GRID);
+        m_drawable_grid = drawable_fullscreen;
+        m_drawable_grid.pipeline_format.depth_test = false;
+        m_drawable_grid.pipeline_format.depth_write = true;
+        m_drawable_grid.pipeline_format.shader_stages =
+                m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_GRID);
 
         m_drawable_image_fullscreen = drawable_fullscreen;
         m_drawable_image_fullscreen.pipeline_format.shader_stages =
@@ -117,15 +118,15 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
     // grid
     {
-        // unit grid
-        auto geom = vierkant::Geometry::Grid();
-        geom->tex_coords.clear();
-        m_drawable_grid =
-                vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info)},
-                                           drawable_params)
-                        .front();
-        m_drawable_grid.pipeline_format.shader_stages =
-                m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
+        //        // unit grid
+        //        auto geom = vierkant::Geometry::Grid();
+        //        geom->tex_coords.clear();
+        //        m_drawable_grid =
+        //                vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info)},
+        //                                           drawable_params)
+        //                        .front();
+        //        m_drawable_grid.pipeline_format.shader_stages =
+        //                m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
     }
 
     // skybox
@@ -471,14 +472,14 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float scale, uint32_t /*num_subs*/,
-                            const vierkant::transform_t &transform, const glm::mat4 &projection)
+void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float /*scale*/, uint32_t /*num_subs*/,
+                            const vierkant::transform_t &/*transform*/, const glm::mat4 &/*projection*/)
 {
     // TODO: map-lookup for requested num-subdivisions
     auto drawable = m_drawable_grid;
-    drawable.matrices.transform = transform;
-    drawable.matrices.transform.scale = glm::vec3(scale);
-    drawable.matrices.projection = projection;
+    drawable.pipeline_format.blend_state.blendEnable = true;
+    drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
+    drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
     renderer.stage_drawable(std::move(drawable));
 }
 
