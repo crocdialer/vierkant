@@ -319,26 +319,24 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     bool objects_unchanged = true;
     frame_context.dirty_drawable_indices.clear();
 
+    auto transform_hasher = std::hash<vierkant::transform_t>();
     size_t scene_hash = 0;
-    size_t transform_hash = std::hash<vierkant::transform_t>()(scene->root()->transform);
 
-    auto object_view = scene->registry()->view<vierkant::Object3D *>();
-    object_view.each([&scene_hash](const auto &object) {
-        vierkant::hash_combine(scene_hash, object);
-        vierkant::hash_combine(scene_hash, object->enabled);
-    });
+    SelectVisitor<Object3D> visitor;
+    visitor.select_only_enabled = true;
+    scene->root()->accept(visitor);
 
-    auto mesh_view = scene->registry()->view<vierkant::mesh_component_t>();
-
-    for(const auto &[entity, mesh_component]: mesh_view.each())
+    for(const auto *object: visitor.objects)
     {
-        auto object = scene->object_by_id(static_cast<uint32_t>(entity));
         if(!object) { continue; }
+
+        vierkant::hash_combine(scene_hash, object);
         auto obj_global_transform = object->global_transform();
 
-        auto mesh = mesh_component.mesh;
-        if(!mesh) { continue; }
+        auto *mesh_component = object->get_component_ptr<mesh_component_t>();
+        if(!mesh_component || !mesh_component->mesh) { continue; }
 
+        auto mesh = mesh_component->mesh;
         bool transform_update = false;
         meshes.insert(mesh);
 
@@ -358,16 +356,15 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
         for(uint32_t i = 0; i < mesh->entries.size(); ++i)
         {
-            bool entry_enabled = !mesh_component.entry_indices || mesh_component.entry_indices->contains(i);
+            bool entry_enabled = !mesh_component->entry_indices || mesh_component->entry_indices->contains(i);
             vierkant::hash_combine(scene_hash, entry_enabled);
             if(!entry_enabled) { continue; }
 
             const auto &entry = mesh->entries[i];
 
             id_entry_t key = {object->id(), i};
-            auto it = m_entry_matrix_cache.find(key);
 
-            vierkant::hash_combine(transform_hash, obj_global_transform * entry.transform);
+            auto transform_hash = transform_hasher(obj_global_transform * entry.transform);
             transform_hashes[key] = transform_hash;
 
             auto hash_it = frame_context.transform_hashes.find(key);
@@ -377,17 +374,24 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             if((transform_update || animation_update) && frame_context.cull_result.index_map.contains(key))
             {
                 // combine mesh- with entry-transform
-                uint32_t drawable_index = frame_context.cull_result.index_map.at(key);
-                frame_context.dirty_drawable_indices.insert(drawable_index);
+                auto drawable_index_it = frame_context.cull_result.index_map.find(key);
 
-                auto &drawable = frame_context.cull_result.drawables[drawable_index];
-                drawable.matrices.transform = node_transforms.empty()
-                                                      ? object->global_transform() * entry.transform
-                                                      : object->global_transform() * node_transforms[entry.node_index];
-                drawable.last_matrices =
-                        it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
+                if(drawable_index_it != frame_context.cull_result.index_map.end())
+                {
+                    uint32_t drawable_index = drawable_index_it->second;
+                    frame_context.dirty_drawable_indices.insert(drawable_index);
 
-                m_entry_matrix_cache[key] = drawable.matrices;
+                    auto &drawable = frame_context.cull_result.drawables[drawable_index];
+                    drawable.matrices.transform =
+                            node_transforms.empty() ? object->global_transform() * entry.transform
+                                                    : object->global_transform() * node_transforms[entry.node_index];
+
+                    auto it = m_entry_matrix_cache.find(key);
+                    drawable.last_matrices =
+                            it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
+
+                    m_entry_matrix_cache[key] = drawable.matrices;
+                }
             }
         }
     }
@@ -527,19 +531,24 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
                         m_g_renderer_main.num_concurrent_frames();
     auto &last_frame_context = m_frame_contexts[last_index];
 
-    auto view = frame_context.cull_result.scene->registry()
-                        ->view<vierkant::mesh_component_t, vierkant::animation_component_t>();
+    SelectVisitor<Object3D> visitor;
+    frame_context.cull_result.scene->root()->accept(visitor);
 
-    for(const auto &[entity, mesh_component, animation_state]: view.each())
+    for(const auto *object: visitor.objects)
     {
-        auto object_id = static_cast<uint32_t>(entity);
-        const auto &mesh = mesh_component.mesh;
-        const auto &animation = mesh->node_animations[animation_state.index];
+        auto object_id = object->id();
+
+        auto *mesh_component = object->get_component_ptr<mesh_component_t>();
+        auto *animation_state = object->get_component_ptr<animation_component_t>();
+        if(!mesh_component || !animation_state) { continue; }
+
+        const auto &mesh = mesh_component->mesh;
+        const auto &animation = mesh->node_animations[animation_state->index];
 
         if(mesh->root_bone)
         {
             std::vector<vierkant::transform_t> bone_transforms;
-            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation, animation_state.current_time,
+            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation, animation_state->current_time,
                                                      bone_transforms);
 
             // min alignment for storage-buffers
@@ -555,7 +564,7 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
         {
             // morph-target weights
             std::vector<std::vector<float>> node_morph_weights;
-            vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, animation_state.current_time,
+            vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, animation_state->current_time,
                                                      node_morph_weights);
 
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)
@@ -870,21 +879,28 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             for(auto idx: frame_context.dirty_drawable_indices)
             {
-                assert(idx < frame_context.cull_result.drawables.size());
-                const auto &drawable = frame_context.cull_result.drawables[idx];
+                if(idx < frame_context.cull_result.drawables.size())
+                {
+                    const auto &drawable = frame_context.cull_result.drawables[idx];
 
-                matrix_data[2 * i] = drawable.matrices;
-                matrix_data[2 * i + 1] = drawable.last_matrices ? *drawable.last_matrices : drawable.matrices;
+                    matrix_data[2 * i] = drawable.matrices;
+                    matrix_data[2 * i + 1] = drawable.last_matrices ? *drawable.last_matrices : drawable.matrices;
 
-                vierkant::staging_copy_info_t copy_transform = {};
-                copy_transform.num_bytes = staging_stride;
-                copy_transform.data = matrix_data.data() + 2 * i;
-                copy_transform.dst_buffer = params.mesh_draws;
-                copy_transform.dst_offset = stride * idx;
-                copy_transform.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-                copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-                copy_transforms.push_back(copy_transform);
-                i++;
+                    vierkant::staging_copy_info_t copy_transform = {};
+                    copy_transform.num_bytes = staging_stride;
+                    copy_transform.data = matrix_data.data() + 2 * i;
+                    copy_transform.dst_buffer = params.mesh_draws;
+                    copy_transform.dst_offset = stride * idx;
+                    copy_transform.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+                    copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+                    copy_transforms.push_back(copy_transform);
+                    i++;
+                }
+                else
+                {
+                    spdlog::warn("idx >= frame_context.cull_result.drawables.size()");
+                    break;
+                }
             }
             vierkant::staging_copy(staging_context, copy_transforms);
         }
