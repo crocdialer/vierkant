@@ -466,8 +466,8 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float /*scale*/, uint32_t /*num_subs*/,
-                            const vierkant::transform_t &transform, const glm::mat4 &projection, bool ortho)
+void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float dist, bool ortho,
+                            const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
     auto drawable = m_drawable_grid;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
@@ -480,6 +480,7 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float /*scale*/, uin
         glm::mat4 view_inverse;
         glm::vec4 color;
         glm::vec2 line_width;
+        float dist;
         VkBool32 ortho;
     };
     drawable.descriptors[0].inline_uniform_block.resize(sizeof(grid_params_t));
@@ -487,7 +488,8 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float /*scale*/, uin
     camera_data.projection_view = projection * vierkant::mat4_cast(transform);
     camera_data.projection_inverse = glm::inverse(projection);
     camera_data.view_inverse = vierkant::mat4_cast(vierkant::inverse(transform));
-    camera_data.color = glm::vec4(1.f);
+    camera_data.color = color;
+    camera_data.dist = dist;
     camera_data.line_width = glm::vec2(0.1f);
     camera_data.ortho = ortho;
 
