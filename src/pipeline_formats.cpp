@@ -1,15 +1,15 @@
+#include "vierkant/shaders.hpp"
 #include <vierkant/hash.hpp>
 #include <vierkant/pipeline_formats.hpp>
-#include "vierkant/shaders.hpp"
 
 #include "spirv_reflect.h"
 
 //! comparison operators for some vulkan-structs used by vierkant::Pipeline
 static inline bool operator==(const VkVertexInputBindingDescription &lhs, const VkVertexInputBindingDescription &rhs)
 {
-    if(lhs.binding != rhs.binding){ return false; }
-    if(lhs.inputRate != rhs.inputRate){ return false; }
-    if(lhs.stride != rhs.stride){ return false; }
+    if(lhs.binding != rhs.binding) { return false; }
+    if(lhs.inputRate != rhs.inputRate) { return false; }
+    if(lhs.stride != rhs.stride) { return false; }
     return true;
 }
 
@@ -18,10 +18,10 @@ static inline bool operator==(const VkVertexInputBindingDescription &lhs, const 
 static inline bool operator==(const VkVertexInputAttributeDescription &lhs,
                               const VkVertexInputAttributeDescription &rhs)
 {
-    if(lhs.binding != rhs.binding){ return false; }
-    if(lhs.format != rhs.format){ return false; }
-    if(lhs.location != rhs.location){ return false; }
-    if(lhs.offset != rhs.offset){ return false; }
+    if(lhs.binding != rhs.binding) { return false; }
+    if(lhs.format != rhs.format) { return false; }
+    if(lhs.location != rhs.location) { return false; }
+    if(lhs.offset != rhs.offset) { return false; }
     return true;
 }
 
@@ -30,14 +30,14 @@ static inline bool operator==(const VkVertexInputAttributeDescription &lhs,
 static inline bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
                               const VkPipelineColorBlendAttachmentState &rhs)
 {
-    if(lhs.blendEnable != rhs.blendEnable){ return false; }
-    if(lhs.srcColorBlendFactor != rhs.srcColorBlendFactor){ return false; }
-    if(lhs.dstColorBlendFactor != rhs.dstColorBlendFactor){ return false; }
-    if(lhs.colorBlendOp != rhs.colorBlendOp){ return false; }
-    if(lhs.srcAlphaBlendFactor != rhs.srcAlphaBlendFactor){ return false; }
-    if(lhs.dstAlphaBlendFactor != rhs.dstAlphaBlendFactor){ return false; }
-    if(lhs.alphaBlendOp != rhs.alphaBlendOp){ return false; }
-    if(lhs.colorWriteMask != rhs.colorWriteMask){ return false; }
+    if(lhs.blendEnable != rhs.blendEnable) { return false; }
+    if(lhs.srcColorBlendFactor != rhs.srcColorBlendFactor) { return false; }
+    if(lhs.dstColorBlendFactor != rhs.dstColorBlendFactor) { return false; }
+    if(lhs.colorBlendOp != rhs.colorBlendOp) { return false; }
+    if(lhs.srcAlphaBlendFactor != rhs.srcAlphaBlendFactor) { return false; }
+    if(lhs.dstAlphaBlendFactor != rhs.dstAlphaBlendFactor) { return false; }
+    if(lhs.alphaBlendOp != rhs.alphaBlendOp) { return false; }
+    if(lhs.colorWriteMask != rhs.colorWriteMask) { return false; }
     return true;
 }
 
@@ -45,9 +45,9 @@ static inline bool operator==(const VkPipelineColorBlendAttachmentState &lhs,
 
 static inline bool operator==(const VkPushConstantRange &lhs, const VkPushConstantRange &rhs)
 {
-    if(lhs.size != rhs.size){ return false; }
-    if(lhs.offset != rhs.offset){ return false; }
-    if(lhs.stageFlags != rhs.stageFlags){ return false; }
+    if(lhs.size != rhs.size) { return false; }
+    if(lhs.offset != rhs.offset) { return false; }
+    if(lhs.stageFlags != rhs.stageFlags) { return false; }
     return true;
 }
 
@@ -56,9 +56,7 @@ static inline bool operator==(const VkPushConstantRange &lhs, const VkPushConsta
 namespace vierkant
 {
 
-ShaderModulePtr create_shader_module(const DevicePtr &device,
-                                     const void *spirv_code,
-                                     size_t num_bytes,
+ShaderModulePtr create_shader_module(const DevicePtr &device, const void *spirv_code, size_t num_bytes,
                                      glm::uvec3 *group_count)
 {
     VkShaderModuleCreateInfo create_info = {};
@@ -82,13 +80,12 @@ ShaderModulePtr create_shader_module(const DevicePtr &device,
         }
         spvReflectDestroyShaderModule(&spv_shader_module);
     }
-    return {shader_module, [device](VkShaderModule s){ vkDestroyShaderModule(device->handle(), s, nullptr); }};
+    return {shader_module, [device](VkShaderModule s) { vkDestroyShaderModule(device->handle(), s, nullptr); }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::vector<VkRayTracingShaderGroupCreateInfoKHR>
-raytracing_shader_groups(const raytracing_shader_map_t &shader_stages)
+std::vector<VkRayTracingShaderGroupCreateInfoKHR> raytracing_shader_groups(const raytracing_shader_map_t &shader_stages)
 {
     std::vector<VkRayTracingShaderGroupCreateInfoKHR> ret;
 
@@ -101,7 +98,7 @@ raytracing_shader_groups(const raytracing_shader_map_t &shader_stages)
 
     uint32_t next_index = 0;
 
-    for(const auto &[stage, shader_module] : shader_stages)
+    for(const auto &[stage, shader_module]: shader_stages)
     {
         switch(stage)
         {
@@ -127,8 +124,7 @@ raytracing_shader_groups(const raytracing_shader_map_t &shader_stages)
                 group_create_info.anyHitShader = next_index;
                 break;
 
-            default:
-                throw std::runtime_error("raytracing_shader_groups: provided a non-raytracing shader");
+            default: throw std::runtime_error("raytracing_shader_groups: provided a non-raytracing shader");
         }
         next_index++;
     }
@@ -158,6 +154,11 @@ std::map<VkShaderStageFlagBits, ShaderModulePtr> create_shader_stages(const Devi
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::texture_frag);
             break;
 
+        case ShaderType::FULLSCREEN_GRID:
+            ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen::texture_vert);
+            ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen::grid_frag);
+            break;
+
         case ShaderType::FULLSCREEN_TEXTURE:
             ret[VK_SHADER_STAGE_VERTEX_BIT] = create_shader_module(device, shaders::fullscreen::texture_vert);
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::fullscreen::texture_frag);
@@ -183,8 +184,7 @@ std::map<VkShaderStageFlagBits, ShaderModulePtr> create_shader_stages(const Devi
             ret[VK_SHADER_STAGE_FRAGMENT_BIT] = create_shader_module(device, shaders::unlit::cube_frag);
             break;
 
-        default:
-            break;
+        default: break;
     }
     return ret;
 }
@@ -195,56 +195,61 @@ std::map<VkShaderStageFlagBits, ShaderModulePtr> create_shader_stages(const Devi
 
 bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other) const
 {
-    if(attachment_count != other.attachment_count){ return false; }
+    if(attachment_count != other.attachment_count) { return false; }
 
-    for(const auto &pair : shader_stages)
+    for(const auto &pair: shader_stages)
     {
-        try{ if(other.shader_stages.at(pair.first) != pair.second){ return false; }}
-        catch(std::out_of_range &e){ return false; }
+        try
+        {
+            if(other.shader_stages.at(pair.first) != pair.second) { return false; }
+        } catch(std::out_of_range &e)
+        {
+            return false;
+        }
     }
 
-    if(binding_descriptions != other.binding_descriptions){ return false; }
-    if(attribute_descriptions != other.attribute_descriptions){ return false; }
+    if(binding_descriptions != other.binding_descriptions) { return false; }
+    if(attribute_descriptions != other.attribute_descriptions) { return false; }
 
-    if(primitive_topology != other.primitive_topology){ return false; }
-    if(primitive_restart != other.primitive_restart){ return false; }
-    if(num_patch_control_points != other.num_patch_control_points){ return false; }
-    if(front_face != other.front_face){ return false; }
-    if(polygon_mode != other.polygon_mode){ return false; }
-    if(cull_mode != other.cull_mode){ return false; }
+    if(primitive_topology != other.primitive_topology) { return false; }
+    if(primitive_restart != other.primitive_restart) { return false; }
+    if(num_patch_control_points != other.num_patch_control_points) { return false; }
+    if(front_face != other.front_face) { return false; }
+    if(polygon_mode != other.polygon_mode) { return false; }
+    if(cull_mode != other.cull_mode) { return false; }
 
     bool dynamic_scissor = crocore::contains(dynamic_states, VK_DYNAMIC_STATE_SCISSOR);
     bool dynamic_viewport = crocore::contains(dynamic_states, VK_DYNAMIC_STATE_VIEWPORT);
-    if(!dynamic_viewport && memcmp(&viewport, &other.viewport, sizeof(VkViewport)) != 0){ return false; }
-    if(!dynamic_scissor && memcmp(&scissor, &other.scissor, sizeof(VkRect2D)) != 0){ return false; }
+    if(!dynamic_viewport && memcmp(&viewport, &other.viewport, sizeof(VkViewport)) != 0) { return false; }
+    if(!dynamic_scissor && memcmp(&scissor, &other.scissor, sizeof(VkRect2D)) != 0) { return false; }
 
-    if(rasterizer_discard != other.rasterizer_discard){ return false; }
-    if(depth_test != other.depth_test){ return false; }
-    if(depth_write != other.depth_write){ return false; }
-    if(depth_clamp != other.depth_clamp){ return false; }
-    if(depth_compare_op != other.depth_compare_op){ return false; }
-    if(stencil_test != other.stencil_test){ return false; }
-    if(memcmp(&stencil_state_front, &other.stencil_state_front, sizeof(VkStencilOpState)) != 0){ return false; }
-    if(memcmp(&stencil_state_back, &other.stencil_state_back, sizeof(VkStencilOpState)) != 0){ return false; }
-    if(line_width != other.line_width){ return false; }
-    if(sample_count != other.sample_count){ return false; }
-    if(sample_shading != other.sample_shading){ return false; }
-    if(min_sample_shading != other.min_sample_shading){ return false; }
-    if(memcmp(&blend_state, &other.blend_state, sizeof(VkPipelineColorBlendAttachmentState)) != 0){ return false; }
-    if(attachment_blend_states != other.attachment_blend_states){ return false; }
-    if(renderpass != other.renderpass){ return false; }
-    if(view_mask != other.view_mask){ return false; }
-    if(color_attachment_formats != other.color_attachment_formats){ return false; }
-    if(depth_attachment_format != other.depth_attachment_format){ return false; }
-    if(stencil_attachment_format != other.stencil_attachment_format){ return false; }
-    if(subpass != other.subpass){ return false; }
-    if(base_pipeline != other.base_pipeline){ return false; }
-    if(base_pipeline_index != other.base_pipeline_index){ return false; }
-    if(specialization != other.specialization){ return false; }
-    if(pipeline_cache != other.pipeline_cache){ return false; }
-    if(dynamic_states != other.dynamic_states){ return false; }
-    if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
-    if(push_constant_ranges != other.push_constant_ranges){ return false; }
+    if(rasterizer_discard != other.rasterizer_discard) { return false; }
+    if(depth_test != other.depth_test) { return false; }
+    if(depth_write != other.depth_write) { return false; }
+    if(depth_clamp != other.depth_clamp) { return false; }
+    if(depth_compare_op != other.depth_compare_op) { return false; }
+    if(stencil_test != other.stencil_test) { return false; }
+    if(memcmp(&stencil_state_front, &other.stencil_state_front, sizeof(VkStencilOpState)) != 0) { return false; }
+    if(memcmp(&stencil_state_back, &other.stencil_state_back, sizeof(VkStencilOpState)) != 0) { return false; }
+    if(line_width != other.line_width) { return false; }
+    if(sample_count != other.sample_count) { return false; }
+    if(sample_shading != other.sample_shading) { return false; }
+    if(min_sample_shading != other.min_sample_shading) { return false; }
+    if(memcmp(&blend_state, &other.blend_state, sizeof(VkPipelineColorBlendAttachmentState)) != 0) { return false; }
+    if(attachment_blend_states != other.attachment_blend_states) { return false; }
+    if(renderpass != other.renderpass) { return false; }
+    if(view_mask != other.view_mask) { return false; }
+    if(color_attachment_formats != other.color_attachment_formats) { return false; }
+    if(depth_attachment_format != other.depth_attachment_format) { return false; }
+    if(stencil_attachment_format != other.stencil_attachment_format) { return false; }
+    if(subpass != other.subpass) { return false; }
+    if(base_pipeline != other.base_pipeline) { return false; }
+    if(base_pipeline_index != other.base_pipeline_index) { return false; }
+    if(specialization != other.specialization) { return false; }
+    if(pipeline_cache != other.pipeline_cache) { return false; }
+    if(dynamic_states != other.dynamic_states) { return false; }
+    if(descriptor_set_layouts != other.descriptor_set_layouts) { return false; }
+    if(push_constant_ranges != other.push_constant_ranges) { return false; }
     return true;
 }
 
@@ -252,10 +257,10 @@ bool graphics_pipeline_info_t::operator==(const graphics_pipeline_info_t &other)
 
 bool raytracing_pipeline_info_t::operator==(const raytracing_pipeline_info_t &other) const
 {
-    if(shader_stages != other.shader_stages){ return false; }
-    if(max_recursion != other.max_recursion){ return false; }
-    if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
-    if(push_constant_ranges != other.push_constant_ranges){ return false; }
+    if(shader_stages != other.shader_stages) { return false; }
+    if(max_recursion != other.max_recursion) { return false; }
+    if(descriptor_set_layouts != other.descriptor_set_layouts) { return false; }
+    if(push_constant_ranges != other.push_constant_ranges) { return false; }
     return true;
 }
 
@@ -263,9 +268,9 @@ bool raytracing_pipeline_info_t::operator==(const raytracing_pipeline_info_t &ot
 
 bool compute_pipeline_info_t::operator==(const compute_pipeline_info_t &other) const
 {
-    if(shader_stage != other.shader_stage){ return false; }
-    if(descriptor_set_layouts != other.descriptor_set_layouts){ return false; }
-    if(push_constant_ranges != other.push_constant_ranges){ return false; }
+    if(shader_stage != other.shader_stage) { return false; }
+    if(descriptor_set_layouts != other.descriptor_set_layouts) { return false; }
+    if(push_constant_ranges != other.push_constant_ranges) { return false; }
     return true;
 }
 
@@ -326,15 +331,15 @@ struct hash<VkPushConstantRange>
     }
 };
 
-}
+}// namespace std
 
 size_t std::hash<vierkant::pipeline_specialization>::operator()(vierkant::pipeline_specialization const &ps) const
 {
     size_t h = 0;
-    for(const auto &[constant_id, blob] : ps.constant_blobs)
+    for(const auto &[constant_id, blob]: ps.constant_blobs)
     {
         hash_combine(h, constant_id);
-        for(const auto &byte : blob){ hash_combine(h, byte); }
+        for(const auto &byte: blob) { hash_combine(h, byte); }
     }
     return h;
 }
@@ -348,20 +353,20 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
 
     hash_combine(h, fmt.attachment_count);
 
-    for(const auto &[stage, shader] : fmt.shader_stages)
+    for(const auto &[stage, shader]: fmt.shader_stages)
     {
         hash_combine(h, stage);
         hash_combine(h, shader);
     }
 
-    for(const auto &bd : fmt.binding_descriptions)
+    for(const auto &bd: fmt.binding_descriptions)
     {
         hash_combine(h, bd.binding);
         hash_combine(h, bd.inputRate);
         hash_combine(h, bd.stride);
     }
 
-    for(const auto &ad : fmt.attribute_descriptions)
+    for(const auto &ad: fmt.attribute_descriptions)
     {
         hash_combine(h, ad.binding);
         hash_combine(h, ad.format);
@@ -406,10 +411,10 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     hash_combine(h, fmt.sample_shading);
     hash_combine(h, fmt.min_sample_shading);
     hash_combine(h, fmt.blend_state);
-    for(const auto &bs : fmt.attachment_blend_states){ hash_combine(h, bs); }
+    for(const auto &bs: fmt.attachment_blend_states) { hash_combine(h, bs); }
     hash_combine(h, fmt.renderpass);
     hash_combine(h, fmt.view_mask);
-    for(const auto &caf : fmt.color_attachment_formats){ hash_combine(h, caf); }
+    for(const auto &caf: fmt.color_attachment_formats) { hash_combine(h, caf); }
     hash_combine(h, fmt.depth_attachment_format);
     hash_combine(h, fmt.stencil_attachment_format);
     hash_combine(h, fmt.subpass);
@@ -417,9 +422,9 @@ size_t std::hash<vierkant::graphics_pipeline_info_t>::operator()(vierkant::graph
     hash_combine(h, fmt.base_pipeline_index);
     hash_combine(h, fmt.specialization);
     hash_combine(h, fmt.pipeline_cache);
-    for(const auto &ds : fmt.dynamic_states){ hash_combine(h, ds); }
-    for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }
-    for(const auto &pcr : fmt.push_constant_ranges){ hash_combine(h, pcr); }
+    for(const auto &ds: fmt.dynamic_states) { hash_combine(h, ds); }
+    for(const auto &dsl: fmt.descriptor_set_layouts) { hash_combine(h, dsl); }
+    for(const auto &pcr: fmt.push_constant_ranges) { hash_combine(h, pcr); }
     return h;
 }
 
@@ -427,23 +432,22 @@ size_t
 std::hash<vierkant::raytracing_pipeline_info_t>::operator()(vierkant::raytracing_pipeline_info_t const &fmt) const
 {
     size_t h = 0;
-    for(const auto &[stage, shader] : fmt.shader_stages)
+    for(const auto &[stage, shader]: fmt.shader_stages)
     {
         hash_combine(h, stage);
         hash_combine(h, shader);
     }
     hash_combine(h, fmt.max_recursion);
-    for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }
-    for(const auto &pcr : fmt.push_constant_ranges){ hash_combine(h, pcr); }
+    for(const auto &dsl: fmt.descriptor_set_layouts) { hash_combine(h, dsl); }
+    for(const auto &pcr: fmt.push_constant_ranges) { hash_combine(h, pcr); }
     return h;
 }
 
-size_t
-std::hash<vierkant::compute_pipeline_info_t>::operator()(vierkant::compute_pipeline_info_t const &fmt) const
+size_t std::hash<vierkant::compute_pipeline_info_t>::operator()(vierkant::compute_pipeline_info_t const &fmt) const
 {
     size_t h = 0;
     hash_combine(h, fmt.shader_stage);
-    for(const auto &dsl : fmt.descriptor_set_layouts){ hash_combine(h, dsl); }
-    for(const auto &pcr : fmt.push_constant_ranges){ hash_combine(h, pcr); }
+    for(const auto &dsl: fmt.descriptor_set_layouts) { hash_combine(h, dsl); }
+    for(const auto &pcr: fmt.push_constant_ranges) { hash_combine(h, pcr); }
     return h;
 }

@@ -58,15 +58,23 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         m_drawable_image.pipeline_format = fmt;
     }
 
+    graphics_pipeline_info_t fmt = {};
+    fmt.blend_state.blendEnable = true;
+    fmt.depth_test = false;
+    fmt.depth_write = false;
+    fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+
+    drawable_t drawable_fullscreen = {};
+    drawable_fullscreen.num_vertices = 3;
+    drawable_fullscreen.pipeline_format = fmt;
+    drawable_fullscreen.use_own_buffers = true;
+
     // fullscreen
     {
-        graphics_pipeline_info_t fmt = {};
-        fmt.blend_state.blendEnable = true;
-        fmt.depth_test = false;
-        fmt.depth_write = false;
-        fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE);
-        fmt.primitive_topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        fmt.dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+        m_drawable_image_fullscreen = drawable_fullscreen;
+        m_drawable_image_fullscreen.pipeline_format.shader_stages =
+                m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_TEXTURE);
 
         // descriptors
         vierkant::descriptor_t &desc_texture = m_drawable_image_fullscreen.descriptors[0];
@@ -76,10 +84,6 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         vierkant::descriptor_t &desc_color = m_drawable_image_fullscreen.descriptors[1];
         desc_color.type = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
         desc_color.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-        m_drawable_image_fullscreen.num_vertices = 3;
-        m_drawable_image_fullscreen.pipeline_format = fmt;
-        m_drawable_image_fullscreen.use_own_buffers = true;
 
         m_drawable_color_depth_fullscreen = m_drawable_image_fullscreen;
         m_drawable_color_depth_fullscreen.pipeline_format.depth_test = false;
@@ -108,15 +112,15 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
 
     // grid
     {
-        // unit grid
-        auto geom = vierkant::Geometry::Grid();
-        geom->tex_coords.clear();
-        m_drawable_grid =
-                vierkant::create_drawables({vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info)},
-                                           drawable_params)
-                        .front();
+        m_drawable_grid = drawable_fullscreen;
+        m_drawable_grid.pipeline_format.depth_test = true;
+        m_drawable_grid.pipeline_format.depth_write = true;
         m_drawable_grid.pipeline_format.shader_stages =
-                m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_COLOR);
+                m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_GRID);
+
+        vierkant::descriptor_t &desc_camera = m_drawable_grid.descriptors[0];
+        desc_camera.type = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
+        desc_camera.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
     }
 
     // skybox
@@ -462,14 +466,33 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float scale, uint32_t /*num_subs*/,
+void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float dist, bool ortho,
                             const vierkant::transform_t &transform, const glm::mat4 &projection)
 {
-    // TODO: map-lookup for requested num-subdivisions
     auto drawable = m_drawable_grid;
-    drawable.matrices.transform = transform;
-    drawable.matrices.transform.scale = glm::vec3(scale);
-    drawable.matrices.projection = projection;
+    drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
+    drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
+
+    struct grid_params_t
+    {
+        glm::mat4 projection_view;
+        glm::mat4 projection_inverse;
+        glm::mat4 view_inverse;
+        glm::vec4 color;
+        glm::vec2 line_width;
+        float dist;
+        VkBool32 ortho;
+    };
+    drawable.descriptors[0].inline_uniform_block.resize(sizeof(grid_params_t));
+    auto &camera_data = *reinterpret_cast<grid_params_t *>(drawable.descriptors[0].inline_uniform_block.data());
+    camera_data.projection_view = projection * vierkant::mat4_cast(transform);
+    camera_data.projection_inverse = glm::inverse(projection);
+    camera_data.view_inverse = vierkant::mat4_cast(vierkant::inverse(transform));
+    camera_data.color = color;
+    camera_data.dist = dist;
+    camera_data.line_width = glm::vec2(0.1f);
+    camera_data.ortho = ortho;
+
     renderer.stage_drawable(std::move(drawable));
 }
 

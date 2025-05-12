@@ -46,7 +46,7 @@ Ray camera_ray(vec2 coord, vec2 size, vec2 Xi)
 
     if(cam.ortho)
     {
-        origin = (cam.view_inverse * vec4(mix(cam.left, cam.right, inUV.x), mix(cam.top, cam.bottom, inUV.y), 0, 1)).xyz;
+        origin = (cam.view_inverse * cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz;
         direction = -cam.view_inverse[2].xyz;
     }
     else

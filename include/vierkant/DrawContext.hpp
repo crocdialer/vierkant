@@ -70,8 +70,8 @@ public:
      */
     void draw_image_fullscreen(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                                const vierkant::ImagePtr &depth = nullptr, bool depth_test = false, bool blend = true,
-                               const glm::vec4 &color = glm::vec4(1.f),
-                               float depth_bias = 0.f, float depth_scale = 1.f);
+                               const glm::vec4 &color = glm::vec4(1.f), float depth_bias = 0.f,
+                               float depth_scale = 1.f);
 
     /**
      * @brief   Draws an axis-aligned bounding box.
@@ -88,12 +88,13 @@ public:
      * @brief   Draws a grid of lines in the xz-plane.
      *
      * @param   renderer    a provided vierkant::Renderer.
-     * @param   scale       the desired scaling-value.
-     * @param   num_subs    the number of subdivisions.
+     * @param   color       the desired color.
+     * @param   ortho       flag if the projection is orthographic
+     * @param   dist        distance between grid-lines
      * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      */
-    void draw_grid(vierkant::Rasterizer &renderer, float scale, uint32_t num_subs,
+    void draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float dist, bool ortho,
                    const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
