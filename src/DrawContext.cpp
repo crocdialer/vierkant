@@ -113,8 +113,8 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     // grid
     {
         m_drawable_grid = drawable_fullscreen;
-        m_drawable_grid.pipeline_format.depth_test = false;
-        m_drawable_grid.pipeline_format.depth_write = true;
+        m_drawable_grid.pipeline_format.depth_test = true;
+        m_drawable_grid.pipeline_format.depth_write = false;
         m_drawable_grid.pipeline_format.shader_stages =
                 m_pipeline_cache->shader_stages(vierkant::ShaderType::FULLSCREEN_GRID);
 
@@ -473,16 +473,20 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float /*scale*/, uin
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
     drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
 
-    struct camera_t
+    struct grid_params_t
     {
+        glm::mat4 projection_view;
         glm::mat4 projection_inverse;
         glm::mat4 view_inverse;
-        bool ortho;
+        glm::vec2 line_width;
+        VkBool32 ortho;
     };
-    drawable.descriptors[0].inline_uniform_block.resize(sizeof(camera_t));
-    auto &camera_data = *reinterpret_cast<camera_t *>(drawable.descriptors[0].inline_uniform_block.data());
+    drawable.descriptors[0].inline_uniform_block.resize(sizeof(grid_params_t));
+    auto &camera_data = *reinterpret_cast<grid_params_t *>(drawable.descriptors[0].inline_uniform_block.data());
+    camera_data.projection_view = vierkant::mat4_cast(transform) * projection;
     camera_data.projection_inverse = glm::inverse(projection);
     camera_data.view_inverse = vierkant::mat4_cast(vierkant::inverse(transform));
+    camera_data.line_width = glm::vec2(0.1f);
     camera_data.ortho = ortho;
 
     renderer.stage_drawable(std::move(drawable));

@@ -5,14 +5,16 @@
 #include "../utils/transform.glsl"
 #include "../renderer/types.glsl"
 
-struct camera_t
+struct grid_params_t
 {
+    mat4 projection_view;
     mat4 projection_inverse;
     mat4 view_inverse;
+    vec2 line_width;
     bool ortho;
 };
 
-layout(std140, binding = 0) uniform UBO { camera_t cam; };
+layout(std140, binding = 0) uniform UBO { grid_params_t grid_params; };
 
 layout(push_constant) uniform PushConstants
 {
@@ -24,18 +26,18 @@ void camera_ray(vec2 frag_coord, inout vec3 ray_origin, inout vec3 ray_direction
     vec2 uv_coord = frag_coord / context.size;
     vec2 d = uv_coord * 2.0 - 1.0;
 
-    if(cam.ortho)
+    if(grid_params.ortho)
     {
-        ray_origin = (cam.view_inverse * cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz;
-        ray_direction = -cam.view_inverse[2].xyz;
+        ray_origin = (grid_params.view_inverse * grid_params.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz;
+        ray_direction = -grid_params.view_inverse[2].xyz;
     }
     else
     {
         // ray origin
-        ray_origin = cam.view_inverse[3].xyz;
+        ray_origin = grid_params.view_inverse[3].xyz;
 
         // ray direction
-        ray_direction = normalize(mat3(cam.view_inverse) * (cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz);
+        ray_direction = normalize(mat3(grid_params.view_inverse) * (grid_params.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz);
     }
 }
 
@@ -88,22 +90,7 @@ float pristineGrid(in vec2 uv, in vec2 ddx, in vec2 ddy, vec2 lineWidth)
     return mix(grid2.x, 1.0, grid2.y);
 }
 
-bool intersect(const vec4 plane, const vec3 ray_origin, const vec3 ray_direction, out float dist)
-{
-    // dot product between ray_direction and plane normal
-    float denom = dot(plane.xyz, ray_direction);
-
-    // ray is parallel to the plane
-    if (abs(denom) < 1e-6){ return false; }
-
-    // compute intersection distance
-    dist = (plane.w - dot(plane.xyz, ray_origin)) / denom;
-
-    // intersection not behind ray_origin
-    return dist >= 0.0;
-}
-
-bool intersect_ground(const vec3 ray_origin, const vec3 ray_direction, out vec2 ground_uv)
+bool intersect_ground(const vec3 ray_origin, const vec3 ray_direction, out vec3 pos)
 {
     // ray is parallel to the plane
     if (abs(ray_direction.y) < 1e-6){ return false; }
@@ -111,7 +98,7 @@ bool intersect_ground(const vec3 ray_origin, const vec3 ray_direction, out vec2 
     // compute intersection distance
     float dist = -ray_origin.y / ray_direction.y;
 
-    ground_uv = (ray_origin + dist * ray_direction).xz;
+    pos = ray_origin + dist * ray_direction;
 
     // intersection not behind ray_origin
     return dist >= 0.0;
@@ -126,8 +113,6 @@ layout(location = 0) out vec4 out_color;
 
 void main()
 {
-//    gl_FragDepth = ;
-
     // create pixel-ray and ray-differentials
     vec3 ray_origin;
     vec3 ray_direction;
@@ -141,14 +126,22 @@ void main()
     camera_ray(gl_FragCoord.xy + vec2(0, 1), ray_origin_ddy, ray_direction_ddy);
 
     // intersect with groundplane, get grid-uv
-    vec2 grid_uv;
-    if(intersect_ground(ray_origin, ray_direction, grid_uv))
+    vec3 pos;
+    if(intersect_ground(ray_origin, ray_direction, pos))
     {
-        float coverage = pristine_grid(grid_uv, vec2(.1));
+        vec2 grid_uv = pos.xz;
+        float coverage = pristine_grid(grid_uv, grid_params.line_width);
         out_color = vec4(vec3(1), coverage);
+
+        // not very elegant
+        vec4 proj = grid_params.projection_view * vec4(pos, 1.0);
+        gl_FragDepth = proj.z / proj.w;
     }
     else
     {
         out_color = vec4(0);
+
+        // infinite far
+        gl_FragDepth = 0.0;
     }
 }
