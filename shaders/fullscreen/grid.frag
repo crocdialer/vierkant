@@ -10,6 +10,7 @@ struct grid_params_t
     mat4 projection_view;
     mat4 projection_inverse;
     mat4 view_inverse;
+    vec4 color;
     vec2 line_width;
     bool ortho;
 };
@@ -116,26 +117,29 @@ void main()
     // create pixel-ray and ray-differentials
     vec3 ray_origin;
     vec3 ray_direction;
-    vec3 ray_origin_ddx;
-    vec3 ray_direction_ddx;
-    vec3 ray_origin_ddy;
-    vec3 ray_direction_ddy;
+//    vec3 ray_origin_ddx;
+//    vec3 ray_direction_ddx;
+//    vec3 ray_origin_ddy;
+//    vec3 ray_direction_ddy;
 
     camera_ray(gl_FragCoord.xy, ray_origin, ray_direction);
-    camera_ray(gl_FragCoord.xy + vec2(1, 0), ray_origin_ddx, ray_direction_ddx);
-    camera_ray(gl_FragCoord.xy + vec2(0, 1), ray_origin_ddy, ray_direction_ddy);
+//    camera_ray(gl_FragCoord.xy + vec2(1, 0), ray_origin_ddx, ray_direction_ddx);
+//    camera_ray(gl_FragCoord.xy + vec2(0, 1), ray_origin_ddy, ray_direction_ddy);
 
     // intersect with groundplane, get grid-uv
     vec3 pos;
     if(intersect_ground(ray_origin, ray_direction, pos))
     {
-        vec2 grid_uv = pos.xz;
-        float coverage = pristine_grid(grid_uv, grid_params.line_width);
-        out_color = vec4(vec3(1), coverage);
+        vec2 grid_uv = abs(pos.xz);
 
-        // not very elegant
+        // grid coverage
+        float coverage = pristine_grid(grid_uv, grid_params.line_width);
+
+        out_color = vec4(grid_params.color.rgb, grid_params.color.a * coverage);
+
+        // not very elegant but yeah, works
         vec4 proj = grid_params.projection_view * vec4(pos, 1.0);
-        gl_FragDepth = proj.z / proj.w;
+        gl_FragDepth = coverage > 0.0 ? proj.z / proj.w : 0.0;
     }
     else
     {
