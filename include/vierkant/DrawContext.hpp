@@ -89,13 +89,14 @@ public:
      *
      * @param   renderer    a provided vierkant::Renderer.
      * @param   color       the desired color.
+     * @param   spacing     distance between grid-lines
+     * @param   line_width  line-width in [0, 1]
      * @param   ortho       flag if the projection is orthographic
-     * @param   dist        distance between grid-lines
      * @param   transform   a modelview transform
      * @param   projection  the projection matrix to use for drawing.
      */
-    void draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float dist, bool ortho,
-                   const vierkant::transform_t &transform, const glm::mat4 &projection);
+    void draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float spacing, const glm::vec2 &line_width,
+                   bool ortho, const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
      * @brief   Draws a mesh.

@@ -466,8 +466,9 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float dist, bool ortho,
-                            const vierkant::transform_t &transform, const glm::mat4 &projection)
+void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float spacing,
+                            const glm::vec2 &line_width, bool ortho, const vierkant::transform_t &transform,
+                            const glm::mat4 &projection)
 {
     auto drawable = m_drawable_grid;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
@@ -480,7 +481,7 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
         glm::mat4 view_inverse;
         glm::vec4 color;
         glm::vec2 line_width;
-        float dist;
+        float spacing;
         VkBool32 ortho;
     };
     drawable.descriptors[0].inline_uniform_block.resize(sizeof(grid_params_t));
@@ -489,8 +490,8 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
     camera_data.projection_inverse = glm::inverse(projection);
     camera_data.view_inverse = vierkant::mat4_cast(vierkant::inverse(transform));
     camera_data.color = color;
-    camera_data.dist = dist;
-    camera_data.line_width = glm::vec2(0.1f);
+    camera_data.spacing = spacing;
+    camera_data.line_width = glm::clamp(line_width, glm::vec2(0.f), glm::vec2(1.f));
     camera_data.ortho = ortho;
 
     renderer.stage_drawable(std::move(drawable));
