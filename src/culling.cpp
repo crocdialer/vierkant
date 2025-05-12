@@ -62,7 +62,7 @@ public:
                     drawable.matrices.projection = m_camera->projection_matrix();
 
                     id_entry_t key = {object.id(), drawable.entry_index};
-                    m_cull_result.index_map[key] = i + m_cull_result.drawables.size();
+                    m_cull_result.index_map[key] = m_cull_result.drawables.size();
 
                     m_cull_result.object_id_to_drawable_indices[object.id()].push_back(m_cull_result.drawables.size());
 

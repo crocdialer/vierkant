@@ -174,7 +174,7 @@ VkCommandBuffer Rasterizer::render(const vierkant::Framebuffer &framebuffer, boo
     if(recycle_commands && frame_assets.command_buffer)
     {
         // invoke delegate
-        if(draw_indirect_delegate) { draw_indirect_delegate(frame_assets.indirect_indexed_bundle); }
+        if(indirect_draw && draw_indirect_delegate) { draw_indirect_delegate(frame_assets.indirect_indexed_bundle); }
         return frame_assets.command_buffer.handle();
     }
 

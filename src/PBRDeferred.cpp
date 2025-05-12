@@ -315,6 +315,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     std::unordered_set<vierkant::MeshConstPtr> meshes;
     std::unordered_map<vierkant::id_entry_t, size_t> transform_hashes;
 
+    bool need_culling = frame_context.cull_result.camera != cam || meshes != frame_context.cull_result.meshes;
     bool materials_unchanged = true;
     bool objects_unchanged = true;
     frame_context.dirty_drawable_indices.clear();
@@ -373,25 +374,22 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
             if((transform_update || animation_update) && frame_context.cull_result.index_map.contains(key))
             {
+                need_culling = need_culling || !frame_context.settings.indirect_draw;
+
                 // combine mesh- with entry-transform
-                auto drawable_index_it = frame_context.cull_result.index_map.find(key);
+                auto drawable_index = frame_context.cull_result.index_map.at(key);
+                frame_context.dirty_drawable_indices.insert(drawable_index);
 
-                if(drawable_index_it != frame_context.cull_result.index_map.end())
-                {
-                    uint32_t drawable_index = drawable_index_it->second;
-                    frame_context.dirty_drawable_indices.insert(drawable_index);
+                auto &drawable = frame_context.cull_result.drawables[drawable_index];
+                drawable.matrices.transform = node_transforms.empty()
+                                                      ? object->global_transform() * entry.transform
+                                                      : object->global_transform() * node_transforms[entry.node_index];
 
-                    auto &drawable = frame_context.cull_result.drawables[drawable_index];
-                    drawable.matrices.transform =
-                            node_transforms.empty() ? object->global_transform() * entry.transform
-                                                    : object->global_transform() * node_transforms[entry.node_index];
+                auto it = m_entry_matrix_cache.find(key);
+                drawable.last_matrices =
+                        it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
 
-                    auto it = m_entry_matrix_cache.find(key);
-                    drawable.last_matrices =
-                            it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
-
-                    m_entry_matrix_cache[key] = drawable.matrices;
-                }
+                m_entry_matrix_cache[key] = drawable.matrices;
             }
         }
     }
@@ -414,7 +412,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             frame_context.material_hashes[mat] = h;
         }
     }
-    bool need_culling = frame_context.cull_result.camera != cam || meshes != frame_context.cull_result.meshes;
+
     frame_context.recycle_commands =
             objects_unchanged && materials_unchanged && !need_culling && frame_context.settings == settings;
 
@@ -822,6 +820,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     // draw last visible objects
     m_g_renderer_main.draw_indirect_delegate = [this, &frame_context,
                                                 use_gpu_culling](Rasterizer::indirect_draw_bundle_t &params) {
+        assert(params.num_draws == frame_context.cull_result.drawables.size());
         frame_context.cmd_clear.begin(0);
         vierkant::begin_label(frame_context.cmd_clear.handle(), {"update transforms"});
 
