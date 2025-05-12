@@ -12,9 +12,9 @@ ray_intersection intersect(const Plane &plane, const Ray &ray)
     // assuming normalized vectors
     float denom = glm::dot(-plane.normal(), ray.direction);
 
-    if(denom > 1e-6)
+    if(std::abs(denom) > 1e-6)
     {
-        float d = (plane.coefficients.z - glm::dot(ray.origin, -plane.normal())) / denom;
+        float d = (plane.coefficients.w - glm::dot(ray.origin, -plane.normal())) / denom;
         if(d >= 0) return {INTERSECT, d};
     }
     return REJECT;

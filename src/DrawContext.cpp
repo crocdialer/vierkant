@@ -469,7 +469,6 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
 void DrawContext::draw_grid(vierkant::Rasterizer &renderer, float /*scale*/, uint32_t /*num_subs*/,
                             const vierkant::transform_t &transform, const glm::mat4 &projection, bool ortho)
 {
-    // TODO: map-lookup for requested num-subdivisions
     auto drawable = m_drawable_grid;
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
     drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
