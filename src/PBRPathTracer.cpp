@@ -486,22 +486,16 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     ray_gen_ubo.camera.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
     ray_gen_ubo.camera.projection_inverse = glm::inverse(cam->projection_matrix());
     ray_gen_ubo.camera.view_inverse = vierkant::mat4_cast(cam->global_transform());
+    ray_gen_ubo.camera.ortho = true;
 
     if(auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam))
     {
+        ray_gen_ubo.camera.ortho = false;
         ray_gen_ubo.camera.fov = perspective_cam->perspective_params.fovy();
         ray_gen_ubo.camera.aperture = frame_context.settings.depth_of_field
                                               ? static_cast<float>(perspective_cam->perspective_params.aperture_size())
                                               : 0.f;
         ray_gen_ubo.camera.focal_distance = perspective_cam->perspective_params.focal_distance;
-    }
-    else if(auto ortho_cam = std::dynamic_pointer_cast<vierkant::OrthoCamera>(cam))
-    {
-        ray_gen_ubo.camera.ortho = true;
-        ray_gen_ubo.camera.left = ortho_cam->ortho_params.left;
-        ray_gen_ubo.camera.right = ortho_cam->ortho_params.right;
-        ray_gen_ubo.camera.bottom = ortho_cam->ortho_params.bottom;
-        ray_gen_ubo.camera.top = ortho_cam->ortho_params.top;
     }
 
     // update uniform-buffers
