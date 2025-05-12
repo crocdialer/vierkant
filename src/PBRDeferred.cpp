@@ -315,7 +315,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     std::unordered_set<vierkant::MeshConstPtr> meshes;
     std::unordered_map<vierkant::id_entry_t, size_t> transform_hashes;
 
-    bool need_culling = frame_context.cull_result.camera != cam || meshes != frame_context.cull_result.meshes;
+    bool need_culling = frame_context.cull_result.camera != cam;
     bool materials_unchanged = true;
     bool objects_unchanged = true;
     frame_context.dirty_drawable_indices.clear();
@@ -412,6 +412,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             frame_context.material_hashes[mat] = h;
         }
     }
+    need_culling = need_culling || meshes != frame_context.cull_result.meshes;
 
     frame_context.recycle_commands =
             objects_unchanged && materials_unchanged && !need_culling && frame_context.settings == settings;
