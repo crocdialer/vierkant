@@ -479,20 +479,22 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
         glm::mat4 projection_view;
         glm::mat4 projection_inverse;
         glm::mat4 view_inverse;
-        glm::vec4 color;
-        glm::vec2 line_width;
-        float spacing;
-        VkBool32 ortho;
+        glm::vec4 plane = glm::vec4(0, 1, 0, 0);
+        glm::vec4 color = glm::vec4(1.f);
+        glm::vec2 line_width = glm::vec2(0.05f);
+        float spacing = 1.f;
+        VkBool32 ortho = false;
     };
     drawable.descriptors[0].inline_uniform_block.resize(sizeof(grid_params_t));
-    auto &camera_data = *reinterpret_cast<grid_params_t *>(drawable.descriptors[0].inline_uniform_block.data());
-    camera_data.projection_view = projection * vierkant::mat4_cast(transform);
-    camera_data.projection_inverse = glm::inverse(projection);
-    camera_data.view_inverse = vierkant::mat4_cast(vierkant::inverse(transform));
-    camera_data.color = color;
-    camera_data.spacing = spacing;
-    camera_data.line_width = glm::clamp(line_width, glm::vec2(0.f), glm::vec2(1.f));
-    camera_data.ortho = ortho;
+    auto &grid_params = *reinterpret_cast<grid_params_t *>(drawable.descriptors[0].inline_uniform_block.data());
+    grid_params = {};
+    grid_params.projection_view = projection * vierkant::mat4_cast(transform);
+    grid_params.projection_inverse = glm::inverse(projection);
+    grid_params.view_inverse = vierkant::mat4_cast(vierkant::inverse(transform));
+    grid_params.color = color;
+    grid_params.spacing = spacing;
+    grid_params.line_width = glm::clamp(line_width, glm::vec2(0.f), glm::vec2(1.f));
+    grid_params.ortho = ortho;
 
     renderer.stage_drawable(std::move(drawable));
 }

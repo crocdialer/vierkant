@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 
-#include "../utils/transform.glsl"
+#include "../utils/sampling.glsl"
 #include "../renderer/types.glsl"
 
 struct grid_params_t
@@ -10,6 +10,7 @@ struct grid_params_t
     mat4 projection_view;
     mat4 projection_inverse;
     mat4 view_inverse;
+    vec4 plane;
     vec4 color;
     vec2 line_width;
     float dist;
@@ -80,18 +81,20 @@ float grid_grad_box(in vec2 uv, vec2 ddx, vec2 ddy, float grid_ratio)
     return 1.0 - (1.0 - i.x) * (1.0 - i.y);
 }
 
-bool intersect_ground(const vec3 ray_origin, const vec3 ray_direction, out vec3 pos)
+bool intersect_plane(const vec4 plane, const vec3 ray_origin, const vec3 ray_direction, out vec3 pos)
 {
+    float denom = dot(ray_direction, -plane.xyz);
+
     // ray is parallel to the plane
-    if (abs(ray_direction.y) < 1e-6){ return false; }
+    if (abs(denom) < 1e-6){ return false; }
 
     // compute intersection distance
-    float dist = -ray_origin.y / ray_direction.y;
+    float d = (plane.w - dot(ray_origin, -plane.xyz)) / denom;
 
-    pos = ray_origin + dist * ray_direction;
+    pos = ray_origin + d * ray_direction;
 
     // intersection not behind ray_origin
-    return dist >= 0.0;
+    return d >= 0.0;
 }
 
 layout(location = 0) in VertexData
@@ -117,23 +120,24 @@ void main()
 
     // intersect with groundplane, get grid-uv
     vec3 pos;
-    if(intersect_ground(ray_origin, ray_direction, pos))
+    if(intersect_plane(grid_params.plane, ray_origin, ray_direction, pos))
     {
+        vec3 n = grid_params.plane.xyz;
         float d_inv = 1.0 / grid_params.dist;
 
-        vec2 grid_uv = d_inv * pos.xz;
+        mat3 frame = local_frame(n);
+        vec2 grid_uv = d_inv * (frame * pos).xy;
 
-        // computer ray differentials
-        vec3 ddx_pos = ray_origin_ddx - ray_direction_ddx * (ray_origin_ddx - pos).y / (ray_direction_ddx).y;
-        vec3 ddy_pos = ray_origin_ddy - ray_direction_ddy * (ray_origin_ddy - pos).y / (ray_direction_ddy).y;
+        // compute ray differentials
+        vec3 ddx_pos = ray_origin_ddx - ray_direction_ddx * dot(ray_origin_ddx - pos, n) / dot(ray_direction_ddx, n);
+        vec3 ddy_pos = ray_origin_ddy - ray_direction_ddy * dot(ray_origin_ddy - pos, n) / dot(ray_direction_ddy, n);
 
         // texture sampling footprint
-        vec2 ddx_uv = d_inv * ddx_pos.xz - grid_uv;
-        vec2 ddy_uv = d_inv * ddy_pos.xz - grid_uv;
+        vec2 ddx_uv = d_inv * (frame * ddx_pos).xy - grid_uv;
+        vec2 ddy_uv = d_inv * (frame * ddy_pos).xy - grid_uv;
 
         // grid coverage
         float coverage = pristine_grid(grid_uv, ddx_uv, ddy_uv, grid_params.line_width);
-//        float coverage = grid_grad_box(grid_uv, ddx_uv, ddy_uv, 10.0);
 
         out_color = vec4(grid_params.color.rgb, grid_params.color.a * coverage);
 
