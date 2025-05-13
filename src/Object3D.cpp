@@ -40,8 +40,7 @@ vierkant::transform_t Object3D::global_transform() const
 
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    auto parent_inverse = parent() ? vierkant::inverse(parent()->global_transform()) : vierkant::transform_t();
-    transform = parent_inverse * t;
+    transform = parent() ? vierkant::inverse(parent()->global_transform()) * t : t;
 }
 
 bool Object3D::global_enable() const
