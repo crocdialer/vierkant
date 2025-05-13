@@ -65,9 +65,9 @@ void OrbitCamera::pan(const glm::vec2 &diff)
 
 void OrbitCamera::orbit(const glm::vec2 &diff)
 {
-    spherical_coords += glm::vec2(glm::radians(diff.x), glm::radians(diff.y));
-    spherical_coords.x = std::fmod(spherical_coords.x + glm::two_pi<float>(), glm::two_pi<float>());
-    spherical_coords.y = std::clamp(spherical_coords.y, -glm::half_pi<float>(), glm::half_pi<float>());
+    spherical_coords += glm::vec2(glm::radians(diff.y), glm::radians(diff.x));
+    spherical_coords.x = std::clamp(spherical_coords.x, -glm::half_pi<float>(), glm::half_pi<float>());
+    spherical_coords.y = std::fmod(spherical_coords.y + glm::two_pi<float>(), glm::two_pi<float>());
 }
 
 void OrbitCamera::mouse_press(const MouseEvent &e)
@@ -244,9 +244,9 @@ vierkant::transform_t FlyCamera::transform() const { return {position, rotation(
 
 void FlyCamera::orbit(const glm::vec2 &diff)
 {
-    spherical_coords += glm::vec2(glm::radians(diff.x), glm::radians(diff.y));
-    spherical_coords.x = std::fmod(spherical_coords.x + glm::two_pi<float>(), glm::two_pi<float>());
-    spherical_coords.y = std::clamp(spherical_coords.y, -glm::half_pi<float>(), glm::half_pi<float>());
+    spherical_coords += glm::vec2(glm::radians(diff.y), glm::radians(diff.x));
+    spherical_coords.x = std::clamp(spherical_coords.x, -glm::half_pi<float>(), glm::half_pi<float>());
+    spherical_coords.y = std::fmod(spherical_coords.y + glm::two_pi<float>(), glm::two_pi<float>());
 }
 
 }// namespace vierkant

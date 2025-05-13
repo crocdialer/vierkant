@@ -46,8 +46,8 @@ class OrbitCamera : public CameraControl
 public:
     glm::vec3 look_at = glm::vec3(0.f);
 
-    // (theta, phi)
-    glm::vec2 spherical_coords = {glm::half_pi<float>(), 0.f};
+    // (phi, theta)
+    glm::vec2 spherical_coords = {0.f, glm::half_pi<float>()};
 
     float distance = 1.f;
 
@@ -72,7 +72,7 @@ private:
 
     void mouse_drag(const MouseEvent &e);
 
-    [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords.yx(), 0.f)}; }
+    [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords, 0.f)}; }
 
     glm::ivec2 m_last_pos{};
 
@@ -86,8 +86,8 @@ class FlyCamera : public CameraControl
 public:
     glm::vec3 position = {0.0f, 0.0f, 0.0f};
 
-    // (theta, phi)
-    glm::vec2 spherical_coords = {glm::half_pi<float>(), 0.f};
+    // (phi, theta)
+    glm::vec2 spherical_coords = {0.f, glm::half_pi<float>()};
 
     float move_speed = 1.f;
 
@@ -106,7 +106,7 @@ public:
 private:
     void orbit(const glm::vec2 &diff);
 
-    [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords.yx(), 0.f)}; }
+    [[nodiscard]] inline glm::quat rotation() const { return {glm::vec3(spherical_coords, 0.f)}; }
 
     std::unordered_map<int, bool> m_keys;
 
