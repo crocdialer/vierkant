@@ -2922,6 +2922,7 @@ namespace IMGUIZMO_NAMESPACE
          ret = true;
       }
       isInside = gContext.mbMouseOver && ImRect(position, position + size).Contains(io.MousePos);
+      io.WantCaptureMouse = io.WantCaptureMouse || isInside;
 
       if (io.MouseDown[0] && (fabsf(io.MouseDelta[0]) || fabsf(io.MouseDelta[1])) && isClicking)
       {
