@@ -156,8 +156,11 @@ private:
             if(it != map.end()){ return it->second; }
         }
 
+        auto modified_format = format;
+        modified_format.pipeline_cache = m_pipeline_cache;
+
         // not found -> create pipeline
-        auto new_pipeline = Pipeline::create(m_device, format);
+        auto new_pipeline = Pipeline::create(m_device, std::move(modified_format));
 
         // write-locked for insertion
         std::unique_lock write_lock(mutex);
@@ -188,5 +191,7 @@ private:
     std::shared_mutex m_shader_stage_mutex;
 
     std::unordered_map<vierkant::ShaderType, vierkant::shader_stage_map_t> m_shader_stages;
+
+    VkPipelineCache m_pipeline_cache = VK_NULL_HANDLE;
 };
 }

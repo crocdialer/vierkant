@@ -207,7 +207,9 @@ struct graphics_pipeline_info_t
     // optionally provide specialization-constants
     std::optional<vierkant::pipeline_specialization> specialization;
 
+    //! optional VkPipelineCache
     VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
+
     std::vector<VkDynamicState> dynamic_states = {VK_DYNAMIC_STATE_VIEWPORT};
 
     // descriptor set layouts / push-constants
@@ -233,6 +235,9 @@ struct raytracing_pipeline_info_t
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
 
+    //! optional VkPipelineCache
+    VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
+
     std::optional<vierkant::pipeline_specialization> specialization;
 
     bool operator==(const raytracing_pipeline_info_t &other) const;
@@ -250,6 +255,9 @@ struct compute_pipeline_info_t
     //! descriptor set layouts / push-constants
     std::vector<VkDescriptorSetLayout> descriptor_set_layouts;
     std::vector<VkPushConstantRange> push_constant_ranges;
+
+    //! optional VkPipelineCache
+    VkPipelineCache pipeline_cache = VK_NULL_HANDLE;
 
     std::optional<vierkant::pipeline_specialization> specialization;
 
