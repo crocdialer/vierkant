@@ -24,7 +24,7 @@ layout(push_constant) uniform PushConstants
     render_context_t context;
 };
 
-void camera_ray(vec2 frag_coord, inout vec3 ray_origin, inout vec3 ray_direction)
+void camera_ray(vec2 frag_coord, out vec3 ray_origin, out vec3 ray_direction)
 {
     vec2 uv_coord = frag_coord / context.size;
     vec2 d = uv_coord * 2.0 - 1.0;
