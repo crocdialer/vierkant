@@ -511,7 +511,7 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
                 max_v = std::abs(eye[i]);
             }
         }
-        for(int32_t i = 0; i < 3; ++i) { grid_params.plane[i] = i == max_index ? 1 : 0; }
+        for(int32_t i = 0; i < 3; ++i) { grid_params.plane[i] = i == max_index ? 1.f : 0.f; }
     }
     renderer.stage_drawable(std::move(drawable));
 }
