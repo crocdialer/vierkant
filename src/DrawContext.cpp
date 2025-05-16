@@ -488,7 +488,8 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
     drawable.descriptors[0].inline_uniform_block.resize(sizeof(grid_params_t));
     auto &grid_params = *reinterpret_cast<grid_params_t *>(drawable.descriptors[0].inline_uniform_block.data());
     grid_params = {};
-    grid_params.projection_view = projection * vierkant::mat4_cast(transform);
+    auto transform_mat = vierkant::mat4_cast(transform);
+    grid_params.projection_view = projection * transform_mat;
     grid_params.projection_inverse = glm::inverse(projection);
     grid_params.view_inverse = vierkant::mat4_cast(vierkant::inverse(transform));
     grid_params.color = color;
@@ -496,6 +497,22 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
     grid_params.line_width = glm::clamp(line_width, glm::vec2(0.f), glm::vec2(1.f));
     grid_params.ortho = ortho;
 
+    // adjust plane to cardinal axis
+    if(ortho)
+    {
+        auto eye = transform_mat[2].xyz();
+        float max_v = 0.f;
+        int32_t max_index = 0;
+        for(int32_t i = 0; i < 3; ++i)
+        {
+            if(std::abs(eye[i]) > max_v)
+            {
+                max_index = i;
+                max_v = std::abs(eye[i]);
+            }
+        }
+        for(int32_t i = 0; i < 3; ++i) { grid_params.plane[i] = i == max_index ? 1 : 0; }
+    }
     renderer.stage_drawable(std::move(drawable));
 }
 
