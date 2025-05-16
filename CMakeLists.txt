@@ -82,6 +82,12 @@ set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
 # suppress warnings from bundles headers
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/include/vierkant/bundled")
 
+# mimalloc
+set(MI_BUILD_TESTS OFF)
+add_subdirectory(submodules/mimalloc EXCLUDE_FROM_ALL)
+include_directories(BEFORE SYSTEM ${mimalloc_INCLUDE_DIRS})
+set(LIBS ${LIBS} mimalloc-static)
+
 # vulkan/volk
 find_package(Vulkan)
 include_directories(${Vulkan_INCLUDE_DIRS})
@@ -154,6 +160,7 @@ add_subdirectory("src")
 if (MSVC)
     target_compile_options(${LIB_NAME} PRIVATE /W2 /WX) # /W4
 else ()
+    target_compile_options(mimalloc-static PRIVATE -Wall -Wextra -Werror -Wno-unused-function)
     target_compile_options(${LIB_NAME} PRIVATE -Wall -Wextra -Werror) # -Wpedantic
 endif ()
 
