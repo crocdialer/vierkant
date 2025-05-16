@@ -497,13 +497,14 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
     grid_params.line_width = glm::clamp(line_width, glm::vec2(0.f), glm::vec2(1.f));
     grid_params.ortho = ortho;
 
-    // adjust plane to cardinal axis
+    // adjust plane to cardinal axis, higher weight for y
     if(ortho)
     {
         auto eye = transform_mat[2].xyz();
-        float max_v = 0.f;
+        eye.y *= 1.75f;
+        float max_v = std::abs(eye[0]);
         int32_t max_index = 0;
-        for(int32_t i = 0; i < 3; ++i)
+        for(int32_t i = 1; i < 3; ++i)
         {
             if(std::abs(eye[i]) > max_v)
             {
