@@ -39,3 +39,6 @@
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
 	shallow = true
+[submodule "submodules/mimalloc"]
+	path = submodules/mimalloc
+	url = git@github.com:microsoft/mimalloc.git
