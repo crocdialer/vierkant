@@ -201,7 +201,7 @@ bsdf_sample_t sample_disney(in material_t material, vec3 N, vec3 V, float eta, i
     vec3 H = frame * sample_GGX(Xi, material.roughness);
     if (dot(V, H) < 0.0){ H = -H; }
 
-    vec3 H_vndf = frame * sample_GGX_VNDF(Xi, inverse(frame) * V, vec2(material.roughness));
+    vec3 H_vndf = frame * sample_GGX_VNDF(Xi, transpose(frame) * V, vec2(material.roughness));
     if (dot(V, H_vndf) < 0.0){ H_vndf = -H_vndf; }
 
     // transmission

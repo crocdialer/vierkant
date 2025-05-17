@@ -500,7 +500,8 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
     // adjust plane to cardinal axis, higher weight for y
     if(ortho)
     {
-        auto eye = transform_mat[2].xyz();
+        // 3rd row-vector (or z-axis of transposed)
+        glm::vec3 eye = {transform_mat[0][2], transform_mat[1][2], transform_mat[2][2]};
         eye.y *= 1.75f;
         float max_v = std::abs(eye[0]);
         int32_t max_index = 0;

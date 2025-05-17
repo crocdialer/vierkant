@@ -125,16 +125,16 @@ void main()
         vec3 n = grid_params.plane.xyz;
         float d_inv = 1.0 / grid_params.dist;
 
-        mat3 frame = local_frame(n);
-        vec2 grid_uv = d_inv * (pos * frame).xy;
+        mat3 frame = transpose(local_frame(n));
+        vec2 grid_uv = d_inv * (frame * pos).xy;
 
         // compute ray differentials
         vec3 ddx_pos = ray_origin_ddx - ray_direction_ddx * dot(ray_origin_ddx - pos, n) / dot(ray_direction_ddx, n);
         vec3 ddy_pos = ray_origin_ddy - ray_direction_ddy * dot(ray_origin_ddy - pos, n) / dot(ray_direction_ddy, n);
 
         // texture sampling footprint
-        vec2 ddx_uv = d_inv * (ddx_pos * frame).xy - grid_uv;
-        vec2 ddy_uv = d_inv * (ddy_pos * frame).xy - grid_uv;
+        vec2 ddx_uv = d_inv * (frame * ddx_pos).xy - grid_uv;
+        vec2 ddy_uv = d_inv * (frame * ddy_pos).xy - grid_uv;
 
         // grid coverage
         float coverage = pristine_grid(grid_uv, ddx_uv, ddy_uv, grid_params.line_width);
