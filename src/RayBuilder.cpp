@@ -842,7 +842,10 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         }
 
         bool needs_rebuild = !context->mesh_assets.contains(mesh);
-        if(use_mesh_compute) { needs_rebuild = !previous_builds.contains(build_key); }
+        if(use_mesh_compute)
+        {
+            needs_rebuild = !context->build_results.contains(build_key) && !previous_builds.contains(build_key);
+        }
 
         if(needs_rebuild)
         {
