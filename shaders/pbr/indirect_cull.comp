@@ -155,8 +155,8 @@ void main()
         float aabb_area = (aabb.z - aabb.x) * (aabb.w - aabb.y);
         float lod_index_f = log2(cull_data.lod_base / aabb_area) / log2(cull_data.lod_step);
 
-        uint max_lod_index = max((cull_data.max_num_lods > 0 ? min(cull_data.max_num_lods, mesh_entry.lod_count)
-                                                             : mesh_entry.lod_count) - 1, 0);
+        uint max_lod_index = min(mesh_entry.lod_count, MAX_NUM_MESH_LODS) - 1;
+        max_lod_index = cull_data.max_num_lods > 0 ? min(max_lod_index, cull_data.max_num_lods - 1) : max_lod_index;
         uint lod_index = sphere_visible ? clamp(uint(lod_index_f + 1), 0, max_lod_index) : 0;
 
         // select lod

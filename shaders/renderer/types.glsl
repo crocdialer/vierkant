@@ -27,6 +27,8 @@ struct lod_t
     uint num_meshlets;
 };
 
+#define MAX_NUM_MESH_LODS 8
+
 struct mesh_entry_t
 {
     vec3 center;
@@ -36,7 +38,7 @@ struct mesh_entry_t
     uint vertex_count;
 
     uint lod_count;
-    lod_t lods[8];
+    lod_t lods[MAX_NUM_MESH_LODS];
 };
 
 struct index_bundle_t
