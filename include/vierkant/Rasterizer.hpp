@@ -68,13 +68,13 @@ public:
     struct alignas(16) mesh_entry_t
     {
         glm::vec3 center;
-        float radius;
+        float radius = 0.f;
 
-        uint32_t vertex_offset;
-        uint32_t vertex_count;
+        uint32_t vertex_offset = 0;
+        uint32_t vertex_count = 0;
 
         uint32_t lod_count;
-        vierkant::Mesh::lod_t lods[8];
+        vierkant::Mesh::lod_t lods[8] = {};
     };
 
     //! draw-command flag bits
