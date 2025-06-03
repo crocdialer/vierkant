@@ -106,8 +106,15 @@ public:
      */
     [[nodiscard]] bool hdr() const
     {
-        return m_hdr && (m_color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32 ||
-                         m_color_format == VK_FORMAT_R16G16B16A16_SFLOAT);
+        return m_color_format == VK_FORMAT_A2B10G10R10_UNORM_PACK32 || m_color_format == VK_FORMAT_R16G16B16A16_SFLOAT;
+    }
+
+    /**
+     * @return  a flag indicating if HDR is supported
+     */
+    [[nodiscard]] bool hdr_supported() const
+    {
+        return m_hdr_supported;
     }
 
     /**
@@ -141,7 +148,7 @@ private:
 
     bool m_use_v_sync = true;
 
-    bool m_hdr = false;
+    bool m_hdr_supported = false;
 
     std::vector<vierkant::ImagePtr> m_images;
 

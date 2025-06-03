@@ -18,6 +18,8 @@ using namespace crocore;
 namespace vierkant::gui
 {
 
+constexpr ImVec4 gray(.6f, .6f, .6f, 1.f);
+
 struct scoped_child_window_t
 {
     bool is_child_window = false;
@@ -51,6 +53,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     bool is_open = true;
     bool is_fullscreen = window->fullscreen();
     bool v_sync = window->swapchain().v_sync();
+    bool hdr_supported = window->swapchain().hdr_supported();
     bool use_hdr = window->swapchain().hdr();
     VkSampleCountFlagBits msaa_current = window->swapchain().sample_count();
 
@@ -109,12 +112,15 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
         create_swapchain(window->swapchain().sample_count(), v_sync, use_hdr);
         app->loop_throttling = !v_sync;
     }
-    ImGui::SameLine();
 
-    if(ImGui::Checkbox("hdr", &use_hdr))
+    if(hdr_supported)
     {
-        create_swapchain(window->swapchain().sample_count(), v_sync, use_hdr);
-        app->loop_throttling = !v_sync;
+        ImGui::SameLine();
+        if(ImGui::Checkbox("hdr", &use_hdr))
+        {
+            create_swapchain(window->swapchain().sample_count(), v_sync, use_hdr);
+            app->loop_throttling = !v_sync;
+        }
     }
     if(!v_sync)
     {
@@ -483,7 +489,6 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
     if(ImGui::Checkbox("", &is_enabled)) { obj->enabled = is_enabled; }
     ImGui::SameLine();
 
-    const ImVec4 gray(.6f, .6f, .6f, 1.f);
     if(!is_enabled) { ImGui::PushStyleColor(ImGuiCol_Text, gray); }
 
     if(obj->children.empty())
@@ -839,9 +844,7 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
             }
             ImGui::SameLine();
 
-            const ImVec4 gray(.6f, .6f, .6f, 1.f);
             if(!entry_enabled) { ImGui::PushStyleColor(ImGuiCol_Text, gray); }
-
             auto entry_name = e.name.empty() ? ("entry " + std::to_string(entry_idx)) : e.name;
 
             if(ImGui::TreeNodeEx((void *) (mesh_id + entry_idx), 0, "%s", entry_name.c_str()))

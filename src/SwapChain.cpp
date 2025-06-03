@@ -36,18 +36,21 @@ SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice the_device, VkS
     return details;
 }
 
-VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &formats, bool use_hdr)
+VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &formats, bool use_hdr,
+                                              bool &supports_hdr)
 {
     VkSurfaceFormatKHR best_match = {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
+    supports_hdr = false;
 
     for(const auto &fmt: formats)
     {
         if(use_hdr && fmt.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
         {
-            if(fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT) { best_match = fmt; }
-            else if(fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && best_match.colorSpace <= fmt.colorSpace)
+            if(fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT ||
+               (fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && best_match.colorSpace <= fmt.colorSpace))
             {
                 best_match = fmt;
+                supports_hdr = true;
             }
         }
     }
@@ -73,10 +76,10 @@ bool has_stencil_component(VkFormat the_format)
 
 SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync,
                      bool use_hdr)
-    : m_device(std::move(device)), m_use_v_sync(use_vsync), m_hdr(use_hdr)
+    : m_device(std::move(device)), m_use_v_sync(use_vsync)
 {
     SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(), surface);
-    VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats, use_hdr);
+    VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats, use_hdr, m_hdr_supported);
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
     auto caps = swap_chain_support.capabilities;
     VkExtent2D extent = {};
@@ -240,6 +243,7 @@ void swap(SwapChain &lhs, SwapChain &rhs)
     std::swap(lhs.m_num_samples, rhs.m_num_samples);
     std::swap(lhs.m_swap_chain, rhs.m_swap_chain);
     std::swap(lhs.m_use_v_sync, rhs.m_use_v_sync);
+    std::swap(lhs.m_hdr_supported, rhs.m_hdr_supported);
     std::swap(lhs.m_images, rhs.m_images);
     std::swap(lhs.m_framebuffers, rhs.m_framebuffers);
     std::swap(lhs.m_color_format, rhs.m_color_format);
