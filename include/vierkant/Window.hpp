@@ -49,6 +49,7 @@ public:
         glm::ivec2 position = {};
         bool fullscreen = false;
         bool vsync = true;
+        bool use_hdr = false;
         bool joysticks = true;
         uint32_t monitor_index = 0;
         VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
@@ -226,7 +227,7 @@ public:
      * @param   v_sync      use vertical synchronization or not
      */
     void create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
-                          bool v_sync = true);
+                          bool v_sync = true, bool use_hdr = false);
 
 private:
     explicit Window(const create_info_t &create_info);

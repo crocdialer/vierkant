@@ -183,7 +183,7 @@ void Window::clear_handles()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples, bool v_sync)
+void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples, bool v_sync, bool use_hdr)
 {
     // while window is minimized
     while(is_minimized()) { glfwWaitEvents(); }
@@ -193,7 +193,7 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
     m_swap_chain = {};
 
     // create swapchain for this window
-    m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync);
+    m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync, use_hdr);
 
     for(auto &pair: window_delegates)
     {

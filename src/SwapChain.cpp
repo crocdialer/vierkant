@@ -44,12 +44,8 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
     {
         if(use_hdr && fmt.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
         {
-            if(fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT)
-            {
-                best_match = fmt;
-            }
-            else if(fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && 
-                    best_match.colorSpace <= fmt.colorSpace)
+            if(fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT) { best_match = fmt; }
+            else if(fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && best_match.colorSpace <= fmt.colorSpace)
             {
                 best_match = fmt;
             }
@@ -75,8 +71,9 @@ bool has_stencil_component(VkFormat the_format)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync, bool use_hdr)
-    : m_device(std::move(device)), m_use_v_sync(use_vsync)
+SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync,
+                     bool use_hdr)
+    : m_device(std::move(device)), m_use_v_sync(use_vsync), m_hdr(use_hdr)
 {
     SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(), surface);
     VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats, use_hdr);

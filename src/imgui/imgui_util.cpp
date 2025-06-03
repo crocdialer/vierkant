@@ -51,11 +51,12 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
     bool is_open = true;
     bool is_fullscreen = window->fullscreen();
     bool v_sync = window->swapchain().v_sync();
+    bool use_hdr = window->swapchain().hdr();
     VkSampleCountFlagBits msaa_current = window->swapchain().sample_count();
 
-    auto create_swapchain = [app, window](VkSampleCountFlagBits sample_count, bool v_sync) {
-        app->main_queue().post([window, sample_count, v_sync]() {
-            window->create_swapchain(window->swapchain().device(), sample_count, v_sync);
+    auto create_swapchain = [app, window](VkSampleCountFlagBits sample_count, bool v_sync, bool hdr) {
+        app->main_queue().post([window, sample_count, v_sync, hdr]() {
+            window->create_swapchain(window->swapchain().device(), sample_count, v_sync, hdr);
         });
     };
 
@@ -105,7 +106,14 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
     if(ImGui::Checkbox("vsync", &v_sync))
     {
-        create_swapchain(window->swapchain().sample_count(), v_sync);
+        create_swapchain(window->swapchain().sample_count(), v_sync, use_hdr);
+        app->loop_throttling = !v_sync;
+    }
+    ImGui::SameLine();
+
+    if(ImGui::Checkbox("hdr", &use_hdr))
+    {
+        create_swapchain(window->swapchain().sample_count(), v_sync, use_hdr);
         app->loop_throttling = !v_sync;
     }
     if(!v_sync)
@@ -135,7 +143,7 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
 
     if(ImGui::Combo("multisampling", &msaa_index, msaa_items, IM_ARRAYSIZE(msaa_items)))
     {
-        create_swapchain(msaa_levels[msaa_index], v_sync);
+        create_swapchain(msaa_levels[msaa_index], v_sync, use_hdr);
     }
 
     ImGui::Spacing();
