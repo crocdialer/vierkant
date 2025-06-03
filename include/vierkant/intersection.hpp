@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <array>
 #include <vector>
 #include <vierkant/math.hpp>
 #include <vierkant/transform.hpp>
@@ -375,6 +376,24 @@ struct OBB
     };
 };
 
+//! see https://www.gamedevs.org/uploads/fast-extraction-viewing-frustum-planes-from-world-view-projection-matrix.pdf
+[[maybe_unused]] static std::array<glm::vec4, 6> get_view_planes(const glm::mat4x4 &mat)
+{
+    std::array<glm::vec4, 6> out{};
+    for(auto i = 0; i < 3; ++i)
+    {
+        for(size_t j = 0; j < 2; ++j)
+        {
+            const float sign = j ? 1.f : -1.f;
+            for(auto k = 0; k < 4; ++k) { out[2 * i + j][k] = mat[k][3] + sign * mat[k][i]; }
+        }
+    }
+
+    // normalize plane; see Appendix A.2
+    for(auto &&plane: out) { plane /= static_cast<float>(length(glm::vec3(plane.xyz()))); }
+    return out;
+}
+
 struct Frustum
 {
     //enum CLippingPlane
@@ -389,7 +408,7 @@ struct Frustum
     //};
     Plane planes[6];
 
-    explicit Frustum(const glm::mat4 &the_VP_martix);
+    explicit Frustum(const glm::mat4 &view_projection);
 
     Frustum(float aspect, float fov, float near, float far);
 

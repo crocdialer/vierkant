@@ -1,6 +1,7 @@
 #include <unordered_set>
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/Visitor.hpp>
+#include <vierkant/barycentric_indexing.hpp>
 #include <vierkant/micromap_compute.hpp>
 
 namespace vierkant
@@ -168,16 +169,17 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
 
             if(optional_micromap_asset)
             {
-                micromap_usage.count = lod_0.num_indices / 3;
+                micromap_usage.count = vierkant::num_micro_triangles(optional_micromap_asset->num_subdivisions) *
+                                       lod_0.num_indices / 3;
                 micromap_usage.format = optional_micromap_asset->micromap_format;
                 micromap_usage.subdivisionLevel = optional_micromap_asset->num_subdivisions;
 
                 spdlog::warn("attaching opacity-micromaps to mesh-entry {}", i);
                 triangles_micromap.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_TRIANGLES_OPACITY_MICROMAP_EXT;
                 triangles_micromap.micromap = optional_micromap_asset->micromap.get();
-                triangles_micromap.indexBuffer.deviceAddress = optional_micromap_asset->index_buffer_address;
-                triangles_micromap.indexStride = vierkant::num_bytes(VK_INDEX_TYPE_UINT32);
-                triangles_micromap.indexType = VK_INDEX_TYPE_UINT32;
+                //                triangles_micromap.indexBuffer.deviceAddress = optional_micromap_asset->index_buffer_address;
+                //                triangles_micromap.indexStride = vierkant::num_bytes(VK_INDEX_TYPE_UINT32);
+                triangles_micromap.indexType = VK_INDEX_TYPE_NONE_KHR;//VK_INDEX_TYPE_UINT32;
                 triangles_micromap.pUsageCounts = &micromap_usage;
                 triangles_micromap.usageCountsCount = 1;
 

@@ -300,14 +300,14 @@ ray_intersection AABB::intersect(const Ray &ray) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-Frustum::Frustum(const glm::mat4 &the_VP_martix)
+Frustum::Frustum(const glm::mat4 &view_projection)
 {
-    planes[0] = Plane(the_VP_martix[2] + the_VP_martix[3]);// near plane
-    planes[1] = Plane(the_VP_martix[3] - the_VP_martix[2]);// far plane
-    planes[2] = Plane(the_VP_martix[0] + the_VP_martix[3]);// left plane
-    planes[3] = Plane(the_VP_martix[3] - the_VP_martix[0]);// right plane
-    planes[4] = Plane(the_VP_martix[3] - the_VP_martix[1]);// top plane
-    planes[5] = Plane(the_VP_martix[1] + the_VP_martix[3]);// bottom plane
+    planes[0] = Plane(view_projection[2] + view_projection[3]);// near plane
+    planes[1] = Plane(view_projection[3] - view_projection[2]);// far plane
+    planes[2] = Plane(view_projection[0] + view_projection[3]);// left plane
+    planes[3] = Plane(view_projection[3] - view_projection[0]);// right plane
+    planes[4] = Plane(view_projection[3] - view_projection[1]);// top plane
+    planes[5] = Plane(view_projection[1] + view_projection[3]);// bottom plane
 }
 
 Frustum::Frustum(float aspect, float fov, float near, float far)
