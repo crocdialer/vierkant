@@ -210,6 +210,7 @@ micromap_compute_result_t micromap_compute(const micromap_compute_context_handle
             vierkant::Buffer::create_info_t scratch_buffer_info = {};
             scratch_buffer_info.device = context->device;
             scratch_buffer_info.num_bytes = buffer_size_sum.scratch;
+            scratch_buffer_info.alignment = scratch_alignment;
             scratch_buffer_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
             scratch_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
             build_data.scratch = vierkant::Buffer::create(scratch_buffer_info);
