@@ -309,9 +309,6 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     auto acquire_result = m_swap_chain.acquire_next_image();
     auto &framebuffer = swapchain().framebuffers()[acquire_result.image_index];
 
-    // wait for prior frame to finish
-    framebuffer.wait_fence();
-
     if(acquire_result.result != VK_SUCCESS)
     {
         create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());

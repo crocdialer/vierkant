@@ -210,9 +210,9 @@ SwapChain::acquire_image_result_t SwapChain::acquire_next_image(uint64_t timeout
     m_framebuffers[m_current_frame_index].wait_fence();
 
     ret.image_available = m_sync_objects[m_current_frame_index].image_available;
-    ret.render_finished = m_sync_objects[m_current_frame_index].render_finished;
     ret.result = vkAcquireNextImageKHR(m_device->handle(), m_swap_chain, timeout, ret.image_available, VK_NULL_HANDLE,
                                        &m_swapchain_image_index);
+    ret.render_finished = m_sync_objects[m_swapchain_image_index].render_finished;
     ret.image_index = m_swapchain_image_index;
     m_last_acquired_image = ret;
     return ret;
