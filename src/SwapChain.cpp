@@ -36,21 +36,26 @@ SwapChainSupportDetails query_swapchain_support(VkPhysicalDevice the_device, VkS
     return details;
 }
 
-VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &the_formats)
+VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR> &formats, bool use_hdr)
 {
-    if(the_formats.size() == 1 && the_formats[0].format == VK_FORMAT_UNDEFINED)
-    {
-        return {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
-    }
+    VkSurfaceFormatKHR best_match = {VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
 
-    for(const auto &fmt: the_formats)
+    for(const auto &fmt: formats)
     {
-        if(fmt.format == VK_FORMAT_B8G8R8A8_UNORM && fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+        if(use_hdr && fmt.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
         {
-            return fmt;
+            if(fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT)
+            {
+                best_match = fmt;
+            }
+            else if(fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && 
+                    best_match.colorSpace <= fmt.colorSpace)
+            {
+                best_match = fmt;
+            }
         }
     }
-    return the_formats[0];
+    return best_match;
 }
 
 VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &the_modes, bool use_vsync)
@@ -70,11 +75,11 @@ bool has_stencil_component(VkFormat the_format)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync)
+SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync, bool use_hdr)
     : m_device(std::move(device)), m_use_v_sync(use_vsync)
 {
     SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(), surface);
-    VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats);
+    VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats, use_hdr);
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
     auto caps = swap_chain_support.capabilities;
     VkExtent2D extent = {};

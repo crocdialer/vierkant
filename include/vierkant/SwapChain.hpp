@@ -37,7 +37,8 @@ public:
     SwapChain(DevicePtr device,
               VkSurfaceKHR surface,
               VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
-              bool use_vsync = true);
+              bool use_vsync = true,
+              bool use_hdr = false);
 
     SwapChain(SwapChain &&other) noexcept;
 
