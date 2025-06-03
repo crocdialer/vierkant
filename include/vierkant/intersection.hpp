@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <array>
 #include <vector>
 #include <vierkant/math.hpp>
 #include <vierkant/transform.hpp>
