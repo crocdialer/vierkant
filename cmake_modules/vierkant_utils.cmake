@@ -64,7 +64,7 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME SHADER_COMPILER SPIRV_OUT_DIR
     set(TOP_NAMESPACE "vierkant::shaders")
 
     # remove existing spirv files
-    file(GLOB SPIRV_FILES "${SPIRV_OUT_DIR}/${GLSL_FOLDER}/*.spv")
+    file(GLOB SPIRV_FILES "${SPIRV_OUT_DIR}/shaders/*.spv")
 
     if (SPIRV_FILES)
         file(REMOVE "${SPIRV_FILES}")
@@ -113,12 +113,12 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME SHADER_COMPILER SPIRV_OUT_DIR
 
             get_filename_component(FILE_NAME ${GLSL} NAME)
             string(REGEX REPLACE "[.]" "_" NAME ${FILE_NAME})
-            set(SPIRV "${SPIRV_OUT_DIR}/${GLSL_FOLDER}/${DIR_NAME}_${NAME}.spv")
+            set(SPIRV "${SPIRV_OUT_DIR}/shaders/${DIR_NAME}_${NAME}.spv")
             #                    message(${SPIRV})
             list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 
             execute_process(
-                    COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OUT_DIR}/shaders/glsl"
+                    COMMAND ${CMAKE_COMMAND} -E make_directory "${SPIRV_OUT_DIR}/shaders/"
                     COMMAND ${SHADER_COMPILER} --target-env ${SPIRV_TARGET_ENV} ${GLSLANG_EXTRA_PARAMS} ${GLSL} -o ${SPIRV}
                     OUTPUT_VARIABLE glslang_std_out
                     ERROR_VARIABLE glslang_std_err

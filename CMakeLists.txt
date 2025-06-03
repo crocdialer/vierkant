@@ -134,9 +134,9 @@ add_subdirectory("submodules/JoltPhysics/Build" EXCLUDE_FROM_ALL)
 include_directories(SYSTEM submodules/JoltPhysics/Jolt)
 set(LIBS ${LIBS} Jolt)
 
-# shaders
+##shaders
 include(build_shaders)
-get_shaders_recursive(GLSL_SOURCE_FILES "shaders/glsl")
+get_shaders_recursive(GLSL_SOURCE_FILES "shaders")
 set(SHADERS_CPP ${CMAKE_CURRENT_BINARY_DIR}/src/shaders.cpp)
 
 # shaders are automatically recompiled if changed

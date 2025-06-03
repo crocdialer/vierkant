@@ -2,7 +2,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules ${CMAKE_MODULE_P
 include(vierkant_utils)
 
 if (NOT DEFINED SHADER_SOURCE_ROOT)
-    set(SHADER_SOURCE_ROOT "shaders/glsl")
+    set(SHADER_SOURCE_ROOT "shaders")
 endif ()
 
 if (NOT DEFINED TARGET_NAME)
