@@ -8,7 +8,7 @@ layout(push_constant) uniform PushConstants
     render_context_t context;
 };
 
-layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
+layout(std430, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
     mesh_draw_t draws[];
 };

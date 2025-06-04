@@ -7,17 +7,18 @@
 #include <crocore/NamedId.hpp>
 #include <optional>
 
-#include <vierkant/mesh_component.hpp>
 #include <vierkant/descriptor.hpp>
+#include <vierkant/mesh_component.hpp>
 
 namespace vierkant
 {
 
-struct alignas(16) matrix_struct_t
+struct matrix_struct_t
 {
     glm::mat4 projection = glm::mat4(1);
     glm::mat4 texture = glm::mat4(1);
     vierkant::transform_t transform = {};
+    uint32_t pad[2] = {};
 };
 
 struct alignas(16) material_struct_t

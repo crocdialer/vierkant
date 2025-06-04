@@ -28,7 +28,7 @@ layout(set = 0, binding = BINDING_BONE_VERTEX_DATA) readonly buffer BoneVertexBu
     bone_vertex_data_t bone_vertex_data[];
 };
 
-layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
+layout(std430, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
     mesh_draw_t draws[];
 };
