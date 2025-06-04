@@ -55,7 +55,8 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
 
             if(use_hdr)
             {
-                if(fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT ||
+                //! (VK_COLOR_SPACE_HDR10_ST2084_EXT) requires the extensions VK_EXT_swapchain_colorspace
+                if(/*fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT ||*/
                    (fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && best_match.colorSpace <= fmt.colorSpace))
                 {
                     best_match = fmt;
