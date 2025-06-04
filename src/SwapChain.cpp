@@ -44,13 +44,22 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
 
     for(const auto &fmt: formats)
     {
-        if(use_hdr && fmt.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+        if(fmt.format == VK_FORMAT_R16G16B16A16_SFLOAT)
         {
-            if(fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT ||
-               (fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && best_match.colorSpace <= fmt.colorSpace))
+            supports_hdr = true;
+        }
+
+        if(fmt.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
+        {
+            supports_hdr = true;
+
+            if(use_hdr)
             {
-                best_match = fmt;
-                supports_hdr = true;
+                if(fmt.colorSpace == VK_COLOR_SPACE_HDR10_ST2084_EXT ||
+                   (fmt.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR && best_match.colorSpace <= fmt.colorSpace))
+                {
+                    best_match = fmt;
+                }
             }
         }
     }
