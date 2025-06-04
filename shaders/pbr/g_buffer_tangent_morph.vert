@@ -33,7 +33,7 @@ layout(std140, binding = BINDING_MORPH_TARGETS, scalar) readonly buffer MorphVer
     Vertex morph_vertices[];
 };
 
-layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
+layout(std430, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
     mesh_draw_t draws[];
 };
