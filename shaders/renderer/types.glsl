@@ -9,6 +9,7 @@ struct matrix_struct_t
     mat4 projection;
     mat4 texture;
     transform_t transform;
+    uint pad[2];
 };
 
 struct mesh_draw_t
@@ -17,6 +18,7 @@ struct mesh_draw_t
     matrix_struct_t last_matrices;
     uint mesh_index;
     uint material_index;
+    uint pad[2];
 };
 
 struct lod_t
@@ -36,8 +38,8 @@ struct mesh_entry_t
 
     uint vertex_offset;
     uint vertex_count;
-
     uint lod_count;
+    uint pad;
     lod_t lods[MAX_NUM_MESH_LODS];
 };
 

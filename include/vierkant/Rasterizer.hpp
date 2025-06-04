@@ -57,23 +57,24 @@ public:
         BINDING_MAX_RANGE
     };
 
-    struct alignas(16) mesh_draw_t
+    struct mesh_draw_t
     {
         matrix_struct_t current_matrices = {};
         matrix_struct_t last_matrices = {};
         uint32_t mesh_index = 0;
         uint32_t material_index = 0;
+        uint32_t pad[2] = {};
     };
 
-    struct alignas(16) mesh_entry_t
+    struct mesh_entry_t
     {
         glm::vec3 center;
         float radius = 0.f;
 
         uint32_t vertex_offset = 0;
         uint32_t vertex_count = 0;
-
         uint32_t lod_count;
+        uint32_t pad;
         vierkant::Mesh::lod_t lods[8] = {};
     };
 
@@ -87,7 +88,7 @@ public:
     };
 
 
-    struct alignas(16) indexed_indirect_command_t
+    struct indexed_indirect_command_t
     {
         VkDrawIndexedIndirectCommand vk_draw = {};// size: 5
 

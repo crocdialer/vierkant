@@ -13,7 +13,7 @@
 layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
 layout(binding = BINDING_VERTICES, set = 0, scalar) readonly buffer Vertices { VertexBufferPtr vertex_buffers[]; };
 
-layout(std140, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
+layout(std430, set = 0, binding = BINDING_MESH_DRAWS) readonly buffer MeshDrawBuffer
 {
     mesh_draw_t draws[];
 };
