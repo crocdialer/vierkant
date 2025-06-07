@@ -91,8 +91,8 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
         spdlog::set_level(spdlog::level::level_enum(log_level));
     }
     ImGui::Spacing();
-    ImGui::Text("time: %s | frame: %lu", crocore::secs_to_time_str(static_cast<float>(app->application_time())).c_str(),
-                window->num_frames());
+    ImGui::Text("time: %s | frame: %d", crocore::secs_to_time_str(static_cast<float>(app->application_time())).c_str(),
+                static_cast<uint32_t>(window->num_frames()));
     ImGui::Spacing();
 
     ImGui::Text("%.0f x %.0f", io.DisplaySize.x, io.DisplaySize.y);
