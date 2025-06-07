@@ -269,7 +269,7 @@ void Context::update(double time_delta, const glm::vec2 &size)
     // fire draw delegates
     for(const auto &[name, delegate]: delegates)
     {
-        if(delegate) { delegate(); }
+        if(delegate.enabled && delegate.fn) { delegate.fn(); }
     }
     // create imgui drawlists
     ImGui::Render();
