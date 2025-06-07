@@ -24,7 +24,11 @@ public:
     };
     using CaptureFlags = uint32_t;
 
-    using draw_fn_t = std::function<void()>;
+    struct draw_fn_t
+    {
+        bool enabled = true;
+        std::function<void()> fn;
+    };
 
     struct create_info_t
     {
