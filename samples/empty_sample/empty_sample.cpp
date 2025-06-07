@@ -15,10 +15,7 @@ void HelloTriangleApplication::teardown()
     m_device->wait_idle();
 }
 
-void HelloTriangleApplication::poll_events()
-{
-    m_window->poll_events();
-}
+void HelloTriangleApplication::poll_events() { m_window->poll_events(); }
 
 void HelloTriangleApplication::create_context_and_window()
 {
@@ -47,22 +44,20 @@ void HelloTriangleApplication::create_context_and_window()
 
     // create a WindowDelegate
     vierkant::window_delegate_t window_delegate = {};
-    window_delegate.draw_fn = [this](const vierkant::WindowPtr &w){ return draw(w);};
-    window_delegate.resize_fn = [this](uint32_t w, uint32_t h)
-    {
+    window_delegate.draw_fn = [this](const vierkant::WindowPtr &w) { return draw(w); };
+    window_delegate.resize_fn = [this](uint32_t w, uint32_t h) {
         create_graphics_pipeline();
         m_camera->perspective_params.aspect = m_window->aspect_ratio();
     };
-    window_delegate.close_fn = [this](){ running = false; };
+    window_delegate.close_fn = [this]() { running = false; };
     m_window->window_delegates[name()] = window_delegate;
 
     // create a KeyDelegate
     vierkant::key_delegate_t key_delegate = {};
-    key_delegate.key_press = [this](const vierkant::KeyEvent &e)
-    {
+    key_delegate.key_press = [this](const vierkant::KeyEvent &e) {
         if(!(m_gui_context.capture_flags() & vierkant::gui::Context::WantCaptureKeyboard))
         {
-            if(e.code() == vierkant::Key::_ESCAPE){ running = false; }
+            if(e.code() == vierkant::Key::_ESCAPE) { running = false; }
         }
     };
     m_window->key_delegates["main"] = key_delegate;
@@ -71,8 +66,7 @@ void HelloTriangleApplication::create_context_and_window()
     vierkant::gui::Context::create_info_t gui_create_info = {};
     gui_create_info.ui_scale = 2.f;
     m_gui_context = vierkant::gui::Context(m_device, gui_create_info);
-    m_gui_context.delegates["application"] = [this]
-    {
+    m_gui_context.delegates["application"].fn = [this] {
         vierkant::gui::draw_application_ui(std::static_pointer_cast<Application>(shared_from_this()), m_window);
     };
 
@@ -93,8 +87,11 @@ void HelloTriangleApplication::create_graphics_pipeline()
     vierkant::Rasterizer::create_info_t create_info = {};
     create_info.num_frames_in_flight = static_cast<uint32_t>(framebuffers.size());
     create_info.sample_count = m_window->swapchain().sample_count();
-    create_info.viewport = {0.f, 0.f, static_cast<float>(fb_extent.width),
-                            static_cast<float>(fb_extent.height), 0.f,
+    create_info.viewport = {0.f,
+                            0.f,
+                            static_cast<float>(fb_extent.width),
+                            static_cast<float>(fb_extent.height),
+                            0.f,
                             static_cast<float>(fb_extent.depth)};
 
     m_renderer = vierkant::Rasterizer(m_device, create_info);
@@ -104,12 +101,8 @@ void HelloTriangleApplication::create_graphics_pipeline()
 void HelloTriangleApplication::load_model()
 {
     auto geom = vierkant::Geometry::create();
-    geom->positions = {glm::vec3(-0.5f, -0.5f, 0.f),
-                       glm::vec3(0.5f, -0.5f, 0.f),
-                       glm::vec3(0.f, 0.5f, 0.f)};
-    geom->colors = {glm::vec4(1.f, 0.f, 0.f, 1.f),
-                    glm::vec4(0.f, 1.f, 0.f, 1.f),
-                    glm::vec4(0.f, 0.f, 1.f, 1.f)};
+    geom->positions = {glm::vec3(-0.5f, -0.5f, 0.f), glm::vec3(0.5f, -0.5f, 0.f), glm::vec3(0.f, 0.5f, 0.f)};
+    geom->colors = {glm::vec4(1.f, 0.f, 0.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 1.f), glm::vec4(0.f, 0.f, 1.f, 1.f)};
     vierkant::Mesh::create_info_t mesh_create_info = {};
     mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
     m_mesh = vierkant::Mesh::create_from_geometry(m_device, geom, mesh_create_info);
@@ -117,8 +110,8 @@ void HelloTriangleApplication::load_model()
     vierkant::create_drawables_params_t drawable_params = {};
 
     m_drawable = vierkant::create_drawables({m_mesh}, drawable_params).front();
-    m_drawable.pipeline_format.shader_stages = vierkant::create_shader_stages(m_device,
-                                                                              vierkant::ShaderType::UNLIT_COLOR);
+    m_drawable.pipeline_format.shader_stages =
+            vierkant::create_shader_stages(m_device, vierkant::ShaderType::UNLIT_COLOR);
 }
 
 void HelloTriangleApplication::update(double time_delta)
@@ -136,14 +129,12 @@ vierkant::window_delegate_t::draw_result_t HelloTriangleApplication::draw(const 
 {
     const auto &framebuffer = m_window->swapchain().current_framebuffer();
 
-    auto render_mesh = [this, &framebuffer]() -> VkCommandBuffer
-    {
+    auto render_mesh = [this, &framebuffer]() -> VkCommandBuffer {
         m_renderer.stage_drawable(m_drawable);
         return m_renderer.render(framebuffer);
     };
 
-    auto render_gui = [this, &framebuffer]() -> VkCommandBuffer
-    {
+    auto render_gui = [this, &framebuffer]() -> VkCommandBuffer {
         m_gui_context.draw_gui(m_gui_renderer);
         return m_gui_renderer.render(framebuffer);
     };
@@ -161,8 +152,8 @@ vierkant::window_delegate_t::draw_result_t HelloTriangleApplication::draw(const 
         crocore::wait_all(cmd_futures);
 
         // get values from completed futures
-        for(auto &f : cmd_futures){ ret.command_buffers.push_back(f.get()); }
+        for(auto &f: cmd_futures) { ret.command_buffers.push_back(f.get()); }
     }
-    else{ ret.command_buffers = {render_mesh(), render_gui()}; }
+    else { ret.command_buffers = {render_mesh(), render_gui()}; }
     return ret;
 }
