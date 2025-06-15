@@ -1,5 +1,5 @@
 # 3rd party header-only libs
-set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/submodules/imgui)
+set(IMGUI_DIR ${PROJECT_SOURCE_DIR}/extern/imgui)
 
 # suppress warnings from 3rd party headers
 include_directories(SYSTEM ${IMGUI_DIR})

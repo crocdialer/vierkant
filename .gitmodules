@@ -1,44 +1,45 @@
-[submodule "submodules/glfw"]
-	path = submodules/glfw
+[submodule "extern/glfw"]
+	path = extern/glfw
 	url = https://github.com/glfw/glfw.git
 	shallow = true
-[submodule "submodules/glm"]
-	path = submodules/glm
+[submodule "extern/glm"]
+	path = extern/glm
 	url = https://github.com/g-truc/glm.git
 	shallow = true
-[submodule "submodules/crocore"]
-	path = submodules/crocore
+[submodule "extern/crocore"]
+	path = extern/crocore
 	url = https://github.com/crocdialer/crocore.git
 	shallow = true
-[submodule "submodules/tinygltf"]
-	path = submodules/tinygltf
+[submodule "extern/tinygltf"]
+	path = extern/tinygltf
 	url = https://github.com/syoyo/tinygltf.git
 	shallow = true
-[submodule "submodules/tinyobjloader"]
-	path = submodules/tinyobjloader
+[submodule "extern/tinyobjloader"]
+	path = extern/tinyobjloader
 	url = https://github.com/tinyobjloader/tinyobjloader.git
 	shallow = true
-[submodule "submodules/meshoptimizer"]
-	path = submodules/meshoptimizer
+[submodule "extern/meshoptimizer"]
+	path = extern/meshoptimizer
 	url = https://github.com/zeux/meshoptimizer.git
 	shallow = true
-[submodule "submodules/entt"]
-	path = submodules/entt
+[submodule "extern/entt"]
+	path = extern/entt
 	url = https://github.com/skypjack/entt.git
 	shallow = true
-[submodule "submodules/JoltPhysics"]
-	path = submodules/JoltPhysics
+[submodule "extern/JoltPhysics"]
+	path = extern/JoltPhysics
 	url = https://github.com/jrouwe/JoltPhysics.git
 	shallow = true
-[submodule "submodules/SPIRV-Reflect"]
-	path = submodules/SPIRV-Reflect
+[submodule "extern/SPIRV-Reflect"]
+	path = extern/SPIRV-Reflect
 	url = https://github.com/KhronosGroup/SPIRV-Reflect.git
 	shallow = true
-[submodule "submodules/imgui"]
-	path = submodules/imgui
+[submodule "extern/imgui"]
+	path = extern/imgui
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
 	shallow = true
-[submodule "submodules/mimalloc"]
-	path = submodules/mimalloc
+[submodule "extern/mimalloc"]
+	path = extern/mimalloc
 	url = git@github.com:microsoft/mimalloc.git
+	shallow = true
