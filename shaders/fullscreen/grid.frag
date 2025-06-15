@@ -15,6 +15,7 @@ struct grid_params_t
     vec2 line_width;
     float dist;
     bool ortho;
+    bool axis;
 };
 
 layout(std140, binding = 0) uniform UBO { grid_params_t grid_params; };
@@ -138,7 +139,14 @@ void main()
 
         // grid coverage
         float coverage = pristine_grid(grid_uv, ddx_uv, ddy_uv, grid_params.line_width);
-        out_color = vec4(grid_params.color.rgb, grid_params.color.a * coverage);
+        vec3 color = grid_params.color.rgb;
+
+        if(grid_params.axis)
+        {
+            color = mix(vec3(1, 0, 0), color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
+            color = mix(vec3(0, 0, 1), color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
+        }
+        out_color = vec4(color, grid_params.color.a * coverage);
 
         // not very elegant but yeah, works
         vec4 proj = grid_params.projection_view * vec4(pos, 1.0);

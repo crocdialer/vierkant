@@ -73,6 +73,9 @@ function(STRINGIFY_SHADERS GLSL_FOLDER TARGET_NAME SHADER_COMPILER SPIRV_OUT_DIR
     set(OUTPUT_HEADER "${SOURCE_OUT_DIR}/include/${TARGET_NAME}/shaders.hpp")
     set(OUTPUT_SOURCE "${SOURCE_OUT_DIR}/src/shaders.cpp")
 
+    # cleanup leftovers
+    remove(${OUTPUT_HEADER})
+    remove(${OUTPUT_SOURCE})
     #    message("OUTPUT_HEADER: ${OUTPUT_HEADER}")
     #    message("OUTPUT_SOURCE: ${OUTPUT_SOURCE}")
 

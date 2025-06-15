@@ -484,6 +484,7 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
         glm::vec2 line_width = glm::vec2(0.05f);
         float spacing = 1.f;
         VkBool32 ortho = false;
+        VkBool32 axis = false;
     };
     drawable.descriptors[0].inline_uniform_block.resize(sizeof(grid_params_t));
     auto &grid_params = *reinterpret_cast<grid_params_t *>(drawable.descriptors[0].inline_uniform_block.data());
