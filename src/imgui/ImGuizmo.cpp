@@ -2909,13 +2909,15 @@ namespace IMGUIZMO_NAMESPACE
       if (interpolationFrames)
       {
          interpolationFrames--;
-         vec_t newDir = viewInverse.v.dir;
-         newDir.Lerp(interpolationDir, 0.2f);
-         newDir.Normalize();
+         vec_t newDir = interpolationDir;
+         // vec_t newDir = viewInverse.v.dir;
+         // newDir.Lerp(interpolationDir, 0.2f);
+         // newDir.Normalize();
 
-         vec_t newUp = viewInverse.v.up;
-         newUp.Lerp(interpolationUp, 0.3f);
-         newUp.Normalize();
+         vec_t newUp = interpolationUp;
+         // vec_t newUp = viewInverse.v.up;
+         // newUp.Lerp(interpolationUp, 0.3f);
+         // newUp.Normalize();
          newUp = interpolationUp;
          vec_t newEye = camTarget + newDir * length;
          LookAt(&newEye.x, &camTarget.x, &newUp.x, view);
@@ -2959,7 +2961,7 @@ namespace IMGUIZMO_NAMESPACE
             {
                interpolationUp = referenceUp;
             }
-            interpolationFrames = 40;
+            interpolationFrames = 1;
          }
          isClicking = false;
          isDraging = false;

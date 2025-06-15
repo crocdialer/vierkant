@@ -77,14 +77,15 @@ include(vierkant_utils)
 set(INCLUDE_DIRS ${PROJECT_SOURCE_DIR}/include
         ${PROJECT_SOURCE_DIR}/include/vierkant/bundled
         ${PROJECT_BINARY_DIR}/include
-        ${PROJECT_SOURCE_DIR}/submodules/imgui)
+        ${PROJECT_SOURCE_DIR}/extern/imgui)
 
 # suppress warnings from bundles headers
 include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/include/vierkant/bundled")
+include_directories(BEFORE SYSTEM "${PROJECT_SOURCE_DIR}/extern/imgui")
 
 # mimalloc
 set(MI_BUILD_TESTS OFF)
-add_subdirectory(submodules/mimalloc EXCLUDE_FROM_ALL)
+add_subdirectory(extern/mimalloc EXCLUDE_FROM_ALL)
 include_directories(BEFORE SYSTEM ${mimalloc_INCLUDE_DIRS})
 set(LIBS ${LIBS} mimalloc-static)
 
@@ -94,19 +95,19 @@ include_directories(${Vulkan_INCLUDE_DIRS})
 set(INCLUDE_DIRS ${INCLUDE_DIRS} ${Vulkan_INCLUDE_DIRS})
 
 # glfw
-add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
+add_subdirectory(extern/glfw EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glfw)
 
 # glm
-add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
+add_subdirectory(extern/glm EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} glm)
 
 # tinygltf/tinyobj, suppress warnings from 3rd party headers
-include_directories(BEFORE SYSTEM "submodules/tinygltf")
-include_directories(BEFORE SYSTEM "submodules/tinyobjloader")
+include_directories(BEFORE SYSTEM "extern/tinygltf")
+include_directories(BEFORE SYSTEM "extern/tinyobjloader")
 
 # zeux/meshoptimizer
-add_subdirectory(submodules/meshoptimizer EXCLUDE_FROM_ALL)
+add_subdirectory(extern/meshoptimizer EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} meshoptimizer)
 
 # SPIRV-Reflect -> libspirv-reflect-static.a
@@ -114,24 +115,24 @@ set(SPIRV_REFLECT_EXAMPLES OFF)
 set(SPIRV_REFLECT_EXECUTABLE OFF)
 set(SPIRV_REFLECT_STATIC_LIB ON)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
-add_subdirectory(submodules/SPIRV-Reflect EXCLUDE_FROM_ALL)
+add_subdirectory(extern/SPIRV-Reflect EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} spirv-reflect-static)
 
 #crocore
-add_subdirectory("submodules/crocore")
+add_subdirectory("extern/crocore")
 include_directories(${crocore_INCLUDE_DIRS})
 set(INCLUDE_DIRS ${INCLUDE_DIRS} ${crocore_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${crocore_LIBRARIES})
 
 # entt
-add_subdirectory(submodules/entt EXCLUDE_FROM_ALL)
+add_subdirectory(extern/entt EXCLUDE_FROM_ALL)
 set(LIBS ${LIBS} EnTT::EnTT)
 
 # JoltPhysics
 set(GENERATE_DEBUG_SYMBOLS OFF)
 set(CPP_RTTI_ENABLED ON)
-add_subdirectory("submodules/JoltPhysics/Build" EXCLUDE_FROM_ALL)
-include_directories(SYSTEM submodules/JoltPhysics/Jolt)
+add_subdirectory("extern/JoltPhysics/Build" EXCLUDE_FROM_ALL)
+include_directories(SYSTEM extern/JoltPhysics/Jolt)
 set(LIBS ${LIBS} Jolt)
 
 ##shaders
@@ -186,13 +187,13 @@ install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/${LIB_NAME} DESTINATION "i
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/${LIB_NAME} DESTINATION "include")
 
 # install entt-headers
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/entt/single_include/entt DESTINATION "include/vierkant/bundled")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern/entt/single_include/entt DESTINATION "include/vierkant/bundled")
 
 # install glm-headers
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/submodules/glm/glm DESTINATION "include/vierkant/bundled")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/extern/glm/glm DESTINATION "include/vierkant/bundled")
 
 # install imgui-headers
-set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/submodules/imgui)
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern/imgui)
 install(FILES ${IMGUI_DIR}/imconfig.h ${IMGUI_DIR}/imgui.h DESTINATION "include/vierkant/bundled")
 
 install(TARGETS ${LIB_NAME} DESTINATION lib)
