@@ -18,6 +18,22 @@ namespace vierkant
 
 DEFINE_CLASS_PTR(Window)
 
+struct videomode_t
+{
+    //! width in pixels
+    uint32_t width;
+
+    //! height in pixels
+    uint32_t height;
+
+    uint32_t red_bits = 8;
+    uint32_t green_bits = 8;
+    uint32_t blue_bits = 8;
+
+    //! refresh-rate in Hz
+    uint32_t refresh_rate = 60;
+};
+
 struct window_delegate_t
 {
     struct draw_result_t
@@ -38,6 +54,7 @@ struct window_delegate_t
     //! Callback for resizing the window
     resize_fn_t resize_fn;
 };
+
 
 class Window : public std::enable_shared_from_this<Window>
 {
@@ -67,6 +84,11 @@ public:
 
     //! Delegate objects for window callbacks
     std::map<std::string, window_delegate_t> window_delegates;
+
+    /**
+     * @brief   return a list of available video-modes
+     */
+    static std::vector<videomode_t> get_video_modes(uint32_t monitor_index = 0);
 
     /**
      * @brief   Helper function to retrieve a list of Vulkan-Extensions required for Window
@@ -143,6 +165,14 @@ public:
      * @param   monitor_index   an optional monitor index to use for fullscreen mode
      */
     void set_fullscreen(bool b, uint32_t monitor_index = 0);
+
+    /**
+     * @brief   set the window to fullscreen, using a specific video-mode.
+     *
+     * @param   video_mode      desired video-mode to use for fullscreen
+     * @param   monitor_index   an optional monitor index to use for fullscreen mode
+     */
+    void set_fullscreen_mode(const videomode_t &video_mode, uint32_t monitor_index = 0);
 
     /**
      * @return  the aspect-ratio for the Window

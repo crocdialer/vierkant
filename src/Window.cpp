@@ -31,6 +31,23 @@ static void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **pa
 
 static void glfw_joystick_cb(int joy, int event);
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline bool operator==(const videomode_t &lhs, const videomode_t &rhs)
+{
+    if(lhs.width != rhs.width) { return false; }
+    if(lhs.height != rhs.height) { return false; }
+    if(lhs.red_bits != rhs.red_bits) { return false; }
+    if(lhs.green_bits != rhs.green_bits) { return false; }
+    if(lhs.blue_bits != rhs.blue_bits) { return false; }
+    if(lhs.refresh_rate != rhs.refresh_rate) { return false; }
+    return true;
+}
+
+inline bool operator!=(const videomode_t &lhs, const videomode_t &rhs) { return !(lhs == rhs); }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
  * @brief RAII Helper for glfw initialization and termination
  */
@@ -53,6 +70,32 @@ std::vector<const char *> Window::required_extensions()
     uint32_t num_extensions = 0;
     const char **extensions = glfwGetRequiredInstanceExtensions(&num_extensions);
     std::vector<const char *> ret(extensions, extensions + num_extensions);
+    return ret;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+std::vector<videomode_t> Window::get_video_modes(uint32_t monitor_index)
+{
+    if(!g_glfw_init) { g_glfw_init = std::make_shared<glfw_init_t>(); }
+
+    int num_monitors = 0;
+    GLFWmonitor **monitors = glfwGetMonitors(&num_monitors);
+    if(monitor_index >= static_cast<uint32_t>(num_monitors)) { return {}; }
+
+    int num_video_modes = 0;
+    const auto *vid_modes_in = glfwGetVideoModes(monitors[monitor_index], &num_video_modes);
+    std::vector<videomode_t> ret(num_video_modes);
+    for(int i = 0; i < num_video_modes; ++i)
+    {
+        ret[i].width = vid_modes_in[i].width;
+        ret[i].height = vid_modes_in[i].height;
+        ret[i].red_bits = vid_modes_in[i].redBits;
+        ret[i].green_bits = vid_modes_in[i].greenBits;
+        ret[i].blue_bits = vid_modes_in[i].blueBits;
+        ret[i].refresh_rate = vid_modes_in[i].refreshRate;
+    }
     return ret;
 }
 
@@ -308,7 +351,7 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
 
     auto acquire_result = m_swap_chain.acquire_next_image();
     auto &framebuffer = swapchain().framebuffers()[acquire_result.image_index];
-    
+
     // sync previous framebuffer
     framebuffer.wait_fence();
 
@@ -623,6 +666,32 @@ void Window::set_fullscreen(bool b, uint32_t monitor_index)
     }
     glfwSetWindowMonitor(m_handle, b ? monitors[monitor_index] : nullptr, x, y, w, h, mode->refreshRate);
     m_fullscreen = b;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::set_fullscreen_mode(const videomode_t &video_mode, uint32_t monitor_index)
+{
+    int num;
+    GLFWmonitor **monitors = glfwGetMonitors(&num);
+    if(monitor_index >= static_cast<uint32_t>(num)) { return; }
+    const GLFWvidmode *mode_glfw = glfwGetVideoMode(monitors[monitor_index]);
+    videomode_t current_mode{static_cast<uint32_t>(mode_glfw->width),    static_cast<uint32_t>(mode_glfw->height),
+                             static_cast<uint32_t>(mode_glfw->redBits),  static_cast<uint32_t>(mode_glfw->greenBits),
+                             static_cast<uint32_t>(mode_glfw->blueBits), static_cast<uint32_t>(mode_glfw->refreshRate)};
+
+    if(video_mode != current_mode)
+    {
+        if(!m_fullscreen)
+        {
+            m_fullscreen = true;
+            m_window_size = size();
+            m_window_pos = position();
+        }
+
+        glfwSetWindowMonitor(m_handle, monitors[monitor_index], 0, 0, video_mode.width, video_mode.height,
+                             video_mode.refresh_rate);
+    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
