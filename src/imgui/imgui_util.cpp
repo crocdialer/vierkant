@@ -83,14 +83,6 @@ void draw_application_ui(const crocore::ApplicationPtr &app, const vierkant::Win
                              ImGuiWindowFlags_NoNav);
     }
 
-    const char *log_items[] = {"Trace", "Debug", "Info", "Warn", "Error", "Critical", "Off"};
-    int log_level = static_cast<int>(spdlog::get_level());
-
-    if(ImGui::Combo("log level", &log_level, log_items, IM_ARRAYSIZE(log_items)))
-    {
-        spdlog::set_level(spdlog::level::level_enum(log_level));
-    }
-    ImGui::Spacing();
     ImGui::Text("time: %s | frame: %d", crocore::secs_to_time_str(static_cast<float>(app->application_time())).c_str(),
                 static_cast<uint32_t>(window->num_frames()));
     ImGui::Spacing();
@@ -237,7 +229,7 @@ void draw_images_ui(const std::vector<vierkant::ImagePtr> &images)
     if(!is_child_window) { ImGui::End(); }
 }
 
-void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
+void draw_scene_renderer_settings_ui_intern(const PBRDeferredPtr &pbr_renderer)
 {
     int res[2] = {static_cast<int>(pbr_renderer->settings.resolution.x),
                   static_cast<int>(pbr_renderer->settings.resolution.y)};
@@ -291,99 +283,6 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
 
         auto extent = pbr_images.albedo->extent();
 
-        if(ImGui::TreeNode("statistics"))
-        {
-            const auto &stats = pbr_renderer->statistics();
-            const auto &draw_result = stats.back().draw_cull_result;
-
-            std::vector<PBRDeferred::statistics_t> values(stats.begin(), stats.end());
-            auto max_axis_x = static_cast<double>(pbr_renderer->settings.timing_history_size);
-
-            ImGui::BulletText("drawcount: %d", draw_result.draw_count);
-            ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
-            ImGui::BulletText("num_meshlets: %d", draw_result.num_meshlets);
-            ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
-            ImGui::BulletText("num_contribution_culled: %d", draw_result.num_contribution_culled);
-            ImGui::BulletText("num_occlusion_culled: %d", draw_result.num_occlusion_culled);
-
-            // drawcall/culling plots
-            if(ImGui::TreeNode("culling-plots"))
-            {
-                if(ImPlot::BeginPlot("##drawcalls"))
-                {
-
-                    float bg_alpha = .0f;
-                    ImVec4 *implot_colors = ImPlot::GetStyle().Colors;
-                    implot_colors[ImPlotCol_FrameBg] = ImVec4(0, 0, 0, bg_alpha);
-
-                    uint32_t max_draws =
-                            (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
-                                return lhs.draw_cull_result.draw_count < rhs.draw_cull_result.draw_count;
-                            }))->draw_cull_result.draw_count;
-
-                    ImPlot::SetupAxes("frames", "count", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
-                    ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_draws, ImPlotCond_Always);
-
-                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
-                    ImPlot::PlotShaded(
-                            "frustum culled",
-                            reinterpret_cast<const uint32_t *>(
-                                    (uint8_t *) values.data() +
-                                    offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
-                            static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
-                    ImPlot::PlotShaded(
-                            "occluded",
-                            reinterpret_cast<const uint32_t *>(
-                                    (uint8_t *) values.data() +
-                                    offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
-                            static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
-                    ImPlot::PopStyleVar();
-                    ImPlot::EndPlot();
-                }
-                ImGui::TreePop();
-            }
-            ImGui::Separator();
-            ImGui::Spacing();
-
-            const auto &last = stats.back().timings;
-            ImGui::BulletText("g_buffer_main: %.3f ms", last.g_buffer_pre_ms);
-            ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
-            ImGui::BulletText("culling: %.3f ms", last.culling_ms);
-            ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);
-            ImGui::BulletText("ambient_occlusion: %.3f ms", last.ambient_occlusion_ms);
-            ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
-            ImGui::BulletText("taa: %.3f ms", last.taa_ms);
-            ImGui::BulletText("fxaa: %.3f ms", last.fxaa_ms);
-            ImGui::BulletText("bloom: %.3f ms", last.bloom_ms);
-            ImGui::BulletText("tonemap/composition: %.3f ms", last.tonemap_ms);
-            ImGui::BulletText("depth_of_field_ms: %.3f ms", last.depth_of_field_ms);
-            ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
-
-            if(ImGui::TreeNode("timing-plots"))
-            {
-                if(ImPlot::BeginPlot("##pbr_timings"))
-                {
-                    double max_ms =
-                            (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
-                                return lhs.timings.total_ms < rhs.timings.total_ms;
-                            }))->timings.total_ms;
-
-                    ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
-                    ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_ms, ImPlotCond_Always);
-                    ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
-
-                    auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
-                                                           offsetof(PBRDeferred::statistics_t, timings.total_ms));
-                    ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0,
-                                       sizeof(PBRDeferred::statistics_t));
-                    ImPlot::PopStyleVar();
-                    ImPlot::EndPlot();
-                }
-                ImGui::TreePop();
-            }
-            ImGui::TreePop();
-        }
-
         if(ImGui::TreeNode("g-buffer", "g-buffer (%d)", vierkant::G_BUFFER_SIZE))
         {
             vierkant::gui::draw_images_ui({pbr_images.albedo, pbr_images.normals, pbr_images.emission,
@@ -398,7 +297,95 @@ void draw_scene_renderer_ui_intern(const PBRDeferredPtr &pbr_renderer)
     }
 }
 
-void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer)
+void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer)
+{
+    const auto &stats = pbr_renderer->statistics();
+    const auto &draw_result = stats.back().draw_cull_result;
+
+    std::vector<PBRDeferred::statistics_t> values(stats.begin(), stats.end());
+    auto max_axis_x = static_cast<double>(pbr_renderer->settings.timing_history_size);
+
+    ImGui::BulletText("drawcount: %d", draw_result.draw_count);
+    ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
+    ImGui::BulletText("num_meshlets: %d", draw_result.num_meshlets);
+    ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
+    ImGui::BulletText("num_contribution_culled: %d", draw_result.num_contribution_culled);
+    ImGui::BulletText("num_occlusion_culled: %d", draw_result.num_occlusion_culled);
+
+    // drawcall/culling plots
+    if(ImGui::TreeNode("culling-plots"))
+    {
+        if(ImPlot::BeginPlot("##drawcalls"))
+        {
+
+            float bg_alpha = .0f;
+            ImVec4 *implot_colors = ImPlot::GetStyle().Colors;
+            implot_colors[ImPlotCol_FrameBg] = ImVec4(0, 0, 0, bg_alpha);
+
+            uint32_t max_draws = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                                     return lhs.draw_cull_result.draw_count < rhs.draw_cull_result.draw_count;
+                                 }))->draw_cull_result.draw_count;
+
+            ImPlot::SetupAxes("frames", "count", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
+            ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_draws, ImPlotCond_Always);
+
+            ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
+            ImPlot::PlotShaded("frustum culled",
+                               reinterpret_cast<const uint32_t *>(
+                                       (uint8_t *) values.data() +
+                                       offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
+                               static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
+            ImPlot::PlotShaded("occluded",
+                               reinterpret_cast<const uint32_t *>(
+                                       (uint8_t *) values.data() +
+                                       offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
+                               static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
+            ImPlot::PopStyleVar();
+            ImPlot::EndPlot();
+        }
+        ImGui::TreePop();
+    }
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    const auto &last = stats.back().timings;
+    ImGui::BulletText("g_buffer_main: %.3f ms", last.g_buffer_pre_ms);
+    ImGui::BulletText("depth_pyramid: %.3f ms", last.depth_pyramid_ms);
+    ImGui::BulletText("culling: %.3f ms", last.culling_ms);
+    ImGui::BulletText("g_buffer_post: %.3f ms", last.g_buffer_post_ms);
+    ImGui::BulletText("ambient_occlusion: %.3f ms", last.ambient_occlusion_ms);
+    ImGui::BulletText("lighting: %.3f ms", last.lighting_ms);
+    ImGui::BulletText("taa: %.3f ms", last.taa_ms);
+    ImGui::BulletText("fxaa: %.3f ms", last.fxaa_ms);
+    ImGui::BulletText("bloom: %.3f ms", last.bloom_ms);
+    ImGui::BulletText("tonemap/composition: %.3f ms", last.tonemap_ms);
+    ImGui::BulletText("depth_of_field_ms: %.3f ms", last.depth_of_field_ms);
+    ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
+
+    if(ImGui::TreeNode("timing-plots"))
+    {
+        if(ImPlot::BeginPlot("##pbr_timings"))
+        {
+            double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                                return lhs.timings.total_ms < rhs.timings.total_ms;
+                            }))->timings.total_ms;
+
+            ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
+            ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_ms, ImPlotCond_Always);
+            ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
+
+            auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
+                                                   offsetof(PBRDeferred::statistics_t, timings.total_ms));
+            ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0,
+                               sizeof(PBRDeferred::statistics_t));
+            ImPlot::PopStyleVar();
+            ImPlot::EndPlot();
+        }
+        ImGui::TreePop();
+    }
+}
+
+void draw_scene_renderer_settings_ui_intern(const PBRPathTracerPtr &path_tracer)
 {
     int res[2] = {static_cast<int>(path_tracer->settings.resolution.x),
                   static_cast<int>(path_tracer->settings.resolution.y)};
@@ -441,37 +428,49 @@ void draw_scene_renderer_ui_intern(const PBRPathTracerPtr &path_tracer)
     ImGui::SliderFloat("gamma", &path_tracer->settings.gamma, 0.f, 10.f);
 
     ImGui::Checkbox("depth of field", &path_tracer->settings.depth_of_field);
-    ImGui::Separator();
-
-    if(ImGui::TreeNode("statistics"))
-    {
-        PBRPathTracer::timings_t last = {};
-        if(!path_tracer->statistics().empty()) { last = path_tracer->statistics().back().timings; };
-        ImGui::BulletText("mesh_compute_ms: %.3f ms", last.raybuilder_timings.mesh_compute_ms);
-        ImGui::BulletText("update_bottom_ms: %.3f ms", last.raybuilder_timings.update_bottom_ms);
-        ImGui::BulletText("update_top_ms: %.3f ms", last.raybuilder_timings.update_top_ms);
-        ImGui::BulletText("raytrace_ms: %.3f ms", last.raytrace_ms);
-        ImGui::BulletText("denoise_ms: %.3f ms", last.denoise_ms);
-        ImGui::BulletText("bloom_ms: %.3f ms", last.bloom_ms);
-        ImGui::BulletText("tonemap_ms: %.3f ms", last.tonemap_ms);
-        ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
-
-        ImGui::TreePop();
-    }
 }
 
-void draw_scene_renderer_ui(const SceneRendererPtr &scene_renderer)
+void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_tracer)
 {
-    constexpr char window_name[] = "scene_renderer";
+    PBRPathTracer::timings_t last = {};
+    if(!path_tracer->statistics().empty()) { last = path_tracer->statistics().back().timings; };
+    ImGui::BulletText("mesh_compute_ms: %.3f ms", last.raybuilder_timings.mesh_compute_ms);
+    ImGui::BulletText("update_bottom_ms: %.3f ms", last.raybuilder_timings.update_bottom_ms);
+    ImGui::BulletText("update_top_ms: %.3f ms", last.raybuilder_timings.update_top_ms);
+    ImGui::BulletText("raytrace_ms: %.3f ms", last.raytrace_ms);
+    ImGui::BulletText("denoise_ms: %.3f ms", last.denoise_ms);
+    ImGui::BulletText("bloom_ms: %.3f ms", last.bloom_ms);
+    ImGui::BulletText("tonemap_ms: %.3f ms", last.tonemap_ms);
+    ImGui::BulletText("total_ms: %.3f ms", last.total_ms);
+}
+
+void draw_scene_renderer_settings_ui(const SceneRendererPtr &scene_renderer)
+{
+    constexpr char window_name[] = "scene_renderer_settings";
     scoped_child_window_t child_window(window_name);
 
     if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
     {
-        draw_scene_renderer_ui_intern(pbr_renderer);
+        draw_scene_renderer_settings_ui_intern(pbr_renderer);
     }
     else if(auto path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer))
     {
-        draw_scene_renderer_ui_intern(path_tracer);
+        draw_scene_renderer_settings_ui_intern(path_tracer);
+    }
+}
+
+void draw_scene_renderer_statistics_ui(const vierkant::SceneRendererPtr &scene_renderer)
+{
+    // constexpr char window_name[] = "scene_renderer_stats";
+    // scoped_child_window_t child_window(window_name);
+
+    if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
+    {
+        draw_scene_renderer_statistics_ui_intern(pbr_renderer);
+    }
+    else if(auto path_tracer = std::dynamic_pointer_cast<vierkant::PBRPathTracer>(scene_renderer))
+    {
+        draw_scene_renderer_statistics_ui_intern(path_tracer);
     }
 }
 
