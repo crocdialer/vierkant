@@ -446,8 +446,8 @@ void draw_scene_renderer_statistics_ui_intern(const PBRPathTracerPtr &path_trace
 
 void draw_scene_renderer_settings_ui(const SceneRendererPtr &scene_renderer)
 {
-    constexpr char window_name[] = "scene_renderer_settings";
-    scoped_child_window_t child_window(window_name);
+    // constexpr char window_name[] = "scene_renderer_settings";
+    // scoped_child_window_t child_window(window_name);
 
     if(auto pbr_renderer = std::dynamic_pointer_cast<vierkant::PBRDeferred>(scene_renderer))
     {
