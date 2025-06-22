@@ -1059,13 +1059,13 @@ void PhysicsScene::update(double time_delta)
                     mesh_shape->mesh_id = mesh_cmp->mesh->id;
                 }
             }
-            m_context.add_object(obj->id(), obj->transform, cmp);
+            m_context.add_object(obj->id(), obj->global_transform(), cmp);
             cmp.mode = physics_component_t::ACTIVE;
         }
         else if(obj_enabled && cmp.mode == physics_component_t::INACTIVE)
         {
             cmp.mode = physics_component_t::ACTIVE;
-            m_context.add_object(obj->id(), obj->transform, cmp);
+            m_context.add_object(obj->id(), obj->global_transform(), cmp);
         }
         else if(!obj_enabled)
         {
@@ -1090,7 +1090,9 @@ void PhysicsScene::update(double time_delta)
         else
         {
             // physics -> object
-            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), obj->transform);
+            vierkant::transform_t transform;
+            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), transform);
+            obj->set_global_transform(transform);
         }
     }
     m_context.step_simulation(static_cast<float>(time_delta), 2);
