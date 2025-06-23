@@ -21,6 +21,39 @@ struct transform_t_
 using transform_t = transform_t_<float>;
 
 /**
+ * @brief   mat4_cast can be used to return a mat4 for a provided vierkant::transform_t
+ *
+ * @param   t   a provided vierkant::transform_t
+ * @return  a 4x4 transformation-matrix.
+ */
+template<typename T1 = float, typename T2>
+inline constexpr glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
+{
+    glm::mat<4, 4, T1> tmp = glm::mat4_cast(t.rotation);
+    tmp[0] *= static_cast<T1>(t.scale.x);
+    tmp[1] *= static_cast<T1>(t.scale.y);
+    tmp[2] *= static_cast<T1>(t.scale.z);
+    tmp[3] = glm::vec<4, T1>(t.translation, 1);
+    return tmp;
+}
+
+/**
+ * @brief   transform_cast can be used to return a vierkant::transform_t for a provided mat4
+ *
+ * @param   t   a provided mat4
+ * @return  a vierkant::transform_t.
+ */
+template<typename T1 = float, typename T2>
+inline constexpr transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
+{
+    transform_t_<T1> ret;
+    glm::vec<3, T1> skew;
+    glm::vec<4, T1> perspective;
+    glm::decompose(glm::mat<4, 4, T1>(m), ret.scale, ret.rotation, ret.translation, skew, perspective);
+    return ret;
+}
+
+/**
  * @brief   operator to apply a vierkant::transform_t to a 3d-vector.
  *
  * @param   t   a provided vierkant::transform_t
@@ -43,11 +76,8 @@ inline constexpr glm::vec<3, T2> operator*(const transform_t_<T1> &t, const glm:
 template<typename T>
 inline constexpr transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
-    transform_t_<T> ret = lhs;
-    ret.translation += lhs.rotation * (rhs.translation * lhs.scale);
-    ret.rotation *= rhs.rotation;
-    ret.scale *= rhs.scale;
-    return ret;
+    // fallback to matrix-multiplication to support non-uniform scaling + rotation (sheer)
+    return transform_cast<T>(mat4_cast<T>(lhs) * mat4_cast<T>(rhs));
 }
 
 template<typename T>
@@ -82,33 +112,7 @@ inline bool epsilon_equal(const transform_t_<T> &lhs, const transform_t_<T> &rhs
 template<typename T>
 inline constexpr transform_t_<T> inverse(const transform_t_<T> &t)
 {
-    using vec3_t = typename std::decay<decltype(t.scale)>::type;
-    transform_t_<T> ret;
-    ret.scale = T(1) / (glm::all(glm::notEqual(t.scale, vec3_t(0))) ? t.scale : vec3_t(1));
-    ret.rotation = glm::inverse(t.rotation);
-    ret.translation = -(ret.rotation * (t.translation * ret.scale));
-    return ret;
-}
-
-template<typename T1 = float, typename T2>
-inline constexpr glm::mat<4, 4, T1> mat4_cast(const transform_t_<T2> &t)
-{
-    glm::mat<4, 4, T1> tmp = glm::mat4_cast(t.rotation);
-    tmp[0] *= static_cast<T1>(t.scale.x);
-    tmp[1] *= static_cast<T1>(t.scale.y);
-    tmp[2] *= static_cast<T1>(t.scale.z);
-    tmp[3] = glm::vec<4, T1>(t.translation, 1);
-    return tmp;
-}
-
-template<typename T1 = float, typename T2>
-inline constexpr transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
-{
-    transform_t_<T1> ret;
-    glm::vec<3, T1> skew;
-    glm::vec<4, T1> perspective;
-    glm::decompose(glm::mat<4, 4, T1>(m), ret.scale, ret.rotation, ret.translation, skew, perspective);
-    return ret;
+    return transform_cast<T>(glm::inverse(mat4_cast<T>(t)));
 }
 
 template<typename T, typename U>

@@ -1,5 +1,5 @@
-#include <gtest/gtest.h>
 #include "vierkant/transform.hpp"
+#include <gtest/gtest.h>
 #include <unordered_set>
 
 using namespace vierkant;
@@ -44,28 +44,31 @@ void check_transform(T epsilon)
 
     // simple scaling
     transform_t_<T> scale = {};
-    T scale_val = 0.5;
-    scale.scale = glm::vec<3, T>(scale_val);
+    glm::vec<3, T> scale_val = {0.5, 1.0, 1.7};
+    scale.scale = scale_val;
     EXPECT_TRUE(glm::all(glm::epsilonEqual(scale * p1, scale_val * p1, epsilon)));
 
-    auto combo = scale * translate * rotate;
-    auto tc = combo * p1;
-    EXPECT_TRUE(glm::all(glm::epsilonEqual(tc, glm::vec<3, T>(3, 2, 0), epsilon)));
+    vierkant::transform_t_<T> combo = scale * translate * rotate;
+    auto combo_mat = mat4_cast<T>(scale) * mat4_cast<T>(translate) * mat4_cast<T>(rotate);
+
+    glm::vec<3, T> tc1 = combo * p1;
+    glm::vec<3, T> tc2 = combo_mat * glm::vec<4, T>(p1, 1.);
+    EXPECT_TRUE(glm::all(glm::epsilonEqual(tc1, tc2, epsilon)));
 
     // chain transform_t
-    auto tc1 = (scale * translate * rotate) * p1;
-    auto tc2 = scale * (translate * (rotate * p1));
+    tc1 = (scale * translate * rotate) * p1;
+    tc2 = scale * (translate * (rotate * p1));
     EXPECT_TRUE(glm::all(glm::epsilonEqual(tc1, tc2, epsilon)));
 
     // mat4 analog
-    tc1 = mat4_cast(scale) * mat4_cast(translate) * mat4_cast(rotate) * glm::vec4(p1, 1.f);
+    tc1 = mat4_cast<T>(scale) * mat4_cast<T>(translate) * mat4_cast<T>(rotate) * glm::vec<4, T>(p1, 1.);
     EXPECT_TRUE(glm::all(glm::epsilonEqual(tc1, tc2, epsilon)));
 
     // some more involved transform chain, all in double-precision
     transform_t_<T> a = {}, b = {}, c = {};
     a.translation = {11, 19, -5};
     a.rotation = glm::angleAxis(glm::radians(123.), glm::normalize(glm::dvec3(4, -7, 6)));
-    a.scale = glm::dvec3(0.5);
+    a.scale = glm::dvec3(0.5, 0.5, 0.5);
 
     b.translation = {0, -2, 25};
     b.rotation = glm::angleAxis(glm::radians(-99.), glm::normalize(glm::dvec3(1, 2, -3)));
@@ -76,8 +79,11 @@ void check_transform(T epsilon)
     c.scale = glm::dvec3(1.);
 
     // combined transforms vs. combined mat4
-    tc1 = a * b * c * p1;
-    tc2 = mat4_cast<T>(a) * mat4_cast<T>(b) * mat4_cast<T>(c) * glm::vec<4, T>(p1, 1.);
+    combo = a * b * c;
+    combo_mat = mat4_cast<T>(a) * mat4_cast<T>(b) * mat4_cast<T>(c);
+
+    tc1 = combo * p1;
+    tc2 = combo_mat * glm::vec<4, T>(p1, 1.);
     EXPECT_TRUE(glm::all(glm::epsilonEqual(tc1, tc2, epsilon)));
 
     // check transform inversion
