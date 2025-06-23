@@ -203,7 +203,8 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         auto &build_info = build_infos[i];
         build_info.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
         build_info.flags = flags;
-        build_info.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+        build_info.mode = update ? VK_BUILD_ACCELERATION_STRUCTURE_MODE_UPDATE_KHR
+                                 : VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
         build_info.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         build_info.geometryCount = 1;
         build_info.pGeometries = &geometry;
