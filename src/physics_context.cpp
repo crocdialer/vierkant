@@ -1090,7 +1090,7 @@ void PhysicsScene::update(double time_delta)
         else
         {
             // physics -> object
-            vierkant::transform_t transform;
+            vierkant::transform_t transform = obj->global_transform();
             m_context.body_interface().get_transform(static_cast<uint32_t>(entity), transform);
             obj->set_global_transform(transform);
         }
