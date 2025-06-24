@@ -304,8 +304,10 @@ private:
 
         // host-visible
         vierkant::BufferPtr staging_main, staging_anim, staging_post_fx;
-        vierkant::BufferPtr bone_buffer;
-        vierkant::BufferPtr morph_param_buffer;
+
+        vierkant::mesh_compute_context_handle mesh_compute_context;
+//        vierkant::BufferPtr bone_buffer;
+//        vierkant::BufferPtr morph_param_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;
 
         // lighting
