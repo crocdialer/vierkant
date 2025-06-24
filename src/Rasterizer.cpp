@@ -689,13 +689,13 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 {
     std::vector<VkDeviceAddress> vertex_buffer_refs;
     std::vector<mesh_entry_t> mesh_entries;
-    std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
+    std::map<std::pair<const vierkant::Mesh *, uint32_t>, uint32_t> mesh_entry_map;
 
     // maps -> material-index
     std::unordered_map<vierkant::MaterialConstPtr, uint32_t> material_index_map;
 
     // joined drawable buffers
-    std::vector<mesh_draw_t> mesh_draws(drawables.size());
+    frame_asset.mesh_draws.resize(drawables.size());
     std::vector<material_struct_t> material_data;
 
     // joined meshlet-visibilities (1 bit per meshlet)
@@ -709,11 +709,11 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
         {
-            auto mesh_entry_it = mesh_entry_map.find({drawable.mesh, drawable.entry_index});
+            auto mesh_entry_it = mesh_entry_map.find({drawable.mesh.get(), drawable.entry_index});
             if(mesh_entry_it == mesh_entry_map.end())
             {
                 mesh_index = mesh_entries.size();
-                mesh_entry_map[{drawable.mesh, drawable.entry_index}] = mesh_index;
+                mesh_entry_map[{drawable.mesh.get(), drawable.entry_index}] = mesh_index;
                 const auto &e = drawable.mesh->entries[drawable.entry_index];
                 mesh_entry_t mesh_entry = {};
                 mesh_entry.vertex_offset = e.vertex_offset;
@@ -743,12 +743,12 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         }
         else { material_data.push_back(drawable.material); }
 
-        mesh_draws[i].current_matrices = drawable.matrices;
-        mesh_draws[i].mesh_index = mesh_index;
-        mesh_draws[i].material_index = material_index_map[mat];
+        frame_asset.mesh_draws[i].current_matrices = drawable.matrices;
+        frame_asset.mesh_draws[i].mesh_index = mesh_index;
+        frame_asset.mesh_draws[i].material_index = material_index_map[mat];
 
-        if(drawable.last_matrices) { mesh_draws[i].last_matrices = *drawable.last_matrices; }
-        else { mesh_draws[i].last_matrices = drawable.matrices; }
+        if(drawable.last_matrices) { frame_asset.mesh_draws[i].last_matrices = *drawable.last_matrices; }
+        else { frame_asset.mesh_draws[i].last_matrices = drawable.matrices; }
     }
 
     auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer) {
@@ -817,7 +817,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: vertex_buffer_refs");
         add_staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_entries");
-        add_staging_copy(mesh_draws, frame_asset.mesh_draw_buffer,
+        add_staging_copy(frame_asset.mesh_draws, frame_asset.mesh_draw_buffer,
                          VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_draws");
         add_staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
@@ -838,12 +838,15 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         // create/upload joined buffers
         copy_to_buffer(vertex_buffer_refs, frame_asset.vertex_buffer_refs);
         copy_to_buffer(mesh_entries, frame_asset.mesh_entry_buffer);
-        copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
+        copy_to_buffer(frame_asset.mesh_draws, frame_asset.mesh_draw_buffer);
         copy_to_buffer(material_data, frame_asset.material_buffer);
         copy_to_buffer(meshlet_visibility_data, frame_asset.meshlet_visibility_buffer);
     }
 
+    frame_asset.indirect_indexed_bundle.mesh_draws_host = frame_asset.mesh_draws.data();
     frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
+    frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
+    frame_asset.indirect_indexed_bundle.vertex_buffer_addresses = frame_asset.vertex_buffer_refs;
     frame_asset.indirect_indexed_bundle.mesh_entries = frame_asset.mesh_entry_buffer;
     frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
     frame_asset.indirect_indexed_bundle.meshlet_visibilities = frame_asset.meshlet_visibility_buffer;
