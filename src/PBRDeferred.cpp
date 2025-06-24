@@ -588,25 +588,26 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
             auto it = m_entry_matrix_cache.find(key);
             if(it != m_entry_matrix_cache.end()) { drawable.last_matrices = it->second; }
 
-            //            // current and previous vertex-buffers
-            //            auto address_it = frame_context.mesh_compute_result.vertex_buffer_offsets.find(obj_id);
-            //
-            //            if(address_it != frame_context.mesh_compute_result.vertex_buffer_offsets.end())
-            //            {
-            //                VkDeviceAddress address =
-            //                        frame_context.mesh_compute_result.result_buffer->device_address() + address_it->second;
-            //                VkDeviceAddress prev_address = address;
-            //
-            //                auto prev_it = last_frame_context.mesh_compute_result.vertex_buffer_offsets.find(obj_id);
-            //                if(prev_it != last_frame_context.mesh_compute_result.vertex_buffer_offsets.end())
-            //                {
-            //                    prev_address =
-            //                            last_frame_context.mesh_compute_result.result_buffer->device_address() + prev_it->second;
-            //                    (void) prev_address;
-            //                }
-            //
-            //                // TODO: store/assign new vertex-buffers
-            //            }
+            // current and previous vertex-buffers
+            auto address_it = frame_context.mesh_compute_result.vertex_buffer_offsets.find(obj_id);
+
+            if(address_it != frame_context.mesh_compute_result.vertex_buffer_offsets.end())
+            {
+                VkDeviceAddress address =
+                        frame_context.mesh_compute_result.result_buffer->device_address() + address_it->second;
+                drawable.vertex_buffer = address;
+
+                //                VkDeviceAddress prev_address = address;
+                //                            auto prev_it = last_frame_context.mesh_compute_result.vertex_buffer_offsets.find(obj_id);
+                //                            if(prev_it != last_frame_context.mesh_compute_result.vertex_buffer_offsets.end())
+                //                            {
+                //                                prev_address =
+                //                                        last_frame_context.mesh_compute_result.result_buffer->device_address() + prev_it->second;
+                //                                (void) prev_address;
+                //                            }
+                //
+                //                            // TODO: store/assign new vertex-buffers
+            }
         }
     }
 }
@@ -671,9 +672,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         {
             uint32_t shader_flags = PROP_DEFAULT;
 
-            // check if vertex-skinning is required
-            //            if(drawable.mesh->root_bone) { shader_flags |= PROP_SKIN; }
-
             // check if tangents are available
             if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)) { shader_flags |= PROP_TANGENT_SPACE; }
 
@@ -702,9 +700,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 desc_depth_pyramid.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
                 desc_depth_pyramid.images = {vierkant::get_depth_pyramid(frame_context.gpu_cull_context)};
             }
-
-            //            // check if morph-targets are available
-            //            if(drawable.mesh->morph_buffer) { shader_flags |= PROP_MORPH_TARGET; }
 
             // select shader-stages from cache
             auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
@@ -808,6 +803,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
+            std::vector<VkDeviceAddress> vertex_buffer_addresses;
             std::vector<vierkant::matrix_struct_t> matrix_data(2 * frame_context.dirty_drawable_indices.size());
             std::vector<vierkant::staging_copy_info_t> copy_transforms;
             uint32_t i = 0;
@@ -840,30 +836,32 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             }
 
             // vertex-buffers update from animation
-            std::vector<VkDeviceAddress> addresses;
-            addresses.reserve(frame_context.mesh_compute_result.vertex_buffer_offsets.size());
-            std::unordered_set<uint32_t> mesh_indices;
-
-            for(const auto &[obj_id, offset]: frame_context.mesh_compute_result.vertex_buffer_offsets)
+            if(!frame_context.mesh_compute_result.vertex_buffer_offsets.empty())
             {
-                auto &address = addresses.emplace_back(
-                        frame_context.mesh_compute_result.result_buffer->device_address() + offset);
+                vertex_buffer_addresses.reserve(frame_context.mesh_compute_result.vertex_buffer_offsets.size());
+                std::unordered_set<uint32_t> mesh_indices;
 
-                for(uint32_t idx: frame_context.cull_result.object_id_to_drawable_indices[obj_id])
+                for(const auto &[obj_id, offset]: frame_context.mesh_compute_result.vertex_buffer_offsets)
                 {
-                    uint32_t mesh_index = params.mesh_draws_host[idx].mesh_index;
+                    auto &address = vertex_buffer_addresses.emplace_back(
+                            frame_context.mesh_compute_result.result_buffer->device_address() + offset);
 
-                    if(!mesh_indices.contains(mesh_index))
+                    for(uint32_t idx: frame_context.cull_result.object_id_to_drawable_indices[obj_id])
                     {
-                        vierkant::staging_copy_info_t copy_vertex_address = {};
-                        copy_vertex_address.num_bytes = sizeof(VkDeviceAddress);
-                        copy_vertex_address.data = &address;
-                        copy_vertex_address.dst_buffer = params.vertex_buffer_addresses;
-                        copy_vertex_address.dst_offset = sizeof(VkDeviceAddress) * mesh_index;
-                        copy_vertex_address.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-                        copy_vertex_address.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-                        copy_transforms.push_back(copy_vertex_address);
-                        mesh_indices.insert(mesh_index);
+                        uint32_t mesh_index = params.mesh_draws_host[idx].mesh_index;
+
+                        if(!mesh_indices.contains(mesh_index))
+                        {
+                            vierkant::staging_copy_info_t copy_vertex_address = {};
+                            copy_vertex_address.num_bytes = sizeof(VkDeviceAddress);
+                            copy_vertex_address.data = &address;
+                            copy_vertex_address.dst_buffer = params.vertex_buffer_addresses;
+                            copy_vertex_address.dst_offset = sizeof(VkDeviceAddress) * mesh_index;
+                            copy_vertex_address.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+                            copy_vertex_address.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+                            copy_transforms.push_back(copy_vertex_address);
+                            mesh_indices.insert(mesh_index);
+                        }
                     }
                 }
             }

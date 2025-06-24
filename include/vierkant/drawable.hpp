@@ -75,6 +75,9 @@ struct drawable_t
 
     MeshConstPtr mesh;
 
+    //! optional override for vertex-buffer provided by mesh, if any
+    VkDeviceAddress vertex_buffer = 0;
+
     uint32_t entry_index = 0;
 
     graphics_pipeline_info_t pipeline_format = {};

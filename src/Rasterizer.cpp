@@ -725,7 +725,11 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 mesh_entry.center = e.bounding_sphere.center;
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
-                vertex_buffer_refs.push_back(drawable.mesh->vertex_buffer->device_address());
+
+                VkDeviceAddress vertex_buffer_address = drawable.vertex_buffer
+                                                                ? drawable.vertex_buffer
+                                                                : drawable.mesh->vertex_buffer->device_address();
+                vertex_buffer_refs.push_back(vertex_buffer_address);
             }
             else { mesh_index = mesh_entry_it->second; }
 
