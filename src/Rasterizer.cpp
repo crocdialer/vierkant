@@ -379,14 +379,9 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
 
-        if(drawable.mesh && drawable.mesh->meshlets && drawable.entry_index < drawable.mesh->entries.size())
-        {
-            indexed_drawable.meshlet_visibility_index = meshlet_visibility_index;
-            for(const auto &lod: drawable.mesh->entries[drawable.entry_index].lods)
-            {
-                meshlet_visibility_index += div_up(lod.num_meshlets, 32);
-            }
-        }
+        // enough meshlet-visibility bits for lod0
+        indexed_drawable.meshlet_visibility_index = meshlet_visibility_index;
+        meshlet_visibility_index += div_up(drawable.num_meshlets, 32);
 
         // push intermediate struct
         pipeline_drawables[pipeline_format].push_back(indexed_drawable);
@@ -422,8 +417,6 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
-                bool use_meshlets = drawable->mesh->meshlets && !drawable->mesh->morph_buffer &&
-                                    !drawable->mesh->bone_vertex_buffer;
                 auto draw_command = static_cast<indexed_indirect_command_t *>(
                                             frame_assets.indirect_indexed_bundle.draws_in->map()) +
                                     frame_assets.indirect_indexed_bundle.num_draws++;
@@ -439,7 +432,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->object_index = indexed_drawable.object_index;
-                draw_command->flags = DRAW_COMMAND_FLAG_ENABLED | (use_meshlets ? DRAW_COMMAND_FLAG_MESHLETS : 0);
+                draw_command->flags =
+                        DRAW_COMMAND_FLAG_ENABLED | (drawable->mesh->meshlets ? DRAW_COMMAND_FLAG_MESHLETS : 0);
 
                 draw_command->base_meshlet = drawable->base_meshlet;
                 draw_command->num_meshlets = drawable->num_meshlets;
@@ -549,9 +543,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             vkCmdPushConstants(command_buffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0, sizeof(push_constants_t),
                                &push_constants);
 
-            // feature enabled/available, mesh exists and contains a meshlet-buffer. skinning/morphing not supported
-            bool use_meshlets = vkCmdDrawMeshTasksEXT && use_mesh_shader && mesh && mesh->meshlets &&
-                                !mesh->root_bone && !mesh->morph_buffer;
+            // feature enabled/available, mesh exists and contains a meshlet-buffer.
+            bool use_meshlets = vkCmdDrawMeshTasksEXT && use_mesh_shader && mesh && mesh->meshlets;
 
             if(mesh && current_mesh != mesh)
             {
@@ -696,13 +689,13 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 {
     std::vector<VkDeviceAddress> vertex_buffer_refs;
     std::vector<mesh_entry_t> mesh_entries;
-    std::map<std::pair<vierkant::MeshConstPtr, uint32_t>, uint32_t> mesh_entry_map;
+    std::map<std::pair<const vierkant::Mesh *, uint32_t>, uint32_t> mesh_entry_map;
 
     // maps -> material-index
     std::unordered_map<vierkant::MaterialConstPtr, uint32_t> material_index_map;
 
     // joined drawable buffers
-    std::vector<mesh_draw_t> mesh_draws(drawables.size());
+    frame_asset.mesh_draws.resize(drawables.size());
     std::vector<material_struct_t> material_data;
 
     // joined meshlet-visibilities (1 bit per meshlet)
@@ -712,15 +705,16 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     {
         const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
+        uint32_t vertex_buffer_index = vertex_buffer_refs.size();
         vierkant::MaterialConstPtr mat;
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
         {
-            auto mesh_entry_it = mesh_entry_map.find({drawable.mesh, drawable.entry_index});
+            auto mesh_entry_it = mesh_entry_map.find({drawable.mesh.get(), drawable.entry_index});
             if(mesh_entry_it == mesh_entry_map.end())
             {
                 mesh_index = mesh_entries.size();
-                mesh_entry_map[{drawable.mesh, drawable.entry_index}] = mesh_index;
+                mesh_entry_map[{drawable.mesh.get(), drawable.entry_index}] = mesh_index;
                 const auto &e = drawable.mesh->entries[drawable.entry_index];
                 mesh_entry_t mesh_entry = {};
                 mesh_entry.vertex_offset = e.vertex_offset;
@@ -732,33 +726,33 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 mesh_entry.center = e.bounding_sphere.center;
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
-                vertex_buffer_refs.push_back(drawable.mesh->vertex_buffer->device_address());
             }
             else { mesh_index = mesh_entry_it->second; }
 
-            mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
+            VkDeviceAddress vertex_buffer_address =
+                    drawable.vertex_buffer ? drawable.vertex_buffer : drawable.mesh->vertex_buffer->device_address();
+            vertex_buffer_refs.push_back(vertex_buffer_address);
 
+            mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
             if(!drawable.share_material || !material_index_map.contains(mat))
             {
                 material_index_map[mat] = material_data.size();
                 material_data.push_back(drawable.material);
             }
 
-            // set visibility-bits low/hi for all lods
-            size_t num_array_elems = 0;
+            // set visibility-bits low/hi for lod0
             uint32_t vis = 0xFFFFFFFF;
-            const auto &entry = drawable.mesh->entries[drawable.entry_index];
-            for(const auto &lod: entry.lods) { num_array_elems += div_up(lod.num_meshlets, 32); }
-            meshlet_visibility_data.resize(meshlet_visibility_data.size() + num_array_elems, vis);
+            meshlet_visibility_data.resize(meshlet_visibility_data.size() + div_up(drawable.num_meshlets, 32), vis);
         }
         else { material_data.push_back(drawable.material); }
 
-        mesh_draws[i].current_matrices = drawable.matrices;
-        mesh_draws[i].mesh_index = mesh_index;
-        mesh_draws[i].material_index = material_index_map[mat];
+        frame_asset.mesh_draws[i].current_matrices = drawable.matrices;
+        frame_asset.mesh_draws[i].mesh_index = mesh_index;
+        frame_asset.mesh_draws[i].material_index = material_index_map[mat];
+        frame_asset.mesh_draws[i].vertex_buffer_index = vertex_buffer_index;
 
-        if(drawable.last_matrices) { mesh_draws[i].last_matrices = *drawable.last_matrices; }
-        else { mesh_draws[i].last_matrices = drawable.matrices; }
+        if(drawable.last_matrices) { frame_asset.mesh_draws[i].last_matrices = *drawable.last_matrices; }
+        else { frame_asset.mesh_draws[i].last_matrices = drawable.matrices; }
     }
 
     auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer) {
@@ -827,7 +821,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: vertex_buffer_refs");
         add_staging_copy(mesh_entries, frame_asset.mesh_entry_buffer, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_entries");
-        add_staging_copy(mesh_draws, frame_asset.mesh_draw_buffer,
+        add_staging_copy(frame_asset.mesh_draws, frame_asset.mesh_draw_buffer,
                          VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
                          VK_ACCESS_2_SHADER_READ_BIT, "Rasterizer: mesh_draws");
         add_staging_copy(material_data, frame_asset.material_buffer, VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
@@ -848,12 +842,15 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         // create/upload joined buffers
         copy_to_buffer(vertex_buffer_refs, frame_asset.vertex_buffer_refs);
         copy_to_buffer(mesh_entries, frame_asset.mesh_entry_buffer);
-        copy_to_buffer(mesh_draws, frame_asset.mesh_draw_buffer);
+        copy_to_buffer(frame_asset.mesh_draws, frame_asset.mesh_draw_buffer);
         copy_to_buffer(material_data, frame_asset.material_buffer);
         copy_to_buffer(meshlet_visibility_data, frame_asset.meshlet_visibility_buffer);
     }
 
+    frame_asset.indirect_indexed_bundle.mesh_draws_host = frame_asset.mesh_draws.data();
     frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
+    frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
+    frame_asset.indirect_indexed_bundle.vertex_buffer_addresses = frame_asset.vertex_buffer_refs;
     frame_asset.indirect_indexed_bundle.mesh_entries = frame_asset.mesh_entry_buffer;
     frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
     frame_asset.indirect_indexed_bundle.meshlet_visibilities = frame_asset.meshlet_visibility_buffer;

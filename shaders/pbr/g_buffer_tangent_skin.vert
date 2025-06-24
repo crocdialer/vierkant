@@ -61,7 +61,7 @@ void main()
     indices.material_index = draws[gl_BaseInstance].material_index;
 
     // retrieve vertex-buffer, unpack vertex
-    Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].mesh_index].v[gl_VertexIndex]);
+    Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].vertex_buffer_index].v[gl_VertexIndex]);
 
     vec4 bone_weights = vec4(float(bone_vertex_data[gl_VertexIndex].weight_x),
                              float(bone_vertex_data[gl_VertexIndex].weight_y),

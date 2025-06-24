@@ -63,7 +63,8 @@ public:
         matrix_struct_t last_matrices = {};
         uint32_t mesh_index = 0;
         uint32_t material_index = 0;
-        uint32_t pad[2] = {};
+        uint32_t vertex_buffer_index = 0;
+        uint32_t pad[1] = {};
     };
 
     struct mesh_entry_t
@@ -109,13 +110,19 @@ public:
         //! number of array-elements in 'draws_in'
         uint32_t num_draws = 0;
 
-        //! device array containing any array of mesh_draw_t
+        //! device array containing an array of mesh_draw_t
         vierkant::BufferPtr mesh_draws;
 
-        //! device array containing any array of mesh_entry_t
+        //! host-memory
+        const mesh_draw_t *mesh_draws_host = nullptr;
+
+        //! device array containing an array of vertex-buffer device-addresses
+        vierkant::BufferPtr vertex_buffer_addresses;
+
+        //! device array containing an array of mesh_entry_t
         vierkant::BufferPtr mesh_entries;
 
-        //! device array containing any array of material_t
+        //! device array containing an array of material_t
         vierkant::BufferPtr materials;
 
         //! device array a visibility bitfield for all meshlets
@@ -298,6 +305,7 @@ private:
         indirect_draw_bundle_t indirect_indexed_bundle;
 
         std::vector<drawable_t> drawables;
+        std::vector<mesh_draw_t> mesh_draws;
         vierkant::CommandBuffer command_buffer, staging_command_buffer;
 
         // used for gpu timestamps

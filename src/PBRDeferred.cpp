@@ -16,7 +16,7 @@ const char *PBRDeferred::to_string(PBRDeferred::SemaphoreValue v)
     switch(v)
     {
         case INVALID: return "INVALID";
-        case PRE_RENDER: return "PRE_RENDER";
+        case MESH_COMPUTE: return "PRE_RENDER";
         case G_BUFFER_LAST_VISIBLE: return "G_BUFFER_LAST_VISIBLE";
         case DEPTH_PYRAMID: return "DEPTH_PYRAMID";
         case CULLING: return "CULLING";
@@ -88,15 +88,17 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         composition_buffer_info.name = "composition_ubo";
         frame_context.composition_ubo = vierkant::Buffer::create(composition_buffer_info);
 
-        vierkant::Buffer::create_info_t anim_buffer_info = {};
-        anim_buffer_info.device = m_device;
-        anim_buffer_info.num_bytes = 1U << 20U;
-        anim_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        anim_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-        anim_buffer_info.name = "bone_buffer";
-        frame_context.bone_buffer = vierkant::Buffer::create(anim_buffer_info);
-        anim_buffer_info.name = "morph_param_buffer";
-        frame_context.morph_param_buffer = vierkant::Buffer::create(anim_buffer_info);
+        //        vierkant::Buffer::create_info_t anim_buffer_info = {};
+        //        anim_buffer_info.device = m_device;
+        //        anim_buffer_info.num_bytes = 1U << 20U;
+        //        anim_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        //        anim_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
+        //        anim_buffer_info.name = "bone_buffer";
+        //        frame_context.bone_buffer = vierkant::Buffer::create(anim_buffer_info);
+        //        anim_buffer_info.name = "morph_param_buffer";
+        //        frame_context.morph_param_buffer = vierkant::Buffer::create(anim_buffer_info);
+
+        frame_context.mesh_compute_context = vierkant::create_mesh_compute_context(m_device, nullptr, m_pipeline_cache);
 
         frame_context.query_pool =
                 vierkant::create_query_pool(m_device, SemaphoreValue::MAX_VALUE * 2, VK_QUERY_TYPE_TIMESTAMP);
@@ -117,8 +119,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         vierkant::CommandBuffer::create_info_t command_buffer_info = {};
         command_buffer_info.device = m_device;
         command_buffer_info.command_pool = m_command_pool.get();
-        command_buffer_info.name = "PBRDeferred::cmd_pre_render";
-        frame_context.cmd_pre_render = vierkant::CommandBuffer(command_buffer_info);
+        //        command_buffer_info.name = "PBRDeferred::cmd_pre_render";
+        //        frame_context.cmd_pre_render = vierkant::CommandBuffer(command_buffer_info);
 
         command_buffer_info.name = "PBRDeferred::cmd_post_fx";
         frame_context.cmd_post_fx = vierkant::CommandBuffer(command_buffer_info);
@@ -517,160 +519,67 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
 
 void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
 {
-    // cache/collect bone-matrices
-    std::unordered_map<uint32_t, size_t> entity_bone_buffer_offsets;
-    std::vector<vierkant::transform_t> all_bone_transforms;
-
-    // cache/collect morph-params
-    using morph_buffer_offset_mapt_t = std::unordered_map<id_entry_t, size_t>;
-    morph_buffer_offset_mapt_t morph_buffer_offsets;
-    std::vector<morph_params_t> all_morph_params;
-
-    size_t last_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
-                        m_g_renderer_main.num_concurrent_frames();
-    auto &last_frame_context = m_frame_contexts[last_index];
+    frame_context.mesh_compute_result.vertex_buffer_offsets.clear();
 
     SelectVisitor<Object3D> visitor;
     frame_context.cull_result.scene->root()->accept(visitor);
 
-    for(const auto *object: visitor.objects)
+    if(frame_context.mesh_compute_context)
     {
-        auto object_id = object->id();
+        vierkant::mesh_compute_params_t mesh_compute_params = {};
+        mesh_compute_params.queue = m_queue;
+        mesh_compute_params.semaphore_submit_info.semaphore = frame_context.timeline.handle();
+        mesh_compute_params.semaphore_submit_info.signal_value =
+                frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE;
+        mesh_compute_params.query_pool = frame_context.query_pool;
+        mesh_compute_params.query_index_start = 2 * SemaphoreValue::MESH_COMPUTE;
+        mesh_compute_params.query_index_end = 2 * SemaphoreValue::MESH_COMPUTE + 1;
 
-        auto *mesh_component = object->get_component_ptr<mesh_component_t>();
-        auto *animation_state = object->get_component_ptr<animation_component_t>();
-        if(!mesh_component || !animation_state) { continue; }
-
-        const auto &mesh = mesh_component->mesh;
-        const auto &animation = mesh->node_animations[animation_state->index];
-
-        if(mesh->root_bone)
+        //  check for skin/morph meshes and schedule a mesh-compute operation
+        for(const auto &object: visitor.objects)
         {
-            std::vector<vierkant::transform_t> bone_transforms;
-            vierkant::nodes::build_node_matrices_bfs(mesh->root_bone, animation, animation_state->current_time,
-                                                     bone_transforms);
+            if(!object->has_component<vierkant::mesh_component_t>()) { continue; }
 
-            // min alignment for storage-buffers
-            auto min_alignment = m_device->properties().core.limits.minStorageBufferOffsetAlignment;
-            size_t num_bytes = bone_transforms.size() * sizeof(vierkant::transform_t);
-            if(num_bytes % min_alignment) { bone_transforms.push_back({}); }
+            const auto &mesh_component = object->get_component<vierkant::mesh_component_t>();
+            const auto &mesh = mesh_component.mesh;
+            vierkant::animated_mesh_t key = {mesh};
 
-            // keep track of offset
-            entity_bone_buffer_offsets[object_id] = all_bone_transforms.size() * sizeof(vierkant::transform_t);
-            all_bone_transforms.insert(all_bone_transforms.end(), bone_transforms.begin(), bone_transforms.end());
-        }
-        else if(mesh->morph_buffer)
-        {
-            // morph-target weights
-            std::vector<std::vector<float>> node_morph_weights;
-            vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, animation_state->current_time,
-                                                     node_morph_weights);
-
-            for(uint32_t i = 0; i < mesh->entries.size(); ++i)
+            if(object->has_component<vierkant::animation_component_t>() && (mesh->root_bone || mesh->morph_buffer))
             {
-                const auto &entry = mesh->entries[i];
-                id_entry_t key = {object_id, i};
-                const auto &weights = node_morph_weights[entry.node_index];
-
-                morph_params_t p;
-                p.base_vertex = entry.morph_vertex_offset;
-                p.vertex_count = entry.num_vertices;
-                p.morph_count = weights.size();
-
-                assert(p.morph_count * sizeof(float) <= sizeof(p.weights));
-                memcpy(p.weights, weights.data(), weights.size() * sizeof(float));
-
-                // keep track of offset
-                morph_buffer_offsets[key] = all_morph_params.size() * sizeof(morph_params_t);
-                all_morph_params.push_back(p);
+                key.animation_state = object->get_component<vierkant::animation_component_t>();
+                mesh_compute_params.mesh_compute_items[object->id()] = key;
             }
         }
+
+        // updates of animated (skin/morph) assets
+        if(!mesh_compute_params.mesh_compute_items.empty())
+        {
+            frame_context.mesh_compute_result =
+                    vierkant::mesh_compute(frame_context.mesh_compute_context, mesh_compute_params);
+        }
+        else { frame_context.timeline.signal(frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE); }
     }
-
-    frame_context.cmd_pre_render.begin(0);
-    vierkant::begin_label(frame_context.cmd_pre_render.handle(), {"update animations"});
-
-    // barriers
-    VkBuffer buffers[] = {frame_context.bone_buffer->handle(), frame_context.morph_param_buffer->handle()};
-    vierkant::barrier(frame_context.cmd_pre_render.handle(), buffers, 2, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
-    vierkant::staging_copy_context_t staging_context = {};
-    staging_context.staging_buffer = frame_context.staging_anim;
-    staging_context.command_buffer = frame_context.cmd_pre_render.handle();
-
-    vierkant::staging_copy_info_t copy_bones = {};
-    copy_bones.num_bytes = all_bone_transforms.size() * sizeof(vierkant::transform_t);
-    copy_bones.data = all_bone_transforms.data();
-    copy_bones.dst_buffer = frame_context.bone_buffer;
-    copy_bones.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-    copy_bones.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-
-    vierkant::staging_copy_info_t copy_morphs = {};
-    copy_morphs.num_bytes = all_morph_params.size() * sizeof(morph_params_t);
-    copy_morphs.data = all_morph_params.data();
-    copy_morphs.dst_buffer = frame_context.morph_param_buffer;
-    copy_morphs.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-    copy_morphs.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-
-    vierkant::staging_copy(staging_context, {copy_bones, copy_morphs});
-
-    vierkant::end_label(frame_context.cmd_pre_render.handle());
-    vierkant::semaphore_submit_info_t semaphore_info = {};
-    semaphore_info.semaphore = frame_context.timeline.handle();
-    semaphore_info.signal_value = frame_context.current_semaphore_value + SemaphoreValue::PRE_RENDER;
-    frame_context.cmd_pre_render.submit(m_queue, false, VK_NULL_HANDLE, {semaphore_info});
 
     if(!frame_context.recycle_commands)
     {
         // insert previous matrices from cache, if any
         for(auto &drawable: frame_context.cull_result.drawables)
         {
-            auto [entity, sub_entry] = frame_context.cull_result.entity_map[drawable.id];
+            auto [obj_id, sub_entry] = frame_context.cull_result.entity_map[drawable.id];
 
             // search previous matrices
-            id_entry_t key = {static_cast<uint32_t>(entity), drawable.entry_index};
+            id_entry_t key = {obj_id, drawable.entry_index};
             auto it = m_entry_matrix_cache.find(key);
             if(it != m_entry_matrix_cache.end()) { drawable.last_matrices = it->second; }
 
-            // descriptors for bone buffers, if necessary
-            if(drawable.mesh && drawable.mesh->root_bone)
+            // current and previous vertex-buffers
+            auto address_it = frame_context.mesh_compute_result.vertex_buffer_offsets.find(obj_id);
+
+            if(address_it != frame_context.mesh_compute_result.vertex_buffer_offsets.end())
             {
-                uint32_t buffer_offset = entity_bone_buffer_offsets[entity];
-
-                vierkant::descriptor_t desc_bones = {};
-                desc_bones.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_bones.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-                desc_bones.buffers = {frame_context.bone_buffer};
-                desc_bones.buffer_offsets = {buffer_offset};
-                drawable.descriptors[Rasterizer::BINDING_BONES] = desc_bones;
-
-                if(last_frame_context.bone_buffer &&
-                   last_frame_context.bone_buffer->num_bytes() == frame_context.bone_buffer->num_bytes())
-                {
-                    desc_bones.buffers = {last_frame_context.bone_buffer};
-                }
-                drawable.descriptors[Rasterizer::BINDING_PREVIOUS_BONES] = desc_bones;
-            }
-
-            if(drawable.mesh && drawable.mesh->morph_buffer)
-            {
-                //! morph_params_t contains information to access a morph-target buffer
-                uint32_t buffer_offset = morph_buffer_offsets[key];
-
-                // use combined buffer
-                vierkant::descriptor_t desc_morph_params = {};
-                desc_morph_params.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_morph_params.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-                desc_morph_params.buffers = {frame_context.morph_param_buffer};
-                desc_morph_params.buffer_offsets = {buffer_offset};
-                drawable.descriptors[Rasterizer::BINDING_MORPH_PARAMS] = desc_morph_params;
-
-                if(last_frame_context.morph_param_buffer &&
-                   last_frame_context.morph_param_buffer->num_bytes() == frame_context.morph_param_buffer->num_bytes())
-                {
-                    desc_morph_params.buffers = {last_frame_context.morph_param_buffer};
-                }
-                drawable.descriptors[Rasterizer::BINDING_PREVIOUS_MORPH_PARAMS] = desc_morph_params;
+                VkDeviceAddress address =
+                        frame_context.mesh_compute_result.result_buffer->device_address() + address_it->second;
+                drawable.vertex_buffer = address;
             }
         }
     }
@@ -736,9 +645,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         {
             uint32_t shader_flags = PROP_DEFAULT;
 
-            // check if vertex-skinning is required
-            if(drawable.mesh->root_bone) { shader_flags |= PROP_SKIN; }
-
             // check if tangents are available
             if(drawable.mesh->vertex_attribs.count(Mesh::ATTRIB_TANGENT)) { shader_flags |= PROP_TANGENT_SPACE; }
 
@@ -746,8 +652,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             drawable.pipeline_format.attribute_descriptions.clear();
             drawable.pipeline_format.binding_descriptions.clear();
 
-            const bool use_meshlet_pipeline = drawable.mesh->meshlets && frame_context.settings.use_meshlet_pipeline &&
-                                              !drawable.mesh->morph_buffer && !drawable.mesh->root_bone;
+            const bool use_meshlet_pipeline = drawable.mesh->meshlets && frame_context.settings.use_meshlet_pipeline;
 
             if(use_meshlet_pipeline)
             {
@@ -768,9 +673,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 desc_depth_pyramid.stage_flags = VK_SHADER_STAGE_TASK_BIT_EXT;
                 desc_depth_pyramid.images = {vierkant::get_depth_pyramid(frame_context.gpu_cull_context)};
             }
-
-            // check if morph-targets are available
-            if(drawable.mesh->morph_buffer) { shader_flags |= PROP_MORPH_TARGET; }
 
             // select shader-stages from cache
             auto stage_it = m_g_buffer_shader_stages.find(shader_flags);
@@ -867,16 +769,19 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                         frame_context.cmd_clear.handle(), src_stage, src_access, dst_stage, dst_access);
             }
         }
-        else if(params.num_draws && !frame_context.dirty_drawable_indices.empty())
+        else if(params.num_draws && (!frame_context.dirty_drawable_indices.empty() ||
+                                     !frame_context.mesh_compute_result.vertex_buffer_offsets.empty()))
         {
             params.mesh_draws->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage, src_access);
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
+            std::vector<VkDeviceAddress> vertex_buffer_addresses;
             std::vector<vierkant::matrix_struct_t> matrix_data(2 * frame_context.dirty_drawable_indices.size());
             std::vector<vierkant::staging_copy_info_t> copy_transforms;
             uint32_t i = 0;
 
+            // transform updates for drawables
             for(auto idx: frame_context.dirty_drawable_indices)
             {
                 if(idx < frame_context.cull_result.drawables.size())
@@ -902,6 +807,37 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                     break;
                 }
             }
+
+            // vertex-buffers update from animation
+            if(!frame_context.mesh_compute_result.vertex_buffer_offsets.empty())
+            {
+                vertex_buffer_addresses.reserve(frame_context.mesh_compute_result.vertex_buffer_offsets.size());
+                std::unordered_set<uint32_t> mesh_indices;
+
+                for(const auto &[obj_id, offset]: frame_context.mesh_compute_result.vertex_buffer_offsets)
+                {
+                    auto &address = vertex_buffer_addresses.emplace_back(
+                            frame_context.mesh_compute_result.result_buffer->device_address() + offset);
+
+                    for(uint32_t idx: frame_context.cull_result.object_id_to_drawable_indices[obj_id])
+                    {
+                        uint32_t vertex_buffer_index = params.mesh_draws_host[idx].vertex_buffer_index;
+
+                        if(!mesh_indices.contains(vertex_buffer_index))
+                        {
+                            vierkant::staging_copy_info_t copy_vertex_address = {};
+                            copy_vertex_address.num_bytes = sizeof(VkDeviceAddress);
+                            copy_vertex_address.data = &address;
+                            copy_vertex_address.dst_buffer = params.vertex_buffer_addresses;
+                            copy_vertex_address.dst_offset = sizeof(VkDeviceAddress) * vertex_buffer_index;
+                            copy_vertex_address.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+                            copy_vertex_address.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+                            copy_transforms.push_back(copy_vertex_address);
+                            mesh_indices.insert(vertex_buffer_index);
+                        }
+                    }
+                }
+            }
             vierkant::staging_copy(staging_context, copy_transforms);
         }
         vierkant::end_label(frame_context.cmd_clear.handle());
@@ -914,7 +850,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     auto cmd_buffer_pre = m_g_renderer_main.render(frame_context.g_buffer_main, frame_context.recycle_commands);
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_context.timeline.handle();
-    g_buffer_semaphore_submit_info_pre.wait_value = frame_context.current_semaphore_value + SemaphoreValue::PRE_RENDER;
+    g_buffer_semaphore_submit_info_pre.wait_value =
+            frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE;
     g_buffer_semaphore_submit_info_pre.wait_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
     g_buffer_semaphore_submit_info_pre.signal_value =
             frame_context.current_semaphore_value +
@@ -1483,7 +1420,7 @@ void PBRDeferred::update_timing(frame_context_t &frame_context)
     {
         auto timestamp_period = m_device->properties().core.limits.timestampPeriod;
 
-        for(uint32_t i = G_BUFFER_LAST_VISIBLE; i <= frame_context.semaphore_value_done; ++i)
+        for(uint32_t i = MESH_COMPUTE; i <= frame_context.semaphore_value_done; ++i)
         {
             auto val = SemaphoreValue(i);
             auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
@@ -1491,6 +1428,7 @@ void PBRDeferred::update_timing(frame_context_t &frame_context)
         }
     }
 
+    timings_result.mesh_compute_ms = timing_millis[SemaphoreValue::MESH_COMPUTE];
     timings_result.g_buffer_pre_ms = frame_context.timings_map[SemaphoreValue::G_BUFFER_LAST_VISIBLE].count();
     timings_result.depth_pyramid_ms = timing_millis[SemaphoreValue::DEPTH_PYRAMID];
     timings_result.culling_ms = timing_millis[SemaphoreValue::CULLING];

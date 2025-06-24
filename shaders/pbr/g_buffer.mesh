@@ -83,7 +83,7 @@ void main()
         uint vi = meshlet_vertices[meshlets[mi].vertex_offset + i];
 
         // retrieve vertex-buffer, unpack vertex
-        const Vertex v = unpack(vertex_buffers[draws[task_payload.object_index].mesh_index].v[vi]);
+        const Vertex v = unpack(vertex_buffers[draws[task_payload.object_index].vertex_buffer_index].v[vi]);
 
         vertex_out[i].current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, v.position), 1.0);
         vertex_out[i].last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, v.position), 1.0);

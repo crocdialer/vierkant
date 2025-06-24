@@ -169,11 +169,6 @@ void main()
         draw.groupCountY = draw.groupCountZ = 1;
         draw.base_meshlet = lod.base_meshlet;
         draw.num_meshlets = lod.num_meshlets;
-
-        for(uint i = 0; i < lod_index; ++i)
-        {
-            draw.meshlet_visibility_index += div_up(mesh_entry.lods[i].num_meshlets, 32);
-        }
     }
 
     // count managment
