@@ -111,6 +111,7 @@ public:
 
     struct timings_t
     {
+        double mesh_compute_ms = 0.0;
         double g_buffer_pre_ms = 0.0;
         double depth_pyramid_ms = 0.0;
         double culling_ms = 0.0;
@@ -216,7 +217,7 @@ private:
     enum SemaphoreValue : uint64_t
     {
         INVALID = 0,
-        PRE_RENDER,
+        MESH_COMPUTE,
         G_BUFFER_LAST_VISIBLE,
         DEPTH_PYRAMID,
         CULLING,
@@ -306,8 +307,9 @@ private:
         vierkant::BufferPtr staging_main, staging_anim, staging_post_fx;
 
         vierkant::mesh_compute_context_handle mesh_compute_context;
-//        vierkant::BufferPtr bone_buffer;
-//        vierkant::BufferPtr morph_param_buffer;
+        vierkant::mesh_compute_result_t mesh_compute_result;
+        //        vierkant::BufferPtr bone_buffer;
+        //        vierkant::BufferPtr morph_param_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;
 
         // lighting

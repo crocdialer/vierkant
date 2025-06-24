@@ -37,8 +37,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         vierkant::nodes::build_morph_weights_bfs(mesh->root_node, animation, params.animation_time, node_morph_weights);
     }
 
-    bool use_meshlets = mesh->meshlets && mesh->meshlet_vertices && mesh->meshlet_triangles && !mesh->root_bone &&
-                        !mesh->morph_buffer;
+    bool use_meshlets = mesh->meshlets && mesh->meshlet_vertices && mesh->meshlet_triangles;
 
     for(uint32_t i = 0; i < mesh->entries.size(); ++i)
     {
@@ -89,22 +88,22 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
 
         if(!drawable.use_own_buffers)
         {
-            if(drawable.mesh->bone_vertex_buffer)
-            {
-                auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_BONE_VERTEX_DATA];
-                desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_vertices.buffers = {drawable.mesh->bone_vertex_buffer};
-            }
-
-            if(drawable.mesh->morph_buffer)
-            {
-                // add descriptors for morph- buffer_params
-                vierkant::descriptor_t &desc_morph_buffer = drawable.descriptors[Rasterizer::BINDING_MORPH_TARGETS];
-                desc_morph_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
-                desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
-            }
+//            if(drawable.mesh->bone_vertex_buffer)
+//            {
+//                auto &desc_vertices = drawable.descriptors[Rasterizer::BINDING_BONE_VERTEX_DATA];
+//                desc_vertices.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+//                desc_vertices.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
+//                desc_vertices.buffers = {drawable.mesh->bone_vertex_buffer};
+//            }
+//
+//            if(drawable.mesh->morph_buffer)
+//            {
+//                // add descriptors for morph- buffer_params
+//                vierkant::descriptor_t &desc_morph_buffer = drawable.descriptors[Rasterizer::BINDING_MORPH_TARGETS];
+//                desc_morph_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+//                desc_morph_buffer.stage_flags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_MESH_BIT_EXT;
+//                desc_morph_buffer.buffers = {drawable.mesh->morph_buffer};
+//            }
 
             if(use_meshlets)
             {

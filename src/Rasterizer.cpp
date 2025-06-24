@@ -417,8 +417,6 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
-                bool use_meshlets = drawable->mesh->meshlets && !drawable->mesh->morph_buffer &&
-                                    !drawable->mesh->bone_vertex_buffer;
                 auto draw_command = static_cast<indexed_indirect_command_t *>(
                                             frame_assets.indirect_indexed_bundle.draws_in->map()) +
                                     frame_assets.indirect_indexed_bundle.num_draws++;
@@ -434,7 +432,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 draw_command->count_buffer_offset = indirect_draw_asset.count_buffer_offset;
                 draw_command->first_draw_index = indirect_draw_asset.first_indexed_draw_index;
                 draw_command->object_index = indexed_drawable.object_index;
-                draw_command->flags = DRAW_COMMAND_FLAG_ENABLED | (use_meshlets ? DRAW_COMMAND_FLAG_MESHLETS : 0);
+                draw_command->flags =
+                        DRAW_COMMAND_FLAG_ENABLED | (drawable->mesh->meshlets ? DRAW_COMMAND_FLAG_MESHLETS : 0);
 
                 draw_command->base_meshlet = drawable->base_meshlet;
                 draw_command->num_meshlets = drawable->num_meshlets;
@@ -544,9 +543,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             vkCmdPushConstants(command_buffer, pipeline->layout(), VK_SHADER_STAGE_ALL, 0, sizeof(push_constants_t),
                                &push_constants);
 
-            // feature enabled/available, mesh exists and contains a meshlet-buffer. skinning/morphing not supported
-            bool use_meshlets = vkCmdDrawMeshTasksEXT && use_mesh_shader && mesh && mesh->meshlets &&
-                                !mesh->root_bone && !mesh->morph_buffer;
+            // feature enabled/available, mesh exists and contains a meshlet-buffer.
+            bool use_meshlets = vkCmdDrawMeshTasksEXT && use_mesh_shader && mesh && mesh->meshlets;
 
             if(mesh && current_mesh != mesh)
             {
