@@ -74,7 +74,7 @@ void main()
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;
 
     // retrieve vertex-buffer, unpack vertex
-    Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].mesh_index].v[gl_VertexIndex]);
+    Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].vertex_buffer_index].v[gl_VertexIndex]);
     vec3 last_position = v.position;
 
     vec3 new_normal = vec3(0);

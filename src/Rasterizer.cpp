@@ -705,6 +705,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     {
         const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
+        uint32_t vertex_buffer_index = vertex_buffer_refs.size();
         vierkant::MaterialConstPtr mat;
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
@@ -725,16 +726,14 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 mesh_entry.center = e.bounding_sphere.center;
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
-
-                VkDeviceAddress vertex_buffer_address = drawable.vertex_buffer
-                                                                ? drawable.vertex_buffer
-                                                                : drawable.mesh->vertex_buffer->device_address();
-                vertex_buffer_refs.push_back(vertex_buffer_address);
             }
             else { mesh_index = mesh_entry_it->second; }
 
-            mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
+            VkDeviceAddress vertex_buffer_address =
+                    drawable.vertex_buffer ? drawable.vertex_buffer : drawable.mesh->vertex_buffer->device_address();
+            vertex_buffer_refs.push_back(vertex_buffer_address);
 
+            mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
             if(!drawable.share_material || !material_index_map.contains(mat))
             {
                 material_index_map[mat] = material_data.size();
@@ -750,6 +749,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         frame_asset.mesh_draws[i].current_matrices = drawable.matrices;
         frame_asset.mesh_draws[i].mesh_index = mesh_index;
         frame_asset.mesh_draws[i].material_index = material_index_map[mat];
+        frame_asset.mesh_draws[i].vertex_buffer_index = vertex_buffer_index;
 
         if(drawable.last_matrices) { frame_asset.mesh_draws[i].last_matrices = *drawable.last_matrices; }
         else { frame_asset.mesh_draws[i].last_matrices = drawable.matrices; }

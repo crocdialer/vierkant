@@ -63,7 +63,8 @@ public:
         matrix_struct_t last_matrices = {};
         uint32_t mesh_index = 0;
         uint32_t material_index = 0;
-        uint32_t pad[2] = {};
+        uint32_t vertex_buffer_index = 0;
+        uint32_t pad[1] = {};
     };
 
     struct mesh_entry_t
@@ -113,7 +114,7 @@ public:
         vierkant::BufferPtr mesh_draws;
 
         //! host-memory
-        const mesh_draw_t* mesh_draws_host = nullptr;
+        const mesh_draw_t *mesh_draws_host = nullptr;
 
         //! device array containing an array of vertex-buffer device-addresses
         vierkant::BufferPtr vertex_buffer_addresses;

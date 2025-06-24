@@ -18,7 +18,8 @@ struct mesh_draw_t
     matrix_struct_t last_matrices;
     uint mesh_index;
     uint material_index;
-    uint pad[2];
+    uint vertex_buffer_index;
+    uint pad[1];
 };
 
 struct lod_t

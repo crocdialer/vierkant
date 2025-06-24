@@ -524,8 +524,6 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
     SelectVisitor<Object3D> visitor;
     frame_context.cull_result.scene->root()->accept(visitor);
 
-    std::unordered_map<uint32_t, vierkant::animated_mesh_t> mesh_compute_entities;
-
     if(frame_context.mesh_compute_context)
     {
         vierkant::mesh_compute_params_t mesh_compute_params = {};
@@ -549,7 +547,6 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
             if(object->has_component<vierkant::animation_component_t>() && (mesh->root_bone || mesh->morph_buffer))
             {
                 key.animation_state = object->get_component<vierkant::animation_component_t>();
-                mesh_compute_entities[object->id()] = key;
                 mesh_compute_params.mesh_compute_items[object->id()] = key;
             }
         }
@@ -824,19 +821,19 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
                     for(uint32_t idx: frame_context.cull_result.object_id_to_drawable_indices[obj_id])
                     {
-                        uint32_t mesh_index = params.mesh_draws_host[idx].mesh_index;
+                        uint32_t vertex_buffer_index = params.mesh_draws_host[idx].vertex_buffer_index;
 
-                        if(!mesh_indices.contains(mesh_index))
+                        if(!mesh_indices.contains(vertex_buffer_index))
                         {
                             vierkant::staging_copy_info_t copy_vertex_address = {};
                             copy_vertex_address.num_bytes = sizeof(VkDeviceAddress);
                             copy_vertex_address.data = &address;
                             copy_vertex_address.dst_buffer = params.vertex_buffer_addresses;
-                            copy_vertex_address.dst_offset = sizeof(VkDeviceAddress) * mesh_index;
+                            copy_vertex_address.dst_offset = sizeof(VkDeviceAddress) * vertex_buffer_index;
                             copy_vertex_address.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
                             copy_vertex_address.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
                             copy_transforms.push_back(copy_vertex_address);
-                            mesh_indices.insert(mesh_index);
+                            mesh_indices.insert(vertex_buffer_index);
                         }
                     }
                 }
