@@ -308,8 +308,6 @@ private:
 
         vierkant::mesh_compute_context_handle mesh_compute_context;
         vierkant::mesh_compute_result_t mesh_compute_result;
-        //        vierkant::BufferPtr bone_buffer;
-        //        vierkant::BufferPtr morph_param_buffer;
         vierkant::BufferPtr g_buffer_camera_ubo;
 
         // lighting

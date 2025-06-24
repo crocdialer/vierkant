@@ -519,20 +519,7 @@ SceneRenderer::render_result_t PBRDeferred::render_scene(Rasterizer &renderer, c
 
 void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
 {
-    // cache/collect bone-matrices
-    //    std::unordered_map<uint32_t, size_t> entity_bone_buffer_offsets;
-    //    std::vector<vierkant::transform_t> all_bone_transforms;
-    //
-    //    // cache/collect morph-params
-    //    using morph_buffer_offset_mapt_t = std::unordered_map<id_entry_t, size_t>;
-    //    morph_buffer_offset_mapt_t morph_buffer_offsets;
-    //    std::vector<morph_params_t> all_morph_params;
-
     frame_context.mesh_compute_result.vertex_buffer_offsets.clear();
-
-    //    size_t last_index = (m_g_renderer_main.current_index() + m_g_renderer_main.num_concurrent_frames() - 1) %
-    //                        m_g_renderer_main.num_concurrent_frames();
-    //    auto &last_frame_context = m_frame_contexts[last_index];
 
     SelectVisitor<Object3D> visitor;
     frame_context.cull_result.scene->root()->accept(visitor);
@@ -596,17 +583,6 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
                 VkDeviceAddress address =
                         frame_context.mesh_compute_result.result_buffer->device_address() + address_it->second;
                 drawable.vertex_buffer = address;
-
-                //                VkDeviceAddress prev_address = address;
-                //                            auto prev_it = last_frame_context.mesh_compute_result.vertex_buffer_offsets.find(obj_id);
-                //                            if(prev_it != last_frame_context.mesh_compute_result.vertex_buffer_offsets.end())
-                //                            {
-                //                                prev_address =
-                //                                        last_frame_context.mesh_compute_result.result_buffer->device_address() + prev_it->second;
-                //                                (void) prev_address;
-                //                            }
-                //
-                //                            // TODO: store/assign new vertex-buffers
             }
         }
     }
@@ -1455,7 +1431,7 @@ void PBRDeferred::update_timing(frame_context_t &frame_context)
         }
     }
 
-    timings_result.mesh_compute_ms = frame_context.timings_map[SemaphoreValue::MESH_COMPUTE].count();
+    timings_result.mesh_compute_ms = timing_millis[SemaphoreValue::MESH_COMPUTE];
     timings_result.g_buffer_pre_ms = frame_context.timings_map[SemaphoreValue::G_BUFFER_LAST_VISIBLE].count();
     timings_result.depth_pyramid_ms = timing_millis[SemaphoreValue::DEPTH_PYRAMID];
     timings_result.culling_ms = timing_millis[SemaphoreValue::CULLING];
