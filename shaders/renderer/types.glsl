@@ -146,6 +146,7 @@ struct render_context_t
 #define DRAW_COMMAND_FLAG_VISIBLE 0x02
 #define DRAW_COMMAND_FLAG_LATE_VISIBLE 0x04
 #define DRAW_COMMAND_FLAG_MESHLETS 0x08
+#define DRAW_COMMAND_FLAG_MESHLETS_DISABLE_CULLING 0x10
 
 bool has_flag(uint flag_bits, uint flag)
 {

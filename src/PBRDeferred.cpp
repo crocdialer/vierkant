@@ -835,6 +835,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                             copy_transforms.push_back(copy_vertex_address);
                             mesh_indices.insert(vertex_buffer_index);
                         }
+
+                        // set draw-command flag to prevent culling of transformed meshlets
+                        auto *draw_cmd = reinterpret_cast<vierkant::Rasterizer::indexed_indirect_command_t *>(
+                                params.draws_in->map());
+                        draw_cmd->flags |= vierkant::Rasterizer::DRAW_COMMAND_FLAG_MESHLETS_DISABLE_CULLING;
                     }
                 }
             }
