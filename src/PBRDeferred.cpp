@@ -666,7 +666,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
                 //layout (constant_id = 2) const bool use_culling
                 // NOTE: do not apply culling when the vertex-buffer was overridden (bounds possibly wrong)
-                pipeline_specialization.set(2, VkBool32(use_gpu_culling && !drawable.mesh->vertex_buffer));
+                pipeline_specialization.set(2, VkBool32(use_gpu_culling && !drawable.vertex_buffer));
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
 
                 auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
@@ -734,8 +734,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         auto dst_access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
 
         resize_indirect_draw_buffers(params.num_draws, frame_context.indirect_draw_params_main);
+
+        // keep references to internal buffers from pre-pass
         frame_context.indirect_draw_params_main.draws_out = params.draws_out;
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
+        frame_context.indirect_draw_params_main.vertex_buffer_addresses = params.vertex_buffer_addresses;
         frame_context.indirect_draw_params_main.mesh_entries = params.mesh_entries;
         frame_context.indirect_draw_params_main.meshlet_visibilities = params.meshlet_visibilities;
 
@@ -774,6 +777,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                      !frame_context.mesh_compute_result.vertex_buffer_offsets.empty()))
         {
             params.mesh_draws->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage, src_access);
+            params.vertex_buffer_addresses->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage,
+                                                    src_access);
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
@@ -882,8 +887,9 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             resize_indirect_draw_buffers(params.num_draws, frame_context.indirect_draw_params_post);
             params.draws_counts_out = frame_context.indirect_draw_params_post.draws_counts_out;
 
-            // re-use mesh-draws/transforms/visibilities from main-pass
+            // re-use mesh-draws/vertex-buffers/transforms/visibilities from main-pass
             params.mesh_draws = frame_context.indirect_draw_params_main.mesh_draws;
+            params.vertex_buffer_addresses = frame_context.indirect_draw_params_main.vertex_buffer_addresses;
             params.mesh_entries = frame_context.indirect_draw_params_main.mesh_entries;
             params.meshlet_visibilities = frame_context.indirect_draw_params_main.meshlet_visibilities;
 

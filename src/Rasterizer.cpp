@@ -483,7 +483,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
             // predefined buffers
             if(!draw_asset.drawable->use_own_buffers)
             {
-                descriptors[BINDING_VERTICES].buffers = {frame_assets.vertex_buffer_refs};
+                descriptors[BINDING_VERTICES].buffers = {frame_assets.indirect_indexed_bundle.vertex_buffer_addresses};
                 descriptors[BINDING_MESH_DRAWS].buffers = {frame_assets.indirect_indexed_bundle.mesh_draws};
                 descriptors[BINDING_MATERIAL].buffers = {frame_assets.indirect_indexed_bundle.materials};
                 descriptors[BINDING_DRAW_COMMANDS].buffers = {draw_buffer_indexed};
@@ -847,9 +847,8 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         copy_to_buffer(meshlet_visibility_data, frame_asset.meshlet_visibility_buffer);
     }
 
+    frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
     frame_asset.indirect_indexed_bundle.mesh_draws_host = frame_asset.mesh_draws.data();
-    frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
-    frame_asset.indirect_indexed_bundle.mesh_draws = frame_asset.mesh_draw_buffer;
     frame_asset.indirect_indexed_bundle.vertex_buffer_addresses = frame_asset.vertex_buffer_refs;
     frame_asset.indirect_indexed_bundle.mesh_entries = frame_asset.mesh_entry_buffer;
     frame_asset.indirect_indexed_bundle.materials = frame_asset.material_buffer;
