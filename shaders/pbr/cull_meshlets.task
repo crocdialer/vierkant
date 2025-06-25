@@ -98,7 +98,7 @@ void main()
     task_payload.object_index = object_index;
     task_payload.meshlet_base_index = meshlet_base_index;
 
-    if(use_culling && !has_flag(draw_command.flags, DRAW_COMMAND_FLAG_MESHLETS_DISABLE_CULLING))
+    if(use_culling)
     {
         bool visible = valid;
         bool visible_last_frame = is_visible(draw_command.meshlet_visibility_index, gid);

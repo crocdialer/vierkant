@@ -665,7 +665,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 pipeline_specialization.set(1, mesh_shader_props.maxPreferredMeshWorkGroupInvocations);
 
                 //layout (constant_id = 2) const bool use_culling
-                pipeline_specialization.set(2, VkBool32(use_gpu_culling));
+                // NOTE: do not apply culling when the vertex-buffer was overridden (bounds possibly wrong)
+                pipeline_specialization.set(2, VkBool32(use_gpu_culling && !drawable.mesh->vertex_buffer));
                 drawable.pipeline_format.specialization = std::move(pipeline_specialization);
 
                 auto &desc_depth_pyramid = drawable.descriptors[Rasterizer::BINDING_DEPTH_PYRAMID];
@@ -835,11 +836,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                             copy_transforms.push_back(copy_vertex_address);
                             mesh_indices.insert(vertex_buffer_index);
                         }
-
-                        // set draw-command flag to prevent culling of transformed meshlets
-                        auto *draw_cmd = reinterpret_cast<vierkant::Rasterizer::indexed_indirect_command_t *>(
-                                params.draws_in->map());
-                        draw_cmd->flags |= vierkant::Rasterizer::DRAW_COMMAND_FLAG_MESHLETS_DISABLE_CULLING;
                     }
                 }
             }
