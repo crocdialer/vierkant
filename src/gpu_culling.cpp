@@ -33,8 +33,14 @@ struct gpu_cull_context_t
 
 struct alignas(16) draw_cull_data_t
 {
+    glm::mat4 view = glm::mat4(1);
+
+    float P00, P11, znear, zfar;// symmetric projection parameters
+    glm::vec4 frustum;          // data for left/right/top/bottom frustum planes
+
     // buffer references
     VkDeviceAddress draw_commands_in = 0;
+    VkDeviceAddress draw_commands_in_post = 0;
     VkDeviceAddress mesh_draws_in = 0;
     VkDeviceAddress mesh_entries_in = 0;
     VkDeviceAddress draws_out_pre = 0;
@@ -42,11 +48,6 @@ struct alignas(16) draw_cull_data_t
     VkDeviceAddress draw_count_pre = 0;
     VkDeviceAddress draw_count_post = 0;
     VkDeviceAddress draw_result = 0;
-
-    glm::mat4 view = glm::mat4(1);
-
-    float P00, P11, znear, zfar;// symmetric projection parameters
-    glm::vec4 frustum;          // data for left/right/top/bottom frustum planes
 
     uint32_t num_draws = 0;
 
@@ -229,6 +230,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
 
     // buffer references
     draw_cull_data.draw_commands_in = params.draws_in->device_address();
+    draw_cull_data.draw_commands_in_post = params.draws_in_post->device_address();
     draw_cull_data.mesh_draws_in = params.mesh_draws_in->device_address();
     draw_cull_data.mesh_entries_in = params.mesh_entries_in->device_address();
     draw_cull_data.draws_out_pre = params.draws_out_pre->device_address();
@@ -272,7 +274,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     depth_pyramid_desc.images = {params.depth_pyramid};
 
     descriptor_t &draw_cull_data_desc = context->cull_computable.descriptors[1];
-    draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    draw_cull_data_desc.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     draw_cull_data_desc.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
     draw_cull_data_desc.buffers = {context->draw_cull_data_buffer};
 
@@ -347,7 +349,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
 
     vierkant::Buffer::create_info_t buffer_info = {};
     buffer_info.device = device;
-    buffer_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     buffer_info.num_bytes = sizeof(draw_cull_data_t);
     buffer_info.name = "draw_cull_data_buffer";

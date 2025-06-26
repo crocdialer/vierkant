@@ -27,16 +27,6 @@ layout(buffer_reference, std430) buffer DrawResultPtr{ draw_cull_result_t v; };
 
 struct draw_cull_data_t
 {
-    // buffer references
-    DrawBufferPtr draws_in;
-    MeshDrawBufferPtr mesh_draws_in;
-    MeshEntryBufferPtr mesh_entries_in;
-    DrawBufferPtr draws_out_pre;
-    DrawBufferPtr draws_out_post;
-    DrawCountBufferPtr draw_count_pre;
-    DrawCountBufferPtr draw_count_post;
-    DrawResultPtr draw_result;
-
     mat4 view;
 
     //! symmetric projection parameters
@@ -44,6 +34,16 @@ struct draw_cull_data_t
 
     //! left/right/top/bottom frustum planes
     vec4 frustum;
+
+    // buffer references
+    DrawBufferPtr draws_in, draws_in_post;
+    MeshDrawBufferPtr mesh_draws_in;
+    MeshEntryBufferPtr mesh_entries_in;
+    DrawBufferPtr draws_out_pre;
+    DrawBufferPtr draws_out_post;
+    DrawCountBufferPtr draw_count_pre;
+    DrawCountBufferPtr draw_count_post;
+    DrawResultPtr draw_result;
 
     uint num_draws;
 
@@ -76,7 +76,7 @@ uint div_up(uint nom, uint denom) { return (nom + denom - 1) / denom; }
 
 layout(binding = 0) uniform sampler2D u_depth_pyramid;
 
-layout(std140, binding = 1) uniform culldata_ubo_t{ draw_cull_data_t cull_data; };
+layout(std430, binding = 1) readonly buffer culldata_ubo_t{ draw_cull_data_t cull_data; };
 
 layout(local_size_x = 32) in;
 
@@ -85,7 +85,7 @@ void main()
     uint gid = gl_GlobalInvocationID.x;
     if(gid >= cull_data.num_draws){ return; }
 
-    // simple pass-through
+    // originial draw-commands from pre-pass
     indexed_indirect_command_t draw = cull_data.draws_in.v[gid];
 
     mesh_draw_t mesh_draw = cull_data.mesh_draws_in.v[draw.object_index];
@@ -190,7 +190,11 @@ void main()
             set_flag(draw.flags, DRAW_COMMAND_FLAG_LATE_VISIBLE, needs_post_draw ||
                      (meshlet_draw && (draw.base_meshlet != cull_data.draws_in.v[gid].base_meshlet)));
 
-            uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
+            // get count-buffer offset from original post-draw commands
+            uint count_buffer_offset = cull_data.draws_in_post.v[gid].count_buffer_offset;
+
+            // increment and get output index
+            uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[count_buffer_offset], 1);
             cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }
     }

@@ -41,6 +41,7 @@ struct gpu_cull_params_t
     vierkant::semaphore_submit_info_t semaphore_submit_info = {};
 
     vierkant::BufferPtr draws_in;
+    vierkant::BufferPtr draws_in_post;
     vierkant::BufferPtr mesh_draws_in;
     vierkant::BufferPtr mesh_entries_in;
 
