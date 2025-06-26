@@ -988,8 +988,20 @@ void draw_object_ui(const Object3DPtr &object)
     ImGui::BulletText("id: %d", object->id());
     ImGui::Separator();
 
+    // bounds
+    if(ImGui::TreeNode("bounds (m)"))
+    {
+        auto aabb = object->aabb().transform(object->global_transform());
+        float w = aabb.width(), h = aabb.height(), d = aabb.depth();
+        bool change = ImGui::InputFloat("width", &w);
+        change |= ImGui::InputFloat("height", &h);
+        change |= ImGui::InputFloat("depth", &d);
+        if(change) { object->transform.scale *= glm::vec3(w / aabb.width(), h / aabb.height(), d / aabb.depth()); }
+        ImGui::TreePop();
+    }
+
     // transform
-    if(object) { draw_transform(object->transform); }
+    draw_transform(object->transform);
 
     bool has_physics = object->has_component<vierkant::physics_component_t>();
     if(ImGui::Checkbox("physics", &has_physics))
