@@ -417,9 +417,19 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
             if(drawable->mesh && drawable->mesh->index_buffer)
             {
-                auto draw_command = static_cast<indexed_indirect_command_t *>(
-                                            frame_assets.indirect_indexed_bundle.draws_in->map()) +
-                                    frame_assets.indirect_indexed_bundle.num_draws++;
+                // keep track of assigned draw-command-indices
+                if(frame_assets.indirect_indexed_bundle.draw_command_indices)//  == indirect_draw
+                {
+                    auto *draw_command_indices = reinterpret_cast<uint32_t *>(
+                            frame_assets.indirect_indexed_bundle.draw_command_indices->map());
+                    draw_command_indices[indexed_drawable.object_index] =
+                            frame_assets.indirect_indexed_bundle.num_draws;
+                }
+
+                // assign into draw-command buffer
+                auto *draw_command = reinterpret_cast<indexed_indirect_command_t *>(
+                                             frame_assets.indirect_indexed_bundle.draws_in->map()) +
+                                     frame_assets.indirect_indexed_bundle.num_draws++;
 
                 //! VkDrawIndexedIndirectCommand
                 *draw_command = {};
@@ -865,8 +875,8 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
 
     vierkant::Buffer::create_info_t buffer_info = {};
     buffer_info.device = m_device;
-    buffer_info.usage =
-            VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buffer_info.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     buffer_info.num_bytes = num_bytes_indexed;
     buffer_info.name = "Rasterizer: frame_asset.indirect_indexed_bundle.draws_in";
@@ -903,6 +913,23 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
         }
         else { frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed); }
 
+        size_t num_bytes_draw_command_indices = std::max<size_t>(num_drawables * sizeof(uint32_t), 1UL << 18);
+
+        if(!frame_asset.indirect_indexed_bundle.draw_command_indices ||
+           frame_asset.indirect_indexed_bundle.draw_command_indices->num_bytes() < num_bytes_draw_command_indices)
+        {
+            buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+            buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+            buffer_info.num_bytes = num_bytes_draw_command_indices;
+            buffer_info.name = "Rasterizer: frame_asset.indirect_indexed_bundle.draw_command_indices";
+            frame_asset.indirect_indexed_bundle.draw_command_indices = vierkant::Buffer::create(buffer_info);
+        }
+        else
+        {
+            frame_asset.indirect_indexed_bundle.draw_command_indices->set_data(nullptr, num_bytes_draw_command_indices);
+        }
+
+        // non-indexed
         if(!frame_asset.indirect_bundle.draws_out || frame_asset.indirect_bundle.draws_out->num_bytes() < num_bytes)
         {
             buffer_info.num_bytes = num_bytes;

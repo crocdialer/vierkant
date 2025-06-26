@@ -110,10 +110,10 @@ public:
         //! number of array-elements in 'draws_in'
         uint32_t num_draws = 0;
 
-        //! device array containing an array of mesh_draw_t
+        //! device memory containing an array of mesh_draw_t
         vierkant::BufferPtr mesh_draws;
 
-        //! host-memory
+        //! host-memory array of mesh_draw_t
         const mesh_draw_t *mesh_draws_host = nullptr;
 
         //! device array containing an array of vertex-buffer device-addresses
@@ -125,7 +125,7 @@ public:
         //! device array containing an array of material_t
         vierkant::BufferPtr materials;
 
-        //! device array a visibility bitfield for all meshlets
+        //! device array containing a visibility bitfield for all meshlets
         vierkant::BufferPtr meshlet_visibilities;
 
         //! host-visible array of indexed_indirect_command_t
@@ -136,6 +136,9 @@ public:
 
         //! device array of uint32_t
         vierkant::BufferPtr draws_counts_out;
+
+        //! host array of uint32_t. maps drawable-idx -> draw-command-idx
+        vierkant::BufferPtr draw_command_indices;
     };
 
     //! define syntax for a culling-delegate
