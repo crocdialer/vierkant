@@ -908,9 +908,14 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.depth_pyramid = frame_context.depth_pyramid;
             gpu_cull_params.draws_in = frame_context.indirect_draw_params_main.draws_in;
             gpu_cull_params.draws_in_post = frame_context.indirect_draw_params_post.draws_in;
+            gpu_cull_params.draw_command_indices_in_post = params.draw_command_indices;
+
+            //            auto *ptr = reinterpret_cast<const uint32_t*>(params.draw_command_indices->map());
+            //            std::vector<uint> draw_command_indices = {ptr, ptr + params.num_draws};
+            //            (void)draw_command_indices;
+
             gpu_cull_params.mesh_draws_in = frame_context.indirect_draw_params_main.mesh_draws;
             gpu_cull_params.mesh_entries_in = frame_context.indirect_draw_params_main.mesh_entries;
-
 
             gpu_cull_params.draws_out_pre = frame_context.indirect_draw_params_main.draws_out;
             gpu_cull_params.draws_counts_out_pre = frame_context.indirect_draw_params_main.draws_counts_out;
@@ -1389,7 +1394,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
 void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Rasterizer::indirect_draw_bundle_t &params)
 {
     // reserve space for indirect drawing-commands
-    const size_t num_bytes = std::max<size_t>(num_draws * sizeof(Rasterizer::indexed_indirect_command_t), 1ul << 20);
+    size_t num_bytes = std::max<size_t>(num_draws * sizeof(Rasterizer::indexed_indirect_command_t), 1ul << 20);
 
     if(!params.draws_in || params.draws_in->num_bytes() < num_bytes)
     {
@@ -1400,11 +1405,13 @@ void PBRDeferred::resize_indirect_draw_buffers(uint32_t num_draws, Rasterizer::i
                 VMA_MEMORY_USAGE_GPU_ONLY);
     }
 
-    if(!params.draws_counts_out)
+    uint32_t max_batches = std::max<uint32_t>(num_draws, 1024);
+    num_bytes = max_batches * sizeof(uint32_t);
+
+    if(!params.draws_counts_out || params.draws_counts_out->num_bytes() < num_bytes)
     {
-        constexpr uint32_t max_batches = 4096;
         params.draws_counts_out = vierkant::Buffer::create(
-                m_device, nullptr, max_batches * sizeof(uint32_t),
+                m_device, nullptr, num_bytes,
                 VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                 VMA_MEMORY_USAGE_GPU_ONLY);

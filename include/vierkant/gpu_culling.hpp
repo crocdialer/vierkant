@@ -42,6 +42,8 @@ struct gpu_cull_params_t
 
     vierkant::BufferPtr draws_in;
     vierkant::BufferPtr draws_in_post;
+    vierkant::BufferPtr draw_command_indices_in_post;
+
     vierkant::BufferPtr mesh_draws_in;
     vierkant::BufferPtr mesh_entries_in;
 

@@ -23,6 +23,7 @@ layout(buffer_reference, std430) buffer DrawBufferPtr{ indexed_indirect_command_
 layout(buffer_reference, std430) buffer readonly MeshDrawBufferPtr{ mesh_draw_t v[]; };
 layout(buffer_reference, std430) buffer readonly MeshEntryBufferPtr{ mesh_entry_t v[]; };
 layout(buffer_reference, std430) buffer DrawCountBufferPtr{ uint v[]; };
+layout(buffer_reference, std430) buffer DrawCommandIndexBufferPtr{ uint v[]; };
 layout(buffer_reference, std430) buffer DrawResultPtr{ draw_cull_result_t v; };
 
 struct draw_cull_data_t
@@ -43,6 +44,7 @@ struct draw_cull_data_t
     DrawBufferPtr draws_out_post;
     DrawCountBufferPtr draw_count_pre;
     DrawCountBufferPtr draw_count_post;
+    DrawCommandIndexBufferPtr draw_command_indices_in_post;
     DrawResultPtr draw_result;
 
     uint num_draws;
@@ -190,12 +192,16 @@ void main()
             set_flag(draw.flags, DRAW_COMMAND_FLAG_LATE_VISIBLE, needs_post_draw ||
                      (meshlet_draw && (draw.base_meshlet != cull_data.draws_in.v[gid].base_meshlet)));
 
+            // map to post-draw-idx
+            uint draw_cmd_index_post = cull_data.draw_command_indices_in_post.v[draw.object_index];
+
             // get count-buffer offset from original post-draw commands
-            uint count_buffer_offset = cull_data.draws_in_post.v[gid].count_buffer_offset;
+            uint count_buffer_offset = cull_data.draws_in_post.v[draw_cmd_index_post].count_buffer_offset;
+            uint first_draw_index = cull_data.draws_in_post.v[draw_cmd_index_post].first_draw_index;
 
             // increment and get output index
             uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[count_buffer_offset], 1);
-            cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
+            cull_data.draws_out_post.v[first_draw_index + draw_cmd_offset_post] = draw;
         }
     }
 

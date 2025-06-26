@@ -47,6 +47,7 @@ struct alignas(16) draw_cull_data_t
     VkDeviceAddress draws_out_post = 0;
     VkDeviceAddress draw_count_pre = 0;
     VkDeviceAddress draw_count_post = 0;
+    VkDeviceAddress draw_command_indices_in_post = 0;
     VkDeviceAddress draw_result = 0;
 
     uint32_t num_draws = 0;
@@ -237,6 +238,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
     draw_cull_data.draws_out_post = params.draws_out_post->device_address();
     draw_cull_data.draw_count_pre = params.draws_counts_out_pre->device_address();
     draw_cull_data.draw_count_post = params.draws_counts_out_post->device_address();
+    draw_cull_data.draw_command_indices_in_post = params.draw_command_indices_in_post->device_address();
     draw_cull_data.draw_result = context->draw_cull_result_buffer->device_address();
 
     auto projection = params.camera->projection_matrix();
