@@ -37,7 +37,8 @@ struct draw_cull_data_t
     vec4 frustum;
 
     // buffer references
-    DrawBufferPtr draws_in, draws_in_post;
+    DrawBufferPtr draws_in;
+    DrawBufferPtr draws_in_post;
     MeshDrawBufferPtr mesh_draws_in;
     MeshEntryBufferPtr mesh_entries_in;
     DrawBufferPtr draws_out_pre;
@@ -183,6 +184,7 @@ void main()
         // became visible this frame -> not drawn in 1st-pass
         bool needs_post_draw = !has_flag(draw.flags, DRAW_COMMAND_FLAG_VISIBLE);
 
+        // prepass: increment and get output index
         uint draw_cmd_offset = atomicAdd(cull_data.draw_count_pre.v[draw.count_buffer_offset], 1);
         cull_data.draws_out_pre.v[draw.first_draw_index + draw_cmd_offset] = draw;
 
@@ -195,13 +197,13 @@ void main()
             // map to post-draw-idx
             uint draw_cmd_index_post = cull_data.draw_command_indices_in_post.v[draw.object_index];
 
-            // get count-buffer offset from original post-draw commands
-            uint count_buffer_offset = cull_data.draws_in_post.v[draw_cmd_index_post].count_buffer_offset;
-            uint first_draw_index = cull_data.draws_in_post.v[draw_cmd_index_post].first_draw_index;
+            // get count-buffer offset for post-draw command
+            draw.count_buffer_offset = cull_data.draws_in_post.v[draw_cmd_index_post].count_buffer_offset;
+            draw.first_draw_index = cull_data.draws_in_post.v[draw_cmd_index_post].first_draw_index;
 
-            // increment and get output index
-            uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[count_buffer_offset], 1);
-            cull_data.draws_out_post.v[first_draw_index + draw_cmd_offset_post] = draw;
+            // postpass: increment and get output index
+            uint draw_cmd_offset_post = atomicAdd(cull_data.draw_count_post.v[draw.count_buffer_offset], 1);
+            cull_data.draws_out_post.v[draw.first_draw_index + draw_cmd_offset_post] = draw;
         }
     }
 

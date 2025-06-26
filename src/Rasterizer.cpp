@@ -875,8 +875,8 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
 
     vierkant::Buffer::create_info_t buffer_info = {};
     buffer_info.device = m_device;
-    buffer_info.usage =
-            VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buffer_info.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
     buffer_info.num_bytes = num_bytes_indexed;
     buffer_info.name = "Rasterizer: frame_asset.indirect_indexed_bundle.draws_in";

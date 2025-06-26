@@ -907,21 +907,14 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             gpu_cull_params.use_meshlets = frame_context.settings.use_meshlet_pipeline;
             gpu_cull_params.depth_pyramid = frame_context.depth_pyramid;
             gpu_cull_params.draws_in = frame_context.indirect_draw_params_main.draws_in;
-            gpu_cull_params.draws_in_post = frame_context.indirect_draw_params_post.draws_in;
+            gpu_cull_params.draws_in_post = params.draws_in;
             gpu_cull_params.draw_command_indices_in_post = params.draw_command_indices;
-
-            //            auto *ptr = reinterpret_cast<const uint32_t*>(params.draw_command_indices->map());
-            //            std::vector<uint> draw_command_indices = {ptr, ptr + params.num_draws};
-            //            (void)draw_command_indices;
-
             gpu_cull_params.mesh_draws_in = frame_context.indirect_draw_params_main.mesh_draws;
             gpu_cull_params.mesh_entries_in = frame_context.indirect_draw_params_main.mesh_entries;
-
             gpu_cull_params.draws_out_pre = frame_context.indirect_draw_params_main.draws_out;
             gpu_cull_params.draws_counts_out_pre = frame_context.indirect_draw_params_main.draws_counts_out;
             gpu_cull_params.draws_out_post = params.draws_out;
             gpu_cull_params.draws_counts_out_post = params.draws_counts_out;
-
             gpu_cull_params.semaphore_submit_info.semaphore = frame_context.timeline.handle();
             gpu_cull_params.semaphore_submit_info.wait_value =
                     frame_context.current_semaphore_value + SemaphoreValue::DEPTH_PYRAMID;
