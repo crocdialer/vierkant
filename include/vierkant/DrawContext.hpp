@@ -96,7 +96,7 @@ public:
      * @param   projection  the projection matrix to use for drawing.
      */
     void draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float spacing, const glm::vec2 &line_width,
-                   bool ortho, const vierkant::transform_t &transform, const glm::mat4 &projection);
+                   bool ortho, bool show_axis, const vierkant::transform_t &transform, const glm::mat4 &projection);
 
     /**
      * @brief   Draws a mesh.

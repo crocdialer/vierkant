@@ -467,7 +467,7 @@ void DrawContext::draw_image_fullscreen(Rasterizer &renderer, const ImagePtr &im
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &color, float spacing,
-                            const glm::vec2 &line_width, bool ortho, const vierkant::transform_t &transform,
+                            const glm::vec2 &line_width, bool ortho, bool show_axis, const vierkant::transform_t &transform,
                             const glm::mat4 &projection)
 {
     auto drawable = m_drawable_grid;
@@ -481,6 +481,8 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
         glm::mat4 view_inverse;
         glm::vec4 plane = glm::vec4(0, 1, 0, 0);
         glm::vec4 color = glm::vec4(1.f);
+        glm::vec4 color_x = glm::vec4(1.f, 0.f, 0.f, 1.f);
+        glm::vec4 color_z = glm::vec4(.3f, .1f, 8.f, 1.f);
         glm::vec2 line_width = glm::vec2(0.05f);
         float spacing = 1.f;
         VkBool32 ortho = false;
@@ -497,6 +499,7 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
     grid_params.spacing = spacing;
     grid_params.line_width = glm::clamp(line_width, glm::vec2(0.f), glm::vec2(1.f));
     grid_params.ortho = ortho;
+    grid_params.axis = show_axis;
 
     // adjust plane to cardinal axis, higher weight for y
     if(ortho)

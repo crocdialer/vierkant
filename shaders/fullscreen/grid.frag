@@ -12,6 +12,8 @@ struct grid_params_t
     mat4 view_inverse;
     vec4 plane;
     vec4 color;
+    vec4 color_x;
+    vec4 color_z;
     vec2 line_width;
     float dist;
     bool ortho;
@@ -143,8 +145,8 @@ void main()
 
         if(grid_params.axis)
         {
-            color = mix(vec3(1, 0, 0), color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
-            color = mix(vec3(0, 0, 1), color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
+            color = mix(grid_params.color_x.rgb, color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
+            color = mix(grid_params.color_z.rgb, color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
         }
         out_color = vec4(color, grid_params.color.a * coverage);
 
