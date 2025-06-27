@@ -2,7 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 
-#include "../utils/color_unorm.glsl"
+#include "../utils/color_cast.glsl"
 #include "../utils/sampling.glsl"
 #include "../renderer/types.glsl"
 
@@ -142,12 +142,12 @@ void main()
 
         // grid coverage
         float coverage = pristine_grid(grid_uv, ddx_uv, ddy_uv, grid_params.line_width);
-        vec4 color = cast_color_unorm(grid_params.color);
+        vec4 color = color_cast(grid_params.color);
 
         if(grid_params.axis)
         {
-            color = mix(cast_color_unorm(grid_params.color_x), color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
-            color = mix(cast_color_unorm(grid_params.color_z), color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
+            color = mix(color_cast(grid_params.color_x), color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
+            color = mix(color_cast(grid_params.color_z), color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
         }
         out_color = vec4(color.rgb, color.a * coverage);
 

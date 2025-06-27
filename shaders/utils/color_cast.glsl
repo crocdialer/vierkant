@@ -1,7 +1,7 @@
-#ifndef COLOR_UNORM_GLSL
-#define COLOR_UNORM_GLSL
+#ifndef COLOR_CAST_GLSL
+#define COLOR_CAST_GLSL
 
-uint cast_color_unorm(vec4 color)
+uint color_cast(vec4 color)
 {
     uint ret = 0;
     ret |= uint(clamp(color.x, 0.0, 1.0) * 255);
@@ -11,7 +11,7 @@ uint cast_color_unorm(vec4 color)
     return ret;
 }
 
-vec4 cast_color_unorm(uint color)
+vec4 color_cast(uint color)
 {
     vec4 ret;
     ret.x = (color & 0xFF) / 255.0;
@@ -21,4 +21,4 @@ vec4 cast_color_unorm(uint color)
     return ret;
 }
 
-#endif // COLOR_UNORM_GLSL
+#endif // COLOR_CAST_GLSL

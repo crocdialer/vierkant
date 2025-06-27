@@ -5,7 +5,7 @@
 namespace vierkant
 {
 
-inline static uint32_t cast_color_unorm(const glm::vec4 &color)
+inline static uint32_t color_cast(const glm::vec4 &color)
 {
     uint32_t ret = 0;
     ret |= static_cast<uint32_t>(std::clamp(color.x, 0.f, 1.f) * 255);
@@ -15,7 +15,7 @@ inline static uint32_t cast_color_unorm(const glm::vec4 &color)
     return ret;
 }
 
-inline static glm::vec4 cast_color_unorm(uint32_t color)
+inline static glm::vec4 color_cast(uint32_t color)
 {
     glm::vec4 ret;
     ret.x = (color & 0xFF) / 255.f;
