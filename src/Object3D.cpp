@@ -4,6 +4,18 @@
 namespace vierkant
 {
 
+glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
+{
+    glm::mat4 ret = mat4_cast(obj->transform);
+    Object3DPtr ancestor = obj->parent();
+    while(ancestor)
+    {
+        ret = mat4_cast(ancestor->transform) * ret;
+        ancestor = ancestor->parent();
+    }
+    return ret;
+}
+
 // static factory
 Object3DPtr Object3D::create(const std::shared_ptr<entt::registry> &registry, std::string name)
 {
@@ -28,19 +40,12 @@ Object3D::~Object3D() noexcept
 
 vierkant::transform_t Object3D::global_transform() const
 {
-    auto ret = transform;
-    Object3DPtr ancestor = parent();
-    while(ancestor)
-    {
-        ret = ancestor->transform * ret;
-        ancestor = ancestor->parent();
-    }
-    return ret;
+    return parent() ? transform_cast(get_global_mat4(this)) : transform;
 }
 
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    transform = parent() ? vierkant::inverse(parent()->global_transform()) * t : t;
+    transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent().get())) * mat4_cast(t)) : t;
 }
 
 bool Object3D::global_enable() const
