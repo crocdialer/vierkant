@@ -67,7 +67,7 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
 
     // draw overlay-image
     m_draw_context.draw_image_fullscreen(renderer, frame_context.frame_buffer.color_attachment(),
-                                         frame_context.frame_buffer.depth_attachment(), true, true,
+                                         frame_context.frame_buffer.depth_attachment(), false, true,
                                          frame_context.settings.overlay_color, 0.01f);
 
     vierkant::semaphore_submit_info_t wait_info = {};
