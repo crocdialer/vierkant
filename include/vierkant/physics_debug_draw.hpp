@@ -71,6 +71,7 @@ private:
         vierkant::Framebuffer frame_buffer;
         vierkant::Semaphore semaphore;
         uint64_t current_semaphore_value = 0;
+        std::unordered_map<const vierkant::Geometry*, vierkant::MeshPtr> physics_meshes;
         settings_t settings = {};
     };
     std::vector<frame_context_t> m_frame_contexts;
@@ -79,6 +80,5 @@ private:
     vierkant::Rasterizer m_rasterizer;
     vierkant::PipelineCachePtr m_pipeline_cache;
     VkQueue m_queue = VK_NULL_HANDLE;
-    std::unordered_map<vierkant::GeometryConstPtr, vierkant::MeshPtr> m_physics_meshes;
 };
 }// namespace vierkant

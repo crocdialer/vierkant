@@ -20,11 +20,19 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
     if(!physics_scene) { return {}; }
     auto physics_debug_result = physics_scene->physics_context().debug_render();
 
+    // reference to previous frame-assets
+    uint32_t last_index = (m_rasterizer.current_index() - 1 + m_rasterizer.num_concurrent_frames()) %
+                          m_rasterizer.num_concurrent_frames();
+    auto &last_frame_context = m_frame_contexts[last_index];
+
     // reference to current frame-assets
     auto &frame_context = m_frame_contexts[m_rasterizer.current_index()];
     frame_context.semaphore.wait(frame_context.current_semaphore_value);
     frame_context.current_semaphore_value++;
     frame_context.settings = settings;
+
+    frame_context.physics_meshes.clear();
+    const auto &physics_meshes = last_frame_context.physics_meshes;
 
     for(uint32_t i = 0; i < physics_debug_result.aabbs.size(); ++i)
     {
@@ -37,13 +45,25 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
         if(frame_context.settings.draw_meshes)
         {
             const auto &[transform, geom] = physics_debug_result.triangle_meshes[i];
-            auto &mesh = m_physics_meshes[geom];
+            vierkant::MeshPtr mesh;
+
+            // search last
+            auto mesh_it = physics_meshes.find(geom.get());
+            if(mesh_it != physics_meshes.end()) { mesh = mesh_it->second; }
+            else
+            {
+                // search current
+                mesh_it = frame_context.physics_meshes.find(geom.get());
+                if(mesh_it != physics_meshes.end()) { mesh = mesh_it->second; }
+            }
+
             if(!mesh)
             {
                 vierkant::Mesh::create_info_t mesh_create_info = {};
                 mesh_create_info.mesh_buffer_params.use_vertex_colors = true;
                 mesh = vierkant::Mesh::create_from_geometry(m_rasterizer.device(), geom, mesh_create_info);
                 mesh->materials.front()->m.blend_mode = vierkant::BlendMode::Blend;
+                frame_context.physics_meshes[geom.get()] = mesh;
             }
             auto color = settings.use_mesh_colors ? physics_debug_result.colors[i] : glm::vec4(1.f);
             m_draw_context.draw_mesh(m_rasterizer, mesh, cam->view_transform() * transform, cam->projection_matrix(),
