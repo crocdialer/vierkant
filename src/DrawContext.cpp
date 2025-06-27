@@ -20,7 +20,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     // rect/image
     {
         // create plane-geometry
-        auto plane = Geometry::Plane(2.f, 2.f);
+        auto plane = Geometry::Plane();
         plane->normals.clear();
         plane->tangents.clear();
 
@@ -265,7 +265,7 @@ void DrawContext::draw_rect(vierkant::Rasterizer &renderer, const crocore::Area_
     auto drawable = m_drawable_rect;
     drawable.matrices.projection = glm::orthoRH(0.f, 1.f, 0.f, 1.f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
-    drawable.matrices.transform.scale = 0.5f * glm::vec3(frac, 1);
+    drawable.matrices.transform.scale = glm::vec3(frac, 1);
     drawable.matrices.transform.translation = 0.5f * glm::vec3(frac.x, -frac.y, 0.f);
     drawable.matrices.transform.translation += glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
                                                          static_cast<float>(-area.y) / renderer.viewport.height, 0);
@@ -285,15 +285,16 @@ void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::Ima
     if(!image) { return; }
     float w = area.width ? static_cast<float>(area.width) : renderer.viewport.width;
     float h = area.height ? static_cast<float>(area.height) : renderer.viewport.height;
-    glm::vec2 scale = glm::vec2(w, h) / glm::vec2(renderer.viewport.width, renderer.viewport.height);
+    glm::vec2 frac = glm::vec2(w, h) / glm::vec2(renderer.viewport.width, renderer.viewport.height);
 
     // copy image-drawable
     auto drawable = m_drawable_image;
-    drawable.matrices.projection = glm::orthoRH(-1.f, 1.0f, -1.f, 1.0f, 0.0f, 1.0f);
+    drawable.matrices.projection = glm::orthoRH(0.f, 1.f, 0.f, 1.f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
-    drawable.matrices.transform.scale = glm::vec3(scale, 1);
-    drawable.matrices.transform.translation = glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
-                                                        static_cast<float>(-area.y) / renderer.viewport.height, 0);
+    drawable.matrices.transform.scale = glm::vec3(frac, 1);
+    drawable.matrices.transform.translation = 0.5f * glm::vec3(frac.x, -frac.y, 0.f);
+    drawable.matrices.transform.translation += glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
+                                                         static_cast<float>(-area.y) / renderer.viewport.height, 0);
 
     // color-tint
     drawable.material.color = color;
