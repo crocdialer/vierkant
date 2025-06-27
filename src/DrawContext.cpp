@@ -17,10 +17,10 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     // create a pipeline cache
     m_pipeline_cache = vierkant::PipelineCache::create(m_device);
 
-    // images
+    // rect/image
     {
         // create plane-geometry
-        auto plane = Geometry::Plane(2.f, 2.f);
+        auto plane = Geometry::Plane();
         plane->normals.clear();
         plane->tangents.clear();
 
@@ -34,7 +34,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         fmt.blend_state.blendEnable = true;
         fmt.depth_test = false;
         fmt.depth_write = false;
-        fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
+        fmt.shader_stages = m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT);
         fmt.binding_descriptions = vierkant::create_binding_descriptions(mesh->vertex_attribs);
         fmt.attribute_descriptions = vierkant::create_attribute_descriptions(mesh->vertex_attribs);
         fmt.primitive_topology = entry.primitive_type;
@@ -43,21 +43,25 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
         vierkant::descriptor_t desc_matrix = {};
         desc_matrix.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_matrix.stage_flags = VK_SHADER_STAGE_VERTEX_BIT;
-        m_drawable_image.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
+        m_drawable_rect.descriptors[vierkant::Rasterizer::BINDING_MESH_DRAWS] = desc_matrix;
 
         vierkant::descriptor_t desc_material = {};
         desc_material.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         desc_material.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        m_drawable_image.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
+        m_drawable_rect.descriptors[vierkant::Rasterizer::BINDING_MATERIAL] = desc_material;
 
+        m_drawable_rect.mesh = mesh;
+        m_drawable_rect.share_material = false;
+        m_drawable_rect.num_indices = lod.num_indices;
+        m_drawable_rect.pipeline_format = fmt;
+
+        m_drawable_image = m_drawable_rect;
+        m_drawable_image.pipeline_format.shader_stages =
+                m_pipeline_cache->shader_stages(vierkant::ShaderType::UNLIT_TEXTURE);
         vierkant::descriptor_t desc_texture = {};
         desc_texture.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         desc_texture.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
         m_drawable_image.descriptors[vierkant::Rasterizer::BINDING_TEXTURES] = desc_texture;
-
-        m_drawable_image.mesh = mesh;
-        m_drawable_image.num_indices = lod.num_indices;
-        m_drawable_image.pipeline_format = fmt;
     }
 
     graphics_pipeline_info_t fmt = {};
@@ -71,6 +75,7 @@ DrawContext::DrawContext(vierkant::DevicePtr device) : m_device(std::move(device
     drawable_fullscreen.num_vertices = 3;
     drawable_fullscreen.pipeline_format = fmt;
     drawable_fullscreen.use_own_buffers = true;
+    drawable_fullscreen.share_material = false;
 
     // fullscreen
     {
@@ -252,21 +257,44 @@ void DrawContext::draw_text(vierkant::Rasterizer &renderer, const std::string &t
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void DrawContext::draw_rect(vierkant::Rasterizer &renderer, const crocore::Area_<int> &area, const glm::vec4 &color)
+{
+    glm::vec2 frac = glm::vec2(area.width, area.height) / glm::vec2(renderer.viewport.width, renderer.viewport.height);
+
+    // copy image-drawable
+    auto drawable = m_drawable_rect;
+    drawable.matrices.projection = glm::orthoRH(0.f, 1.f, 0.f, 1.f, 0.0f, 1.0f);
+    drawable.matrices.projection[1][1] *= -1;
+    drawable.matrices.transform.scale = glm::vec3(frac, 1);
+    drawable.matrices.transform.translation = 0.5f * glm::vec3(frac.x, -frac.y, 0.f);
+    drawable.matrices.transform.translation += glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
+                                                         static_cast<float>(-area.y) / renderer.viewport.height, 0);
+
+    // color-tint
+    drawable.material.color = color;
+
+    // stage image drawable
+    renderer.stage_drawable(std::move(drawable));
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void DrawContext::draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                              const crocore::Area_<int> &area, const glm::vec4 &color)
 {
     if(!image) { return; }
     float w = area.width ? static_cast<float>(area.width) : renderer.viewport.width;
     float h = area.height ? static_cast<float>(area.height) : renderer.viewport.height;
-    glm::vec2 scale = glm::vec2(w, h) / glm::vec2(renderer.viewport.width, renderer.viewport.height);
+    glm::vec2 frac = glm::vec2(w, h) / glm::vec2(renderer.viewport.width, renderer.viewport.height);
 
     // copy image-drawable
     auto drawable = m_drawable_image;
-    drawable.matrices.projection = glm::orthoRH(-1.f, 1.0f, -1.f, 1.0f, 0.0f, 1.0f);
+    drawable.matrices.projection = glm::orthoRH(0.f, 1.f, 0.f, 1.f, 0.0f, 1.0f);
     drawable.matrices.projection[1][1] *= -1;
-    drawable.matrices.transform.scale = glm::vec3(scale, 1);
-    drawable.matrices.transform.translation = glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
-                                                        static_cast<float>(-area.y) / renderer.viewport.height, 0);
+    drawable.matrices.transform.scale = glm::vec3(frac, 1);
+    drawable.matrices.transform.translation = 0.5f * glm::vec3(frac.x, -frac.y, 0.f);
+    drawable.matrices.transform.translation += glm::vec3(static_cast<float>(area.x) / renderer.viewport.width,
+                                                         static_cast<float>(-area.y) / renderer.viewport.height, 0);
 
     // color-tint
     drawable.material.color = color;
