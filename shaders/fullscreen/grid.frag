@@ -2,6 +2,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 
+#include "../utils/color_unorm.glsl"
 #include "../utils/sampling.glsl"
 #include "../renderer/types.glsl"
 
@@ -11,11 +12,11 @@ struct grid_params_t
     mat4 projection_inverse;
     mat4 view_inverse;
     vec4 plane;
-    vec4 color;
-    vec4 color_x;
-    vec4 color_z;
-    vec2 line_width;
+    uint color;
+    uint color_x;
+    uint color_z;
     float dist;
+    vec2 line_width;
     bool ortho;
     bool axis;
 };
@@ -141,14 +142,14 @@ void main()
 
         // grid coverage
         float coverage = pristine_grid(grid_uv, ddx_uv, ddy_uv, grid_params.line_width);
-        vec3 color = grid_params.color.rgb;
+        vec4 color = cast_color_unorm(grid_params.color);
 
         if(grid_params.axis)
         {
-            color = mix(grid_params.color_x.rgb, color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
-            color = mix(grid_params.color_z.rgb, color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
+            color = mix(cast_color_unorm(grid_params.color_x), color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
+            color = mix(cast_color_unorm(grid_params.color_z), color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
         }
-        out_color = vec4(color, grid_params.color.a * coverage);
+        out_color = vec4(color.rgb, color.a * coverage);
 
         // not very elegant but yeah, works
         vec4 proj = grid_params.projection_view * vec4(pos, 1.0);

@@ -6,6 +6,7 @@
 
 #include "vierkant/DrawContext.hpp"
 #include <vierkant/shaders.hpp>
+#include <vierkant/color.hpp>
 
 namespace vierkant
 {
@@ -480,11 +481,11 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
         glm::mat4 projection_inverse;
         glm::mat4 view_inverse;
         glm::vec4 plane = glm::vec4(0, 1, 0, 0);
-        glm::vec4 color = glm::vec4(1.f);
-        glm::vec4 color_x = glm::vec4(1.f, 0.f, 0.f, 1.f);
-        glm::vec4 color_z = glm::vec4(.3f, .1f, 8.f, 1.f);
-        glm::vec2 line_width = glm::vec2(0.05f);
+        uint32_t color = vierkant::cast_color_unorm(glm::vec4(1.f));
+        uint32_t color_x = vierkant::cast_color_unorm(glm::vec4(1.f, 0.f, 0.f, 1.f));
+        uint32_t color_z = vierkant::cast_color_unorm(glm::vec4(.3f, .1f, 8.f, 1.f));
         float spacing = 1.f;
+        glm::vec2 line_width = glm::vec2(0.05f);
         VkBool32 ortho = false;
         VkBool32 axis = false;
     };
@@ -495,7 +496,7 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
     grid_params.projection_view = projection * transform_mat;
     grid_params.projection_inverse = glm::inverse(projection);
     grid_params.view_inverse = vierkant::mat4_cast(vierkant::inverse(transform));
-    grid_params.color = color;
+    grid_params.color = vierkant::cast_color_unorm(color);
     grid_params.spacing = spacing;
     grid_params.line_width = glm::clamp(line_width, glm::vec2(0.f), glm::vec2(1.f));
     grid_params.ortho = ortho;
