@@ -88,16 +88,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         composition_buffer_info.name = "composition_ubo";
         frame_context.composition_ubo = vierkant::Buffer::create(composition_buffer_info);
 
-        //        vierkant::Buffer::create_info_t anim_buffer_info = {};
-        //        anim_buffer_info.device = m_device;
-        //        anim_buffer_info.num_bytes = 1U << 20U;
-        //        anim_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        //        anim_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-        //        anim_buffer_info.name = "bone_buffer";
-        //        frame_context.bone_buffer = vierkant::Buffer::create(anim_buffer_info);
-        //        anim_buffer_info.name = "morph_param_buffer";
-        //        frame_context.morph_param_buffer = vierkant::Buffer::create(anim_buffer_info);
-
+        // mesh-compute context per frame, handle all animation-transforms
         frame_context.mesh_compute_context = vierkant::create_mesh_compute_context(m_device, nullptr, m_pipeline_cache);
 
         frame_context.query_pool =
@@ -111,16 +102,12 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         staging_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
         staging_buffer_info.name = "staging_main";
         frame_context.staging_main = vierkant::Buffer::create(staging_buffer_info);
-        staging_buffer_info.name = "staging_anim";
-        frame_context.staging_anim = vierkant::Buffer::create(staging_buffer_info);
         staging_buffer_info.name = "staging_post_fx";
         frame_context.staging_post_fx = vierkant::Buffer::create(staging_buffer_info);
 
         vierkant::CommandBuffer::create_info_t command_buffer_info = {};
         command_buffer_info.device = m_device;
         command_buffer_info.command_pool = m_command_pool.get();
-        //        command_buffer_info.name = "PBRDeferred::cmd_pre_render";
-        //        frame_context.cmd_pre_render = vierkant::CommandBuffer(command_buffer_info);
 
         command_buffer_info.name = "PBRDeferred::cmd_post_fx";
         frame_context.cmd_post_fx = vierkant::CommandBuffer(command_buffer_info);
