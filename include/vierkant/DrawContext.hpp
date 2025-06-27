@@ -41,12 +41,22 @@ public:
      * @brief   Draws an image in a 2D context.
      *
      * @param   renderer    a provided vierkant::Renderer.
+     * @param   area        the desired area to cover.
+     */
+    void draw_rect(vierkant::Rasterizer &renderer,
+                    const crocore::Area_<int> &area,
+                     const glm::vec4 &color = glm::vec4(1.f));
+
+    /**
+     * @brief   Draws an image in a 2D context.
+     *
+     * @param   renderer    a provided vierkant::Renderer.
      * @param   image       a provided vierkant::Image, assumed to contain a sampler2D.
      * @param   area        the desired area to cover.
      */
     void draw_image(vierkant::Rasterizer &renderer, const vierkant::ImagePtr &image,
                     const crocore::Area_<int> &area = {}, const glm::vec4 &color = glm::vec4(1.f));
-
+    
     /**
      * @brief   Draws a set of lines.
      *
@@ -145,6 +155,7 @@ private:
         Lines,
         LinesColor,
         Text,
+        Rect,
         Image,
         ImageFullscreen,
         ImageFullscreenDepth,
@@ -155,6 +166,7 @@ private:
 
     std::unordered_map<DrawableType, vierkant::drawable_t> m_drawables;
 
+    vierkant::drawable_t m_drawable_rect = {};
     vierkant::drawable_t m_drawable_image = {};
 
     vierkant::drawable_t m_drawable_image_fullscreen = {};
