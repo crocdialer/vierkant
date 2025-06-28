@@ -51,7 +51,8 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
         vierkant::descriptor_count_t descriptor_counts = {{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 8192},
                                                           {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 256},
                                                           {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
-                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256}};
+                                                          {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256},
+                                                          {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, 1024}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 1024);
     }
     else { m_descriptor_pool = create_info.descriptor_pool; }
