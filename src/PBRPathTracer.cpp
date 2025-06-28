@@ -334,6 +334,15 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     // transition storage image
     frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
 
+    // write-after-write hazard
+    m_storage.object_ids->barrier(m_storage.object_ids->image_layout(), frame_context.cmd_denoise.handle(),
+                                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+
+    m_storage.depth->barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                             VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+
     // dispatch denoising-kernel
     m_compute.dispatch({frame_context.denoise_computable}, frame_context.cmd_denoise.handle());
 
@@ -554,6 +563,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         // shared path-tracer-storage for all frame-assets
         auto object_id_fmt = storage_format;
         object_id_fmt.format = VK_FORMAT_R16_UINT;
+        object_id_fmt.name = "PBRPathTracer::m_storage.object_ids";
         m_storage.object_ids = vierkant::Image::create(m_device, object_id_fmt);
 
         vierkant::Buffer::create_info_t depth_buf_info;

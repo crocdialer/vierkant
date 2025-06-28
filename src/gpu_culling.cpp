@@ -74,6 +74,10 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
     context->depth_pyramid_cmd_buffer.begin(0);
     vierkant::begin_label(context->depth_pyramid_cmd_buffer.handle(), {fmt::format("create_depth_pyramid")});
 
+    VkImageLayout prev_depthmap_layout = params.depth_map->image_layout();
+    params.depth_map->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                        context->depth_pyramid_cmd_buffer.handle());
+
     auto extent_pyramid_lvl0 = params.depth_map->extent();
     extent_pyramid_lvl0.width = crocore::next_pow_2(1 + extent_pyramid_lvl0.width / 2);
     extent_pyramid_lvl0.height = crocore::next_pow_2(1 + extent_pyramid_lvl0.height / 2);
@@ -188,6 +192,8 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
         barrier.subresourceRange.baseMipLevel = lvl - 1;
         vkCmdPipelineBarrier2(context->depth_pyramid_cmd_buffer.handle(), &dependency_info);
     }
+
+    params.depth_map->transition_layout(prev_depthmap_layout, context->depth_pyramid_cmd_buffer.handle());
 
     // depth-pyramid timestamp
     vkCmdWriteTimestamp2(context->depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,

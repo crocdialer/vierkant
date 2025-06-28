@@ -146,7 +146,7 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     copy_ubo.data = &object_overlay_ubo;
     copy_ubo.dst_buffer = context->param_buffer;
     copy_ubo.dst_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    copy_ubo.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+    copy_ubo.dst_access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
 
     // id-buffer/ubo upload
     vierkant::staging_copy_context_t staging_context = {};
@@ -176,10 +176,19 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
 
     // dispatch
     auto prev_input_layout = params.object_id_img->image_layout();
-    params.object_id_img->transition_layout(VK_IMAGE_LAYOUT_GENERAL, params.commandbuffer);
+
+    // image was previously written with either rasterization or compute, sync for both cases
+    params.object_id_img->barrier(VK_IMAGE_LAYOUT_GENERAL, params.commandbuffer,
+                                  VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT |
+                                          VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                                  VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+                                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_READ_BIT);
+
     context->result->transition_layout(VK_IMAGE_LAYOUT_GENERAL, params.commandbuffer);
     context->mask_compute.dispatch({computable}, params.commandbuffer);
+
     params.object_id_img->transition_layout(prev_input_layout, params.commandbuffer);
+
     context->result->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL, params.commandbuffer);
     vierkant::end_label(params.commandbuffer);
     return context->result_swizzle;

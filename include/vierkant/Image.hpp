@@ -188,10 +188,16 @@ public:
     [[nodiscard]] uint32_t num_mip_levels() const { return m_num_mip_levels; };
 
     /**
-     * @return  request transition to a new image layout
+     * @brief  request transition to a new image layout
      */
     void transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer = VK_NULL_HANDLE,
                            VkDependencyFlags dependency_flags = 0);
+
+    /**
+     * @brief  more explicit alternative to 'transition_layout'
+     */
+    void barrier(VkImageLayout new_layout, VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage,
+                 VkAccessFlags2 src_access, VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access);
 
     /**
      * @brief   generate a mipmap-chain by performing linear-filtered blits.

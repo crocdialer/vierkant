@@ -216,14 +216,9 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                 vierkant::create_shader_module(device, vierkant::shaders::fullscreen::taa_frag);
 
         // TAA settings uniform-buffer
-        vierkant::descriptor_t desc_taa_ubo = {};
-        desc_taa_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        vierkant::descriptor_t &desc_taa_ubo = m_drawable_taa.descriptors[1];
+        desc_taa_ubo.type = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
         desc_taa_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        desc_taa_ubo.buffers = {vierkant::Buffer::create(
-                m_device, nullptr, sizeof(camera_params_t),
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY)};
-
-        m_drawable_taa.descriptors[1] = std::move(desc_taa_ubo);
 
         // fxaa
         m_drawable_fxaa = fullscreen_drawable;
@@ -1126,21 +1121,9 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
                                           frame_context.g_buffer_post.color_attachment(G_BUFFER_MOTION), history_color,
                                           history_depth};
 
-        if(!drawable.descriptors[1].buffers.empty())
-        {
-            const auto &buf = drawable.descriptors[1].buffers.front();
-            buf->barrier(frame_context.cmd_post_fx.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                         VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                         VK_ACCESS_2_TRANSFER_WRITE_BIT);
-
-            vierkant::staging_copy_info_t staging_copy_info = {};
-            staging_copy_info.data = &frame_context.camera_params;
-            staging_copy_info.num_bytes = sizeof(camera_params_t);
-            staging_copy_info.dst_buffer = buf;
-            staging_copy_info.dst_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-            staging_copy_info.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-            vierkant::staging_copy(staging_context, {staging_copy_info});
-        }
+        drawable.descriptors[1].inline_uniform_block.resize(sizeof(camera_params_t));
+        auto *camera_params = reinterpret_cast<camera_params_t *>(drawable.descriptors[1].inline_uniform_block.data());
+        *camera_params = frame_context.camera_params;
         output_img = pingpong_render(drawable, SemaphoreValue::TAA, frame_context.taa_buffer);
     }
 
@@ -1333,6 +1316,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         post_fx_buffer_info.color_attachment_format.extent = upscaling_size;
         post_fx_buffer_info.color_attachment_format.format = m_hdr_format;
+        post_fx_buffer_info.color_attachment_format.name = "TAA color-attachment";
         frame_context.taa_buffer = vierkant::Framebuffer(m_device, post_fx_buffer_info);
 
         // create post_fx ping pong buffers and renderers
