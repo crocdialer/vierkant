@@ -682,10 +682,13 @@ std::vector<uint16_t> PBRPathTracer::pick(const glm::vec2 &normalized_coord, con
     const auto &id_img = m_storage.object_ids;
     auto img_size = glm::vec2(id_img->width(), id_img->height());
     glm::vec2 adjusted_pos = normalized_coord * img_size;
-    glm::uvec2 adjusted_size = glm::max(normalized_size * img_size, {1, 1});
-    adjusted_pos = glm::clamp(adjusted_pos, glm::vec2(0), img_size - glm::vec2(1));
+    glm::vec2 adjusted_size = glm::max(normalized_size * img_size, {1, 1});
 
-    VkExtent3D img_extent = {adjusted_size.x, adjusted_size.y, 1};
+    // prevent out-of-bounds sampling
+    adjusted_pos = glm::clamp(adjusted_pos, glm::vec2(0), img_size - glm::vec2(1));
+    adjusted_size = glm::clamp(adjusted_size, glm::vec2(0), img_size - adjusted_pos - glm::vec2(1));
+
+    VkExtent3D img_extent = {static_cast<uint32_t>(adjusted_size.x), static_cast<uint32_t>(adjusted_size.y), 1};
     VkOffset3D img_offset = {static_cast<int32_t>(adjusted_pos.x), static_cast<int32_t>(adjusted_pos.y), 0};
 
     uint32_t num_object_ids = img_extent.width * img_extent.height;

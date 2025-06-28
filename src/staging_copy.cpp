@@ -14,8 +14,12 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
     num_staging_bytes = std::max<size_t>(num_staging_bytes, 1UL << 20);
     context.staging_buffer->set_data(nullptr, num_staging_bytes);
 
-    std::vector<VkBufferMemoryBarrier2> barriers;
-    std::map<vierkant::Buffer *, std::vector<VkBufferCopy2>> buffer_copies;
+    struct copy_asset_t
+    {
+        std::vector<VkBufferCopy2> copies;
+        VkBufferMemoryBarrier2 barrier{};
+    };
+    std::map<vierkant::Buffer *, copy_asset_t> copy_assets;
 
     for(const auto &info: staging_copy_infos)
     {
@@ -31,13 +35,15 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
         copy_region.size = info.num_bytes;
         copy_region.srcOffset = context.offset;
         copy_region.dstOffset = info.dst_offset;
-        buffer_copies[info.dst_buffer.get()].push_back(copy_region);
+
+        auto &copy_asset = copy_assets[info.dst_buffer.get()];
+        copy_asset.copies.push_back(copy_region);
 
         context.offset += info.num_bytes;
 
-        if(info.dst_stage && info.dst_access && !buffer_copies.contains(info.dst_buffer.get()))
+        if(info.dst_stage && info.dst_access)
         {
-            VkBufferMemoryBarrier2 barrier = {};
+            VkBufferMemoryBarrier2 &barrier = copy_asset.barrier;
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
             barrier.buffer = info.dst_buffer->handle();
             barrier.offset = 0;
@@ -47,15 +53,17 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
             barrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
             barrier.dstStageMask = info.dst_stage;
             barrier.dstAccessMask = info.dst_access;
-            barriers.push_back(barrier);
         }
     }
 
-    for(const auto &[buf, copies]: buffer_copies)
+    std::vector<VkBufferMemoryBarrier2> barriers;
+    barriers.reserve(copy_assets.size());
+
+    for(auto &[buf, copy_asset]: copy_assets)
     {
         VkDeviceSize num_bytes = 0;
-        for(const auto &copy: copies) { num_bytes = std::max(num_bytes, copy.size + copy.dstOffset); }
-        
+        for(const auto &copy: copy_asset.copies) { num_bytes = std::max(num_bytes, copy.size + copy.dstOffset); }
+
         // resize if necessary
         buf->set_data(nullptr, num_bytes);
 
@@ -63,9 +71,13 @@ size_t staging_copy(staging_copy_context_t &context, const std::vector<staging_c
         copy_info2.sType = VK_STRUCTURE_TYPE_COPY_BUFFER_INFO_2;
         copy_info2.srcBuffer = context.staging_buffer->handle();
         copy_info2.dstBuffer = buf->handle();
-        copy_info2.regionCount = copies.size();
-        copy_info2.pRegions = copies.data();
+        copy_info2.regionCount = copy_asset.copies.size();
+        copy_info2.pRegions = copy_asset.copies.data();
         vkCmdCopyBuffer2(context.command_buffer, &copy_info2);
+
+        // potentially correct handle here (might have changed after growing), push barrier
+        copy_asset.barrier.buffer = buf->handle();
+        barriers.push_back(copy_asset.barrier);
     }
 
     if(!barriers.empty())
