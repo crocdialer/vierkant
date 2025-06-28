@@ -43,7 +43,7 @@ VkDeviceSize num_bytes(VkIndexType index_type)
     }
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkImageLayout old_layout,
                              VkImageLayout new_layout, uint32_t num_layers, uint32_t num_mip_levels,
@@ -428,6 +428,36 @@ void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buff
         if(localCommandBuffer) { localCommandBuffer.submit(m_device->queue(), true); }
         *m_image_layout = new_layout;
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Image::barrier(VkImageLayout new_layout, VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage,
+                    VkAccessFlags2 src_access, VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access)
+{
+
+    VkImageMemoryBarrier2 barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    barrier.image = m_image.get();
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = m_num_mip_levels;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = m_format.num_layers;
+    barrier.subresourceRange.aspectMask = m_format.aspect;
+
+    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.srcStageMask = src_stage;
+    barrier.srcAccessMask = src_access;
+    barrier.oldLayout = *m_image_layout;
+    barrier.dstStageMask = dst_stage;
+    barrier.dstAccessMask = dst_access;
+    barrier.newLayout = new_layout;
+
+    VkDependencyInfo dependency_info = {};
+    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependency_info.imageMemoryBarrierCount = 1;
+    dependency_info.pImageMemoryBarriers = &barrier;
+    vkCmdPipelineBarrier2(command_buffer, &dependency_info);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
