@@ -458,6 +458,8 @@ void Image::barrier(VkImageLayout new_layout, VkCommandBuffer command_buffer, Vk
     dependency_info.imageMemoryBarrierCount = 1;
     dependency_info.pImageMemoryBarriers = &barrier;
     vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+
+    *m_image_layout = new_layout;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

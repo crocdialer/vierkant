@@ -20,10 +20,6 @@ VkDeviceSize num_bytes(VkFormat format);
 
 VkDeviceSize num_bytes(VkIndexType format);
 
-//void barrier(VkCommandBuffer command_buffer, const VkImage *images, uint32_t num_images,
-//             VkPipelineStageFlags2 src_stage, VkAccessFlags2 src_access, VkImageLayout old_layout,
-//             VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access, VkImageLayout new_layout);
-
 class Image
 {
 public:
