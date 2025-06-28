@@ -146,7 +146,7 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     copy_ubo.data = &object_overlay_ubo;
     copy_ubo.dst_buffer = context->param_buffer;
     copy_ubo.dst_stage = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    copy_ubo.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+    copy_ubo.dst_access = VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_UNIFORM_READ_BIT;
 
     // id-buffer/ubo upload
     vierkant::staging_copy_context_t staging_context = {};
