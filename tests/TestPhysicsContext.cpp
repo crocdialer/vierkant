@@ -12,8 +12,14 @@ CollisionShapeId create_collision_shape(PhysicsContext &context, const vierkant:
     entry_create_info.geometry = geom;
     auto mesh_bundle = vierkant::create_mesh_buffers({entry_create_info}, {});
     CollisionShapeId shape_id = CollisionShapeId::nil();
-    shape_id =
-            convex ? context.create_convex_collision_shape(mesh_bundle) : context.create_collision_shape(mesh_bundle);
+    collision::mesh_t mesh_cpm = {};
+    mesh_cpm.mesh_id = {};
+    context.mesh_provider = [&mesh_bundle](const vierkant::MeshId &mesh_id) {
+        vierkant::mesh_asset_t ret = {};
+        ret.bundle = mesh_bundle;
+        return ret;
+    };
+    shape_id = convex ? context.create_convex_collision_shape(mesh_cpm) : context.create_collision_shape(mesh_cpm);
     EXPECT_TRUE(shape_id);
     return shape_id;
 }
