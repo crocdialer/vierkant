@@ -720,12 +720,13 @@ CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t 
             }
         }
 
-        auto scale_result = shape_it->second->ScaleShape(type_cast(entry.transform.scale));
+        const auto &transform = mesh_cmp.library ? vierkant::transform_t::identity : entry.transform;
+        auto scale_result = shape_it->second->ScaleShape(type_cast(transform.scale));
 
         if(scale_result.IsValid())
         {
-            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
-                                             type_cast(entry.transform.rotation), scale_result.Get());
+            compound_shape_settings.AddShape(type_cast(transform.translation), type_cast(transform.rotation),
+                                             scale_result.Get());
         }
     }
 
@@ -787,11 +788,13 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const collision::
             }
         }
 
-        auto scale_result = shape_it->second->ScaleShape(type_cast(entry.transform.scale));
+        const auto &transform = mesh_cmp.library ? vierkant::transform_t::identity : entry.transform;
+        auto scale_result = shape_it->second->ScaleShape(type_cast(transform.scale));
+
         if(scale_result.IsValid())
         {
-            compound_shape_settings.AddShape(type_cast(entry.transform.translation),
-                                             type_cast(entry.transform.rotation), scale_result.Get());
+            compound_shape_settings.AddShape(type_cast(transform.translation), type_cast(transform.rotation),
+                                             scale_result.Get());
         }
     }
     JPH::Shape::ShapeResult shape_result = compound_shape_settings.Create();
@@ -1071,6 +1074,7 @@ void PhysicsScene::update(double time_delta)
                 {
                     mesh_shape->mesh_id = mesh_cmp->mesh->id;
                     mesh_shape->entry_indices = mesh_cmp->entry_indices;
+                    mesh_shape->library = mesh_cmp->library;
                 }
             }
             m_context.add_object(obj->id(), obj->global_transform(), cmp);
@@ -1175,6 +1179,7 @@ size_t std::hash<vierkant::collision::mesh_t>::operator()(const vierkant::collis
     {
         for(const auto &entry_idx: *s.entry_indices) { vierkant::hash_combine(h, entry_idx); }
     }
+    vierkant::hash_combine(h, s.library);
     vierkant::hash_combine(h, s.convex_hull);
     vierkant::hash_combine(h, s.lod_bias);
     return h;

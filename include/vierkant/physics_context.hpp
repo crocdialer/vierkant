@@ -65,6 +65,9 @@ struct mesh_t
     //! optional set of used entry-indices.
     std::optional<std::unordered_set<uint32_t>> entry_indices = {};
 
+    //! flag indicating that the mesh is used as mesh-library and entry-transforms should be skipped
+    bool library = false;
+    
     bool convex_hull = false;
 
     //! lod-bias, defaults to 0 (highest detail). use MAX_LOD_BIAS to always request max-lod (lowest detail)
