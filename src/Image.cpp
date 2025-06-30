@@ -74,8 +74,8 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         case VK_IMAGE_LAYOUT_GENERAL:
             barrier.srcAccessMask =
                     VK_ACCESS_2_SHADER_WRITE_BIT | VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
-            barrier.srcStageMask =
-                    VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+            barrier.srcStageMask |= vkCmdTraceRaysKHR ? VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR : 0;
             break;
 
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
@@ -86,8 +86,8 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
         case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
             barrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-            barrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-                                   VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+            barrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+            barrier.srcStageMask |= vkCmdTraceRaysKHR ? VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR : 0;
             break;
 
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
@@ -126,8 +126,8 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
         case VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL:
             barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-            barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
-                                   VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR;
+            barrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+            barrier.dstStageMask |= vkCmdTraceRaysKHR ? VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR : 0;
             break;
 
         case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:

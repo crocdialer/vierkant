@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 #include <vierkant/Device.hpp>
+#include <vierkant/RayBuilder.hpp>
+#include <vierkant/RayTracer.hpp>
 
 class vulkan_test_context_t
 {
@@ -25,6 +27,7 @@ public:
     {
         vierkant::Instance::create_info_t instance_info = {};
         instance_info.use_validation_layers = true;
+        instance_info.use_debug_labels = true;
         instance = vierkant::Instance(instance_info);
         EXPECT_NE(instance.handle(), VK_NULL_HANDLE);
 
@@ -44,11 +47,18 @@ public:
         device_info.instance = instance.handle();
         device_info.physical_device = physical_device;
         device_info.use_validation = instance.use_validation_layers();
+        device_info.extensions = device_extensions;
+
+        if(vierkant::check_device_extension_support(physical_device, vierkant::RayTracer::required_extensions()))
+        {
+            // add the raytracing-extensions
+            for(const auto &ext: vierkant::RayTracer::required_extensions()) { device_info.extensions.push_back(ext); }
+            for(const auto &ext: vierkant::RayBuilder::required_extensions()) { device_info.extensions.push_back(ext); }
+        }
 
         // limit testing to two queues
         device_info.max_num_queues = 2;
         device_info.surface = surface;
-        device_info.extensions = device_extensions;
         device = vierkant::Device::create(device_info);
     }
 
