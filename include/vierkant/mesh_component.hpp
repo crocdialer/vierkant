@@ -18,6 +18,9 @@ struct mesh_component_t
 
     //! optional set of used entry-indices.
     std::optional<std::unordered_set<uint32_t>> entry_indices = {};
+
+    //! flag indicating that the mesh is used as mesh-library and entry-transforms should be skipped
+    bool library = false;
 };
 
 //! struct grouping host/gpu versions of a mesh

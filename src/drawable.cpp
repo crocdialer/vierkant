@@ -30,7 +30,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
     // morph-target weights
     std::vector<std::vector<double>> node_morph_weights;
 
-    if(!mesh->root_bone && params.animation_index < mesh->node_animations.size())
+    if(!mesh_component.library && !mesh->root_bone && params.animation_index < mesh->node_animations.size())
     {
         const auto &animation = mesh->node_animations[params.animation_index];
         vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation, params.animation_time, node_transforms);
@@ -57,8 +57,12 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
         drawable.entry_index = i;
 
         // combine mesh- with entry-transform
-        drawable.matrices.transform =
-                params.transform * (node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]);
+        if(mesh_component.library) { drawable.matrices.transform = params.transform; }
+        else
+        {
+            drawable.matrices.transform =
+                    params.transform * (node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]);
+        }
         drawable.matrices.texture = material.texture_transform;
 
         // material params

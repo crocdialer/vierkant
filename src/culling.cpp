@@ -38,10 +38,9 @@ public:
             auto model_view = m_transform_stack.top() * object.transform;
 
             // keep track of meshes
-            if(object.has_component<vierkant::mesh_component_t>())
+            if(const auto *mesh_component = object.get_component_ptr<vierkant::mesh_component_t>())
             {
-                const auto &mesh_component = object.get_component<vierkant::mesh_component_t>();
-                m_cull_result.meshes.insert(mesh_component.mesh);
+                m_cull_result.meshes.insert(mesh_component->mesh);
 
                 // create drawables
                 vierkant::create_drawables_params_t drawable_params = {};
@@ -53,7 +52,7 @@ public:
                     drawable_params.animation_index = animation_state.index;
                     drawable_params.animation_time = static_cast<float>(animation_state.current_time);
                 }
-                auto mesh_drawables = vierkant::create_drawables(mesh_component, drawable_params);
+                auto mesh_drawables = vierkant::create_drawables(*mesh_component, drawable_params);
 
                 for(uint32_t i = 0; i < mesh_drawables.size(); ++i)
                 {

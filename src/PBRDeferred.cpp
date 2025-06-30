@@ -366,9 +366,14 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_context.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_context.cull_result.drawables[drawable_index];
-                drawable.matrices.transform = node_transforms.empty()
-                                                      ? object->global_transform() * entry.transform
-                                                      : object->global_transform() * node_transforms[entry.node_index];
+
+                if(mesh_component->library) { drawable.matrices.transform = obj_global_transform; }
+                else
+                {
+                    drawable.matrices.transform = node_transforms.empty()
+                                                          ? obj_global_transform * entry.transform
+                                                          : obj_global_transform * node_transforms[entry.node_index];
+                }
 
                 auto it = m_entry_matrix_cache.find(key);
                 drawable.last_matrices =
