@@ -720,7 +720,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t 
             }
         }
 
-        const auto &transform = mesh_cmp.library ? vierkant::transform_t::identity : entry.transform;
+        vierkant::transform_t transform;
+        if(!mesh_cmp.library) { transform = entry.transform; }
         auto scale_result = shape_it->second->ScaleShape(type_cast(transform.scale));
 
         if(scale_result.IsValid())
@@ -788,7 +789,8 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const collision::
             }
         }
 
-        const auto &transform = mesh_cmp.library ? vierkant::transform_t::identity : entry.transform;
+        vierkant::transform_t transform;
+        if(!mesh_cmp.library) { transform = entry.transform; }
         auto scale_result = shape_it->second->ScaleShape(type_cast(transform.scale));
 
         if(scale_result.IsValid())

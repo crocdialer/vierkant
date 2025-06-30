@@ -14,7 +14,6 @@ namespace vierkant
 template<typename T>
 struct transform_t_
 {
-    static constexpr transform_t_ identity = {};
     glm::vec<3, T> translation = glm::vec<3, T>(0);
     glm::qua<T> rotation = glm::qua<T>(1, 0, 0, 0);
     glm::vec<3, T> scale = glm::vec<3, T>(1);
