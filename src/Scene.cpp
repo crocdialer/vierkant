@@ -23,25 +23,21 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
 
     aabb_component.aabb_fn = [](const vierkant::Object3D &obj) {
         AABB ret;
-        if(obj.has_component<mesh_component_t>())
+        if(const auto *mesh_cmp = obj.get_component_ptr<mesh_component_t>())
         {
-            const vierkant::object_component auto &mesh_cmp = obj.get_component<mesh_component_t>();
-
             std::optional<vierkant::animation_component_t> anim_cmp;
             if(obj.has_component<animation_component_t>()) { anim_cmp = obj.get_component<animation_component_t>(); }
-            ret = mesh_aabb(mesh_cmp, anim_cmp);
+            ret = mesh_aabb(*mesh_cmp, anim_cmp);
         }
         return ret;
     };
 
     aabb_component.sub_aabb_fn = [](const vierkant::Object3D &obj) -> std::vector<vierkant::AABB> {
-        if(obj.has_component<mesh_component_t>())
+        if(const auto *mesh_cmp = obj.get_component_ptr<mesh_component_t>())
         {
-            const vierkant::object_component auto &mesh_cmp = obj.get_component<mesh_component_t>();
-
             std::optional<vierkant::animation_component_t> anim_cmp;
             if(obj.has_component<animation_component_t>()) { anim_cmp = obj.get_component<animation_component_t>(); }
-            return mesh_sub_aabbs(mesh_cmp, anim_cmp);
+            return mesh_sub_aabbs(*mesh_cmp, anim_cmp);
         }
         return {};
     };
