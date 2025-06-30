@@ -61,6 +61,10 @@ struct mesh_t
     static constexpr uint32_t MAX_LOD_BIAS = std::numeric_limits<uint32_t>::max();
 
     vierkant::MeshId mesh_id = vierkant::MeshId::nil();
+
+    //! optional set of used entry-indices.
+    std::optional<std::unordered_set<uint32_t>> entry_indices = {};
+
     bool convex_hull = false;
 
     //! lod-bias, defaults to 0 (highest detail). use MAX_LOD_BIAS to always request max-lod (lowest detail)
@@ -158,11 +162,10 @@ public:
 
     BodyInterface &body_interface();
 
-    CollisionShapeId create_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle, uint32_t lod_bias = 0,
-                                            const glm::vec3 &scale = glm::vec3(1));
+    CollisionShapeId create_collision_shape(const collision::mesh_t &mesh_cmp, const glm::vec3 &scale = glm::vec3(1));
 
-    CollisionShapeId create_convex_collision_shape(const vierkant::mesh_buffer_bundle_t &mesh_bundle,
-                                                   uint32_t lod_bias = 0, const glm::vec3 &scale = glm::vec3(1));
+    CollisionShapeId create_convex_collision_shape(const collision::mesh_t &mesh_cmp,
+                                                   const glm::vec3 &scale = glm::vec3(1));
 
     CollisionShapeId create_collision_shape(const collision::shape_t &shape);
 

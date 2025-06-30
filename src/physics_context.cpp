@@ -667,19 +667,27 @@ void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
     m_engine->jolt.update(timestep, max_sub_steps);
 }
 
-CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle_t &mesh_bundle, uint32_t lod_bias,
-                                                        const glm::vec3 &scale)
+CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t &mesh_cmp, const glm::vec3 &scale)
 {
+    if(!mesh_provider || !mesh_cmp.mesh_id) { return CollisionShapeId::nil(); }
+    auto mesh_asset = mesh_provider(mesh_cmp.mesh_id);
+    if(!mesh_asset.bundle) { return CollisionShapeId::nil(); }
+
     JPH::StaticCompoundShapeSettings compound_shape_settings;
+    const auto &mesh_bundle = *mesh_asset.bundle;
+
 
     // avoid duplicates
     std::map<std::tuple<uint32_t, uint32_t>, JPH::Ref<JPH::Shape>> shape_map;
 
-    for(const auto &entry: mesh_bundle.entries)
+    for(uint32_t i = 0; i < mesh_bundle.entries.size(); ++i)
     {
+        const auto &entry = mesh_bundle.entries[i];
         assert(!entry.lods.empty());
         if(entry.lods.empty()) { continue; }
-        const auto &lod = entry.lods[std::min<uint32_t>(lod_bias, entry.lods.size() - 1)];
+        if(mesh_cmp.entry_indices && !mesh_cmp.entry_indices->contains(i)) { continue; }
+
+        const auto &lod = entry.lods[std::min<uint32_t>(mesh_cmp.lod_bias, entry.lods.size() - 1)];
 
         auto shape_it = shape_map.find({entry.vertex_offset, lod.base_index});
         if(shape_it == shape_map.end())
@@ -731,19 +739,29 @@ CollisionShapeId PhysicsContext::create_collision_shape(const mesh_buffer_bundle
     return CollisionShapeId::nil();
 }
 
-CollisionShapeId PhysicsContext::create_convex_collision_shape(const mesh_buffer_bundle_t &mesh_bundle,
-                                                               uint32_t lod_bias, const glm::vec3 &scale)
+CollisionShapeId PhysicsContext::create_convex_collision_shape(const collision::mesh_t &mesh_cmp,
+                                                               const glm::vec3 &scale)
 {
+    if(!mesh_provider || !mesh_cmp.mesh_id) { return CollisionShapeId::nil(); }
+    auto mesh_asset = mesh_provider(mesh_cmp.mesh_id);
+    if(!mesh_asset.bundle) { return CollisionShapeId::nil(); }
+
     JPH::StaticCompoundShapeSettings compound_shape_settings;
+    const auto &mesh_bundle = *mesh_asset.bundle;
 
     // avoid duplicates
     std::map<std::tuple<uint32_t, uint32_t>, JPH::Ref<JPH::Shape>> shape_map;
 
-    for(const auto &entry: mesh_bundle.entries)
+    // entry_index
+
+    for(uint32_t i = 0; i < mesh_bundle.entries.size(); ++i)
     {
+        const auto &entry = mesh_bundle.entries[i];
         assert(!entry.lods.empty());
         if(entry.lods.empty()) { continue; }
-        const auto &lod = entry.lods[std::min<uint32_t>(lod_bias, entry.lods.size() - 1)];
+        if(mesh_cmp.entry_indices && !mesh_cmp.entry_indices->contains(i)) { continue; }
+
+        const auto &lod = entry.lods[std::min<uint32_t>(mesh_cmp.lod_bias, entry.lods.size() - 1)];
 
         auto shape_it = shape_map.find({entry.vertex_offset, lod.base_index});
         if(shape_it == shape_map.end())
@@ -958,12 +976,7 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 {
                     if(mesh_provider)
                     {
-                        auto assets = mesh_provider(s.mesh_id);
-                        if(assets.bundle)
-                        {
-                            new_id = s.convex_hull ? create_convex_collision_shape(*assets.bundle, s.lod_bias)
-                                                   : create_collision_shape(*assets.bundle, s.lod_bias);
-                        }
+                        new_id = s.convex_hull ? create_convex_collision_shape(s) : create_collision_shape(s);
                     }
                 }
                 if(new_id) { m_engine->jolt.shape_ids[s] = {new_id, 1}; }
@@ -1057,6 +1070,7 @@ void PhysicsScene::update(double time_delta)
                 if(auto mesh_cmp = obj->get_component_ptr<vierkant::mesh_component_t>())
                 {
                     mesh_shape->mesh_id = mesh_cmp->mesh->id;
+                    mesh_shape->entry_indices = mesh_cmp->entry_indices;
                 }
             }
             m_context.add_object(obj->id(), obj->global_transform(), cmp);
@@ -1157,6 +1171,11 @@ size_t std::hash<vierkant::collision::mesh_t>::operator()(const vierkant::collis
 {
     size_t h = 0;
     vierkant::hash_combine(h, s.mesh_id);
+    if(s.entry_indices)
+    {
+        for(const auto &entry_idx: *s.entry_indices) { vierkant::hash_combine(h, entry_idx); }
+    }
     vierkant::hash_combine(h, s.convex_hull);
+    vierkant::hash_combine(h, s.lod_bias);
     return h;
 }
