@@ -146,8 +146,8 @@ void main()
 
         if(grid_params.axis)
         {
-            color = mix(color_cast(grid_params.color_x), color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
-            color = mix(color_cast(grid_params.color_z), color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
+            color = mix(color_cast(grid_params.color_x), color, smoothstep(0.0, grid_params.line_width.y, abs(grid_uv.y)));
+            color = mix(color_cast(grid_params.color_z), color, smoothstep(0.0, grid_params.line_width.x, abs(grid_uv.x)));
         }
         out_color = vec4(color.rgb, color.a * coverage);
 
