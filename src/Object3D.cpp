@@ -4,6 +4,51 @@
 namespace vierkant
 {
 
+class ObjectStoreImpl : public ObjectStore
+{
+public:
+    [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const override { return m_registry; }
+
+    Object3DPtr create_object() override
+    {
+        uint32_t index = m_free_list.create(m_registry);
+        return {&m_free_list.get(index), [this](auto *obj) { m_free_list.destroy(obj); }};
+    }
+
+    Object3DPtr clone_object(const vierkant::Object3D *object) override
+    {
+
+        auto ret = create_object();
+        ret->name = object->name;
+        ret->remove_component<Object3D *>();
+
+        // ret->name = name;
+        ret->enabled = object->enabled;
+        ret->tags = object->tags;
+        ret->transform = object->transform;
+
+        for(auto [id, storage]: m_registry->storage())
+        {
+            if(storage.contains(static_cast<entt::entity>(object->id())))
+            {
+                storage.push(static_cast<entt::entity>(ret->id()),
+                             storage.value(static_cast<entt::entity>(object->id())));
+            }
+        }
+        ret->add_component(ret.get());
+        for(const auto &child: object->children) { ret->add_child(clone_object(child.get())); }
+        return ret;
+    }
+
+    virtual ~ObjectStoreImpl() = default;
+
+private:
+    std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
+    crocore::fixed_size_free_list<vierkant::Object3D> m_free_list = {1 << 20, 1 << 10};
+};
+
+std::unique_ptr<ObjectStore> create_object_store() { return std::make_unique<ObjectStoreImpl>(); }
+
 glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
 {
     glm::mat4 ret = mat4_cast(obj->transform);
@@ -17,9 +62,11 @@ glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
 }
 
 // static factory
-Object3DPtr Object3D::create(const std::shared_ptr<entt::registry> &registry, std::string name)
+Object3DPtr Object3D::create(ObjectStore &object_store, std::string name)
 {
-    return Object3DPtr(new Object3D(registry, std::move(name)));
+    auto ret = object_store.create_object();
+    ret->name = std::move(name);
+    return ret;
 }
 
 Object3D::Object3D(const std::shared_ptr<entt::registry> &registry, std::string name_)
@@ -132,28 +179,5 @@ OBB Object3D::obb() const
 }
 
 void Object3D::accept(Visitor &theVisitor) { theVisitor.visit(*this); }
-
-Object3DPtr Object3D::clone() const
-{
-    auto registry = m_registry.lock();
-    auto ret = Object3D::create(registry);
-    ret->remove_component<Object3D *>();
-
-    ret->name = name;
-    ret->enabled = enabled;
-    ret->tags = tags;
-    ret->transform = transform;
-
-    if(registry)
-    {
-        for(auto [id, storage]: registry->storage())
-        {
-            if(storage.contains(m_entity)) { storage.push(ret->m_entity, storage.value(m_entity)); }
-        }
-    }
-    ret->add_component(ret.get());
-    for(const auto &child: children) { ret->add_child(child->clone()); }
-    return ret;
-}
 
 }// namespace vierkant

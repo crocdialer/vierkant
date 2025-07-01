@@ -67,7 +67,7 @@ struct mesh_t
 
     //! flag indicating that the mesh is used as mesh-library and entry-transforms should be skipped
     bool library = false;
-    
+
     bool convex_hull = false;
 
     //! lod-bias, defaults to 0 (highest detail). use MAX_LOD_BIAS to always request max-lod (lowest detail)
@@ -185,7 +185,7 @@ class PhysicsScene : public vierkant::Scene
 public:
     ~PhysicsScene() override = default;
 
-    static std::shared_ptr<PhysicsScene> create();
+    static std::shared_ptr<PhysicsScene> create(const std::shared_ptr<vierkant::ObjectStore> &object_store);
 
     void add_object(const Object3DPtr &object) override;
 
@@ -199,7 +199,7 @@ public:
     [[nodiscard]] const vierkant::PhysicsContext &physics_context() const { return m_context; };
 
 private:
-    explicit PhysicsScene() = default;
+    explicit PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
 
     crocore::ThreadPool m_thread_pool{std::thread::hardware_concurrency() - 1};
     vierkant::PhysicsContext m_context{&m_thread_pool};

@@ -1124,7 +1124,12 @@ void PhysicsScene::update(double time_delta)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-std::shared_ptr<PhysicsScene> PhysicsScene::create() { return std::shared_ptr<PhysicsScene>(new PhysicsScene()); }
+std::shared_ptr<PhysicsScene> PhysicsScene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store)
+{
+    return std::shared_ptr<PhysicsScene>(new PhysicsScene(object_store));
+}
+
+PhysicsScene::PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_store) : Scene(object_store) {}
 
 }//namespace vierkant
 
