@@ -185,7 +185,7 @@ class PhysicsScene : public vierkant::Scene
 public:
     ~PhysicsScene() override = default;
 
-    static std::shared_ptr<PhysicsScene> create(const std::shared_ptr<vierkant::ObjectStore> &object_store);
+    static std::shared_ptr<PhysicsScene> create(const std::shared_ptr<vierkant::ObjectStore> &object_store = {});
 
     void add_object(const Object3DPtr &object) override;
 

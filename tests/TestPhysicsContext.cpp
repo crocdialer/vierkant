@@ -39,14 +39,15 @@ TEST(PhysicsContext, collision_shapes)
 
 TEST(PhysicsContext, add_remove_object)
 {
-    auto scene = vierkant::PhysicsScene::create();
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
     auto &context = scene->physics_context();
 
     glm::vec3 gravity = {0.f, -9.81f, 0.f};
     context.set_gravity(gravity);
     EXPECT_EQ(context.gravity(), gravity);
 
-    auto a = Object3D::create(scene->registry());
+    auto a = Object3D::create(*object_store);
 
     // a does not (yet) have a vierkant::physics_component, so adding has no effect
     scene->add_object(a);
@@ -76,12 +77,13 @@ TEST(PhysicsContext, simulation)
 {
     //    spdlog::set_level(spdlog::level::debug);
 
-    auto scene = vierkant::PhysicsScene::create();
+    std::shared_ptr<vierkant::ObjectStore> object_store = vierkant::create_object_store();
+    auto scene = vierkant::PhysicsScene::create(object_store);
     auto box = Geometry::Box();
     auto collision_shape = create_collision_shape(scene->physics_context(), box, true);
 
-    Object3DPtr a(Object3D::create(scene->registry())), b(Object3D::create(scene->registry())),
-            c(Object3D::create(scene->registry())), ground(Object3D::create(scene->registry()));
+    Object3DPtr a(object_store->create_object()), b(object_store->create_object()), c(object_store->create_object()),
+            ground(object_store->create_object());
 
     auto &body_interface = scene->physics_context().body_interface();
 
@@ -135,7 +137,7 @@ TEST(PhysicsContext, simulation)
         EXPECT_TRUE(scene->physics_context().contains(obj->id()));
     }
 
-    auto sensor = vierkant::Object3D::create(scene->registry());
+    auto sensor = object_store->create_object();
     sensor->name = "sensor";
     sensor->transform.translation.y = 3.f;
     phys_cmp.sensor = true;
