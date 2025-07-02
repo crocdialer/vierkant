@@ -1045,9 +1045,7 @@ void draw_object_ui(const Object3DPtr &object)
             if(ImGui::Combo("shape", &shape_index, shape_items, IM_ARRAYSIZE(shape_items)))
             {
                 auto aabb = object->aabb();
-                constexpr float convex_radius_ratio = 0.05f;
-                float convex_radius = convex_radius_ratio * glm::length(aabb.half_extents());
-
+                
                 change = true;
                 switch(shape_index)
                 {
