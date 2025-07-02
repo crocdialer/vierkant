@@ -13,7 +13,7 @@ public:
     Object3DPtr create_object() override
     {
         uint32_t index = m_free_list.create(m_registry);
-        return {&m_free_list.get(index), [this](auto *obj) { m_free_list.destroy(obj); }};
+        return {&m_free_list.get(index), [this, index](Object3D *) { m_free_list.destroy(index); }};
     }
 
     Object3DPtr clone(const vierkant::Object3D *object) override
