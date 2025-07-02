@@ -938,6 +938,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
         return CollisionShapeId::nil();
     }
 
+    constexpr float convex_radius_ratio = 0.05f;
+
     auto shape_id = std::visit(
             [this](auto &&s) -> CollisionShapeId {
                 using T = std::decay_t<decltype(s)>;
@@ -960,7 +962,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 else if constexpr(std::is_same_v<T, collision::box_t>)
                 {
                     new_id = {};
-                    m_engine->jolt.shapes[new_id] = new JPH::BoxShape(type_cast(s.half_extents));
+                    float convex_radius = convex_radius_ratio * glm::length(s.half_extents);
+                    m_engine->jolt.shapes[new_id] = new JPH::BoxShape(type_cast(s.half_extents), convex_radius);
                 }
                 else if constexpr(std::is_same_v<T, collision::sphere_t>)
                 {
@@ -970,7 +973,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 else if constexpr(std::is_same_v<T, collision::cylinder_t>)
                 {
                     new_id = {};
-                    m_engine->jolt.shapes[new_id] = new JPH::CylinderShape(s.height / 2.f, s.radius);
+                    float convex_radius = convex_radius_ratio * s.radius;
+                    m_engine->jolt.shapes[new_id] = new JPH::CylinderShape(s.height / 2.f, s.radius, convex_radius);
                 }
                 else if constexpr(std::is_same_v<T, collision::capsule_t>)
                 {

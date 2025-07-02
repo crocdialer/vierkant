@@ -1044,15 +1044,19 @@ void draw_object_ui(const Object3DPtr &object)
                     phys_cmp.shape);
             if(ImGui::Combo("shape", &shape_index, shape_items, IM_ARRAYSIZE(shape_items)))
             {
+                auto aabb = object->aabb();
+                constexpr float convex_radius_ratio = 0.05f;
+                float convex_radius = convex_radius_ratio * glm::length(aabb.half_extents());
+
                 change = true;
                 switch(shape_index)
                 {
                     case 0: phys_cmp.shape = collision::none_t(); break;
                     case 1: phys_cmp.shape = collision::plane_t(); break;
-                    case 2: phys_cmp.shape = collision::box_t(); break;
-                    case 3: phys_cmp.shape = collision::sphere_t(); break;
-                    case 4: phys_cmp.shape = collision::cylinder_t(); break;
-                    case 5: phys_cmp.shape = collision::capsule_t(); break;
+                    case 2: phys_cmp.shape = collision::box_t(aabb.half_extents()); break;
+                    case 3: phys_cmp.shape = collision::sphere_t(glm::length(aabb.half_extents())); break;
+                    case 4: phys_cmp.shape = collision::cylinder_t(glm::length(aabb.half_extents().xz()), aabb.height()); break;
+                    case 5: phys_cmp.shape = collision::capsule_t(glm::length(aabb.half_extents().xz()), aabb.height()); break;
                     case 6: phys_cmp.shape = collision::mesh_t(); break;
                     default: break;
                 }
