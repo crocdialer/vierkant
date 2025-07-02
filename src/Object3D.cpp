@@ -17,27 +17,50 @@ public:
 
     Object3DPtr clone(const vierkant::Object3D *object) override
     {
+        if(!object) return {};
 
-        auto ret = create_object();
-        ret->name = object->name;
-        ret->remove_component<Object3D *>();
-
-        // ret->name = name;
-        ret->enabled = object->enabled;
-        ret->tags = object->tags;
-        ret->transform = object->transform;
-
-        for(auto [id, storage]: m_registry->storage())
+        // stack for iterative traversal
+        struct clone_item_t
         {
-            if(storage.contains(static_cast<entt::entity>(object->id())))
+            const vierkant::Object3D *src;
+            Object3DPtr dst;
+        };
+        std::stack<clone_item_t> stack;
+
+        Object3DPtr root_clone = create_object();
+        stack.push({object, root_clone});
+
+        while(!stack.empty())
+        {
+            auto [src_obj, dst_obj] = std::move(stack.top());
+            stack.pop();
+
+            dst_obj->name = src_obj->name;
+            dst_obj->remove_component<Object3D *>();
+            dst_obj->enabled = src_obj->enabled;
+            dst_obj->tags = src_obj->tags;
+            dst_obj->transform = src_obj->transform;
+
+            // copy entt-components
+            for(auto [id, storage]: m_registry->storage())
             {
-                storage.push(static_cast<entt::entity>(ret->id()),
-                             storage.value(static_cast<entt::entity>(object->id())));
+                if(storage.contains(static_cast<entt::entity>(src_obj->id())))
+                {
+                    storage.push(static_cast<entt::entity>(dst_obj->id()),
+                                 storage.value(static_cast<entt::entity>(src_obj->id())));
+                }
+            }
+            dst_obj->add_component(dst_obj.get());
+
+            // clone children iteratively
+            for(const auto &child: src_obj->children)
+            {
+                Object3DPtr child_clone = create_object();
+                dst_obj->add_child(child_clone);
+                stack.push({child.get(), child_clone});
             }
         }
-        ret->add_component(ret.get());
-        for(const auto &child: object->children) { ret->add_child(clone(child.get())); }
-        return ret;
+        return root_clone;
     }
 
     virtual ~ObjectStoreImpl() = default;
