@@ -14,8 +14,8 @@ struct test_component_t
 TEST(Object3D, hierarchy)
 {
     auto object_store = vierkant::create_object_store();
-    Object3DPtr a(Object3D::create(*object_store)), b(Object3D::create(*object_store)),
-            c(Object3D::create(*object_store));
+    Object3DPtr a(object_store->create_object()), b(object_store->create_object()),
+            c(object_store->create_object());
 
     a->set_parent(b);
     EXPECT_TRUE(a->parent() == b);
@@ -113,7 +113,7 @@ TEST(Object3D, clone)
     b->add_component<test_component_t>({3, 4});
     a->add_child(b);
 
-    auto c = object_store->clone_object(a.get());
+    auto c = object_store->clone(a.get());
 
     EXPECT_TRUE(a);
     EXPECT_TRUE(b);

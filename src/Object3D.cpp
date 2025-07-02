@@ -15,7 +15,7 @@ public:
         return {&m_free_list.get(index), [this](auto *obj) { m_free_list.destroy(obj); }};
     }
 
-    Object3DPtr clone_object(const vierkant::Object3D *object) override
+    Object3DPtr clone(const vierkant::Object3D *object) override
     {
 
         auto ret = create_object();
@@ -36,7 +36,7 @@ public:
             }
         }
         ret->add_component(ret.get());
-        for(const auto &child: object->children) { ret->add_child(clone_object(child.get())); }
+        for(const auto &child: object->children) { ret->add_child(clone(child.get())); }
         return ret;
     }
 
@@ -58,14 +58,6 @@ glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
         ret = mat4_cast(ancestor->transform) * ret;
         ancestor = ancestor->parent();
     }
-    return ret;
-}
-
-// static factory
-Object3DPtr Object3D::create(ObjectStore &object_store, std::string name)
-{
-    auto ret = object_store.create_object();
-    ret->name = std::move(name);
     return ret;
 }
 

@@ -44,6 +44,14 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     return object;
 }
 
+
+Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store)
+    : m_object_store(object_store ? object_store : create_object_store())
+{
+    m_root = m_object_store->create_object();
+    m_root->name = s_scene_root_name;
+}
+
 ScenePtr Scene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store)
 {
     return ScenePtr(new Scene(object_store));
@@ -56,7 +64,7 @@ void Scene::remove_object(const Object3DPtr &object) { m_root->remove_child(obje
 void Scene::clear()
 {
     m_root = m_object_store->create_object();
-    m_root->name = "scene root";
+    m_root->name = s_scene_root_name;
 }
 
 void Scene::update(double time_delta)

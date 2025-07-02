@@ -65,15 +65,16 @@ public:
     vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component);
 
 protected:
-    explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store = {})
-        : m_object_store(object_store ? object_store : create_object_store()) {};
+    explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
 
 private:
+    static constexpr char s_scene_root_name[] = "scene root";
+
     std::shared_ptr<vierkant::ObjectStore> m_object_store;
 
     vierkant::ImagePtr m_skybox = nullptr;
 
-    Object3DPtr m_root = vierkant::Object3D::create(*m_object_store, "scene root");
+    Object3DPtr m_root;
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };

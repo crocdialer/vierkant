@@ -47,7 +47,7 @@ TEST(PhysicsContext, add_remove_object)
     context.set_gravity(gravity);
     EXPECT_EQ(context.gravity(), gravity);
 
-    auto a = Object3D::create(*object_store);
+    auto a = object_store->create_object();
 
     // a does not (yet) have a vierkant::physics_component, so adding has no effect
     scene->add_object(a);

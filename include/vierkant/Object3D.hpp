@@ -37,7 +37,7 @@ public:
      *
      * @return  a newly created Object3DPtr, containing a deep-copy of entire sub-tree
      */
-    virtual Object3DPtr clone_object(const vierkant::Object3D *object) = 0;
+    virtual Object3DPtr clone(const vierkant::Object3D *object) = 0;
 };
 
 //! create a new ObjectStore
@@ -83,7 +83,6 @@ struct timer_component_t
 class alignas(8) Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
-    static Object3DPtr create(ObjectStore &object_store, std::string name = "");
 
     virtual ~Object3D() noexcept;
 
@@ -223,11 +222,11 @@ public:
     //! enabled hint, can be used by Visitors
     bool enabled = true;
 
-    //! the transformation of this object
+    //! local transformation of this object
     vierkant::transform_t transform = {};
 
     //! a list of child-objects
-    std::list<Object3DPtr> children;
+    std::vector<Object3DPtr> children;
 
     VIERKANT_ENABLE_AS_COMPONENT();
 
