@@ -40,8 +40,14 @@ public:
     virtual Object3DPtr clone(const vierkant::Object3D *object) = 0;
 };
 
-//! create a new ObjectStore
-std::unique_ptr<ObjectStore> create_object_store();
+/**
+ * @brief   create_object_store creates a new ObjectStore instance.
+ *
+ * @param   max_num_objects maximum number of objects that can be allocated from the store.
+ * @param   page_size       number of objects per allocation-page
+ * @return  a new ObjectStore instance
+ */
+std::unique_ptr<ObjectStore> create_object_store(uint32_t max_num_objects = 1 << 16, uint32_t page_size = 1 << 10);
 
 struct aabb_component_t
 {
@@ -83,7 +89,6 @@ struct timer_component_t
 class alignas(8) Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
-
     virtual ~Object3D() noexcept;
 
     inline uint32_t id() const { return static_cast<uint32_t>(m_entity); };

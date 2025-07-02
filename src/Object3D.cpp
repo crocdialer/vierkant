@@ -7,6 +7,7 @@ namespace vierkant
 class ObjectStoreImpl : public ObjectStore
 {
 public:
+    ObjectStoreImpl(uint32_t max_num_objects, uint32_t page_size) : m_free_list(max_num_objects, page_size) {};
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const override { return m_registry; }
 
     Object3DPtr create_object() override
@@ -67,10 +68,13 @@ public:
 
 private:
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
-    crocore::fixed_size_free_list<vierkant::Object3D> m_free_list = {1 << 20, 1 << 10};
+    crocore::fixed_size_free_list<vierkant::Object3D> m_free_list;
 };
 
-std::unique_ptr<ObjectStore> create_object_store() { return std::make_unique<ObjectStoreImpl>(); }
+std::unique_ptr<ObjectStore> create_object_store(uint32_t max_num_objects, uint32_t page_size)
+{
+    return std::make_unique<ObjectStoreImpl>(max_num_objects, page_size);
+}
 
 glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
 {
