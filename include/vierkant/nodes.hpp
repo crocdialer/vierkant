@@ -24,7 +24,7 @@ struct node_t
     vierkant::transform_t offset = {};
     uint32_t index = 0;
     NodePtr parent = nullptr;
-    std::list<NodePtr> children;
+    std::vector<NodePtr> children;
 };
 
 //! define a bone_animation type

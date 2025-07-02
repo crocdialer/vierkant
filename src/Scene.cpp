@@ -15,7 +15,7 @@ struct range_item_t
 
 vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_component)
 {
-    auto object = vierkant::Object3D::create(m_registry);
+    auto object = m_object_store->create_object();
     object->add_component(mesh_component);
     if(!mesh_component.mesh->node_animations.empty()) { object->add_component<vierkant::animation_component_t>(); }
 
@@ -44,13 +44,28 @@ vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_com
     return object;
 }
 
-ScenePtr Scene::create() { return ScenePtr(new Scene()); }
+
+Scene::Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store)
+    : m_object_store(object_store ? object_store : create_object_store())
+{
+    m_root = m_object_store->create_object();
+    m_root->name = s_scene_root_name;
+}
+
+ScenePtr Scene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store)
+{
+    return ScenePtr(new Scene(object_store));
+}
 
 void Scene::add_object(const Object3DPtr &object) { m_root->add_child(object); }
 
 void Scene::remove_object(const Object3DPtr &object) { m_root->remove_child(object, true); }
 
-void Scene::clear() { m_root = vierkant::Object3D::create(m_registry, "scene root"); }
+void Scene::clear()
+{
+    m_root = m_object_store->create_object();
+    m_root->name = s_scene_root_name;
+}
 
 void Scene::update(double time_delta)
 {
@@ -89,14 +104,14 @@ void Scene::update(double time_delta)
 
 Object3D *Scene::object_by_id(uint32_t object_id) const
 {
-    auto object_ptr = m_registry->try_get<vierkant::Object3D *>(entt::entity(object_id));
+    auto object_ptr = registry()->try_get<vierkant::Object3D *>(entt::entity(object_id));
     return object_ptr ? *object_ptr : nullptr;
 }
 
 std::vector<Object3D *> Scene::objects_by_name(const std::string_view &name) const
 {
     std::vector<Object3D *> ret;
-    auto view = m_registry->view<Object3D *>();
+    auto view = registry()->view<Object3D *>();
     for(const auto &[entity, object]: view.each())
     {
         if(object->name == name) { ret.push_back(object); }
@@ -106,7 +121,7 @@ std::vector<Object3D *> Scene::objects_by_name(const std::string_view &name) con
 
 Object3D *Scene::any_object_by_name(const std::string_view &name) const
 {
-    auto view = m_registry->view<Object3D *>();
+    auto view = registry()->view<Object3D *>();
     for(const auto &[entity, object]: view.each())
     {
         if(object->name.find(name) != std::string::npos) { return object; }
@@ -117,7 +132,7 @@ Object3D *Scene::any_object_by_name(const std::string_view &name) const
 Object3DPtr Scene::pick(const Ray &ray) const
 {
     Object3DPtr ret;
-    auto objects_view = m_registry->view<vierkant::Object3D *>();
+    auto objects_view = registry()->view<vierkant::Object3D *>();
     std::list<range_item_t> clicked_items;
 
     for(const auto &[entity, object]: objects_view.each())

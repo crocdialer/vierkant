@@ -1,5 +1,4 @@
 #include "vierkant/Object3D.hpp"
-#include "vierkant/Scene.hpp"
 #include <gtest/gtest.h>
 
 using namespace vierkant;
@@ -14,9 +13,9 @@ struct test_component_t
 
 TEST(Object3D, hierarchy)
 {
-    auto scene = vierkant::Scene::create();
-    Object3DPtr a(Object3D::create(scene->registry())), b(Object3D::create(scene->registry())),
-            c(Object3D::create(scene->registry()));
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr a(object_store->create_object()), b(object_store->create_object()),
+            c(object_store->create_object());
 
     a->set_parent(b);
     EXPECT_TRUE(a->parent() == b);
@@ -55,8 +54,8 @@ TEST(Object3D, hierarchy)
 
 TEST(Object3D, entity)
 {
-    auto registry = std::make_shared<entt::registry>();
-    Object3DPtr a(Object3D::create(registry)), b(Object3D::create(registry)), c(Object3D::create(registry));
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr a(object_store->create_object()), b(object_store->create_object()), c(object_store->create_object());
 
     // miss-case
     EXPECT_TRUE(!c->has_component<test_component_t>());
@@ -74,7 +73,7 @@ TEST(Object3D, entity)
     EXPECT_EQ(foo_ref.a, foo_comp.a);
     EXPECT_EQ(foo_ref.b, foo_comp.b);
 
-    auto view = registry->view<vierkant::Object3D *, test_component_t>();
+    auto view = object_store->registry()->view<vierkant::Object3D *, test_component_t>();
 
     std::set<vierkant::Object3D *> foo_objects;
     for(auto [entity, object, foo]: view.each()) { foo_objects.insert(object); }
@@ -85,7 +84,7 @@ TEST(Object3D, entity)
     // destruction
     bool destructed = false;
     {
-        auto d = Object3D::create(registry);
+        auto d = object_store->create_object();
 
         struct destruction_test_comp_t
         {
@@ -107,14 +106,14 @@ TEST(Object3D, entity)
 
 TEST(Object3D, clone)
 {
-    auto registry = std::make_shared<entt::registry>();
-    Object3DPtr a(Object3D::create(registry)), b(Object3D::create(registry));
+    auto object_store = vierkant::create_object_store();
+    Object3DPtr a(object_store->create_object()), b(object_store->create_object());
 
     a->add_component<test_component_t>({1, 2});
     b->add_component<test_component_t>({3, 4});
     a->add_child(b);
 
-    auto c = a->clone();
+    auto c = object_store->clone(a.get());
 
     EXPECT_TRUE(a);
     EXPECT_TRUE(b);

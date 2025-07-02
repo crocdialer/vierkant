@@ -9,6 +9,7 @@
 #include <set>
 
 #include <crocore/crocore.hpp>
+#include <crocore/fixed_size_free_list.h>
 #include <entt/entity/registry.hpp>
 #include <vierkant/animation.hpp>
 #include <vierkant/intersection.hpp>
@@ -19,6 +20,34 @@ namespace vierkant
 {
 
 DEFINE_CLASS_PTR(Object3D)
+
+//! ObjectStore is responsible to create objects and connect to the entity-component-system
+class ObjectStore
+{
+public:
+    [[nodiscard]] virtual const std::shared_ptr<entt::registry> &registry() const = 0;
+
+    /**
+     * @return  a newly created Object3D via shared_ptr
+     */
+    virtual Object3DPtr create_object() = 0;
+
+    /**
+     * @brief   clone will perform a recursive deep-copy, including all components.
+     *
+     * @return  a newly created Object3DPtr, containing a deep-copy of entire sub-tree
+     */
+    virtual Object3DPtr clone(const vierkant::Object3D *object) = 0;
+};
+
+/**
+ * @brief   create_object_store creates a new ObjectStore instance.
+ *
+ * @param   max_num_objects maximum number of objects that can be allocated from the store.
+ * @param   page_size       number of objects per allocation-page
+ * @return  a new ObjectStore instance
+ */
+std::unique_ptr<ObjectStore> create_object_store(uint32_t max_num_objects = 1 << 16, uint32_t page_size = 1 << 10);
 
 struct aabb_component_t
 {
@@ -57,11 +86,9 @@ struct timer_component_t
     bool repeat = false;
 };
 
-class Object3D : public std::enable_shared_from_this<Object3D>
+class alignas(8) Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:
-    static Object3DPtr create(const std::shared_ptr<entt::registry> &registry, std::string name = "");
-
     virtual ~Object3D() noexcept;
 
     inline uint32_t id() const { return static_cast<uint32_t>(m_entity); };
@@ -191,13 +218,6 @@ public:
         throw std::runtime_error("component does not exist");
     }
 
-    /**
-     * @brief   clone will perform a recursive deep-copy, including all components.
-     *
-     * @return  a newly created Object3DPtr, containing a deep-copy of entire sub-tree
-     */
-    Object3DPtr clone() const;
-
     //! set of tags
     std::set<std::string> tags;
 
@@ -207,11 +227,11 @@ public:
     //! enabled hint, can be used by Visitors
     bool enabled = true;
 
-    //! the transformation of this object
+    //! local transformation of this object
     vierkant::transform_t transform = {};
 
     //! a list of child-objects
-    std::list<Object3DPtr> children;
+    std::vector<Object3DPtr> children;
 
     VIERKANT_ENABLE_AS_COMPONENT();
 
@@ -219,6 +239,7 @@ protected:
     explicit Object3D(const std::shared_ptr<entt::registry> &registry, std::string name = "");
 
 private:
+    friend class crocore::fixed_size_free_list<vierkant::Object3D>;
     std::weak_ptr<Object3D> m_parent;
 
     std::weak_ptr<entt::registry> m_registry;

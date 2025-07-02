@@ -21,7 +21,7 @@ class Scene
 public:
     virtual ~Scene() = default;
 
-    static ScenePtr create();
+    static ScenePtr create(const std::shared_ptr<vierkant::ObjectStore> &object_store = {});
 
     virtual void add_object(const Object3DPtr &object);
 
@@ -41,7 +41,7 @@ public:
 
     [[nodiscard]] std::vector<Object3D *> objects_by_name(const std::string_view &name) const;
 
-    [[nodiscard]] Object3D * any_object_by_name(const std::string_view &name) const;
+    [[nodiscard]] Object3D *any_object_by_name(const std::string_view &name) const;
 
     [[nodiscard]] Object3DPtr pick(const Ray &ray) const;
 
@@ -51,7 +51,7 @@ public:
 
     void set_environment(const vierkant::ImagePtr &img);
 
-    [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const { return m_registry; }
+    [[nodiscard]] inline const std::shared_ptr<entt::registry> &registry() const { return m_object_store->registry(); }
 
     /**
     * @brief   'create_mesh_object' is a factory to create an Object3D containing a mesh.
@@ -65,14 +65,16 @@ public:
     vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component);
 
 protected:
-    explicit Scene() = default;
+    explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store);
 
 private:
-    std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
+    static constexpr char s_scene_root_name[] = "scene root";
+
+    std::shared_ptr<vierkant::ObjectStore> m_object_store;
 
     vierkant::ImagePtr m_skybox = nullptr;
 
-    Object3DPtr m_root = Object3D::create(m_registry, "scene root");
+    Object3DPtr m_root;
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };
