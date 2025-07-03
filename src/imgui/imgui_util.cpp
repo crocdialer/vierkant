@@ -1045,11 +1045,15 @@ void draw_object_ui(const Object3DPtr &object)
             if(ImGui::Combo("shape", &shape_index, shape_items, IM_ARRAYSIZE(shape_items)))
             {
                 auto aabb = object->aabb().valid() ? object->aabb() : vierkant::AABB(-glm::vec3(.5f), glm::vec3(.5f));
-
                 change = true;
+                bool need_shape_transform = true;
+
                 switch(shape_index)
                 {
-                    case 0: phys_cmp.shape = collision::none_t(); break;
+                    case 0:
+                        phys_cmp.shape = collision::none_t();
+                        need_shape_transform = false;
+                        break;
                     case 1: phys_cmp.shape = collision::plane_t(); break;
                     case 2: phys_cmp.shape = collision::box_t(aabb.half_extents()); break;
                     case 3: phys_cmp.shape = collision::sphere_t(glm::length(aabb.half_extents())); break;
@@ -1059,9 +1063,19 @@ void draw_object_ui(const Object3DPtr &object)
                     case 5:
                         phys_cmp.shape = collision::capsule_t(glm::length(aabb.half_extents().xz()), aabb.height());
                         break;
-                    case 6: phys_cmp.shape = collision::mesh_t(); break;
+                    case 6:
+                        phys_cmp.shape = collision::mesh_t();
+                        need_shape_transform = false;
+                        break;
                     default: break;
                 }
+
+                if(need_shape_transform)
+                {
+                    phys_cmp.shape_transform.emplace();
+                    phys_cmp.shape_transform->translation += aabb.center() * object->transform.scale;
+                }
+                else { phys_cmp.shape_transform.reset(); }
             }
 
             std::visit(
