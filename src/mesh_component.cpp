@@ -17,18 +17,22 @@ AABB mesh_aabb(const vierkant::mesh_component_t &cmp, const std::optional<vierka
                                                  static_cast<float>(anim_state->current_time), node_transforms);
     }
 
-    auto add_entry_to_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry) {
-        ret += entry.bounding_box.transform(node_transforms.empty() ? entry.transform
-                                                                    : node_transforms[entry.node_index]);
+    auto add_entry_to_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry, bool mesh_library) {
+        if(mesh_library) { ret += entry.bounding_box; }
+        else
+        {
+            ret += entry.bounding_box.transform(node_transforms.empty() ? entry.transform
+                                                                        : node_transforms[entry.node_index]);
+        }
     };
 
     if(cmp.entry_indices)
     {
-        for(auto idx: *cmp.entry_indices) { add_entry_to_aabb(cmp.mesh->entries[idx]); }
+        for(auto idx: *cmp.entry_indices) { add_entry_to_aabb(cmp.mesh->entries[idx], cmp.library); }
     }
     else
     {
-        for(const auto &entry: cmp.mesh->entries) { add_entry_to_aabb(entry); }
+        for(const auto &entry: cmp.mesh->entries) { add_entry_to_aabb(entry, cmp.library); }
     }
     return ret;
 }
@@ -48,18 +52,22 @@ std::vector<vierkant::AABB> mesh_sub_aabbs(const vierkant::mesh_component_t &cmp
                                                  static_cast<float>(anim_state->current_time), node_transforms);
     }
 
-    auto add_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry) {
-        ret.push_back(entry.bounding_box.transform(node_transforms.empty() ? entry.transform
-                                                                           : node_transforms[entry.node_index]));
+    auto add_aabb = [&ret, &node_transforms](const Mesh::entry_t &entry, bool mesh_library) {
+        if(mesh_library) { ret.push_back(entry.bounding_box); }
+        else
+        {
+            ret.push_back(entry.bounding_box.transform(node_transforms.empty() ? entry.transform
+                                                                               : node_transforms[entry.node_index]));
+        }
     };
 
     if(cmp.entry_indices)
     {
-        for(auto idx: *cmp.entry_indices) { add_aabb(cmp.mesh->entries[idx]); }
+        for(auto idx: *cmp.entry_indices) { add_aabb(cmp.mesh->entries[idx], cmp.library); }
     }
     else
     {
-        for(const auto &entry: cmp.mesh->entries) { add_aabb(entry); }
+        for(const auto &entry: cmp.mesh->entries) { add_aabb(entry, cmp.library); }
     }
     return ret;
 }
