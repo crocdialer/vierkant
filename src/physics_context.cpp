@@ -139,7 +139,7 @@ public:
     };
 
     void DrawText3D(JPH::RVec3Arg /*inPosition*/, const JPH::string_view & /*inString*/, JPH::ColorArg /*inColor*/,
-                    float /*inHeight*/) override {};
+                    float /*inHeight*/) override{};
 
     void clear()
     {
@@ -962,7 +962,8 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
                 else if constexpr(std::is_same_v<T, collision::box_t>)
                 {
                     new_id = {};
-                    float convex_radius = convex_radius_ratio * glm::length(s.half_extents);
+                    float convex_radius = convex_radius_ratio *
+                                          std::min(std::min(s.half_extents.x, s.half_extents.y), s.half_extents.z);
                     m_engine->jolt.shapes[new_id] = new JPH::BoxShape(type_cast(s.half_extents), convex_radius);
                 }
                 else if constexpr(std::is_same_v<T, collision::sphere_t>)

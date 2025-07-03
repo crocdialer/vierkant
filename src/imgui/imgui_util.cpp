@@ -673,7 +673,15 @@ void draw_material_ui(const MaterialPtr &mesh_material)
     };
 
     auto &material = mesh_material->m;
-    ImGui::BulletText("name: %s", material.name.c_str());
+    // name
+    constexpr size_t buf_size = 4096;
+    char text_buf[buf_size];
+    strcpy(text_buf, material.name.c_str());
+
+    if(ImGui::InputText("name", text_buf, IM_ARRAYSIZE(text_buf), ImGuiInputTextFlags_EnterReturnsTrue))
+    {
+        material.name = text_buf;
+    }
     ImGui::Separator();
 
     // base color
