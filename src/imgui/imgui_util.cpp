@@ -1155,10 +1155,11 @@ void draw_object_ui(const Object3DPtr &object)
     }
 }
 
-void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera, GuizmoType type)
+bool draw_transform_guizmo(vierkant::transform_t &transform, const vierkant::CameraConstPtr &camera, GuizmoType type)
 {
-    // imguizmo drawing is in fact another window
-    if(object && camera && type != GuizmoType::INACTIVE)
+    bool changed = false;
+
+    if(camera && type != GuizmoType::INACTIVE)
     {
         int32_t current_gizmo = -1;
 
@@ -1169,15 +1170,13 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
             case GuizmoType::SCALE: current_gizmo = ImGuizmo::SCALE; break;
             default: break;
         }
-        auto global_transform = object->global_transform();
-        glm::mat4 m = vierkant::mat4_cast(global_transform);
+        glm::mat4 m = vierkant::mat4_cast(transform);
         auto ortho_cam = std::dynamic_pointer_cast<const vierkant::OrthoCamera>(camera).get();
         ImGuizmo::SetOrthographic(ortho_cam);
 
         auto perspective_cam = std::dynamic_pointer_cast<const vierkant::PerspectiveCamera>(camera);
 
         auto sz = ImGui::GetIO().DisplaySize;
-        bool changed = false;
         auto view = vierkant::mat4_cast(camera->view_transform());
 
         if(ortho_cam)
@@ -1195,8 +1194,39 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
             changed = ImGuizmo::Manipulate(glm::value_ptr(view), glm::value_ptr(proj),
                                            ImGuizmo::OPERATION(current_gizmo), ImGuizmo::WORLD, glm::value_ptr(m));
         }
-        if(changed) { object->set_global_transform(vierkant::transform_cast(m)); }
+        if(changed) { transform = vierkant::transform_cast(m); }
     }
+    return changed;
+}
+
+void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::CameraConstPtr &camera, GuizmoType type)
+{
+    if(camera && type != GuizmoType::INACTIVE)
+    {
+        auto transform = object->global_transform();
+        if(draw_transform_guizmo(transform, camera, type)) { object->set_global_transform(transform); }
+    }
+}
+
+void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::CameraConstPtr &camera,
+                           GuizmoType type)
+{
+    // only support translation for group-selections
+    if(object_set.size() > 1 && type == GuizmoType::TRANSLATE)
+    {
+        // average translation
+        vierkant::transform_t transform;
+        for(const auto &object: object_set) { transform.translation += object->global_transform().translation; }
+        transform.translation /= static_cast<float>(object_set.size());
+        auto diff = transform.translation;
+
+        if(draw_transform_guizmo(transform, camera, type))
+        {
+            diff = transform.translation - diff;
+            for(const auto &object: object_set) { object->transform.translation += diff; }
+        }
+    }
+    else if(!object_set.empty()) { draw_transform_guizmo(*object_set.begin(), camera, type); }
 }
 
 void draw_camera_param_ui(vierkant::physical_camera_params_t &camera_params)
