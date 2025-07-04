@@ -7,7 +7,7 @@ namespace vierkant
 class ObjectStoreImpl : public ObjectStore
 {
 public:
-    ObjectStoreImpl(uint32_t max_num_objects, uint32_t page_size) : m_free_list(max_num_objects, page_size) {};
+    ObjectStoreImpl(uint32_t max_num_objects, uint32_t page_size) : m_free_list(max_num_objects, page_size){};
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const override { return m_registry; }
 
     Object3DPtr create_object() override
@@ -106,21 +106,16 @@ Object3D::~Object3D() noexcept
 
 vierkant::transform_t Object3D::global_transform() const
 {
-    // return parent() ? transform_cast(get_global_mat4(this)) : transform;
-    vierkant::transform_t ret = transform;
-    Object3DPtr ancestor = parent();
-    while(ancestor)
-    {
-        ret = ancestor->transform * ret;
-        ancestor = ancestor->parent();
-    }
-    return ret;
+    // ignores top-lvl root transform
+    return parent() && parent()->parent() ? transform_cast(get_global_mat4(this)) : transform;
 }
 
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    // transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent().get())) * mat4_cast(t)) : t;
-    transform = parent() ? vierkant::inverse(parent()->global_transform()) * t : t;
+    // ignores top-lvl root transform
+    transform = parent() && parent()->parent()
+                        ? transform_cast(glm::inverse(get_global_mat4(parent().get())) * mat4_cast(t))
+                        : t;
 }
 
 bool Object3D::global_enable() const
