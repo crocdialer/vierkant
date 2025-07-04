@@ -54,6 +54,18 @@ inline constexpr transform_t_<T1> transform_cast(const glm::mat<4, 4, T2> &m)
 }
 
 /**
+ * @brief   is_scale_uniform can be used to check if a transform's scaling is uniform.
+ *
+ * @param   t   a provided vierkant::transform_t
+ * @return  true if t has uniform scale.
+ */
+template<typename T>
+inline constexpr bool is_scale_uniform(const transform_t_<T> &t)
+{
+    return t.scale.x == t.scale.y && t.scale.x == t.scale.z;
+}
+
+/**
  * @brief   operator to apply a vierkant::transform_t to a 3d-vector.
  *
  * @param   t   a provided vierkant::transform_t
@@ -77,7 +89,15 @@ template<typename T>
 inline constexpr transform_t_<T> operator*(const transform_t_<T> &lhs, const transform_t_<T> &rhs)
 {
     // fallback to matrix-multiplication to support non-uniform scaling + rotation (sheer)
-    return transform_cast<T>(mat4_cast<T>(lhs) * mat4_cast<T>(rhs));
+    if(!is_scale_uniform(lhs) || !is_scale_uniform(rhs))
+    {
+        return transform_cast<T>(mat4_cast<T>(lhs) * mat4_cast<T>(rhs));
+    }
+    transform_t_<T> ret = lhs;
+    ret.translation += lhs.rotation * (rhs.translation * lhs.scale);
+    ret.rotation *= rhs.rotation;
+    ret.scale *= rhs.scale;
+    return ret;
 }
 
 template<typename T>
@@ -112,7 +132,13 @@ inline bool epsilon_equal(const transform_t_<T> &lhs, const transform_t_<T> &rhs
 template<typename T>
 inline constexpr transform_t_<T> inverse(const transform_t_<T> &t)
 {
-    return transform_cast<T>(glm::inverse(mat4_cast<T>(t)));
+    if(!is_scale_uniform(t)) { return transform_cast<T>(glm::inverse(mat4_cast<T>(t))); }
+    using vec3_t = typename std::decay<decltype(t.scale)>::type;
+    transform_t_<T> ret;
+    ret.scale = T(1) / (glm::all(glm::notEqual(t.scale, vec3_t(0))) ? t.scale : vec3_t(1));
+    ret.rotation = glm::inverse(t.rotation);
+    ret.translation = -(ret.rotation * (t.translation * ret.scale));
+    return ret;
 }
 
 template<typename T, typename U>
