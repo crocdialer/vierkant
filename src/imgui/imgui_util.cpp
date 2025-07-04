@@ -1211,19 +1211,22 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
 void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::CameraConstPtr &camera,
                            GuizmoType type)
 {
-    // only support translation for group-selections
-    if(object_set.size() > 1 && type == GuizmoType::TRANSLATE)
+    if(object_set.size() > 1)
     {
-        // average translation
-        vierkant::transform_t transform;
-        for(const auto &object: object_set) { transform.translation += object->global_transform().translation; }
-        transform.translation /= static_cast<float>(object_set.size());
-        auto diff = transform.translation;
-
-        if(draw_transform_guizmo(transform, camera, type))
+        // only support translation for group-selections
+        if(type == GuizmoType::TRANSLATE)
         {
-            diff = transform.translation - diff;
-            for(const auto &object: object_set) { object->transform.translation += diff; }
+            // average translation
+            vierkant::transform_t transform;
+            for(const auto &object: object_set) { transform.translation += object->global_transform().translation; }
+            transform.translation /= static_cast<float>(object_set.size());
+            auto diff = transform.translation;
+
+            if(draw_transform_guizmo(transform, camera, type))
+            {
+                diff = transform.translation - diff;
+                for(const auto &object: object_set) { object->transform.translation += diff; }
+            }
         }
     }
     else if(!object_set.empty()) { draw_transform_guizmo(*object_set.begin(), camera, type); }
