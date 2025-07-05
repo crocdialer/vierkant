@@ -504,6 +504,10 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
     drawable.pipeline_format.scissor.extent.width = static_cast<uint32_t>(renderer.viewport.width);
     drawable.pipeline_format.scissor.extent.height = static_cast<uint32_t>(renderer.viewport.height);
 
+    constexpr uint32_t color_red = vierkant::color_cast(glm::vec4(1.f, 0.f, 0.f, 1.f));
+    constexpr uint32_t color_green = vierkant::color_cast(glm::vec4(0.1f, .8f, 0.f, 1.f));
+    constexpr uint32_t color_blue = vierkant::color_cast(glm::vec4(.3f, .1f, 8.f, 1.f));
+
     struct grid_params_t
     {
         glm::mat4 projection_view;
@@ -511,8 +515,8 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
         glm::mat4 view_inverse;
         glm::vec4 plane = glm::vec4(0, 1, 0, 0);
         uint32_t color = vierkant::color_cast(glm::vec4(1.f));
-        uint32_t color_x = vierkant::color_cast(glm::vec4(1.f, 0.f, 0.f, 1.f));
-        uint32_t color_z = vierkant::color_cast(glm::vec4(.3f, .1f, 8.f, 1.f));
+        uint32_t color_x = color_red;
+        uint32_t color_z = color_blue;
         float spacing = 1.f;
         glm::vec2 line_width = glm::vec2(0.05f);
         VkBool32 ortho = false;
@@ -548,6 +552,12 @@ void DrawContext::draw_grid(vierkant::Rasterizer &renderer, const glm::vec4 &col
             }
         }
         for(int32_t i = 0; i < 3; ++i) { grid_params.plane[i] = i == max_index ? 1.f : 0.f; }
+        switch(max_index)
+        {
+            case 0: grid_params.color_x = color_green; break;
+            case 2: grid_params.color_z = color_green; break;
+            default: break;
+        }
     }
     renderer.stage_drawable(std::move(drawable));
 }
