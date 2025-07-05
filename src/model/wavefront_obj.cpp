@@ -63,15 +63,15 @@ std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, c
     if(!err.empty()) { spdlog::error(warn); }
     if(!ret) { spdlog::error("failed to load {}", path.string()); }
 
-    std::unordered_map<std::string, std::tuple<TextureSourceId, crocore::ImagePtr>> image_cache;
-    auto get_image = [&image_cache](const std::string &path) -> std::tuple<TextureSourceId, crocore::ImagePtr> {
+    std::unordered_map<std::string, std::tuple<TextureId, crocore::ImagePtr>> image_cache;
+    auto get_image = [&image_cache](const std::string &path) -> std::tuple<TextureId, crocore::ImagePtr> {
         auto it = image_cache.find(path);
         if(it != image_cache.end()) { return it->second; }
 
-        std::tuple<TextureSourceId, crocore::ImagePtr> ret;
+        std::tuple<TextureId, crocore::ImagePtr> ret;
         try
         {
-            ret = {TextureSourceId::random(), crocore::create_image_from_file(path, 4)};
+            ret = {TextureId::random(), crocore::create_image_from_file(path, 4)};
             image_cache[path] = ret;
         } catch(std::exception &e)
         {
@@ -97,19 +97,24 @@ std::optional<model_assets_t> wavefront_obj(const std::filesystem::path &path, c
         m.ior = mat.ior;
         m.clearcoat_roughness_factor = mat.clearcoat_roughness;
 
-        // vertically flip textures
-        m.texture_transform[1][1] = -1.f;
-
         if(!mat.diffuse_texname.empty())
         {
             auto [tex_id, img] = get_image((base_dir / mat.diffuse_texname).string());
-            m.textures[vierkant::TextureType::Color] = tex_id;
+
+            vierkant::texture_data_t tex_data = {};
+            tex_data.texture_id = tex_id;
+            tex_data.texture_transform = glm::mat4(1);
+
+            // vertically flip textures
+            tex_data.texture_transform.value()[1][1] = -1.f;
+
+            m.texture_data[vierkant::TextureType::Color] = tex_data;
             mesh_assets.textures[tex_id] = img;
         }
         if(!mat.normal_texname.empty())
         {
             auto [tex_id, img] = get_image((base_dir / mat.normal_texname).string());
-            m.textures[vierkant::TextureType::Normal] = tex_id;
+            m.texture_data[vierkant::TextureType::Normal].texture_id = tex_id;
             mesh_assets.textures[tex_id] = img;
         }
         mesh_assets.materials.push_back(m);

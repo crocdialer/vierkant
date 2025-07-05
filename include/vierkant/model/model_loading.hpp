@@ -71,7 +71,7 @@ struct model_assets_t
     std::vector<vierkant::material_t> materials;
 
     //! common textures for all materials
-    std::unordered_map<vierkant::TextureSourceId, texture_variant_t> textures;
+    std::unordered_map<vierkant::TextureId, texture_variant_t> textures;
 
     //! texture-sample-states for all materials
     std::unordered_map<vierkant::SamplerId, texture_sampler_t> texture_samplers;
@@ -116,14 +116,22 @@ struct load_mesh_params_t
  */
 std::optional<model_assets_t> load_model(const std::filesystem::path &path, crocore::ThreadPoolClassic *pool = nullptr);
 
+//! struct grouping results of a load_mesh operation
+struct load_mesh_result_t
+{
+    vierkant::MeshPtr mesh;
+    std::unordered_map<vierkant::TextureId, vierkant::ImagePtr> textures;
+    std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> samplers;
+};
+
 /**
  * @brief   load_mesh can be used to load assets into gpu-buffers
  *          and construct a vierkant::Mesh usable for gpu-operations.
  *
  * @param   params  a struct grouping input-parameters
- * @return  a vierkant::MeshPtr, nullptr in case of failure.
+ * @return  a model::load_mesh_result_t, containing loaded mesh/textures/samplers.
  */
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::model_assets_t &mesh_assets);
+load_mesh_result_t load_mesh(const load_mesh_params_t &params, const vierkant::model::model_assets_t &mesh_assets);
 
 /**
  * @brief   compress_textures will compress all images found provided mesh_assets in-place.

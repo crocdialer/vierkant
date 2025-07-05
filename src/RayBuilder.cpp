@@ -494,6 +494,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             instance.accelerationStructureReference = asset->device_address;
             instances.push_back(instance);
 
+            std::optional<glm::mat4> texture_transform;
+
             if(!material_indices.contains(mesh_material))
             {
                 material_indices[mesh_material] = materials.size();
@@ -530,7 +532,13 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
                     switch(type_flag)
                     {
-                        case vierkant::TextureType::Color: material.albedo_index = texture_index; break;
+                        case vierkant::TextureType::Color:
+                            material.albedo_index = texture_index;
+                            if(mesh_material->m.texture_data[type_flag].texture_transform)
+                            {
+                                texture_transform = *mesh_material->m.texture_data[type_flag].texture_transform;
+                            }
+                            break;
 
                         case vierkant::TextureType::Normal: material.normalmap_index = texture_index; break;
 
@@ -551,7 +559,7 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             top_level_entry.transform = transform;
             top_level_entry.inv_transform = vierkant::inverse(transform);
             top_level_entry.aabb = mesh_entry.bounding_box;
-            top_level_entry.texture_matrix = m.texture_transform;
+            if(texture_transform) { top_level_entry.texture_matrix = *texture_transform; }
             top_level_entry.buffer_index = mesh_buffer_indices[vertex_buffer_address];
             top_level_entry.material_index = material_indices[mesh_material];
             top_level_entry.vertex_offset = mesh_entry.vertex_offset;

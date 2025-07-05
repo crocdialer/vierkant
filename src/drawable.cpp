@@ -63,7 +63,12 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
             drawable.matrices.transform =
                     params.transform * (node_transforms.empty() ? entry.transform : node_transforms[entry.node_index]);
         }
-        drawable.matrices.texture = material.texture_transform;
+
+        auto col_img_it = material.texture_data.find(TextureType::Color);
+        if(col_img_it != material.texture_data.end() && col_img_it->second.texture_transform)
+        {
+            drawable.matrices.texture = *col_img_it->second.texture_transform;
+        }
 
         // material params
         drawable.material.color = material.base_color;

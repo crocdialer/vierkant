@@ -15,7 +15,7 @@ namespace vierkant
 
 //! define resource-identifiers
 DEFINE_NAMED_UUID(MaterialId)
-DEFINE_NAMED_UUID(TextureSourceId)
+DEFINE_NAMED_UUID(TextureId)
 DEFINE_NAMED_UUID(SamplerId)
 
 enum class BlendMode : uint8_t
@@ -50,6 +50,18 @@ enum class TextureType : uint32_t
     Specular = 0x1000,
     SpecularColor = 0x2000,
     Environment = 0x4000
+};
+
+struct texture_data_t
+{
+    //! texture-ID
+    vierkant::TextureId texture_id = vierkant::TextureId::nil();
+
+    //! sampler-ID
+    vierkant::SamplerId sampler_id = vierkant::SamplerId::nil();
+
+    //! optional texture-transform
+    std::optional<glm::mat4> texture_transform;
 };
 
 struct material_t
@@ -109,12 +121,8 @@ struct material_t
     // iridescence thin-film layer given in nanometers (nm)
     glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
-    // optional texture-transform (todo: per image)
-    glm::mat4 texture_transform = glm::mat4(1);
-
-    // maps TextureType to a TextureId/SamplerId. sorted in enum order, which is important in other places.
-    std::map<vierkant::TextureType, vierkant::TextureSourceId> textures;
-    std::map<vierkant::TextureType, vierkant::SamplerId> samplers;
+    // maps TextureType to TextureId/SamplerId and optional transform
+    std::map<vierkant::TextureType, vierkant::texture_data_t> texture_data;
 
     bool operator==(const vierkant::material_t &other) const = default;
 };

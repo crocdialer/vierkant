@@ -40,17 +40,13 @@ size_t std::hash<vierkant::material_t>::operator()(vierkant::material_t const &m
     hash_combine(h, m.iridescence_factor);
     hash_combine(h, m.iridescence_ior);
     hash_combine(h, m.iridescence_thickness_range);
-    hash_combine(h, m.texture_transform);
 
-    for(const auto &[type, tex_id]: m.textures)
+    for(const auto &[type, tex_data]: m.texture_data)
     {
         hash_combine(h, type);
-        hash_combine(h, tex_id);
-    }
-    for(const auto &[type, sampler_id]: m.samplers)
-    {
-        hash_combine(h, type);
-        hash_combine(h, sampler_id);
+        hash_combine(h, tex_data.texture_transform);
+        hash_combine(h, tex_data.texture_id);
+        hash_combine(h, tex_data.sampler_id);
     }
     return h;
 }
