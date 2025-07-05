@@ -320,12 +320,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         if(!mesh_component || !mesh_component->mesh) { continue; }
 
         auto mesh = mesh_component->mesh;
-        bool transform_update = false;
-        if(auto *flag_cmp = object->get_component_ptr<flag_component_t>())
-        {
-            if(flag_cmp->flags & flag_component_t::DIRTY_TRANSFORM) { transform_update = true; }
-            flag_cmp->flags &= ~flag_component_t::DIRTY_TRANSFORM;
-        }
+        bool transform_update = vierkant::has_inherited_flag(object, flag_component_t::DIRTY_TRANSFORM);
         meshes.insert(mesh);
 
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&

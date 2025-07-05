@@ -96,6 +96,8 @@ struct flag_component_t
     uint32_t flags = 0;
 };
 
+bool has_inherited_flag(const vierkant::Object3D* object, uint32_t flag_bits);
+
 class alignas(8) Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:

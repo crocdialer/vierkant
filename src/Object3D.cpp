@@ -76,6 +76,19 @@ std::unique_ptr<ObjectStore> create_object_store(uint32_t max_num_objects, uint3
     return std::make_unique<ObjectStoreImpl>(max_num_objects, page_size);
 }
 
+bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits)
+{
+    while(object)
+    {
+        if(auto *flag_cmp = object->get_component_ptr<flag_component_t>())
+        {
+            if((flag_cmp->flags & flag_bits) == flag_bits) { return true; }
+        }
+        object = object->parent().get();
+    }
+    return false;
+}
+
 glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
 {
     glm::mat4 ret = mat4_cast(obj->transform);
