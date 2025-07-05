@@ -86,6 +86,16 @@ struct timer_component_t
     bool repeat = false;
 };
 
+struct flag_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+    enum FlagEnum
+    {
+        DIRTY_TRANSFORM = 1
+    };
+    uint32_t flags = 0;
+};
+
 class alignas(8) Object3D : public std::enable_shared_from_this<Object3D>
 {
 public:

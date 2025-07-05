@@ -119,6 +119,8 @@ vierkant::transform_t Object3D::global_transform() const
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
     transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent().get())) * mat4_cast(t)) : t;
+    auto &flag_cmp = add_component<flag_component_t>();
+    flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
 }
 
 bool Object3D::global_enable() const

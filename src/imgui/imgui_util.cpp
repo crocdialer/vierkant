@@ -1009,7 +1009,11 @@ void draw_object_ui(const Object3DPtr &object)
     }
 
     // transform
-    draw_transform(object->transform);
+    if(draw_transform(object->transform))
+    {
+        auto &flag_cmp = object->add_component<flag_component_t>();
+        flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
+    }
 
     bool has_physics = object->has_component<vierkant::physics_component_t>();
     if(ImGui::Checkbox("physics", &has_physics))
@@ -1225,7 +1229,12 @@ void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, co
             if(draw_transform_guizmo(transform, camera, type))
             {
                 diff = transform.translation - diff;
-                for(const auto &object: object_set) { object->transform.translation += diff; }
+                for(const auto &object: object_set)
+                {
+                    transform = object->global_transform();
+                    transform.translation += diff;
+                    object->set_global_transform(transform);
+                }
             }
         }
     }
