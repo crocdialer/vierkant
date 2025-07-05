@@ -96,7 +96,7 @@ struct flag_component_t
     uint32_t flags = 0;
 };
 
-bool has_inherited_flag(const vierkant::Object3D* object, uint32_t flag_bits);
+bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits);
 
 class alignas(8) Object3D : public std::enable_shared_from_this<Object3D>
 {
@@ -105,7 +105,7 @@ public:
 
     inline uint32_t id() const { return static_cast<uint32_t>(m_entity); };
 
-    inline Object3DPtr parent() const { return m_parent.lock(); }
+    inline Object3D *parent() const { return m_parent; }
 
     void add_child(const Object3DPtr &child);
 
@@ -252,7 +252,7 @@ protected:
 
 private:
     friend class crocore::fixed_size_free_list<vierkant::Object3D>;
-    std::weak_ptr<Object3D> m_parent;
+    Object3D *m_parent = nullptr;
 
     std::weak_ptr<entt::registry> m_registry;
 

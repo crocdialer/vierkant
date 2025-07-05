@@ -84,7 +84,7 @@ bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits)
         {
             if((flag_cmp->flags & flag_bits) == flag_bits) { return true; }
         }
-        object = object->parent().get();
+        object = object->parent();
     }
     return false;
 }
@@ -92,7 +92,7 @@ bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits)
 glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
 {
     glm::mat4 ret = mat4_cast(obj->transform);
-    Object3DPtr ancestor = obj->parent();
+    auto ancestor = obj->parent();
     while(ancestor)
     {
         ret = mat4_cast(ancestor->transform) * ret;
@@ -120,7 +120,7 @@ Object3D::~Object3D() noexcept
 vierkant::transform_t Object3D::global_transform() const
 {
     vierkant::transform_t ret = transform;
-    Object3DPtr ancestor = parent();
+    const Object3D *ancestor = parent();
     while(ancestor)
     {
         ret = ancestor->transform * ret;
@@ -131,7 +131,7 @@ vierkant::transform_t Object3D::global_transform() const
 
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent().get())) * mat4_cast(t)) : t;
+    transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent())) * mat4_cast(t)) : t;
     auto &flag_cmp = add_component<flag_component_t>();
     flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
 }
@@ -139,7 +139,7 @@ void Object3D::set_global_transform(const vierkant::transform_t &t)
 bool Object3D::global_enable() const
 {
     if(!enabled) { return false; }
-    Object3DPtr ancestor = parent();
+    const Object3D *ancestor = parent();
     while(ancestor)
     {
         if(!ancestor->enabled) { return false; }
@@ -158,7 +158,7 @@ void Object3D::set_parent(const Object3DPtr &parent_object)
         parent_object->add_child(shared_from_this());
         m_registry = parent_object->m_registry;
     }
-    else { m_parent.reset(); }
+    else { m_parent = nullptr; }
 }
 
 void Object3D::add_child(const Object3DPtr &child)
@@ -166,16 +166,16 @@ void Object3D::add_child(const Object3DPtr &child)
     if(child)
     {
         // avoid cyclic refs -> new child must not be an ancestor
-        Object3DPtr ancestor = parent();
+        const Object3D *ancestor = parent();
 
         while(ancestor)
         {
-            if(ancestor == child) { return; }
+            if(ancestor == child.get()) { return; }
             ancestor = ancestor->parent();
         }
 
         child->set_parent(Object3DPtr());
-        child->m_parent = shared_from_this();
+        child->m_parent = this;
 
         // prevent multiple insertions
         if(std::find(children.begin(), children.end(), child) == children.end()) { children.push_back(child); }
