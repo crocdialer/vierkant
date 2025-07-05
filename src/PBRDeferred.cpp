@@ -298,11 +298,11 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
 {
     bool need_culling = frame_context.cull_result.camera != cam;
-    bool materials_unchanged = true;
-    bool objects_unchanged = true;
+    frame_context.recycle_commands = true;
     frame_context.dirty_drawable_indices.clear();
 
     size_t scene_hash = 0;
+    size_t material_hash = 0;
 
     SelectVisitor<Object3D> visitor;
     visitor.select_only_enabled = true;
@@ -317,7 +317,8 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
         if(auto *flag_cmp = object->get_component_ptr<flag_component_t>())
         {
-            if(flag_cmp->flags & flag_component_t::DIRTY_MATERIAL) { materials_unchanged = false; }
+            vierkant::hash_combine(scene_hash, flag_cmp->flags & flag_component_t::DIRTY_MESH);
+            vierkant::hash_combine(material_hash, flag_cmp->flags & flag_component_t::DIRTY_MATERIAL);
         }
 
         auto mesh = mesh_component->mesh.get();
@@ -337,52 +338,59 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                                                      static_cast<float>(animation_state.current_time), node_transforms);
         }
 
-        for(uint32_t i = 0; i < mesh->entries.size(); ++i)
+        if(transform_update || animation_update)
         {
-            // entry disabled
-            if(mesh_component->entry_indices && !mesh_component->entry_indices->contains(i)) { continue; }
-
-            vierkant::hash_combine(scene_hash, i);
-            const auto &entry = mesh->entries[i];
-            id_entry_t key = {object->id(), i};
-
-            if((transform_update || animation_update) && frame_context.cull_result.index_map.contains(key))
+            for(uint32_t i = 0; i < mesh->entries.size(); ++i)
             {
-                auto transform = object->global_transform();
+                // entry disabled
+                if(mesh_component->entry_indices && !mesh_component->entry_indices->contains(i)) { continue; }
+                const auto &entry = mesh->entries[i];
+                id_entry_t key = {object->id(), i};
 
-                if(!mesh_component->library)
+                if(frame_context.cull_result.index_map.contains(key))
                 {
-                    transform = node_transforms.empty() ? transform * entry.transform
-                                                        : transform * node_transforms[entry.node_index];
+                    auto transform = object->global_transform();
+
+                    if(!mesh_component->library)
+                    {
+                        transform = node_transforms.empty() ? transform * entry.transform
+                                                            : transform * node_transforms[entry.node_index];
+                    }
+
+                    need_culling = need_culling || !frame_context.settings.indirect_draw;
+
+                    // combine mesh- with entry-transform
+                    auto drawable_index = frame_context.cull_result.index_map.at(key);
+                    frame_context.dirty_drawable_indices.insert(drawable_index);
+
+                    auto &drawable = frame_context.cull_result.drawables[drawable_index];
+                    drawable.matrices.transform = transform;
+
+                    auto it = m_entry_matrix_cache.find(key);
+                    drawable.last_matrices =
+                            it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
+
+                    m_entry_matrix_cache[key] = drawable.matrices;
                 }
-
-                need_culling = need_culling || !frame_context.settings.indirect_draw;
-
-                // combine mesh- with entry-transform
-                auto drawable_index = frame_context.cull_result.index_map.at(key);
-                frame_context.dirty_drawable_indices.insert(drawable_index);
-
-                auto &drawable = frame_context.cull_result.drawables[drawable_index];
-                drawable.matrices.transform = transform;
-
-                auto it = m_entry_matrix_cache.find(key);
-                drawable.last_matrices =
-                        it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
-
-                m_entry_matrix_cache[key] = drawable.matrices;
             }
         }
     }
 
     if(scene_hash != frame_context.scene_hash)
     {
-        objects_unchanged = false;
+        frame_context.recycle_commands = false;
         frame_context.scene_hash = scene_hash;
         frame_context.dirty_drawable_indices.clear();
     }
 
+    if(material_hash != frame_context.material_hash)
+    {
+        frame_context.recycle_commands = false;
+        frame_context.material_hash = material_hash;
+    }
+
     frame_context.recycle_commands =
-            objects_unchanged && materials_unchanged && !need_culling && frame_context.settings == settings;
+            frame_context.recycle_commands && !need_culling && frame_context.settings == settings;
 
     frame_context.settings = settings;
 }
