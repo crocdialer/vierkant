@@ -43,7 +43,7 @@ struct scoped_child_window_t
     }
 };
 
-void draw_material_ui(const MaterialPtr &mesh_material);
+bool draw_material_ui(const MaterialPtr &mesh_material);
 
 void draw_light_ui(vierkant::model::lightsource_t &light);
 
@@ -644,7 +644,7 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
     }
 }
 
-void draw_material_ui(const MaterialPtr &mesh_material)
+bool draw_material_ui(const MaterialPtr &mesh_material)
 {
     const float w = ImGui::GetContentRegionAvail().x;
 
@@ -672,7 +672,9 @@ void draw_material_ui(const MaterialPtr &mesh_material)
         }
     };
 
+    bool changed = false;
     auto &material = mesh_material->m;
+
     // name
     constexpr size_t buf_size = 4096;
     char text_buf[buf_size];
@@ -685,12 +687,12 @@ void draw_material_ui(const MaterialPtr &mesh_material)
     ImGui::Separator();
 
     // base color
-    ImGui::ColorEdit4("base color", glm::value_ptr(material.base_color));
+    changed |= ImGui::ColorEdit4("base color", glm::value_ptr(material.base_color));
     draw_texture(vierkant::TextureType::Color, "base color");
 
     // emissive color
-    ImGui::ColorEdit3("emission color", glm::value_ptr(material.emission));
-    ImGui::InputFloat("emissive strength", &material.emissive_strength);
+    changed |= ImGui::ColorEdit3("emission color", glm::value_ptr(material.emission));
+    changed |= ImGui::InputFloat("emissive strength", &material.emissive_strength);
     draw_texture(vierkant::TextureType::Emission, "emission");
 
     // normalmap
@@ -699,13 +701,13 @@ void draw_material_ui(const MaterialPtr &mesh_material)
     ImGui::Separator();
 
     // roughness
-    ImGui::SliderFloat("roughness", &material.roughness, 0.f, 1.f);
+    changed |= ImGui::SliderFloat("roughness", &material.roughness, 0.f, 1.f);
 
     // metalness
-    ImGui::SliderFloat("metalness", &material.metalness, 0.f, 1.f);
+    changed |= ImGui::SliderFloat("metalness", &material.metalness, 0.f, 1.f);
 
     // occlusion
-    ImGui::SliderFloat("occlusion", &material.occlusion, 0.f, 1.f);
+    changed |= ImGui::SliderFloat("occlusion", &material.occlusion, 0.f, 1.f);
 
     // ambient-occlusion / roughness / metalness
     draw_texture(vierkant::TextureType::Ao_rough_metal, "occlusion / roughness / metalness");
@@ -728,57 +730,59 @@ void draw_material_ui(const MaterialPtr &mesh_material)
     if(ImGui::Combo("blend-mode", &blend_mode_index, blend_items, IM_ARRAYSIZE(blend_items)))
     {
         material.blend_mode = blend_modes[blend_mode_index];
+        changed = true;
     }
 
     if(material.blend_mode == BlendMode::Mask)
     {
         // alpha-cutoff
-        ImGui::SliderFloat("alpha-cutoff", &material.alpha_cutoff, 0.f, 1.f);
+        changed |= ImGui::SliderFloat("alpha-cutoff", &material.alpha_cutoff, 0.f, 1.f);
     }
 
     // two-sided
-    ImGui::Checkbox("two-sided", &material.twosided);
+    changed |= ImGui::Checkbox("two-sided", &material.twosided);
 
     // null-surface
-    ImGui::Checkbox("null-surface", &material.null_surface);
+    changed |= ImGui::Checkbox("null-surface", &material.null_surface);
 
     // transmission
-    ImGui::SliderFloat("transmission", &material.transmission, 0.f, 1.f);
+    changed |= ImGui::SliderFloat("transmission", &material.transmission, 0.f, 1.f);
     draw_texture(vierkant::TextureType::Transmission, "transmission");
 
     // attenuation distance
-    ImGui::InputFloat("attenuation distance", &material.attenuation_distance);
+    changed |= ImGui::InputFloat("attenuation distance", &material.attenuation_distance);
 
     // attenuation color
-    ImGui::ColorEdit3("attenuation color", glm::value_ptr(material.attenuation_color));
+    changed |= ImGui::ColorEdit3("attenuation color", glm::value_ptr(material.attenuation_color));
 
     // phase_asymmetry_g
-    ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g, -1.f, 1.f);
+    changed |= ImGui::SliderFloat("phase_asymmetry_g", &material.phase_asymmetry_g, -1.f, 1.f);
 
     // scattering_ratio
-    ImGui::SliderFloat("scattering_ratio", &material.scattering_ratio, 0.f, 1.f);
+    changed |= ImGui::SliderFloat("scattering_ratio", &material.scattering_ratio, 0.f, 1.f);
 
     // index of refraction - ior
-    ImGui::InputFloat("ior", &material.ior);
+    changed |= ImGui::InputFloat("ior", &material.ior);
 
     // sheen
     ImGui::Separator();
     ImGui::Text("sheen");
-    ImGui::ColorEdit3("sheen color", glm::value_ptr(material.sheen_color));
-    ImGui::SliderFloat("sheen roughness", &material.sheen_roughness, 0.f, 1.f);
+    changed |= ImGui::ColorEdit3("sheen color", glm::value_ptr(material.sheen_color));
+    changed |= ImGui::SliderFloat("sheen roughness", &material.sheen_roughness, 0.f, 1.f);
 
     // iridescence
     ImGui::Separator();
     ImGui::Text("iridescence");
-    ImGui::SliderFloat("iridescence", &material.iridescence_factor, 0.f, 1.f);
-    ImGui::InputFloat("iridescence-ior", &material.iridescence_ior);
-    ImGui::InputFloat2("iridescence thickness", glm::value_ptr(material.iridescence_thickness_range));
+    changed |= ImGui::SliderFloat("iridescence", &material.iridescence_factor, 0.f, 1.f);
+    changed |= ImGui::InputFloat("iridescence-ior", &material.iridescence_ior);
+    changed |= ImGui::InputFloat2("iridescence thickness", glm::value_ptr(material.iridescence_thickness_range));
 
     // clearcoat
     ImGui::Separator();
     ImGui::Text("clearcoat");
-    ImGui::SliderFloat("clearcoat factor", &material.clearcoat_factor, 0.f, 1.f);
-    ImGui::SliderFloat("clearcoat roughness", &material.clearcoat_roughness_factor, 0.f, 1.f);
+    changed |= ImGui::SliderFloat("clearcoat factor", &material.clearcoat_factor, 0.f, 1.f);
+    changed |= ImGui::SliderFloat("clearcoat roughness", &material.clearcoat_roughness_factor, 0.f, 1.f);
+    return changed;
 }
 
 void draw_light_ui(vierkant::model::lightsource_t &light)
@@ -826,6 +830,8 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
     ImGui::Separator();
     ImGui::Spacing();
 
+    bool material_changed = false;
+
     // entries
     if(ImGui::TreeNode("entries", "entries (%zu)", mesh->entries.size()))
     {
@@ -864,7 +870,8 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
                 ImGui::Separator();
 
                 // material ui
-                draw_material_ui(mesh->materials[e.material_index]);
+                material_changed |= draw_material_ui(mesh->materials[e.material_index]);
+
 
                 ImGui::TreePop();
             }
@@ -888,13 +895,19 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
 
             if(mesh_material && ImGui::TreeNode((void *) (mesh_material.get()), "%s", mat_name.c_str()))
             {
-                draw_material_ui(mesh_material);
+                material_changed |= draw_material_ui(mesh_material);
                 ImGui::Separator();
                 ImGui::TreePop();
             }
         }
         ImGui::Separator();
         ImGui::TreePop();
+    }
+
+    if(material_changed)
+    {
+        auto &flag_cmp = object->add_component<vierkant::flag_component_t>();
+        flag_cmp.flags |= flag_component_t::DIRTY_MATERIAL;
     }
 
     // animation

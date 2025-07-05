@@ -80,6 +80,7 @@ void Scene::update(double time_delta)
             {
                 // clear previous dirt flags
                 flag_cmp->flags &= ~flag_component_t::DIRTY_TRANSFORM;
+                flag_cmp->flags &= ~flag_component_t::DIRTY_MATERIAL;
             }
             if(animation_cmp && mesh_cmp)
             {

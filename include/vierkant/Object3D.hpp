@@ -91,7 +91,8 @@ struct flag_component_t
     VIERKANT_ENABLE_AS_COMPONENT();
     enum FlagEnum
     {
-        DIRTY_TRANSFORM = 1
+        DIRTY_TRANSFORM = 1,
+        DIRTY_MATERIAL = 1 << 1
     };
     uint32_t flags = 0;
 };
