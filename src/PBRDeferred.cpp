@@ -750,7 +750,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                                                           src_access, dst_stage, dst_access);
             }
 
-            if(use_gpu_culling && !params.draws_counts_out)
+            if(use_gpu_culling)
             {
                 params.draws_counts_out = frame_context.indirect_draw_params_main.draws_counts_out;
                 vkCmdFillBuffer(frame_context.cmd_clear.handle(),

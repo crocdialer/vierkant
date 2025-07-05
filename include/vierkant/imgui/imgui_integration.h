@@ -35,6 +35,7 @@ public:
         std::vector<uint8_t> font_data;
         float font_size = 0.f;
         float ui_scale = 1.f;
+        bool ini_file = true;
     };
 
     /**

@@ -144,6 +144,9 @@ Context::Context(const vierkant::DevicePtr &device, const create_info_t &create_
     // Setup back-end capabilities flags
     ImGuiIO &io = ImGui::GetIO();
 
+    // option to disable ini-files
+    io.IniFilename = create_info.ini_file ? io.IniFilename : nullptr;
+
     // We can honor GetMouseCursor() values
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors;
 
