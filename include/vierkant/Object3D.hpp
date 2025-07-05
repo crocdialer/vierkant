@@ -140,8 +140,7 @@ public:
     template<object_component T>
     inline T &add_component(const T &component = {})
     {
-        if(auto reg = m_registry.lock()) { return reg->template emplace_or_replace<T>(m_entity, component); }
-        throw std::runtime_error("error adding component: no registry defined");
+        return m_registry->template emplace_or_replace<T>(m_entity, component);
     }
 
     /**
@@ -165,10 +164,9 @@ public:
     template<object_component T>
     inline bool remove_component()
     {
-        auto reg = m_registry.lock();
-        if(reg && reg->try_get<T>(m_entity))
+        if(m_registry->try_get<T>(m_entity))
         {
-            reg->remove<T>(m_entity);
+            m_registry->remove<T>(m_entity);
             return true;
         }
         return false;
@@ -183,8 +181,7 @@ public:
     template<object_component T>
     inline T *get_component_ptr()
     {
-        auto reg = m_registry.lock();
-        return reg ? reg->try_get<T>(m_entity) : nullptr;
+        return m_registry->try_get<T>(m_entity);
     }
 
     /**
@@ -196,8 +193,7 @@ public:
     template<object_component T>
     inline const T *get_component_ptr() const
     {
-        auto reg = m_registry.lock();
-        return reg ? reg->try_get<T>(m_entity) : nullptr;
+        return m_registry->try_get<T>(m_entity);
     }
 
     /**
@@ -248,13 +244,13 @@ public:
     VIERKANT_ENABLE_AS_COMPONENT();
 
 protected:
-    explicit Object3D(const std::shared_ptr<entt::registry> &registry, std::string name = "");
+    explicit Object3D(entt::registry *registry, std::string name = "");
 
 private:
     friend class crocore::fixed_size_free_list<vierkant::Object3D>;
     Object3D *m_parent = nullptr;
 
-    std::weak_ptr<entt::registry> m_registry;
+    entt::registry *m_registry = nullptr;
 
     entt::entity m_entity;
 };

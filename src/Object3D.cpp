@@ -12,7 +12,7 @@ public:
 
     Object3DPtr create_object() override
     {
-        uint32_t index = m_free_list.create(m_registry);
+        uint32_t index = m_free_list.create(m_registry.get());
         return {&m_free_list.get(index), [this, index](Object3D *) { m_free_list.destroy(index); }};
     }
 
@@ -101,12 +101,11 @@ glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
     return ret;
 }
 
-Object3D::Object3D(const std::shared_ptr<entt::registry> &registry, std::string name_)
-    : name(std::move(name_)), m_registry(registry)
+Object3D::Object3D(entt::registry *registry, std::string name_) : name(std::move(name_)), m_registry(registry)
 {
-    if(auto reg = m_registry.lock())
+    if(registry)
     {
-        m_entity = reg->create();
+        m_entity = m_registry->create();
         add_component(this);
     }
     if(name.empty()) { name = "Object3D_" + std::to_string(id()); }
@@ -114,7 +113,7 @@ Object3D::Object3D(const std::shared_ptr<entt::registry> &registry, std::string 
 
 Object3D::~Object3D() noexcept
 {
-    if(auto reg = m_registry.lock()) { reg->destroy(m_entity); }
+    if(m_registry) { m_registry->destroy(m_entity); }
 }
 
 vierkant::transform_t Object3D::global_transform() const
@@ -138,12 +137,11 @@ void Object3D::set_global_transform(const vierkant::transform_t &t)
 
 bool Object3D::global_enable() const
 {
-    if(!enabled) { return false; }
-    const Object3D *ancestor = parent();
-    while(ancestor)
+    const Object3D *object = this;
+    while(object)
     {
-        if(!ancestor->enabled) { return false; }
-        ancestor = ancestor->parent();
+        if(!object->enabled) { return false; }
+        object = object->parent();
     }
     return true;
 }
