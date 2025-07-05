@@ -23,7 +23,7 @@ struct cull_result_t
     //! list of drawables
     std::vector<vierkant::drawable_t> drawables;
 
-    std::unordered_set<vierkant::MeshConstPtr> meshes;
+    std::unordered_set<const vierkant::Mesh*> meshes;
 
     //! list of light-sources
     std::vector<vierkant::lightsource_ubo_t> lights;

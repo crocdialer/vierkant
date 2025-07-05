@@ -76,16 +76,21 @@ void Scene::update(double time_delta)
             auto animation_cmp = obj.get_component_ptr<animation_component_t>();
             auto mesh_cmp = obj.get_component_ptr<mesh_component_t>();
 
+            if(auto *flag_cmp = obj.get_component_ptr<flag_component_t>())
+            {
+                // clear previous dirt flags
+                flag_cmp->flags &= ~flag_component_t::DIRTY_TRANSFORM;
+            }
             if(animation_cmp && mesh_cmp)
             {
                 vierkant::update_animation(mesh_cmp->mesh->node_animations[animation_cmp->index], time_delta,
                                            *animation_cmp);
             }
-            if(auto update_cmp = obj.get_component_ptr<update_component_t>())
+            if(auto *update_cmp = obj.get_component_ptr<update_component_t>())
             {
                 if(update_cmp->update_fn) { update_cmp->update_fn(obj, time_delta); }
             }
-            if(auto timer_cmp = obj.get_component_ptr<timer_component_t>())
+            if(auto *timer_cmp = obj.get_component_ptr<timer_component_t>())
             {
                 timer_cmp->duration -= timer_component_t::duration_t(time_delta);
                 if(timer_cmp->duration <= timer_component_t::duration_t(0) && timer_cmp->timer_fn)

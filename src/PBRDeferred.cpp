@@ -297,33 +297,29 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
 {
-    std::unordered_set<vierkant::MeshConstPtr> meshes;
-    std::unordered_map<vierkant::id_entry_t, size_t> transform_hashes;
-
+    std::unordered_set<const vierkant::Mesh *> meshes;
     bool need_culling = frame_context.cull_result.camera != cam;
     bool materials_unchanged = true;
     bool objects_unchanged = true;
     frame_context.dirty_drawable_indices.clear();
 
-    auto transform_hasher = std::hash<vierkant::transform_t>();
     size_t scene_hash = 0;
 
     SelectVisitor<Object3D> visitor;
     visitor.select_only_enabled = true;
     scene->root()->accept(visitor);
 
-    for(const auto *object: visitor.objects)
+    for(auto *object: visitor.objects)
     {
         if(!object) { continue; }
 
         vierkant::hash_combine(scene_hash, object);
-        auto obj_global_transform = object->global_transform();
 
         auto *mesh_component = object->get_component_ptr<mesh_component_t>();
         if(!mesh_component || !mesh_component->mesh) { continue; }
 
-        auto mesh = mesh_component->mesh;
-        bool transform_update = false;
+        auto mesh = mesh_component->mesh.get();
+        bool transform_update = vierkant::has_inherited_flag(object, flag_component_t::DIRTY_TRANSFORM);
         meshes.insert(mesh);
 
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
@@ -350,21 +346,16 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
             id_entry_t key = {object->id(), i};
 
-            auto entry_transform = obj_global_transform;
-            if(!mesh_component->library)
-            {
-                entry_transform = node_transforms.empty() ? obj_global_transform * entry.transform
-                                                          : obj_global_transform * node_transforms[entry.node_index];
-            }
-            auto transform_hash = transform_hasher(entry_transform);
-            transform_hashes[key] = transform_hash;
-
-            auto hash_it = frame_context.transform_hashes.find(key);
-            transform_update = transform_update ||
-                               (hash_it != frame_context.transform_hashes.end() && hash_it->second != transform_hash);
-
             if((transform_update || animation_update) && frame_context.cull_result.index_map.contains(key))
             {
+                auto transform = object->global_transform();
+                
+                if(!mesh_component->library)
+                {
+                    transform = node_transforms.empty() ? transform * entry.transform
+                                                        : transform * node_transforms[entry.node_index];
+                }
+
                 need_culling = need_culling || !frame_context.settings.indirect_draw;
 
                 // combine mesh- with entry-transform
@@ -372,7 +363,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_context.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_context.cull_result.drawables[drawable_index];
-                drawable.matrices.transform = entry_transform;
+                drawable.matrices.transform = transform;
 
                 auto it = m_entry_matrix_cache.find(key);
                 drawable.last_matrices =
@@ -383,7 +374,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         }
     }
 
-    frame_context.transform_hashes = std::move(transform_hashes);
+    // frame_context.transform_hashes = std::move(transform_hashes);
 
     if(scene_hash != frame_context.scene_hash)
     {

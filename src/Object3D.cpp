@@ -12,7 +12,7 @@ public:
 
     Object3DPtr create_object() override
     {
-        uint32_t index = m_free_list.create(m_registry);
+        uint32_t index = m_free_list.create(m_registry.get());
         return {&m_free_list.get(index), [this, index](Object3D *) { m_free_list.destroy(index); }};
     }
 
@@ -76,10 +76,23 @@ std::unique_ptr<ObjectStore> create_object_store(uint32_t max_num_objects, uint3
     return std::make_unique<ObjectStoreImpl>(max_num_objects, page_size);
 }
 
+bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits)
+{
+    while(object)
+    {
+        if(auto *flag_cmp = object->get_component_ptr<flag_component_t>())
+        {
+            if((flag_cmp->flags & flag_bits) == flag_bits) { return true; }
+        }
+        object = object->parent();
+    }
+    return false;
+}
+
 glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
 {
     glm::mat4 ret = mat4_cast(obj->transform);
-    Object3DPtr ancestor = obj->parent();
+    auto ancestor = obj->parent();
     while(ancestor)
     {
         ret = mat4_cast(ancestor->transform) * ret;
@@ -88,12 +101,11 @@ glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
     return ret;
 }
 
-Object3D::Object3D(const std::shared_ptr<entt::registry> &registry, std::string name_)
-    : name(std::move(name_)), m_registry(registry)
+Object3D::Object3D(entt::registry *registry, std::string name_) : name(std::move(name_)), m_registry(registry)
 {
-    if(auto reg = m_registry.lock())
+    if(registry)
     {
-        m_entity = reg->create();
+        m_entity = m_registry->create();
         add_component(this);
     }
     if(name.empty()) { name = "Object3D_" + std::to_string(id()); }
@@ -101,13 +113,13 @@ Object3D::Object3D(const std::shared_ptr<entt::registry> &registry, std::string 
 
 Object3D::~Object3D() noexcept
 {
-    if(auto reg = m_registry.lock()) { reg->destroy(m_entity); }
+    if(m_registry) { m_registry->destroy(m_entity); }
 }
 
 vierkant::transform_t Object3D::global_transform() const
 {
     vierkant::transform_t ret = transform;
-    Object3DPtr ancestor = parent();
+    const Object3D *ancestor = parent();
     while(ancestor)
     {
         ret = ancestor->transform * ret;
@@ -118,17 +130,18 @@ vierkant::transform_t Object3D::global_transform() const
 
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent().get())) * mat4_cast(t)) : t;
+    transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent())) * mat4_cast(t)) : t;
+    auto &flag_cmp = add_component<flag_component_t>();
+    flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
 }
 
 bool Object3D::global_enable() const
 {
-    if(!enabled) { return false; }
-    Object3DPtr ancestor = parent();
-    while(ancestor)
+    const Object3D *object = this;
+    while(object)
     {
-        if(!ancestor->enabled) { return false; }
-        ancestor = ancestor->parent();
+        if(!object->enabled) { return false; }
+        object = object->parent();
     }
     return true;
 }
@@ -143,7 +156,7 @@ void Object3D::set_parent(const Object3DPtr &parent_object)
         parent_object->add_child(shared_from_this());
         m_registry = parent_object->m_registry;
     }
-    else { m_parent.reset(); }
+    else { m_parent = nullptr; }
 }
 
 void Object3D::add_child(const Object3DPtr &child)
@@ -151,16 +164,16 @@ void Object3D::add_child(const Object3DPtr &child)
     if(child)
     {
         // avoid cyclic refs -> new child must not be an ancestor
-        Object3DPtr ancestor = parent();
+        const Object3D *ancestor = parent();
 
         while(ancestor)
         {
-            if(ancestor == child) { return; }
+            if(ancestor == child.get()) { return; }
             ancestor = ancestor->parent();
         }
 
         child->set_parent(Object3DPtr());
-        child->m_parent = shared_from_this();
+        child->m_parent = this;
 
         // prevent multiple insertions
         if(std::find(children.begin(), children.end(), child) == children.end()) { children.push_back(child); }

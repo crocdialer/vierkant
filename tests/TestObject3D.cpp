@@ -14,11 +14,10 @@ struct test_component_t
 TEST(Object3D, hierarchy)
 {
     auto object_store = vierkant::create_object_store();
-    Object3DPtr a(object_store->create_object()), b(object_store->create_object()),
-            c(object_store->create_object());
+    Object3DPtr a(object_store->create_object()), b(object_store->create_object()), c(object_store->create_object());
 
     a->set_parent(b);
-    EXPECT_TRUE(a->parent() == b);
+    EXPECT_TRUE(a->parent() == b.get());
     EXPECT_TRUE(b->children.size() == 1);
 
     b->remove_child(a);
@@ -28,7 +27,7 @@ TEST(Object3D, hierarchy)
 
     a->add_child(b);
     EXPECT_TRUE(a->children.size() == 1);
-    EXPECT_TRUE(b->parent() == a);
+    EXPECT_TRUE(b->parent() == a.get());
 
     b->set_parent(Object3DPtr());
     EXPECT_TRUE(a->children.empty());
@@ -37,8 +36,8 @@ TEST(Object3D, hierarchy)
     // a -> b -> c
     c->set_parent(b);
     a->add_child(b);
-    EXPECT_TRUE(c->parent() == b);
-    EXPECT_TRUE(b->parent() == a);
+    EXPECT_TRUE(c->parent() == b.get());
+    EXPECT_TRUE(b->parent() == a.get());
 
     a->transform.translation = {0, 100, 0};
     b->transform.translation = {0, 50, 0};

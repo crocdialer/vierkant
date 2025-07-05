@@ -48,7 +48,7 @@ public:
                                  vierkant::ortho_camera_params_t params = {})
     {
         {
-            auto ret = OrthoCameraPtr(new OrthoCamera(registry));
+            auto ret = OrthoCameraPtr(new OrthoCamera(registry.get()));
             ret->ortho_params = params;
             return ret;
         }
@@ -69,7 +69,7 @@ public:
     void accept(class Visitor &v) override;
 
 private:
-    explicit OrthoCamera(const std::shared_ptr<entt::registry> &registry);
+    explicit OrthoCamera(entt::registry *registry);
 };
 
 class PerspectiveCamera : public Camera
@@ -80,7 +80,7 @@ public:
     static PerspectiveCameraPtr create(const std::shared_ptr<entt::registry> &registry,
                                        const physical_camera_params_t params = {})
     {
-        auto ret = PerspectiveCameraPtr(new PerspectiveCamera(registry));
+        auto ret = PerspectiveCameraPtr(new PerspectiveCamera(registry.get()));
         ret->perspective_params = params;
         return ret;
     }
@@ -100,7 +100,7 @@ public:
     void accept(class Visitor &v) override;
 
 private:
-    explicit PerspectiveCamera(const std::shared_ptr<entt::registry> &registry);
+    explicit PerspectiveCamera(entt::registry *registry);
 };
 
 class CubeCamera : public Camera

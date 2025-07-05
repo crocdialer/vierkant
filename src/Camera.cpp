@@ -27,7 +27,7 @@ vierkant::transform_t Camera::view_transform() const { return vierkant::inverse(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-OrthoCamera::OrthoCamera(const std::shared_ptr<entt::registry> &registry) : Object3D(registry, "OrthoCamera") {}
+OrthoCamera::OrthoCamera(entt::registry *registry) : Object3D(registry, "OrthoCamera") {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -64,9 +64,7 @@ vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-PerspectiveCamera::PerspectiveCamera(const std::shared_ptr<entt::registry> &registry)
-    : Object3D(registry, "PerspectiveCamera")
-{}
+PerspectiveCamera::PerspectiveCamera(entt::registry *registry) : Object3D(registry, "PerspectiveCamera") {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -112,6 +110,7 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
+// TODO: Fix, no registry
 CubeCamera::CubeCamera(float the_near, float the_far) : Object3D({}, "CubeCamera"), m_near(the_near), m_far(the_far) {}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
