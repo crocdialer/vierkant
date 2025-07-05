@@ -350,7 +350,13 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
             id_entry_t key = {object->id(), i};
 
-            auto transform_hash = transform_hasher(obj_global_transform * entry.transform);
+            auto entry_transform = obj_global_transform;
+            if(!mesh_component->library)
+            {
+                entry_transform = node_transforms.empty() ? obj_global_transform * entry.transform
+                                                          : obj_global_transform * node_transforms[entry.node_index];
+            }
+            auto transform_hash = transform_hasher(entry_transform);
             transform_hashes[key] = transform_hash;
 
             auto hash_it = frame_context.transform_hashes.find(key);
@@ -366,14 +372,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_context.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_context.cull_result.drawables[drawable_index];
-
-                if(mesh_component->library) { drawable.matrices.transform = obj_global_transform; }
-                else
-                {
-                    drawable.matrices.transform = node_transforms.empty()
-                                                          ? obj_global_transform * entry.transform
-                                                          : obj_global_transform * node_transforms[entry.node_index];
-                }
+                drawable.matrices.transform = entry_transform;
 
                 auto it = m_entry_matrix_cache.find(key);
                 drawable.last_matrices =

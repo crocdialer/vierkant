@@ -106,16 +106,19 @@ Object3D::~Object3D() noexcept
 
 vierkant::transform_t Object3D::global_transform() const
 {
-    // ignores top-lvl root transform
-    return parent() && parent()->parent() ? transform_cast(get_global_mat4(this)) : transform;
+    vierkant::transform_t ret = transform;
+    Object3DPtr ancestor = parent();
+    while(ancestor)
+    {
+        ret = ancestor->transform * ret;
+        ancestor = ancestor->parent();
+    }
+    return ret;
 }
 
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
-    // ignores top-lvl root transform
-    transform = parent() && parent()->parent()
-                        ? transform_cast(glm::inverse(get_global_mat4(parent().get())) * mat4_cast(t))
-                        : t;
+    transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent().get())) * mat4_cast(t)) : t;
 }
 
 bool Object3D::global_enable() const
