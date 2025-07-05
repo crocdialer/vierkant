@@ -80,7 +80,7 @@ bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::Th
     std::chrono::milliseconds compress_total_duration(0);
     size_t num_pixels = 0;
 
-    auto check_normal_map = [&mesh_assets](TextureSourceId tex_id) -> bool {
+    auto check_normal_map = [&mesh_assets](TextureId tex_id) -> bool {
         return std::ranges::any_of(mesh_assets.materials.begin(), mesh_assets.materials.end(),
                                    [&tex_id](const auto &m) -> bool
 
@@ -136,8 +136,11 @@ bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::Th
     return true;
 }
 
-vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::model::model_assets_t &mesh_assets)
+model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
+                                    const vierkant::model::model_assets_t &mesh_assets)
 {
+    model::load_mesh_result_t ret;
+
     assert(params.device);
     std::vector<vierkant::BufferPtr> staging_buffers;
 
@@ -179,7 +182,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
     mesh_create_info.mesh_buffer_params = params.mesh_buffers_params;
     mesh_create_info.command_buffer = cmd_buf.handle();
     mesh_create_info.staging_buffer = mesh_staging_buf;
-    vierkant::MeshPtr mesh = std::visit(
+    ret.mesh = std::visit(
             [&mesh_create_info, &device = params.device](auto &&geometry_data) -> vierkant::MeshPtr {
                 using T = std::decay_t<decltype(geometry_data)>;
 
@@ -195,61 +198,58 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
             mesh_assets.geometry_data);
 
     // skin + bones
-    mesh->root_bone = mesh_assets.root_bone;
+    ret.mesh->root_bone = mesh_assets.root_bone;
 
     // node hierarchy
-    mesh->root_node = mesh_assets.root_node;
+    ret.mesh->root_node = mesh_assets.root_node;
 
     // node animations
-    mesh->node_animations = mesh_assets.node_animations;
-
-    // create + cache textures & samplers
-    std::unordered_map<vierkant::TextureSourceId, vierkant::ImagePtr> texture_cache;
-    std::unordered_map<vierkant::SamplerId, vierkant::VkSamplerPtr> sampler_cache;
+    ret.mesh->node_animations = mesh_assets.node_animations;
 
     // generate textures with default samplers
     for(const auto &[id, tex_variant]: mesh_assets.textures)
     {
         std::visit(
-                [&params, tex_id = id, &texture_cache, &create_texture](auto &&img) {
+                [&params, tex_id = id, &ret, &create_texture](auto &&img) {
                     using T = std::decay_t<decltype(img)>;
 
-                    if constexpr(std::is_same_v<T, crocore::ImagePtr>) { texture_cache[tex_id] = create_texture(img); }
+                    if constexpr(std::is_same_v<T, crocore::ImagePtr>) { ret.textures[tex_id] = create_texture(img); }
                     else if constexpr(std::is_same_v<T, vierkant::bcn::compress_result_t>)
                     {
                         vierkant::Image::Format fmt;
                         fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
                         fmt.max_anisotropy = params.device->properties().core.limits.maxSamplerAnisotropy;
-                        texture_cache[tex_id] = create_compressed_texture(params.device, img, fmt, params.load_queue);
+                        ret.textures[tex_id] = create_compressed_texture(params.device, img, fmt, params.load_queue);
                     }
                 },
                 tex_variant);
     }
-    mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
+    ret.mesh->materials.resize(std::max<size_t>(1, mesh_assets.materials.size()));
 
     for(uint32_t i = 0; i < mesh_assets.materials.size(); ++i)
     {
         const auto &asset_mat = mesh_assets.materials[i];
 
-        auto &material = mesh->materials[i];
+        auto &material = ret.mesh->materials[i];
         material = vierkant::Material::create();
         material->m = asset_mat;
         material->hash = std::hash<vierkant::material_t>()(asset_mat);
 
         for(const auto &[tex_type, tex_data]: asset_mat.texture_data)
         {
-            auto vk_img = texture_cache[tex_data.texture_id];
+            auto vk_img = ret.textures[tex_data.texture_id];
 
             // optional sampler-override
             if(tex_data.sampler_id)
             {
                 // clone img
-                vk_img = texture_cache[tex_data.texture_id]->clone();
+                vk_img = ret.textures[tex_data.texture_id]->clone();
                 auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
 
                 if(sampler_it != mesh_assets.texture_samplers.end())
                 {
                     auto vk_sampler = create_sampler(params.device, sampler_it->second, vk_img->num_mip_levels());
+                    ret.samplers[tex_data.sampler_id] = vk_sampler;
                     vk_img->set_sampler(vk_sampler);
                 }
                 else
@@ -264,7 +264,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
 
     // submit transfer and sync
     cmd_buf.submit(params.load_queue ? params.load_queue : params.device->queue(), true);
-    return mesh;
+    return ret;
 }
 
 // TODO: fix unnecessary blocking, rework with commandbuffer-handle and staging-buffer!?

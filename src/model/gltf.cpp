@@ -294,7 +294,7 @@ vierkant::GeometryPtr create_geometry(const tinygltf::Primitive &primitive, cons
 
 vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const tinygltf::Model &model,
                                       const std::map<uint32_t, crocore::ImagePtr> &image_cache,
-                                      const std::unordered_map<uint32_t, TextureSourceId> &tex_id_cache,
+                                      const std::unordered_map<uint32_t, TextureId> &tex_id_cache,
                                       const std::unordered_map<uint32_t, SamplerId> &sampler_id_cache)
 {
     vierkant::material_t ret;
@@ -920,10 +920,10 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
     }
 
     // populate out-textures, generate UUIDs-handles
-    std::unordered_map<uint32_t, TextureSourceId> tex_id_cache;
+    std::unordered_map<uint32_t, TextureId> tex_id_cache;
     for(const auto &[index, img]: image_cache)
     {
-        auto texture_id = TextureSourceId::random();
+        auto texture_id = TextureId::random();
         tex_id_cache[index] = texture_id;
         out_assets.textures[texture_id] = img;
     }

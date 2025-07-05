@@ -15,7 +15,7 @@ namespace vierkant
 
 //! define resource-identifiers
 DEFINE_NAMED_UUID(MaterialId)
-DEFINE_NAMED_UUID(TextureSourceId)
+DEFINE_NAMED_UUID(TextureId)
 DEFINE_NAMED_UUID(SamplerId)
 
 enum class BlendMode : uint8_t
@@ -55,11 +55,11 @@ enum class TextureType : uint32_t
 struct texture_data_t
 {
     //! texture-ID
-    vierkant::TextureSourceId texture_id = vierkant::TextureSourceId::nil();
-    
+    vierkant::TextureId texture_id = vierkant::TextureId::nil();
+
     //! sampler-ID
     vierkant::SamplerId sampler_id = vierkant::SamplerId::nil();
-    
+
     //! optional texture-transform
     std::optional<glm::mat4> texture_transform;
 };
