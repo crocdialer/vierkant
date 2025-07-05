@@ -52,6 +52,18 @@ enum class TextureType : uint32_t
     Environment = 0x4000
 };
 
+struct texture_data_t
+{
+    //! texture-ID
+    vierkant::TextureSourceId texture_id = vierkant::TextureSourceId::nil();
+    
+    //! sampler-ID
+    vierkant::SamplerId sampler_id = vierkant::SamplerId::nil();
+    
+    //! optional texture-transform
+    std::optional<glm::mat4> texture_transform;
+};
+
 struct material_t
 {
     vierkant::MaterialId id;
@@ -109,12 +121,8 @@ struct material_t
     // iridescence thin-film layer given in nanometers (nm)
     glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
-    // optional texture-transform (todo: per image)
-    glm::mat4 texture_transform = glm::mat4(1);
-
-    // maps TextureType to a TextureId/SamplerId. sorted in enum order, which is important in other places.
-    std::map<vierkant::TextureType, vierkant::TextureSourceId> textures;
-    std::map<vierkant::TextureType, vierkant::SamplerId> samplers;
+    // maps TextureType to TextureId/SamplerId and optional transform
+    std::map<vierkant::TextureType, vierkant::texture_data_t> texture_data;
 
     bool operator==(const vierkant::material_t &other) const = default;
 };

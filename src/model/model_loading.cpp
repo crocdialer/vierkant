@@ -85,8 +85,8 @@ bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::Th
                                    [&tex_id](const auto &m) -> bool
 
                                    {
-                                       auto it = m.textures.find(TextureType::Normal);
-                                       return it != m.textures.end() && it->second == tex_id;
+                                       auto it = m.texture_data.find(TextureType::Normal);
+                                       return it != m.texture_data.end() && it->second.texture_id == tex_id;
                                    });
     };
 
@@ -236,18 +236,16 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
         material->m = asset_mat;
         material->hash = std::hash<vierkant::material_t>()(asset_mat);
 
-        for(const auto &[tex_type, tex_id]: asset_mat.textures)
+        for(const auto &[tex_type, tex_data]: asset_mat.texture_data)
         {
-            auto vk_img = texture_cache[tex_id];
+            auto vk_img = texture_cache[tex_data.texture_id];
 
             // optional sampler-override
-            auto sampler_id_it = asset_mat.samplers.find(tex_type);
-            if(sampler_id_it != asset_mat.samplers.end())
+            if(tex_data.sampler_id)
             {
                 // clone img
-                vk_img = texture_cache[tex_id]->clone();
-                const auto &sampler_id = sampler_id_it->second;
-                auto sampler_it = mesh_assets.texture_samplers.find(sampler_id);
+                vk_img = texture_cache[tex_data.texture_id]->clone();
+                auto sampler_it = mesh_assets.texture_samplers.find(tex_data.sampler_id);
 
                 if(sampler_it != mesh_assets.texture_samplers.end())
                 {
@@ -257,7 +255,7 @@ vierkant::MeshPtr load_mesh(const load_mesh_params_t &params, const vierkant::mo
                 else
                 {
                     spdlog::warn("material '{}' references sampler '{}', but could not find in bundle", asset_mat.name,
-                                 sampler_id.str());
+                                 tex_data.sampler_id.str());
                 }
             }
             material->textures[tex_type] = vk_img;

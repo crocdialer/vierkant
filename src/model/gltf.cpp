@@ -144,9 +144,9 @@ vierkant::transform_t node_transform(const tinygltf::Node &tiny_node)
     return ret;
 }
 
-glm::mat4 texture_transform(const tinygltf::TextureInfo &texture_info)
+std::optional<glm::mat4> texture_transform(const tinygltf::TextureInfo &texture_info)
 {
-    glm::mat4 ret(1);
+    std::optional<glm::mat4> ret;
     auto ext_transform_it = texture_info.extensions.find(KHR_texture_transform);
 
     if(ext_transform_it != texture_info.extensions.end())
@@ -311,19 +311,32 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
     ret.roughness = static_cast<float>(tiny_mat.pbrMetallicRoughness.roughnessFactor);
     ret.twosided = tiny_mat.doubleSided;
 
-    auto insert_texture = [&](int tex_index, vierkant::TextureType tex_type) -> bool {
+    auto insert_texture = [&](const auto &texture_info, vierkant::TextureType tex_type) -> bool {
+        using T = std::decay_t<decltype(texture_info)>;
+        int32_t tex_index;
+        if constexpr(std::is_same_v<T, tinygltf::TextureInfo>) { tex_index = texture_info.index; }
+        else if constexpr(std::is_same_v<T, tinygltf::NormalTextureInfo>) { tex_index = texture_info.index; }
+        else { tex_index = texture_info; }
+
         if(tex_index >= 0)
         {
             int img_index = model.textures[tex_index].source;
             assert(tex_id_cache.contains(img_index));
-            ret.textures[tex_type] = tex_id_cache.at(img_index);
+
+            auto &texture_data = ret.texture_data[tex_type];
+            texture_data.texture_id = tex_id_cache.at(img_index);
 
             int sampler_index = model.textures[tex_index].sampler;
             auto sampler_id_it = sampler_id_cache.find(sampler_index);
 
             if(sampler_index >= 0 && sampler_id_it != sampler_id_cache.end())
             {
-                ret.samplers[tex_type] = sampler_id_it->second;
+                texture_data.sampler_id = sampler_id_it->second;
+            }
+
+            if constexpr(std::is_same_v<T, tinygltf::TextureInfo>)
+            {
+                texture_data.texture_transform = texture_transform(texture_info);
             }
             return true;
         }
@@ -331,22 +344,19 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
     };
 
     // albedo
-    if(insert_texture(tiny_mat.pbrMetallicRoughness.baseColorTexture.index, TextureType::Color))
-    {
-        ret.texture_transform = texture_transform(tiny_mat.pbrMetallicRoughness.baseColorTexture);
-    }
+    insert_texture(tiny_mat.pbrMetallicRoughness.baseColorTexture, TextureType::Color);
 
     // ao / rough / metal
-    insert_texture(tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index, TextureType::Ao_rough_metal);
+    insert_texture(tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture, TextureType::Ao_rough_metal);
 
     // normals
-    insert_texture(tiny_mat.normalTexture.index, TextureType::Normal);
+    insert_texture(tiny_mat.normalTexture, TextureType::Normal);
 
     // emission
-    if(insert_texture(tiny_mat.emissiveTexture.index, TextureType::Emission)) { ret.emission = glm::vec3(0.f); }
+    if(insert_texture(tiny_mat.emissiveTexture, TextureType::Emission)) { ret.emission = glm::vec3(0.f); }
 
     // occlusion only supported alongside rough/metal
-    if(ret.textures.contains(TextureType::Ao_rough_metal) && tiny_mat.occlusionTexture.index >= 0)
+    if(ret.texture_data.contains(TextureType::Ao_rough_metal) && tiny_mat.occlusionTexture.index >= 0)
     {
         if(tiny_mat.occlusionTexture.index != tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index)
         {
@@ -378,7 +388,7 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
             }
         }
     }
-    else if(ret.textures.contains(TextureType::Ao_rough_metal))
+    else if(ret.texture_data.contains(TextureType::Ao_rough_metal))
     {
         auto ao_roughness_metal_image =
                 image_cache.at(model.textures[tiny_mat.pbrMetallicRoughness.metallicRoughnessTexture.index].source);
@@ -417,13 +427,15 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
             if(value.Has(ext_specular_texture))
             {
                 const auto &specular_texture_value = value.Get(ext_specular_texture);
-                insert_texture(specular_texture_value.Get("index").GetNumberAsInt(), TextureType::Specular);
+                auto spec_tex_index = specular_texture_value.Get("index").GetNumberAsInt();
+                insert_texture(spec_tex_index, TextureType::Specular);
             }
 
             if(value.Has(ext_specular_color_texture))
             {
                 const auto &specular_color_texture_value = value.Get(ext_specular_color_texture);
-                insert_texture(specular_color_texture_value.Get("index").GetNumberAsInt(), TextureType::SpecularColor);
+                auto spec_color_tex_index = specular_color_texture_value.Get("index").GetNumberAsInt();
+                insert_texture(spec_color_tex_index, TextureType::SpecularColor);
             }
         }
         else if(ext == KHR_materials_transmission)
@@ -436,7 +448,8 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
             if(value.Has(ext_transmission_texture))
             {
                 const auto &transmission_texture_value = value.Get(ext_transmission_texture);
-                insert_texture(transmission_texture_value.Get("index").GetNumberAsInt(), TextureType::Transmission);
+                auto transmission_texture_index = transmission_texture_value.Get("index").GetNumberAsInt();
+                insert_texture(transmission_texture_index, TextureType::Transmission);
             }
         }
         else if(ext == KHR_materials_volume)
@@ -518,7 +531,7 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
                 const auto &iridescence_texture_value = value.Get(ext_iridescence_texture);
                 auto img_index = model.textures[iridescence_texture_value.Get("index").GetNumberAsInt()].source;
                 assert(tex_id_cache.contains(img_index));
-                ret.textures[TextureType::Iridescence] = tex_id_cache.at(img_index);
+                ret.texture_data[TextureType::Iridescence].texture_id = tex_id_cache.at(img_index);
             }
             if(value.Has(ext_iridescence_ior))
             {
@@ -540,13 +553,13 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
                 auto img_index =
                         model.textures[iridescence_thickness_texture_value.Get("index").GetNumberAsInt()].source;
                 assert(tex_id_cache.contains(img_index));
-                ret.textures[TextureType::IridescenceThickness] = tex_id_cache.at(img_index);
+                ret.texture_data[TextureType::IridescenceThickness].texture_id = tex_id_cache.at(img_index);
                 assert(image_cache.contains(img_index));
                 auto img_iridescence_thickness = image_cache.at(img_index);
 
-                if(!ret.textures.contains(TextureType::Iridescence))
+                if(!ret.texture_data.contains(TextureType::Iridescence))
                 {
-                    ret.textures[TextureType::Iridescence] = tex_id_cache.at(img_index);
+                    ret.texture_data[TextureType::Iridescence].texture_id = tex_id_cache.at(img_index);
 
                     if(auto img = std::dynamic_pointer_cast<crocore::Image_<uint8_t>>(img_iridescence_thickness))
                     {
@@ -1046,7 +1059,7 @@ std::optional<model_assets_t> gltf(const std::filesystem::path &path, crocore::T
                 entry_create_infos.push_back(std::move(create_info));
 
             }// for all primitives
-        }// mesh
+        }    // mesh
 
         // node references camera
         if(tiny_node.camera >= 0 && static_cast<uint32_t>(tiny_node.camera) < model.cameras.size())
