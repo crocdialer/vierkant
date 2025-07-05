@@ -855,6 +855,8 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
                 if(entry_enabled) { mesh_component.entry_indices->insert(entry_idx); }
                 else { mesh_component.entry_indices->erase(entry_idx); }
                 if(mesh_component.entry_indices->size() == mesh->entries.size()) { mesh_component.entry_indices = {}; }
+                auto &flag_cmp = object->add_component<flag_component_t>();
+                flag_cmp.flags |= flag_component_t::DIRTY_MESH;
             }
             ImGui::SameLine();
 
