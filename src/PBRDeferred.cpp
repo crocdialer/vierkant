@@ -297,7 +297,7 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
 {
-    std::unordered_set<vierkant::MeshConstPtr> meshes;
+    std::unordered_set<const vierkant::Mesh *> meshes;
     bool need_culling = frame_context.cull_result.camera != cam;
     bool materials_unchanged = true;
     bool objects_unchanged = true;
@@ -314,12 +314,11 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         if(!object) { continue; }
 
         vierkant::hash_combine(scene_hash, object);
-        auto obj_global_transform = object->global_transform();
 
         auto *mesh_component = object->get_component_ptr<mesh_component_t>();
         if(!mesh_component || !mesh_component->mesh) { continue; }
 
-        auto mesh = mesh_component->mesh;
+        auto mesh = mesh_component->mesh.get();
         bool transform_update = vierkant::has_inherited_flag(object, flag_component_t::DIRTY_TRANSFORM);
         meshes.insert(mesh);
 
@@ -349,12 +348,12 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
             if((transform_update || animation_update) && frame_context.cull_result.index_map.contains(key))
             {
-                auto entry_transform = obj_global_transform;
+                auto transform = object->global_transform();
+                
                 if(!mesh_component->library)
                 {
-                    entry_transform = node_transforms.empty()
-                                              ? obj_global_transform * entry.transform
-                                              : obj_global_transform * node_transforms[entry.node_index];
+                    transform = node_transforms.empty() ? transform * entry.transform
+                                                        : transform * node_transforms[entry.node_index];
                 }
 
                 need_culling = need_culling || !frame_context.settings.indirect_draw;
@@ -364,7 +363,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                 frame_context.dirty_drawable_indices.insert(drawable_index);
 
                 auto &drawable = frame_context.cull_result.drawables[drawable_index];
-                drawable.matrices.transform = entry_transform;
+                drawable.matrices.transform = transform;
 
                 auto it = m_entry_matrix_cache.find(key);
                 drawable.last_matrices =

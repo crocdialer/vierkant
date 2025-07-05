@@ -40,7 +40,7 @@ public:
             // keep track of meshes
             if(const auto *mesh_component = object.get_component_ptr<vierkant::mesh_component_t>())
             {
-                m_cull_result.meshes.insert(mesh_component->mesh);
+                m_cull_result.meshes.insert(mesh_component->mesh.get());
 
                 // create drawables
                 vierkant::create_drawables_params_t drawable_params = {};
