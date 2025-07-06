@@ -315,11 +315,10 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         auto *mesh_component = object->get_component_ptr<mesh_component_t>();
         if(!mesh_component || !mesh_component->mesh) { continue; }
 
-        if(auto *flag_cmp = object->get_component_ptr<flag_component_t>())
-        {
-            vierkant::hash_combine(scene_hash, flag_cmp->flags & flag_component_t::DIRTY_MESH);
-            vierkant::hash_combine(material_hash, flag_cmp->flags & flag_component_t::DIRTY_MATERIAL);
-        }
+        uint32_t object_flags = 0;
+        if(auto *flag_cmp = object->get_component_ptr<flag_component_t>()) { object_flags = flag_cmp->flags; }
+        vierkant::hash_combine(scene_hash, object_flags & flag_component_t::DIRTY_MESH);
+        vierkant::hash_combine(material_hash, object_flags & flag_component_t::DIRTY_MATERIAL);
 
         auto mesh = mesh_component->mesh.get();
         bool transform_update = vierkant::has_inherited_flag(object, flag_component_t::DIRTY_TRANSFORM);
