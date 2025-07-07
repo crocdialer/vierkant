@@ -16,7 +16,8 @@ const char *PBRDeferred::to_string(PBRDeferred::SemaphoreValue v)
     switch(v)
     {
         case INVALID: return "INVALID";
-        case MESH_COMPUTE: return "PRE_RENDER";
+        case MESH_COMPUTE: return "MESH_COMPUTE";
+        case PRE_RENDER: return "PRE_RENDER";
         case G_BUFFER_LAST_VISIBLE: return "G_BUFFER_LAST_VISIBLE";
         case DEPTH_PYRAMID: return "DEPTH_PYRAMID";
         case CULLING: return "CULLING";
@@ -819,7 +820,16 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             vierkant::staging_copy(staging_context, copy_transforms);
         }
         vierkant::end_label(frame_context.cmd_clear.handle());
-        frame_context.cmd_clear.submit(m_queue);
+
+        vierkant::semaphore_submit_info_t cmd_clear_semaphore_submit_info = {};
+        cmd_clear_semaphore_submit_info.semaphore = frame_context.timeline.handle();
+        cmd_clear_semaphore_submit_info.wait_value =
+                frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE;
+        cmd_clear_semaphore_submit_info.wait_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        cmd_clear_semaphore_submit_info.signal_value =
+                frame_context.current_semaphore_value + SemaphoreValue::PRE_RENDER;
+        cmd_clear_semaphore_submit_info.signal_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+        frame_context.cmd_clear.submit(m_queue, false, VK_NULL_HANDLE, {cmd_clear_semaphore_submit_info});
     };
 
     // pre-render will repeat all previous draw-calls
@@ -829,7 +839,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
     vierkant::semaphore_submit_info_t g_buffer_semaphore_submit_info_pre = {};
     g_buffer_semaphore_submit_info_pre.semaphore = frame_context.timeline.handle();
     g_buffer_semaphore_submit_info_pre.wait_value =
-            frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE;
+            frame_context.current_semaphore_value +
+            (frame_context.settings.indirect_draw ? SemaphoreValue::PRE_RENDER : SemaphoreValue::MESH_COMPUTE);
     g_buffer_semaphore_submit_info_pre.wait_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
     g_buffer_semaphore_submit_info_pre.signal_value =
             frame_context.current_semaphore_value +

@@ -187,7 +187,7 @@ vierkant::mouse_delegate_t FlyCamera::mouse_delegate()
         m_last_cursor_pos = e.position();
     };
     ret.mouse_drag = [this](const MouseEvent &e) {
-        if(enabled && e.is_left())
+        if(enabled && e.is_middle())
         {
             glm::vec2 diff = m_last_cursor_pos - e.position();
             diff *= mouse_sensitivity;
