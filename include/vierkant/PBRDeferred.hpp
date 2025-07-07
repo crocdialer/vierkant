@@ -218,6 +218,7 @@ private:
     {
         INVALID = 0,
         MESH_COMPUTE,
+        PRE_RENDER,
         G_BUFFER_LAST_VISIBLE,
         DEPTH_PYRAMID,
         CULLING,
