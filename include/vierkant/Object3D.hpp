@@ -250,6 +250,7 @@ protected:
 
 private:
     friend class crocore::fixed_size_free_list<vierkant::Object3D>;
+    friend class ObjectStoreImpl;
     Object3D *m_parent = nullptr;
 
     entt::registry *m_registry = nullptr;

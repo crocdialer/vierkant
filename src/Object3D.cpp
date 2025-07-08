@@ -7,13 +7,14 @@ namespace vierkant
 class ObjectStoreImpl : public ObjectStore
 {
 public:
-    ObjectStoreImpl(uint32_t max_num_objects, uint32_t page_size) : m_free_list(max_num_objects, page_size){};
+    ObjectStoreImpl(uint32_t /*max_num_objects*/, uint32_t /*page_size*/) /*: m_free_list(max_num_objects, page_size)*/{};
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const override { return m_registry; }
 
     Object3DPtr create_object() override
     {
-        uint32_t index = m_free_list.create(m_registry.get());
-        return {&m_free_list.get(index), [this, index](Object3D *) { m_free_list.destroy(index); }};
+        // uint32_t index = m_free_list.create(m_registry.get());
+        // return {&m_free_list.get(index), [this, index](Object3D *) { m_free_list.destroy(index); }};
+        return Object3DPtr(new Object3D(m_registry.get()));
     }
 
     Object3DPtr clone(const vierkant::Object3D *object) override
