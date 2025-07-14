@@ -106,25 +106,25 @@ public enum TextureType : uint
 // Material definition
 public struct material_t
 {
-    float4 color;
-    float4 emission;
-    float metalness;
-    float roughness;
-    float ambient;
-    BlendMode blend_mode;
-    float alpha_cutoff;
-    float transmission;
-    float ior;
-    float attenuation_distance;
-    float4 attenuation_color;
-    float clearcoat_factor;
-    float clearcoat_roughness_factor;
-    float iridescence_factor;
-    float iridescence_ior;
-    float2 iridescence_thickness_range;
-    uint base_texture_index;
-    uint texture_type_flags;
-    bool two_sided;
+    public float4 color;
+    public float4 emission;
+    public float metalness;
+    public float roughness;
+    public float ambient;
+    public BlendMode blend_mode;
+    public float alpha_cutoff;
+    public float transmission;
+    public float ior;
+    public float attenuation_distance;
+    public float4 attenuation_color;
+    public float clearcoat_factor;
+    public float clearcoat_roughness_factor;
+    public float iridescence_factor;
+    public float iridescence_ior;
+    public float2 iridescence_thickness_range;
+    public uint base_texture_index;
+    public uint texture_type_flags;
+    public bool two_sided;
 };
 
 // Render-time context (usually passed via push constants)
