@@ -138,13 +138,13 @@ set(LIBS ${LIBS} Jolt)
 
 ##shaders
 include(build_shaders)
-get_shaders_recursive(GLSL_SOURCE_FILES "shaders")
+get_shaders_recursive(GLSL_SOURCE_FILES "shaders/glsl")
 set(SHADERS_CPP ${CMAKE_CURRENT_BINARY_DIR}/src/shaders.cpp)
 
 # shaders are automatically recompiled if changed
 add_custom_command(OUTPUT ${SHADERS_CPP}
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        COMMAND ${CMAKE_COMMAND} -D SHADER_SOURCE_ROOT="shaders"
+        COMMAND ${CMAKE_COMMAND} -D SHADER_SOURCE_ROOT="shaders/glsl"
         -D SPIRV_OUTPUT_DIR="${PROJECT_BINARY_DIR}"
         -D SOURCE_OUTPUT_DIR="${CMAKE_CURRENT_BINARY_DIR}"
         -D TARGET_NAME="${PROJECT_NAME}"
