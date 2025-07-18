@@ -13,6 +13,7 @@
 namespace vierkant
 {
 
+DEFINE_NAMED_UUID(SceneId)
 DEFINE_CLASS_PTR(Scene)
 
 
