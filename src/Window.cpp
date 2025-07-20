@@ -70,6 +70,9 @@ std::vector<const char *> Window::required_extensions()
     uint32_t num_extensions = 0;
     const char **extensions = glfwGetRequiredInstanceExtensions(&num_extensions);
     std::vector<const char *> ret(extensions, extensions + num_extensions);
+#if defined(__APPLE__)
+    ret = {VK_KHR_SURFACE_EXTENSION_NAME, "VK_EXT_metal_surface"};
+#endif
     return ret;
 }
 
