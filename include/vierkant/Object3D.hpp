@@ -4,14 +4,10 @@
 
 #pragma once
 
-#include <list>
-#include <optional>
 #include <set>
-
 #include <crocore/crocore.hpp>
 #include <crocore/fixed_size_free_list.h>
 #include <entt/entity/registry.hpp>
-#include <vierkant/animation.hpp>
 #include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
 #include <vierkant/transform.hpp>
