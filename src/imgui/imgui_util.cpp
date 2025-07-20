@@ -1082,13 +1082,13 @@ void draw_object_ui(const Object3DPtr &object)
                         need_shape_transform = false;
                         break;
                     case 1: phys_cmp.shape = collision::plane_t(); break;
-                    case 2: phys_cmp.shape = collision::box_t(aabb.half_extents()); break;
-                    case 3: phys_cmp.shape = collision::sphere_t(glm::length(aabb.half_extents())); break;
+                    case 2: phys_cmp.shape = collision::box_t({aabb.half_extents()}); break;
+                    case 3: phys_cmp.shape = collision::sphere_t({glm::length(aabb.half_extents())}); break;
                     case 4:
-                        phys_cmp.shape = collision::cylinder_t(glm::length(aabb.half_extents().xz()), aabb.height());
+                        phys_cmp.shape = collision::cylinder_t({glm::length(aabb.half_extents().xz()), aabb.height()});
                         break;
                     case 5:
-                        phys_cmp.shape = collision::capsule_t(glm::length(aabb.half_extents().xz()), aabb.height());
+                        phys_cmp.shape = collision::capsule_t({glm::length(aabb.half_extents().xz()), aabb.height()});
                         break;
                     case 6:
                         phys_cmp.shape = collision::mesh_t();

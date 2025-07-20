@@ -25,6 +25,8 @@ DEFINE_CLASS_PTR(Object3D)
 class ObjectStore
 {
 public:
+    virtual ~ObjectStore() = default;
+
     [[nodiscard]] virtual const std::shared_ptr<entt::registry> &registry() const = 0;
 
     /**
