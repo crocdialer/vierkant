@@ -20,7 +20,7 @@ public struct MeshDraw
     public uint mesh_index;
     public uint material_index;
     public uint vertex_buffer_index;
-    uint pad[1];
+    public uint lod_index;
 };
 
 // Level-of-detail data for a mesh
@@ -53,7 +53,7 @@ public struct IndexBundle
     public uint mesh_draw_index;
     public uint material_index;
     public uint meshlet_index;
-    public uint triangle_index;
+    public uint lod_index;
 };
 
 // Vertex output location mapping
@@ -127,6 +127,13 @@ public struct material_t
     public bool two_sided;
 };
 
+pulic enum DebugFlagBits
+{
+    NONE = 0x0,
+    DRAW_ID = 0x1,
+    LOD = 0x2
+};
+
 // Render-time context (usually passed via push constants)
 public struct render_context_t
 {
@@ -134,7 +141,7 @@ public struct render_context_t
     float time;
     uint random_seed;
     bool disable_material;
-    bool debug_draw_ids;
+    uint debug_flags;
     uint base_draw_index;
 };
 

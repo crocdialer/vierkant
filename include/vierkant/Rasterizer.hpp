@@ -64,7 +64,7 @@ public:
         uint32_t mesh_index = 0;
         uint32_t material_index = 0;
         uint32_t vertex_buffer_index = 0;
-        uint32_t pad[1] = {};
+        uint32_t lod_index = 0;
     };
 
     struct mesh_entry_t
@@ -170,6 +170,13 @@ public:
         VkFormat stencil_attachment_format = VK_FORMAT_UNDEFINED;
     };
 
+    enum DebugFlagBits
+    {
+        NONE = 0x0,
+        DRAW_ID = 0x1,
+        LOD = 0x2
+    };
+
     //! num samples used.
     VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
 
@@ -188,8 +195,8 @@ public:
     //! option to use a meshlet-based pipeline
     bool use_mesh_shader = false;
 
-    //! optional flag to visualize object/meshlet indices
-    bool debug_draw_ids = false;
+    //! optional flags to visualize object/meshlet/lod indices
+    uint32_t debug_draw_flags = 0;
 
     //! optional label for frame-debugging
     std::optional<vierkant::debug_label_t> debug_label;
@@ -281,8 +288,8 @@ private:
         //! optional flag to disable colors from materials
         int disable_material = 0;
 
-        //! optional flag to visualize object/meshlet indices
-        int debug_draw_ids = 0;
+        //! optional flags to visualize object/meshlet/lod indices
+        uint32_t debug_flags = 0;
 
         //! base index into an array of indexed_indirect_command_t
         uint32_t base_draw_index = 0;

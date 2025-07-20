@@ -248,7 +248,13 @@ void draw_scene_renderer_settings_ui_intern(const PBRDeferredPtr &pbr_renderer)
 
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
-    ImGui::Checkbox("debug draw ids", &pbr_renderer->settings.debug_draw_ids);
+
+    bool tmp_bool;
+    if(ImGui::Checkbox("debug_draw_flags", &tmp_bool))
+    {
+        pbr_renderer->settings.debug_draw_flags = tmp_bool ? Rasterizer::DebugFlagBits::DRAW_ID : 0;
+    }
+
     ImGui::Checkbox("frustum culling", &pbr_renderer->settings.frustum_culling);
     ImGui::Checkbox("occlusion culling", &pbr_renderer->settings.occlusion_culling);
     ImGui::Checkbox("enable lod", &pbr_renderer->settings.enable_lod);

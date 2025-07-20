@@ -19,7 +19,7 @@ struct mesh_draw_t
     uint mesh_index;
     uint material_index;
     uint vertex_buffer_index;
-    uint pad[1];
+    uint lod_index;
 };
 
 struct lod_t
@@ -49,7 +49,7 @@ struct index_bundle_t
     uint mesh_draw_index;
     uint material_index;
     uint meshlet_index;
-    uint triangle_index;
+    uint lod_index;
 };
 
 #define LOCATION_INDEX_BUNDLE 0
@@ -101,6 +101,10 @@ struct material_struct_t
     bool two_sided;
 };
 
+#define DEBUG_FLAG_NONE 0
+#define DEBUG_FLAG_DRAW_ID 1
+#define DEBUG_FLAG_LOD 2
+
 //! some render-context passed as push-constant
 struct render_context_t
 {
@@ -108,7 +112,7 @@ struct render_context_t
     float time;
     uint random_seed;
     bool disable_material;
-    bool debug_draw_ids;
+    uint debug_flags;
     uint base_draw_index;
 };
 
