@@ -10,6 +10,7 @@
 // rnd(state)
 #include "../utils/random.glsl"
 #include "../utils/constants.glsl"
+#include "../utils/colormap.glsl"
 
 #define ALBEDO 0
 #define NORMAL 1
@@ -73,10 +74,14 @@ void main()
     out_motion = 0.5 * (vertex_in.current_position.xy / vertex_in.current_position.w - vertex_in.last_position.xy / vertex_in.last_position.w);
 
     // debug object-ids
-    if(context.debug_draw_ids)
+    if(context.debug_flags != 0)
     {
-        uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
-        out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+        // uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
+        // out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+
+        // apply colormap on lod_index
+        float lod_factor = 1.0 - (indices.lod_index / float(MAX_NUM_MESH_LODS));
+        out_color.rgb = jet(lod_factor);
 
         // no metallic
         out_ao_rough_metal.b = 0.0;

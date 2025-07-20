@@ -20,7 +20,7 @@ struct draw_cull_result_t
 };
 
 layout(buffer_reference, std430) buffer DrawBufferPtr{ indexed_indirect_command_t v[]; };
-layout(buffer_reference, std430) buffer readonly MeshDrawBufferPtr{ mesh_draw_t v[]; };
+layout(buffer_reference, std430) buffer MeshDrawBufferPtr{ mesh_draw_t v[]; };
 layout(buffer_reference, std430) buffer readonly MeshEntryBufferPtr{ mesh_entry_t v[]; };
 layout(buffer_reference, std430) buffer DrawCountBufferPtr{ uint v[]; };
 layout(buffer_reference, std430) buffer DrawCommandIndexBufferPtr{ uint v[]; };
@@ -161,6 +161,9 @@ void main()
         uint max_lod_index = min(mesh_entry.lod_count, MAX_NUM_MESH_LODS) - 1;
         max_lod_index = cull_data.max_num_lods > 0 ? min(max_lod_index, cull_data.max_num_lods - 1) : max_lod_index;
         uint lod_index = sphere_visible ? clamp(uint(lod_index_f + 1), 0, max_lod_index) : 0;
+
+        // write back lod_index
+        cull_data.mesh_draws_in.v[draw.object_index].lod_index = lod_index; 
 
         // select lod
         lod_t lod = mesh_entry.lods[lod_index];

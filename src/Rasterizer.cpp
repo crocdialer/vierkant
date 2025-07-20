@@ -522,7 +522,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.random_seed = m_random_engine();
     push_constants.disable_material = disable_material;
-    push_constants.debug_draw_ids = debug_draw_ids;
+    push_constants.debug_flags = debug_draw_ids ? DRAW_ID : 0;
 
     // record start-timestamp
     if(debug_label) { vierkant::begin_label(command_buffer, *debug_label); }

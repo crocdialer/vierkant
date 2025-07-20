@@ -64,7 +64,7 @@ public:
         uint32_t mesh_index = 0;
         uint32_t material_index = 0;
         uint32_t vertex_buffer_index = 0;
-        uint32_t pad[1] = {};
+        uint32_t lod_index = 0;
     };
 
     struct mesh_entry_t
@@ -267,6 +267,14 @@ public:
     friend void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept;
 
 private:
+
+    enum DebugFlagBits
+    {
+        NONE = 0x0,
+        DRAW_ID = 0x1,
+        LOD = 0x2
+    };
+
     struct alignas(16) push_constants_t
     {
         //! current viewport-size
@@ -281,8 +289,8 @@ private:
         //! optional flag to disable colors from materials
         int disable_material = 0;
 
-        //! optional flag to visualize object/meshlet indices
-        int debug_draw_ids = 0;
+        //! optional flags to visualize object/meshlet/lod indices
+        uint32_t debug_flags = 0;
 
         //! base index into an array of indexed_indirect_command_t
         uint32_t base_draw_index = 0;
