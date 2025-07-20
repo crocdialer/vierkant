@@ -126,7 +126,7 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
     std::swap(lhs.viewport, rhs.viewport);
     std::swap(lhs.scissor, rhs.scissor);
     std::swap(lhs.disable_material, rhs.disable_material);
-    std::swap(lhs.debug_draw_ids, rhs.debug_draw_ids);
+    std::swap(lhs.debug_draw_flags, rhs.debug_draw_flags);
     std::swap(lhs.debug_label, rhs.debug_label);
     std::swap(lhs.indirect_draw, rhs.indirect_draw);
     std::swap(lhs.draw_indirect_delegate, rhs.draw_indirect_delegate);
@@ -522,7 +522,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
     push_constants.random_seed = m_random_engine();
     push_constants.disable_material = disable_material;
-    push_constants.debug_flags = debug_draw_ids ? DRAW_ID : 0;
+    push_constants.debug_flags = debug_draw_flags;
 
     // record start-timestamp
     if(debug_label) { vierkant::begin_label(command_buffer, *debug_label); }

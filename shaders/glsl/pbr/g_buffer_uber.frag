@@ -76,12 +76,18 @@ void main()
     // debug object-ids
     if(context.debug_flags != 0)
     {
-        // uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
-        // out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+        if(has_flag(context.debug_flags, DEBUG_FLAG_DRAW_ID))
+        {
+            uint obj_hash = tea(indices.mesh_draw_index, indices.meshlet_index);// gl_PrimitiveID
+            out_color.rgb = vec3(float(obj_hash & 255), float((obj_hash >> 8) & 255), float((obj_hash >> 16) & 255)) / 255.0;
+        }
 
-        // apply colormap on lod_index
-        float lod_factor = 1.0 - (indices.lod_index / float(MAX_NUM_MESH_LODS));
-        out_color.rgb = jet(lod_factor);
+        if(has_flag(context.debug_flags, DEBUG_FLAG_LOD))
+        {
+            // apply colormap on lod_index
+            float lod_factor = 1.0 - (indices.lod_index / float(MAX_NUM_MESH_LODS));
+            out_color.rgb = jet(lod_factor);
+        }
 
         // no metallic
         out_ao_rough_metal.b = 0.0;

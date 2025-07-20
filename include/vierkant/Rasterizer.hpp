@@ -170,6 +170,13 @@ public:
         VkFormat stencil_attachment_format = VK_FORMAT_UNDEFINED;
     };
 
+    enum DebugFlagBits
+    {
+        NONE = 0x0,
+        DRAW_ID = 0x1,
+        LOD = 0x2
+    };
+
     //! num samples used.
     VkSampleCountFlagBits sample_count = VK_SAMPLE_COUNT_1_BIT;
 
@@ -188,8 +195,8 @@ public:
     //! option to use a meshlet-based pipeline
     bool use_mesh_shader = false;
 
-    //! optional flag to visualize object/meshlet indices
-    bool debug_draw_ids = false;
+    //! optional flags to visualize object/meshlet/lod indices
+    uint32_t debug_draw_flags = 0;
 
     //! optional label for frame-debugging
     std::optional<vierkant::debug_label_t> debug_label;
@@ -267,14 +274,6 @@ public:
     friend void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept;
 
 private:
-
-    enum DebugFlagBits
-    {
-        NONE = 0x0,
-        DRAW_ID = 0x1,
-        LOD = 0x2
-    };
-
     struct alignas(16) push_constants_t
     {
         //! current viewport-size

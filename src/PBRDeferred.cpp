@@ -690,7 +690,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
     // apply current settings for both renderers
     m_g_renderer_main.disable_material = m_g_renderer_post.disable_material = frame_context.settings.disable_material;
-    m_g_renderer_main.debug_draw_ids = m_g_renderer_post.debug_draw_ids = frame_context.settings.debug_draw_ids;
+    m_g_renderer_main.debug_draw_flags = m_g_renderer_post.debug_draw_flags = frame_context.settings.debug_draw_flags;
     m_g_renderer_main.indirect_draw = m_g_renderer_post.indirect_draw = frame_context.settings.indirect_draw;
     m_g_renderer_main.use_mesh_shader = m_g_renderer_post.use_mesh_shader = frame_context.settings.use_meshlet_pipeline;
 
@@ -1493,7 +1493,7 @@ bool operator==(const PBRDeferred::settings_t &lhs, const PBRDeferred::settings_
     if(lhs.resolution != rhs.resolution) { return false; }
     if(lhs.output_resolution != rhs.output_resolution) { return false; }
     if(lhs.disable_material != rhs.disable_material) { return false; }
-    if(lhs.debug_draw_ids != rhs.debug_draw_ids) { return false; }
+    if(lhs.debug_draw_flags != rhs.debug_draw_flags) { return false; }
     if(lhs.frustum_culling != rhs.frustum_culling) { return false; }
     if(lhs.occlusion_culling != rhs.occlusion_culling) { return false; }
     if(lhs.enable_lod != rhs.enable_lod) { return false; }
