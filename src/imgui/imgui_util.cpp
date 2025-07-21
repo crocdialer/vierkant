@@ -249,10 +249,21 @@ void draw_scene_renderer_settings_ui_intern(const PBRDeferredPtr &pbr_renderer)
     ImGui::Checkbox("skybox", &pbr_renderer->settings.draw_skybox);
     ImGui::Checkbox("disable material", &pbr_renderer->settings.disable_material);
 
-    bool tmp_bool;
-    if(ImGui::Checkbox("debug_draw_flags", &tmp_bool))
+    // blend-mode
+    const char *debug_flag_items[] = {"None", "Draw-ID", "LOD-index"};
+    constexpr Rasterizer::DebugFlagBits flags[] = {Rasterizer::DebugFlagBits::NONE, Rasterizer::DebugFlagBits::DRAW_ID,
+                                                   Rasterizer::DebugFlagBits::LOD};
+    int debug_flag_index = 0;
+
+    for(auto flag: flags)
     {
-        pbr_renderer->settings.debug_draw_flags = tmp_bool ? Rasterizer::DebugFlagBits::DRAW_ID : 0;
+        if(pbr_renderer->settings.debug_draw_flags == flag) { break; }
+        debug_flag_index++;
+    }
+
+    if(ImGui::Combo("debug view", &debug_flag_index, debug_flag_items, IM_ARRAYSIZE(debug_flag_items)))
+    {
+        pbr_renderer->settings.debug_draw_flags = flags[debug_flag_index];
     }
 
     ImGui::Checkbox("frustum culling", &pbr_renderer->settings.frustum_culling);
