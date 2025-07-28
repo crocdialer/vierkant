@@ -70,7 +70,7 @@ void Scene::clear()
 void Scene::update(double time_delta)
 {
     LambdaVisitor visitor;
-    visitor.traverse(*m_root, [time_delta](Object3D &obj) -> bool {
+    visitor.traverse(*m_root, [time_delta, frame = m_current_frame](Object3D &obj) -> bool {
         if(obj.enabled)
         {
             auto animation_cmp = obj.get_component_ptr<animation_component_t>();
@@ -78,6 +78,11 @@ void Scene::update(double time_delta)
 
             if(auto *flag_cmp = obj.get_component_ptr<flag_component_t>())
             {
+                for(uint32_t i = 0; i <= msb(flag_component_t::MAX_ENUM); ++i)
+                {
+                    if(flag_cmp->flags & (1U << i)) { flag_cmp->timestamps[i] = frame; }
+                }
+
                 // clear previous dirt flags
                 flag_cmp->flags = 0;
             }
@@ -105,6 +110,9 @@ void Scene::update(double time_delta)
         }
         return false;
     });
+
+    // increase framenumbrs after update
+    m_current_frame++;
 }
 
 Object3D *Scene::object_by_id(uint32_t object_id) const

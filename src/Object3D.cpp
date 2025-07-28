@@ -7,7 +7,7 @@ namespace vierkant
 class ObjectStoreImpl : public ObjectStore
 {
 public:
-    ObjectStoreImpl(uint32_t max_num_objects, uint32_t page_size) : m_free_list(max_num_objects, page_size){};
+    ObjectStoreImpl(uint32_t max_num_objects, uint32_t page_size) : m_free_list(max_num_objects, page_size) {};
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const override { return m_registry; }
 
     Object3DPtr create_object() override
@@ -76,6 +76,20 @@ std::unique_ptr<ObjectStore> create_object_store(uint32_t max_num_objects, uint3
     return std::make_unique<ObjectStoreImpl>(max_num_objects, page_size);
 }
 
+uint64_t last_inherited_flag_update(const vierkant::Object3D *object, flag_component_t::FlagEnum flag)
+{
+    uint64_t ret = 0;
+    while(object)
+    {
+        if(auto *flag_cmp = object->get_component_ptr<flag_component_t>())
+        {
+            ret = std::max(ret, flag_cmp->timestamp(flag));
+        }
+        object = object->parent();
+    }
+    return ret;
+}
+
 bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits)
 {
     while(object)
@@ -131,8 +145,15 @@ vierkant::transform_t Object3D::global_transform() const
 void Object3D::set_global_transform(const vierkant::transform_t &t)
 {
     transform = parent() ? transform_cast(glm::inverse(get_global_mat4(parent())) * mat4_cast(t)) : t;
-    auto &flag_cmp = add_component<flag_component_t>();
-    flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
+    if(auto *flag_cmp_ptr = get_component_ptr<flag_component_t>())
+    {
+        flag_cmp_ptr->flags |= flag_component_t::DIRTY_TRANSFORM;
+    }
+    else
+    {
+        auto &flag_cmp = add_component<flag_component_t>();
+        flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
+    }
 }
 
 bool Object3D::global_enable() const

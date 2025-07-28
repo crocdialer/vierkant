@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include <set>
 #include <crocore/crocore.hpp>
 #include <crocore/fixed_size_free_list.h>
 #include <entt/entity/registry.hpp>
+#include <set>
 #include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
 #include <vierkant/transform.hpp>
@@ -84,18 +84,30 @@ struct timer_component_t
     bool repeat = false;
 };
 
+constexpr inline uint32_t msb(uint32_t v)
+{
+    uint32_t ret = 0;
+    while(v >>= 1U) { ret++; }
+    return ret;
+}
+
 struct flag_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
-    enum FlagEnum
+    enum FlagEnum : uint32_t
     {
         DIRTY_TRANSFORM = 0x01,
         DIRTY_MATERIAL = 0x02,
-        DIRTY_MESH = 0x04
+        DIRTY_MESH = 0x04,
+        MAX_ENUM
     };
     uint32_t flags = 0;
+    uint64_t timestamps[msb(MAX_ENUM) + 1] = {};
+
+    inline uint64_t timestamp(FlagEnum flag) const { return timestamps[msb(flag)]; }
 };
 
+uint64_t last_inherited_flag_update(const vierkant::Object3D *object, flag_component_t::FlagEnum flag);
 bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits);
 
 class alignas(8) Object3D : public std::enable_shared_from_this<Object3D>

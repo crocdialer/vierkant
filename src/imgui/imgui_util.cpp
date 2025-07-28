@@ -872,8 +872,16 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
                 if(entry_enabled) { mesh_component.entry_indices->insert(entry_idx); }
                 else { mesh_component.entry_indices->erase(entry_idx); }
                 if(mesh_component.entry_indices->size() == mesh->entries.size()) { mesh_component.entry_indices = {}; }
-                auto &flag_cmp = object->add_component<flag_component_t>();
-                flag_cmp.flags |= flag_component_t::DIRTY_MESH;
+
+                if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
+                {
+                    flag_cmp_ptr->flags |= flag_component_t::DIRTY_MESH;
+                }
+                else
+                {
+                    auto &flag_cmp = object->add_component<flag_component_t>();
+                    flag_cmp.flags |= flag_component_t::DIRTY_MESH;
+                }
             }
             ImGui::SameLine();
 
@@ -925,8 +933,15 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
 
     if(material_changed)
     {
-        auto &flag_cmp = object->add_component<vierkant::flag_component_t>();
-        flag_cmp.flags |= flag_component_t::DIRTY_MATERIAL;
+        if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
+        {
+            flag_cmp_ptr->flags |= flag_component_t::DIRTY_MATERIAL;
+        }
+        else
+        {
+            auto &flag_cmp = object->add_component<vierkant::flag_component_t>();
+            flag_cmp.flags |= flag_component_t::DIRTY_MATERIAL;
+        }
     }
 
     // animation
@@ -1043,8 +1058,16 @@ void draw_object_ui(const Object3DPtr &object)
     // transform
     if(draw_transform(object->transform))
     {
-        auto &flag_cmp = object->add_component<flag_component_t>();
-        flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
+        if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
+        {
+            flag_cmp_ptr->flags |= flag_component_t::DIRTY_TRANSFORM;
+        }
+        else
+        {
+
+            auto &flag_cmp = object->add_component<flag_component_t>();
+            flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
+        }
     }
 
     bool has_physics = object->has_component<vierkant::physics_component_t>();
