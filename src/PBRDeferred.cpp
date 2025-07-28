@@ -298,6 +298,7 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
 {
+    uint64_t frame_thresh = scene->current_frame();
     bool need_culling = frame_context.cull_result.camera != cam;
     frame_context.recycle_commands = true;
     frame_context.dirty_drawable_indices.clear();
@@ -316,13 +317,20 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         auto *mesh_component = object->get_component_ptr<mesh_component_t>();
         if(!mesh_component || !mesh_component->mesh) { continue; }
 
-        uint32_t object_flags = 0;
-        if(auto *flag_cmp = object->get_component_ptr<flag_component_t>()) { object_flags = flag_cmp->flags; }
-        vierkant::hash_combine(scene_hash, object_flags & flag_component_t::DIRTY_MESH);
-        vierkant::hash_combine(material_hash, object_flags & flag_component_t::DIRTY_MATERIAL);
+        flag_component_t flag_cmp = {};
+        if(auto *fc = object->get_component_ptr<flag_component_t>()) { flag_cmp = *fc; }
+
+        vierkant::hash_combine(scene_hash,
+                               flag_cmp.timestamp(flag_component_t::DIRTY_MESH) + m_frame_contexts.size() >=
+                                       frame_thresh);
+        vierkant::hash_combine(material_hash,
+                               flag_cmp.timestamp(flag_component_t::DIRTY_MATERIAL) + m_frame_contexts.size() >=
+                                       frame_thresh);
 
         auto mesh = mesh_component->mesh.get();
-        bool transform_update = vierkant::has_inherited_flag(object, flag_component_t::DIRTY_TRANSFORM);
+        bool transform_update =
+                last_inherited_flag_update(object, flag_component_t::DIRTY_TRANSFORM) + m_frame_contexts.size() >=
+                frame_thresh;
 
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
                                 object->has_component<animation_component_t>();
@@ -366,11 +374,14 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                     auto &drawable = frame_context.cull_result.drawables[drawable_index];
                     drawable.matrices.transform = transform;
 
-                    auto it = m_entry_matrix_cache.find(key);
-                    drawable.last_matrices =
-                            it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
-
-                    m_entry_matrix_cache[key] = drawable.matrices;
+                    if(animation_update)
+                    {
+                        auto it = m_entry_matrix_cache.find(key);
+                        drawable.last_matrices =
+                                it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
+    
+                        m_entry_matrix_cache[key] = drawable.matrices;
+                    }
                 }
             }
         }

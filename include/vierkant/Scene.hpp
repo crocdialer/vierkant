@@ -32,6 +32,8 @@ public:
 
     virtual void update(double time_delta);
 
+    uint64_t current_frame() const { return m_current_frame; }
+    
     /**
      * @brief   object_by_id finds and returns an object based on its object/entity-id
      *
@@ -76,6 +78,8 @@ private:
     vierkant::ImagePtr m_skybox = nullptr;
 
     Object3DPtr m_root;
+
+    uint64_t m_current_frame = 0;
 
     std::chrono::steady_clock::time_point m_start_time = std::chrono::steady_clock::now();
 };
