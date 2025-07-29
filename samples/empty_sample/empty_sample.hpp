@@ -53,6 +53,9 @@ private:
 
     bool m_fullscreen = false;
 
+    // entity registry
+    std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
+
     // bundles basic Vulkan assets
     vierkant::Instance m_instance;
 
@@ -62,8 +65,6 @@ private:
     // window handle
     std::shared_ptr<vierkant::Window> m_window;
 
-    vierkant::PerspectiveCameraPtr m_camera;
-
     vierkant::MeshPtr m_mesh = vierkant::Mesh::create();
 
     vierkant::drawable_t m_drawable;
@@ -72,7 +73,7 @@ private:
 
     vierkant::gui::Context m_gui_context;
 
-    std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
+    vierkant::PerspectiveCameraPtr m_camera;
 };
 
 int main(int argc, char *argv[])
