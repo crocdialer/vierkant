@@ -259,15 +259,6 @@ private:
         VkBool32 debug = false;
     };
 
-    //! morph_params_t contains information to access a morph-target buffer
-    struct alignas(16) morph_params_t
-    {
-        uint32_t morph_count = 0;
-        uint32_t base_vertex = 0;
-        uint32_t vertex_count = 0;
-        float weights[61] = {};
-    };
-
     struct frame_context_t
     {
         std::chrono::steady_clock::time_point timestamp;

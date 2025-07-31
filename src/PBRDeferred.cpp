@@ -722,6 +722,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         // keep references to internal buffers from pre-pass
         frame_context.indirect_draw_params_main.draws_out = params.draws_out;
         frame_context.indirect_draw_params_main.mesh_draws = params.mesh_draws;
+        frame_context.indirect_draw_params_main.materials = params.materials;
         frame_context.indirect_draw_params_main.vertex_buffer_addresses = params.vertex_buffer_addresses;
         frame_context.indirect_draw_params_main.mesh_entries = params.mesh_entries;
         frame_context.indirect_draw_params_main.meshlet_visibilities = params.meshlet_visibilities;
@@ -761,6 +762,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                                      !frame_context.mesh_compute_result.vertex_buffer_offsets.empty()))
         {
             params.mesh_draws->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage, src_access);
+            params.materials->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage, src_access);
             params.vertex_buffer_addresses->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage,
                                                     src_access);
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
@@ -883,6 +885,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             // re-use mesh-draws/vertex-buffers/transforms/visibilities from main-pass
             params.mesh_draws = frame_context.indirect_draw_params_main.mesh_draws;
+            params.materials = frame_context.indirect_draw_params_main.materials;
             params.vertex_buffer_addresses = frame_context.indirect_draw_params_main.vertex_buffer_addresses;
             params.mesh_entries = frame_context.indirect_draw_params_main.mesh_entries;
             params.meshlet_visibilities = frame_context.indirect_draw_params_main.meshlet_visibilities;
