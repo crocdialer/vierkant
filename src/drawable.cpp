@@ -8,6 +8,20 @@
 namespace vierkant
 {
 
+void update_material(const vierkant::material_t &mat_in, vierkant::material_struct_t &mat_out)
+{
+    // material params
+    mat_out.emission = {mat_in.emission, mat_in.emissive_strength};
+    mat_out.ambient = mat_in.occlusion;
+    mat_out.roughness = mat_in.roughness;
+    mat_out.metalness = mat_in.metalness;
+    mat_out.blend_mode = static_cast<uint32_t>(mat_in.blend_mode);
+    mat_out.alpha_cutoff = mat_in.alpha_cutoff;
+    mat_out.two_sided = mat_in.twosided;
+    mat_out.transmission = mat_in.transmission;
+    mat_out.color = mat_in.base_color;
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_component_t &mesh_component,
@@ -70,16 +84,7 @@ std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_componen
             drawable.matrices.texture = *col_img_it->second.texture_transform;
         }
 
-        // material params
-        drawable.material.color = material.base_color;
-        drawable.material.emission = {material.emission, material.emissive_strength};
-        drawable.material.ambient = material.occlusion;
-        drawable.material.roughness = material.roughness;
-        drawable.material.metalness = material.metalness;
-        drawable.material.blend_mode = static_cast<uint32_t>(material.blend_mode);
-        drawable.material.alpha_cutoff = material.alpha_cutoff;
-        drawable.material.two_sided = material.twosided;
-        drawable.material.transmission = material.transmission;
+        update_material(material, drawable.material);
 
         drawable.base_index = lod_0.base_index;
         drawable.num_indices = lod_0.num_indices;

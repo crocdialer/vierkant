@@ -131,4 +131,6 @@ struct create_drawables_params_t
 std::vector<vierkant::drawable_t> create_drawables(const vierkant::mesh_component_t &mesh_component,
                                                    const create_drawables_params_t &params);
 
+void update_material(const vierkant::material_t &mat_in, vierkant::material_struct_t &mat_out);
+
 }// namespace vierkant

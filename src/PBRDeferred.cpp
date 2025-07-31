@@ -320,12 +320,11 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         flag_component_t flag_cmp = {};
         if(auto *fc = object->get_component_ptr<flag_component_t>()) { flag_cmp = *fc; }
 
-        vierkant::hash_combine(scene_hash,
-                               flag_cmp.timestamp(flag_component_t::DIRTY_MESH) + m_frame_contexts.size() >=
-                                       frame_thresh);
-        vierkant::hash_combine(material_hash,
-                               flag_cmp.timestamp(flag_component_t::DIRTY_MATERIAL) + m_frame_contexts.size() >=
-                                       frame_thresh);
+        vierkant::hash_combine(scene_hash, flag_cmp.timestamp(flag_component_t::DIRTY_MESH) + m_frame_contexts.size() >=
+                                                   frame_thresh);
+        bool material_update =
+                flag_cmp.timestamp(flag_component_t::DIRTY_MATERIAL) + m_frame_contexts.size() >= frame_thresh;
+        vierkant::hash_combine(material_hash, material_update);
 
         auto mesh = mesh_component->mesh.get();
         bool transform_update =
@@ -346,7 +345,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                                                      static_cast<float>(animation_state.current_time), node_transforms);
         }
 
-        if(transform_update || animation_update)
+        if(transform_update || animation_update || material_update)
         {
             for(uint32_t i = 0; i < mesh->entries.size(); ++i)
             {
@@ -379,8 +378,13 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                         auto it = m_entry_matrix_cache.find(key);
                         drawable.last_matrices =
                                 it != m_entry_matrix_cache.end() ? it->second : std::optional<matrix_struct_t>();
-    
+
                         m_entry_matrix_cache[key] = drawable.matrices;
+                    }
+
+                    if(material_update)
+                    {
+                        vierkant::update_material(mesh->materials[entry.material_index]->m, drawable.material);
                     }
                 }
             }
