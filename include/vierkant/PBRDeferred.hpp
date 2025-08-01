@@ -270,7 +270,6 @@ private:
         //! recycling section
         std::unordered_set<uint32_t> dirty_drawable_indices;
         size_t scene_hash = 0;
-        size_t material_hash = 0;
         bool recycle_commands = false;
 
         uint64_t current_semaphore_value = 0;

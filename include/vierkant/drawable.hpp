@@ -56,11 +56,11 @@ struct alignas(16) material_struct_t
     // range of thin-film thickness in nanometers (nm)
     glm::vec2 iridescence_thickness_range = {100.f, 400.f};
 
-    uint32_t base_texture_index = 0;
+    uint32_t two_sided = false;
 
     uint32_t texture_type_flags = 0;
-
-    uint32_t two_sided = false;
+    
+    uint32_t base_texture_index = 0;
 };
 
 //! define a strong id-type for drawables

@@ -96,9 +96,9 @@ struct material_struct_t
     float iridescence_factor;
     float iridescence_ior;
     vec2 iridescence_thickness_range;
-    uint base_texture_index;
-    uint texture_type_flags;
     bool two_sided;
+    uint texture_type_flags;
+    uint base_texture_index;
 };
 
 #define DEBUG_FLAG_NONE 0

@@ -304,7 +304,6 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
     frame_context.dirty_drawable_indices.clear();
 
     size_t scene_hash = 0;
-    size_t material_hash = 0;
 
     SelectVisitor<Object3D> visitor;
     visitor.select_only_enabled = true;
@@ -324,7 +323,6 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                                                    frame_thresh);
         bool material_update =
                 flag_cmp.timestamp(flag_component_t::DIRTY_MATERIAL) + m_frame_contexts.size() >= frame_thresh;
-        vierkant::hash_combine(material_hash, material_update);
 
         auto mesh = mesh_component->mesh.get();
         bool transform_update =
@@ -396,12 +394,6 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         frame_context.recycle_commands = false;
         frame_context.scene_hash = scene_hash;
         frame_context.dirty_drawable_indices.clear();
-    }
-
-    if(material_hash != frame_context.material_hash)
-    {
-        frame_context.recycle_commands = false;
-        frame_context.material_hash = material_hash;
     }
 
     frame_context.recycle_commands =
@@ -774,7 +766,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
             std::vector<VkDeviceAddress> vertex_buffer_addresses;
             std::vector<vierkant::matrix_struct_t> matrix_data(2 * frame_context.dirty_drawable_indices.size());
-            std::vector<vierkant::staging_copy_info_t> copy_transforms;
+            std::vector<vierkant::material_struct_t> material_data(frame_context.dirty_drawable_indices.size());
+            std::vector<vierkant::staging_copy_info_t> staging_copies;
             uint32_t i = 0;
 
             // transform updates for drawables
@@ -782,6 +775,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 if(idx < frame_context.cull_result.drawables.size())
                 {
+                    // const auto &drawable = params.drawables->at(idx);
                     const auto &drawable = frame_context.cull_result.drawables[idx];
 
                     matrix_data[2 * i] = drawable.matrices;
@@ -794,7 +788,21 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                     copy_transform.dst_offset = stride * idx;
                     copy_transform.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
                     copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-                    copy_transforms.push_back(copy_transform);
+                    staging_copies.push_back(copy_transform);
+
+                    material_data[i] = drawable.material;
+                    vierkant::staging_copy_info_t copy_material = {};
+
+                    // copy material, hack to avoid overwriting texture-index
+                    copy_material.num_bytes = offsetof(vierkant::material_struct_t, base_texture_index);
+                    copy_material.data = material_data.data() + i;
+                    copy_material.dst_buffer = params.materials;
+                    copy_material.dst_offset =
+                            sizeof(vierkant::material_struct_t) * params.mesh_draws_host[idx].material_index;
+                    copy_material.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+                    copy_material.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+                    staging_copies.push_back(copy_material);
+
                     i++;
                 }
                 else
@@ -828,13 +836,13 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                             copy_vertex_address.dst_offset = sizeof(VkDeviceAddress) * vertex_buffer_index;
                             copy_vertex_address.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
                             copy_vertex_address.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-                            copy_transforms.push_back(copy_vertex_address);
+                            staging_copies.push_back(copy_vertex_address);
                             mesh_indices.insert(vertex_buffer_index);
                         }
                     }
                 }
             }
-            vierkant::staging_copy(staging_context, copy_transforms);
+            vierkant::staging_copy(staging_context, staging_copies);
         }
         vierkant::end_label(frame_context.cmd_clear.handle());
 
