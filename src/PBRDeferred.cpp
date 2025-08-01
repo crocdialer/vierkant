@@ -341,6 +341,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
             const auto &animation = mesh->node_animations[animation_state.index];
             vierkant::nodes::build_node_matrices_bfs(mesh->root_node, animation,
                                                      static_cast<float>(animation_state.current_time), node_transforms);
+            flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM;
         }
 
         if(transform_update || animation_update || material_update)
@@ -797,7 +798,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                     {
                         material_data[i] = drawable.material;
                         vierkant::staging_copy_info_t copy_material = {};
-    
+
                         // copy material, hack to avoid overwriting texture-index
                         copy_material.num_bytes = offsetof(vierkant::material_struct_t, base_texture_index);
                         copy_material.data = material_data.data() + i;
