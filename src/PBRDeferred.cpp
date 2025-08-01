@@ -366,7 +366,7 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
 
                     // combine mesh- with entry-transform
                     auto drawable_index = frame_context.cull_result.index_map.at(key);
-                    frame_context.dirty_drawable_indices.insert(drawable_index);
+                    frame_context.dirty_drawable_indices[drawable_index] = flag_cmp.flags;
 
                     auto &drawable = frame_context.cull_result.drawables[drawable_index];
                     drawable.matrices.transform = transform;
@@ -771,7 +771,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             uint32_t i = 0;
 
             // transform updates for drawables
-            for(auto idx: frame_context.dirty_drawable_indices)
+            for(const auto &[idx, flag]: frame_context.dirty_drawable_indices)
             {
                 if(idx < frame_context.cull_result.drawables.size())
                 {
@@ -781,27 +781,33 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                     matrix_data[2 * i] = drawable.matrices;
                     matrix_data[2 * i + 1] = drawable.last_matrices ? *drawable.last_matrices : drawable.matrices;
 
-                    vierkant::staging_copy_info_t copy_transform = {};
-                    copy_transform.num_bytes = staging_stride;
-                    copy_transform.data = matrix_data.data() + 2 * i;
-                    copy_transform.dst_buffer = params.mesh_draws;
-                    copy_transform.dst_offset = stride * idx;
-                    copy_transform.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-                    copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-                    staging_copies.push_back(copy_transform);
+                    if(flag & flag_component_t::DIRTY_TRANSFORM)
+                    {
+                        vierkant::staging_copy_info_t copy_transform = {};
+                        copy_transform.num_bytes = staging_stride;
+                        copy_transform.data = matrix_data.data() + 2 * i;
+                        copy_transform.dst_buffer = params.mesh_draws;
+                        copy_transform.dst_offset = stride * idx;
+                        copy_transform.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+                        copy_transform.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+                        staging_copies.push_back(copy_transform);
+                    }
 
-                    material_data[i] = drawable.material;
-                    vierkant::staging_copy_info_t copy_material = {};
-
-                    // copy material, hack to avoid overwriting texture-index
-                    copy_material.num_bytes = offsetof(vierkant::material_struct_t, base_texture_index);
-                    copy_material.data = material_data.data() + i;
-                    copy_material.dst_buffer = params.materials;
-                    copy_material.dst_offset =
-                            sizeof(vierkant::material_struct_t) * params.mesh_draws_host[idx].material_index;
-                    copy_material.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-                    copy_material.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
-                    staging_copies.push_back(copy_material);
+                    if(flag & flag_component_t::DIRTY_MATERIAL)
+                    {
+                        material_data[i] = drawable.material;
+                        vierkant::staging_copy_info_t copy_material = {};
+    
+                        // copy material, hack to avoid overwriting texture-index
+                        copy_material.num_bytes = offsetof(vierkant::material_struct_t, base_texture_index);
+                        copy_material.data = material_data.data() + i;
+                        copy_material.dst_buffer = params.materials;
+                        copy_material.dst_offset =
+                                sizeof(vierkant::material_struct_t) * params.mesh_draws_host[idx].material_index;
+                        copy_material.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
+                        copy_material.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+                        staging_copies.push_back(copy_material);
+                    }
 
                     i++;
                 }

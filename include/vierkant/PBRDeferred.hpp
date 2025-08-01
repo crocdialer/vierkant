@@ -3,7 +3,6 @@
 //
 #pragma once
 
-#include <deque>
 
 #include <vierkant/Bloom.hpp>
 #include <vierkant/Compute.hpp>
@@ -268,7 +267,7 @@ private:
         settings_t settings;
 
         //! recycling section
-        std::unordered_set<uint32_t> dirty_drawable_indices;
+        std::unordered_map<uint32_t, uint32_t> dirty_drawable_indices;
         size_t scene_hash = 0;
         bool recycle_commands = false;
 
