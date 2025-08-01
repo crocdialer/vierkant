@@ -328,7 +328,8 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
         bool transform_update =
                 last_inherited_flag_update(object, flag_component_t::DIRTY_TRANSFORM) + m_frame_contexts.size() >=
                 frame_thresh;
-
+        if(transform_update) { flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM; }
+        
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
                                 object->has_component<animation_component_t>();
 
