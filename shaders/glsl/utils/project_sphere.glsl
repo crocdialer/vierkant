@@ -27,11 +27,11 @@ bool project_sphere_ortho(vec3 C, float r, float znear, vec4 frustum, inout vec4
 {
     if (-C.z < r + znear){ return false; }
     float w = frustum.y - frustum.x;
-    float h = frustum.z - frustum.w;
+    float h = frustum.w - frustum.z;
     const float eps = 1.0e-6;
     if (w < eps || h < eps){ return false; }
-    aabb = clamp(vec4((C.x - r - frustum.x) / w, (C.y - r - frustum.w) / h,
-                 (C.x + r - frustum.x) / w, (C.y + r - frustum.w) / h), 0.0, 1.0);
+    aabb = clamp(vec4((C.x - r - frustum.x) / w, (C.y - r - frustum.z) / h,
+                 (C.x + r - frustum.x) / w, (C.y + r - frustum.z) / h), 0.0, 1.0);
     return true;
 }
 
