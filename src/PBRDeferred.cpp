@@ -299,7 +299,8 @@ PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
 {
     uint64_t frame_thresh = scene->current_frame();
-    bool need_culling = frame_context.cull_result.camera != cam;
+    bool need_culling = false;
+    frame_context.cull_result.camera = cam;
     frame_context.recycle_commands = true;
     frame_context.dirty_drawable_indices.clear();
 
