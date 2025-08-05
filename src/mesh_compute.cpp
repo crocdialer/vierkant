@@ -23,11 +23,11 @@ struct mesh_compute_context_t
 
 struct alignas(16) skin_compute_params_t
 {
-    uint32_t num_vertices;
     VkDeviceAddress vertex_in;
     VkDeviceAddress bone_vertex_data_in;
     VkDeviceAddress bones_in;
     VkDeviceAddress vertex_out;
+    uint32_t num_vertices;
 };
 
 struct alignas(16) morph_compute_params_t

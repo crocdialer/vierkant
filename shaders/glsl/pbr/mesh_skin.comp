@@ -13,11 +13,11 @@ layout(buffer_reference, std430) buffer BoneBufferPtr{ transform_t v[]; };
 
 struct skin_compute_params_t
 {
-    uint num_vertices;
     VertexBufferPtr vertex_in;
     BoneVertexBufferPtr bone_vertex_data_in;
     BoneBufferPtr bones_in;
     VertexBufferPtr vertex_out;
+    uint num_vertices;
 };
 
 layout(binding = 0, scalar) readonly buffer SkinParamBuffer
