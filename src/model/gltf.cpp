@@ -374,7 +374,7 @@ vierkant::material_t convert_material(const tinygltf::Material &tiny_mat, const 
                         occlusion_image->resize(ao_roughness_metal_image->width(), ao_roughness_metal_image->height());
             }
 
-            auto *src = static_cast<uint8_t *>(occlusion_image->data());
+            auto *src = (uint8_t *) occlusion_image->data();
 
             constexpr size_t ao_offset = 0;
             auto dst = (uint8_t *) ao_roughness_metal_image->data();
