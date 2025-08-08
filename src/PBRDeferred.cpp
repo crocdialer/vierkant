@@ -324,13 +324,14 @@ void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &
                                                    frame_thresh);
         bool material_update =
                 flag_cmp.timestamp(flag_component_t::DIRTY_MATERIAL) + m_frame_contexts.size() >= frame_thresh;
+        if(material_update) { flag_cmp.flags |= flag_component_t::DIRTY_MATERIAL; }
 
         auto mesh = mesh_component->mesh.get();
         bool transform_update =
                 last_inherited_flag_update(object, flag_component_t::DIRTY_TRANSFORM) + m_frame_contexts.size() >=
                 frame_thresh;
         if(transform_update) { flag_cmp.flags |= flag_component_t::DIRTY_TRANSFORM; }
-        
+
         bool animation_update = !mesh->node_animations.empty() && !mesh->root_bone && !mesh->morph_buffer &&
                                 object->has_component<animation_component_t>();
 
