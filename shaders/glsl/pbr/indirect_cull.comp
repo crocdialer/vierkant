@@ -79,7 +79,7 @@ uint div_up(uint nom, uint denom) { return (nom + denom - 1) / denom; }
 
 layout(binding = 0) uniform sampler2D u_depth_pyramid;
 
-layout(std430, binding = 1) readonly buffer culldata_ubo_t{ draw_cull_data_t cull_data; };
+layout(std140, binding = 1) readonly uniform culldata_ubo_t{ draw_cull_data_t cull_data; };
 
 layout(local_size_x = 32) in;
 
