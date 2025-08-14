@@ -219,7 +219,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
 
         // TAA settings uniform-buffer
         vierkant::descriptor_t &desc_taa_ubo = m_drawable_taa.descriptors[1];
-        desc_taa_ubo.type = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
+        desc_taa_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         desc_taa_ubo.stage_flags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
         // fxaa
@@ -1157,10 +1157,7 @@ vierkant::ImagePtr PBRDeferred::post_fx_pass(const CameraPtr &cam, const vierkan
         drawable.descriptors[0].images = {output_img, depth,
                                           frame_context.g_buffer_post.color_attachment(G_BUFFER_MOTION), history_color,
                                           history_depth};
-
-        drawable.descriptors[1].inline_uniform_block.resize(sizeof(camera_params_t));
-        auto *camera_params = reinterpret_cast<camera_params_t *>(drawable.descriptors[1].inline_uniform_block.data());
-        *camera_params = frame_context.camera_params;
+        drawable.descriptors[1].buffers = {frame_context.g_buffer_camera_ubo};
         output_img = pingpong_render(drawable, SemaphoreValue::TAA, frame_context.taa_buffer);
     }
 

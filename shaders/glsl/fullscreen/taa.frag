@@ -13,7 +13,8 @@ layout(binding = 0) uniform sampler2D u_sampler_2D[5];
 
 layout(std140, binding = 1) uniform taa_ubo
 {
-    camera_t u_settings;
+    camera_t camera;
+    camera_t last_camera;
 };
 
 layout(location = 0) in VertexData
@@ -31,5 +32,5 @@ void main()
                     u_sampler_2D[MOTION],
                     u_sampler_2D[HISTORY_COLOR],
                     u_sampler_2D[HISTORY_DEPTH],
-                    u_settings);
+                    camera);
 }
