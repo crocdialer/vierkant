@@ -26,10 +26,10 @@ public struct MeshDraw
 // Level-of-detail data for a mesh
 public struct lod_t
 {
-    uint base_index;
-    uint num_indices;
-    uint base_meshlet;
-    uint num_meshlets;
+    public uint base_index;
+    public uint num_indices;
+    public uint base_meshlet;
+    public uint num_meshlets;
 };
 
 #define MAX_NUM_MESH_LODS 8
@@ -37,14 +37,14 @@ public struct lod_t
 // Metadata for a mesh and its LODs
 public struct MeshEntry
 {
-    float3 center;
-    float radius;
+    public float3 center;
+    public float radius;
 
-    uint vertex_offset;
-    uint vertex_count;
-    uint lod_count;
+    public uint vertex_offset;
+    public uint vertex_count;
+    public uint lod_count;
     uint pad;
-    lod_t lods[MAX_NUM_MESH_LODS];
+    public lod_t lods[MAX_NUM_MESH_LODS];
 };
 
 // Bundle of draw-time indices (passed between shader stages)
@@ -127,7 +127,7 @@ public struct material_t
     public bool two_sided;
 };
 
-pulic enum DebugFlagBits
+public enum DebugFlagBits
 {
     NONE = 0x0,
     DRAW_ID = 0x1,
@@ -137,12 +137,12 @@ pulic enum DebugFlagBits
 // Render-time context (usually passed via push constants)
 public struct render_context_t
 {
-    float2 size;
-    float time;
-    uint random_seed;
-    bool disable_material;
-    uint debug_flags;
-    uint base_draw_index;
+    public float2 size;
+    public float time;
+    public uint random_seed;
+    public bool disable_material;
+    public uint debug_flags;
+    public uint base_draw_index;
 };
 
 // Shader resource bindings

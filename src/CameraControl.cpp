@@ -39,11 +39,6 @@ void OrbitCamera::update(double time_delta)
         float zoom = trigger.y - trigger.x;
         zoom *= zoom_sensitivity;
 
-        if(state.input_events().count(Joystick::Input::BUTTON_STICK_LEFT))
-        {
-            look_at = glm::vec3(0);
-            needs_update = true;
-        }
         if(above_thresh)
         {
             distance = std::max(.1f, distance - zoom);
