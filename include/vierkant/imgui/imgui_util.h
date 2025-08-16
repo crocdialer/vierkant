@@ -45,4 +45,7 @@ void draw_transform_guizmo(const vierkant::Object3DPtr &object, const vierkant::
 void draw_transform_guizmo(const std::set<vierkant::Object3DPtr> &object_set, const vierkant::CameraConstPtr &camera,
                            GuizmoType type);
 
+bool draw_material_ui(vierkant::material_t &material,
+                      const std::function<void(vierkant::TextureType, const std::string &)> &draw_texture_fn = {});
+
 }// namespace vierkant::gui

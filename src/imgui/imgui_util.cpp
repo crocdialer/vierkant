@@ -536,161 +536,126 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
 
 void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::Object3DPtr> *selection)
 {
-    constexpr char window_name[] = "scene";
-    scoped_child_window_t scoped_child_window(window_name);
-
-    if(scoped_child_window.is_open)
+    ImGui::BeginTabBar("scene_tabs");
+    if(ImGui::BeginTabItem("scenegraph"))
     {
-        ImGui::BeginTabBar("scene_tabs");
-        if(ImGui::BeginTabItem("scene"))
+        // draw a scrollable tree for all scene-objects
+        ImGui::BeginChild("scrolling", ImVec2(0, 400), ImGuiChildFlags_ResizeY);
+        auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection, ImGuiTreeNodeFlags_DefaultOpen);
+        ImGui::EndChild();
+
+        // add / remove an object from selection
+        if(clicked_obj && selection)
         {
-            // draw a scrollable tree for all scene-objects
-            ImGui::BeginChild("scrolling", ImVec2(0, 400), ImGuiChildFlags_ResizeY);
-            auto clicked_obj = draw_scenegraph_ui_helper(scene->root(), selection, ImGuiTreeNodeFlags_DefaultOpen);
-            ImGui::EndChild();
-
-            // add / remove an object from selection
-            if(clicked_obj && selection)
+            if(ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
             {
-                if(ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
-                {
-                    if(selection->contains(clicked_obj)) { selection->erase(clicked_obj); }
-                    else { selection->insert(clicked_obj); }
-                }
-                else
-                {
-                    selection->clear();
-                    selection->insert(clicked_obj);
-                }
+                if(selection->contains(clicked_obj)) { selection->erase(clicked_obj); }
+                else { selection->insert(clicked_obj); }
             }
-            ImGui::Separator();
-            if(selection)
+            else
             {
-                for(auto &obj: *selection) { draw_object_ui(obj); }
+                selection->clear();
+                selection->insert(clicked_obj);
             }
-
-            ImGui::EndTabItem();
         }
-        if(ImGui::BeginTabItem("materials"))
+        ImGui::Separator();
+        if(selection)
         {
-            std::unordered_set<vierkant::MaterialPtr> material_map;
-            std::vector<vierkant::MaterialPtr> materials;
+            for(auto &obj: *selection) { draw_object_ui(obj); }
+        }
 
-            auto view = scene->registry()->view<vierkant::mesh_component_t>();
+        ImGui::EndTabItem();
+    }
+    if(ImGui::BeginTabItem("materials"))
+    {
+        std::unordered_set<vierkant::MaterialPtr> material_map;
+        std::vector<vierkant::MaterialPtr> materials;
 
-            // uniquely gather all materials in order
-            for(const auto &[entity, mesh_cmp]: view.each())
+        auto view = scene->registry()->view<vierkant::mesh_component_t>();
+
+        // uniquely gather all materials in order
+        for(const auto &[entity, mesh_cmp]: view.each())
+        {
+            if(mesh_cmp.mesh)
             {
-                if(mesh_cmp.mesh)
+                for(const auto &m: mesh_cmp.mesh->materials)
                 {
-                    for(const auto &m: mesh_cmp.mesh->materials)
+                    if(!material_map.contains(m))
                     {
-                        if(!material_map.contains(m))
-                        {
-                            materials.push_back(m);
-                            material_map.insert(m);
-                        }
+                        materials.push_back(m);
+                        material_map.insert(m);
                     }
                 }
             }
-            for(uint32_t i = 0; i < materials.size(); ++i)
-            {
-                const auto &mat = materials[i];
-                auto mat_name = mat->m.name.empty() ? std::to_string(i) : mat->m.name;
-
-                if(mat && ImGui::TreeNode((void *) (mat.get()), "%s", mat_name.c_str()))
-                {
-                    draw_material_ui(mat);
-                    ImGui::Separator();
-                    ImGui::TreePop();
-                }
-            }
-
-            ImGui::EndTabItem();
         }
-        if(ImGui::BeginTabItem("lights"))
+        for(uint32_t i = 0; i < materials.size(); ++i)
         {
-            auto view = scene->registry()->view<vierkant::Object3D *, vierkant::model::lightsource_t>();
+            const auto &mat = materials[i];
+            auto mat_name = mat->m.name.empty() ? std::to_string(i) : mat->m.name;
 
-            // uniquely gather all materials in order
-            for(auto [entity, object, light]: view.each())
+            if(mat && ImGui::TreeNode((void *) (mat.get()), "%s", mat_name.c_str()))
             {
-                if(ImGui::TreeNode((void *) object, "%s", object->name.c_str()))
-                {
-                    ImGui::Separator();
-                    draw_light_ui(light);
-                    ImGui::TreePop();
-                }
+                draw_material_ui(mat);
+                ImGui::Separator();
+                ImGui::TreePop();
             }
-            ImGui::EndTabItem();
         }
-        if(ImGui::BeginTabItem("cameras"))
-        {
-            if(ImGui::Button("add camera"))
-            {
-                scene->add_object(vierkant::PerspectiveCamera::create(scene->registry()));
-            }
-            vierkant::SelectVisitor<vierkant::PerspectiveCamera> camera_filter({}, false);
-            scene->root()->accept(camera_filter);
 
-            for(const auto &cam: camera_filter.objects)
-            {
-                bool enabled = cam == camera.get();
-
-                // push object id
-                ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(cam)));
-                if(ImGui::Checkbox("", &enabled) && enabled)
-                {
-                    camera = std::dynamic_pointer_cast<Camera>(cam->shared_from_this());
-                }
-                ImGui::PopID();
-                ImGui::SameLine();
-
-                if(ImGui::TreeNode((void *) ((uint64_t) cam->id()), "%s", cam->name.c_str()))
-                {
-                    vierkant::gui::draw_camera_param_ui(cam->perspective_params);
-                    ImGui::Spacing();
-                    ImGui::Separator();
-                    ImGui::TreePop();
-                }
-            }
-
-            ImGui::EndTabItem();
-        }
-        ImGui::EndTabBar();
+        ImGui::EndTabItem();
     }
+    if(ImGui::BeginTabItem("lights"))
+    {
+        auto view = scene->registry()->view<vierkant::Object3D *, vierkant::model::lightsource_t>();
+
+        // uniquely gather all materials in order
+        for(auto [entity, object, light]: view.each())
+        {
+            if(ImGui::TreeNode((void *) object, "%s", object->name.c_str()))
+            {
+                ImGui::Separator();
+                draw_light_ui(light);
+                ImGui::TreePop();
+            }
+        }
+        ImGui::EndTabItem();
+    }
+    if(ImGui::BeginTabItem("cameras"))
+    {
+        if(ImGui::Button("add camera")) { scene->add_object(vierkant::PerspectiveCamera::create(scene->registry())); }
+        vierkant::SelectVisitor<vierkant::PerspectiveCamera> camera_filter({}, false);
+        scene->root()->accept(camera_filter);
+
+        for(const auto &cam: camera_filter.objects)
+        {
+            bool enabled = cam == camera.get();
+
+            // push object id
+            ImGui::PushID(static_cast<int>(std::hash<vierkant::Object3D *>()(cam)));
+            if(ImGui::Checkbox("", &enabled) && enabled)
+            {
+                camera = std::dynamic_pointer_cast<Camera>(cam->shared_from_this());
+            }
+            ImGui::PopID();
+            ImGui::SameLine();
+
+            if(ImGui::TreeNode((void *) ((uint64_t) cam->id()), "%s", cam->name.c_str()))
+            {
+                vierkant::gui::draw_camera_param_ui(cam->perspective_params);
+                ImGui::Spacing();
+                ImGui::Separator();
+                ImGui::TreePop();
+            }
+        }
+
+        ImGui::EndTabItem();
+    }
+    ImGui::EndTabBar();
 }
 
-bool draw_material_ui(const MaterialPtr &mesh_material)
+bool draw_material_ui(vierkant::material_t &material,
+                      const std::function<void(vierkant::TextureType, const std::string &)> &draw_texture_fn)
 {
-    const float w = ImGui::GetContentRegionAvail().x;
-
-    auto draw_texture = [&mesh_material, w](vierkant::TextureType type, const std::string &text) {
-        auto it = mesh_material->textures.find(type);
-
-        if(it != mesh_material->textures.end())
-        {
-            const auto &img = it->second;
-
-            if(img)
-            {
-                constexpr uint32_t buf_size = 16;
-                char buf[buf_size];
-                bool is_bc5 = img->format().format == VK_FORMAT_BC5_UNORM_BLOCK ||
-                              img->format().format == VK_FORMAT_BC5_SNORM_BLOCK;
-                bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
-                              img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
-                snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : is_bc5 ? " - BC5" : "");
-                ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
-                ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), buf);
-                ImGui::Image((ImTextureID) (img.get()), sz);
-                ImGui::Separator();
-            }
-        }
-    };
-
     bool changed = false;
-    auto &material = mesh_material->m;
 
     // name
     constexpr size_t buf_size = 4096;
@@ -705,15 +670,15 @@ bool draw_material_ui(const MaterialPtr &mesh_material)
 
     // base color
     changed |= ImGui::ColorEdit4("base color", glm::value_ptr(material.base_color));
-    draw_texture(vierkant::TextureType::Color, "base color");
+    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Color, "base color"); }
 
     // emissive color
     changed |= ImGui::ColorEdit3("emission color", glm::value_ptr(material.emission));
     changed |= ImGui::InputFloat("emissive strength", &material.emissive_strength);
-    draw_texture(vierkant::TextureType::Emission, "emission");
+    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Emission, "emission"); }
 
     // normalmap
-    draw_texture(vierkant::TextureType::Normal, "normals");
+    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Normal, "normals"); }
 
     ImGui::Separator();
 
@@ -727,7 +692,7 @@ bool draw_material_ui(const MaterialPtr &mesh_material)
     changed |= ImGui::SliderFloat("occlusion", &material.occlusion, 0.f, 1.f);
 
     // ambient-occlusion / roughness / metalness
-    draw_texture(vierkant::TextureType::Ao_rough_metal, "occlusion / roughness / metalness");
+    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Ao_rough_metal, "occlusion / roughness / metalness"); }
 
     ImGui::Separator();
 
@@ -764,7 +729,7 @@ bool draw_material_ui(const MaterialPtr &mesh_material)
 
     // transmission
     changed |= ImGui::SliderFloat("transmission", &material.transmission, 0.f, 1.f);
-    draw_texture(vierkant::TextureType::Transmission, "transmission");
+    if(draw_texture_fn) { draw_texture_fn(vierkant::TextureType::Transmission, "transmission"); }
 
     // attenuation distance
     changed |= ImGui::InputFloat("attenuation distance", &material.attenuation_distance);
@@ -800,6 +765,37 @@ bool draw_material_ui(const MaterialPtr &mesh_material)
     changed |= ImGui::SliderFloat("clearcoat factor", &material.clearcoat_factor, 0.f, 1.f);
     changed |= ImGui::SliderFloat("clearcoat roughness", &material.clearcoat_roughness_factor, 0.f, 1.f);
     return changed;
+}
+
+bool draw_material_ui(const MaterialPtr &mesh_material)
+{
+    const float w = ImGui::GetContentRegionAvail().x;
+
+    auto draw_texture = [&mesh_material, w](vierkant::TextureType type, const std::string &text) {
+        auto it = mesh_material->textures.find(type);
+
+        if(it != mesh_material->textures.end())
+        {
+            const auto &img = it->second;
+
+            if(img)
+            {
+                constexpr uint32_t buf_size = 16;
+                char buf[buf_size];
+                bool is_bc5 = img->format().format == VK_FORMAT_BC5_UNORM_BLOCK ||
+                              img->format().format == VK_FORMAT_BC5_SNORM_BLOCK;
+                bool is_bc7 = img->format().format == VK_FORMAT_BC7_UNORM_BLOCK ||
+                              img->format().format == VK_FORMAT_BC7_SRGB_BLOCK;
+                snprintf(buf, buf_size, "%s", is_bc7 ? " - BC7" : is_bc5 ? " - BC5" : "");
+                ImVec2 sz(w, w / (static_cast<float>(img->width()) / static_cast<float>(img->height())));
+                ImGui::BulletText("%s (%d x %d%s)", text.c_str(), img->width(), img->height(), buf);
+                ImGui::Image((ImTextureID) (img.get()), sz);
+                ImGui::Separator();
+            }
+        }
+    };
+
+    return draw_material_ui(mesh_material->m, draw_texture);
 }
 
 void draw_light_ui(vierkant::model::lightsource_t &light)
