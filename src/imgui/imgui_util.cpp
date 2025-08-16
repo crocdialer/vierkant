@@ -322,7 +322,7 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
     std::vector<PBRDeferred::statistics_t> values(stats.begin(), stats.end());
     auto max_axis_x = static_cast<double>(pbr_renderer->settings.timing_history_size);
 
-    ImGui::BulletText("drawcount: %d", draw_result.draw_count);
+    ImGui::BulletText("drawcount: %d / %d", draw_result.num_visible, draw_result.draw_count);
     ImGui::BulletText("num_triangles: %d", draw_result.num_triangles);
     ImGui::BulletText("num_meshlets: %d", draw_result.num_meshlets);
     ImGui::BulletText("num_frustum_culled: %d", draw_result.num_frustum_culled);
@@ -351,12 +351,12 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
                                        offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
-                               static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
+                               static_cast<int>(draw_result.draw_count), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
             ImPlot::PlotShaded("occluded",
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
                                        offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
-                               static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
+                               static_cast<int>(draw_result.draw_count), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
             ImPlot::PopStyleVar();
             ImPlot::EndPlot();
         }

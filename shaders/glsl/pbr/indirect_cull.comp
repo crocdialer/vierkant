@@ -11,7 +11,8 @@
 
 struct draw_cull_result_t
 {
-    uint num_draws;
+    uint draw_count;
+    uint num_visible;
     uint num_frustum_culled;
     uint num_occlusion_culled;
     uint num_contribution_culled;
@@ -90,6 +91,7 @@ void main()
 
     // originial draw-commands from pre-pass
     indexed_indirect_command_t draw = cull_data.draws_in.v[gid];
+    atomicAdd(cull_data.draw_result.v.draw_count, 1);
 
     mesh_draw_t mesh_draw = cull_data.mesh_draws_in.v[draw.object_index];
     mesh_entry_t mesh_entry = cull_data.mesh_entries_in.v[mesh_draw.mesh_index];
@@ -180,7 +182,7 @@ void main()
     // count managment
     if(visible)
     {
-        atomicAdd(cull_data.draw_result.v.num_draws, 1);
+        atomicAdd(cull_data.draw_result.v.num_visible, 1);
         atomicAdd(cull_data.draw_result.v.num_triangles, draw.indexCount / 3);
         atomicAdd(cull_data.draw_result.v.num_meshlets, draw.num_meshlets);
 
