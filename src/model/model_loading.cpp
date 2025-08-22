@@ -267,6 +267,33 @@ model::load_mesh_result_t load_mesh(const load_mesh_params_t &params,
     return ret;
 }
 
+vierkant::ImagePtr create_texture(const vierkant::DevicePtr &device, const crocore::ImagePtr &img,
+                                  vierkant::Image::Format fmt, VkQueue load_queue)
+{
+    if(!img) { return nullptr; }
+
+    // adhoc using global pool
+    auto pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
+                                              VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+    auto command_buffer = vierkant::CommandBuffer(device, pool.get());
+    command_buffer.begin();
+
+    fmt.format = vk_format(img);
+    fmt.usage |= VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    fmt.extent = {img->width(), img->height(), 1};
+    fmt.address_mode_u = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    fmt.address_mode_v = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    fmt.use_mipmap = true;
+    fmt.initial_layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    fmt.initial_cmd_buffer = command_buffer.handle();
+
+    auto vk_img = vierkant::Image::create(device, img->data(), fmt);
+
+    // submit and sync
+    command_buffer.submit(load_queue, true);
+    return vk_img;
+}
+
 // TODO: fix unnecessary blocking, rework with commandbuffer-handle and staging-buffer!?
 vierkant::ImagePtr create_compressed_texture(const vierkant::DevicePtr &device,
                                              const vierkant::bcn::compress_result_t &compression_result,

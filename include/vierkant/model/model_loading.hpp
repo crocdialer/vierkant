@@ -142,6 +142,18 @@ load_mesh_result_t load_mesh(const load_mesh_params_t &params, const vierkant::m
 bool compress_textures(vierkant::model::model_assets_t &mesh_assets, crocore::ThreadPoolClassic *pool = nullptr);
 
 /**
+ * @brief   create_texture can be used to create a texture from an existing host-image
+ *
+ * @param   device              handle to a vierkant::Device
+ * @param   img                 an image
+ * @param   format              a vierkant::Image::Format struct providing sampler+texture settings
+ * @param   load_queue          the VkQueue that shall be used for required image-transfers.
+ * @return  a newly created texture
+ */
+vierkant::ImagePtr create_texture(const vierkant::DevicePtr &device, const crocore::ImagePtr &img,
+                                  vierkant::Image::Format format, VkQueue load_queue);
+
+/**
  * @brief   create_compressed_texture can be used to create a texture from pre-compressed block-compressed blocks.
  *          used format will be either VK_FORMAT_BC5_UNORM_BLOCK or VK_FORMAT_BC7_UNORM_BLOCK.
  *
