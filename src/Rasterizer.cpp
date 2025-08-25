@@ -702,7 +702,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     std::map<std::pair<const vierkant::Mesh *, uint32_t>, uint32_t> mesh_entry_map;
 
     // maps -> material-index
-    std::unordered_map<vierkant::MaterialConstPtr, uint32_t> material_index_map;
+    std::unordered_map<const vierkant::Material*, uint32_t> material_index_map;
 
     // joined drawable buffers
     frame_asset.mesh_draws.resize(drawables.size());
@@ -716,7 +716,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
         uint32_t vertex_buffer_index = vertex_buffer_refs.size();
-        vierkant::MaterialConstPtr mat;
+        const vierkant::Material* mat = nullptr;
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
         {
@@ -743,7 +743,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                     drawable.vertex_buffer ? drawable.vertex_buffer : drawable.mesh->vertex_buffer->device_address();
             vertex_buffer_refs.push_back(vertex_buffer_address);
 
-            mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index];
+            mat = drawable.mesh->materials[drawable.mesh->entries[drawable.entry_index].material_index].get();
             if(!drawable.share_material || !material_index_map.contains(mat))
             {
                 material_index_map[mat] = material_data.size();
