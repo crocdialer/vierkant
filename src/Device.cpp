@@ -475,7 +475,7 @@ const Device::queue_asset_t *Device::queue_asset(VkQueue queue) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Device::set_object_name(VkDeviceAddress handle, VkObjectType type, const std::string &name)
+void Device::set_object_name(uint64_t handle, VkObjectType type, const std::string &name)
 {
     if(vkSetDebugUtilsObjectNameEXT)
     {

@@ -30,6 +30,23 @@ FencePtr create_fence(const vierkant::DevicePtr &device, bool signaled = false);
 void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fence, bool reset = true);
 
 /**
+ * @brief   stage_barrier is an utility to issue a memory-barrier across pipeline-stages
+ *
+ * @param   command_buffer  a command-buffer handle
+ * @param   src_stage_mask  source-stages bitmask
+ * @param   src_access      source-access bitmask       
+ * @param   dst_stage_mask  destination-stages bitmask
+ * @param   dst_access      destination-access bitmask 
+ */
+void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access,
+                   VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access);
+
+void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage_mask,
+                   VkPipelineStageFlags2 dst_stage_mask);
+
+void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 stage_mask);
+
+/**
  * @brief   Submit an array of command-buffers and/or semaphores to a VkQueue.
  *
  * @param   device          shared handle to a VkDevice
@@ -59,7 +76,6 @@ CommandPoolPtr create_command_pool(const vierkant::DevicePtr &device, vierkant::
 class CommandBuffer
 {
 public:
-
     struct create_info_t
     {
         DevicePtr device;

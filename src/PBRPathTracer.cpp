@@ -305,8 +305,18 @@ void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierka
     vkCmdWriteTimestamp2(frame_context.cmd_trace.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          frame_context.query_pool.get(), 2 * SemaphoreValue::RAYTRACING);
 
+    // barrier for top-lvl build
+    vierkant::stage_barrier(frame_context.cmd_trace.handle(),
+                            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT |
+                                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                            VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR);
+
     // run path-tracer
     m_ray_tracer.trace_rays(frame_context.tracable, frame_context.cmd_trace.handle());
+
+    // barrier after writing buffers
+    vierkant::stage_barrier(frame_context.cmd_trace.handle(), VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR,
+                            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     vkCmdWriteTimestamp2(frame_context.cmd_trace.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
                          frame_context.query_pool.get(), 2 * SemaphoreValue::RAYTRACING + 1);
@@ -335,13 +345,9 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_GENERAL, frame_context.cmd_denoise.handle());
 
     // write-after-write hazard
-    m_storage.object_ids->barrier(m_storage.object_ids->image_layout(), frame_context.cmd_denoise.handle(),
-                                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-                                  VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT, VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
-
-    m_storage.depth->barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                             VK_ACCESS_TRANSFER_READ_BIT, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                             VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT);
+    vierkant::stage_barrier(frame_context.cmd_denoise.handle(),
+                            VK_PIPELINE_STAGE_2_TRANSFER_BIT | VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                            VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
 
     // dispatch denoising-kernel
     m_compute.dispatch({frame_context.denoise_computable}, frame_context.cmd_denoise.handle());
