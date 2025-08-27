@@ -712,11 +712,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         frame_context.cmd_clear.begin(0);
         vierkant::begin_label(frame_context.cmd_clear.handle(), {"update transforms"});
 
-        auto src_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        auto src_access = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-        auto dst_stage = VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
-        auto dst_access = VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
-
         resize_indirect_draw_buffers(params.num_draws, frame_context.indirect_draw_params_main);
 
         // keep references to internal buffers from pre-pass
@@ -735,17 +730,11 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         {
             params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_out,
                                      frame_context.cmd_clear.handle());
-            frame_context.indirect_draw_params_main.draws_out->barrier(frame_context.cmd_clear.handle(), src_stage,
-                                                                       src_access, dst_stage, dst_access);
 
             if(use_gpu_culling)
             {
-                frame_context.indirect_draw_params_main.draws_in->barrier(frame_context.cmd_clear.handle(), dst_stage,
-                                                                          dst_access, src_stage, src_access);
                 params.draws_in->copy_to(frame_context.indirect_draw_params_main.draws_in,
                                          frame_context.cmd_clear.handle());
-                frame_context.indirect_draw_params_main.draws_in->barrier(frame_context.cmd_clear.handle(), src_stage,
-                                                                          src_access, dst_stage, dst_access);
             }
 
             if(use_gpu_culling)
@@ -754,17 +743,14 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                 vkCmdFillBuffer(frame_context.cmd_clear.handle(),
                                 frame_context.indirect_draw_params_main.draws_counts_out->handle(), 0, VK_WHOLE_SIZE,
                                 0);
-                frame_context.indirect_draw_params_main.draws_counts_out->barrier(
-                        frame_context.cmd_clear.handle(), src_stage, src_access, dst_stage, dst_access);
             }
+            vierkant::stage_barrier(frame_context.cmd_clear.handle(), VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+                                    VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT,
+                                    VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT);
         }
         else if(params.num_draws && (!frame_context.dirty_drawable_indices.empty() ||
                                      !frame_context.mesh_compute_result.vertex_buffer_offsets.empty()))
         {
-            params.mesh_draws->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage, src_access);
-            params.materials->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage, src_access);
-            params.vertex_buffer_addresses->barrier(frame_context.cmd_clear.handle(), src_stage, src_access, src_stage,
-                                                    src_access);
             constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
@@ -779,7 +765,6 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 if(idx < frame_context.cull_result.drawables.size())
                 {
-                    // const auto &drawable = params.drawables->at(idx);
                     const auto &drawable = frame_context.cull_result.drawables[idx];
 
                     matrix_data[2 * i] = drawable.matrices;
@@ -809,7 +794,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
                         copy_material.dst_offset =
                                 sizeof(vierkant::material_struct_t) * params.mesh_draws_host[idx].material_index;
                         copy_material.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-                        copy_material.dst_stage = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT;
+                        copy_material.dst_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
                         staging_copies.push_back(copy_material);
                     }
 

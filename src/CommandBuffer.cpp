@@ -31,6 +31,41 @@ void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fen
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access,
+                   VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access)
+{
+    VkMemoryBarrier2 barrier = {};
+    barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2;
+    barrier.srcStageMask = src_stage_mask;
+    barrier.srcAccessMask = src_access;
+    barrier.dstStageMask = dst_stage_mask;
+    barrier.dstAccessMask = dst_access;
+
+    VkDependencyInfo dependency_info = {};
+    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependency_info.memoryBarrierCount = 1;
+    dependency_info.pMemoryBarriers = &barrier;
+    vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage_mask,
+                   VkPipelineStageFlags2 dst_stage_mask)
+{
+    VkAccessFlags2 access_flags = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+    stage_barrier(command_buffer, src_stage_mask, access_flags, dst_stage_mask, access_flags);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 stage_mask)
+{
+    stage_barrier(command_buffer, stage_mask, stage_mask);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void submit(const vierkant::DevicePtr &device, VkQueue queue, const std::vector<VkCommandBuffer> &command_buffers,
             bool wait_fence, VkFence fence, const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {

@@ -175,7 +175,7 @@ public:
      * @param   type    an object-type identifier
      * @param   name    a name to use for this object
      */
-    void set_object_name(VkDeviceAddress handle, VkObjectType type, const std::string &name);
+    void set_object_name(uint64_t handle, VkObjectType type, const std::string &name);
 
 private:
     explicit Device(const create_info_t &create_info);

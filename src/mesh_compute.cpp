@@ -265,12 +265,6 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
                              params.query_index_start);
     }
 
-    // barriers
-    VkBuffer buffers[] = {context->bone_buffer->handle(), context->skin_param_buffer->handle(),
-                          context->morph_param_buffer->handle()};
-    vierkant::barrier(context->cmd_buffer.handle(), buffers, 3, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
-
     // staging copies of bones + params
     vierkant::staging_copy_context_t staging_context = {};
     staging_context.command_buffer = context->cmd_buffer.handle();
@@ -306,25 +300,9 @@ mesh_compute_result_t mesh_compute(const mesh_compute_context_handle &context, c
     context->compute.dispatch(computables, context->cmd_buffer.handle());
 
     // memory read-barrier
-    VkBufferMemoryBarrier2 barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-    barrier.dstStageMask = VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT |
-                           VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
-    barrier.buffer = ret.result_buffer->handle();
-    barrier.offset = 0;
-    barrier.size = VK_WHOLE_SIZE;
-
-    VkDependencyInfo dependency_info = {};
-    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency_info.bufferMemoryBarrierCount = 1;
-    dependency_info.pBufferMemoryBarriers = &barrier;
-
-    // barrier reading any vertex-data
-    vkCmdPipelineBarrier2(context->cmd_buffer.handle(), &dependency_info);
+    vierkant::stage_barrier(context->cmd_buffer.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                            VK_PIPELINE_STAGE_2_PRE_RASTERIZATION_SHADERS_BIT |
+                                    VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR);
 
     if(params.query_pool)
     {

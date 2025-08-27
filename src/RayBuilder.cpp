@@ -624,6 +624,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
     // create/collect our stuff
     ret.top_lvl = create_acceleration_asset(create_info);
+    m_device->set_object_name((uint64_t) ret.top_lvl.structure.get(), VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR,
+                              "RayBuilder::toplevel");
 
     if(params.use_scene_assets)
     {
@@ -891,7 +893,8 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
     {
         vierkant::semaphore_submit_info_t wait_info = {};
         wait_info.semaphore = result.semaphore.handle();
-        wait_info.wait_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        wait_info.wait_stage = VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR |
+                               VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
         wait_info.wait_value = RayBuilder::SemaphoreValueBuild::BUILD;
         semaphore_infos.push_back(wait_info);
     }
