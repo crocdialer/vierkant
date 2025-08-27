@@ -123,9 +123,9 @@ vierkant::ImagePtr object_overlay(const object_overlay_context_ptr &context, con
     }
 
     // required to avoid a SYNC-HAZARD-WRITE-AFTER-WRITE
-    VkBuffer buffers[] = {context->param_buffer->handle(), context->id_map_storage_buffer->handle()};
-    vierkant::barrier(params.commandbuffer, buffers, 2, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
-                      VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
+    // VkBuffer buffers[] = {context->param_buffer->handle(), context->id_map_storage_buffer->handle()};
+    // vierkant::barrier(params.commandbuffer, buffers, 2, VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+    //                   VK_ACCESS_2_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_2_TRANSFER_WRITE_BIT);
 
     vierkant::staging_copy_info_t copy_ids = {};
     copy_ids.num_bytes = sizeof(uint8_t) * hash_storage.size();
