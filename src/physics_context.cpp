@@ -139,7 +139,7 @@ public:
     };
 
     void DrawText3D(JPH::RVec3Arg /*inPosition*/, const JPH::string_view & /*inString*/, JPH::ColorArg /*inColor*/,
-                    float /*inHeight*/) override{};
+                    float /*inHeight*/) override {};
 
     void clear()
     {
@@ -697,15 +697,15 @@ CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t 
             JPH::IndexedTriangleList triangles(num_triangles);
 
             auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
-            for(uint32_t i = 0; i < entry.num_vertices; ++i, data += mesh_bundle.vertex_stride)
+            for(uint32_t v = 0; v < entry.num_vertices; ++v, data += mesh_bundle.vertex_stride)
             {
                 auto p = *reinterpret_cast<const glm::vec3 *>(data) * scale;
                 points[i] = {p.x, p.y, p.z};
             }
-            for(uint32_t i = 0; i < num_triangles; i++)
+            for(uint32_t t = 0; t < num_triangles; t++)
             {
-                uint32_t base_index = lod.base_index + 3 * i;
-                triangles[i] = JPH::IndexedTriangle(mesh_bundle.index_buffer[base_index],
+                uint32_t base_index = lod.base_index + 3 * t;
+                triangles[t] = JPH::IndexedTriangle(mesh_bundle.index_buffer[base_index],
                                                     mesh_bundle.index_buffer[base_index + 1],
                                                     mesh_bundle.index_buffer[base_index + 2], 0);
             }
@@ -772,10 +772,10 @@ CollisionShapeId PhysicsContext::create_convex_collision_shape(const collision::
 
             auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
             auto indices = mesh_bundle.index_buffer.data() + lod.base_index;
-            for(uint32_t i = 0; i < lod.num_indices; ++i)
+            for(uint32_t idx = 0; idx < lod.num_indices; ++idx)
             {
-                auto v = *reinterpret_cast<const glm::vec3 *>(data + indices[i] * mesh_bundle.vertex_stride) * scale;
-                points[i] = {v.x, v.y, v.z};
+                auto v = *reinterpret_cast<const glm::vec3 *>(data + indices[idx] * mesh_bundle.vertex_stride) * scale;
+                points[idx] = {v.x, v.y, v.z};
             }
 
             JPH::ConvexHullShapeSettings hull_shape_settings(points);
@@ -916,6 +916,18 @@ PhysicsContext::debug_draw_result_t PhysicsContext::debug_render() const
     m_engine->jolt.physics_system.DrawBodies(ds, m_engine->jolt.debug_render.get());
     return {m_engine->jolt.debug_render->line_geometry, m_engine->jolt.debug_render->aabbs,
             m_engine->jolt.debug_render->colors, m_engine->jolt.debug_render->triangle_meshes};
+}
+
+vierkant::ConstraintId PhysicsContext::add_constraint(uint32_t /*objectId1*/, uint32_t /*objectId2*/,
+                                                      const constraint::constraint_t & /*constraint*/)
+{
+    // TODO
+    return vierkant::ConstraintId::nil();
+}
+
+void PhysicsContext::remove_contraint(const vierkant::ConstraintId & /*constraint_id*/)
+{
+    // TODO
 }
 
 void PhysicsContext::set_gravity(const glm::vec3 &g) { m_engine->jolt.physics_system.SetGravity(type_cast(g)); }
@@ -1134,20 +1146,20 @@ PhysicsScene::PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_
 
 }//namespace vierkant
 
-size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_component_t const &c) const
-{
-    size_t h = 0;
-    vierkant::hash_combine(h, c.mode);
-    vierkant::hash_combine(h, c.shape);
-    vierkant::hash_combine(h, c.mass);
-    vierkant::hash_combine(h, c.friction);
-    vierkant::hash_combine(h, c.restitution);
-    vierkant::hash_combine(h, c.linear_damping);
-    vierkant::hash_combine(h, c.angular_damping);
-    vierkant::hash_combine(h, c.kinematic);
-    vierkant::hash_combine(h, c.sensor);
-    return h;
-}
+//size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_component_t const &c) const
+//{
+//    size_t h = 0;
+//    vierkant::hash_combine(h, c.mode);
+//    vierkant::hash_combine(h, c.shape);
+//    vierkant::hash_combine(h, c.mass);
+//    vierkant::hash_combine(h, c.friction);
+//    vierkant::hash_combine(h, c.restitution);
+//    vierkant::hash_combine(h, c.linear_damping);
+//    vierkant::hash_combine(h, c.angular_damping);
+//    vierkant::hash_combine(h, c.kinematic);
+//    vierkant::hash_combine(h, c.sensor);
+//    return h;
+//}
 
 size_t std::hash<vierkant::collision::plane_t>::operator()(const vierkant::collision::plane_t &s) const
 {
