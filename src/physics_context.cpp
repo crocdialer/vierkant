@@ -67,6 +67,13 @@ inline vierkant::transform_t type_cast(const JPH::Mat44 &mat)
     return ret;
 }
 
+//! helper struct to group/lookup body-ids
+struct body_id_struct_t
+{
+    vierkant::BodyId body_id = vierkant::BodyId::nil();
+    JPH::BodyID jolt_body_id;
+};
+
 // Callback for asserts, connect this to your own assert handler if you have one
 [[maybe_unused]] static bool AssertFailedImpl(const char *inExpression, const char *inMessage, const char *inFile,
                                               uint32_t inLine)
@@ -325,7 +332,7 @@ class BodyInterfaceImpl : public vierkant::PhysicsContext::BodyInterface
 {
 public:
     BodyInterfaceImpl(JPH::BodyInterface &jolt_body_interface,
-                      const std::unordered_map<uint32_t, JPH::BodyID> &body_id_map)
+                      const std::unordered_map<uint32_t, body_id_struct_t> &body_id_map)
         : m_jolt_body_interface(jolt_body_interface), m_body_id_map(body_id_map)
     {}
 
@@ -410,7 +417,7 @@ private:
     [[nodiscard]] inline std::optional<JPH::BodyID> get_body_id(uint32_t objectId) const
     {
         auto it = m_body_id_map.find(objectId);
-        if(it != m_body_id_map.end()) { return it->second; }
+        if(it != m_body_id_map.end()) { return it->second.jolt_body_id; }
         return {};
     }
 
@@ -418,7 +425,7 @@ private:
     JPH::BodyInterface &m_jolt_body_interface;
     JPH::ObjectLayerFilter m_object_layer_filter;
     JPH::BroadPhaseLayerFilter m_broad_phase_layer_filter;
-    const std::unordered_map<uint32_t, JPH::BodyID> &m_body_id_map;
+    const std::unordered_map<uint32_t, body_id_struct_t> &m_body_id_map;
 };
 
 class JoltContext : public JPH::BodyActivationListener, public JPH::ContactListener, public JPH::SoftBodyContactListener
@@ -581,7 +588,7 @@ public:
     std::unordered_map<vierkant::collision::shape_t, std::pair<vierkant::CollisionShapeId, uint32_t>> shape_ids;
 
     //! lookup of body-ids
-    std::unordered_map<uint32_t, JPH::BodyID> body_id_map;
+    std::unordered_map<uint32_t, body_id_struct_t> body_id_map;
 
     //! lookup of callback-structs
     std::unordered_map<uint32_t, vierkant::PhysicsContext::callbacks_t> callback_map;
@@ -866,7 +873,7 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
                 std::unique_lock lock(m_engine->jolt.mutex);
                 JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
                 body_interface.SetUserData(jolt_bodyId, objectId);
-                m_engine->jolt.body_id_map[objectId] = jolt_bodyId;
+                m_engine->jolt.body_id_map[objectId] = {cmp.body_id, jolt_bodyId};
                 spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
                 return !jolt_bodyId.IsInvalid();
             }
@@ -881,10 +888,10 @@ void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_co
     auto it = m_engine->jolt.body_id_map.find(objectId);
     if(it != m_engine->jolt.body_id_map.end())
     {
-        spdlog::trace("PhysicsContext::remove_object: obj: {} / body {}", objectId, it->second.GetIndex());
+        spdlog::trace("PhysicsContext::remove_object: obj: {} / body {}", objectId, it->second.jolt_body_id.GetIndex());
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
-        body_interface.RemoveBody(it->second);
-        body_interface.DestroyBody(it->second);
+        body_interface.RemoveBody(it->second.jolt_body_id);
+        body_interface.DestroyBody(it->second.jolt_body_id);
         m_engine->jolt.body_id_map.erase(it);
         m_engine->jolt.callback_map.erase(objectId);
 

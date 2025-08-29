@@ -13,6 +13,7 @@
 namespace vierkant
 {
 
+DEFINE_NAMED_UUID(BodyId)
 DEFINE_NAMED_UUID(CollisionShapeId)
 DEFINE_NAMED_UUID(ConstraintId)
 
@@ -115,6 +116,11 @@ struct spring_settings_t
     constexpr bool operator==(const vierkant::constraint::spring_settings_t &other) const = default;
 };
 
+struct none_t
+{
+    constexpr bool operator==(const vierkant::constraint::none_t &other) const = default;
+};
+
 struct point_t
 {
     ConstraintSpace space = ConstraintSpace::World;
@@ -134,7 +140,7 @@ struct distance_t
     constexpr bool operator==(const vierkant::constraint::distance_t &other) const = default;
 };
 
-using constraint_t = std::variant<constraint::point_t, constraint::distance_t>;
+using constraint_t = std::variant<constraint::none_t, constraint::point_t, constraint::distance_t>;
 }// namespace constraint
 
 struct physics_component_t
@@ -149,6 +155,7 @@ struct physics_component_t
         REMOVE
     } mode = INACTIVE;
 
+    vierkant::BodyId body_id = {};
     collision::shape_t shape = collision::none_t{};
     std::optional<vierkant::transform_t> shape_transform = {};
     float mass = 0.f;
@@ -159,6 +166,15 @@ struct physics_component_t
     bool kinematic = false;
     bool sensor = false;
     constexpr bool operator==(const vierkant::physics_component_t &) const = default;
+};
+
+//! constraints can be attached to arbitrary objects and reference via vierkant::BodyId
+struct constraint_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+    constraint::constraint_t constraint = constraint::none_t{};
+    vierkant::BodyId body_id1 = vierkant::BodyId::nil();
+    vierkant::BodyId body_id2 = vierkant::BodyId::nil();
 };
 
 class PhysicsContext
