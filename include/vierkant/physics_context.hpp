@@ -230,8 +230,7 @@ public:
     void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
 
-    vierkant::ConstraintId add_constraint(uint32_t objectId1, uint32_t objectId2,
-                                          const constraint::constraint_t &constraint);
+    vierkant::ConstraintId add_constraint(const vierkant::constraint_component_t &constraint_cmp);
     void remove_contraint(const vierkant::ConstraintId &constraint_id);
 
     void set_callbacks(uint32_t objectId, const callbacks_t &callbacks);
@@ -281,56 +280,3 @@ private:
 };
 
 }//namespace vierkant
-
-// template specializations for hashing
-namespace std
-{
-//template<>
-//struct hash<vierkant::physics_component_t>
-//{
-//    size_t operator()(vierkant::physics_component_t const &c) const;
-//};
-
-template<>
-struct hash<vierkant::collision::none_t>
-{
-    size_t operator()(vierkant::collision::none_t const &) const { return 0; };
-};
-
-template<>
-struct hash<vierkant::collision::plane_t>
-{
-    size_t operator()(vierkant::collision::plane_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::sphere_t>
-{
-    size_t operator()(vierkant::collision::sphere_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::box_t>
-{
-    size_t operator()(vierkant::collision::box_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::cylinder_t>
-{
-    size_t operator()(vierkant::collision::cylinder_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::capsule_t>
-{
-    size_t operator()(vierkant::collision::capsule_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::mesh_t>
-{
-    size_t operator()(vierkant::collision::mesh_t const &) const;
-};
-
-}// namespace std

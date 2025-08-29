@@ -4,6 +4,77 @@
 #include <vierkant/Visitor.hpp>
 #include <vierkant/physics_context.hpp>
 
+// template specializations for hashing
+namespace std
+{
+template<>
+struct hash<vierkant::collision::none_t>
+{
+    size_t operator()(vierkant::collision::none_t const &) const { return 0; };
+};
+
+template<>
+struct hash<vierkant::collision::plane_t>
+{
+    size_t operator()(vierkant::collision::plane_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::sphere_t>
+{
+    size_t operator()(vierkant::collision::sphere_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::box_t>
+{
+    size_t operator()(vierkant::collision::box_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::cylinder_t>
+{
+    size_t operator()(vierkant::collision::cylinder_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::capsule_t>
+{
+    size_t operator()(vierkant::collision::capsule_t const &) const;
+};
+
+template<>
+struct hash<vierkant::collision::mesh_t>
+{
+    size_t operator()(vierkant::collision::mesh_t const &) const;
+};
+
+template<>
+struct hash<vierkant::constraint::spring_settings_t>
+{
+    size_t operator()(vierkant::constraint::spring_settings_t const &) const;
+};
+
+template<>
+struct hash<vierkant::constraint::none_t>
+{
+    size_t operator()(vierkant::constraint::none_t const &) const { return 0; };
+};
+
+template<>
+struct hash<vierkant::constraint::point_t>
+{
+    size_t operator()(vierkant::constraint::point_t const &) const;
+};
+
+template<>
+struct hash<vierkant::constraint::distance_t>
+{
+    size_t operator()(vierkant::constraint::distance_t const &) const;
+};
+
+}// namespace std
+
 // The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
 // You can use Jolt.h in your precompiled header to speed up compilation.
 #include <Jolt/Jolt.h>
@@ -587,8 +658,13 @@ public:
     std::unordered_map<vierkant::CollisionShapeId, JPH::Ref<JPH::Shape>> shapes;
     std::unordered_map<vierkant::collision::shape_t, std::pair<vierkant::CollisionShapeId, uint32_t>> shape_ids;
 
+    //! constraint storage
+    std::unordered_map<vierkant::ConstraintId, JPH::Ref<JPH::Constraint>> constraints;
+    std::unordered_map<vierkant::constraint::constraint_t, std::pair<vierkant::ConstraintId, uint32_t>> constraint_ids;
+
     //! lookup of body-ids
     std::unordered_map<uint32_t, body_id_struct_t> body_id_map;
+    std::unordered_map<vierkant::BodyId, uint32_t> body_id_rev_map;
 
     //! lookup of callback-structs
     std::unordered_map<uint32_t, vierkant::PhysicsContext::callbacks_t> callback_map;
@@ -874,6 +950,7 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
                 JPH::BodyID jolt_bodyId = body_interface.CreateAndAddBody(body_create_info, JPH::EActivation::Activate);
                 body_interface.SetUserData(jolt_bodyId, objectId);
                 m_engine->jolt.body_id_map[objectId] = {cmp.body_id, jolt_bodyId};
+                m_engine->jolt.body_id_rev_map[cmp.body_id] = objectId;
                 spdlog::trace("PhysicsContext::add_object: obj: {} / body {}", objectId, jolt_bodyId.GetIndex());
                 return !jolt_bodyId.IsInvalid();
             }
@@ -892,6 +969,8 @@ void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_co
         auto &body_interface = m_engine->jolt.physics_system.GetBodyInterface();
         body_interface.RemoveBody(it->second.jolt_body_id);
         body_interface.DestroyBody(it->second.jolt_body_id);
+
+        m_engine->jolt.body_id_rev_map.erase(it->second.body_id);
         m_engine->jolt.body_id_map.erase(it);
         m_engine->jolt.callback_map.erase(objectId);
 
@@ -925,10 +1004,22 @@ PhysicsContext::debug_draw_result_t PhysicsContext::debug_render() const
             m_engine->jolt.debug_render->colors, m_engine->jolt.debug_render->triangle_meshes};
 }
 
-vierkant::ConstraintId PhysicsContext::add_constraint(uint32_t /*objectId1*/, uint32_t /*objectId2*/,
-                                                      const constraint::constraint_t & /*constraint*/)
+vierkant::ConstraintId PhysicsContext::add_constraint(const vierkant::constraint_component_t &constraint_cmp)
 {
-    // TODO
+    std::unique_lock lock(m_engine->jolt.mutex);
+    auto it1 = m_engine->jolt.body_id_rev_map.find(constraint_cmp.body_id1);
+    if(it1 != m_engine->jolt.body_id_rev_map.end())
+    {
+        auto it2 = m_engine->jolt.body_id_rev_map.find(constraint_cmp.body_id2);
+        if(it2 != m_engine->jolt.body_id_rev_map.end())
+        {
+//            const JPH::BodyID &body1 = m_engine->jolt.body_id_map.at(it1->second).jolt_body_id;
+//            const JPH::BodyID &body2 = m_engine->jolt.body_id_map.at(it1->second).jolt_body_id;
+//
+//            JPH::Constraint *constraint = nullptr;
+//            m_engine->jolt.physics_system.AddConstraint(constraint);
+        }
+    }
     return vierkant::ConstraintId::nil();
 }
 
@@ -1153,21 +1244,6 @@ PhysicsScene::PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_
 
 }//namespace vierkant
 
-//size_t std::hash<vierkant::physics_component_t>::operator()(vierkant::physics_component_t const &c) const
-//{
-//    size_t h = 0;
-//    vierkant::hash_combine(h, c.mode);
-//    vierkant::hash_combine(h, c.shape);
-//    vierkant::hash_combine(h, c.mass);
-//    vierkant::hash_combine(h, c.friction);
-//    vierkant::hash_combine(h, c.restitution);
-//    vierkant::hash_combine(h, c.linear_damping);
-//    vierkant::hash_combine(h, c.angular_damping);
-//    vierkant::hash_combine(h, c.kinematic);
-//    vierkant::hash_combine(h, c.sensor);
-//    return h;
-//}
-
 size_t std::hash<vierkant::collision::plane_t>::operator()(const vierkant::collision::plane_t &s) const
 {
     size_t h = 0;
@@ -1213,5 +1289,36 @@ size_t std::hash<vierkant::collision::mesh_t>::operator()(const vierkant::collis
     vierkant::hash_combine(h, s.library);
     vierkant::hash_combine(h, s.convex_hull);
     vierkant::hash_combine(h, s.lod_bias);
+    return h;
+}
+
+size_t
+std::hash<vierkant::constraint::spring_settings_t>::operator()(const vierkant::constraint::spring_settings_t &s) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, s.mode);
+    vierkant::hash_combine(h, s.frequency_or_stiffness);
+    vierkant::hash_combine(h, s.damping);
+    return h;
+}
+
+size_t std::hash<vierkant::constraint::point_t>::operator()(const vierkant::constraint::point_t &c) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, c.space);
+    vierkant::hash_combine(h, c.point1);
+    vierkant::hash_combine(h, c.point2);
+    return h;
+}
+
+size_t std::hash<vierkant::constraint::distance_t>::operator()(const vierkant::constraint::distance_t &c) const
+{
+    size_t h = 0;
+    vierkant::hash_combine(h, c.space);
+    vierkant::hash_combine(h, c.point1);
+    vierkant::hash_combine(h, c.point2);
+    vierkant::hash_combine(h, c.min_distance);
+    vierkant::hash_combine(h, c.max_distance);
+    vierkant::hash_combine(h, c.spring_settings);
     return h;
 }
