@@ -215,8 +215,8 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     // shader barycentric
     check_extension(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
 
-    // KHR_unified_image_layouts
-    check_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
+    // TODO: KHR_unified_image_layouts
+    // check_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
 
     if(create_info.use_validation) { check_extension(VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME); }
 
