@@ -4,6 +4,36 @@
 #include <vierkant/Visitor.hpp>
 #include <vierkant/physics_context.hpp>
 
+// The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
+// You can use Jolt.h in your precompiled header to speed up compilation.
+#include <Jolt/Jolt.h>
+
+// Jolt includes
+#include <Jolt/Core/Factory.h>
+#include <Jolt/Core/JobSystemThreadPool.h>
+#include <Jolt/Core/TempAllocator.h>
+#include <Jolt/Physics/Body/BodyActivationListener.h>
+#include <Jolt/Physics/Body/BodyCreationSettings.h>
+#include <Jolt/Physics/Collision/Shape/BoxShape.h>
+#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
+#include <Jolt/Physics/Collision/Shape/CompoundShape.h>
+#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
+#include <Jolt/Physics/Collision/Shape/CylinderShape.h>
+#include <Jolt/Physics/Collision/Shape/MeshShape.h>
+#include <Jolt/Physics/Collision/Shape/PlaneShape.h>
+#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
+#include <Jolt/Physics/Collision/Shape/SphereShape.h>
+#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
+#include <Jolt/Physics/Constraints/DistanceConstraint.h>
+#include <Jolt/Physics/Constraints/PointConstraint.h>
+#include <Jolt/Physics/PhysicsSystem.h>
+#include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
+#include <Jolt/Physics/SoftBody/SoftBodyShape.h>
+#include <Jolt/RegisterTypes.h>
+
+// STL includes
+#include <cstdarg>
+
 // template specializations for hashing
 namespace std
 {
@@ -74,36 +104,6 @@ struct hash<vierkant::constraint::distance_t>
 };
 
 }// namespace std
-
-// The Jolt headers don't include Jolt.h. Always include Jolt.h before including any other Jolt header.
-// You can use Jolt.h in your precompiled header to speed up compilation.
-#include <Jolt/Jolt.h>
-
-// Jolt includes
-#include <Jolt/Core/Factory.h>
-#include <Jolt/Core/JobSystemThreadPool.h>
-#include <Jolt/Core/TempAllocator.h>
-#include <Jolt/Physics/Body/BodyActivationListener.h>
-#include <Jolt/Physics/Body/BodyCreationSettings.h>
-#include <Jolt/Physics/Collision/Shape/BoxShape.h>
-#include <Jolt/Physics/Collision/Shape/CapsuleShape.h>
-#include <Jolt/Physics/Collision/Shape/CompoundShape.h>
-#include <Jolt/Physics/Collision/Shape/ConvexHullShape.h>
-#include <Jolt/Physics/Collision/Shape/CylinderShape.h>
-#include <Jolt/Physics/Collision/Shape/MeshShape.h>
-#include <Jolt/Physics/Collision/Shape/PlaneShape.h>
-#include <Jolt/Physics/Collision/Shape/RotatedTranslatedShape.h>
-#include <Jolt/Physics/Collision/Shape/SphereShape.h>
-#include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
-#include <Jolt/Physics/Constraints/DistanceConstraint.h>
-#include <Jolt/Physics/Constraints/PointConstraint.h>
-#include <Jolt/Physics/PhysicsSystem.h>
-#include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
-#include <Jolt/Physics/SoftBody/SoftBodyShape.h>
-#include <Jolt/RegisterTypes.h>
-
-// STL includes
-#include <cstdarg>
 
 // Callback for traces, connect this to your own trace function if you have one
 static void trace_impl(const char *inFMT, ...)
@@ -219,7 +219,7 @@ public:
     };
 
     void DrawText3D(JPH::RVec3Arg /*inPosition*/, const JPH::string_view & /*inString*/, JPH::ColorArg /*inColor*/,
-                    float /*inHeight*/) override {};
+                    float /*inHeight*/) override{};
 
     void clear()
     {
@@ -1005,22 +1005,27 @@ PhysicsContext::debug_draw_result_t PhysicsContext::debug_render() const
             m_engine->jolt.debug_render->colors, m_engine->jolt.debug_render->triangle_meshes};
 }
 
-bool PhysicsContext::add_constraint(const vierkant::constraint_component_t &constraint_cmp)
+bool PhysicsContext::add_constraints(const vierkant::constraint_component_t &constraint_cmp)
 {
     vierkant::ConstraintId constraint_id = vierkant::ConstraintId::nil();
     std::unique_lock lock(m_engine->jolt.mutex);
-    auto it1 = m_engine->jolt.body_id_rev_map.find(constraint_cmp.body_id1);
-    if(it1 != m_engine->jolt.body_id_rev_map.end())
+
+    for(const auto &constraint: constraint_cmp.constraints)
     {
-        auto it2 = m_engine->jolt.body_id_rev_map.find(constraint_cmp.body_id2);
-        if(it2 != m_engine->jolt.body_id_rev_map.end())
+        auto it1 = m_engine->jolt.body_id_rev_map.find(constraint.body_id1);
+        if(it1 != m_engine->jolt.body_id_rev_map.end())
         {
-            constraint_id = create_constraint(constraint_cmp.constraint, it1->second, it2->second);
-            assert(constraint_id);
-            auto new_constraint = m_engine->jolt.constraints.at(constraint_id);
-            m_engine->jolt.physics_system.AddConstraint(new_constraint);
+            auto it2 = m_engine->jolt.body_id_rev_map.find(constraint.body_id2);
+            if(it2 != m_engine->jolt.body_id_rev_map.end())
+            {
+                constraint_id = create_constraint(constraint.constraint, it1->second, it2->second);
+                assert(constraint_id);
+                auto new_constraint = m_engine->jolt.constraints.at(constraint_id);
+                m_engine->jolt.physics_system.AddConstraint(new_constraint);
+            }
         }
     }
+
     return constraint_id != vierkant::ConstraintId::nil();
 }
 
@@ -1271,7 +1276,7 @@ void PhysicsScene::update(double time_delta)
             if(auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>())
             {
                 // TODO
-                m_context.add_constraint(*constraint_cmp);
+                m_context.add_constraints(*constraint_cmp);
             }
         }
         else if(!obj_enabled)

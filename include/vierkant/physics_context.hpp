@@ -172,9 +172,13 @@ struct physics_component_t
 struct constraint_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
-    constraint::constraint_t constraint = constraint::none_t{};
-    vierkant::BodyId body_id1 = vierkant::BodyId::nil();
-    vierkant::BodyId body_id2 = vierkant::BodyId::nil();
+    struct body_constraint_t
+    {
+        constraint::constraint_t constraint = constraint::none_t{};
+        vierkant::BodyId body_id1 = vierkant::BodyId::nil();
+        vierkant::BodyId body_id2 = vierkant::BodyId::nil();
+    };
+    std::vector<body_constraint_t> constraints;
 };
 
 class PhysicsContext
@@ -230,7 +234,7 @@ public:
     void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
 
-    bool add_constraint(const vierkant::constraint_component_t &constraint_cmp);
+    bool add_constraints(const vierkant::constraint_component_t &constraint_cmp);
     void remove_constraint(const vierkant::ConstraintId &constraint_id);
 
     void set_callbacks(uint32_t objectId, const callbacks_t &callbacks);
