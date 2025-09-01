@@ -25,10 +25,15 @@ jobs:
 
     - name: install dependencies
       run: |
-        wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo tee /etc/apt/trusted.gpg.d/lunarg.asc
-        sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
         sudo apt-get update
         sudo apt-get install xorg-dev libxkbcommon-dev libwayland-dev vulkan-headers glslang-tools
+        
+    - name: Prepare Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@main
+        with:
+          vulkan-query-version: latest
+          vulkan-components: Vulkan-Headers, SPIRV-Tools, Glslang
+          vulkan-use-cache: true
 
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
