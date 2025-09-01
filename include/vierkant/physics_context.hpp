@@ -230,8 +230,8 @@ public:
     void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
 
-    vierkant::ConstraintId add_constraint(const vierkant::constraint_component_t &constraint_cmp);
-    void remove_contraint(const vierkant::ConstraintId &constraint_id);
+    bool add_constraint(const vierkant::constraint_component_t &constraint_cmp);
+    void remove_constraint(const vierkant::ConstraintId &constraint_id);
 
     void set_callbacks(uint32_t objectId, const callbacks_t &callbacks);
 
@@ -244,7 +244,10 @@ public:
     CollisionShapeId create_convex_collision_shape(const collision::mesh_t &mesh_cmp,
                                                    const glm::vec3 &scale = glm::vec3(1));
 
-    CollisionShapeId create_collision_shape(const collision::shape_t &shape);
+    vierkant::CollisionShapeId create_collision_shape(const collision::shape_t &shape);
+
+    vierkant::ConstraintId create_constraint(const constraint::constraint_t &constraint, uint32_t objectId1,
+                                             uint32_t objectId2);
 
     collision::mesh_provider_fn mesh_provider;
 
