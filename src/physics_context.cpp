@@ -219,7 +219,7 @@ public:
     };
 
     void DrawText3D(JPH::RVec3Arg /*inPosition*/, const JPH::string_view & /*inString*/, JPH::ColorArg /*inColor*/,
-                    float /*inHeight*/) override{};
+                    float /*inHeight*/) override {};
 
     void clear()
     {
@@ -1010,19 +1010,20 @@ bool PhysicsContext::add_constraints(const vierkant::constraint_component_t &con
     vierkant::ConstraintId constraint_id = vierkant::ConstraintId::nil();
     std::unique_lock lock(m_engine->jolt.mutex);
 
-    for(const auto &constraint: constraint_cmp.constraints)
+    for(const auto &constraint: constraint_cmp.body_constraints)
     {
+        uint32_t obj_id1 = 0, obj_id2 = 0;
         auto it1 = m_engine->jolt.body_id_rev_map.find(constraint.body_id1);
-        if(it1 != m_engine->jolt.body_id_rev_map.end())
+        auto it2 = m_engine->jolt.body_id_rev_map.find(constraint.body_id2);
+        if(it1 != m_engine->jolt.body_id_rev_map.end()) { obj_id1 = it1->second; }
+        if(it2 != m_engine->jolt.body_id_rev_map.end()) { obj_id2 = it2->second; }
+
+        if(obj_id1 || obj_id2)
         {
-            auto it2 = m_engine->jolt.body_id_rev_map.find(constraint.body_id2);
-            if(it2 != m_engine->jolt.body_id_rev_map.end())
-            {
-                constraint_id = create_constraint(constraint.constraint, it1->second, it2->second);
-                assert(constraint_id);
-                auto new_constraint = m_engine->jolt.constraints.at(constraint_id);
-                m_engine->jolt.physics_system.AddConstraint(new_constraint);
-            }
+            constraint_id = create_constraint(constraint.constraint, obj_id1, obj_id2);
+            assert(constraint_id);
+            auto new_constraint = m_engine->jolt.constraints.at(constraint_id);
+            m_engine->jolt.physics_system.AddConstraint(new_constraint);
         }
     }
 
@@ -1136,8 +1137,15 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
 
                 vierkant::ConstraintId new_id;
                 JPH::Constraint *new_constraint = nullptr;
-                const JPH::BodyID &body1 = m_engine->jolt.body_id_map.at(objectId1).jolt_body_id;
-                const JPH::BodyID &body2 = m_engine->jolt.body_id_map.at(objectId2).jolt_body_id;
+
+                // resolve body-ids
+                JPH::BodyID body1;
+                JPH::BodyID body2;
+                auto body_it1 = m_engine->jolt.body_id_map.find(objectId1);
+                auto body_it2 = m_engine->jolt.body_id_map.find(objectId2);
+
+                if(body_it1 != m_engine->jolt.body_id_map.end()) { body1 = body_it1->second.jolt_body_id; }
+                if(body_it2 != m_engine->jolt.body_id_map.end()) { body2 = body_it2->second.jolt_body_id; }
 
                 if constexpr(std::is_same_v<T, constraint::point_t>)
                 {
@@ -1256,6 +1264,8 @@ void PhysicsScene::update(double time_delta)
 
         if(cmp.mode == physics_component_t::UPDATE)
         {
+            cmp.mode = physics_component_t::ACTIVE;
+
             if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
             {
                 if(auto mesh_cmp = obj->get_component_ptr<vierkant::mesh_component_t>())
@@ -1266,7 +1276,11 @@ void PhysicsScene::update(double time_delta)
                 }
             }
             m_context.add_object(obj->id(), obj->global_transform(), cmp);
-            cmp.mode = physics_component_t::ACTIVE;
+
+            if(auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>())
+            {
+                m_context.add_constraints(*constraint_cmp);
+            }
         }
         else if(obj_enabled && cmp.mode == physics_component_t::INACTIVE)
         {

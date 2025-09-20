@@ -178,7 +178,7 @@ struct constraint_component_t
         vierkant::BodyId body_id1 = vierkant::BodyId::nil();
         vierkant::BodyId body_id2 = vierkant::BodyId::nil();
     };
-    std::vector<body_constraint_t> constraints;
+    std::vector<body_constraint_t> body_constraints;
 };
 
 class PhysicsContext
