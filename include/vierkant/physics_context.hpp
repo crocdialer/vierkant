@@ -13,7 +13,9 @@
 namespace vierkant
 {
 
+DEFINE_NAMED_UUID(BodyId)
 DEFINE_NAMED_UUID(CollisionShapeId)
+DEFINE_NAMED_UUID(ConstraintId)
 
 namespace collision
 {
@@ -82,6 +84,65 @@ using shape_t = std::variant<vierkant::CollisionShapeId, collision::plane_t, col
                              collision::box_t, collision::cylinder_t, collision::capsule_t, collision::mesh_t>;
 }// namespace collision
 
+namespace constraint
+{
+
+enum class ConstraintSpace
+{
+    LocalToBodyCOM,
+    World,
+};
+
+enum class SpringMode : uint8_t
+{
+    FrequencyAndDamping,
+    StiffnessAndDamping,
+};
+
+struct spring_settings_t
+{
+    SpringMode mode = SpringMode::FrequencyAndDamping;
+
+    /// depending on mode = SpringMode::FrequencyAndDamping.
+    /// If Frequency > 0 the constraint will be soft and mFrequency specifies the oscillation frequency in Hz.
+    /// If Frequency <= 0, mDamping is ignored and the constraint will have hard limits (as hard as the time step / the number of velocity / position solver steps allows).
+    float frequency_or_stiffness = 0.0f;
+
+    /// When SpringMode = ESpringMode::FrequencyAndDamping mDamping is the damping ratio (0 = no damping, 1 = critical damping).
+    /// When SpringMode = ESpringMode::StiffnessAndDamping mDamping is the damping (c) in the spring equation F = -k * x - c * v for a linear or T = -k * theta - c * w for an angular spring.
+    /// Note that if you set mDamping = 0, you will not get an infinite oscillation. Because we integrate physics using an explicit Euler scheme, there is always energy loss.
+    /// This is done to keep the simulation from exploding, because with a damping of 0 and even the slightest rounding error, the oscillation could become bigger and bigger until the simulation explodes.
+    float damping = 0.0f;
+    constexpr bool operator==(const vierkant::constraint::spring_settings_t &other) const = default;
+};
+
+struct none_t
+{
+    constexpr bool operator==(const vierkant::constraint::none_t &other) const = default;
+};
+
+struct point_t
+{
+    ConstraintSpace space = ConstraintSpace::World;
+    glm::vec3 point1;
+    glm::vec3 point2;
+    constexpr bool operator==(const vierkant::constraint::point_t &other) const = default;
+};
+
+struct distance_t
+{
+    ConstraintSpace space = ConstraintSpace::World;
+    glm::vec3 point1;
+    glm::vec3 point2;
+    float min_distance = -1.0f;
+    float max_distance = -1.0f;
+    spring_settings_t spring_settings = {};
+    constexpr bool operator==(const vierkant::constraint::distance_t &other) const = default;
+};
+
+using constraint_t = std::variant<constraint::none_t, constraint::point_t, constraint::distance_t>;
+}// namespace constraint
+
 struct physics_component_t
 {
     VIERKANT_ENABLE_AS_COMPONENT();
@@ -94,6 +155,7 @@ struct physics_component_t
         REMOVE
     } mode = INACTIVE;
 
+    vierkant::BodyId body_id = {};
     collision::shape_t shape = collision::none_t{};
     std::optional<vierkant::transform_t> shape_transform = {};
     float mass = 0.f;
@@ -104,6 +166,19 @@ struct physics_component_t
     bool kinematic = false;
     bool sensor = false;
     constexpr bool operator==(const vierkant::physics_component_t &) const = default;
+};
+
+//! constraints can be attached to arbitrary objects and reference via vierkant::BodyId
+struct constraint_component_t
+{
+    VIERKANT_ENABLE_AS_COMPONENT();
+    struct body_constraint_t
+    {
+        constraint::constraint_t constraint = constraint::none_t{};
+        vierkant::BodyId body_id1 = vierkant::BodyId::nil();
+        vierkant::BodyId body_id2 = vierkant::BodyId::nil();
+    };
+    std::vector<body_constraint_t> body_constraints;
 };
 
 class PhysicsContext
@@ -159,6 +234,9 @@ public:
     void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
 
+    bool add_constraints(uint32_t objectId, const vierkant::constraint_component_t &constraint_cmp);
+    void remove_constraints(uint32_t objectId);
+
     void set_callbacks(uint32_t objectId, const callbacks_t &callbacks);
 
     void set_threadpool(crocore::ThreadPool &pool);
@@ -170,7 +248,10 @@ public:
     CollisionShapeId create_convex_collision_shape(const collision::mesh_t &mesh_cmp,
                                                    const glm::vec3 &scale = glm::vec3(1));
 
-    CollisionShapeId create_collision_shape(const collision::shape_t &shape);
+    vierkant::CollisionShapeId create_collision_shape(const collision::shape_t &shape);
+
+    vierkant::ConstraintId create_constraint(const constraint::constraint_t &constraint, uint32_t objectId1,
+                                             uint32_t objectId2);
 
     collision::mesh_provider_fn mesh_provider;
 
@@ -206,56 +287,3 @@ private:
 };
 
 }//namespace vierkant
-
-// template specializations for hashing
-namespace std
-{
-template<>
-struct hash<vierkant::physics_component_t>
-{
-    size_t operator()(vierkant::physics_component_t const &c) const;
-};
-
-template<>
-struct hash<vierkant::collision::none_t>
-{
-    size_t operator()(vierkant::collision::none_t const &) const { return 0; };
-};
-
-template<>
-struct hash<vierkant::collision::plane_t>
-{
-    size_t operator()(vierkant::collision::plane_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::sphere_t>
-{
-    size_t operator()(vierkant::collision::sphere_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::box_t>
-{
-    size_t operator()(vierkant::collision::box_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::cylinder_t>
-{
-    size_t operator()(vierkant::collision::cylinder_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::capsule_t>
-{
-    size_t operator()(vierkant::collision::capsule_t const &) const;
-};
-
-template<>
-struct hash<vierkant::collision::mesh_t>
-{
-    size_t operator()(vierkant::collision::mesh_t const &) const;
-};
-
-}// namespace std
