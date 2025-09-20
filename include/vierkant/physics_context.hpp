@@ -234,8 +234,8 @@ public:
     void remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp = {});
     [[nodiscard]] bool contains(uint32_t objectId) const;
 
-    bool add_constraints(const vierkant::constraint_component_t &constraint_cmp);
-    void remove_constraint(const vierkant::ConstraintId &constraint_id);
+    bool add_constraints(uint32_t objectId, const vierkant::constraint_component_t &constraint_cmp);
+    void remove_constraints(uint32_t objectId);
 
     void set_callbacks(uint32_t objectId, const callbacks_t &callbacks);
 

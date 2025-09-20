@@ -663,6 +663,9 @@ public:
     //! constraint storage
     std::unordered_map<vierkant::ConstraintId, JPH::Ref<JPH::Constraint>> constraints;
 
+    //! lookup of constraint-ids
+    std::unordered_map<uint32_t, std::unordered_set<vierkant::ConstraintId>> constraint_id_map;
+
     //! lookup of body-ids
     std::unordered_map<uint32_t, body_id_struct_t> body_id_map;
     std::unordered_map<vierkant::BodyId, uint32_t> body_id_rev_map;
@@ -962,6 +965,9 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
 
 void PhysicsContext::remove_object(uint32_t objectId, const vierkant::physics_component_t &cmp)
 {
+    // remove constraints
+    remove_constraints(objectId);
+
     std::unique_lock lock(m_engine->jolt.mutex);
     auto it = m_engine->jolt.body_id_map.find(objectId);
     if(it != m_engine->jolt.body_id_map.end())
@@ -999,14 +1005,19 @@ PhysicsContext::debug_draw_result_t PhysicsContext::debug_render() const
 
     JPH::BodyManager::DrawSettings ds;
     ds.mDrawVelocity = true;
-    //    ds.mDrawGetSupportingFace = true;
     m_engine->jolt.physics_system.DrawBodies(ds, m_engine->jolt.debug_render.get());
+    m_engine->jolt.physics_system.DrawConstraints(m_engine->jolt.debug_render.get());
+    m_engine->jolt.physics_system.DrawConstraintLimits(m_engine->jolt.debug_render.get());
+    m_engine->jolt.physics_system.DrawConstraintReferenceFrame(m_engine->jolt.debug_render.get());
     return {m_engine->jolt.debug_render->line_geometry, m_engine->jolt.debug_render->aabbs,
             m_engine->jolt.debug_render->colors, m_engine->jolt.debug_render->triangle_meshes};
 }
 
-bool PhysicsContext::add_constraints(const vierkant::constraint_component_t &constraint_cmp)
+bool PhysicsContext::add_constraints(uint32_t objectId, const vierkant::constraint_component_t &constraint_cmp)
 {
+    // search existing constraints
+    remove_constraints(objectId);
+
     vierkant::ConstraintId constraint_id = vierkant::ConstraintId::nil();
     std::unique_lock lock(m_engine->jolt.mutex);
 
@@ -1024,22 +1035,34 @@ bool PhysicsContext::add_constraints(const vierkant::constraint_component_t &con
             assert(constraint_id);
             auto new_constraint = m_engine->jolt.constraints.at(constraint_id);
             m_engine->jolt.physics_system.AddConstraint(new_constraint);
+
+            if(obj_id1) { m_engine->jolt.constraint_id_map[obj_id1].insert(constraint_id); }
+            if(obj_id2) { m_engine->jolt.constraint_id_map[obj_id2].insert(constraint_id); }
         }
     }
 
     return constraint_id != vierkant::ConstraintId::nil();
 }
 
-void PhysicsContext::remove_constraint(const vierkant::ConstraintId &constraint_id)
+void PhysicsContext::remove_constraints(uint32_t object_id)
 {
     std::unique_lock lock(m_engine->jolt.mutex);
-    auto it = m_engine->jolt.constraints.find(constraint_id);
-    if(it != m_engine->jolt.constraints.end())
+    auto constraint_id_it = m_engine->jolt.constraint_id_map.find(object_id);
+    if(constraint_id_it != m_engine->jolt.constraint_id_map.end())
     {
-        assert(constraint_id);
-        auto constraint = m_engine->jolt.constraints.at(constraint_id);
-        m_engine->jolt.physics_system.RemoveConstraint(constraint);
-        m_engine->jolt.constraints.erase(it);
+        const auto &constraint_id_set = constraint_id_it->second;
+        for(const auto &constraint_id: constraint_id_set)
+        {
+            assert(m_engine->jolt.constraints.contains(constraint_id));
+            auto constraint_it = m_engine->jolt.constraints.find(constraint_id);
+
+            if(constraint_it != m_engine->jolt.constraints.end())
+            {
+                m_engine->jolt.physics_system.RemoveConstraint(constraint_it->second);
+                m_engine->jolt.constraints.erase(constraint_it);
+            }
+        }
+        m_engine->jolt.constraint_id_map.erase(constraint_id_it);
     }
 }
 
@@ -1229,9 +1252,13 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
         // remove all children
         vierkant::LambdaVisitor visitor;
         visitor.traverse(*object, [this](const auto &obj) -> bool {
-            if(auto phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
+            if(auto *phy_cmp_ptr = obj.template get_component_ptr<vierkant::physics_component_t>())
             {
                 m_context.remove_object(obj.id(), *phy_cmp_ptr);
+            }
+            if(auto *constraint_cmp_ptr = obj.template get_component_ptr<vierkant::constraint_component_t>())
+            {
+                m_context.remove_constraints(obj.id());
             }
             return true;
         });
@@ -1279,7 +1306,7 @@ void PhysicsScene::update(double time_delta)
 
             if(auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>())
             {
-                m_context.add_constraints(*constraint_cmp);
+                m_context.add_constraints(obj->id(), *constraint_cmp);
             }
         }
         else if(obj_enabled && cmp.mode == physics_component_t::INACTIVE)
@@ -1290,7 +1317,7 @@ void PhysicsScene::update(double time_delta)
             if(auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>())
             {
                 // TODO
-                m_context.add_constraints(*constraint_cmp);
+                m_context.add_constraints(obj->id(), *constraint_cmp);
             }
         }
         else if(!obj_enabled)
