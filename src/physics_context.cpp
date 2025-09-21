@@ -1053,9 +1053,7 @@ void PhysicsContext::remove_constraints(uint32_t object_id)
         const auto &constraint_id_set = constraint_id_it->second;
         for(const auto &constraint_id: constraint_id_set)
         {
-            assert(m_engine->jolt.constraints.contains(constraint_id));
             auto constraint_it = m_engine->jolt.constraints.find(constraint_id);
-
             if(constraint_it != m_engine->jolt.constraints.end())
             {
                 m_engine->jolt.physics_system.RemoveConstraint(constraint_it->second);
@@ -1291,8 +1289,6 @@ void PhysicsScene::update(double time_delta)
 
         if(cmp.mode == physics_component_t::UPDATE)
         {
-            cmp.mode = physics_component_t::ACTIVE;
-
             if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
             {
                 if(auto mesh_cmp = obj->get_component_ptr<vierkant::mesh_component_t>())
@@ -1304,21 +1300,15 @@ void PhysicsScene::update(double time_delta)
             }
             m_context.add_object(obj->id(), obj->global_transform(), cmp);
 
-            if(auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>())
-            {
-                m_context.add_constraints(obj->id(), *constraint_cmp);
-            }
+            // check if additional constraints-pass is required
+            if(!obj->has_component<vierkant::constraint_component_t>()) { cmp.mode = physics_component_t::ACTIVE; }
         }
         else if(obj_enabled && cmp.mode == physics_component_t::INACTIVE)
         {
-            cmp.mode = physics_component_t::ACTIVE;
             m_context.add_object(obj->id(), obj->global_transform(), cmp);
 
-            if(auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>())
-            {
-                // TODO
-                m_context.add_constraints(obj->id(), *constraint_cmp);
-            }
+            // check if additional constraints-pass is required
+            if(!obj->has_component<vierkant::constraint_component_t>()) { cmp.mode = physics_component_t::ACTIVE; }
         }
         else if(!obj_enabled)
         {
@@ -1346,6 +1336,17 @@ void PhysicsScene::update(double time_delta)
             vierkant::transform_t transform = obj->global_transform();
             m_context.body_interface().get_transform(static_cast<uint32_t>(entity), transform);
             obj->set_global_transform(transform);
+        }
+    }
+
+    auto constraints_view = registry()->view<physics_component_t, constraint_component_t>();
+    for(const auto &[entity, phys_cmp, constraint_cmp]: constraints_view.each())
+    {
+        auto *obj = object_by_id(static_cast<uint32_t>(entity));
+        if(phys_cmp.mode == physics_component_t::INACTIVE || phys_cmp.mode == physics_component_t::UPDATE)
+        {
+            phys_cmp.mode = physics_component_t::ACTIVE;
+            m_context.add_constraints(obj->id(), constraint_cmp);
         }
     }
     m_context.step_simulation(static_cast<float>(time_delta), 2);

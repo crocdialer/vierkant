@@ -351,12 +351,14 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
                                        offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
-                               static_cast<int>(draw_result.draw_count), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
+                               static_cast<int>(draw_result.draw_count), 0.0, 1.0, 0.0, 0, 0,
+                               sizeof(PBRDeferred::statistics_t));
             ImPlot::PlotShaded("occluded",
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
                                        offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
-                               static_cast<int>(draw_result.draw_count), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
+                               static_cast<int>(draw_result.draw_count), 0.0, 1.0, 0.0, 0, 0,
+                               sizeof(PBRDeferred::statistics_t));
             ImPlot::PopStyleVar();
             ImPlot::EndPlot();
         }
@@ -1089,7 +1091,6 @@ void draw_object_ui(const Object3DPtr &object)
         if(ImGui::TreeNodeEx(&phys_cmp, ImGuiTreeNodeFlags_DefaultOpen, "mass: %.2f", phys_cmp.mass))
         {
             bool change = false;
-            //            ImGui::Text("shape-id: %lu", phys_cmp.shape_id.value());
 
             const char *shape_items[] = {"None", "Plane", "Box", "Sphere", "Cylinder", "Capsule", "Mesh"};
             int shape_index = 0;
@@ -1198,6 +1199,63 @@ void draw_object_ui(const Object3DPtr &object)
             change |= ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
             change |= ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
+
+            if(auto *constraint_cmp = object->get_component_ptr<vierkant::constraint_component_t>())
+            {
+                for(auto &body_constraint: constraint_cmp->body_constraints)
+                {
+                    const char *constraint_items[] = {"None", "Point", "Distance"};
+                    int constraint_index = 0;
+
+                    std::visit(
+                            [&constraint_index](auto &&constraint) {
+                                using T = std::decay_t<decltype(constraint)>;
+                                if constexpr(std::is_same_v<T, constraint::point_t>) { constraint_index = 1; }
+                                if constexpr(std::is_same_v<T, constraint::distance_t>) { constraint_index = 2; }
+                            },
+                            body_constraint.constraint);
+
+                    if(ImGui::TreeNodeEx(&body_constraint, ImGuiTreeNodeFlags_None, "constraint (%s)",
+                                         constraint_items[constraint_index]))
+                    {
+                        std::visit(
+                                [&change](auto &&constraint) mutable {
+                                    using T = std::decay_t<decltype(constraint)>;
+                                    if constexpr(std::is_same_v<T, ConstraintId>) { return; }
+                                    if constexpr(std::is_same_v<T, constraint::point_t>)
+                                    {
+                                        change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
+                                        change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
+                                    }
+                                    if constexpr(std::is_same_v<T, constraint::distance_t>)
+                                    {
+                                        change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
+                                        change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
+                                        change |= ImGui::InputFloat("min_distance", &constraint.min_distance);
+                                        change |= ImGui::InputFloat("max_distance", &constraint.max_distance);
+
+                                        {// spring_settings
+                                            int mode = static_cast<int>(constraint.spring_settings.mode);
+                                            if(ImGui::InputInt("mode", &mode))
+                                            {
+                                                constraint.spring_settings.mode =
+                                                        static_cast<vierkant::constraint::SpringMode>(
+                                                                std::clamp(mode, 0, 1));
+                                                change = true;
+                                            }
+                                            change |= ImGui::InputFloat(
+                                                    "frequency_or_stiffness",
+                                                    &constraint.spring_settings.frequency_or_stiffness);
+                                            change |= ImGui::InputFloat("damping", &constraint.spring_settings.damping);
+                                        }
+                                    }
+                                },
+                                body_constraint.constraint);
+
+                        ImGui::TreePop();
+                    }
+                }
+            }
             if(change) { phys_cmp.mode = physics_component_t::UPDATE; };
             ImGui::TreePop();
         }
