@@ -916,11 +916,11 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             if(!mesh_shape->convex_hull) { mass = 0.f; }
         }
 
-        bool dynamic = mass > 0.f && !cmp.sensor;
-        bool kinematic = mass > 0.f && !cmp.kinematic;
-        auto layer = dynamic ? Layers::MOVING : Layers::NON_MOVING;
-        auto motion_type = dynamic ? JPH::EMotionType::Dynamic
-                                   : (kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Static);
+        bool is_static = mass <= 0.f;
+        //        bool dynamic = mass > 0.f && !cmp.sensor;
+        auto layer = is_static ? Layers::NON_MOVING : Layers::MOVING;
+        auto motion_type = is_static ? JPH::EMotionType::Static
+                                     : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Dynamic);
 
         glm::vec3 scale = cmp.shape_transform ? transform.scale * cmp.shape_transform->scale : transform.scale;
         auto shape_result = shape->ScaleShape(type_cast(scale));
@@ -1281,6 +1281,12 @@ void PhysicsScene::clear()
 void PhysicsScene::update(double time_delta)
 {
     Scene::update(time_delta);
+
+    auto is_movable = [](const vierkant::physics_component_t &cmp) -> bool {
+        auto *mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape);
+        return cmp.kinematic || cmp.mass == 0.f || (mesh_shape && !mesh_shape->convex_hull);
+    };
+
     auto view = registry()->view<physics_component_t>();
     for(const auto &[entity, cmp]: view.each())
     {
@@ -1322,20 +1328,11 @@ void PhysicsScene::update(double time_delta)
             continue;
         }
 
-        auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape);
-        bool is_movable = cmp.kinematic || cmp.mass == 0.f || (mesh_shape && !mesh_shape->convex_hull);
-
-        if(is_movable)
+        // manually update non-moving/kinematic objects
+        if(is_movable(cmp))
         {
             // object -> physics
             m_context.body_interface().set_transform(static_cast<uint32_t>(entity), obj->global_transform());
-        }
-        else
-        {
-            // physics -> object
-            vierkant::transform_t transform = obj->global_transform();
-            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), transform);
-            obj->set_global_transform(transform);
         }
     }
 
@@ -1349,7 +1346,23 @@ void PhysicsScene::update(double time_delta)
             m_context.add_constraints(obj->id(), constraint_cmp);
         }
     }
+
+    // advance simulation
     m_context.step_simulation(static_cast<float>(time_delta), 2);
+
+    for(const auto &[entity, cmp]: view.each())
+    {
+        auto *obj = object_by_id(static_cast<uint32_t>(entity));
+
+        // manually update non-moving/kinematic objects
+        if(!is_movable(cmp))
+        {
+            // physics -> object
+            vierkant::transform_t transform = obj->global_transform();
+            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), transform);
+            obj->set_global_transform(transform);
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
