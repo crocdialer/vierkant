@@ -25,7 +25,9 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Constraints/DistanceConstraint.h>
+#include <Jolt/Physics/Constraints/HingeConstraint.h>
 #include <Jolt/Physics/Constraints/PointConstraint.h>
+#include <Jolt/Physics/Constraints/SliderConstraint.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 #include <Jolt/Physics/SoftBody/SoftBodyShape.h>
@@ -1147,8 +1149,27 @@ CollisionShapeId PhysicsContext::create_collision_shape(const vierkant::collisio
 vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::constraint_t &constraint, uint32_t objectId1,
                                                          uint32_t objectId2)
 {
+    auto convert_spring_settings = [](const constraint::spring_settings_t &s) -> JPH::SpringSettings {
+        JPH::SpringSettings ret;
+        ret.mMode = s.mode == constraint::SpringMode::FrequencyAndDamping ? JPH::ESpringMode::FrequencyAndDamping
+                                                                          : JPH::ESpringMode::StiffnessAndDamping;
+        ret.mDamping = s.damping;
+        ret.mFrequency = s.frequency_or_stiffness;
+        return ret;
+    };
+
+    auto convert_motor_settings = [convert_spring_settings](const constraint::motor_t &m) -> JPH::MotorSettings {
+        JPH::MotorSettings ret;
+        ret.mSpringSettings = convert_spring_settings(m.spring_settings);
+        ret.mMinForceLimit = m.min_force_limit;
+        ret.mMaxForceLimit = m.max_force_limit;
+        ret.mMinTorqueLimit = m.min_torque_limit;
+        ret.mMaxForceLimit = m.max_torque_limit;
+        return ret;
+    };
+
     auto constraint_id = std::visit(
-            [this, objectId1, objectId2](auto &&c) -> ConstraintId {
+            [this, convert_spring_settings, convert_motor_settings, objectId1, objectId2](auto &&c) -> ConstraintId {
                 using T = std::decay_t<decltype(c)>;
 
                 if constexpr(std::is_same_v<T, ConstraintId>)
@@ -1192,8 +1213,59 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                     settings.mPoint2 = type_cast(c.point2);
                     settings.mMinDistance = c.min_distance;
                     settings.mMaxDistance = c.max_distance;
-                    settings.mLimitsSpringSettings.mDamping = c.spring_settings.damping;
-                    settings.mLimitsSpringSettings.mFrequency = c.spring_settings.frequency_or_stiffness;
+                    settings.mLimitsSpringSettings = convert_spring_settings(c.spring_settings);
+
+                    new_constraint =
+                            m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);
+                }
+
+                if constexpr(std::is_same_v<T, constraint::slider_t>)
+                {
+                    JPH::SliderConstraintSettings settings;
+                    settings.mSpace = c.space == constraint::ConstraintSpace::World
+                                              ? JPH::EConstraintSpace::WorldSpace
+                                              : JPH::EConstraintSpace::LocalToBodyCOM;
+
+                    settings.mAutoDetectPoint = c.auto_detect_point;
+                    settings.mPoint1 = type_cast(c.point1);
+                    settings.mSliderAxis1 = type_cast(c.slider_axis1);
+                    settings.mNormalAxis1 = type_cast(c.normal_axis1);
+
+                    settings.mPoint2 = type_cast(c.point2);
+                    settings.mSliderAxis1 = type_cast(c.slider_axis2);
+                    settings.mNormalAxis2 = type_cast(c.normal_axis2);
+
+                    settings.mLimitsMin = c.limits_min;
+                    settings.mLimitsMax = c.limits_max;
+                    settings.mLimitsSpringSettings = convert_spring_settings(c.limits_spring_settings);
+
+                    settings.mMotorSettings = convert_motor_settings(c.motor);
+
+                    new_constraint =
+                            m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);
+                }
+
+                if constexpr(std::is_same_v<T, constraint::hinge_t>)
+                {
+                    JPH::HingeConstraintSettings settings;
+                    settings.mSpace = c.space == constraint::ConstraintSpace::World
+                                              ? JPH::EConstraintSpace::WorldSpace
+                                              : JPH::EConstraintSpace::LocalToBodyCOM;
+
+                    settings.mPoint1 = type_cast(c.point1);
+                    settings.mHingeAxis1 = type_cast(c.hinge_axis1);
+                    settings.mNormalAxis1 = type_cast(c.normal_axis1);
+
+                    settings.mPoint2 = type_cast(c.point2);
+                    settings.mHingeAxis2 = type_cast(c.hinge_axis2);
+                    settings.mNormalAxis2 = type_cast(c.normal_axis2);
+
+                    settings.mLimitsMin = c.limits_min;
+                    settings.mLimitsMax = c.limits_max;
+                    settings.mLimitsSpringSettings = convert_spring_settings(c.limits_spring_settings);
+                    settings.mMaxFrictionTorque = c.max_friction_torque;
+
+                    settings.mMotorSettings = convert_motor_settings(c.motor);
 
                     new_constraint =
                             m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);

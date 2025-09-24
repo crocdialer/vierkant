@@ -99,6 +99,13 @@ enum class SpringMode : uint8_t
     StiffnessAndDamping,
 };
 
+enum class MotorState
+{
+    Off,
+    Velocity,
+    Position
+};
+
 struct spring_settings_t
 {
     SpringMode mode = SpringMode::FrequencyAndDamping;
@@ -114,6 +121,28 @@ struct spring_settings_t
     /// This is done to keep the simulation from exploding, because with a damping of 0 and even the slightest rounding error, the oscillation could become bigger and bigger until the simulation explodes.
     float damping = 0.0f;
     constexpr bool operator==(const vierkant::constraint::spring_settings_t &other) const = default;
+};
+
+struct motor_t
+{
+    //! settings for the spring that is used to drive to the position target (not used when motor is a velocity motor).
+    spring_settings_t spring_settings = {};
+
+    //! minimum force to apply in case of a linear constraint (N). Usually this is -mMaxForceLimit unless you want a motor that can e.g. push but not pull. Not used when motor is an angular motor.
+    float min_force_limit = -FLT_MAX;
+
+    //! maximum force to apply in case of a linear constraint (N). Not used when motor is an angular motor.
+    float max_force_limit = FLT_MAX;
+
+    //! minimum torque to apply in case of a angular constraint (N m). Usually this is -mMaxTorqueLimit unless you want a motor that can e.g. push but not pull. Not used when motor is a position motor.
+    float min_torque_limit = -FLT_MAX;
+    float max_torque_limit = FLT_MAX;
+
+    MotorState state = MotorState::Off;
+    float target_velocity = 0.f;
+    float target_position = 0.f;
+
+    constexpr bool operator==(const vierkant::constraint::motor_t &other) const = default;
 };
 
 struct none_t
@@ -140,7 +169,79 @@ struct distance_t
     constexpr bool operator==(const vierkant::constraint::distance_t &other) const = default;
 };
 
-using constraint_t = std::variant<constraint::none_t, constraint::point_t, constraint::distance_t>;
+struct slider_t
+{
+    /// This determines in which space the constraint is setup, all properties below should be in the specified space
+    ConstraintSpace space = ConstraintSpace::World;
+
+    /// When mSpace is WorldSpace mPoint1 and mPoint2 can be automatically calculated based on the positions of the bodies when the constraint is created (the current relative position/orientation is chosen as the '0' position). Set this to false if you want to supply the attachment points yourself.
+    bool auto_detect_point = false;
+
+    /// Body 1 constraint reference frame (space determined by mSpace).
+    /// Slider axis is the axis along which movement is possible (direction), normal axis is a perpendicular vector to define the frame.
+    glm::vec3 point1;
+    glm::vec3 slider_axis1 = glm::vec3(1.f, 0.f, 0.f);
+    glm::vec3 normal_axis1 = glm::vec3(0.f, 1.f, 0.f);
+
+    /// Body 2 constraint reference frame (space determined by mSpace)
+    glm::vec3 point2;
+    glm::vec3 slider_axis2 = glm::vec3(1.f, 0.f, 0.f);
+    glm::vec3 normal_axis2 = glm::vec3(0.f, 1.f, 0.f);
+
+    /// When the bodies move so that mPoint1 coincides with mPoint2 the slider position is defined to be 0, movement will be limited between [mLimitsMin, mLimitsMax] where mLimitsMin e [-inf, 0] and mLimitsMax e [0, inf]
+    float limits_min = -FLT_MAX;
+    float limits_max = FLT_MAX;
+
+    /// When enabled, this makes the limits soft. When the constraint exceeds the limits, a spring force will pull it back.
+    spring_settings_t limits_spring_settings;
+
+    /// Maximum amount of friction force to apply (N) when not driven by a motor.
+    float max_friction_force = 0.0f;
+
+    /// In case the constraint is powered, this determines the motor settings around the sliding axis
+    motor_t motor = {};
+
+    constexpr bool operator==(const vierkant::constraint::slider_t &other) const = default;
+};
+
+struct hinge_t
+{
+    /// This determines in which space the constraint is setup, all properties below should be in the specified space
+    ConstraintSpace space = ConstraintSpace::World;
+
+    /// Body 1 constraint reference frame (space determined by mSpace).
+    /// Hinge axis is the axis where rotation is allowed.
+    /// When the normal axis of both bodies align in world space, the hinge angle is defined to be 0.
+    /// mHingeAxis1 and mNormalAxis1 should be perpendicular. mHingeAxis2 and mNormalAxis2 should also be perpendicular.
+    /// If you configure the joint in world space and create both bodies with a relative rotation you want to be defined as zero,
+    /// you can simply set mHingeAxis1 = mHingeAxis2 and mNormalAxis1 = mNormalAxis2.
+    glm::vec3 point1;
+    glm::vec3 hinge_axis1 = glm::vec3(0.f, 1.f, 0.f);
+    glm::vec3 normal_axis1 = glm::vec3(1.f, 0.f, 0.f);
+
+    /// Body 2 constraint reference frame (space determined by mSpace)
+    glm::vec3 point2;
+    glm::vec3 hinge_axis2 = glm::vec3(0.f, 1.f, 0.f);
+    glm::vec3 normal_axis2 = glm::vec3(1.f, 0.f, 0.f);
+
+    /// Rotation around the hinge axis will be limited between [mLimitsMin, mLimitsMax] where mLimitsMin e [-pi, 0] and mLimitsMax e [0, pi].
+    /// Both angles are in radians.
+    float limits_min = -glm::pi<float>();
+    float limits_max = glm::pi<float>();
+
+    /// When enabled, this makes the limits soft. When the constraint exceeds the limits, a spring force will pull it back.
+    spring_settings_t limits_spring_settings;
+
+    /// Maximum amount of torque (N m) to apply as friction when the constraint is not powered by a motor
+    float max_friction_torque = 0.0f;
+
+    /// In case the constraint is powered, this determines the motor settings around the hinge axis
+    motor_t motor;
+
+    constexpr bool operator==(const vierkant::constraint::hinge_t &other) const = default;
+};
+
+using constraint_t = std::variant<constraint::none_t, constraint::point_t, constraint::distance_t, slider_t, hinge_t>;
 }// namespace constraint
 
 struct physics_component_t
