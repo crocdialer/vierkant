@@ -161,8 +161,8 @@ struct point_t
 struct distance_t
 {
     ConstraintSpace space = ConstraintSpace::World;
-    glm::vec3 point1;
-    glm::vec3 point2;
+    glm::vec3 point1{0.f};
+    glm::vec3 point2{0.f};
     float min_distance = -1.0f;
     float max_distance = -1.0f;
     spring_settings_t spring_settings = {};
@@ -179,12 +179,12 @@ struct slider_t
 
     /// Body 1 constraint reference frame (space determined by mSpace).
     /// Slider axis is the axis along which movement is possible (direction), normal axis is a perpendicular vector to define the frame.
-    glm::vec3 point1;
+    glm::vec3 point1{0.f};
     glm::vec3 slider_axis1 = glm::vec3(1.f, 0.f, 0.f);
     glm::vec3 normal_axis1 = glm::vec3(0.f, 1.f, 0.f);
 
     /// Body 2 constraint reference frame (space determined by mSpace)
-    glm::vec3 point2;
+    glm::vec3 point2{0.f};
     glm::vec3 slider_axis2 = glm::vec3(1.f, 0.f, 0.f);
     glm::vec3 normal_axis2 = glm::vec3(0.f, 1.f, 0.f);
 
@@ -215,12 +215,12 @@ struct hinge_t
     /// mHingeAxis1 and mNormalAxis1 should be perpendicular. mHingeAxis2 and mNormalAxis2 should also be perpendicular.
     /// If you configure the joint in world space and create both bodies with a relative rotation you want to be defined as zero,
     /// you can simply set mHingeAxis1 = mHingeAxis2 and mNormalAxis1 = mNormalAxis2.
-    glm::vec3 point1;
+    glm::vec3 point1{0.f};
     glm::vec3 hinge_axis1 = glm::vec3(0.f, 1.f, 0.f);
     glm::vec3 normal_axis1 = glm::vec3(1.f, 0.f, 0.f);
 
     /// Body 2 constraint reference frame (space determined by mSpace)
-    glm::vec3 point2;
+    glm::vec3 point2{0.f};
     glm::vec3 hinge_axis2 = glm::vec3(0.f, 1.f, 0.f);
     glm::vec3 normal_axis2 = glm::vec3(1.f, 0.f, 0.f);
 
@@ -236,7 +236,7 @@ struct hinge_t
     float max_friction_torque = 0.0f;
 
     /// In case the constraint is powered, this determines the motor settings around the hinge axis
-    motor_t motor;
+    motor_t motor = {};
 
     constexpr bool operator==(const vierkant::constraint::hinge_t &other) const = default;
 };
