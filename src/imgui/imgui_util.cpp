@@ -1199,6 +1199,7 @@ void draw_object_ui(const Object3DPtr &object)
             change |= ImGui::InputFloat("angular_damping", &phys_cmp.angular_damping);
             change |= ImGui::Checkbox("kinematic", &phys_cmp.kinematic);
             change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
+            if(change) { phys_cmp.mode = physics_component_t::UPDATE; };
 
             if(auto *constraint_cmp = object->get_component_ptr<vierkant::constraint_component_t>())
             {
@@ -1377,7 +1378,10 @@ void draw_object_ui(const Object3DPtr &object)
                     }
                 }
             }
-            if(change) { phys_cmp.mode = physics_component_t::UPDATE; };
+            if(change && phys_cmp.mode != physics_component_t::UPDATE)
+            {
+                phys_cmp.mode = physics_component_t::CONSTRAINT_UPDATE;
+            };
             ImGui::TreePop();
         }
     }

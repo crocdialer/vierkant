@@ -252,6 +252,7 @@ struct physics_component_t
     {
         INACTIVE = 0,
         ACTIVE,
+        CONSTRAINT_UPDATE,
         UPDATE,
         REMOVE
     } mode = INACTIVE;

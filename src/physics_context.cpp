@@ -1034,12 +1034,15 @@ bool PhysicsContext::add_constraints(uint32_t objectId, const vierkant::constrai
         if(obj_id1 || obj_id2)
         {
             constraint_id = create_constraint(constraint.constraint, obj_id1, obj_id2);
-            assert(constraint_id);
-            auto new_constraint = m_engine->jolt.constraints.at(constraint_id);
-            m_engine->jolt.physics_system.AddConstraint(new_constraint);
 
-            if(obj_id1) { m_engine->jolt.constraint_id_map[obj_id1].insert(constraint_id); }
-            if(obj_id2) { m_engine->jolt.constraint_id_map[obj_id2].insert(constraint_id); }
+            if(constraint_id)
+            {
+                auto new_constraint = m_engine->jolt.constraints.at(constraint_id);
+                m_engine->jolt.physics_system.AddConstraint(new_constraint);
+
+                if(obj_id1) { m_engine->jolt.constraint_id_map[obj_id1].insert(constraint_id); }
+                if(obj_id2) { m_engine->jolt.constraint_id_map[obj_id2].insert(constraint_id); }
+            }
         }
     }
 
@@ -1183,6 +1186,8 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
              objectId2](auto &&c) -> ConstraintId {
                 using T = std::decay_t<decltype(c)>;
 
+                if constexpr(std::is_same_v<T, constraint::none_t>) { return ConstraintId::nil(); }
+
                 if constexpr(std::is_same_v<T, ConstraintId>)
                 {
                     if(m_engine->jolt.constraints.contains(c)) { return c; }
@@ -1239,12 +1244,12 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
 
                     settings.mAutoDetectPoint = c.auto_detect_point;
                     settings.mPoint1 = type_cast(c.point1);
-                    settings.mSliderAxis1 = type_cast(c.slider_axis1);
-                    settings.mNormalAxis1 = type_cast(c.normal_axis1);
+                    settings.mSliderAxis1 = type_cast(glm::normalize(c.slider_axis1));
+                    settings.mNormalAxis1 = type_cast(glm::normalize(c.normal_axis1));
 
                     settings.mPoint2 = type_cast(c.point2);
-                    settings.mSliderAxis2 = type_cast(c.slider_axis2);
-                    settings.mNormalAxis2 = type_cast(c.normal_axis2);
+                    settings.mSliderAxis2 = type_cast(glm::normalize(c.slider_axis2));
+                    settings.mNormalAxis2 = type_cast(glm::normalize(c.normal_axis2));
 
                     settings.mLimitsMin = std::min(c.limits_min, 0.f);
                     settings.mLimitsMax = std::max(c.limits_max, 0.f);
@@ -1271,12 +1276,12 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                                               : JPH::EConstraintSpace::LocalToBodyCOM;
 
                     settings.mPoint1 = type_cast(c.point1);
-                    settings.mHingeAxis1 = type_cast(c.hinge_axis1);
-                    settings.mNormalAxis1 = type_cast(c.normal_axis1);
+                    settings.mHingeAxis1 = type_cast(glm::normalize(c.hinge_axis1));
+                    settings.mNormalAxis1 = type_cast(glm::normalize(c.normal_axis1));
 
                     settings.mPoint2 = type_cast(c.point2);
-                    settings.mHingeAxis2 = type_cast(c.hinge_axis2);
-                    settings.mNormalAxis2 = type_cast(c.normal_axis2);
+                    settings.mHingeAxis2 = type_cast(glm::normalize(c.hinge_axis2));
+                    settings.mNormalAxis2 = type_cast(glm::normalize(c.normal_axis2));
 
                     settings.mLimitsMin = std::min(c.limits_min, 0.f);
                     settings.mLimitsMax = std::max(c.limits_max, 0.f);
@@ -1404,14 +1409,16 @@ void PhysicsScene::update(double time_delta)
             m_context.add_object(obj->id(), obj->global_transform(), cmp);
 
             // check if additional constraints-pass is required
-            if(!obj->has_component<vierkant::constraint_component_t>()) { cmp.mode = physics_component_t::ACTIVE; }
+            cmp.mode = obj->has_component<vierkant::constraint_component_t>() ? physics_component_t::CONSTRAINT_UPDATE
+                                                                              : physics_component_t::ACTIVE;
         }
         else if(obj_enabled && cmp.mode == physics_component_t::INACTIVE)
         {
             m_context.add_object(obj->id(), obj->global_transform(), cmp);
 
             // check if additional constraints-pass is required
-            if(!obj->has_component<vierkant::constraint_component_t>()) { cmp.mode = physics_component_t::ACTIVE; }
+            cmp.mode = obj->has_component<vierkant::constraint_component_t>() ? physics_component_t::CONSTRAINT_UPDATE
+                                                                              : physics_component_t::ACTIVE;
         }
         else if(!obj_enabled)
         {
@@ -1437,7 +1444,7 @@ void PhysicsScene::update(double time_delta)
     for(const auto &[entity, phys_cmp, constraint_cmp]: constraints_view.each())
     {
         auto *obj = object_by_id(static_cast<uint32_t>(entity));
-        if(phys_cmp.mode == physics_component_t::INACTIVE || phys_cmp.mode == physics_component_t::UPDATE)
+        if(phys_cmp.mode == physics_component_t::CONSTRAINT_UPDATE)
         {
             phys_cmp.mode = physics_component_t::ACTIVE;
             m_context.add_constraints(obj->id(), constraint_cmp);
