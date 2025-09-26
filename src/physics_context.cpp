@@ -1164,7 +1164,7 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
         ret.mMinForceLimit = m.min_force_limit;
         ret.mMaxForceLimit = m.max_force_limit;
         ret.mMinTorqueLimit = m.min_torque_limit;
-        ret.mMaxForceLimit = m.max_torque_limit;
+        ret.mMaxTorqueLimit = m.max_torque_limit;
         return ret;
     };
 
@@ -1243,7 +1243,7 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                     settings.mNormalAxis1 = type_cast(c.normal_axis1);
 
                     settings.mPoint2 = type_cast(c.point2);
-                    settings.mSliderAxis1 = type_cast(c.slider_axis2);
+                    settings.mSliderAxis2 = type_cast(c.slider_axis2);
                     settings.mNormalAxis2 = type_cast(c.normal_axis2);
 
                     settings.mLimitsMin = std::min(c.limits_min, 0.f);
