@@ -1363,7 +1363,6 @@ void draw_object_ui(const Object3DPtr &object)
                                                                      glm::value_ptr(constraint.normal_axis2));
                                         change |= ImGui::InputFloat("limits_min", &constraint.limits_min);
                                         change |= ImGui::InputFloat("limits_max", &constraint.limits_max);
-                                        change |= draw_spring_settings(constraint.limits_spring_settings);
                                         change |= draw_spring_settings(constraint.limits_spring_settings,
                                                                        "limits_spring_settings");
                                         change |= ImGui::InputFloat("max_friction_torque",
