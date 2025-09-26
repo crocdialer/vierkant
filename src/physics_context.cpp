@@ -1168,8 +1168,19 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
         return ret;
     };
 
+    auto motor_state = [](constraint::MotorState state) -> JPH::EMotorState {
+        switch(state)
+        {
+            case constraint::MotorState::Velocity: return JPH::EMotorState::Velocity;
+            case constraint::MotorState::Position: return JPH::EMotorState::Position;
+            default:
+            case constraint::MotorState::Off: return JPH::EMotorState::Off;
+        }
+    };
+
     auto constraint_id = std::visit(
-            [this, convert_spring_settings, convert_motor_settings, objectId1, objectId2](auto &&c) -> ConstraintId {
+            [this, convert_spring_settings, convert_motor_settings, motor_state, objectId1,
+             objectId2](auto &&c) -> ConstraintId {
                 using T = std::decay_t<decltype(c)>;
 
                 if constexpr(std::is_same_v<T, ConstraintId>)
@@ -1235,14 +1246,21 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                     settings.mSliderAxis1 = type_cast(c.slider_axis2);
                     settings.mNormalAxis2 = type_cast(c.normal_axis2);
 
-                    settings.mLimitsMin = c.limits_min;
-                    settings.mLimitsMax = c.limits_max;
+                    settings.mLimitsMin = std::min(c.limits_min, 0.f);
+                    settings.mLimitsMax = std::max(c.limits_max, 0.f);
                     settings.mLimitsSpringSettings = convert_spring_settings(c.limits_spring_settings);
 
                     settings.mMotorSettings = convert_motor_settings(c.motor);
 
                     new_constraint =
                             m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);
+
+                    if(auto *slider_constraint = dynamic_cast<JPH::SliderConstraint *>(new_constraint))
+                    {
+                        slider_constraint->SetMotorState(motor_state(c.motor.state));
+                        slider_constraint->SetTargetVelocity(c.motor.target_velocity);
+                        slider_constraint->SetTargetPosition(c.motor.target_position);
+                    }
                 }
 
                 if constexpr(std::is_same_v<T, constraint::hinge_t>)
@@ -1260,8 +1278,8 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                     settings.mHingeAxis2 = type_cast(c.hinge_axis2);
                     settings.mNormalAxis2 = type_cast(c.normal_axis2);
 
-                    settings.mLimitsMin = c.limits_min;
-                    settings.mLimitsMax = c.limits_max;
+                    settings.mLimitsMin = std::min(c.limits_min, 0.f);
+                    settings.mLimitsMax = std::max(c.limits_max, 0.f);
                     settings.mLimitsSpringSettings = convert_spring_settings(c.limits_spring_settings);
                     settings.mMaxFrictionTorque = c.max_friction_torque;
 
@@ -1269,6 +1287,13 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
 
                     new_constraint =
                             m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);
+
+                    if(auto *hinge_constraint = dynamic_cast<JPH::HingeConstraint *>(new_constraint))
+                    {
+                        hinge_constraint->SetMotorState(motor_state(c.motor.state));
+                        hinge_constraint->SetTargetAngularVelocity(c.motor.target_velocity);
+                        hinge_constraint->SetTargetAngle(c.motor.target_position);
+                    }
                 }
 
                 if(new_constraint) { m_engine->jolt.constraints[new_id] = new_constraint; }
