@@ -1252,11 +1252,11 @@ void draw_object_ui(const Object3DPtr &object)
                             return change;
                         };
 
-                        auto draw_motor_state = [draw_spring_settings](vierkant::constraint::motor_t &m,
-                                                                       const std::string &name = {}) -> bool {
+                        auto draw_motor_state =
+                                [draw_spring_settings](vierkant::constraint::motor_t &m,
+                                                       std::optional<glm::vec2> pos_limit = {}) -> bool {
                             bool change = false;
-                            if(ImGui::TreeNodeEx(&m, ImGuiTreeNodeFlags_None, "%s",
-                                                 name.empty() ? "motor" : name.c_str()))
+                            if(ImGui::TreeNodeEx(&m, ImGuiTreeNodeFlags_None, "motor"))
                             {
                                 const char *motor_state_items[] = {"Off", "Velocity", "Position"};
                                 int motor_state_index = static_cast<int>(m.state);
@@ -1267,7 +1267,13 @@ void draw_object_ui(const Object3DPtr &object)
                                     change = true;
                                 }
                                 change |= ImGui::InputFloat("velocity", &m.target_velocity);
-                                change |= ImGui::InputFloat("position", &m.target_position);
+
+                                if(pos_limit && !glm::any(glm::isinf(*pos_limit)))
+                                {
+                                    change |= ImGui::SliderFloat("position", &m.target_position, pos_limit->x,
+                                                                 pos_limit->y);
+                                }
+                                else { change |= ImGui::InputFloat("position", &m.target_position); }
 
                                 change |= draw_spring_settings(m.spring_settings, "spring_settings");
 
@@ -1339,7 +1345,8 @@ void draw_object_ui(const Object3DPtr &object)
                                                                        "limits_spring_settings");
                                         change |=
                                                 ImGui::InputFloat("max_friction_force", &constraint.max_friction_force);
-                                        change |= draw_motor_state(constraint.motor);
+                                        change |= draw_motor_state(constraint.motor, glm::vec2(constraint.limits_min,
+                                                                                               constraint.limits_max));
                                     }
                                     if constexpr(std::is_same_v<T, constraint::hinge_t>)
                                     {
@@ -1361,7 +1368,8 @@ void draw_object_ui(const Object3DPtr &object)
                                                                        "limits_spring_settings");
                                         change |= ImGui::InputFloat("max_friction_torque",
                                                                     &constraint.max_friction_torque);
-                                        change |= draw_motor_state(constraint.motor);
+                                        change |= draw_motor_state(constraint.motor, glm::vec2(constraint.limits_min,
+                                                                                               constraint.limits_max));
                                     }
                                 },
                                 body_constraint.constraint);
