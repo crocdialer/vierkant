@@ -89,21 +89,21 @@ namespace constraint
 
 enum class ConstraintSpace
 {
-    LocalToBodyCOM,
-    World,
+    LocalToBodyCOM = 0,
+    World = 1,
 };
 
 enum class SpringMode : uint8_t
 {
-    FrequencyAndDamping,
-    StiffnessAndDamping,
+    FrequencyAndDamping = 0,
+    StiffnessAndDamping = 1,
 };
 
 enum class MotorState
 {
-    Off,
-    Velocity,
-    Position
+    Off = 0,
+    Velocity = 1,
+    Position = 2
 };
 
 struct spring_settings_t
@@ -129,14 +129,14 @@ struct motor_t
     spring_settings_t spring_settings = {};
 
     //! minimum force to apply in case of a linear constraint (N). Usually this is -mMaxForceLimit unless you want a motor that can e.g. push but not pull. Not used when motor is an angular motor.
-    float min_force_limit = -FLT_MAX;
+    float min_force_limit = -std::numeric_limits<float>::infinity();
 
     //! maximum force to apply in case of a linear constraint (N). Not used when motor is an angular motor.
-    float max_force_limit = FLT_MAX;
+    float max_force_limit = std::numeric_limits<float>::infinity();
 
     //! minimum torque to apply in case of a angular constraint (N m). Usually this is -mMaxTorqueLimit unless you want a motor that can e.g. push but not pull. Not used when motor is a position motor.
-    float min_torque_limit = -FLT_MAX;
-    float max_torque_limit = FLT_MAX;
+    float min_torque_limit = -std::numeric_limits<float>::infinity();
+    float max_torque_limit = std::numeric_limits<float>::infinity();
 
     MotorState state = MotorState::Off;
     float target_velocity = 0.f;
@@ -189,8 +189,8 @@ struct slider_t
     glm::vec3 normal_axis2 = glm::vec3(0.f, 1.f, 0.f);
 
     /// When the bodies move so that mPoint1 coincides with mPoint2 the slider position is defined to be 0, movement will be limited between [mLimitsMin, mLimitsMax] where mLimitsMin e [-inf, 0] and mLimitsMax e [0, inf]
-    float limits_min = -FLT_MAX;
-    float limits_max = FLT_MAX;
+    float limits_min = -std::numeric_limits<float>::infinity();
+    float limits_max = std::numeric_limits<float>::infinity();
 
     /// When enabled, this makes the limits soft. When the constraint exceeds the limits, a spring force will pull it back.
     spring_settings_t limits_spring_settings;

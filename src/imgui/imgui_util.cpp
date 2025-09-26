@@ -1204,7 +1204,7 @@ void draw_object_ui(const Object3DPtr &object)
             {
                 for(auto &body_constraint: constraint_cmp->body_constraints)
                 {
-                    const char *constraint_items[] = {"None", "Point", "Distance"};
+                    const char *constraint_items[] = {"None", "Point", "Distance", "Slider", "Hinge"};
                     int constraint_index = 0;
 
                     std::visit(
@@ -1212,42 +1212,156 @@ void draw_object_ui(const Object3DPtr &object)
                                 using T = std::decay_t<decltype(constraint)>;
                                 if constexpr(std::is_same_v<T, constraint::point_t>) { constraint_index = 1; }
                                 if constexpr(std::is_same_v<T, constraint::distance_t>) { constraint_index = 2; }
+                                if constexpr(std::is_same_v<T, constraint::slider_t>) { constraint_index = 3; }
+                                if constexpr(std::is_same_v<T, constraint::hinge_t>) { constraint_index = 4; }
                             },
                             body_constraint.constraint);
 
                     if(ImGui::TreeNodeEx(&body_constraint, ImGuiTreeNodeFlags_None, "constraint (%s)",
                                          constraint_items[constraint_index]))
                     {
+                        auto draw_contraint_space = [](constraint::ConstraintSpace &space) {
+                            const char *space_items[] = {"LocalToBodyCOM", "World"};
+                            int space_index = static_cast<int>(space);
+                            if(ImGui::Combo("space", &space_index, space_items, IM_ARRAYSIZE(space_items)))
+                            {
+                                space = static_cast<constraint::ConstraintSpace>(space_index);
+                                return true;
+                            }
+                            return false;
+                        };
+
+                        auto draw_spring_settings = [](vierkant::constraint::spring_settings_t &s,
+                                                       const std::string &name = {}) -> bool {
+                            bool change = false;
+                            if(ImGui::TreeNodeEx(&s, ImGuiTreeNodeFlags_None, "%s",
+                                                 name.empty() ? "spring" : name.c_str()))
+                            {
+                                const char *mode_items[] = {"FrequencyAndDamping", "StiffnessAndDamping"};
+                                int mode_index = static_cast<int>(s.mode);
+                                if(ImGui::Combo("mode", &mode_index, mode_items, IM_ARRAYSIZE(mode_items)))
+                                {
+                                    s.mode = static_cast<constraint::SpringMode>(mode_index);
+                                    change = true;
+                                }
+
+                                change |= ImGui::InputFloat("frequency_or_stiffness", &s.frequency_or_stiffness);
+                                change |= ImGui::InputFloat("damping", &s.damping);
+                                ImGui::TreePop();
+                            }
+                            return change;
+                        };
+
+                        auto draw_motor_state = [draw_spring_settings](vierkant::constraint::motor_t &m,
+                                                                       const std::string &name = {}) -> bool {
+                            bool change = false;
+                            if(ImGui::TreeNodeEx(&m, ImGuiTreeNodeFlags_None, "%s",
+                                                 name.empty() ? "motor" : name.c_str()))
+                            {
+                                const char *motor_state_items[] = {"Off", "Velocity", "Position"};
+                                int motor_state_index = static_cast<int>(m.state);
+                                if(ImGui::Combo("state", &motor_state_index, motor_state_items,
+                                                IM_ARRAYSIZE(motor_state_items)))
+                                {
+                                    m.state = static_cast<constraint::MotorState>(motor_state_index);
+                                    change = true;
+                                }
+                                change |= ImGui::InputFloat("velocity", &m.target_velocity);
+                                change |= ImGui::InputFloat("position", &m.target_position);
+
+                                change |= draw_spring_settings(m.spring_settings, "spring_settings");
+
+                                if(ImGui::TreeNodeEx(&m.min_force_limit, ImGuiTreeNodeFlags_None, "limits"))
+                                {
+                                    change |= ImGui::InputFloat("min_force_limit", &m.min_force_limit);
+                                    change |= ImGui::InputFloat("max_force_limit", &m.max_force_limit);
+                                    change |= ImGui::InputFloat("min_torque_limit", &m.min_torque_limit);
+                                    change |= ImGui::InputFloat("max_torque_limit", &m.max_torque_limit);
+                                    ImGui::TreePop();
+                                }
+
+                                ImGui::TreePop();
+                            }
+                            return change;
+                        };
+
+                        if(ImGui::Combo("type", &constraint_index, constraint_items, IM_ARRAYSIZE(constraint_items)))
+                        {
+                            switch(constraint_index)
+                            {
+                                case 0: body_constraint.constraint = constraint::none_t{}; break;
+                                case 1: body_constraint.constraint = constraint::point_t{}; break;
+                                case 2: body_constraint.constraint = constraint::distance_t{}; break;
+                                case 3: body_constraint.constraint = constraint::slider_t{}; break;
+                                case 4: body_constraint.constraint = constraint::hinge_t{}; break;
+                                default: break;
+                            }
+                            change = true;
+                        }
+
                         std::visit(
-                                [&change](auto &&constraint) mutable {
+                                [&change, draw_spring_settings, draw_motor_state,
+                                 draw_contraint_space](auto &&constraint) mutable {
                                     using T = std::decay_t<decltype(constraint)>;
                                     if constexpr(std::is_same_v<T, ConstraintId>) { return; }
                                     if constexpr(std::is_same_v<T, constraint::point_t>)
                                     {
+                                        change |= draw_contraint_space(constraint.space);
                                         change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
                                         change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
                                     }
                                     if constexpr(std::is_same_v<T, constraint::distance_t>)
                                     {
+                                        change |= draw_contraint_space(constraint.space);
                                         change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
                                         change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
                                         change |= ImGui::InputFloat("min_distance", &constraint.min_distance);
                                         change |= ImGui::InputFloat("max_distance", &constraint.max_distance);
-
-                                        {// spring_settings
-                                            int mode = static_cast<int>(constraint.spring_settings.mode);
-                                            if(ImGui::InputInt("mode", &mode))
-                                            {
-                                                constraint.spring_settings.mode =
-                                                        static_cast<vierkant::constraint::SpringMode>(
-                                                                std::clamp(mode, 0, 1));
-                                                change = true;
-                                            }
-                                            change |= ImGui::InputFloat(
-                                                    "frequency_or_stiffness",
-                                                    &constraint.spring_settings.frequency_or_stiffness);
-                                            change |= ImGui::InputFloat("damping", &constraint.spring_settings.damping);
-                                        }
+                                        change |= draw_spring_settings(constraint.spring_settings);
+                                    }
+                                    if constexpr(std::is_same_v<T, constraint::slider_t>)
+                                    {
+                                        change |= draw_contraint_space(constraint.space);
+                                        change |= ImGui::Checkbox("auto_detect_point", &constraint.auto_detect_point);
+                                        change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
+                                        change |= ImGui::InputFloat3("slider_axis1",
+                                                                     glm::value_ptr(constraint.slider_axis1));
+                                        change |= ImGui::InputFloat3("normal_axis1",
+                                                                     glm::value_ptr(constraint.normal_axis1));
+                                        change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
+                                        change |= ImGui::InputFloat3("slider_axis2",
+                                                                     glm::value_ptr(constraint.slider_axis2));
+                                        change |= ImGui::InputFloat3("normal_axis2",
+                                                                     glm::value_ptr(constraint.normal_axis2));
+                                        change |= ImGui::InputFloat("limits_min", &constraint.limits_min);
+                                        change |= ImGui::InputFloat("limits_max", &constraint.limits_max);
+                                        change |= draw_spring_settings(constraint.limits_spring_settings,
+                                                                       "limits_spring_settings");
+                                        change |=
+                                                ImGui::InputFloat("max_friction_force", &constraint.max_friction_force);
+                                        change |= draw_motor_state(constraint.motor);
+                                    }
+                                    if constexpr(std::is_same_v<T, constraint::hinge_t>)
+                                    {
+                                        change |= draw_contraint_space(constraint.space);
+                                        change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
+                                        change |= ImGui::InputFloat3("hinge_axis1",
+                                                                     glm::value_ptr(constraint.hinge_axis1));
+                                        change |= ImGui::InputFloat3("normal_axis1",
+                                                                     glm::value_ptr(constraint.normal_axis1));
+                                        change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
+                                        change |= ImGui::InputFloat3("hinge_axis2",
+                                                                     glm::value_ptr(constraint.hinge_axis2));
+                                        change |= ImGui::InputFloat3("normal_axis2",
+                                                                     glm::value_ptr(constraint.normal_axis2));
+                                        change |= ImGui::InputFloat("limits_min", &constraint.limits_min);
+                                        change |= ImGui::InputFloat("limits_max", &constraint.limits_max);
+                                        change |= draw_spring_settings(constraint.limits_spring_settings);
+                                        change |= draw_spring_settings(constraint.limits_spring_settings,
+                                                                       "limits_spring_settings");
+                                        change |= ImGui::InputFloat("max_friction_torque",
+                                                                    &constraint.max_friction_torque);
+                                        change |= draw_motor_state(constraint.motor);
                                     }
                                 },
                                 body_constraint.constraint);
