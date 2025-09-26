@@ -32,7 +32,7 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
     frame_context.settings = settings;
 
     frame_context.physics_meshes.clear();
-    const auto &physics_meshes = last_frame_context.physics_meshes;
+    const auto &last_physics_meshes = last_frame_context.physics_meshes;
 
     for(uint32_t i = 0; i < physics_debug_result.aabbs.size(); ++i)
     {
@@ -48,13 +48,13 @@ SceneRenderer::render_result_t PhysicsDebugRenderer::render_scene(vierkant::Rast
             vierkant::MeshPtr mesh;
 
             // search last
-            auto mesh_it = physics_meshes.find(geom.get());
-            if(mesh_it != physics_meshes.end()) { mesh = mesh_it->second; }
+            auto last_mesh_it = last_physics_meshes.find(geom.get());
+            if(last_mesh_it != last_physics_meshes.end()) { mesh = last_mesh_it->second; }
             else
             {
                 // search current
-                mesh_it = frame_context.physics_meshes.find(geom.get());
-                if(mesh_it != physics_meshes.end()) { mesh = mesh_it->second; }
+                auto mesh_it = frame_context.physics_meshes.find(geom.get());
+                if(mesh_it != frame_context.physics_meshes.end()) { mesh = mesh_it->second; }
             }
 
             if(!mesh)
