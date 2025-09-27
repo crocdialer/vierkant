@@ -1201,10 +1201,24 @@ void draw_object_ui(const Object3DPtr &object)
             change |= ImGui::Checkbox("sensor", &phys_cmp.sensor);
             if(change) { phys_cmp.mode = physics_component_t::UPDATE; };
 
-            if(auto *constraint_cmp = object->get_component_ptr<vierkant::constraint_component_t>())
+            auto *constraint_cmp = object->get_component_ptr<vierkant::constraint_component_t>();
+
+            if(ImGui::Button("add constraint"))
             {
-                for(auto &body_constraint: constraint_cmp->body_constraints)
+                change = true;
+                constraint_cmp =
+                        constraint_cmp ? constraint_cmp : &object->add_component<vierkant::constraint_component_t>();
+                assert(constraint_cmp);
+                auto &new_constraint = constraint_cmp->body_constraints.emplace_back();
+                new_constraint.body_id1 = phys_cmp.body_id;
+            }
+
+            if(constraint_cmp)
+            {
+                auto body_constraint_it = constraint_cmp->body_constraints.begin();
+                while(body_constraint_it != constraint_cmp->body_constraints.end())
                 {
+                    auto &body_constraint = *body_constraint_it;
                     const char *constraint_items[] = {"None", "Point", "Distance", "Slider", "Hinge"};
                     int constraint_index = 0;
 
@@ -1221,6 +1235,14 @@ void draw_object_ui(const Object3DPtr &object)
                     if(ImGui::TreeNodeEx(&body_constraint, ImGuiTreeNodeFlags_None, "constraint (%s)",
                                          constraint_items[constraint_index]))
                     {
+                        if(ImGui::Button("remove constraint"))
+                        {
+                            body_constraint_it = constraint_cmp->body_constraints.erase(body_constraint_it);
+                            change = true;
+                            ImGui::TreePop();
+                            continue;
+                        }
+
                         auto draw_contraint_space = [](constraint::ConstraintSpace &space) {
                             const char *space_items[] = {"LocalToBodyCOM", "World"};
                             int space_index = static_cast<int>(space);
@@ -1376,7 +1398,8 @@ void draw_object_ui(const Object3DPtr &object)
 
                         ImGui::TreePop();
                     }
-                }
+                    body_constraint_it++;
+                }// while(body_constraint_it != constraint_cmp->body_constraints.end())
             }
             if(change && phys_cmp.mode != physics_component_t::UPDATE)
             {
