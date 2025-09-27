@@ -1041,7 +1041,6 @@ bool PhysicsContext::add_constraints(uint32_t objectId, const vierkant::constrai
                 m_engine->jolt.physics_system.AddConstraint(new_constraint);
 
                 if(obj_id1) { m_engine->jolt.constraint_id_map[obj_id1].insert(constraint_id); }
-                if(obj_id2) { m_engine->jolt.constraint_id_map[obj_id2].insert(constraint_id); }
             }
         }
     }

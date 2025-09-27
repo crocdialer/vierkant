@@ -1090,6 +1090,9 @@ void draw_object_ui(const Object3DPtr &object)
         ImGui::SameLine();
         if(ImGui::TreeNodeEx(&phys_cmp, ImGuiTreeNodeFlags_DefaultOpen, "mass: %.2f", phys_cmp.mass))
         {
+            strcpy(text_buf, phys_cmp.body_id.str().c_str());
+            ImGui::InputText("body-id", text_buf, sizeof(text_buf), ImGuiInputTextFlags_ReadOnly);
+
             bool change = false;
 
             const char *shape_items[] = {"None", "Plane", "Box", "Sphere", "Cylinder", "Capsule", "Mesh"};
@@ -1219,6 +1222,7 @@ void draw_object_ui(const Object3DPtr &object)
                 while(body_constraint_it != constraint_cmp->body_constraints.end())
                 {
                     auto &body_constraint = *body_constraint_it;
+
                     const char *constraint_items[] = {"None", "Point", "Distance", "Slider", "Hinge"};
                     int constraint_index = 0;
 
@@ -1241,6 +1245,15 @@ void draw_object_ui(const Object3DPtr &object)
                             change = true;
                             ImGui::TreePop();
                             continue;
+                        }
+
+                        // copy 2nd body-UUID into buf
+                        strcpy(text_buf, body_constraint.body_id2.str().c_str());
+
+                        if(ImGui::InputText("body_id2", text_buf, sizeof(text_buf)))
+                        {
+                            body_constraint.body_id2 = vierkant::BodyId::from_string(text_buf);
+                            change = true;
                         }
 
                         auto draw_contraint_space = [](constraint::ConstraintSpace &space) {
