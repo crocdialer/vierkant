@@ -1180,8 +1180,14 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
         }
     };
 
+    auto correct_axis = [](const glm::vec3 &axis_in) -> glm::vec3 {
+        constexpr float eps = 1.e-5f;
+        float len = glm::length(axis_in);
+        return len < eps ? glm::vec3(1.f, 0.f, 0.f) : axis_in / len;
+    };
+
     auto constraint_id = std::visit(
-            [this, convert_spring_settings, convert_motor_settings, motor_state, objectId1,
+            [this, convert_spring_settings, convert_motor_settings, motor_state, correct_axis, objectId1,
              objectId2](auto &&c) -> ConstraintId {
                 using T = std::decay_t<decltype(c)>;
 
@@ -1243,12 +1249,12 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
 
                     settings.mAutoDetectPoint = c.auto_detect_point;
                     settings.mPoint1 = type_cast(c.point1);
-                    settings.mSliderAxis1 = type_cast(glm::normalize(c.slider_axis1));
-                    settings.mNormalAxis1 = type_cast(glm::normalize(c.normal_axis1));
+                    settings.mSliderAxis1 = type_cast(correct_axis(c.slider_axis1));
+                    settings.mNormalAxis1 = type_cast(correct_axis(c.normal_axis1));
 
                     settings.mPoint2 = type_cast(c.point2);
-                    settings.mSliderAxis2 = type_cast(glm::normalize(c.slider_axis2));
-                    settings.mNormalAxis2 = type_cast(glm::normalize(c.normal_axis2));
+                    settings.mSliderAxis2 = type_cast(correct_axis(c.slider_axis2));
+                    settings.mNormalAxis2 = type_cast(correct_axis(c.normal_axis2));
 
                     settings.mLimitsMin = std::min(c.limits_min, 0.f);
                     settings.mLimitsMax = std::max(c.limits_max, 0.f);
@@ -1275,12 +1281,12 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                                               : JPH::EConstraintSpace::LocalToBodyCOM;
 
                     settings.mPoint1 = type_cast(c.point1);
-                    settings.mHingeAxis1 = type_cast(glm::normalize(c.hinge_axis1));
-                    settings.mNormalAxis1 = type_cast(glm::normalize(c.normal_axis1));
+                    settings.mHingeAxis1 = type_cast(correct_axis(c.hinge_axis1));
+                    settings.mNormalAxis1 = type_cast(correct_axis(c.normal_axis1));
 
                     settings.mPoint2 = type_cast(c.point2);
-                    settings.mHingeAxis2 = type_cast(glm::normalize(c.hinge_axis2));
-                    settings.mNormalAxis2 = type_cast(glm::normalize(c.normal_axis2));
+                    settings.mHingeAxis2 = type_cast(correct_axis(c.hinge_axis2));
+                    settings.mNormalAxis2 = type_cast(correct_axis(c.normal_axis2));
 
                     settings.mLimitsMin = std::min(c.limits_min, 0.f);
                     settings.mLimitsMax = std::max(c.limits_max, 0.f);
