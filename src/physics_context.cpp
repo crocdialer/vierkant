@@ -1045,7 +1045,7 @@ bool PhysicsContext::add_constraints(uint32_t objectId, const vierkant::constrai
             }
         }
     }
-
+    body_interface().activate(objectId);
     return constraint_id != vierkant::ConstraintId::nil();
 }
 
@@ -1443,9 +1443,9 @@ void PhysicsScene::update(double time_delta)
     auto constraints_view = registry()->view<physics_component_t, constraint_component_t>();
     for(const auto &[entity, phys_cmp, constraint_cmp]: constraints_view.each())
     {
-        auto *obj = object_by_id(static_cast<uint32_t>(entity));
         if(phys_cmp.mode == physics_component_t::CONSTRAINT_UPDATE)
         {
+            auto *obj = object_by_id(static_cast<uint32_t>(entity));
             phys_cmp.mode = physics_component_t::ACTIVE;
             m_context.add_constraints(obj->id(), constraint_cmp);
         }
