@@ -181,12 +181,10 @@ struct slider_t
     /// Slider axis is the axis along which movement is possible (direction), normal axis is a perpendicular vector to define the frame.
     glm::vec3 point1{0.f};
     glm::vec3 slider_axis1 = glm::vec3(1.f, 0.f, 0.f);
-    glm::vec3 normal_axis1 = glm::vec3(0.f, 1.f, 0.f);
 
     /// Body 2 constraint reference frame (space determined by mSpace)
     glm::vec3 point2{0.f};
     glm::vec3 slider_axis2 = glm::vec3(1.f, 0.f, 0.f);
-    glm::vec3 normal_axis2 = glm::vec3(0.f, 1.f, 0.f);
 
     /// When the bodies move so that mPoint1 coincides with mPoint2 the slider position is defined to be 0, movement will be limited between [mLimitsMin, mLimitsMax] where mLimitsMin e [-inf, 0] and mLimitsMax e [0, inf]
     float limits_min = -std::numeric_limits<float>::infinity();
@@ -217,12 +215,10 @@ struct hinge_t
     /// you can simply set mHingeAxis1 = mHingeAxis2 and mNormalAxis1 = mNormalAxis2.
     glm::vec3 point1{0.f};
     glm::vec3 hinge_axis1 = glm::vec3(0.f, 1.f, 0.f);
-    glm::vec3 normal_axis1 = glm::vec3(1.f, 0.f, 0.f);
 
     /// Body 2 constraint reference frame (space determined by mSpace)
     glm::vec3 point2{0.f};
     glm::vec3 hinge_axis2 = glm::vec3(0.f, 1.f, 0.f);
-    glm::vec3 normal_axis2 = glm::vec3(1.f, 0.f, 0.f);
 
     /// Rotation around the hinge axis will be limited between [mLimitsMin, mLimitsMax] where mLimitsMin e [-pi, 0] and mLimitsMax e [0, pi].
     /// Both angles are in radians.

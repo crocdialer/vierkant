@@ -1368,13 +1368,9 @@ void draw_object_ui(const Object3DPtr &object)
                                         change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
                                         change |= ImGui::InputFloat3("slider_axis1",
                                                                      glm::value_ptr(constraint.slider_axis1));
-                                        change |= ImGui::InputFloat3("normal_axis1",
-                                                                     glm::value_ptr(constraint.normal_axis1));
                                         change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
                                         change |= ImGui::InputFloat3("slider_axis2",
                                                                      glm::value_ptr(constraint.slider_axis2));
-                                        change |= ImGui::InputFloat3("normal_axis2",
-                                                                     glm::value_ptr(constraint.normal_axis2));
                                         change |= ImGui::InputFloat("limits_min", &constraint.limits_min);
                                         change |= ImGui::InputFloat("limits_max", &constraint.limits_max);
                                         change |= draw_spring_settings(constraint.limits_spring_settings,
@@ -1390,13 +1386,9 @@ void draw_object_ui(const Object3DPtr &object)
                                         change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
                                         change |= ImGui::InputFloat3("hinge_axis1",
                                                                      glm::value_ptr(constraint.hinge_axis1));
-                                        change |= ImGui::InputFloat3("normal_axis1",
-                                                                     glm::value_ptr(constraint.normal_axis1));
                                         change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
                                         change |= ImGui::InputFloat3("hinge_axis2",
                                                                      glm::value_ptr(constraint.hinge_axis2));
-                                        change |= ImGui::InputFloat3("normal_axis2",
-                                                                     glm::value_ptr(constraint.normal_axis2));
                                         change |= ImGui::InputFloat("limits_min", &constraint.limits_min);
                                         change |= ImGui::InputFloat("limits_max", &constraint.limits_max);
                                         change |= draw_spring_settings(constraint.limits_spring_settings,

@@ -142,6 +142,15 @@ inline vierkant::transform_t type_cast(const JPH::Mat44 &mat)
     return ret;
 }
 
+//! returns a local coordinate frame for a given normalized direction
+inline glm::mat3 local_frame(const glm::vec3 &direction)
+{
+    float len2 = dot(direction.xy(), direction.xy());
+    glm::vec3 tangentX = len2 > 0 ? glm::vec3(-direction.y, direction.x, 0) / sqrtf(len2) : glm::vec3(1, 0, 0);
+    glm::vec3 tangentY = cross(direction, tangentX);
+    return {tangentX, tangentY, direction};
+}
+
 //! helper struct to group/lookup body-ids
 struct body_id_struct_t
 {
@@ -1182,8 +1191,8 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
 
     auto correct_axis = [](const glm::vec3 &axis_in) -> glm::vec3 {
         constexpr float eps = 1.e-5f;
-        float len = glm::length(axis_in);
-        return len < eps ? glm::vec3(1.f, 0.f, 0.f) : axis_in / len;
+        float len2 = glm::length2(axis_in);
+        return len2 < eps ? glm::vec3(1.f, 0.f, 0.f) : axis_in / sqrtf(len2);
     };
 
     auto constraint_id = std::visit(
@@ -1248,13 +1257,22 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                                               : JPH::EConstraintSpace::LocalToBodyCOM;
 
                     settings.mAutoDetectPoint = c.auto_detect_point;
+
+                    // use local_frame to derive normal
+                    glm::vec3 slider_axis = correct_axis(c.slider_axis1);
+                    glm::vec3 slider_normal = local_frame(slider_axis)[0];
+
                     settings.mPoint1 = type_cast(c.point1);
-                    settings.mSliderAxis1 = type_cast(correct_axis(c.slider_axis1));
-                    settings.mNormalAxis1 = type_cast(correct_axis(c.normal_axis1));
+                    settings.mSliderAxis1 = type_cast(slider_axis);
+                    settings.mNormalAxis1 = type_cast(slider_normal);
+
+                    // use local_frame to derive normal
+                    slider_axis = correct_axis(c.slider_axis2);
+                    slider_normal = local_frame(slider_axis)[0];
 
                     settings.mPoint2 = type_cast(c.point2);
-                    settings.mSliderAxis2 = type_cast(correct_axis(c.slider_axis2));
-                    settings.mNormalAxis2 = type_cast(correct_axis(c.normal_axis2));
+                    settings.mSliderAxis2 = type_cast(correct_axis(slider_axis));
+                    settings.mNormalAxis2 = type_cast(correct_axis(slider_normal));
 
                     settings.mLimitsMin = std::min(c.limits_min, 0.f);
                     settings.mLimitsMax = std::max(c.limits_max, 0.f);
@@ -1280,13 +1298,21 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                                               ? JPH::EConstraintSpace::WorldSpace
                                               : JPH::EConstraintSpace::LocalToBodyCOM;
 
+                    // use local_frame to derive normal1
+                    glm::vec3 hinge_axis = correct_axis(c.hinge_axis1);
+                    glm::vec3 hinge_normal = local_frame(hinge_axis)[0];
+
                     settings.mPoint1 = type_cast(c.point1);
-                    settings.mHingeAxis1 = type_cast(correct_axis(c.hinge_axis1));
-                    settings.mNormalAxis1 = type_cast(correct_axis(c.normal_axis1));
+                    settings.mHingeAxis1 = type_cast(hinge_axis);
+                    settings.mNormalAxis1 = type_cast(hinge_normal);
+
+                    // use local_frame to derive normal2
+                    hinge_axis = correct_axis(c.hinge_axis2);
+                    hinge_normal = local_frame(hinge_axis)[0];
 
                     settings.mPoint2 = type_cast(c.point2);
-                    settings.mHingeAxis2 = type_cast(correct_axis(c.hinge_axis2));
-                    settings.mNormalAxis2 = type_cast(correct_axis(c.normal_axis2));
+                    settings.mHingeAxis2 = type_cast(hinge_axis);
+                    settings.mNormalAxis2 = type_cast(hinge_normal);
 
                     settings.mLimitsMin = std::min(c.limits_min, 0.f);
                     settings.mLimitsMax = std::max(c.limits_max, 0.f);
