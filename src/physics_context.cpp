@@ -25,9 +25,12 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Collision/Shape/StaticCompoundShape.h>
 #include <Jolt/Physics/Constraints/DistanceConstraint.h>
+#include <Jolt/Physics/Constraints/GearConstraint.h>
 #include <Jolt/Physics/Constraints/HingeConstraint.h>
 #include <Jolt/Physics/Constraints/PointConstraint.h>
+#include <Jolt/Physics/Constraints/SixDOFConstraint.h>
 #include <Jolt/Physics/Constraints/SliderConstraint.h>
+#include <Jolt/Physics/Constraints/SwingTwistConstraint.h>
 #include <Jolt/Physics/PhysicsSystem.h>
 #include <Jolt/Physics/SoftBody/SoftBodyContactListener.h>
 #include <Jolt/Physics/SoftBody/SoftBodyShape.h>
@@ -927,8 +930,7 @@ bool PhysicsContext::add_object(uint32_t objectId, const vierkant::transform_t &
             if(!mesh_shape->convex_hull) { mass = 0.f; }
         }
 
-        bool is_static = mass <= 0.f;
-        //        bool dynamic = mass > 0.f && !cmp.sensor;
+        bool is_static = mass <= 0.f || cmp.sensor;
         auto layer = is_static ? Layers::NON_MOVING : Layers::MOVING;
         auto motion_type = is_static ? JPH::EMotionType::Static
                                      : (cmp.kinematic ? JPH::EMotionType::Kinematic : JPH::EMotionType::Dynamic);
@@ -1332,6 +1334,55 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                     }
                 }
 
+                if constexpr(std::is_same_v<T, constraint::gear_t>)
+                {
+                    JPH::GearConstraintSettings settings;
+                    settings.mSpace = c.space == constraint::ConstraintSpace::World
+                                              ? JPH::EConstraintSpace::WorldSpace
+                                              : JPH::EConstraintSpace::LocalToBodyCOM;
+
+                    settings.mHingeAxis1 = type_cast(correct_axis(c.hinge_axis1));
+                    settings.mHingeAxis2 = type_cast(correct_axis(c.hinge_axis2));
+
+                    // prevent negative or zero ratios
+                    settings.mRatio = std::max(c.ratio, 0.001f);
+                    new_constraint =
+                            m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);
+                }
+
+                if constexpr(std::is_same_v<T, constraint::swing_twist_t>)
+                {
+                    JPH::SwingTwistConstraintSettings settings;
+                    settings.mSpace = c.space == constraint::ConstraintSpace::World
+                                              ? JPH::EConstraintSpace::WorldSpace
+                                              : JPH::EConstraintSpace::LocalToBodyCOM;
+
+                    settings.mPosition1 = type_cast(c.position1);
+                    settings.mTwistAxis1 = type_cast(correct_axis(c.twist_axis1));
+                    settings.mPlaneAxis1 = type_cast(correct_axis(c.plane_axis1));
+
+                    settings.mPosition2 = type_cast(c.position2);
+                    settings.mTwistAxis2 = type_cast(correct_axis(c.twist_axis2));
+                    settings.mPlaneAxis2 = type_cast(correct_axis(c.plane_axis2));
+
+                    // prevent negative or zero ratios
+                    settings.mSwingType = c.swing_type == constraint::SwingType::Cone
+                                                  ? JPH::ESwingType::Cone
+                                                  : JPH::ESwingType::Pyramid;
+
+                    settings.mNormalHalfConeAngle = c.normal_half_cone_angle;
+                    settings.mPlaneHalfConeAngle = c.plane_half_cone_angle;
+                    settings.mTwistMinAngle = c.twist_min_angle;
+                    settings.mTwistMaxAngle = c.twist_max_angle;
+                    settings.mMaxFrictionTorque = c.max_friction_torque;
+
+                    settings.mSwingMotorSettings = convert_motor_settings(c.swing_motor);
+                    settings.mTwistMotorSettings = convert_motor_settings(c.twist_motor);
+
+                    new_constraint =
+                            m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);
+                }
+
                 if(new_constraint) { m_engine->jolt.constraints[new_id] = new_constraint; }
                 return new_id;
             },
@@ -1417,7 +1468,7 @@ void PhysicsScene::update(double time_delta)
 
     auto is_movable = [](const vierkant::physics_component_t &cmp) -> bool {
         auto *mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape);
-        return cmp.kinematic || cmp.mass == 0.f || (mesh_shape && !mesh_shape->convex_hull);
+        return cmp.kinematic || cmp.mass == 0.f || cmp.sensor || (mesh_shape && !mesh_shape->convex_hull);
     };
 
     auto view = registry()->view<physics_component_t>();

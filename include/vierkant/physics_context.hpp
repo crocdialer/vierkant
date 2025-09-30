@@ -106,6 +106,12 @@ enum class MotorState
     Position = 2
 };
 
+enum class SwingType
+{
+    Cone = 0,
+    Pyramid = 1
+};
+
 struct spring_settings_t
 {
     SpringMode mode = SpringMode::FrequencyAndDamping;
@@ -237,7 +243,52 @@ struct hinge_t
     constexpr bool operator==(const vierkant::constraint::hinge_t &other) const = default;
 };
 
-using constraint_t = std::variant<constraint::none_t, constraint::point_t, constraint::distance_t, slider_t, hinge_t>;
+struct gear_t
+{
+    ConstraintSpace space = ConstraintSpace::World;
+    glm::vec3 hinge_axis1 = glm::vec3(1.f, 0.f, 0.f);
+    glm::vec3 hinge_axis2 = glm::vec3(1.f, 0.f, 0.f);
+
+    //! ratio between gears
+    float ratio = 1.f;
+
+    constexpr bool operator==(const vierkant::constraint::gear_t &other) const = default;
+};
+
+struct swing_twist_t
+{
+    ConstraintSpace space = ConstraintSpace::World;
+
+    glm::vec3 position1{0.f};
+    glm::vec3 twist_axis1 = glm::vec3(1.f, 0.f, 0.f);
+    glm::vec3 plane_axis1 = glm::vec3(0.f, 1.f, 0.f);
+
+    glm::vec3 position2{0.f};
+    glm::vec3 twist_axis2 = glm::vec3(1.f, 0.f, 0.f);
+    glm::vec3 plane_axis2 = glm::vec3(0.f, 1.f, 0.f);
+
+    /// type of swing constraint that we want to use.
+    constraint::SwingType swing_type = constraint::SwingType::Cone;
+
+    //! swing rotation limits
+    float normal_half_cone_angle = 0.0f;
+    float plane_half_cone_angle = 0.0f;
+
+    //! twist rotation limits
+    float twist_min_angle = 0.0f;
+    float twist_max_angle = 0.0f;
+
+    //! maximum torque (N m) to apply as friction when constraint is not powered by a motor
+    float max_friction_torque = 0.0f;
+
+    constraint::motor_t swing_motor;
+    constraint::motor_t twist_motor;
+
+    constexpr bool operator==(const vierkant::constraint::swing_twist_t &other) const = default;
+};
+
+using constraint_t = std::variant<constraint::none_t, constraint::point_t, constraint::distance_t, constraint::slider_t,
+                                  constraint::hinge_t, constraint::gear_t, constraint::swing_twist_t>;
 }// namespace constraint
 
 struct physics_component_t

@@ -1223,7 +1223,8 @@ void draw_object_ui(const Object3DPtr &object)
                 {
                     auto &body_constraint = *body_constraint_it;
 
-                    const char *constraint_items[] = {"None", "Point", "Distance", "Slider", "Hinge"};
+                    const char *constraint_items[] = {"None",  "Point", "Distance",  "Slider",
+                                                      "Hinge", "Gear",  "SwingTwist"};
                     int constraint_index = 0;
 
                     std::visit(
@@ -1233,6 +1234,8 @@ void draw_object_ui(const Object3DPtr &object)
                                 if constexpr(std::is_same_v<T, constraint::distance_t>) { constraint_index = 2; }
                                 if constexpr(std::is_same_v<T, constraint::slider_t>) { constraint_index = 3; }
                                 if constexpr(std::is_same_v<T, constraint::hinge_t>) { constraint_index = 4; }
+                                if constexpr(std::is_same_v<T, constraint::gear_t>) { constraint_index = 5; }
+                                if constexpr(std::is_same_v<T, constraint::swing_twist_t>) { constraint_index = 6; }
                             },
                             body_constraint.constraint);
 
@@ -1289,10 +1292,11 @@ void draw_object_ui(const Object3DPtr &object)
                         };
 
                         auto draw_motor_state =
-                                [draw_spring_settings](vierkant::constraint::motor_t &m,
+                                [draw_spring_settings](vierkant::constraint::motor_t &m, const std::string &name = {},
                                                        std::optional<glm::vec2> pos_limit = {}) -> bool {
                             bool change = false;
-                            if(ImGui::TreeNodeEx(&m, ImGuiTreeNodeFlags_None, "motor"))
+                            if(ImGui::TreeNodeEx(&m, ImGuiTreeNodeFlags_None, "%s",
+                                                 name.empty() ? "motor" : name.c_str()))
                             {
                                 const char *motor_state_items[] = {"Off", "Velocity", "Position"};
                                 int motor_state_index = static_cast<int>(m.state);
@@ -1336,6 +1340,8 @@ void draw_object_ui(const Object3DPtr &object)
                                 case 2: body_constraint.constraint = constraint::distance_t{}; break;
                                 case 3: body_constraint.constraint = constraint::slider_t{}; break;
                                 case 4: body_constraint.constraint = constraint::hinge_t{}; break;
+                                case 5: body_constraint.constraint = constraint::gear_t{}; break;
+                                case 6: body_constraint.constraint = constraint::swing_twist_t{}; break;
                                 default: break;
                             }
                             change = true;
@@ -1377,8 +1383,9 @@ void draw_object_ui(const Object3DPtr &object)
                                                                        "limits_spring_settings");
                                         change |=
                                                 ImGui::InputFloat("max_friction_force", &constraint.max_friction_force);
-                                        change |= draw_motor_state(constraint.motor, glm::vec2(constraint.limits_min,
-                                                                                               constraint.limits_max));
+                                        change |= draw_motor_state(
+                                                constraint.motor, {},
+                                                glm::vec2(constraint.limits_min, constraint.limits_max));
                                     }
                                     if constexpr(std::is_same_v<T, constraint::hinge_t>)
                                     {
@@ -1395,8 +1402,57 @@ void draw_object_ui(const Object3DPtr &object)
                                                                        "limits_spring_settings");
                                         change |= ImGui::InputFloat("max_friction_torque",
                                                                     &constraint.max_friction_torque);
-                                        change |= draw_motor_state(constraint.motor, glm::vec2(constraint.limits_min,
-                                                                                               constraint.limits_max));
+                                        change |= draw_motor_state(
+                                                constraint.motor, {},
+                                                glm::vec2(constraint.limits_min, constraint.limits_max));
+                                    }
+
+                                    if constexpr(std::is_same_v<T, constraint::gear_t>)
+                                    {
+                                        change |= draw_contraint_space(constraint.space);
+                                        change |= ImGui::InputFloat3("hinge_axis1",
+                                                                     glm::value_ptr(constraint.hinge_axis1));
+                                        change |= ImGui::InputFloat3("hinge_axis2",
+                                                                     glm::value_ptr(constraint.hinge_axis2));
+                                        change |= ImGui::InputFloat("ratio", &constraint.ratio);
+                                    }
+
+                                    if constexpr(std::is_same_v<T, constraint::swing_twist_t>)
+                                    {
+                                        change |= draw_contraint_space(constraint.space);
+                                        change |= ImGui::InputFloat3("position1", glm::value_ptr(constraint.position1));
+                                        change |= ImGui::InputFloat3("twist_axis1",
+                                                                     glm::value_ptr(constraint.twist_axis1));
+                                        change |= ImGui::InputFloat3("plane_axis1",
+                                                                     glm::value_ptr(constraint.plane_axis1));
+                                        change |= ImGui::InputFloat3("position2", glm::value_ptr(constraint.position2));
+                                        change |= ImGui::InputFloat3("twist_axis2",
+                                                                     glm::value_ptr(constraint.twist_axis2));
+                                        change |= ImGui::InputFloat3("plane_axis2",
+                                                                     glm::value_ptr(constraint.plane_axis2));
+
+                                        const char *swing_type_items[] = {"Cone", "Pyramid"};
+                                        int type_index = static_cast<int>(constraint.swing_type);
+                                        if(ImGui::Combo("swing-type", &type_index, swing_type_items,
+                                                        IM_ARRAYSIZE(swing_type_items)))
+                                        {
+                                            constraint.swing_type = static_cast<constraint::SwingType>(type_index);
+                                            change = true;
+                                        }
+
+                                        change |= ImGui::InputFloat("normal_half_cone_angle",
+                                                                    &constraint.normal_half_cone_angle);
+                                        change |= ImGui::InputFloat("plane_half_cone_angle",
+                                                                    &constraint.plane_half_cone_angle);
+                                        change |= ImGui::InputFloat("twist_min_angle", &constraint.twist_min_angle);
+                                        change |= ImGui::InputFloat("twist_max_angle", &constraint.twist_max_angle);
+                                        change |= ImGui::InputFloat("max_friction_torque",
+                                                                    &constraint.max_friction_torque);
+
+                                        change |= draw_motor_state(constraint.swing_motor, "swing_motor");
+                                        change |= draw_motor_state(
+                                                constraint.twist_motor, "twist_motor",
+                                                glm::vec2(constraint.twist_min_angle, constraint.twist_max_angle));
                                     }
                                 },
                                 body_constraint.constraint);
