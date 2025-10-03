@@ -35,7 +35,7 @@ public:
      * @param   use_vsync       flag to request vertical synchronisation (cap fps to refresh rate)
      */
     SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
-              bool use_vsync = true, bool use_hdr = false);
+              bool use_vsync = true, bool use_hdr = false, VkExtent2D extent = {});
 
     SwapChain(SwapChain &&other) noexcept;
 
@@ -112,10 +112,7 @@ public:
     /**
      * @return  a flag indicating if HDR is supported
      */
-    [[nodiscard]] bool hdr_supported() const
-    {
-        return m_hdr_supported;
-    }
+    [[nodiscard]] bool hdr_supported() const { return m_hdr_supported; }
 
     /**
      * @return  the current image index inside the SwapChain

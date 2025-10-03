@@ -44,10 +44,7 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
 
     for(const auto &fmt: formats)
     {
-        if(fmt.format == VK_FORMAT_R16G16B16A16_SFLOAT)
-        {
-            supports_hdr = true;
-        }
+        if(fmt.format == VK_FORMAT_R16G16B16A16_SFLOAT) { supports_hdr = true; }
 
         if(fmt.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32)
         {
@@ -85,16 +82,18 @@ bool has_stencil_component(VkFormat the_format)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync,
-                     bool use_hdr)
+                     bool use_hdr, VkExtent2D extent)
     : m_device(std::move(device)), m_use_v_sync(use_vsync)
 {
     SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(), surface);
     VkSurfaceFormatKHR surface_fmt = choose_swap_surface_format(swap_chain_support.formats, use_hdr, m_hdr_supported);
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
     auto caps = swap_chain_support.capabilities;
-    VkExtent2D extent = {};
 
-    if(caps.currentExtent.width != std::numeric_limits<uint32_t>::max()) { extent = caps.currentExtent; }
+    if(!extent.width && caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
+        extent = caps.currentExtent;
+    }
     else
     {
         extent.width = std::max(caps.minImageExtent.width, std::min(caps.maxImageExtent.width, extent.width));

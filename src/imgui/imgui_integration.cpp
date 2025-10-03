@@ -247,13 +247,15 @@ ImGuiIO &Context::get_io()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Context::update(double time_delta, const glm::vec2 &size)
+void Context::update(double time_delta, const glm::vec2 &size, const std::optional<glm::vec2> &framebuffer_size)
 {
     ImGuiIO &io = get_io();
 
+    glm::vec2 scale = framebuffer_size ? *framebuffer_size / size : glm::vec2(1.f);
+
     // Setup display size (every frame to accommodate for window resizing)
     io.DisplaySize = {size.x, size.y};
-    io.DisplayFramebufferScale = ImVec2(1.f, 1.f);
+    io.DisplayFramebufferScale = ImVec2(scale.x, scale.y);
 
     // start the frame. will update the io.WantCaptureMouse, io.WantCaptureKeyboard flags
     ImGui::NewFrame();
