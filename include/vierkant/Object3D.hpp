@@ -152,7 +152,15 @@ public:
     template<object_component T>
     inline T &add_component(const T &component = {})
     {
+        // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=109561 -> hitting a GCC 12 bug
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
         return m_registry->template emplace_or_replace<T>(m_entity, component);
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
     }
 
     /**
