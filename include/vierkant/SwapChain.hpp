@@ -29,13 +29,16 @@ public:
     /**
      * @brief   Construct a new SwapChain
      *
-     * @param   device          handle for the vierkant::Device to create the SwapChain with
-     * @param   surface         handle for a VkSurfaceKHR to create the SwapChain for
-     * @param   num_samples     an optional VkSampleCountFlagBits value to request multisampling
-     * @param   use_vsync       flag to request vertical synchronisation (cap fps to refresh rate)
+     * @param   device              handle for the vierkant::Device to create the SwapChain with
+     * @param   surface             handle for a VkSurfaceKHR to create the SwapChain for
+     * @param   num_samples         an optional VkSampleCountFlagBits value to request multisampling
+     * @param   use_vsync           flag to request vertical synchronisation (cap fps to refresh rate)
+     * @param   use_hdr             flag to request an HDR swapchain-format and colorspace
+     * @param   framebuffer_size    optional framebuffer_size, overriding the size queried from VkSurfaceKHR,
+     *                              NOTE: should not be required and mainly used to workaround a buggy display-stack
      */
     SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples = VK_SAMPLE_COUNT_1_BIT,
-              bool use_vsync = true, bool use_hdr = false, VkExtent2D extent = {});
+              bool use_vsync = true, bool use_hdr = false, std::optional<VkExtent2D> framebuffer_size = {});
 
     SwapChain(SwapChain &&other) noexcept;
 

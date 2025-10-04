@@ -241,13 +241,12 @@ void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num
     // create swapchain for this window
     auto fb_size = framebuffer_size();
     m_swap_chain = SwapChain(device, m_surface, num_samples, v_sync, use_hdr,
-                             {static_cast<uint32_t>(fb_size.x), static_cast<uint32_t>(fb_size.y)});
+                             VkExtent2D{static_cast<uint32_t>(fb_size.x), static_cast<uint32_t>(fb_size.y)});
 
     for(auto &pair: window_delegates)
     {
         if(pair.second.resize_fn) { pair.second.resize_fn(m_swap_chain.extent().width, m_swap_chain.extent().height); }
     }
-    
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -82,7 +82,7 @@ bool has_stencil_component(VkFormat the_format)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBits num_samples, bool use_vsync,
-                     bool use_hdr, VkExtent2D extent)
+                     bool use_hdr, std::optional<VkExtent2D> extent)
     : m_device(std::move(device)), m_use_v_sync(use_vsync)
 {
     SwapChainSupportDetails swap_chain_support = query_swapchain_support(m_device->physical_device(), surface);
@@ -90,14 +90,18 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     VkPresentModeKHR present_mode = choose_swap_present_mode(swap_chain_support.modes, use_vsync);
     auto caps = swap_chain_support.capabilities;
 
-    if(!extent.width && caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    VkExtent2D framebuffer_size = extent ? *extent : VkExtent2D{0, 0};
+
+    if(!extent && caps.currentExtent.width != std::numeric_limits<uint32_t>::max())
     {
-        extent = caps.currentExtent;
+        framebuffer_size = caps.currentExtent;
     }
     else
     {
-        extent.width = std::max(caps.minImageExtent.width, std::min(caps.maxImageExtent.width, extent.width));
-        extent.height = std::max(caps.minImageExtent.height, std::min(caps.maxImageExtent.height, extent.height));
+        framebuffer_size.width =
+                std::max(caps.minImageExtent.width, std::min(caps.maxImageExtent.width, framebuffer_size.width));
+        framebuffer_size.height =
+                std::max(caps.minImageExtent.height, std::min(caps.maxImageExtent.height, framebuffer_size.height));
     }
 
     uint32_t max_image_count = std::min(swap_chain_support.capabilities.maxImageCount, max_frames_in_flight);
@@ -115,7 +119,7 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     create_info.minImageCount = imageCount;
     create_info.imageFormat = surface_fmt.format;
     create_info.imageColorSpace = surface_fmt.colorSpace;
-    create_info.imageExtent = extent;
+    create_info.imageExtent = framebuffer_size;
     create_info.imageArrayLayers = 1;
     create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -150,11 +154,11 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
     m_color_format = surface_fmt.format;
 
     // surface extent
-    m_extent = extent;
+    m_extent = framebuffer_size;
 
     vierkant::Image::Format fmt;
     fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-    fmt.extent = {extent.width, extent.height, 1};
+    fmt.extent = {framebuffer_size.width, framebuffer_size.height, 1};
     fmt.format = surface_fmt.format;
     fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     fmt.initial_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
