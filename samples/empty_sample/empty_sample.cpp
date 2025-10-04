@@ -116,7 +116,7 @@ void HelloTriangleApplication::load_model()
 
 void HelloTriangleApplication::update(double time_delta)
 {
-    m_gui_context.update(time_delta, m_window->size());
+    m_gui_context.update(time_delta, m_window->size(), m_window->framebuffer_size());
 
     m_drawable.matrices.transform = m_camera->view_transform();
     m_drawable.matrices.projection = m_camera->projection_matrix();

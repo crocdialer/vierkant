@@ -55,7 +55,7 @@ public:
 
     Context &operator=(Context other);
 
-    void update(double time_delta, const glm::vec2 &size);
+    void update(double time_delta, const glm::vec2 &size, const std::optional<glm::vec2> &framebuffer_size = {});
 
     /**
      * @brief   Draw the gui using a provided renderer.
