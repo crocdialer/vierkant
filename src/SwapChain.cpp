@@ -73,7 +73,7 @@ VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &m
         if(use_vsync)
         {
             if(m == VK_PRESENT_MODE_MAILBOX_KHR) { best_mode = m; }
-            else if(m == VK_PRESENT_MODE_FIFO_LATEST_READY_KHR) { best_mode = m; }
+            // else if(m == VK_PRESENT_MODE_FIFO_LATEST_READY_KHR) { best_mode = m; }
         }
         else
         {

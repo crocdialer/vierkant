@@ -218,8 +218,8 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     // TODO: KHR_unified_image_layouts
     // check_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
 
-    // present fifo-latest-ready
-    enable_extension(VK_EXT_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME);
+    // TODO: present fifo-latest-ready
+    // enable_extension(VK_EXT_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME);
 
     if(create_info.use_validation) { enable_extension(VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME); }
 
@@ -328,10 +328,10 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     update_pnext(extended_instruction_features, VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME);
 
     //------------------------------------ VK_KHR_present_mode_fifo_latest_ready ----------------------------------
-    VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR present_mode_fifo_latest_features = {};
-    present_mode_fifo_latest_features.sType =
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_KHR;
-    update_pnext(present_mode_fifo_latest_features, VK_EXT_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME);
+    // VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR present_mode_fifo_latest_features = {};
+    // present_mode_fifo_latest_features.sType =
+    //         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_KHR;
+    // update_pnext(present_mode_fifo_latest_features, VK_EXT_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME);
 
     //------------------------------------------------------------------------------------------------------------------
 
