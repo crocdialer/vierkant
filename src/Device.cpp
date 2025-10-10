@@ -196,10 +196,10 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     auto extensions = create_info.extensions;
     if(create_info.surface) { extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME); }
 
-    auto check_extension = [&extensions, &physical_device = create_info.physical_device](const char *ext_name) {
+    auto enable_extension = [&extensions, &physical_device = create_info.physical_device](const char *ext_name) {
         if(vierkant::check_device_extension_support(physical_device, {ext_name}))
         {
-            // if this extension is available, it's also mandatory
+            // enable extension if available
             extensions.push_back(ext_name);
         }
         else { spdlog::warn("requested extension '{}' is not available", ext_name); }
@@ -209,16 +209,19 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     // this is for some weird reason required by primitive-culling in mesh-shaders
     if(crocore::contains(extensions, VK_EXT_MESH_SHADER_EXTENSION_NAME))
     {
-        check_extension(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+        enable_extension(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
     }
 
     // shader barycentric
-    check_extension(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
+    enable_extension(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
 
     // TODO: KHR_unified_image_layouts
     // check_extension(VK_KHR_UNIFIED_IMAGE_LAYOUTS_EXTENSION_NAME);
 
-    if(create_info.use_validation) { check_extension(VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME); }
+    // present fifo-latest-ready
+    enable_extension(VK_EXT_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME);
+
+    if(create_info.use_validation) { enable_extension(VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME); }
 
     if(!vierkant::check_device_extension_support(create_info.physical_device, extensions))
     {
@@ -270,8 +273,8 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
     device_features_12.pNext = &device_features_13;
 
     void **pNext = &device_features_13.pNext;
-    auto update_pnext = [&pNext, &extensions](const auto &feature_struct, std::string_view ext_name) {
-        if(crocore::contains(extensions, ext_name))
+    auto update_pnext = [&pNext, &extensions](const auto &feature_struct, std::string_view ext_name = {}) {
+        if(ext_name.empty() || crocore::contains(extensions, ext_name))
         {
             *pNext = (void *) &feature_struct;
             pNext = (void **) &feature_struct.pNext;
@@ -324,7 +327,15 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_RELAXED_EXTENDED_INSTRUCTION_FEATURES_KHR;
     update_pnext(extended_instruction_features, VK_KHR_SHADER_RELAXED_EXTENDED_INSTRUCTION_EXTENSION_NAME);
 
+    //------------------------------------ VK_KHR_present_mode_fifo_latest_ready ----------------------------------
+    VkPhysicalDevicePresentModeFifoLatestReadyFeaturesKHR present_mode_fifo_latest_features = {};
+    present_mode_fifo_latest_features.sType =
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_MODE_FIFO_LATEST_READY_FEATURES_KHR;
+    update_pnext(present_mode_fifo_latest_features, VK_EXT_PRESENT_MODE_FIFO_LATEST_READY_EXTENSION_NAME);
+
     //------------------------------------------------------------------------------------------------------------------
+
+
     *pNext = create_info.create_device_pNext;
 
     // query support for the required device-features

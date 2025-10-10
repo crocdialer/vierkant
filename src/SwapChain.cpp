@@ -64,12 +64,25 @@ VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatK
     return best_match;
 }
 
-VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &the_modes, bool use_vsync)
+VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &modes, bool use_vsync)
 {
     VkPresentModeKHR best_mode = VK_PRESENT_MODE_FIFO_KHR;
-    for(const auto &m: the_modes)
+
+    for(const auto &m: modes)
     {
-        if(!use_vsync && m == VK_PRESENT_MODE_IMMEDIATE_KHR) { best_mode = m; }
+        if(use_vsync)
+        {
+            if(m == VK_PRESENT_MODE_MAILBOX_KHR) { best_mode = m; }
+            else if(m == VK_PRESENT_MODE_FIFO_LATEST_READY_KHR) { best_mode = m; }
+        }
+        else
+        {
+            if(m == VK_PRESENT_MODE_IMMEDIATE_KHR)
+            {
+                best_mode = m;
+                break;
+            }
+        }
     }
     return best_mode;
 }
