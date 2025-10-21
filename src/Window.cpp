@@ -447,7 +447,7 @@ bool Window::should_close() const { return static_cast<bool>(glfwWindowShouldClo
 
 void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
 {
-    spdlog::debug("window resized: {} x {}", width, height);
+    spdlog::trace("{}: {} x {}", __func__, width, height);
     auto *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
     self->m_window_size = {width, height};
     self->m_need_resize_swapchain = true;
@@ -457,7 +457,7 @@ void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
 
 void Window::glfw_pos_cb(GLFWwindow *window, int x, int y)
 {
-    spdlog::debug("window position: {} x {}", x, y);
+    spdlog::debug("{}: {} x {}", __func__, x, y);
     auto *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
     self->m_window_pos = {x, y};
 }
