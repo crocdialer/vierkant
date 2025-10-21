@@ -70,12 +70,7 @@ VkPresentModeKHR choose_swap_present_mode(const std::vector<VkPresentModeKHR> &m
 
     for(const auto &m: modes)
     {
-        if(use_vsync)
-        {
-            // if(m == VK_PRESENT_MODE_FIFO_LATEST_READY_KHR) { best_mode = m; }
-             if(m == VK_PRESENT_MODE_MAILBOX_KHR) { best_mode = m; }
-        }
-        else
+        if(!use_vsync)
         {
             if(m == VK_PRESENT_MODE_IMMEDIATE_KHR) { return m; }
             else if(m == VK_PRESENT_MODE_MAILBOX_KHR) { best_mode = m; }
@@ -145,7 +140,10 @@ SwapChain::SwapChain(DevicePtr device, VkSurfaceKHR surface, VkSampleCountFlagBi
         create_info.queueFamilyIndexCount = 2;
         create_info.pQueueFamilyIndices = queueFamilyIndices;
     }
-    else { create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE; }
+    else
+    {
+        create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    }
 
     create_info.preTransform = swap_chain_support.capabilities.currentTransform;
     create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
@@ -305,7 +303,10 @@ void SwapChain::create_framebuffers()
         color_fmt.aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         color_image = Image::create(m_device, color_fmt);
     }
-    else { color_image = m_images.front(); }
+    else
+    {
+        color_image = m_images.front();
+    }
 
     Image::Format depth_fmt;
     depth_fmt.extent = {m_extent.width, m_extent.height, 1};
@@ -337,7 +338,10 @@ void SwapChain::create_framebuffers()
     for(size_t i = 0; i < m_images.size(); i++)
     {
         if(resolve) { attachments[vierkant::AttachmentType::Resolve] = {m_images[i]}; }
-        else { attachments[vierkant::AttachmentType::Color] = {m_images[i]}; }
+        else
+        {
+            attachments[vierkant::AttachmentType::Color] = {m_images[i]};
+        }
         m_framebuffers[i] = vierkant::Framebuffer(m_device, attachments, renderpass);
     }
 }
