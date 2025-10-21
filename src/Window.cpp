@@ -6,31 +6,6 @@
 namespace vierkant
 {
 
-//! unused
-//static void glfw_resize_cb(GLFWwindow *window, int width, int height);
-//
-//static void glfw_monitor_cb(GLFWmonitor *the_monitor, int);
-
-static void glfw_close_cb(GLFWwindow *window);
-
-static void glfw_error_cb(int error_code, const char *error_msg);
-
-static void glfw_refresh_cb(GLFWwindow *window);
-
-static void glfw_mouse_move_cb(GLFWwindow *window, double x, double y);
-
-static void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int modifier_mask);
-
-static void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y);
-
-static void glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, int modifier_mask);
-
-static void glfw_char_cb(GLFWwindow *window, unsigned int key);
-
-static void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths);
-
-static void glfw_joystick_cb(int joy, int event);
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 inline bool operator==(const videomode_t &lhs, const videomode_t &rhs)
@@ -206,16 +181,17 @@ void Window::init_handles(int width, int height, const std::string &title, GLFWm
 
     // init callbacks
     glfwSetErrorCallback(&glfw_error_cb);
-    //    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
-    glfwSetWindowCloseCallback(m_handle, &glfw_close_cb);
-    glfwSetMouseButtonCallback(m_handle, &glfw_mouse_button_cb);
-    glfwSetCursorPosCallback(m_handle, &glfw_mouse_move_cb);
-    glfwSetScrollCallback(m_handle, &glfw_mouse_wheel_cb);
-    glfwSetKeyCallback(m_handle, &glfw_key_cb);
-    glfwSetCharCallback(m_handle, &glfw_char_cb);
-    glfwSetDropCallback(m_handle, &glfw_file_drop_cb);
-    glfwSetJoystickCallback(&glfw_joystick_cb);
-    glfwSetWindowRefreshCallback(m_handle, &glfw_refresh_cb);
+    glfwSetWindowSizeCallback(m_handle, &Window::glfw_resize_cb);
+    glfwSetWindowPosCallback(m_handle, &Window::glfw_pos_cb);
+    glfwSetWindowCloseCallback(m_handle, &Window::glfw_close_cb);
+    glfwSetMouseButtonCallback(m_handle, &Window::glfw_mouse_button_cb);
+    glfwSetCursorPosCallback(m_handle, &Window::glfw_mouse_move_cb);
+    glfwSetScrollCallback(m_handle, &Window::glfw_mouse_wheel_cb);
+    glfwSetKeyCallback(m_handle, &Window::glfw_key_cb);
+    glfwSetCharCallback(m_handle, &Window::glfw_char_cb);
+    glfwSetDropCallback(m_handle, &Window::glfw_file_drop_cb);
+    glfwSetJoystickCallback(&Window::glfw_joystick_cb);
+    glfwSetWindowRefreshCallback(m_handle, &Window::glfw_refresh_cb);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -231,6 +207,8 @@ void Window::clear_handles()
 
 void Window::create_swapchain(const DevicePtr &device, VkSampleCountFlagBits num_samples, bool v_sync, bool use_hdr)
 {
+    m_need_resize_swapchain = false;
+
     // while window is minimized
     while(is_minimized()) { glfwWaitEvents(); }
 
@@ -270,9 +248,10 @@ void Window::poll_events()
 
 glm::ivec2 Window::size() const
 {
-    glm::ivec2 ret;
-    glfwGetWindowSize(m_handle, &ret.x, &ret.y);
-    return ret;
+    // glm::ivec2 ret;
+    // glfwGetWindowSize(m_handle, &ret.x, &ret.y);
+    // return ret;
+    return m_window_size;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -294,20 +273,33 @@ glm::ivec2 Window::framebuffer_size() const
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::set_size(const glm::ivec2 &extent) { glfwSetWindowSize(m_handle, extent.x, extent.y); }
+void Window::set_size(const glm::ivec2 &extent)
+{
+    m_window_size = extent;
+    glfwSetWindowSize(m_handle, extent.x, extent.y);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 glm::ivec2 Window::position() const
 {
-    glm::ivec2 position;
-    glfwGetWindowPos(m_handle, &position.x, &position.y);
-    return position;
+    // if(m_fullscreen) { return {0, 0}; }
+    // else
+    // {
+    //     glm::ivec2 position;
+    //     glfwGetWindowPos(m_handle, &position.x, &position.y);
+    //     return position;
+    // }
+    return m_window_pos;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::set_position(const glm::ivec2 &position) { glfwSetWindowPos(m_handle, position.x, position.y); }
+void Window::set_position(const glm::ivec2 &position)
+{
+    m_window_pos = position;
+    glfwSetWindowPos(m_handle, position.x, position.y);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -349,6 +341,10 @@ void Window::set_cursor_visible(bool b)
 
 void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos)
 {
+    auto recreate_swapchain = [&]() {
+        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
+    };
+
     if(!m_swap_chain) { return; }
 
     // increment frame-counter
@@ -362,7 +358,7 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
 
     if(acquire_result.result != VK_SUCCESS)
     {
-        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
+        recreate_swapchain();
         spdlog::warn("acquire_next_image failed");
         return;
     }
@@ -399,9 +395,9 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     // present the image (submit to presentation-queue, wait for fences)
     VkResult result = m_swap_chain.present();
 
-    if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+    if(m_need_resize_swapchain || result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
     {
-        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
+        recreate_swapchain();
     }
 }
 
@@ -418,8 +414,10 @@ uint32_t Window::monitor_index() const
     const GLFWvidmode *mode;
     bestoverlap = 0;
 
-    glfwGetWindowPos(m_handle, &wx, &wy);
-    glfwGetWindowSize(m_handle, &ww, &wh);
+    wx = m_window_pos.x;
+    wy = m_window_pos.y;
+    ww = m_window_size.x;
+    wh = m_window_size.y;
     monitors = glfwGetMonitors(&nmonitors);
 
     for(i = 0; i < nmonitors; i++)
@@ -447,16 +445,28 @@ bool Window::should_close() const { return static_cast<bool>(glfwWindowShouldClo
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-//void glfw_resize_cb(GLFWwindow */*window*/, int /*width*/, int /*height*/)
-//{
-//
-//}
+void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
+{
+    spdlog::debug("window resized: {} x {}", width, height);
+    auto *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    self->m_window_size = {width, height};
+    self->m_need_resize_swapchain = true;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_close_cb(GLFWwindow *window)
+void Window::glfw_pos_cb(GLFWwindow *window, int x, int y)
 {
-    auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    spdlog::debug("window position: {} x {}", x, y);
+    auto *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    self->m_window_pos = {x, y};
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void Window::glfw_close_cb(GLFWwindow *window)
+{
+    auto *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
     for(auto &pair: self->window_delegates)
     {
@@ -466,18 +476,18 @@ void glfw_close_cb(GLFWwindow *window)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_error_cb(int error_code, const char *error_msg) { spdlog::error("{} ({})", error_msg, error_code); }
+void Window::glfw_error_cb(int error_code, const char *error_msg) { spdlog::error("{} ({})", error_msg, error_code); }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_refresh_cb(GLFWwindow * /*window*/)
+void Window::glfw_refresh_cb(GLFWwindow * /*window*/)
 {
     // like resizing!?
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
+void Window::glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -499,7 +509,7 @@ void glfw_mouse_move_cb(GLFWwindow *window, double x, double y)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int /*modifier_mask*/)
+void Window::glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int /*modifier_mask*/)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -532,7 +542,7 @@ void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int /*modi
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
+void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -555,7 +565,7 @@ void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int action, int /*modifier_mask*/)
+void Window::glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int action, int /*modifier_mask*/)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -588,7 +598,7 @@ void glfw_key_cb(GLFWwindow *window, int key, int /*scancode*/, int action, int 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_char_cb(GLFWwindow *window, unsigned int key)
+void Window::glfw_char_cb(GLFWwindow *window, unsigned int key)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -601,7 +611,7 @@ void glfw_char_cb(GLFWwindow *window, unsigned int key)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
+void Window::glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
 {
     auto self = static_cast<Window *>(glfwGetWindowUserPointer(window));
 
@@ -635,7 +645,7 @@ void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void glfw_joystick_cb(int joy, int event)
+void Window::glfw_joystick_cb(int joy, int event)
 {
     if(event == GLFW_CONNECTED) { spdlog::debug("{} connected ({})", glfwGetJoystickName(joy), joy); }
     else if(event == GLFW_DISCONNECTED) { spdlog::debug("disconnected joystick ({})", joy); }
@@ -656,8 +666,8 @@ void Window::set_fullscreen(bool b, uint32_t monitor_index)
 
     if(b)
     {
-        m_window_size = size();
-        m_window_pos = position();
+        // m_window_size = size();
+        // m_window_pos = position();
         w = mode->width;
         h = mode->height;
         x = y = 0;
@@ -690,8 +700,8 @@ void Window::set_fullscreen_mode(const videomode_t &video_mode, uint32_t monitor
         if(!m_fullscreen)
         {
             m_fullscreen = true;
-            m_window_size = size();
-            m_window_pos = position();
+            // m_window_size = size();
+            // m_window_pos = position();
         }
 
         glfwSetWindowMonitor(m_handle, monitors[monitor_index], 0, 0, video_mode.width, video_mode.height,

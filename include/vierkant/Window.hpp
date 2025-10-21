@@ -260,6 +260,32 @@ public:
                           bool v_sync = true, bool use_hdr = false);
 
 private:
+    //! window-size
+    static void glfw_resize_cb(GLFWwindow *window, int width, int height);
+
+    //! window-position
+    static void glfw_pos_cb(GLFWwindow *window, int x, int y);
+
+    static void glfw_close_cb(GLFWwindow *window);
+
+    static void glfw_error_cb(int error_code, const char *error_msg);
+
+    static void glfw_refresh_cb(GLFWwindow *window);
+
+    static void glfw_mouse_move_cb(GLFWwindow *window, double x, double y);
+
+    static void glfw_mouse_button_cb(GLFWwindow *window, int button, int action, int modifier_mask);
+
+    static void glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double offset_y);
+
+    static void glfw_key_cb(GLFWwindow *window, int key, int scancode, int action, int modifier_mask);
+
+    static void glfw_char_cb(GLFWwindow *window, unsigned int key);
+
+    static void glfw_file_drop_cb(GLFWwindow *window, int num_files, const char **paths);
+
+    static void glfw_joystick_cb(int joy, int event);
+
     explicit Window(const create_info_t &create_info);
 
     void init_handles(int width, int height, const std::string &title, GLFWmonitor *monitor);
@@ -279,6 +305,8 @@ private:
     bool m_fullscreen = false;
 
     bool m_enable_joysticks = true;
+
+    bool m_need_resize_swapchain = false;
 
     // keep track of window params when switching between window/fullscreen
     glm::ivec2 m_window_size{}, m_window_pos{};
