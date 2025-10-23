@@ -777,7 +777,6 @@ CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t 
     JPH::StaticCompoundShapeSettings compound_shape_settings;
     const auto &mesh_bundle = *mesh_asset.bundle;
 
-
     // avoid duplicates
     std::map<std::tuple<uint32_t, uint32_t>, JPH::Ref<JPH::Shape>> shape_map;
 
@@ -793,9 +792,14 @@ CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t 
         auto shape_it = shape_map.find({entry.vertex_offset, lod.base_index});
         if(shape_it == shape_map.end())
         {
-            JPH::VertexList points(entry.num_vertices);
+            JPH::MeshShapeSettings mesh_shape_settings{};
+
+            auto &points = mesh_shape_settings.mTriangleVertices;
+            points.resize(entry.num_vertices);
+
             uint32_t num_triangles = lod.num_indices / 3;
-            JPH::IndexedTriangleList triangles(num_triangles);
+            auto &triangles = mesh_shape_settings.mIndexedTriangles;
+            triangles.resize(num_triangles);
 
             auto data = mesh_bundle.vertex_buffer.data() + entry.vertex_offset * mesh_bundle.vertex_stride;
             for(uint32_t v = 0; v < entry.num_vertices; ++v, data += mesh_bundle.vertex_stride)
@@ -810,7 +814,6 @@ CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t 
                                                     mesh_bundle.index_buffer[base_index + 1],
                                                     mesh_bundle.index_buffer[base_index + 2], 0);
             }
-            JPH::MeshShapeSettings mesh_shape_settings(points, triangles);
             JPH::Shape::ShapeResult shape_result = mesh_shape_settings.Create();
 
             if(shape_result.IsValid())
@@ -818,6 +821,11 @@ CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t 
                 auto [new_it, success] = shape_map.insert({{entry.vertex_offset, lod.base_index}, shape_result.Get()});
                 assert(success);
                 shape_it = new_it;
+            }
+            else
+            {
+                spdlog::error("failed to create collision-shape: {}", shape_result.GetError());
+                return CollisionShapeId::nil();
             }
         }
 
@@ -1366,9 +1374,8 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                     settings.mPlaneAxis2 = type_cast(correct_axis(c.plane_axis2));
 
                     // prevent negative or zero ratios
-                    settings.mSwingType = c.swing_type == constraint::SwingType::Cone
-                                                  ? JPH::ESwingType::Cone
-                                                  : JPH::ESwingType::Pyramid;
+                    settings.mSwingType = c.swing_type == constraint::SwingType::Cone ? JPH::ESwingType::Cone
+                                                                                      : JPH::ESwingType::Pyramid;
 
                     settings.mNormalHalfConeAngle = c.normal_half_cone_angle;
                     settings.mPlaneHalfConeAngle = c.plane_half_cone_angle;
