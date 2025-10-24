@@ -32,10 +32,7 @@ TEST(PhysicsContext, collision_shapes)
     PhysicsContext context;
     auto box = Geometry::Box();
     EXPECT_TRUE(create_collision_shape(context, box, true));
-
-    // TODO: check starting reporting a degenerate triangle, get back to it
-    // EXPECT_TRUE(create_collision_shape(context, box, false));
-    
+    EXPECT_TRUE(create_collision_shape(context, box, false));
     EXPECT_TRUE(context.create_collision_shape(collision::plane_t()));
     EXPECT_TRUE(context.create_collision_shape(collision::box_t()));
     EXPECT_TRUE(context.create_collision_shape(collision::sphere_t()));

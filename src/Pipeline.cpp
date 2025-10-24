@@ -33,8 +33,7 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     }
 
     // our shader stages
-    const VkSpecializationInfo *specialization_info =
-            format.specialization ? format.specialization->info() : nullptr;
+    const VkSpecializationInfo *specialization_info = format.specialization ? format.specialization->info() : nullptr;
     auto stage_create_infos = shader_stage_create_infos(format.shader_stages, specialization_info);
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info = {};
@@ -187,7 +186,7 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     vkCheck(vkCreateGraphicsPipelines(device->handle(), format.pipeline_cache, 1, &pipeline_info, nullptr, &pipeline),
             "failed to create graphics pipeline!");
 
-    return PipelinePtr(new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline));
+        return PipelinePtr(new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -200,8 +199,7 @@ PipelinePtr Pipeline::create(DevicePtr device, vierkant::raytracing_pipeline_inf
     if(!vkCreateRayTracingPipelinesKHR) { return nullptr; }
 
     // shader stages
-    auto specialization_info =
-            raytracing_info.specialization ? raytracing_info.specialization->info() : nullptr;
+    auto specialization_info = raytracing_info.specialization ? raytracing_info.specialization->info() : nullptr;
     auto stage_create_infos = shader_stage_create_infos(raytracing_info.shader_stages, specialization_info);
 
     // shader groups

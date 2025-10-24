@@ -8,16 +8,23 @@ using attachment_count_t = std::map<vierkant::AttachmentType, uint32_t>;
 bool check_attachment_count(const vierkant::attachment_map_t &attachments,
                             std::map<vierkant::AttachmentType, uint32_t> &expected_count)
 {
-    if(attachments.count(vierkant::AttachmentType::Color) !=
-       expected_count.count(vierkant::AttachmentType::Color)){ return false; }
-    if(attachments.count(vierkant::AttachmentType::Resolve) !=
-       expected_count.count(vierkant::AttachmentType::Resolve)){ return false; }
+    if(attachments.count(vierkant::AttachmentType::Color) != expected_count.count(vierkant::AttachmentType::Color))
+    {
+        return false;
+    }
+    if(attachments.count(vierkant::AttachmentType::Resolve) != expected_count.count(vierkant::AttachmentType::Resolve))
+    {
+        return false;
+    }
     if(attachments.count(vierkant::AttachmentType::DepthStencil) !=
-       expected_count.count(vierkant::AttachmentType::DepthStencil)){ return false; }
+       expected_count.count(vierkant::AttachmentType::DepthStencil))
+    {
+        return false;
+    }
 
     for(auto &[type, images]: attachments)
     {
-        if(images.size() != expected_count[type]){ return false; }
+        if(images.size() != expected_count[type]) { return false; }
     }
     return true;
 }
@@ -63,7 +70,6 @@ TEST(TestFramebuffer, SingleColor)
     // reset Framebuffer object
     framebuffer = vierkant::Framebuffer();
     EXPECT_TRUE(!framebuffer);
-
 }
 
 TEST(TestFramebuffer, SingleColorDepth)
@@ -76,6 +82,7 @@ TEST(TestFramebuffer, SingleColorDepth)
     vierkant::Framebuffer::create_info_t create_info = {};
     create_info.size = fb_size;
     create_info.depth = true;
+    create_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT;
     auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     EXPECT_TRUE(framebuffer);
     EXPECT_EQ(framebuffer.num_attachments(vierkant::AttachmentType::Color), 1);
@@ -99,6 +106,7 @@ TEST(TestFramebuffer, SingleColorDepthStencil)
     create_info.size = fb_size;
     create_info.depth = true;
     create_info.stencil = true;
+    create_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
     auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     EXPECT_TRUE(framebuffer);
     EXPECT_EQ(framebuffer.num_attachments(vierkant::AttachmentType::Color), 1);
@@ -123,6 +131,7 @@ TEST(TestFramebuffer, MultiColorDepthStencil)
     create_info.num_color_attachments = 4;
     create_info.depth = true;
     create_info.stencil = true;
+    create_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
     auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     EXPECT_TRUE(framebuffer);
     EXPECT_EQ(framebuffer.num_attachments(vierkant::AttachmentType::Color), 4);
@@ -147,6 +156,7 @@ TEST(TestFramebuffer, SingleColorDepthStencil_MSAA)
     create_info.num_color_attachments = 1;
     create_info.depth = true;
     create_info.stencil = true;
+    create_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
     create_info.color_attachment_format.sample_count = test_context.device->max_usable_samples();
     auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     EXPECT_TRUE(framebuffer);
@@ -193,11 +203,9 @@ TEST(TestFramebuffer, Manual_Attachments)
     resolve_fmt.sample_count = VK_SAMPLE_COUNT_1_BIT;
     auto resolve_img = vierkant::Image::create(test_context.device, resolve_fmt);
 
-    vierkant::attachment_map_t attachments = {
-            {vierkant::AttachmentType::Color,        {color_img}},
-            {vierkant::AttachmentType::DepthStencil, {depth_stencil_img}},
-            {vierkant::AttachmentType::Resolve,      {resolve_img}}
-    };
+    vierkant::attachment_map_t attachments = {{vierkant::AttachmentType::Color, {color_img}},
+                                              {vierkant::AttachmentType::DepthStencil, {depth_stencil_img}},
+                                              {vierkant::AttachmentType::Resolve, {resolve_img}}};
 
     auto framebuffer = vierkant::Framebuffer(test_context.device, attachments);
     EXPECT_TRUE(framebuffer);
@@ -222,6 +230,7 @@ TEST(TestFramebuffer, DirectRendering)
     create_info.size = fb_size;
     create_info.depth = true;
     create_info.stencil = true;
+    create_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
     auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     EXPECT_TRUE(framebuffer);
     EXPECT_EQ(framebuffer.num_attachments(vierkant::AttachmentType::Color), 1);
@@ -234,10 +243,9 @@ TEST(TestFramebuffer, DirectRendering)
     EXPECT_TRUE(res);
 
     // create command-buffer, start direct rendering-pass
-    vierkant::CommandPoolPtr command_pool =
-            vierkant::create_command_pool(test_context.device, vierkant::Device::Queue::GRAPHICS,
-                                          VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                          VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    vierkant::CommandPoolPtr command_pool = vierkant::create_command_pool(
+            test_context.device, vierkant::Device::Queue::GRAPHICS,
+            VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     EXPECT_TRUE(command_pool);
     vierkant::CommandBuffer cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
     EXPECT_TRUE(cmd_buffer);
@@ -265,6 +273,7 @@ TEST(TestFramebuffer, DirectRendering_MSAA)
     create_info.num_color_attachments = 1;
     create_info.depth = true;
     create_info.stencil = true;
+    create_info.depth_attachment_format.format = VK_FORMAT_D32_SFLOAT_S8_UINT;
     create_info.color_attachment_format.sample_count = test_context.device->max_usable_samples();
     auto framebuffer = vierkant::Framebuffer(test_context.device, create_info);
     EXPECT_TRUE(framebuffer);
@@ -273,10 +282,9 @@ TEST(TestFramebuffer, DirectRendering_MSAA)
     EXPECT_EQ(framebuffer.num_attachments(vierkant::AttachmentType::DepthStencil), 1);
 
     // create command-buffer, start direct rendering-pass
-    vierkant::CommandPoolPtr command_pool =
-            vierkant::create_command_pool(test_context.device, vierkant::Device::Queue::GRAPHICS,
-                                          VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                          VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    vierkant::CommandPoolPtr command_pool = vierkant::create_command_pool(
+            test_context.device, vierkant::Device::Queue::GRAPHICS,
+            VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     EXPECT_TRUE(command_pool);
     vierkant::CommandBuffer cmd_buffer = vierkant::CommandBuffer(test_context.device, command_pool.get());
     EXPECT_TRUE(cmd_buffer);
