@@ -32,6 +32,8 @@ struct videomode_t
 
     //! refresh-rate in Hz
     uint32_t refresh_rate = 60;
+
+    bool operator==(const videomode_t &other) const = default;
 };
 
 struct window_delegate_t
@@ -133,6 +135,11 @@ public:
      * @return  the size of the Window in pixels
      */
     glm::ivec2 size() const;
+
+    /**
+     * @return  the content scale of the Window
+     */
+    glm::vec2 content_scale() const;
 
     /**
      * @brief   set the size of the Window
@@ -309,7 +316,7 @@ private:
     bool m_need_resize_swapchain = false;
 
     // keep track of window params when switching between window/fullscreen
-    glm::ivec2 m_window_size{}, m_window_pos{};
+    glm::ivec2 m_window_size{}, m_prev_window_size{}, m_window_pos{};
 
     // keep track of previous joystick-states
     std::vector<vierkant::Joystick> m_joysticks;
