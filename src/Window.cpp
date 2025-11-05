@@ -1,25 +1,10 @@
-#include "vierkant/Window.hpp"
+#include <vierkant/Window.hpp>
 
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
 namespace vierkant
 {
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline bool operator==(const videomode_t &lhs, const videomode_t &rhs)
-{
-    if(lhs.width != rhs.width) { return false; }
-    if(lhs.height != rhs.height) { return false; }
-    if(lhs.red_bits != rhs.red_bits) { return false; }
-    if(lhs.green_bits != rhs.green_bits) { return false; }
-    if(lhs.blue_bits != rhs.blue_bits) { return false; }
-    if(lhs.refresh_rate != rhs.refresh_rate) { return false; }
-    return true;
-}
-
-inline bool operator!=(const videomode_t &lhs, const videomode_t &rhs) { return !(lhs == rhs); }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -254,6 +239,16 @@ glm::ivec2 Window::size() const
     return m_window_size;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+glm::vec2 Window::content_scale() const
+{
+    glm::vec2 ret;
+    // glfwGetWindowContentScale(m_handle, &ret.x, &ret.y);
+    ret = glm::vec2(framebuffer_size()) / glm::vec2(size());
+    return ret;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool Window::is_minimized() const
@@ -281,17 +276,7 @@ void Window::set_size(const glm::ivec2 &extent)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-glm::ivec2 Window::position() const
-{
-    // if(m_fullscreen) { return {0, 0}; }
-    // else
-    // {
-    //     glm::ivec2 position;
-    //     glfwGetWindowPos(m_handle, &position.x, &position.y);
-    //     return position;
-    // }
-    return m_window_pos;
-}
+glm::ivec2 Window::position() const { return m_window_pos; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -359,7 +344,6 @@ void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos
     if(acquire_result.result != VK_SUCCESS)
     {
         recreate_swapchain();
-        spdlog::warn("acquire_next_image failed");
         return;
     }
 
@@ -450,14 +434,13 @@ void Window::glfw_resize_cb(GLFWwindow *window, int width, int height)
     spdlog::trace("{}: {} x {}", __func__, width, height);
     auto *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
     self->m_window_size = {width, height};
-    self->m_need_resize_swapchain = true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Window::glfw_pos_cb(GLFWwindow *window, int x, int y)
 {
-    spdlog::debug("{}: {} x {}", __func__, x, y);
+    spdlog::trace("{}: {} x {}", __func__, x, y);
     auto *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
     self->m_window_pos = {x, y};
 }
@@ -480,9 +463,12 @@ void Window::glfw_error_cb(int error_code, const char *error_msg) { spdlog::erro
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Window::glfw_refresh_cb(GLFWwindow * /*window*/)
+void Window::glfw_refresh_cb(GLFWwindow *window)
 {
     // like resizing!?
+    auto *self = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    self->m_need_resize_swapchain = true;
+    spdlog::trace("{}: {} x {}", __func__, self->m_window_size.x, self->m_window_size.y);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -668,14 +654,16 @@ void Window::set_fullscreen(bool b, uint32_t monitor_index)
     {
         // m_window_size = size();
         // m_window_pos = position();
+        glfwGetWindowSize(m_handle, &m_prev_window_size.x, &m_prev_window_size.y);
+
         w = mode->width;
         h = mode->height;
         x = y = 0;
     }
     else
     {
-        w = m_window_size.x;
-        h = m_window_size.y;
+        w = m_prev_window_size.x;
+        h = m_prev_window_size.y;
         x = m_window_pos.x;
         y = m_window_pos.y;
     }
