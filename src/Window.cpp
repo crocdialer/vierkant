@@ -327,7 +327,7 @@ void Window::set_cursor_visible(bool b)
 void Window::draw(std::vector<vierkant::semaphore_submit_info_t> semaphore_infos)
 {
     auto recreate_swapchain = [&]() {
-        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync());
+        create_swapchain(m_swap_chain.device(), m_swap_chain.sample_count(), m_swap_chain.v_sync(), m_swap_chain.hdr());
     };
 
     if(!m_swap_chain) { return; }
