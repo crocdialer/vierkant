@@ -5,7 +5,6 @@ namespace vierkant
 {
 
 constexpr uint32_t g_max_bindless_resources = 512;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, const descriptor_count_t &counts,
@@ -14,24 +13,31 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, cons
     std::vector<VkDescriptorPoolSize> pool_sizes;
     for(const auto &[type, count]: counts) { pool_sizes.push_back({type, count}); }
 
-    VkDescriptorPoolInlineUniformBlockCreateInfo inline_uniform_block_info = {};
-    inline_uniform_block_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_INLINE_UNIFORM_BLOCK_CREATE_INFO;
-    inline_uniform_block_info.maxInlineUniformBlockBindings = device->properties().vulkan13.maxInlineUniformTotalSize;
-
     VkDescriptorPoolCreateInfo pool_info = {};
     pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.pNext = &inline_uniform_block_info;
     pool_info.poolSizeCount = static_cast<uint32_t>(pool_sizes.size());
     pool_info.pPoolSizes = pool_sizes.data();
     pool_info.maxSets = max_sets;
     pool_info.flags =
             VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT | VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
 
+    VkDescriptorPoolInlineUniformBlockCreateInfo inline_uniform_block_info = {};
+    if(auto inline_desc_it = counts.find(VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK); inline_desc_it != counts.end())
+    {
+        uint32_t num_inline_uniform_bytes = inline_desc_it->second;
+        num_inline_uniform_bytes =
+                std::min(num_inline_uniform_bytes, device->properties().vulkan13.maxInlineUniformTotalSize);
+        inline_uniform_block_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_INLINE_UNIFORM_BLOCK_CREATE_INFO;
+        inline_uniform_block_info.maxInlineUniformBlockBindings = num_inline_uniform_bytes;
+        pool_info.pNext = &inline_uniform_block_info;
+    }
+
     VkDescriptorPool descriptor_pool = VK_NULL_HANDLE;
     vkCheck(vkCreateDescriptorPool(device->handle(), &pool_info, nullptr, &descriptor_pool),
             "failed to create descriptor pool!");
     return {descriptor_pool, [device](VkDescriptorPool p) { vkDestroyDescriptorPool(device->handle(), p, nullptr); }};
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
