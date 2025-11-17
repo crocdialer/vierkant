@@ -82,8 +82,8 @@ public:
 
     /**
      * @brief   construct an initialized vulkan instance
-     * @param   use_validation_layers       use validation layers (VK_LAYER_LUNARG_standard_validation) or not
-     * @param   the_required_extensions     a list of required extensions (e.g. VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+     *
+     * @param   create_info     struct grouping creation-parameters
      */
     explicit Instance(const create_info_t &create_info);
 
@@ -123,13 +123,13 @@ public:
 
     inline explicit operator bool() const { return static_cast<bool>(m_handle); };
 
-    friend void swap(Instance &lhs, Instance &rhs);
+    friend void swap(Instance &lhs, Instance &rhs) noexcept;
 
 private:
     /**
      * @brief   initialize the vulkan instance
-     * @param   use_validation_layers       use validation layers (VK_LAYER_LUNARG_standard_validation) or not
-     * @param   the_required_extensions     a list of required extensions (e.g. VK_KHR_SWAPCHAIN_EXTENSION_NAME)
+     *
+     * @param   create_info     struct grouping creation-parameters
      */
     bool init(const create_info_t &create_info);
 

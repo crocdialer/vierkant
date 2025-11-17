@@ -133,7 +133,7 @@ VkFormat find_supported_format(VkPhysicalDevice the_device, const std::vector<Vk
         {
             return format;
         }
-        else if(the_tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & the_features) == the_features)
+        if(the_tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & the_features) == the_features)
         {
             return format;
         }
@@ -300,7 +300,7 @@ void Instance::set_debug_fn(Instance::debug_fn_t debug_fn)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void swap(Instance &lhs, Instance &rhs)
+void swap(Instance &lhs, Instance &rhs) noexcept
 {
     std::swap(lhs.m_extensions, rhs.m_extensions);
     std::swap(lhs.m_handle, rhs.m_handle);

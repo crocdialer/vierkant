@@ -579,11 +579,16 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     }
 
     // put instances into host-visible gpu-buffer
-    auto instance_buffer =
-            vierkant::Buffer::create(m_device, instances,
-                                     VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                             VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                                     VMA_MEMORY_USAGE_CPU_TO_GPU);
+    vierkant::Buffer::create_info_t instance_buffer_info = {};
+    instance_buffer_info.device = m_device;
+    instance_buffer_info.alignment = 16;
+    instance_buffer_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                                 VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    instance_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    instance_buffer_info.data = instances.data();
+    instance_buffer_info.num_bytes = instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
+
+    auto instance_buffer = vierkant::Buffer::create(instance_buffer_info);
 
     VkDeviceOrHostAddressConstKHR instance_data_device_address{};
     instance_data_device_address.deviceAddress = instance_buffer->device_address();
