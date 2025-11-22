@@ -7,6 +7,7 @@
 #include <crocore/crocore.hpp>
 #include <crocore/fixed_size_free_list.h>
 #include <entt/entity/registry.hpp>
+#include <optional>
 #include <set>
 #include <vierkant/intersection.hpp>
 #include <vierkant/object_component.hpp>
