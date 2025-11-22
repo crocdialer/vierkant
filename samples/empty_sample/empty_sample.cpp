@@ -76,7 +76,8 @@ void HelloTriangleApplication::create_context_and_window()
 
     // camera
     m_camera = vierkant::PerspectiveCamera::create(m_registry);
-    m_camera->transform.translation = {0.f, 0.f, 3.f};
+    m_camera->transform.emplace();
+    m_camera->transform->translation = {0.f, 0.f, 3.f};
 }
 
 void HelloTriangleApplication::create_graphics_pipeline()

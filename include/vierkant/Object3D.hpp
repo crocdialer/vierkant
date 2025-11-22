@@ -256,7 +256,7 @@ public:
     bool enabled = true;
 
     //! local transformation of this object
-    vierkant::transform_t transform = {};
+    std::optional<vierkant::transform_t> transform = {};
 
     //! a list of child-objects
     std::vector<Object3DPtr> children;

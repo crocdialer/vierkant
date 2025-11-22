@@ -1454,7 +1454,8 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
 
         // grow aabb by a factor, wake up other objects there
         constexpr float aabb_grow_factor = 1.2f;
-        m_context.body_interface().activate_in_aabb(object->aabb().transform(object->transform) * aabb_grow_factor);
+        m_context.body_interface().activate_in_aabb(object->aabb().transform(object->global_transform()) *
+                                                    aabb_grow_factor);
     }
     vierkant::Scene::remove_object(object);
 }
