@@ -35,7 +35,7 @@ public:
     {
         if(should_visit(object))
         {
-            auto model_view = m_transform_stack.top() * object.transform;
+            auto model_view = object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
 
             // keep track of meshes
             if(const auto *mesh_component = object.get_component_ptr<vierkant::mesh_component_t>())
@@ -75,7 +75,8 @@ public:
             //                m_cull_result.lights.push_back(vierkant::convert_light(lightsource));
             //            }
 
-            scoped_stack_push scoped_stack_push(m_transform_stack, m_transform_stack.top() * object.transform);
+            auto transform = object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
+            scoped_stack_push scoped_stack_push(m_transform_stack, transform);
             for(Object3DPtr &child: object.children) { child->accept(*this); }
         }
     }
@@ -87,7 +88,9 @@ public:
             if(m_check_intersection)
             {
                 // check intersection of aabb in eye-coords with view-frustum
-                auto aabb = object.aabb().transform(m_transform_stack.top() * object.transform);
+                auto transform =
+                        object.transform ? m_transform_stack.top() * *object.transform : m_transform_stack.top();
+                auto aabb = object.aabb().transform(transform);
                 return vierkant::intersect(m_frustum, aabb);
             }
             return true;

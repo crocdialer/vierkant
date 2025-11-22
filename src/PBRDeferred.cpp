@@ -986,7 +986,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
             ambient_occlusion_params.use_ray_queries = frame_context.settings.use_ray_queries;
             ambient_occlusion_params.top_level = frame_context.scene_ray_acceleration.top_lvl.structure;
             ambient_occlusion_params.projection = cull_result.camera->projection_matrix();
-            ambient_occlusion_params.camera_transform = cull_result.camera->transform;
+            ambient_occlusion_params.camera_transform = cull_result.camera->global_transform();
             ambient_occlusion_params.normal_img = frame_context.g_buffer_post.color_attachment(G_BUFFER_NORMAL);
             ambient_occlusion_params.depth_img = frame_context.g_buffer_post.depth_attachment();
             ambient_occlusion_params.max_distance = frame_context.settings.max_ao_distance;

@@ -50,7 +50,9 @@ TEST(PhysicsContext, add_remove_object)
     context.set_gravity(gravity);
     EXPECT_EQ(context.gravity(), gravity);
 
+    // create object / init transform
     auto a = object_store->create_object();
+    a->transform.emplace();
 
     // a does not (yet) have a vierkant::physics_component, so adding has no effect
     scene->add_object(a);
@@ -60,7 +62,7 @@ TEST(PhysicsContext, add_remove_object)
     // now add required component
     vierkant::object_component auto &cmp = a->add_component<vierkant::physics_component_t>();
     cmp.shape = collision::box_t{glm::vec3(0.5f)};
-    scene->physics_context().add_object(a->id(), a->transform, cmp);
+    scene->physics_context().add_object(a->id(), *a->transform, cmp);
 
     EXPECT_TRUE(context.contains(a->id()));
     EXPECT_EQ(context.body_interface().velocity(a->id()), glm::vec3(0));
@@ -123,7 +125,8 @@ TEST(PhysicsContext, simulation)
     float i = 0;
     for(const auto &obj: objects)
     {
-        obj->transform.translation.y = i++ * 5.f;
+        obj->transform.emplace();
+        obj->transform->translation.y = i++ * 5.f;
         scene->add_object(obj);
         scene->physics_context().set_callbacks(obj->id(), callbacks);
 
@@ -142,7 +145,7 @@ TEST(PhysicsContext, simulation)
 
     auto sensor = object_store->create_object();
     sensor->name = "sensor";
-    sensor->transform.translation.y = 3.f;
+    sensor->transform = transform_t{.translation = {0.f, 3.f, 0.f}};
     phys_cmp.sensor = true;
     phys_cmp.kinematic = true;
     phys_cmp.shape = collision::box_t{glm::vec3(4.f, 0.5f, 4.f)};

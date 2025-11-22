@@ -4,10 +4,11 @@
 namespace vierkant
 {
 
-class ObjectStoreImpl : public ObjectStore
+class ObjectStoreImpl final : public ObjectStore
 {
 public:
-    ObjectStoreImpl(uint32_t max_num_objects, uint32_t page_size) : m_free_list(max_num_objects, page_size) {};
+    ObjectStoreImpl(const uint32_t max_num_objects, const uint32_t page_size) : m_free_list(max_num_objects, page_size)
+    {}
     [[nodiscard]] const std::shared_ptr<entt::registry> &registry() const override { return m_registry; }
 
     Object3DPtr create_object() override
@@ -64,7 +65,7 @@ public:
         return root_clone;
     }
 
-    virtual ~ObjectStoreImpl() = default;
+    ~ObjectStoreImpl() override = default;
 
 private:
     std::shared_ptr<entt::registry> m_registry = std::make_shared<entt::registry>();
@@ -105,11 +106,11 @@ bool has_inherited_flag(const vierkant::Object3D *object, uint32_t flag_bits)
 
 glm::mat4 get_global_mat4(const vierkant::Object3D *obj)
 {
-    glm::mat4 ret = mat4_cast(obj->transform);
+    glm::mat4 ret = obj->transform ? mat4_cast(*obj->transform) : glm::mat4(1);
     auto ancestor = obj->parent();
     while(ancestor)
     {
-        ret = mat4_cast(ancestor->transform) * ret;
+        if(ancestor->transform) { ret = mat4_cast(*ancestor->transform) * ret; }
         ancestor = ancestor->parent();
     }
     return ret;
@@ -132,11 +133,11 @@ Object3D::~Object3D() noexcept
 
 vierkant::transform_t Object3D::global_transform() const
 {
-    vierkant::transform_t ret = transform;
+    vierkant::transform_t ret = transform ? *transform : vierkant::transform_t{};
     const Object3D *ancestor = parent();
     while(ancestor)
     {
-        ret = ancestor->transform * ret;
+        if(ancestor->transform) { ret = *ancestor->transform * ret; }
         ancestor = ancestor->parent();
     }
     return ret;
@@ -197,14 +198,13 @@ void Object3D::add_child(const Object3DPtr &child)
         child->m_parent = this;
 
         // prevent multiple insertions
-        if(std::find(children.begin(), children.end(), child) == children.end()) { children.push_back(child); }
+        if(std::ranges::find(children, child) == children.end()) { children.push_back(child); }
     }
 }
 
 void Object3D::remove_child(const Object3DPtr &child, bool recursive)
 {
-    auto it = std::find(children.begin(), children.end(), child);
-    if(it != children.end())
+    if(const auto it = std::ranges::find(children, child); it != children.end())
     {
         children.erase(it);
         if(child) { child->set_parent(nullptr); }
@@ -212,31 +212,38 @@ void Object3D::remove_child(const Object3DPtr &child, bool recursive)
     else if(recursive)
     {
         // not a direct descendant, go on recursive if requested
-        for(auto &c: children) { c->remove_child(child, recursive); }
+        for(const auto &c: children) { c->remove_child(child, recursive); }
     }
 }
 
 AABB Object3D::aabb() const
 {
     AABB ret;
-    auto aabb_component_ptr = get_component_ptr<aabb_component_t>();
-    if(aabb_component_ptr && aabb_component_ptr->aabb_fn) { ret += aabb_component_ptr->aabb_fn(*this); }
-    for(const auto &child: children) { ret += child->aabb().transform(child->transform); }
+    if(auto *aabb_component_ptr = get_component_ptr<aabb_component_t>();
+       aabb_component_ptr && aabb_component_ptr->aabb_fn)
+    {
+        ret += aabb_component_ptr->aabb_fn(*this);
+    }
+    for(const auto &child: children)
+    {
+        auto child_aabb = child->aabb();
+        if(child->transform) { child_aabb = child_aabb.transform(*child->transform); }
+        ret += child_aabb;
+    }
     return ret;
 }
 
 std::vector<AABB> Object3D::sub_aabbs() const
 {
-    auto aabb_component_ptr = get_component_ptr<aabb_component_t>();
-    if(aabb_component_ptr && aabb_component_ptr->sub_aabb_fn) { return aabb_component_ptr->sub_aabb_fn(*this); }
+    if(auto *aabb_component_ptr = get_component_ptr<aabb_component_t>();
+       aabb_component_ptr && aabb_component_ptr->sub_aabb_fn)
+    {
+        return aabb_component_ptr->sub_aabb_fn(*this);
+    }
     return {};
 }
 
-OBB Object3D::obb() const
-{
-    OBB ret(aabb(), glm::mat4(1));
-    return ret;
-}
+OBB Object3D::obb() const { return {aabb(), glm::mat4(1)}; }
 
 void Object3D::accept(Visitor &theVisitor) { theVisitor.visit(*this); }
 

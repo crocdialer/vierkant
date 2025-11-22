@@ -1454,7 +1454,8 @@ void PhysicsScene::remove_object(const Object3DPtr &object)
 
         // grow aabb by a factor, wake up other objects there
         constexpr float aabb_grow_factor = 1.2f;
-        m_context.body_interface().activate_in_aabb(object->aabb().transform(object->transform) * aabb_grow_factor);
+        m_context.body_interface().activate_in_aabb(object->aabb().transform(object->global_transform()) *
+                                                    aabb_grow_factor);
     }
     vierkant::Scene::remove_object(object);
 }
@@ -1478,15 +1479,18 @@ void PhysicsScene::update(double time_delta)
         return cmp.kinematic || cmp.mass == 0.f || cmp.sensor || (mesh_shape && !mesh_shape->convex_hull);
     };
 
-    auto view = registry()->view<physics_component_t>();
-    for(const auto &[entity, cmp]: view.each())
+    vierkant::SelectVisitor<vierkant::Object3D> visitor({}, false);
+    root()->accept(visitor);
+
+    for(auto *obj: visitor.objects)
     {
-        auto *obj = object_by_id(static_cast<uint32_t>(entity));
+        auto phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
+        if(!phys_cmp) { continue; }
         bool obj_enabled = obj->global_enable();
 
-        if(cmp.mode == physics_component_t::UPDATE)
+        if(phys_cmp->mode == physics_component_t::UPDATE)
         {
-            if(auto mesh_shape = std::get_if<collision::mesh_t>(&cmp.shape))
+            if(auto mesh_shape = std::get_if<collision::mesh_t>(&phys_cmp->shape))
             {
                 if(auto mesh_cmp = obj->get_component_ptr<vierkant::mesh_component_t>())
                 {
@@ -1495,65 +1499,69 @@ void PhysicsScene::update(double time_delta)
                     mesh_shape->library = mesh_cmp->library;
                 }
             }
-            m_context.add_object(obj->id(), obj->global_transform(), cmp);
+            m_context.add_object(obj->id(), obj->global_transform(), *phys_cmp);
 
             // check if additional constraints-pass is required
-            cmp.mode = obj->has_component<vierkant::constraint_component_t>() ? physics_component_t::CONSTRAINT_UPDATE
-                                                                              : physics_component_t::ACTIVE;
+            phys_cmp->mode = obj->has_component<vierkant::constraint_component_t>()
+                                     ? physics_component_t::CONSTRAINT_UPDATE
+                                     : physics_component_t::ACTIVE;
         }
-        else if(obj_enabled && cmp.mode == physics_component_t::INACTIVE)
+        else if(obj_enabled && phys_cmp->mode == physics_component_t::INACTIVE)
         {
-            m_context.add_object(obj->id(), obj->global_transform(), cmp);
+            m_context.add_object(obj->id(), obj->global_transform(), *phys_cmp);
 
             // check if additional constraints-pass is required
-            cmp.mode = obj->has_component<vierkant::constraint_component_t>() ? physics_component_t::CONSTRAINT_UPDATE
-                                                                              : physics_component_t::ACTIVE;
+            phys_cmp->mode = obj->has_component<vierkant::constraint_component_t>()
+                                     ? physics_component_t::CONSTRAINT_UPDATE
+                                     : physics_component_t::ACTIVE;
         }
         else if(!obj_enabled)
         {
-            cmp.mode = physics_component_t::INACTIVE;
-            m_context.remove_object(obj->id(), cmp);
+            phys_cmp->mode = physics_component_t::INACTIVE;
+            m_context.remove_object(obj->id(), *phys_cmp);
         }
-        else if(cmp.mode == physics_component_t::REMOVE)
+        else if(phys_cmp->mode == physics_component_t::REMOVE)
         {
-            m_context.remove_object(obj->id(), cmp);
+            m_context.remove_object(obj->id(), *phys_cmp);
             obj->remove_component<physics_component_t>();
             continue;
         }
 
         // manually update non-moving/kinematic objects
-        if(is_movable(cmp))
+        if(is_movable(*phys_cmp))
         {
             // object -> physics
-            m_context.body_interface().set_transform(static_cast<uint32_t>(entity), obj->global_transform());
+            m_context.body_interface().set_transform(static_cast<uint32_t>(obj->id()), obj->global_transform());
         }
     }
 
-    auto constraints_view = registry()->view<physics_component_t, constraint_component_t>();
-    for(const auto &[entity, phys_cmp, constraint_cmp]: constraints_view.each())
+    for(auto *obj: visitor.objects)
     {
-        if(phys_cmp.mode == physics_component_t::CONSTRAINT_UPDATE)
+        auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>();
+        auto *constraint_cmp = obj->get_component_ptr<vierkant::constraint_component_t>();
+
+        if(phys_cmp && constraint_cmp && phys_cmp->mode == physics_component_t::CONSTRAINT_UPDATE)
         {
-            auto *obj = object_by_id(static_cast<uint32_t>(entity));
-            phys_cmp.mode = physics_component_t::ACTIVE;
-            m_context.add_constraints(obj->id(), constraint_cmp);
+            phys_cmp->mode = physics_component_t::ACTIVE;
+            m_context.add_constraints(obj->id(), *constraint_cmp);
         }
     }
 
     // advance simulation
     m_context.step_simulation(static_cast<float>(time_delta), 2);
 
-    for(const auto &[entity, cmp]: view.each())
+    for(auto *obj: visitor.objects)
     {
-        auto *obj = object_by_id(static_cast<uint32_t>(entity));
-
-        // manually update non-moving/kinematic objects
-        if(!is_movable(cmp))
+        if(auto *phys_cmp = obj->get_component_ptr<vierkant::physics_component_t>())
         {
-            // physics -> object
-            vierkant::transform_t transform = obj->global_transform();
-            m_context.body_interface().get_transform(static_cast<uint32_t>(entity), transform);
-            obj->set_global_transform(transform);
+            // manually update non-moving/kinematic objects
+            if(!is_movable(*phys_cmp))
+            {
+                // physics -> object
+                vierkant::transform_t transform = obj->global_transform();
+                m_context.body_interface().get_transform(obj->id(), transform);
+                obj->set_global_transform(transform);
+            }
         }
     }
 }

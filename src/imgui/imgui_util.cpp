@@ -1049,12 +1049,15 @@ void draw_object_ui(const Object3DPtr &object)
         bool change = ImGui::InputFloat("width", &w);
         change |= ImGui::InputFloat("height", &h);
         change |= ImGui::InputFloat("depth", &d);
-        if(change) { object->transform.scale *= glm::vec3(w / aabb.width(), h / aabb.height(), d / aabb.depth()); }
+        if(change && object->transform)
+        {
+            object->transform->scale *= glm::vec3(w / aabb.width(), h / aabb.height(), d / aabb.depth());
+        }
         ImGui::TreePop();
     }
 
     // transform
-    if(draw_transform(object->transform))
+    if(object->transform && draw_transform(*object->transform))
     {
         if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
         {
@@ -1140,7 +1143,7 @@ void draw_object_ui(const Object3DPtr &object)
                 if(need_shape_transform)
                 {
                     phys_cmp.shape_transform.emplace();
-                    phys_cmp.shape_transform->translation += aabb.center() * object->transform.scale;
+                    phys_cmp.shape_transform->translation += aabb.center() * object->global_transform().scale;
                 }
                 else { phys_cmp.shape_transform.reset(); }
             }

@@ -39,8 +39,8 @@ TEST(Object3D, hierarchy)
     EXPECT_TRUE(c->parent() == b.get());
     EXPECT_TRUE(b->parent() == a.get());
 
-    a->transform.translation = {0, 100, 0};
-    b->transform.translation = {0, 50, 0};
+    a->transform = transform_t{.translation = {0, 100, 0}};
+    b->transform = transform_t{.translation{0, 50, 0}};
     EXPECT_TRUE(glm::vec3(b->global_transform().translation) == glm::vec3(0, 150, 0));
 
     vierkant::transform_t t = {};

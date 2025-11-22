@@ -50,14 +50,13 @@ vierkant::Frustum OrthoCamera::frustum() const
 
 vierkant::Ray OrthoCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
 {
-    glm::vec3 click_world_pos, ray_dir;
+    const glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, ortho_params.left, ortho_params.right),
+                          crocore::map_value<float>(pos.y, extent.y, 0, ortho_params.bottom, ortho_params.top));
 
-    glm::vec2 coord(crocore::map_value<float>(pos.x, 0, extent.x, ortho_params.left, ortho_params.right),
-                    crocore::map_value<float>(pos.y, extent.y, 0, ortho_params.bottom, ortho_params.top));
-
-    glm::mat3 m = glm::mat3_cast(transform.rotation);
-    click_world_pos = glm::vec3(transform.translation) - m[2] * near() + m[0] * coord.x + m[1] * coord.y;
-    ray_dir = -m[2];
+    auto t = global_transform();
+    glm::mat3 m = glm::mat3_cast(t.rotation);
+    glm::vec3 click_world_pos = glm::vec3(t.translation) - m[2] * near() + m[0] * coord.x + m[1] * coord.y;
+    glm::vec3 ray_dir = -m[2];
     spdlog::trace("clicked_world: ({}, {}, {})", click_world_pos.x, click_world_pos.y, click_world_pos.z);
     return {click_world_pos, ray_dir};
 }
@@ -86,8 +85,6 @@ vierkant::Frustum PerspectiveCamera::frustum() const
 
 vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::vec2 &extent) const
 {
-    glm::vec3 ray_origin, ray_dir;
-
     // bring click_pos to range -1, 1
     glm::vec2 click_2D(pos);
     glm::vec2 offset(extent / 2.0f);
@@ -101,10 +98,11 @@ vierkant::Ray PerspectiveCamera::calculate_ray(const glm::vec2 &pos, const glm::
     float hLength = std::tan(rad / 2) * near;
     float vLength = hLength / perspective_params.aspect;
 
-    glm::mat3 m = glm::mat3_cast(transform.rotation);
-    ray_origin =
-            glm::vec3(transform.translation) - m[2] * near + m[0] * hLength * click_2D.x + m[1] * vLength * click_2D.y;
-    ray_dir = ray_origin - glm::vec3(transform.translation);
+    auto t = global_transform();
+    glm::mat3 m = glm::mat3_cast(t.rotation);
+    glm::vec3 ray_origin =
+            glm::vec3(t.translation) - m[2] * near + m[0] * hLength * click_2D.x + m[1] * vLength * click_2D.y;
+    glm::vec3 ray_dir = ray_origin - glm::vec3(t.translation);
     return {ray_origin, ray_dir};
 }
 
@@ -124,7 +122,8 @@ glm::mat4 CubeCamera::projection_matrix() const
 
 vierkant::Frustum CubeCamera::frustum() const
 {
-    glm::vec3 p = transform.translation;
+    auto t = global_transform();
+    glm::vec3 p = t.translation;
     return {p.x - far(), p.x + far(), p.y - far(), p.y + far(), p.z - far(), p.z + far()};
 }
 
@@ -136,7 +135,7 @@ glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
 
     const glm::vec3 vals[12] = {X_AXIS, -Y_AXIS, -X_AXIS, -Y_AXIS, -Y_AXIS, -Z_AXIS,
                                 Y_AXIS, Z_AXIS,  Z_AXIS,  -Y_AXIS, -Z_AXIS, -Y_AXIS};
-    glm::vec3 p = transform.translation;
+    glm::vec3 p = global_transform().translation;
     the_face = crocore::clamp<uint32_t>(the_face, 0, 5);
     return glm::lookAt(p, p + vals[2 * the_face], vals[2 * the_face + 1]);
 }
@@ -145,7 +144,7 @@ glm::mat4 CubeCamera::view_matrix(uint32_t the_face) const
 
 vierkant::Ray CubeCamera::calculate_ray(const glm::vec2 & /*pos*/, const glm::vec2 & /*extent*/) const
 {
-    return {transform.translation, glm::vec3(0, 0, 1)};
+    return {global_transform().translation, glm::vec3(0, 0, 1)};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
