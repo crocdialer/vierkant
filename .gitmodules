@@ -25,6 +25,7 @@
 [submodule "extern/entt"]
 	path = extern/entt
 	url = https://github.com/skypjack/entt.git
+  branch = main
 	shallow = true
 [submodule "extern/JoltPhysics"]
 	path = extern/JoltPhysics
