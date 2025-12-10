@@ -52,7 +52,7 @@ public:
      * @brief
      * @param   command_buffer
      */
-    void bind(VkCommandBuffer command_buffer);
+    void bind(VkCommandBuffer command_buffer) const;
 
     /**
      * @return  handle for the managed VkPipeline

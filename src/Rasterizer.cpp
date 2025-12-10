@@ -211,6 +211,14 @@ void Rasterizer::render(const rendering_info_t &rendering_info)
     // increment asset-index, retrieve current assets
     auto &frame_assets = next_frame();
 
+    // re-use prior assets and command-buffer, run delegate for buffer-updates
+    if(rendering_info.recycle_commands && rendering_info.command_buffer)
+    {
+        // invoke delegate
+        if(indirect_draw && draw_indirect_delegate) { draw_indirect_delegate(frame_assets.indirect_indexed_bundle); }
+        return;
+    }
+
     // inject direct-rendering info
     for(auto &drawable: frame_assets.drawables)
     {
@@ -702,7 +710,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
     std::map<std::pair<const vierkant::Mesh *, uint32_t>, uint32_t> mesh_entry_map;
 
     // maps -> material-index
-    std::unordered_map<const vierkant::Material*, uint32_t> material_index_map;
+    std::unordered_map<const vierkant::Material *, uint32_t> material_index_map;
 
     // joined drawable buffers
     frame_asset.mesh_draws.resize(drawables.size());
@@ -716,7 +724,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         const auto &drawable = drawables[i];
         uint32_t mesh_index = 0;
         uint32_t vertex_buffer_index = vertex_buffer_refs.size();
-        const vierkant::Material* mat = nullptr;
+        const vierkant::Material *mat = nullptr;
 
         if(drawable.mesh && !drawable.mesh->entries.empty())
         {

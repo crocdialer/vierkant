@@ -26,8 +26,8 @@ shader_stage_create_infos(const ShaderMap_T &shader_stages, const VkSpecializati
 PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
 {
     // no vertex shader -> fail
-    if(!format.shader_stages.count(VK_SHADER_STAGE_VERTEX_BIT) &&
-       !format.shader_stages.count(VK_SHADER_STAGE_MESH_BIT_EXT))
+    if(!format.shader_stages.contains(VK_SHADER_STAGE_VERTEX_BIT) &&
+       !format.shader_stages.contains(VK_SHADER_STAGE_MESH_BIT_EXT))
     {
         throw std::runtime_error("pipeline creation failed: no vertex/mesh shader stage provided");
     }
@@ -53,7 +53,7 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     tessellation_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
     tessellation_state_create_info.patchControlPoints = format.num_patch_control_points;
     bool use_tesselation = format.primitive_topology == VK_PRIMITIVE_TOPOLOGY_PATCH_LIST &&
-                           format.shader_stages.count(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
+                           format.shader_stages.contains(VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT);
 
     if(!format.scissor.extent.width || !format.scissor.extent.height)
     {
@@ -186,7 +186,7 @@ PipelinePtr Pipeline::create(DevicePtr device, graphics_pipeline_info_t format)
     vkCheck(vkCreateGraphicsPipelines(device->handle(), format.pipeline_cache, 1, &pipeline_info, nullptr, &pipeline),
             "failed to create graphics pipeline!");
 
-        return PipelinePtr(new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline));
+    return PipelinePtr(new Pipeline(std::move(device), pipeline_layout, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -291,7 +291,7 @@ Pipeline::~Pipeline()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Pipeline::bind(VkCommandBuffer command_buffer)
+void Pipeline::bind(VkCommandBuffer command_buffer) const
 {
     // bind pipeline
     vkCmdBindPipeline(command_buffer, m_bind_point, m_pipeline);

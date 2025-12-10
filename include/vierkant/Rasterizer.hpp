@@ -168,6 +168,9 @@ public:
         std::vector<VkFormat> color_attachment_formats;
         VkFormat depth_attachment_format = VK_FORMAT_UNDEFINED;
         VkFormat stencil_attachment_format = VK_FORMAT_UNDEFINED;
+
+        // skip recording rendering-commands, just increase frame-index, invoke indirect_callback, if any
+        bool recycle_commands = false;
     };
 
     enum DebugFlagBits

@@ -201,6 +201,12 @@ void update_descriptor_set(const vierkant::DevicePtr &device, const descriptor_m
 
                         VkDescriptorImageInfo img_info = {};
                         img_info.imageLayout = img->image_layout();
+
+                        if(img_info.imageLayout == VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL)
+                        {
+                            img_info.imageLayout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
+                        }
+
                         img_info.imageView = image_view;
                         img_info.sampler = img->sampler().get();
                         image_infos.push_back(img_info);
