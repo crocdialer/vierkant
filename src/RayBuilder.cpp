@@ -2,8 +2,8 @@
 #include <vierkant/RayBuilder.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/barycentric_indexing.hpp>
-#include <vierkant/micromap_compute.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
+#include <vierkant/micromap_compute.hpp>
 
 namespace vierkant
 {
@@ -1002,7 +1002,8 @@ RayBuilder::timings_t RayBuilder::timings(const scene_acceleration_context_ptr &
     ret.mesh_compute_ms = timing_millis[UpdateSemaphoreValue::MESH_COMPUTE];
     ret.update_bottom_ms = timing_millis[UpdateSemaphoreValue::UPDATE_BOTTOM];
     ret.update_top_ms = timing_millis[UpdateSemaphoreValue::UPDATE_TOP];
-    ret.total_ms = timestamp_diff(timestamps[2 * UPDATE_BOTTOM], timestamps[2 * UPDATE_TOP + 1], timestamp_period);
+    ret.total_ms =
+            timestamp_diff(timestamps[2 * context->query_start], timestamps[2 * UPDATE_TOP + 1], timestamp_period);
     return ret;
 }
 
