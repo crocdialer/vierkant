@@ -41,13 +41,13 @@ public:
         clear();
     }
 
-    [[nodiscard]] inline size_t size() const { return m_num_elements; }
+    [[nodiscard]] size_t size() const { return m_num_elements; }
 
-    [[nodiscard]] inline size_t capacity() const { return m_capacity; }
+    [[nodiscard]] size_t capacity() const { return m_capacity; }
 
-    [[nodiscard]] inline bool empty() const { return size() == 0; }
+    [[nodiscard]] bool empty() const { return size() == 0; }
 
-    inline void clear()
+    void clear()
     {
         m_num_elements = 0;
         storage_item_t *ptr = m_storage.get(), *end = ptr + m_capacity;
@@ -58,7 +58,7 @@ public:
         }
     }
 
-    inline uint32_t put(const key_t &key, const value_t &value)
+    uint32_t put(const key_t &key, const value_t &value)
     {
         check_load_factor();
         return internal_put(key, value);
@@ -68,11 +68,10 @@ public:
     {
         if(!m_capacity) { return {}; }
 
-        for(uint32_t idx = m_hash_fn(key);; idx++)
+        for(uint32_t idx = m_hash_fn(key);; ++idx)
         {
             idx &= m_capacity - 1;
-            auto &item = m_storage[idx];
-            if(item.key == key_t()) { return {}; }
+            if(auto &item = m_storage[idx]; item.key == key_t()) { return {}; }
             else if(key == item.key)
             {
                 if(item.value) { return item.value; }
@@ -84,11 +83,10 @@ public:
     {
         if(!m_capacity) { return; }
 
-        for(uint32_t idx = m_hash_fn(key);; idx++)
+        for(uint32_t idx = m_hash_fn(key);; ++idx)
         {
             idx &= m_capacity - 1;
-            auto &item = m_storage[idx];
-            if(item.key == key_t()) { return; }
+            if(auto &item = m_storage[idx]; item.key == key_t()) { return; }
             else if(key == item.key && item.value)
             {
                 item.value = {};
@@ -98,7 +96,7 @@ public:
         }
     }
 
-    [[nodiscard]] inline bool contains(const key_t &key) const { return get(key) != std::nullopt; }
+    [[nodiscard]] bool contains(const key_t &key) const { return get(key) != std::nullopt; }
 
     size_t get_storage(void *dst) const
     {
@@ -110,7 +108,7 @@ public:
 
         if(dst)
         {
-            auto output_ptr = reinterpret_cast<output_item_t *>(dst);
+            auto output_ptr = static_cast<output_item_t *>(dst);
             storage_item_t *item = m_storage.get(), *end = item + m_capacity;
             for(; item != end; ++item, ++output_ptr)
             {
@@ -149,7 +147,7 @@ public:
         check_load_factor();
     }
 
-    friend void swap(linear_hashmap &lhs, linear_hashmap &rhs)
+    friend void swap(linear_hashmap &lhs, linear_hashmap &rhs) noexcept
     {
         std::swap(lhs.m_capacity, rhs.m_capacity);
         std::swap(lhs.m_num_elements, rhs.m_num_elements);
@@ -166,7 +164,7 @@ private:
         std::optional<value_t> value;
     };
 
-    inline void check_load_factor()
+    void check_load_factor()
     {
         if(m_num_elements >= m_capacity * m_max_load_factor)
         {
@@ -174,11 +172,11 @@ private:
         }
     }
 
-    inline uint32_t internal_put(const key_t key, const value_t &value)
+    uint32_t internal_put(const key_t key, const value_t &value)
     {
         uint32_t probe_length = 0;
 
-        for(uint64_t idx = m_hash_fn(key);; idx++, probe_length++)
+        for(uint64_t idx = m_hash_fn(key);; ++idx, probe_length++)
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
@@ -347,7 +345,7 @@ public:
         check_load_factor();
     }
 
-    friend void swap(linear_hashmap_mt &lhs, linear_hashmap_mt &rhs)
+    friend void swap(linear_hashmap_mt &lhs, linear_hashmap_mt &rhs) noexcept
     {
         std::lock(lhs.m_mutex, rhs.m_mutex);
         std::unique_lock lock_lhs(lhs.m_mutex, std::adopt_lock), lock_rhs(rhs.m_mutex, std::adopt_lock);
@@ -366,7 +364,7 @@ private:
         std::atomic<std::optional<value_t>> value;
     };
 
-    inline void check_load_factor()
+    void check_load_factor()
     {
         if(m_num_elements >= m_capacity * m_max_load_factor)
         {
@@ -374,12 +372,12 @@ private:
         }
     }
 
-    inline uint32_t internal_put(const key_t key, const value_t &value)
+    uint32_t internal_put(const key_t key, const value_t &value)
     {
         std::shared_lock lock(m_mutex);
         uint32_t probe_length = 0;
 
-        for(uint64_t idx = m_hash_fn(key);; idx++, probe_length++)
+        for(uint64_t idx = m_hash_fn(key);; ++idx, probe_length++)
         {
             idx &= m_capacity - 1;
             auto &item = m_storage[idx];
@@ -398,7 +396,7 @@ private:
                     // another thread just stole it
                     continue;
                 }
-                m_num_elements++;
+                ++m_num_elements;
             }
             item.value = value;
             return probe_length;

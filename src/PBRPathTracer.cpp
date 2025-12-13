@@ -1,5 +1,6 @@
 #include <vierkant/PBRPathTracer.hpp>
 #include <vierkant/Visitor.hpp>
+#include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/shaders.hpp>
 
 namespace vierkant
@@ -218,14 +219,19 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
     ret.object_ids = m_storage.object_ids;
     ret.object_by_index_fn =
             [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t draw_id) -> vierkant::id_entry_t {
-        auto it = scene_asset.entry_idx_to_object_id.find(draw_id);
-        if(it != scene_asset.entry_idx_to_object_id.end()) { return it->second; }
+        if(auto it = scene_asset.entry_idx_to_object_id.find(draw_id); it != scene_asset.entry_idx_to_object_id.end())
+        {
+            return it->second;
+        }
         return {};
     };
     ret.indices_by_id_fn =
             [scene, &scene_asset = frame_context.scene_ray_acceleration](uint32_t object_id) -> std::vector<uint32_t> {
-        auto it = scene_asset.object_id_to_entry_indices.find(object_id);
-        if(it != scene_asset.object_id_to_entry_indices.end()) { return it->second; }
+        if(auto it = scene_asset.object_id_to_entry_indices.find(object_id);
+           it != scene_asset.object_id_to_entry_indices.end())
+        {
+            return it->second;
+        }
         return {};
     };
 
@@ -256,10 +262,9 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
 
         for(uint32_t i = 1; i < SemaphoreValue::MAX_VALUE; ++i)
         {
-            auto val = SemaphoreValue(i);
-            auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
+            const auto val = static_cast<SemaphoreValue>(i);
+            const auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
             timing_millis[val] = measurement;
-            timings.total_ms += measurement;
         }
     }
 
@@ -269,6 +274,10 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
     timings.bloom_ms = timing_millis[SemaphoreValue::DENOISER];
     timings.tonemap_ms = timing_millis[SemaphoreValue::BLOOM];
     timings.denoise_ms = timing_millis[SemaphoreValue::TONEMAP];
+    timings.total_ms =
+            timings.raybuilder_timings.total_ms + timestamp_diff(timestamps[2 * RAYTRACING],
+                                                                 timestamps[2 * frame_context.semaphore_value_done + 1],
+                                                                 m_device->properties().core.limits.timestampPeriod);
 
     m_statistics.push_back(frame_context.statistics);
     while(m_statistics.size() > frame_context.settings.timing_history_size) { m_statistics.pop_front(); }
