@@ -72,17 +72,6 @@ VkPhysicalDeviceProperties2 device_properties(VkPhysicalDevice physical_device)
     return device_props;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-double timestamp_millis(const uint64_t *timestamps, int32_t idx, float timestamp_period)
-{
-    using double_millisecond_t = std::chrono::duration<double, std::milli>;
-    size_t lhs = 2 * idx, rhs = 2 * idx + 1;
-    auto frame_ns = std::chrono::nanoseconds(
-            static_cast<uint64_t>(double(timestamps[rhs] - timestamps[lhs]) * timestamp_period));
-    return std::chrono::duration_cast<double_millisecond_t>(frame_ns).count();
-}
-
 ////////////////////////////// VALIDATION LAYER ////////////////////////////////////////////////////////////////////////
 
 const char *g_validation_layers[] = {"VK_LAYER_KHRONOS_validation"};

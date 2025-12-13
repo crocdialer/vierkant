@@ -3,6 +3,7 @@
 #include <vierkant/Visitor.hpp>
 #include <vierkant/barycentric_indexing.hpp>
 #include <vierkant/micromap_compute.hpp>
+#include <vierkant/gpu_timestamp_util.hpp>
 
 namespace vierkant
 {
@@ -11,6 +12,7 @@ struct RayBuilder::scene_acceleration_context_t
 {
     //! internal timeline
     vierkant::Semaphore semaphore;
+    UpdateSemaphoreValue query_start = UpdateSemaphoreValue::INVALID;
 
     //! queries timings for meshcompute and bs/as building
     vierkant::QueryPoolPtr query_pool;
@@ -722,6 +724,9 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
 
     uint64_t semaphore_wait_value = UpdateSemaphoreValue::INVALID;
 
+    // queries start with mesh-compute, if any, or bottom-lvl builds
+    context->query_start = UpdateSemaphoreValue::UPDATE_BOTTOM;
+
     std::vector<vierkant::semaphore_submit_info_t> semaphore_infos;
 
     // clear left-overs
@@ -785,6 +790,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
         {
             mesh_compute_result = vierkant::mesh_compute(context->mesh_compute_context, mesh_compute_params);
             semaphore_wait_value = UpdateSemaphoreValue::MESH_COMPUTE;
+            context->query_start = UpdateSemaphoreValue::MESH_COMPUTE;
         }
     }
 
@@ -916,8 +922,7 @@ RayBuilder::build_scene_acceleration(const scene_acceleration_context_ptr &conte
             vierkant::animated_mesh_t build_key = {mesh};
             if(mesh_compute_entities.contains(object->id())) { build_key = mesh_compute_entities.at(object->id()); }
 
-            auto it = context->build_results.find(build_key);
-            if(it != context->build_results.end())
+            if(auto it = context->build_results.find(build_key); it != context->build_results.end())
             {
                 context->entity_assets[object->id()] = it->second.compacted_assets.empty()
                                                                ? it->second.acceleration_assets
@@ -983,14 +988,13 @@ RayBuilder::timings_t RayBuilder::timings(const scene_acceleration_context_ptr &
 
     double timing_millis[UpdateSemaphoreValue::MAX_VALUE] = {};
 
+    const auto timestamp_period = m_device->properties().core.limits.timestampPeriod;
 
     if(query_result == VK_SUCCESS || query_result == VK_NOT_READY)
     {
-        auto timestamp_period = m_device->properties().core.limits.timestampPeriod;
-
-        for(uint32_t i = 1; i < UpdateSemaphoreValue::MAX_VALUE; ++i)
+        for(uint32_t i = context->query_start; i < UpdateSemaphoreValue::MAX_VALUE; ++i)
         {
-            auto val = UpdateSemaphoreValue(i);
+            auto val = static_cast<UpdateSemaphoreValue>(i);
             auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
             timing_millis[val] = measurement;
         }
@@ -998,6 +1002,7 @@ RayBuilder::timings_t RayBuilder::timings(const scene_acceleration_context_ptr &
     ret.mesh_compute_ms = timing_millis[UpdateSemaphoreValue::MESH_COMPUTE];
     ret.update_bottom_ms = timing_millis[UpdateSemaphoreValue::UPDATE_BOTTOM];
     ret.update_top_ms = timing_millis[UpdateSemaphoreValue::UPDATE_TOP];
+    ret.total_ms = timestamp_diff(timestamps[2 * UPDATE_BOTTOM], timestamps[2 * UPDATE_TOP + 1], timestamp_period);
     return ret;
 }
 

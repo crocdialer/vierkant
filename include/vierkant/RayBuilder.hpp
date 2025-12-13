@@ -142,6 +142,7 @@ public:
         double mesh_compute_ms = 0.0;
         double update_bottom_ms = 0.0;
         double update_top_ms = 0.0;
+        double total_ms = 0.0;
     };
 
     //! return an array listing required device-extensions for raytracing-acceleration structures.

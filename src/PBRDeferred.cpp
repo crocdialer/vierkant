@@ -4,6 +4,7 @@
 #include <vierkant/Visitor.hpp>
 #include <vierkant/cubemap_utils.hpp>
 #include <vierkant/culling.hpp>
+#include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/punctual_light.hpp>
 #include <vierkant/shaders.hpp>
 #include <vierkant/staging_copy.hpp>
@@ -1421,8 +1422,8 @@ void PBRDeferred::update_timing(frame_context_t &frame_context)
 
         for(uint32_t i = MESH_COMPUTE; i <= frame_context.semaphore_value_done; ++i)
         {
-            auto val = SemaphoreValue(i);
-            auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
+            const auto val = static_cast<SemaphoreValue>(i);
+            const auto measurement = vierkant::timestamp_millis(timestamps, val, timestamp_period);
             timing_millis[i] = measurement;
         }
     }
@@ -1440,9 +1441,9 @@ void PBRDeferred::update_timing(frame_context_t &frame_context)
     timings_result.tonemap_ms = timing_millis[SemaphoreValue::TONEMAP];
     timings_result.depth_of_field_ms = timing_millis[SemaphoreValue::DEFOCUS_BLUR];
 
-    timings_result.total_ms = timings_result.g_buffer_pre_ms + timings_result.depth_pyramid_ms +
-                              timings_result.culling_ms + timings_result.g_buffer_post_ms + timings_result.lighting_ms +
-                              timings_result.taa_ms + timings_result.bloom_ms + timings_result.tonemap_ms;
+    timings_result.total_ms = timestamp_diff(timestamps[2 * SemaphoreValue::MESH_COMPUTE],
+                                             timestamps[2 * frame_context.semaphore_value_done + 1],
+                                             m_device->properties().core.limits.timestampPeriod);
 
     frame_context.stats.timings = timings_result;
 
@@ -1498,7 +1499,7 @@ std::vector<uint16_t> PBRDeferred::pick(const glm::vec2 &normalized_coord, const
     frame_context.cmd_copy_object_id.submit(m_queue, true, VK_NULL_HANDLE, {semaphore_info});
 
     std::unordered_set<uint16_t> value_set;
-    auto ptr = static_cast<const uint16_t *>(buf->map());
+    auto *ptr = static_cast<const uint16_t *>(buf->map());
     for(uint32_t i = 0; i < num_object_ids; ++i)
     {
         if(ptr[i]) { value_set.insert(std::numeric_limits<uint16_t>::max() - ptr[i]); }
