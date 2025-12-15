@@ -1441,9 +1441,10 @@ void PBRDeferred::update_timing(frame_context_t &frame_context)
     timings_result.tonemap_ms = timing_millis[SemaphoreValue::TONEMAP];
     timings_result.depth_of_field_ms = timing_millis[SemaphoreValue::DEFOCUS_BLUR];
 
-    timings_result.total_ms = timestamp_diff(timestamps[2 * SemaphoreValue::MESH_COMPUTE],
-                                             timestamps[2 * frame_context.semaphore_value_done + 1],
-                                             m_device->properties().core.limits.timestampPeriod);
+    timings_result.total_ms = timings_result.mesh_compute_ms + timings_result.g_buffer_pre_ms +
+                              timings_result.depth_pyramid_ms + timings_result.culling_ms +
+                              timings_result.g_buffer_post_ms + timings_result.lighting_ms + timings_result.taa_ms +
+                              timings_result.bloom_ms + timings_result.tonemap_ms;
 
     frame_context.stats.timings = timings_result;
 
