@@ -158,6 +158,7 @@ public:
         VkQueue queue = VK_NULL_HANDLE;
         uint32_t random_seed = 0;
         std::optional<vierkant::debug_label_t> debug_label;
+        bool use_gpu_timestamps = true;
     };
 
     //! struct grouping information for direct-rendering
@@ -197,6 +198,9 @@ public:
 
     //! option to use a meshlet-based pipeline
     bool use_mesh_shader = false;
+
+    //! option to write gpu-timestamps
+    bool use_gpu_timestamps = true;
 
     //! optional flags to visualize object/meshlet/lod indices
     uint32_t debug_draw_flags = 0;
@@ -323,6 +327,7 @@ private:
 
         // used for gpu timestamps
         vierkant::QueryPoolPtr query_pool;
+        bool acquire_timestamps = false;
         double_millisecond_t frame_time;
     };
 
