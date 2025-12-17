@@ -54,6 +54,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                           {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 256},
                                                           {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
                                                           {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256},
+                                                          {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 256},
                                                           {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, 1024}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 1024);
     }
@@ -970,8 +971,14 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     frame_context.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
     frame_context.lights_ubo->set_data(frame_context.cull_result.lights);
 
+    vierkant::Rasterizer::rendering_info_t rendering_info = {};
+    rendering_info.command_buffer = frame_context.cmd_lighting.handle();
+    rendering_info.color_attachment_formats = {frame_context.lighting_buffer.color_attachment()->format().format};
+    rendering_info.depth_attachment_format = frame_context.lighting_buffer.depth_attachment()->format().format;
+    // rendering_info.recycle_commands = frame_context.recycle_commands;
+
     // record lighting command-buffer
-    if(!frame_context.recycle_commands)
+    if(!frame_context.recycle_commands || frame_context.settings.ambient_occlusion)
     {
         frame_context.cmd_lighting.begin(0);
         vierkant::begin_label(frame_context.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
@@ -1046,10 +1053,6 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                              frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING);
         frame_context.lighting_buffer.begin_rendering(begin_rendering_info);
 
-        vierkant::Rasterizer::rendering_info_t rendering_info = {};
-        rendering_info.command_buffer = frame_context.cmd_lighting.handle();
-        rendering_info.color_attachment_formats = {frame_context.lighting_buffer.color_attachment()->format().format};
-        rendering_info.depth_attachment_format = frame_context.lighting_buffer.depth_attachment()->format().format;
         m_renderer_lighting.render(rendering_info);
         vkCmdEndRendering(frame_context.cmd_lighting.handle());
 
@@ -1070,6 +1073,11 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
                              frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING + 1);
         vierkant::end_label(frame_context.cmd_lighting.handle());
+    }
+    else
+    {
+        // only increment internal frame/asset-counter
+        m_renderer_lighting.skip_frames(2);
     }
 
     vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
@@ -1329,8 +1337,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
 
         // resize ambient occlusion context
         auto ao_resolution = glm::max(glm::vec2(frame_context.settings.resolution) / 2.f, glm::vec2(1.f));
-        frame_context.ambient_occlusion_context =
-                vierkant::create_ambient_occlusion_context(m_device, ao_resolution, m_pipeline_cache);
+        frame_context.ambient_occlusion_context = vierkant::create_ambient_occlusion_context(
+                m_device, ao_resolution, m_pipeline_cache, m_descriptor_pool);
 
         m_logger->trace("internal resolution: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
                         resolution.y);

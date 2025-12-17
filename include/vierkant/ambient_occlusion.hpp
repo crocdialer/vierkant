@@ -38,11 +38,13 @@ struct ambient_occlusion_params_t
  * @param   device          a provided vierkant::DevicePtr
  * @param   size            provided size of the ambient-occlusion context (and result-image).
  * @param   pipeline_cache  optional vierkant::PipelineCachePtr
+ * @param   descriptor_pool optional vierkant::DescriptorPoolPtr
  * @return  opaque handle to a ambient_occlusion_context_t.
  */
 ambient_occlusion_context_ptr
 create_ambient_occlusion_context(const vierkant::DevicePtr &device, const glm::vec2 &size,
-                                 const vierkant::PipelineCachePtr &pipeline_cache = nullptr);
+                                 const vierkant::PipelineCachePtr &pipeline_cache = nullptr,
+                                 const vierkant::DescriptorPoolPtr &descriptor_pool = nullptr);
 
 /**
  * @brief   'ambient_occlusion' can be used to calculate a fullscreen ambient-occlusion mask.

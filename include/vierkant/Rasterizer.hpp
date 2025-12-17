@@ -257,6 +257,15 @@ public:
     void render(const rendering_info_t &rendering_info);
 
     /**
+     * @brief   skip_frames can be used to increment internal frame- & asset-counters,
+     *          without issuing any drawing commands.
+     *
+     * @param   num_frames  frame-increment to add to current index.
+     */
+    void skip_frames(uint32_t num_frames = 1)
+    { m_current_index = (m_current_index + num_frames) % m_frame_assets.size(); }
+
+    /**
      * @return  the current frame-index.
      */
     [[nodiscard]] uint32_t current_index() const { return m_current_index; }
