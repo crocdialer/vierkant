@@ -54,10 +54,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                           {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 256},
                                                           {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 256},
                                                           {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 256},
+                                                          {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 256},
                                                           {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, 1024}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 1024);
     }
-    else { m_descriptor_pool = create_info.descriptor_pool; }
+    else
+    {
+        m_descriptor_pool = create_info.descriptor_pool;
+    }
 
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(device);
@@ -146,6 +150,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     auto light_render_create_info = render_create_info;
     light_render_create_info.num_frames_in_flight = 2 * create_info.num_frames_in_flight;
     light_render_create_info.debug_label = {.text = "renderer_lighting"};
+    light_render_create_info.use_gpu_timestamps = false;
     m_renderer_lighting = vierkant::Rasterizer(device, light_render_create_info);
 
     // create renderer for post-fx-passes
@@ -293,9 +298,7 @@ PBRDeferred::~PBRDeferred()
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
-{
-    return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info));
-}
+{ return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info)); }
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
 {
@@ -542,7 +545,10 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
             frame_context.mesh_compute_result =
                     vierkant::mesh_compute(frame_context.mesh_compute_context, mesh_compute_params);
         }
-        else { frame_context.timeline.signal(frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE); }
+        else
+        {
+            frame_context.timeline.signal(frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE);
+        }
     }
 
     if(!frame_context.recycle_commands)
@@ -668,7 +674,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 drawable.pipeline_format.shader_stages = stage_it->second;
             }
-            else { drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT]; }
+            else
+            {
+                drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT];
+            }
 
             // set attachment count
             drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
@@ -952,7 +961,24 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                    m_g_renderer_main.num_concurrent_frames();
     auto &frame_context = m_frame_contexts[index];
 
-    //    if(!frame_context.recycle_commands)
+    // update UBO
+    environment_lighting_ubo_t ubo = {};
+    ubo.camera_transform = mat4_cast(cull_result.camera->global_transform());
+    ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
+    ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
+    ubo.environment_factor = frame_context.settings.environment_factor;
+    ubo.num_lights = frame_context.cull_result.lights.size();
+    frame_context.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
+    frame_context.lights_ubo->set_data(frame_context.cull_result.lights);
+
+    vierkant::Rasterizer::rendering_info_t rendering_info = {};
+    rendering_info.command_buffer = frame_context.cmd_lighting.handle();
+    rendering_info.color_attachment_formats = {frame_context.lighting_buffer.color_attachment()->format().format};
+    rendering_info.depth_attachment_format = frame_context.lighting_buffer.depth_attachment()->format().format;
+    // rendering_info.recycle_commands = frame_context.recycle_commands;
+
+    // record lighting command-buffer
+    if(!frame_context.recycle_commands || frame_context.settings.ambient_occlusion)
     {
         frame_context.cmd_lighting.begin(0);
         vierkant::begin_label(frame_context.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
@@ -1001,15 +1027,6 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
             frame_context.internal_images.occlusion = occlusion_img;
         }
 
-        environment_lighting_ubo_t ubo = {};
-        ubo.camera_transform = mat4_cast(cull_result.camera->global_transform());
-        ubo.inverse_projection = glm::inverse(cull_result.camera->projection_matrix());
-        ubo.num_mip_levels = static_cast<int>(std::log2(m_conv_ggx->width()) + 1);
-        ubo.environment_factor = frame_context.settings.environment_factor;
-        ubo.num_lights = frame_context.cull_result.lights.size();
-        frame_context.lighting_param_ubo->set_data(&ubo, sizeof(ubo));
-        frame_context.lights_ubo->set_data(frame_context.cull_result.lights);
-
         // environment lighting-pass
         auto drawable = m_drawable_lighting_env;
         drawable.descriptors[0].buffers = {frame_context.lighting_param_ubo};
@@ -1027,11 +1044,6 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         // stage, render, submit
         m_renderer_lighting.stage_drawable(drawable);
 
-        vierkant::Rasterizer::rendering_info_t rendering_info = {};
-        rendering_info.command_buffer = frame_context.cmd_lighting.handle();
-        rendering_info.color_attachment_formats = {frame_context.lighting_buffer.color_attachment()->format().format};
-        rendering_info.depth_attachment_format = frame_context.lighting_buffer.depth_attachment()->format().format;
-
         vierkant::Framebuffer::begin_rendering_info_t begin_rendering_info = {};
         begin_rendering_info.commandbuffer = frame_context.cmd_lighting.handle();
         begin_rendering_info.use_depth_attachment = false;
@@ -1040,6 +1052,7 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
         vkCmdWriteTimestamp2(frame_context.cmd_lighting.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                              frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING);
         frame_context.lighting_buffer.begin_rendering(begin_rendering_info);
+
         m_renderer_lighting.render(rendering_info);
         vkCmdEndRendering(frame_context.cmd_lighting.handle());
 
@@ -1061,6 +1074,12 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                              frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING + 1);
         vierkant::end_label(frame_context.cmd_lighting.handle());
     }
+    else
+    {
+        // only increment internal frame/asset-counter
+        m_renderer_lighting.skip_frames(2);
+    }
+
     vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
     lighting_semaphore_info.semaphore = frame_context.timeline.handle();
     lighting_semaphore_info.wait_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
@@ -1318,8 +1337,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
 
         // resize ambient occlusion context
         auto ao_resolution = glm::max(glm::vec2(frame_context.settings.resolution) / 2.f, glm::vec2(1.f));
-        frame_context.ambient_occlusion_context =
-                vierkant::create_ambient_occlusion_context(m_device, ao_resolution, m_pipeline_cache);
+        frame_context.ambient_occlusion_context = vierkant::create_ambient_occlusion_context(
+                m_device, ao_resolution, m_pipeline_cache, m_descriptor_pool);
 
         m_logger->trace("internal resolution: {} x {} -> {} x {}", previous_size.x, previous_size.y, resolution.x,
                         resolution.y);

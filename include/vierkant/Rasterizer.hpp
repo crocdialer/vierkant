@@ -158,6 +158,7 @@ public:
         VkQueue queue = VK_NULL_HANDLE;
         uint32_t random_seed = 0;
         std::optional<vierkant::debug_label_t> debug_label;
+        bool use_gpu_timestamps = true;
     };
 
     //! struct grouping information for direct-rendering
@@ -197,6 +198,9 @@ public:
 
     //! option to use a meshlet-based pipeline
     bool use_mesh_shader = false;
+
+    //! option to write gpu-timestamps
+    bool use_gpu_timestamps = true;
 
     //! optional flags to visualize object/meshlet/lod indices
     uint32_t debug_draw_flags = 0;
@@ -251,6 +255,15 @@ public:
      * @param   rendering_info  a struct grouping parameters for a direct-rendering pass.
      */
     void render(const rendering_info_t &rendering_info);
+
+    /**
+     * @brief   skip_frames can be used to increment internal frame- & asset-counters,
+     *          without issuing any drawing commands.
+     *
+     * @param   num_frames  frame-increment to add to current index.
+     */
+    void skip_frames(uint32_t num_frames = 1)
+    { m_current_index = (m_current_index + num_frames) % m_frame_assets.size(); }
 
     /**
      * @return  the current frame-index.
@@ -323,6 +336,7 @@ private:
 
         // used for gpu timestamps
         vierkant::QueryPoolPtr query_pool;
+        bool acquire_timestamps = false;
         double_millisecond_t frame_time;
     };
 

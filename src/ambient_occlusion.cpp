@@ -38,7 +38,8 @@ struct alignas(16) rtao_params_t
 };
 
 ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::DevicePtr &device, const glm::vec2 &size,
-                                                               const vierkant::PipelineCachePtr &pipeline_cache)
+                                                               const vierkant::PipelineCachePtr &pipeline_cache,
+                                                               const vierkant::DescriptorPoolPtr &descriptor_pool)
 {
     auto ret = ambient_occlusion_context_ptr(new ambient_occlusion_context_t,
                                              std::default_delete<ambient_occlusion_context_t>());
@@ -65,7 +66,7 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
     renderer_info.viewport.height = size.y;
     renderer_info.viewport.maxDepth = 1;
     renderer_info.pipeline_cache = pipeline_cache;
-    renderer_info.descriptor_pool = nullptr;
+    renderer_info.descriptor_pool = descriptor_pool;
     renderer_info.command_pool = ret->command_pool;
     ret->renderer = vierkant::Rasterizer(device, renderer_info);
 

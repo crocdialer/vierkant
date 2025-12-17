@@ -24,9 +24,7 @@ struct texture_index_key_t
     size_t texture_hash = 0;
 
     inline bool operator==(const texture_index_key_t &other) const
-    {
-        return mesh == other.mesh && texture_hash == other.texture_hash;
-    }
+    { return mesh == other.mesh && texture_hash == other.texture_hash; }
 };
 
 struct texture_index_hash_t
@@ -95,6 +93,7 @@ Rasterizer::Rasterizer(DevicePtr device, const create_info_t &create_info)
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(m_device);
 
     debug_label = create_info.debug_label;
+    use_gpu_timestamps = create_info.use_gpu_timestamps;
 
     // push constant range
     m_push_constant_range.offset = 0;
@@ -143,6 +142,7 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
     std::swap(lhs.m_start_time, rhs.m_start_time);
 
     std::swap(lhs.use_mesh_shader, rhs.use_mesh_shader);
+    std::swap(lhs.use_gpu_timestamps, rhs.use_gpu_timestamps);
     std::swap(lhs.m_mesh_task_count, rhs.m_mesh_task_count);
 }
 
@@ -382,7 +382,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                     m_device, drawable.descriptors, frame_assets.descriptor_set_layouts, next_set_layouts);
             pipeline_format.descriptor_set_layouts = {indexed_drawable.descriptor_set_layout.get()};
         }
-        else { indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout); }
+        else
+        {
+            indexed_drawable.descriptor_set_layout = std::move(drawable.descriptor_set_layout);
+        }
 
         // bindless texture-array
         pipeline_format.descriptor_set_layouts.push_back(bindless_texture_layout.get());
@@ -534,7 +537,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
     // record start-timestamp
     if(debug_label) { vierkant::begin_label(command_buffer, *debug_label); }
-    vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, frame_assets.query_pool.get(), 0);
+    if(use_gpu_timestamps)
+    {
+        vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT, frame_assets.query_pool.get(), 0);
+    }
 
     // grouped by pipelines
     for(auto &[pipe_fmt, indirect_draws]: pipelines)
@@ -683,7 +689,10 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     }
 
     // record end-timestamp
-    vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, frame_assets.query_pool.get(), 1);
+    if(use_gpu_timestamps)
+    {
+        vkCmdWriteTimestamp2(command_buffer, VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT, frame_assets.query_pool.get(), 1);
+    }
     if(debug_label) { vierkant::end_label(command_buffer); }
 
     // keep the stuff in use
@@ -745,7 +754,10 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                 mesh_entry.radius = e.bounding_sphere.radius;
                 mesh_entries.push_back(mesh_entry);
             }
-            else { mesh_index = mesh_entry_it->second; }
+            else
+            {
+                mesh_index = mesh_entry_it->second;
+            }
 
             VkDeviceAddress vertex_buffer_address =
                     drawable.vertex_buffer ? drawable.vertex_buffer : drawable.mesh->vertex_buffer->device_address();
@@ -762,7 +774,10 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
             uint32_t vis = 0xFFFFFFFF;
             meshlet_visibility_data.resize(meshlet_visibility_data.size() + div_up(drawable.num_meshlets, 32), vis);
         }
-        else { material_data.push_back(drawable.material); }
+        else
+        {
+            material_data.push_back(drawable.material);
+        }
 
         frame_asset.mesh_draws[i].current_matrices = drawable.matrices;
         frame_asset.mesh_draws[i].mesh_index = mesh_index;
@@ -770,7 +785,10 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
         frame_asset.mesh_draws[i].vertex_buffer_index = vertex_buffer_index;
 
         if(drawable.last_matrices) { frame_asset.mesh_draws[i].last_matrices = *drawable.last_matrices; }
-        else { frame_asset.mesh_draws[i].last_matrices = drawable.matrices; }
+        else
+        {
+            frame_asset.mesh_draws[i].last_matrices = drawable.matrices;
+        }
     }
 
     auto copy_to_buffer = [&device = m_device](const auto &array, vierkant::BufferPtr &out_buffer) {
@@ -781,7 +799,10 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
                                                   VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                                   VMA_MEMORY_USAGE_CPU_TO_GPU);
         }
-        else { out_buffer->set_data(array); }
+        else
+        {
+            out_buffer->set_data(array);
+        }
     };
 
     std::vector<staging_copy_info_t> staging_copies;
@@ -894,7 +915,10 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
     {
         frame_asset.indirect_indexed_bundle.draws_in = vierkant::Buffer::create(buffer_info);
     }
-    else { frame_asset.indirect_indexed_bundle.draws_in->set_data(nullptr, num_bytes_indexed); }
+    else
+    {
+        frame_asset.indirect_indexed_bundle.draws_in->set_data(nullptr, num_bytes_indexed);
+    }
 
     if(!frame_asset.indirect_bundle.draws_in || frame_asset.indirect_bundle.draws_in->num_bytes() < num_bytes)
     {
@@ -902,7 +926,10 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
         buffer_info.name = "Rasterizer: frame_asset.indirect_bundle.draws_in";
         frame_asset.indirect_bundle.draws_in = vierkant::Buffer::create(buffer_info);
     }
-    else { frame_asset.indirect_bundle.draws_in->set_data(nullptr, num_bytes); }
+    else
+    {
+        frame_asset.indirect_bundle.draws_in->set_data(nullptr, num_bytes);
+    }
 
     //////////////////////////// indirect-draw GPU buffers /////////////////////////////////////////////////////////////
 
@@ -919,7 +946,10 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
             buffer_info.name = "Rasterizer: frame_asset.indirect_indexed_bundle.draws_out";
             frame_asset.indirect_indexed_bundle.draws_out = vierkant::Buffer::create(buffer_info);
         }
-        else { frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed); }
+        else
+        {
+            frame_asset.indirect_indexed_bundle.draws_out->set_data(nullptr, num_bytes_indexed);
+        }
 
         size_t num_bytes_draw_command_indices = std::max<size_t>(num_drawables * sizeof(uint32_t), 1UL << 18);
 
@@ -948,7 +978,10 @@ void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_asse
                             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                     VMA_MEMORY_USAGE_GPU_ONLY);
         }
-        else { frame_asset.indirect_bundle.draws_out->set_data(nullptr, num_bytes); }
+        else
+        {
+            frame_asset.indirect_bundle.draws_out->set_data(nullptr, num_bytes);
+        }
     }
 }
 
