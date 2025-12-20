@@ -191,7 +191,7 @@ public:
      * @brief  request transition to a new image layout
      */
     void transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer = VK_NULL_HANDLE,
-                           VkDependencyFlags dependency_flags = 0);
+                           VkDependencyFlags dependency_flags = 0, bool force = false);
 
     /**
      * @brief  more explicit alternative to 'transition_layout'

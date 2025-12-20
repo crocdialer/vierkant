@@ -409,9 +409,9 @@ Image::Image(DevicePtr device, const void *data, const VkImagePtr &shared_image,
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer, VkDependencyFlags dependency_flags)
+void Image::transition_layout(VkImageLayout new_layout, VkCommandBuffer cmd_buffer, VkDependencyFlags dependency_flags, bool force)
 {
-    if(new_layout != *m_image_layout)
+    if(force || new_layout != *m_image_layout)
     {
         vierkant::CommandBuffer localCommandBuffer;
 

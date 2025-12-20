@@ -192,6 +192,7 @@ vierkant::ImagePtr create_convolution_ggx(const DevicePtr &device, const ImagePt
     ret_fmt.autogenerate_mipmaps = false;
     ret_fmt.initial_layout_transition = false;
     ret_fmt.extent = {size, size, 1};
+    ret_fmt.name = "cube_convolution_ggx";
 
     vierkant::ImagePtr ret = vierkant::Image::create(device, ret_fmt);
     uint32_t num_mips = ret->num_mip_levels();
@@ -375,7 +376,8 @@ vierkant::ImagePtr create_BRDF_lut(const vierkant::DevicePtr &device, VkQueue qu
     vierkant::Image::Format img_fmt = {};
     img_fmt.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
     img_fmt.format = VK_FORMAT_R16G16_SFLOAT;
-
+    img_fmt.name = "brdf_lut";
+    
     // create framebuffer
     vierkant::Framebuffer::create_info_t fb_create_info = {};
     fb_create_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};

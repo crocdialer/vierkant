@@ -58,10 +58,7 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                           {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, 1024}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 1024);
     }
-    else
-    {
-        m_descriptor_pool = create_info.descriptor_pool;
-    }
+    else { m_descriptor_pool = create_info.descriptor_pool; }
 
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(device);
@@ -272,11 +269,14 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
     m_draw_context = vierkant::DrawContext(device);
 
     // solid black/white colors
-    uint32_t v = 0xFF000000;
     vierkant::Image::Format fmt;
     fmt.extent = {1, 1, 1};
     fmt.format = VK_FORMAT_R8G8B8A8_UNORM;
+    fmt.name = "util_img_black";
+    uint32_t v = 0xFF000000;
     m_util_img_black = vierkant::Image::create(m_device, &v, fmt);
+
+    fmt.name = "util_img_white";
     v = 0xFFFFFFFF;
     m_util_img_white = vierkant::Image::create(m_device, &v, fmt);
 
@@ -298,7 +298,9 @@ PBRDeferred::~PBRDeferred()
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
-{ return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info)); }
+{
+    return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info));
+}
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
 {
@@ -545,10 +547,7 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
             frame_context.mesh_compute_result =
                     vierkant::mesh_compute(frame_context.mesh_compute_context, mesh_compute_params);
         }
-        else
-        {
-            frame_context.timeline.signal(frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE);
-        }
+        else { frame_context.timeline.signal(frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE); }
     }
 
     if(!frame_context.recycle_commands)
@@ -674,10 +673,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 drawable.pipeline_format.shader_stages = stage_it->second;
             }
-            else
-            {
-                drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT];
-            }
+            else { drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT]; }
 
             // set attachment count
             drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
@@ -1327,6 +1323,8 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
         hdr_attachment_info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
         hdr_attachment_info.format = m_hdr_format;
         hdr_attachment_info.extent = size;
+        hdr_attachment_info.initial_layout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL;
+        hdr_attachment_info.name = "lighting_color_attachment";
         lighting_attachments[vierkant::AttachmentType::Color] = {
                 vierkant::Image::create(m_device, hdr_attachment_info)};
 
