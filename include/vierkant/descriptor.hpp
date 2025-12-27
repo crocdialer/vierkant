@@ -79,12 +79,14 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, cons
 /**
  * @brief   Create a shared VkDescriptorSetLayout (DescriptorSetLayoutPtr) for a given array of vierkant::descriptor_t
  *
- * @param   device      handle for the vierkant::Device to create the DescriptorSetLayout
- * @param   descriptors an array of descriptor_t to create a layout from
+ * @param   device                  handle for the vierkant::Device to create the DescriptorSetLayout
+ * @param   descriptors             an array of descriptor_t to create a layout from
+ * @param   use_descriptor_buffer   flag indicating if the layout is intended for use with descriptor-buffers
  * @return  the newly created DescriptorSetLayoutPtr
  */
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
-                                                    const descriptor_map_t &descriptors);
+                                                    const descriptor_map_t &descriptors,
+                                                    bool use_descriptor_buffer = false);
 
 /**
  * @brief   Create a shared VkDescriptorSet (DescriptorSetPtr) for a provided set-layout.
@@ -145,8 +147,7 @@ DescriptorSetLayoutPtr find_or_create_set_layout(const vierkant::DevicePtr &devi
  * @param   relax_reuse     flag to somewhat relax reuse of descriptors
  * @return  a retrieved or newly created, shared VkDescriptorSet.
  */
-DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device,
-                                               VkDescriptorSetLayout set_layout,
+DescriptorSetPtr find_or_create_descriptor_set(const vierkant::DevicePtr &device, VkDescriptorSetLayout set_layout,
                                                const descriptor_map_t &descriptors,
                                                const vierkant::DescriptorPoolPtr &pool, descriptor_set_map_t &last,
                                                descriptor_set_map_t &current, bool variable_count,

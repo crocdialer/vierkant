@@ -42,7 +42,7 @@ DescriptorPoolPtr create_descriptor_pool(const vierkant::DevicePtr &device, cons
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &device,
-                                                    const descriptor_map_t &descriptors)
+                                                    const descriptor_map_t &descriptors, bool use_descriptor_buffer)
 {
     constexpr VkDescriptorBindingFlags default_flags =
             VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
@@ -70,17 +70,19 @@ DescriptorSetLayoutPtr create_descriptor_set_layout(const vierkant::DevicePtr &d
         flags_array.push_back(desc.variable_count ? bindless_flags : default_flags);
     }
 
-    VkDescriptorSetLayoutBindingFlagsCreateInfo extended_info = {};
-    extended_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
-    extended_info.bindingCount = flags_array.size();
-    extended_info.pBindingFlags = flags_array.data();
+    VkDescriptorSetLayoutBindingFlagsCreateInfo flags_info = {};
+    flags_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+    flags_info.bindingCount = flags_array.size();
+    flags_info.pBindingFlags = flags_array.data();
 
     VkDescriptorSetLayoutCreateInfo layout_info = {};
     layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layout_info.pNext = &extended_info;
+    layout_info.pNext = &flags_info;
     layout_info.bindingCount = static_cast<uint32_t>(bindings.size());
     layout_info.pBindings = bindings.data();
     layout_info.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT;
+
+    if(use_descriptor_buffer) { layout_info.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT; }
 
     VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
     vkCheck(vkCreateDescriptorSetLayout(device->handle(), &layout_info, nullptr, &descriptor_set_layout),
@@ -385,9 +387,9 @@ void update_descriptor_buffer(const vierkant::DevicePtr &device, const Descripto
 
                         if(descriptor_get_info.type == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER)
                         {
-                            descriptor_get_info.data.pUniformBuffer = &address_info;
+                            descriptor_get_info.data.pStorageBuffer = &address_info;
                         }
-                        else { descriptor_get_info.data.pStorageBuffer = &address_info; }
+                        else { descriptor_get_info.data.pUniformBuffer = &address_info; }
 
                         vkGetDescriptorEXT(device->handle(), &descriptor_get_info, desc_stride,
                                            data_ptr + i * desc_stride);
