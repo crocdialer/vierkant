@@ -44,14 +44,7 @@ layout(location = 5) out uint out_object_id;
 //! return a texture's index by counting all set flagbits
 uint tex_offset(uint type, uint flags)
 {
-    uint ret = 0;
-    uint msb = findMSB(type);
-
-    for(uint i = 0; i < msb; ++i)
-    {
-        if((flags & (TEXTURE_TYPE_COLOR << i)) > 0){ ret++; }
-    }
-    return ret;
+    return bitCount(flags & (type - 1));
 }
 
 void main()
