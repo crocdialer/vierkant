@@ -503,19 +503,6 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
 
     // upload data
     frame_context.trace_data_ubo->set_data(&trace_data, sizeof(trace_data_t));
-
-    // TODO: basically already replaced by BDA, ironing out remaining issues
-    vierkant::descriptor_t &desc_vertex_buffers = frame_context.tracable.descriptors[5];
-    desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_vertex_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-    desc_vertex_buffers.buffers = frame_context.scene_ray_acceleration.vertex_buffers;
-    desc_vertex_buffers.buffer_offsets = frame_context.scene_ray_acceleration.vertex_buffer_offsets;
-
-    vierkant::descriptor_t &desc_index_buffers = frame_context.tracable.descriptors[6];
-    desc_index_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_index_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-    desc_index_buffers.buffers = frame_context.scene_ray_acceleration.index_buffers;
-    desc_index_buffers.buffer_offsets = frame_context.scene_ray_acceleration.index_buffer_offsets;
 }
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_t &frame_context,
