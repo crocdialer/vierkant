@@ -181,6 +181,12 @@ public:
         std::vector<VkDeviceSize> vertex_buffer_offsets;
         std::vector<VkDeviceSize> index_buffer_offsets;
 
+        //! buffer containing all vertex-buffer addresses
+        vierkant::BufferPtr vertex_buffer_addresses = nullptr;
+
+        //! buffer containing all index-buffer addresses
+        vierkant::BufferPtr index_buffer_addresses = nullptr;
+
         //! the scene used to generate above data
         SceneConstPtr scene;
 

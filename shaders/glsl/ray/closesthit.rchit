@@ -1,15 +1,13 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
-#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_buffer_reference2: require
 #extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/phase_function.glsl"
 #include "../utils/simplex.glsl"
-
-// for material_t / entries
-#include "types.glsl"
 
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
@@ -17,24 +15,20 @@
 
 #define USE_DIRECT_LIGHTING 0
 
-layout(push_constant) uniform PushConstants
-{
-    push_constants_t push_constants;
-};
-
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
-// array of vertex-buffers
+layout(binding = 1, set = 0) uniform TraceData
+{
+    trace_data_t trace_data;
+};
+
+layout(binding = 2) uniform sampler2D u_textures[];
+
+// TODO: basically already replaced by BDA, ironing out remaining issues
 layout(binding = 5, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
-
-// array of index-buffers
 layout(binding = 6, set = 0) readonly buffer Indices { uint i[]; } indices[];
-
 layout(binding = 7, set = 0) readonly buffer Entries { entry_t entries[]; };
-
 layout(binding = 8, set = 0) readonly buffer Materials{ material_t materials[]; };
-
-layout(binding = 9) uniform sampler2D u_textures[];
 
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
@@ -155,7 +149,8 @@ void main()
     Vertex v = interpolate_vertex(triangle);
     float triangle_lod = lod_constant(triangle);
 
-    nonuniformEXT material_t material = materials[nonuniformEXT(entries[gl_InstanceCustomIndexEXT].material_index)];
+    nonuniformEXT entry_t entry = entries[nonuniformEXT(gl_InstanceCustomIndexEXT)];
+    nonuniformEXT material_t material = materials[nonuniformEXT(entry.material_index)];
 
     vec3 V = -gl_WorldRayDirectionEXT;
     float NoV = abs(dot(V, payload.normal));
@@ -197,7 +192,7 @@ void main()
             const float inv_max_density = 1.0;
 
             // ray to entry's normalized aabb
-            transform_t to_media = to_aabb_norm(entries[gl_InstanceCustomIndexEXT]);
+            transform_t to_media = to_aabb_norm(entry);
 
             Ray ray_local = payload.ray;
             float scale = length(vec3(to_media.scale_x, to_media.scale_y, to_media.scale_z));
@@ -214,7 +209,7 @@ void main()
                 vec3 p = ray_local.origin + t * ray_local.direction;
 
                 // sample grid-density // TODO: volume-sampler
-                float density = clamp(0.5 * (simplex(vec4(4 * p, push_constants.time * 0.1) + 1.0)), 0.0, 1.0);
+                float density = clamp(0.5 * (simplex(vec4(4 * p, trace_data.params.time * 0.1) + 1.0)), 0.0, 1.0);
 
                 if(density * inv_max_density > rnd(rng_state))
                 {
@@ -280,7 +275,7 @@ void main()
             material.color *= sample_texture_lod(u_textures[material.albedo_index],
             v.tex_coord, NoV, payload.cone.width, triangle_lod);
         }
-        material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
+        material.color = trace_data.params.disable_material ? vec4(vec3(.8), 1.0) : material.color;
 
         if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
         {
