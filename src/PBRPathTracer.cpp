@@ -542,6 +542,13 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     // default: air
     trace_data.camera_media = {};
 
+    // assign buffer-addresses
+    trace_data.vertex_buffers = frame_context.scene_ray_acceleration.vertex_buffer_addresses->device_address();
+    trace_data.index_buffers = frame_context.scene_ray_acceleration.index_buffer_addresses->device_address();
+    trace_data.entries = frame_context.scene_ray_acceleration.entry_buffer->device_address();
+    trace_data.materials = frame_context.scene_ray_acceleration.material_buffer->device_address();
+    trace_data.out_pixels = m_storage.pixel_buffer->device_address();
+
     // update uniform-buffers
     ray_gen_ubo_t ray_gen_ubo = {.camera = camera_params};
     frame_context.ray_gen_ubo->set_data(&ray_gen_ubo, sizeof(ray_gen_ubo_t));
