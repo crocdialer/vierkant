@@ -1,7 +1,6 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
 #extension GL_EXT_nonuniform_qualifier : enable
-#extension GL_EXT_buffer_reference2: require
 #extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_GOOGLE_include_directive : enable
@@ -13,14 +12,22 @@
 
 #include "ray_common.glsl"
 
-layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-
-layout(binding = 1, set = 0) uniform TraceData
+layout(push_constant) uniform PushConstants
 {
-    trace_data_t trace_data;
+    push_constants_t push_constants;
 };
 
-layout(binding = 2) uniform sampler2D u_textures[];
+// array of vertex-buffers
+layout(binding = 5, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
+
+// array of index-buffers
+layout(binding = 6, set = 0) readonly buffer Indices { uint i[]; } indices[];
+
+layout(binding = 7, set = 0) readonly buffer Entries { entry_t entries[]; };
+
+layout(binding = 8, set = 0) readonly buffer Materials{ material_t materials[]; };
+
+layout(binding = 9) uniform sampler2D u_textures[];
 
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
@@ -33,8 +40,8 @@ void main()
     uint rng_state = payload.rng_state;
 
     // entry aka instance
-    nonuniformEXT entry_t entry = trace_data.entries.v[nonuniformEXT(gl_InstanceCustomIndexEXT)];
-    nonuniformEXT material_t material = trace_data.materials.v[nonuniformEXT(entry.material_index)];
+    nonuniformEXT entry_t entry = entries[nonuniformEXT(gl_InstanceCustomIndexEXT)];
+    nonuniformEXT material_t material = materials[nonuniformEXT(entry.material_index)];
 
     if(!material.null_surface && (material.blend_mode == BLEND_MODE_MASK || material.blend_mode == BLEND_MODE_BLEND))
     {
@@ -42,14 +49,14 @@ void main()
         if((material.texture_type_flags & TEXTURE_TYPE_COLOR) != 0)
         {
             // triangle indices
-            ivec3 ind = ivec3(trace_data.index_buffers.v[entry.buffer_index].v[entry.base_index + 3 * gl_PrimitiveID + 0],
-                              trace_data.index_buffers.v[entry.buffer_index].v[entry.base_index + 3 * gl_PrimitiveID + 1],
-                              trace_data.index_buffers.v[entry.buffer_index].v[entry.base_index + 3 * gl_PrimitiveID + 2]);
+            ivec3 ind = ivec3(indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 0],
+            indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 1],
+            indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 2]);
 
             // triangle vertices
-            Triangle t = Triangle(unpack(trace_data.vertex_buffers.v[entry.buffer_index].v[entry.vertex_offset + ind.x]),
-                                  unpack(trace_data.vertex_buffers.v[entry.buffer_index].v[entry.vertex_offset + ind.y]),
-                                  unpack(trace_data.vertex_buffers.v[entry.buffer_index].v[entry.vertex_offset + ind.z]));
+            Triangle t = Triangle(unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.x]),
+                                  unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.y]),
+                                  unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.z]));
 
             // interpolated vertex
             const vec3 barycentric = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
@@ -57,7 +64,7 @@ void main()
 
             material.color *= texture(u_textures[material.albedo_index], tex_coord);
         }
-        material.color = trace_data.params.disable_material ? vec4(vec3(.8), 1.0) : material.color;
+        material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
 
         if(material.blend_mode == BLEND_MODE_MASK && material.color.a < material.alpha_cutoff)
         {

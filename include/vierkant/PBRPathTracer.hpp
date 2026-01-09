@@ -186,7 +186,7 @@ private:
 
         vierkant::ImagePtr denoise_image, out_image, out_depth;
 
-        vierkant::BufferPtr trace_data_ubo, composition_ubo;
+        vierkant::BufferPtr ray_gen_ubo, ray_miss_ubo, composition_ubo;
 
         BloomUPtr bloom;
 
@@ -199,7 +199,7 @@ private:
         statistics_t statistics = {};
     };
 
-    struct alignas(16) trace_params_t
+    struct push_constants_t
     {
         //! current time since start in seconds
         float time = 0.f;
@@ -218,9 +218,6 @@ private:
 
         //! enable skybox/background rendering
         uint32_t draw_skybox = true;
-
-        //! multiplier for radiance from environment
-        float environment = 1.f;
 
         //! a provided random seed
         uint32_t random_seed = 0;
@@ -243,27 +240,12 @@ private:
         VkBool32 ortho = false;
     };
 
-    struct alignas(16) media_t
+    struct media_t
     {
         glm::vec3 sigma_s = glm::vec3(0.f);
         float ior = 1.f;
         glm::vec3 sigma_a = glm::vec3(0.f);
         float phase_g = 0.f;
-    };
-
-    struct trace_data_t
-    {
-        trace_params_t trace_params;
-
-        camera_params_t camera_params;
-
-        media_t camera_media;
-
-        VkDeviceAddress vertex_buffers{};
-        VkDeviceAddress index_buffers{};
-        VkDeviceAddress entries{};
-        VkDeviceAddress materials{};
-        VkDeviceAddress out_pixels{};
     };
 
     struct alignas(16) composition_ubo_t

@@ -1,22 +1,29 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
-#extension GL_EXT_buffer_reference2: require
-#extension GL_EXT_scalar_block_layout : enable
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/random.glsl"
 #include "../utils/hash.glsl"
 #include "../utils/bsdf.glsl"
 #include "ray_common.glsl"
+#include "pixel_buffer.glsl"
 #include "reservoir.glsl"
 
 #define MAX_MEDIA_STACK_SIZE 4
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
-layout(binding = 1, set = 0) uniform TraceData
+layout(binding = 1, set = 0) writeonly buffer Pixel{ pixel_buffer_t out_pixel[]; };
+
+layout(binding = 2, set = 0) uniform CameraProperties
 {
-    trace_data_t trace_data;
+    camera_ubo_t cam;
+    media_t cam_media;
+};
+
+layout(push_constant) uniform PushConstants
+{
+    push_constants_t push_constants;
 };
 
 layout(location = MISS_INDEX_DEFAULT) rayPayloadEXT payload_t payload;
@@ -37,21 +44,21 @@ Ray camera_ray(vec2 coord, vec2 size, vec2 Xi)
     vec2 d = inUV * 2.0 - 1.0;
     vec3 origin, direction;
 
-    if(trace_data.camera.ortho)
+    if(cam.ortho)
     {
-        origin = (trace_data.camera.view_inverse * trace_data.camera.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz;
-        direction = -trace_data.camera.view_inverse[2].xyz;
+        origin = (cam.view_inverse * cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz;
+        direction = -cam.view_inverse[2].xyz;
     }
     else
     {
         // lens-offset and ray-origin
-        vec3 lens_offset = vec3(trace_data.camera.aperture / 2.0 * sample_unit_disc(Xi), 0.0);
-        origin = (trace_data.camera.view_inverse * vec4(lens_offset, 1)).xyz;
+        vec3 lens_offset = vec3(cam.aperture / 2.0 * sample_unit_disc(Xi), 0.0);
+        origin = (cam.view_inverse * vec4(lens_offset, 1)).xyz;
 
         // ray direction
-        vec3 target_dir = normalize((trace_data.camera.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz);
-        vec3 fpoint = target_dir * trace_data.camera.focal_distance / abs(target_dir.z);
-        direction = normalize(mat3(trace_data.camera.view_inverse) * (fpoint - lens_offset));
+        vec3 target_dir = normalize((cam.projection_inverse * vec4(d.x, d.y, 1, 1)).xyz);
+        vec3 fpoint = target_dir * cam.focal_distance / abs(target_dir.z);
+        direction = normalize(mat3(cam.view_inverse) * (fpoint - lens_offset));
     }
 
     // next ray + cone
@@ -64,7 +71,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     trace_result_t trace_result;
 
     // init random number generator.
-    uint rng_state = xxhash32(trace_data.params.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
+    uint rng_state = xxhash32(push_constants.random_seed, gl_LaunchSizeEXT.x * gl_LaunchIDEXT.y + gl_LaunchIDEXT.x);
 
     // sum radiance and coverage for all samples.
     trace_result.radiance = vec3(0);
@@ -73,7 +80,7 @@ trace_result_t trace(vec2 coord, vec2 size)
     float sample_offset = 2 * rnd(rng_state) - 1;
 
     // cone spread_angle
-    float spread_angle = atan(2.0 * tan(trace_data.camera.fov / 2.0) / size.y);
+    float spread_angle = atan(2.0 * tan(cam.fov / 2.0) / size.y);
 
     // sample random dirctions around the pixel's center
     //           1
@@ -83,10 +90,10 @@ trace_result_t trace(vec2 coord, vec2 size)
     //    |      |      |
     //    '------+------'
     //          -1
-    for (int sampleIdx = 0; sampleIdx < trace_data.params.num_samples; sampleIdx++)
+    for (int sampleIdx = 0; sampleIdx < push_constants.num_samples; sampleIdx++)
     {
         // cobine random and stratified sampling
-        const vec2 rnd_coord = coord + fract(Hammersley(sampleIdx, trace_data.params.num_samples) + vec2(sample_offset));
+        const vec2 rnd_coord = coord + fract(Hammersley(sampleIdx, push_constants.num_samples) + vec2(sample_offset));
         vec2 Xi = vec2(rnd(rng_state), rnd(rng_state));
 
         // next ray + cone
@@ -96,13 +103,13 @@ trace_result_t trace(vec2 coord, vec2 size)
         // start in camera-defined medium
         uint media_index = 0;
         media_t media[MAX_MEDIA_STACK_SIZE];
-        media[media_index] = trace_data.camera_media;
+        media[media_index] = cam_media;
 
         vec3 beta = vec3(1);
         vec3 path_radiance = vec3(0);
 
         // trace a path
-        for (uint i = 0; i < trace_data.params.max_trace_depth; i++)
+        for (uint i = 0; i < push_constants.max_trace_depth; i++)
         {
             rng_state = xxhash32(rng_state, i);
 
@@ -154,7 +161,7 @@ trace_result_t trace(vec2 coord, vec2 size)
                 trace_result.entity_index = payload.entity_index;
                 trace_result.normal = payload.normal;
                 trace_result.position = payload.position;
-                vec4 depth_proj = trace_data.camera.projection_view * vec4(trace_result.position, 1.0);
+                vec4 depth_proj = cam.projection_view * vec4(trace_result.position, 1.0);
                 bool ray_miss = payload.entity_index == MAX_UINT16;
                 trace_result.depth = ray_miss ? 0.0 : depth_proj.z / depth_proj.w;
             }
@@ -166,7 +173,7 @@ trace_result_t trace(vec2 coord, vec2 size)
         trace_result.radiance += payload.radiance;
         trace_result.coverage = max(trace_result.coverage, payload.depth > 0 ? 1.0 : 0.0);
     }
-    trace_result.radiance /= float(trace_data.params.num_samples);
+    trace_result.radiance /= float(push_constants.num_samples);
     return trace_result;
 }
 
@@ -176,18 +183,17 @@ void main()
     uint buffer_idx = gl_LaunchIDEXT.x + gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x;
     vec4 accumulated_radiance = vec4(trace_result.radiance, smoothstep(0, 1, trace_result.coverage));
 
-    if(trace_data.params.batch_index != 0)
+    if(push_constants.batch_index != 0)
     {
-        uint size = trace_data.params.batch_index;
-        accumulated_radiance += size * vec4(trace_data.out_pixels.v[buffer_idx].radiance,
-                                            trace_data.out_pixels.v[buffer_idx].alpha);
+        uint size = push_constants.batch_index;
+        accumulated_radiance += size * vec4(out_pixel[buffer_idx].radiance, out_pixel[buffer_idx].alpha);
         accumulated_radiance /= size + 1;
     }
 
     // store pixel
-    trace_data.out_pixels.v[buffer_idx] =  pack(accumulated_radiance.rgb,
-                                                trace_result.coverage,
-                                                trace_result.normal,
-                                                trace_result.depth,
-                                                trace_result.entity_index);
+    out_pixel[buffer_idx] =  pack(accumulated_radiance.rgb,
+                                  trace_result.coverage,
+                                  trace_result.normal,
+                                  trace_result.depth,
+                                  trace_result.entity_index);
 }

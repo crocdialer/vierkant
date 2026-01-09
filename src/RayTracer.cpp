@@ -12,7 +12,9 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
 }
 
 std::vector<const char *> RayTracer::required_extensions()
-{ return {VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME}; }
+{
+    return {VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME};
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -75,14 +77,11 @@ void RayTracer::trace_rays(tracable_t tracable, VkCommandBuffer commandbuffer)
     tracable.pipeline_info.descriptor_set_layouts = {descriptor_set_layout.get()};
 
     // push constant range
-    if(!tracable.push_constants.empty())
-    {
-        VkPushConstantRange push_constant_range = {};
-        push_constant_range.offset = 0;
-        push_constant_range.size = tracable.push_constants.size();
-        push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
-        tracable.pipeline_info.push_constant_ranges = {push_constant_range};
-    }
+    VkPushConstantRange push_constant_range = {};
+    push_constant_range.offset = 0;
+    push_constant_range.size = tracable.push_constants.size();
+    push_constant_range.stageFlags = VK_SHADER_STAGE_ALL;
+    tracable.pipeline_info.push_constant_ranges = {push_constant_range};
 
     // create or retrieve an existing raytracing pipeline
     auto pipeline = m_pipeline_cache->pipeline(tracable.pipeline_info);

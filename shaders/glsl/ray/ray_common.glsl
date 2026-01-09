@@ -5,10 +5,6 @@
 #define PDF_EPS 1e-3
 
 #include "../utils/packed_vertex.glsl"
-#include "pixel_data.glsl"
-
-// for material_t / entries
-#include "types.glsl"
 
 //! Triangle groups triangle vertices
 struct Triangle
@@ -85,7 +81,7 @@ struct payload_t
     media_t media;
 };
 
-struct trace_params_t
+struct push_constants_t
 {
     //! current time since start in seconds
     float time;
@@ -105,9 +101,6 @@ struct trace_params_t
     //! enable skybox/background rendering
     bool draw_skybox;
 
-    //! multiplier for radiance from environment
-    float environment;
-
     //! a provided random seed
     uint random_seed;
 };
@@ -121,38 +114,6 @@ struct camera_ubo_t
     float aperture;
     float focal_distance;
     bool ortho;
-};
-
-// array of vertex-buffers
-layout(buffer_reference, scalar) readonly buffer VertexBuffer { packed_vertex_t v[]; };
-layout(buffer_reference, scalar) readonly buffer VertexBufferArray { VertexBuffer v[]; };
-
-// array of index-buffers
-layout(buffer_reference, scalar) readonly buffer IndexBuffer { uint v[]; };
-layout(buffer_reference, scalar) readonly buffer IndexBufferArray { IndexBuffer v[]; };
-
-// array of entries
-layout(buffer_reference, scalar) readonly buffer EntryBuffer { entry_t v[]; };
-
-// array of materials
-layout(buffer_reference, scalar) readonly buffer MaterialBuffer{ material_t v[]; };
-
-// array of output-pixels
-layout(buffer_reference, scalar) writeonly buffer PixelBuffer{ pixel_data_t v[]; };
-
-struct trace_data_t
-{
-    trace_params_t params;
-
-    camera_ubo_t camera;
-
-    media_t camera_media;
-
-    VertexBufferArray vertex_buffers;
-    IndexBufferArray index_buffers;
-    EntryBuffer entries;
-    MaterialBuffer materials;
-    PixelBuffer out_pixels;
 };
 
 #endif // RAY_COMMON_GLSL

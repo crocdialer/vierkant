@@ -1,19 +1,17 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
-#extension GL_EXT_buffer_reference2: require
-#extension GL_EXT_scalar_block_layout : enable
 #extension GL_GOOGLE_include_directive : enable
 
 #include "ray_common.glsl"
 #include "../utils/sdf.glsl"
 #include "../utils/procedural_environment.glsl"
 
-layout(binding = 1, set = 0) uniform TraceData
-{
-    trace_data_t trace_data;
-};
-
 layout(location = 0) rayPayloadInEXT payload_t payload;
+
+layout(std140, binding = 10) uniform ubo_t
+{
+    float environment_factor;
+} ubo;
 
 float sdCross3(in vec3 p, vec3 sz)
 {
@@ -103,5 +101,5 @@ void main()
 //    vec3 n = calc_normal(p, 0.0);
 
     vec3 col = environment_white(payload.ray.direction);
-    payload.radiance += trace_data.params.environment * payload.beta * col;
+    payload.radiance += ubo.environment_factor * payload.beta * col;
 }
