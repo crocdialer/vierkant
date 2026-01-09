@@ -1,3 +1,4 @@
+#include "vierkant/PBRPathTracer.hpp"
 #include <vierkant/PBRPathTracer.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
@@ -92,11 +93,8 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
                 vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
         frame_context.trace_data_ubo =
-                vierkant::Buffer::create(m_device, nullptr, sizeof(camera_params_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                vierkant::Buffer::create(m_device, nullptr, sizeof(trace_data_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-        frame_context.ray_miss_ubo =
-                vierkant::Buffer::create(device, &frame_context.settings.environment_factor, sizeof(float),
-                                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
 
         vierkant::CommandBuffer::create_info_t cmd_buffer_info = {};
         cmd_buffer_info.device = m_device;
