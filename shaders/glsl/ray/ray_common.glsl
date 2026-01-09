@@ -132,10 +132,10 @@ layout(buffer_reference, scalar) readonly buffer IndexBuffer { uint v[]; };
 layout(buffer_reference, scalar) readonly buffer IndexBufferArray { IndexBuffer v[]; };
 
 // array of entries
-layout(buffer_reference, scalar) readonly buffer EntryBuffer { entry_t v[]; };
+layout(buffer_reference, std430) readonly buffer EntryBuffer { entry_t v[]; };
 
 // array of materials
-layout(buffer_reference, scalar) readonly buffer MaterialBuffer{ material_t v[]; };
+layout(buffer_reference, std430) readonly buffer MaterialBuffer{ material_t v[]; };
 
 // array of output-pixels
 layout(buffer_reference, scalar) writeonly buffer PixelBuffer{ pixel_data_t v[]; };
