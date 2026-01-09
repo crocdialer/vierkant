@@ -56,9 +56,7 @@ inline VkTransformMatrixKHR vk_transform_matrix(const glm::mat4 &m)
 }
 
 std::vector<const char *> RayBuilder::required_extensions()
-{
-    return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME};
-}
+{ return {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME}; }
 
 RayBuilder::RayBuilder(const vierkant::DevicePtr &device, VkQueue queue, vierkant::VmaPoolPtr pool)
     : m_device(device), m_queue(queue), m_memory_pool(std::move(pool))
@@ -99,7 +97,10 @@ RayBuilder::build_result_t RayBuilder::create_mesh_structures(const create_mesh_
         flags |= VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR |
                  VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_KHR;
     }
-    else { flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR; }
+    else
+    {
+        flags |= VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+    }
 
     // optionally override mesh-vertexbuffer
     auto vertex_attrib_it = params.mesh->vertex_attribs.find(vierkant::Mesh::AttribLocation::ATTRIB_POSITION);
@@ -383,6 +384,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
     std::vector<VkDeviceSize> vertex_buffer_offsets;
     std::vector<VkDeviceSize> index_buffer_offsets;
 
+    std::vector<VkDeviceAddress> vertex_buffer_addresses;
+    std::vector<VkDeviceAddress> index_buffer_addresses;
+
     // build flags
     VkBuildAccelerationStructureFlagsKHR build_flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR |
                                                        VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR;
@@ -436,6 +440,9 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
             vertex_buffer_offsets.push_back(vertex_buffer_offset);
             index_buffers.push_back(mesh->index_buffer);
             index_buffer_offsets.push_back(mesh->index_buffer_offset);
+
+            vertex_buffer_addresses.push_back(vertex_buffer_address);
+            index_buffer_addresses.push_back(mesh->index_buffer->device_address() + mesh->index_buffer_offset);
         }
 
         // entry animation transforms
@@ -631,8 +638,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
     // create/collect our stuff
     ret.top_lvl = create_acceleration_asset(create_info);
-    m_device->set_object_name((uint64_t) ret.top_lvl.structure.get(), VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR,
-                              "RayBuilder::toplevel");
+    m_device->set_object_name(reinterpret_cast<uint64_t>(ret.top_lvl.structure.get()),
+                              VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR, "RayBuilder::toplevel");
 
     if(params.use_scene_assets)
     {
@@ -652,6 +659,20 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
         ret.vertex_buffer_offsets = std::move(vertex_buffer_offsets);
         ret.index_buffers = std::move(index_buffers);
         ret.index_buffer_offsets = std::move(index_buffer_offsets);
+
+        // put vertex-/index-buffer addresses into host-visible gpu-buffer
+        vierkant::Buffer::create_info_t buffer_info = {};
+        buffer_info.device = m_device;
+        buffer_info.alignment = sizeof(VkDeviceAddress);
+        buffer_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+        buffer_info.data = vertex_buffer_addresses.data();
+        buffer_info.num_bytes = vertex_buffer_addresses.size() * sizeof(VkDeviceAddress);
+        ret.vertex_buffer_addresses = vierkant::Buffer::create(buffer_info);
+
+        buffer_info.data = index_buffer_addresses.data();
+        buffer_info.num_bytes = index_buffer_addresses.size() * sizeof(VkDeviceAddress);
+        ret.index_buffer_addresses = vierkant::Buffer::create(buffer_info);
     }
 
     // resize scratch buffer, if necessary
