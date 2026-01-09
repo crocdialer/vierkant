@@ -19,6 +19,9 @@ layout(binding = 1, set = 0) uniform TraceData
     trace_data_t trace_data;
 };
 
+// TODO: basically already replaced by BDA, ironing out remaining issues
+layout(binding = 4, set = 0) writeonly buffer Pixel{ pixel_data_t out_pixel[]; };
+
 layout(location = MISS_INDEX_DEFAULT) rayPayloadEXT payload_t payload;
 
 struct trace_result_t
@@ -179,15 +182,14 @@ void main()
     if(trace_data.params.batch_index != 0)
     {
         uint size = trace_data.params.batch_index;
-        accumulated_radiance += size * vec4(trace_data.out_pixels.v[buffer_idx].radiance,
-                                            trace_data.out_pixels.v[buffer_idx].alpha);
+        accumulated_radiance += size * vec4(out_pixel[buffer_idx].radiance, out_pixel[buffer_idx].alpha);
         accumulated_radiance /= size + 1;
     }
 
     // store pixel
-    trace_data.out_pixels.v[buffer_idx] =  pack(accumulated_radiance.rgb,
-                                                trace_result.coverage,
-                                                trace_result.normal,
-                                                trace_result.depth,
-                                                trace_result.entity_index);
+    out_pixel[buffer_idx] =  pack(accumulated_radiance.rgb,
+                                  trace_result.coverage,
+                                  trace_result.normal,
+                                  trace_result.depth,
+                                  trace_result.entity_index);
 }
