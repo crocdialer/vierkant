@@ -298,16 +298,16 @@ void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierka
                                     const CameraPtr &cam)
 {
     // push constants
-    frame_context.tracable.push_constants.resize(sizeof(push_constants_t));
-    auto &push_constants = *reinterpret_cast<push_constants_t *>(frame_context.tracable.push_constants.data());
+    frame_context.tracable.push_constants.resize(sizeof(trace_params_t));
+    auto &trace_params = *reinterpret_cast<trace_params_t *>(frame_context.tracable.push_constants.data());
     using namespace std::chrono;
-    push_constants.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
-    push_constants.batch_index = m_batch_index;
-    push_constants.num_samples = frame_context.settings.num_samples;
-    push_constants.max_trace_depth = frame_context.settings.max_trace_depth;
-    push_constants.disable_material = frame_context.settings.disable_material;
-    push_constants.draw_skybox = frame_context.settings.draw_skybox;
-    push_constants.random_seed = m_random_engine();
+    trace_params.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
+    trace_params.batch_index = m_batch_index;
+    trace_params.num_samples = frame_context.settings.num_samples;
+    trace_params.max_trace_depth = frame_context.settings.max_trace_depth;
+    trace_params.disable_material = frame_context.settings.disable_material;
+    trace_params.draw_skybox = frame_context.settings.draw_skybox;
+    trace_params.random_seed = m_random_engine();
 
     update_trace_descriptors(frame_context, cam);
 
@@ -463,6 +463,7 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_depth_buffer.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
     desc_depth_buffer.buffers = {m_storage.pixel_buffer};
 
+    // TODO: turn into trace_data_t
     vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[2];
     desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;

@@ -199,7 +199,7 @@ private:
         statistics_t statistics = {};
     };
 
-    struct push_constants_t
+    struct alignas(16) trace_params_t
     {
         //! current time since start in seconds
         float time = 0.f;
