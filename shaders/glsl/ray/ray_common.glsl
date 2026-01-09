@@ -105,6 +105,9 @@ struct trace_params_t
     //! enable skybox/background rendering
     bool draw_skybox;
 
+    //! multiplier for radiance from environment
+    float environment;
+
     //! a provided random seed
     uint random_seed;
 };
@@ -136,7 +139,6 @@ layout(buffer_reference, scalar) readonly buffer MaterialBuffer{ material_t v[];
 
 // array of output-pixels
 layout(buffer_reference, scalar) writeonly buffer PixelBuffer{ pixel_data_t v[]; };
-
 
 struct trace_data_t
 {

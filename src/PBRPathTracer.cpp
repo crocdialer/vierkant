@@ -510,23 +510,40 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
         // default: air
         media_t camera_media = {};
     };
-    ray_gen_ubo_t ray_gen_ubo = {};
-    ray_gen_ubo.camera.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
-    ray_gen_ubo.camera.projection_inverse = glm::inverse(cam->projection_matrix());
-    ray_gen_ubo.camera.view_inverse = vierkant::mat4_cast(cam->global_transform());
-    ray_gen_ubo.camera.ortho = true;
+    camera_params_t camera_params = {};
+    camera_params.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
+    camera_params.projection_inverse = glm::inverse(cam->projection_matrix());
+    camera_params.view_inverse = vierkant::mat4_cast(cam->global_transform());
+    camera_params.ortho = true;
 
     if(auto perspective_cam = std::dynamic_pointer_cast<vierkant::PerspectiveCamera>(cam))
     {
-        ray_gen_ubo.camera.ortho = false;
-        ray_gen_ubo.camera.fov = perspective_cam->perspective_params.fovy();
-        ray_gen_ubo.camera.aperture = frame_context.settings.depth_of_field
-                                              ? static_cast<float>(perspective_cam->perspective_params.aperture_size())
-                                              : 0.f;
-        ray_gen_ubo.camera.focal_distance = perspective_cam->perspective_params.focal_distance;
+        camera_params.ortho = false;
+        camera_params.fov = perspective_cam->perspective_params.fovy();
+        camera_params.aperture = frame_context.settings.depth_of_field
+                                         ? static_cast<float>(perspective_cam->perspective_params.aperture_size())
+                                         : 0.f;
+        camera_params.focal_distance = perspective_cam->perspective_params.focal_distance;
     }
 
+    trace_data_t trace_data = {};
+
+    using namespace std::chrono;
+    trace_data.trace_params.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
+    trace_data.trace_params.batch_index = m_batch_index;
+    trace_data.trace_params.num_samples = frame_context.settings.num_samples;
+    trace_data.trace_params.max_trace_depth = frame_context.settings.max_trace_depth;
+    trace_data.trace_params.disable_material = frame_context.settings.disable_material;
+    trace_data.trace_params.draw_skybox = frame_context.settings.draw_skybox;
+    trace_data.trace_params.random_seed = m_random_engine();
+
+    trace_data.camera_params = camera_params;
+
+    // default: air
+    trace_data.camera_media = {};
+
     // update uniform-buffers
+    ray_gen_ubo_t ray_gen_ubo = {.camera = camera_params};
     frame_context.ray_gen_ubo->set_data(&ray_gen_ubo, sizeof(ray_gen_ubo_t));
     frame_context.ray_miss_ubo->set_data(&frame_context.settings.environment_factor, sizeof(float));
 
