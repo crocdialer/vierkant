@@ -585,6 +585,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
         vertex_buffers.push_back(m_placeholder_buffer);
         index_buffers.push_back(m_placeholder_buffer);
         instances.push_back({});
+        vertex_buffer_addresses.push_back(0);
+        index_buffer_addresses.push_back(0);
     }
 
     // put instances into host-visible gpu-buffer
@@ -643,13 +645,20 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
 
     if(params.use_scene_assets)
     {
+        vierkant::Buffer::create_info_t buffer_info = {};
+        buffer_info.device = m_device;
+        buffer_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+        buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
         // needed to access buffer/vertex/index/material in closest-hit shader
-        ret.entry_buffer = vierkant::Buffer::create(m_device, entries, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                    VMA_MEMORY_USAGE_CPU_TO_GPU);
+        buffer_info.data = entries.data();
+        buffer_info.num_bytes = entries.size() * sizeof(entry_t);
+        ret.entry_buffer = vierkant::Buffer::create(buffer_info);
 
         // material information for all entries
-        ret.material_buffer = vierkant::Buffer::create(m_device, materials, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                                       VMA_MEMORY_USAGE_CPU_TO_GPU);
+        buffer_info.data = materials.data();
+        buffer_info.num_bytes = materials.size() * sizeof(material_struct_t);
+        ret.material_buffer = vierkant::Buffer::create(buffer_info);
 
         // move texture-assets
         ret.textures = std::move(textures);
@@ -661,11 +670,8 @@ RayBuilder::scene_acceleration_data_t RayBuilder::create_toplevel(const scene_ac
         ret.index_buffer_offsets = std::move(index_buffer_offsets);
 
         // put vertex-/index-buffer addresses into host-visible gpu-buffer
-        vierkant::Buffer::create_info_t buffer_info = {};
-        buffer_info.device = m_device;
         buffer_info.alignment = sizeof(VkDeviceAddress);
-        buffer_info.usage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-        buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
         buffer_info.data = vertex_buffer_addresses.data();
         buffer_info.num_bytes = vertex_buffer_addresses.size() * sizeof(VkDeviceAddress);
         ret.vertex_buffer_addresses = vierkant::Buffer::create(buffer_info);

@@ -142,11 +142,11 @@ layout(buffer_reference, scalar) writeonly buffer PixelBuffer{ pixel_data_t v[];
 
 struct trace_data_t
 {
-    trace_params_t trace_params;
+    trace_params_t params;
 
-    camera_ubo_t cam;
+    camera_ubo_t camera;
 
-    media_t cam_media;
+    media_t camera_media;
 
     VertexBufferArray vertex_buffers;
     IndexBufferArray index_buffers;

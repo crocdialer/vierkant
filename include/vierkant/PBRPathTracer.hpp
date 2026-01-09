@@ -186,7 +186,7 @@ private:
 
         vierkant::ImagePtr denoise_image, out_image, out_depth;
 
-        vierkant::BufferPtr ray_gen_ubo, ray_miss_ubo, composition_ubo;
+        vierkant::BufferPtr trace_data_ubo, ray_miss_ubo, composition_ubo;
 
         BloomUPtr bloom;
 

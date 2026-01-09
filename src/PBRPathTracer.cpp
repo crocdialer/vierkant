@@ -91,7 +91,7 @@ PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::creat
         frame_context.composition_ubo =
                 vierkant::Buffer::create(device, nullptr, sizeof(composition_ubo_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
-        frame_context.ray_gen_ubo =
+        frame_context.trace_data_ubo =
                 vierkant::Buffer::create(m_device, nullptr, sizeof(camera_params_t), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                                          VMA_MEMORY_USAGE_CPU_TO_GPU);
         frame_context.ray_miss_ubo =
@@ -297,18 +297,6 @@ void PBRPathTracer::pre_render(PBRPathTracer::frame_context_t &frame_context)
 void PBRPathTracer::path_trace_pass(frame_context_t &frame_context, const vierkant::SceneConstPtr & /*scene*/,
                                     const CameraPtr &cam)
 {
-    // push constants
-    frame_context.tracable.push_constants.resize(sizeof(trace_params_t));
-    auto &trace_params = *reinterpret_cast<trace_params_t *>(frame_context.tracable.push_constants.data());
-    using namespace std::chrono;
-    trace_params.time = duration_cast<duration_t>(steady_clock::now() - m_start_time).count();
-    trace_params.batch_index = m_batch_index;
-    trace_params.num_samples = frame_context.settings.num_samples;
-    trace_params.max_trace_depth = frame_context.settings.max_trace_depth;
-    trace_params.disable_material = frame_context.settings.disable_material;
-    trace_params.draw_skybox = frame_context.settings.draw_skybox;
-    trace_params.random_seed = m_random_engine();
-
     update_trace_descriptors(frame_context, cam);
 
     frame_context.cmd_trace.begin(0);
@@ -458,58 +446,24 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     desc_acceleration_structure.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     desc_acceleration_structure.acceleration_structures = {frame_context.scene_ray_acceleration.top_lvl.structure};
 
-    auto &desc_depth_buffer = frame_context.tracable.descriptors[1];
-    desc_depth_buffer.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_depth_buffer.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_depth_buffer.buffers = {m_storage.pixel_buffer};
+    vierkant::descriptor_t &desc_trace_data = frame_context.tracable.descriptors[1];
+    desc_trace_data.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    desc_trace_data.stage_flags = VK_SHADER_STAGE_ALL;
+    desc_trace_data.buffers = {frame_context.trace_data_ubo};
 
-    // TODO: turn into trace_data_t
-    vierkant::descriptor_t &desc_matrices = frame_context.tracable.descriptors[2];
-    desc_matrices.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_matrices.stage_flags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-    desc_matrices.buffers = {frame_context.ray_gen_ubo};
-
-    vierkant::descriptor_t &desc_vertex_buffers = frame_context.tracable.descriptors[5];
-    desc_vertex_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_vertex_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-    desc_vertex_buffers.buffers = frame_context.scene_ray_acceleration.vertex_buffers;
-    desc_vertex_buffers.buffer_offsets = frame_context.scene_ray_acceleration.vertex_buffer_offsets;
-
-    vierkant::descriptor_t &desc_index_buffers = frame_context.tracable.descriptors[6];
-    desc_index_buffers.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_index_buffers.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-    desc_index_buffers.buffers = frame_context.scene_ray_acceleration.index_buffers;
-    desc_index_buffers.buffer_offsets = frame_context.scene_ray_acceleration.index_buffer_offsets;
-
-    vierkant::descriptor_t &desc_entries = frame_context.tracable.descriptors[7];
-    desc_entries.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_entries.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-    desc_entries.buffers = {frame_context.scene_ray_acceleration.entry_buffer};
-
-    vierkant::descriptor_t &desc_materials = frame_context.tracable.descriptors[8];
-    desc_materials.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    desc_materials.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
-    desc_materials.buffers = {frame_context.scene_ray_acceleration.material_buffer};
-
-    vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[9];
+    vierkant::descriptor_t &desc_textures = frame_context.tracable.descriptors[2];
     desc_textures.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     desc_textures.stage_flags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
     desc_textures.images = frame_context.scene_ray_acceleration.textures;
 
-    // common ubo for miss-shaders
-    vierkant::descriptor_t &desc_ray_miss_ubo = frame_context.tracable.descriptors[10];
-    desc_ray_miss_ubo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    desc_ray_miss_ubo.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
-    desc_ray_miss_ubo.buffers = {frame_context.ray_miss_ubo};
-
-    // assemble camera-ubo
-    struct ray_gen_ubo_t
+    if(m_environment)
     {
-        camera_params_t camera = {};
+        vierkant::descriptor_t &desc_environment = frame_context.tracable.descriptors[3];
+        desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
+        desc_environment.images = {m_environment};
+    }
 
-        // default: air
-        media_t camera_media = {};
-    };
     camera_params_t camera_params = {};
     camera_params.projection_view = cam->projection_matrix() * mat4_cast(cam->view_transform());
     camera_params.projection_inverse = glm::inverse(cam->projection_matrix());
@@ -549,18 +503,8 @@ void PBRPathTracer::update_trace_descriptors(frame_context_t &frame_context, con
     trace_data.materials = frame_context.scene_ray_acceleration.material_buffer->device_address();
     trace_data.out_pixels = m_storage.pixel_buffer->device_address();
 
-    // update uniform-buffers
-    ray_gen_ubo_t ray_gen_ubo = {.camera = camera_params};
-    frame_context.ray_gen_ubo->set_data(&ray_gen_ubo, sizeof(ray_gen_ubo_t));
-    frame_context.ray_miss_ubo->set_data(&frame_context.settings.environment_factor, sizeof(float));
-
-    if(m_environment)
-    {
-        vierkant::descriptor_t &desc_environment = frame_context.tracable.descriptors[11];
-        desc_environment.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        desc_environment.stage_flags = VK_SHADER_STAGE_MISS_BIT_KHR;
-        desc_environment.images = {m_environment};
-    }
+    // upload data
+    frame_context.trace_data_ubo->set_data(&trace_data, sizeof(trace_data_t));
 }
 
 void PBRPathTracer::update_acceleration_structures(PBRPathTracer::frame_context_t &frame_context,
@@ -620,7 +564,7 @@ void PBRPathTracer::resize_storage(frame_context_t &frame_context, const glm::uv
         vierkant::Buffer::create_info_t pix_buf_info;
         pix_buf_info.name = "pixel storage buffer";
         pix_buf_info.num_bytes = size.width * size.height * sizeof(pixel_buffer_t);
-        pix_buf_info.usage = VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR;
+        pix_buf_info.usage = VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT_KHR;
         pix_buf_info.device = m_device;
         pix_buf_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
         m_storage.pixel_buffer = vierkant::Buffer::create(pix_buf_info);
