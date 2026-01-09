@@ -21,9 +21,7 @@ struct alignas(16) pixel_buffer_t
 };
 
 PBRPathTracerPtr PBRPathTracer::create(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
-{
-    return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info));
-}
+{ return vierkant::PBRPathTracerPtr(new PBRPathTracer(device, create_info)); }
 
 PBRPathTracer::PBRPathTracer(const DevicePtr &device, const PBRPathTracer::create_info_t &create_info)
     : m_device(device), m_pipeline_cache(create_info.pipeline_cache), m_random_engine(create_info.seed)
@@ -203,7 +201,10 @@ SceneRenderer::render_result_t PBRPathTracer::render_scene(Rasterizer &renderer,
         // increase batch index
         m_batch_index = std::min<size_t>(m_batch_index + 1, frame_context.settings.max_num_batches);
     }
-    else { frame_context.semaphore.signal(frame_context.semaphore_value + SemaphoreValue::RAYTRACING); }
+    else
+    {
+        frame_context.semaphore.signal(frame_context.semaphore_value + SemaphoreValue::RAYTRACING);
+    }
 
     // image-composition, denoising
     denoise_pass(frame_context);
@@ -361,8 +362,10 @@ void PBRPathTracer::denoise_pass(PBRPathTracer::frame_context_t &frame_context)
     // dispatch denoising-kernel
     m_compute.dispatch({frame_context.denoise_computable}, frame_context.cmd_denoise.handle());
 
-    m_storage.depth->barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-                             VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+    vierkant::stage_barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+                            VK_PIPELINE_STAGE_2_TRANSFER_BIT);
+    // m_storage.depth->barrier(frame_context.cmd_denoise.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+    //                          VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_2_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
 
     frame_context.denoise_image->transition_layout(VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL,
                                                    frame_context.cmd_denoise.handle());

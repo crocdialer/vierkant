@@ -5,6 +5,10 @@
 #define PDF_EPS 1e-3
 
 #include "../utils/packed_vertex.glsl"
+#include "pixel_buffer.glsl"
+
+// for material_t / entries
+#include "types.glsl"
 
 //! Triangle groups triangle vertices
 struct Triangle
@@ -81,7 +85,7 @@ struct payload_t
     media_t media;
 };
 
-struct push_constants_t
+struct trace_params_t
 {
     //! current time since start in seconds
     float time;
@@ -115,5 +119,20 @@ struct camera_ubo_t
     float focal_distance;
     bool ortho;
 };
+
+// array of vertex-buffers
+layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
+
+// array of index-buffers
+layout(buffer_reference, scalar) readonly buffer IndexBufferPtr { uint i[]; };
+
+// array of entries
+layout(buffer_reference, scalar) readonly buffer EntryPtr { entry_t entries[]; };
+
+// array of materials
+layout(buffer_reference, scalar) readonly buffer MaterialPtr{ material_t materials[]; };
+
+// array of ouput-pixels
+layout(buffer_reference, scalar) writeonly buffer PixelBufferConstPtr{ pixel_buffer_t out_pixel[]; };
 
 #endif // RAY_COMMON_GLSL

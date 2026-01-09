@@ -1,15 +1,13 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
-#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_buffer_reference2: require
 #extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/phase_function.glsl"
 #include "../utils/simplex.glsl"
-
-// for material_t / entries
-#include "types.glsl"
 
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
@@ -19,7 +17,7 @@
 
 layout(push_constant) uniform PushConstants
 {
-    push_constants_t push_constants;
+    trace_params_t push_constants;
 };
 
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
