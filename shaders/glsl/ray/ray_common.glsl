@@ -5,7 +5,7 @@
 #define PDF_EPS 1e-3
 
 #include "../utils/packed_vertex.glsl"
-#include "pixel_buffer.glsl"
+#include "pixel_data.glsl"
 
 // for material_t / entries
 #include "types.glsl"
@@ -121,18 +121,36 @@ struct camera_ubo_t
 };
 
 // array of vertex-buffers
-layout(buffer_reference, scalar) readonly buffer VertexBufferPtr { packed_vertex_t v[]; };
+layout(buffer_reference, scalar) readonly buffer VertexBuffer { packed_vertex_t v[]; };
+layout(buffer_reference, scalar) readonly buffer VertexBufferArray { VertexBuffer v[]; };
 
 // array of index-buffers
-layout(buffer_reference, scalar) readonly buffer IndexBufferPtr { uint i[]; };
+layout(buffer_reference, scalar) readonly buffer IndexBuffer { uint v[]; };
+layout(buffer_reference, scalar) readonly buffer IndexBufferArray { IndexBuffer v[]; };
 
 // array of entries
-layout(buffer_reference, scalar) readonly buffer EntryPtr { entry_t entries[]; };
+layout(buffer_reference, scalar) readonly buffer EntryBuffer { entry_t v[]; };
 
 // array of materials
-layout(buffer_reference, scalar) readonly buffer MaterialPtr{ material_t materials[]; };
+layout(buffer_reference, scalar) readonly buffer MaterialBuffer{ material_t v[]; };
 
-// array of ouput-pixels
-layout(buffer_reference, scalar) writeonly buffer PixelBufferConstPtr{ pixel_buffer_t out_pixel[]; };
+// array of output-pixels
+layout(buffer_reference, scalar) writeonly buffer PixelBuffer{ pixel_data_t v[]; };
+
+
+struct trace_data_t
+{
+    trace_params_t trace_params;
+
+    camera_ubo_t cam;
+
+    media_t cam_media;
+
+    VertexBufferArray vertex_buffers;
+    IndexBufferArray index_buffers;
+    EntryBuffer entries;
+    MaterialBuffer materials;
+    PixelBuffer out_pixels;
+};
 
 #endif // RAY_COMMON_GLSL
