@@ -1,9 +1,9 @@
 #version 460
 #extension GL_GOOGLE_include_directive : require
 #include "../utils/constants.glsl"
-#include "pixel_buffer.glsl"
+#include "pixel_data.glsl"
 
-layout(binding = 0, set = 0) readonly buffer Pixel{ pixel_buffer_t in_pixel[]; };
+layout(binding = 0, set = 0) readonly buffer PixelBuffer{ pixel_data_t in_pixel[]; };
 
 layout(binding = 1, rgba32f) writeonly uniform image2D u_out_image;
 

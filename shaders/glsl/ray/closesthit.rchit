@@ -1,15 +1,13 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
-#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_buffer_reference2: require
 #extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_nonuniform_qualifier : enable
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../utils/phase_function.glsl"
 #include "../utils/simplex.glsl"
-
-// for material_t / entries
-#include "types.glsl"
 
 #include "ray_common.glsl"
 #include "bsdf_disney.glsl"
@@ -17,24 +15,14 @@
 
 #define USE_DIRECT_LIGHTING 0
 
-layout(push_constant) uniform PushConstants
-{
-    push_constants_t push_constants;
-};
-
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 
-// array of vertex-buffers
-layout(binding = 5, set = 0, scalar) readonly buffer Vertices { packed_vertex_t v[]; } vertices[];
+layout(binding = 1, set = 0) uniform TraceData
+{
+    trace_data_t trace_data;
+};
 
-// array of index-buffers
-layout(binding = 6, set = 0) readonly buffer Indices { uint i[]; } indices[];
-
-layout(binding = 7, set = 0) readonly buffer Entries { entry_t entries[]; };
-
-layout(binding = 8, set = 0) readonly buffer Materials{ material_t materials[]; };
-
-layout(binding = 9) uniform sampler2D u_textures[];
+layout(binding = 2) uniform sampler2D u_textures[];
 
 // the ray-payload written here
 layout(location = MISS_INDEX_DEFAULT) rayPayloadInEXT payload_t payload;
@@ -60,17 +48,17 @@ RayCone propagate(RayCone cone, float surface_spread_angle, float hitT)
 Triangle get_triangle()
 {
     // entry aka instance
-    nonuniformEXT entry_t entry = entries[nonuniformEXT(gl_InstanceCustomIndexEXT)];
+    nonuniformEXT entry_t entry = trace_data.entries.v[nonuniformEXT(gl_InstanceCustomIndexEXT)];
 
     // triangle indices
-    ivec3 ind = ivec3(indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 0],
-                      indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 1],
-                      indices[entry.buffer_index].i[entry.base_index + 3 * gl_PrimitiveID + 2]);
+    ivec3 ind = ivec3(trace_data.index_buffers.v[entry.buffer_index].v[entry.base_index + 3 * gl_PrimitiveID + 0],
+                      trace_data.index_buffers.v[entry.buffer_index].v[entry.base_index + 3 * gl_PrimitiveID + 1],
+                      trace_data.index_buffers.v[entry.buffer_index].v[entry.base_index + 3 * gl_PrimitiveID + 2]);
 
     // triangle vertices
-    return Triangle(unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.x]),
-                    unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.y]),
-                    unpack(vertices[entry.buffer_index].v[entry.vertex_offset + ind.z]));
+    return Triangle(unpack(trace_data.vertex_buffers.v[entry.buffer_index].v[entry.vertex_offset + ind.x]),
+                    unpack(trace_data.vertex_buffers.v[entry.buffer_index].v[entry.vertex_offset + ind.y]),
+                    unpack(trace_data.vertex_buffers.v[entry.buffer_index].v[entry.vertex_offset + ind.z]));
 }
 
 //! calculates a triangle's normal
@@ -83,7 +71,7 @@ vec3 triangle_normal(Triangle t)
 float lod_constant(Triangle t)
 {
     // transform vertices
-    nonuniformEXT entry_t entry = entries[nonuniformEXT(gl_InstanceCustomIndexEXT)];
+    nonuniformEXT entry_t entry = trace_data.entries.v[nonuniformEXT(gl_InstanceCustomIndexEXT)];
     t.v0.position = apply_transform(entry.transform, t.v0.position);
     t.v1.position = apply_transform(entry.transform, t.v1.position);
     t.v2.position = apply_transform(entry.transform, t.v2.position);
@@ -136,7 +124,7 @@ Vertex interpolate_vertex(Triangle t)
     out_vert.tangent = normalize(t.v0.tangent * barycentric.x + t.v1.tangent * barycentric.y + t.v2.tangent * barycentric.z);
 
     // bring surfel into worldspace
-    entry_t entry = entries[gl_InstanceCustomIndexEXT];
+    entry_t entry = trace_data.entries.v[gl_InstanceCustomIndexEXT];
     out_vert.position = apply_transform(entry.transform, position);
     out_vert.tex_coord = (entry.texture_matrix * vec4(out_vert.tex_coord, 0.f, 1.0)).xy;
 
@@ -155,7 +143,8 @@ void main()
     Vertex v = interpolate_vertex(triangle);
     float triangle_lod = lod_constant(triangle);
 
-    nonuniformEXT material_t material = materials[nonuniformEXT(entries[gl_InstanceCustomIndexEXT].material_index)];
+    nonuniformEXT entry_t entry = trace_data.entries.v[nonuniformEXT(gl_InstanceCustomIndexEXT)];
+    nonuniformEXT material_t material = trace_data.materials.v[nonuniformEXT(entry.material_index)];
 
     vec3 V = -gl_WorldRayDirectionEXT;
     float NoV = abs(dot(V, payload.normal));
@@ -197,7 +186,7 @@ void main()
             const float inv_max_density = 1.0;
 
             // ray to entry's normalized aabb
-            transform_t to_media = to_aabb_norm(entries[gl_InstanceCustomIndexEXT]);
+            transform_t to_media = to_aabb_norm(entry);
 
             Ray ray_local = payload.ray;
             float scale = length(vec3(to_media.scale_x, to_media.scale_y, to_media.scale_z));
@@ -214,7 +203,7 @@ void main()
                 vec3 p = ray_local.origin + t * ray_local.direction;
 
                 // sample grid-density // TODO: volume-sampler
-                float density = clamp(0.5 * (simplex(vec4(4 * p, push_constants.time * 0.1) + 1.0)), 0.0, 1.0);
+                float density = clamp(0.5 * (simplex(vec4(4 * p, trace_data.params.time * 0.1) + 1.0)), 0.0, 1.0);
 
                 if(density * inv_max_density > rnd(rng_state))
                 {
@@ -280,7 +269,7 @@ void main()
             material.color *= sample_texture_lod(u_textures[material.albedo_index],
             v.tex_coord, NoV, payload.cone.width, triangle_lod);
         }
-        material.color = push_constants.disable_material ? vec4(vec3(.8), 1.0) : material.color;
+        material.color = trace_data.params.disable_material ? vec4(vec3(.8), 1.0) : material.color;
 
         if((material.texture_type_flags & TEXTURE_TYPE_NORMAL) != 0)
         {
