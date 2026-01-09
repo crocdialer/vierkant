@@ -23,6 +23,8 @@ struct entry_t
 
     // per mesh
     uint buffer_index;
+
+    int pad[2];
 };
 
 //! texture-type flag bits
@@ -78,6 +80,8 @@ struct material_t
     bool two_sided;
     float phase_asymmetry_g;
     float scattering_ratio;
+
+    int pad[1];
 };
 
 #endif
