@@ -974,7 +974,9 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
     // rendering_info.recycle_commands = frame_context.recycle_commands;
 
     // record lighting command-buffer
-    if(!frame_context.recycle_commands || frame_context.settings.ambient_occlusion)
+
+    // TODO: prevents updating of camera-transform in 'draw_skybox' routine, thus just record every frame
+    // if(!frame_context.recycle_commands || frame_context.settings.ambient_occlusion)
     {
         frame_context.cmd_lighting.begin(0);
         vierkant::begin_label(frame_context.cmd_lighting.handle(), {"PBRDeferred::lighting_pass"});
@@ -1070,11 +1072,11 @@ vierkant::Framebuffer &PBRDeferred::lighting_pass(const cull_result_t &cull_resu
                              frame_context.query_pool.get(), 2 * SemaphoreValue::LIGHTING + 1);
         vierkant::end_label(frame_context.cmd_lighting.handle());
     }
-    else
-    {
-        // only increment internal frame/asset-counter
-        m_renderer_lighting.skip_frames(2);
-    }
+    // else
+    // {
+    //     // only increment internal frame/asset-counter
+    //     m_renderer_lighting.skip_frames(2);
+    // }
 
     vierkant::semaphore_submit_info_t lighting_semaphore_info = {};
     lighting_semaphore_info.semaphore = frame_context.timeline.handle();

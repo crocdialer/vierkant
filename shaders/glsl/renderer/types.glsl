@@ -22,6 +22,26 @@ struct mesh_draw_t
     uint lod_index;
 };
 
+//! meshlet parameters
+struct meshlet_t
+{
+    //! offsets within meshlet_vertices and meshlet_triangles
+    uint vertex_offset;
+    uint triangle_offset;
+
+    //! number of vertices and triangles used in the meshlet
+    uint vertex_count;
+    uint triangle_count;
+
+    //! bounding sphere (center, radius), useful for frustum and occlusion culling
+    vec3 sphere_center;
+    float sphere_radius;
+
+    //! normal cone (axis, cutoff), useful for backface culling
+    vec3 cone_axis;
+    float cone_cutoff;
+};
+
 struct lod_t
 {
     uint base_index;
@@ -105,17 +125,6 @@ struct material_struct_t
 #define DEBUG_FLAG_DRAW_ID 1
 #define DEBUG_FLAG_LOD 2
 
-//! some render-context passed as push-constant
-struct render_context_t
-{
-    vec2 size;
-    float time;
-    uint random_seed;
-    bool disable_material;
-    uint debug_flags;
-    uint base_draw_index;
-};
-
 //! attribute locations in vierkant::Mesh
 #define ATTRIB_POSITION 0
 #define ATTRIB_COLOR 1
@@ -186,24 +195,17 @@ struct indexed_indirect_command_t
     uint pad;
 };
 
-//! meshlet parameters
-struct meshlet_t
+//! render-context available in all shaders
+struct render_context_t
 {
-    //! offsets within meshlet_vertices and meshlet_triangles
-    uint vertex_offset;
-    uint triangle_offset;
+    vec2 size;
+    float time;
+    uint random_seed;
+    bool disable_material;
+    uint debug_flags;
+    uint base_draw_index;
 
-    //! number of vertices and triangles used in the meshlet
-    uint vertex_count;
-    uint triangle_count;
-
-    //! bounding sphere (center, radius), useful for frustum and occlusion culling
-    vec3 sphere_center;
-    float sphere_radius;
-
-    //! normal cone (axis, cutoff), useful for backface culling
-    vec3 cone_axis;
-    float cone_cutoff;
+    int pad[1];
 };
 
 #endif // RENDERER_TYPES_GLSL
