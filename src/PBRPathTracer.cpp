@@ -1,5 +1,4 @@
 #include "vierkant/PBRPathTracer.hpp"
-#include <vierkant/PBRPathTracer.hpp>
 #include <vierkant/Visitor.hpp>
 #include <vierkant/gpu_timestamp_util.hpp>
 #include <vierkant/shaders.hpp>
