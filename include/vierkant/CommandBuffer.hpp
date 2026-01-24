@@ -41,10 +41,17 @@ void wait_fence(const vierkant::DevicePtr &device, const vierkant::FencePtr &fen
 void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage_mask, VkAccessFlags2 src_access,
                    VkPipelineStageFlags2 dst_stage_mask, VkAccessFlags2 dst_access);
 
-void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage_mask,
-                   VkPipelineStageFlags2 dst_stage_mask);
+inline void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage_mask,
+                   VkPipelineStageFlags2 dst_stage_mask)
+{
+    VkAccessFlags2 access_flags = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+    stage_barrier(command_buffer, src_stage_mask, access_flags, dst_stage_mask, access_flags);
+}
 
-void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 stage_mask);
+inline void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 stage_mask)
+{
+    stage_barrier(command_buffer, stage_mask, stage_mask);
+}
 
 /**
  * @brief   Submit an array of command-buffers and/or semaphores to a VkQueue.

@@ -11,7 +11,6 @@ struct ambient_occlusion_context_t
     vierkant::DevicePtr device;
     vierkant::PipelineCachePtr pipeline_cache;
     vierkant::BufferPtr param_buffer;
-    vierkant::BufferPtr staging_buffer;
     vierkant::drawable_t drawable_ssao, drawable_rtao;
     vierkant::Framebuffer framebuffer;
     vierkant::Rasterizer renderer;
@@ -62,21 +61,14 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
     renderer_info.descriptor_pool = descriptor_pool;
     ret->renderer = vierkant::Rasterizer(device, renderer_info);
 
-    vierkant::Buffer::create_info_t internal_buffer_info = {};
-    internal_buffer_info.device = device;
-    internal_buffer_info.num_bytes = 1U << 10U;
-    internal_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-    internal_buffer_info.mem_usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-    ret->param_buffer = vierkant::Buffer::create(internal_buffer_info);
-
-    vierkant::Buffer::create_info_t staging_buffer_info = {};
-    staging_buffer_info.device = device;
-    staging_buffer_info.num_bytes = 1U << 10U;
-    staging_buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    staging_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_ONLY;
-    ret->staging_buffer = vierkant::Buffer::create(staging_buffer_info);
+    vierkant::Buffer::create_info_t param_buffer_info = {};
+    param_buffer_info.device = device;
+    param_buffer_info.num_bytes = 1U << 10U;
+    param_buffer_info.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+                              VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    param_buffer_info.mem_usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    param_buffer_info.name = "ambient_occlusion_params_buffer";
+    ret->param_buffer = vierkant::Buffer::create(param_buffer_info);
 
     // ssao drawable
     auto ssao_vert = vierkant::create_shader_module(device, vierkant::shaders::fullscreen::texture_vert);
@@ -125,7 +117,9 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     vierkant::begin_label(params.commandbuffer, {fmt::format("ambient_occlusion")});
 
     auto drawable = use_rtao ? context->drawable_rtao : context->drawable_ssao;
-    std::vector<vierkant::staging_copy_info_t> staging_copy_infos;
+
+    void *ubo_ptr = context->param_buffer->map();
+    assert(ubo_ptr);
 
     // RTAO
     if(use_rtao)
@@ -134,46 +128,24 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
         drawable.descriptors[1].images = {params.depth_img, params.normal_img};
         drawable.descriptors[2].buffers = {context->param_buffer};
 
-        rtao_params_t rtao_params = {};
-        rtao_params.num_rays = params.num_rays;
-        rtao_params.max_distance = params.max_distance;
-        rtao_params.camera_transform = params.camera_transform;
-        rtao_params.inverse_projection = glm::inverse(params.projection);
-
-        vierkant::staging_copy_info_t copy_params = {};
-        copy_params.num_bytes = sizeof(rtao_params_t);
-        copy_params.data = &rtao_params;
-        copy_params.dst_buffer = context->param_buffer;
-        copy_params.dst_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-        copy_params.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-        staging_copy_infos.push_back(copy_params);
+        auto *rtao_params = static_cast<rtao_params_t *>(ubo_ptr);
+        rtao_params->num_rays = params.num_rays;
+        rtao_params->max_distance = params.max_distance;
+        rtao_params->camera_transform = params.camera_transform;
+        rtao_params->inverse_projection = glm::inverse(params.projection);
     }
     else// SSAO
     {
         drawable.descriptors[0].buffers = {context->param_buffer};
         drawable.descriptors[1].images = {params.depth_img, params.normal_img};
 
-        ssao_params_t ssao_params = {};
-        ssao_params.projection = params.projection;
-        ssao_params.inverse_projection = glm::inverse(params.projection);
-        ssao_params.view_transform = vierkant::inverse(params.camera_transform);
-        ssao_params.ssao_radius = params.max_distance;
-        ssao_params.random_seed = context->random_engine();
-
-        vierkant::staging_copy_info_t copy_params = {};
-        copy_params.num_bytes = sizeof(ssao_params_t);
-        copy_params.data = &ssao_params;
-        copy_params.dst_buffer = context->param_buffer;
-        copy_params.dst_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-        copy_params.dst_access = VK_ACCESS_2_SHADER_READ_BIT;
-        staging_copy_infos.push_back(copy_params);
+        auto *ssao_params = static_cast<ssao_params_t *>(ubo_ptr);
+        ssao_params->projection = params.projection;
+        ssao_params->inverse_projection = glm::inverse(params.projection);
+        ssao_params->view_transform = vierkant::inverse(params.camera_transform);
+        ssao_params->ssao_radius = params.max_distance;
+        ssao_params->random_seed = context->random_engine();
     }
-
-    // ubo upload
-    vierkant::staging_copy_context_t staging_context = {};
-    staging_context.command_buffer = params.commandbuffer;
-    staging_context.staging_buffer = context->staging_buffer;
-    vierkant::staging_copy(staging_context, staging_copy_infos);
 
     auto ao_img = context->framebuffer.color_attachment();
     ao_img->transition_layout(VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, params.commandbuffer);

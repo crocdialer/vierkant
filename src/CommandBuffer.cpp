@@ -50,22 +50,6 @@ void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_sta
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 src_stage_mask,
-                   VkPipelineStageFlags2 dst_stage_mask)
-{
-    VkAccessFlags2 access_flags = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
-    stage_barrier(command_buffer, src_stage_mask, access_flags, dst_stage_mask, access_flags);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void stage_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags2 stage_mask)
-{
-    stage_barrier(command_buffer, stage_mask, stage_mask);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void submit(const vierkant::DevicePtr &device, VkQueue queue, const std::vector<VkCommandBuffer> &command_buffers,
             bool wait_fence, VkFence fence, const std::vector<vierkant::semaphore_submit_info_t> &semaphore_infos)
 {

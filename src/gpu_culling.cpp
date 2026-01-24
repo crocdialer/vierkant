@@ -130,26 +130,6 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
         context->depth_pyramid_computes.emplace_back(context->device, compute_info);
     }
 
-    VkImageMemoryBarrier2 barrier = {};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-    barrier.image = context->depth_pyramid_img->image();
-    barrier.srcQueueFamilyIndex = barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.oldLayout = barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
-    barrier.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    barrier.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    barrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
-    barrier.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-
-    VkDependencyInfo dependency_info = {};
-    dependency_info.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-    dependency_info.dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-    dependency_info.imageMemoryBarrierCount = 1;
-    dependency_info.pImageMemoryBarriers = &barrier;
-
     // pre depth-pyramid timestamp
     if(params.query_pool)
     {
@@ -159,7 +139,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
 
     // min alignment for uniform-buffers
     auto min_alignment = context->device->properties().core.limits.minUniformBufferOffsetAlignment;
-    auto stride = sizeof(glm::vec2) + min_alignment - (sizeof(glm::vec2) % min_alignment);
+    auto stride = vierkant::aligned_size(sizeof(glm::vec2), min_alignment);
 
     // transition all mips to general layout for writing
     context->depth_pyramid_img->transition_layout(VK_IMAGE_LAYOUT_GENERAL, context->depth_pyramid_cmd_buffer.handle());
@@ -189,8 +169,8 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
         // dispatch compute shader
         context->depth_pyramid_computes[lvl - 1].dispatch({computable}, context->depth_pyramid_cmd_buffer.handle());
 
-        barrier.subresourceRange.baseMipLevel = lvl - 1;
-        vkCmdPipelineBarrier2(context->depth_pyramid_cmd_buffer.handle(), &dependency_info);
+        // simplified barrier for next level
+        vierkant::stage_barrier(context->depth_pyramid_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
     }
 
     params.depth_map->transition_layout(prev_depthmap_layout, context->depth_pyramid_cmd_buffer.handle());
@@ -368,7 +348,7 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
 
     constexpr size_t max_num_mips = 128;
     auto min_alignment = device->properties().core.limits.minUniformBufferOffsetAlignment;
-    auto stride = sizeof(glm::vec2) + min_alignment - (sizeof(glm::vec2) % min_alignment);
+    auto stride = vierkant::aligned_size(sizeof(glm::vec2), min_alignment);
 
     buffer_info.num_bytes = max_num_mips * stride;
     buffer_info.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
