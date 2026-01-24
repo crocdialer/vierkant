@@ -64,7 +64,7 @@ class MouseEvent
 public:
     MouseEvent() = default;
 
-    MouseEvent(int initiator, int x, int y, unsigned int modifiers, glm::ivec2 wheel_inc)
+    MouseEvent(int initiator, int x, int y, unsigned int modifiers, glm::vec2 wheel_inc)
         : m_initiator(initiator), m_x(x), m_y(y), m_modifiers(modifiers), m_wheel_inc(wheel_inc)
     {}
 
@@ -78,7 +78,7 @@ public:
     [[nodiscard]] glm::ivec2 position() const { return {m_x, m_y}; }
 
     //! Returns the number of detents the user has wheeled through. Positive values correspond to wheel-up and negative to wheel-down.
-    [[nodiscard]] glm::ivec2 wheel_increment() const { return m_wheel_inc; }
+    [[nodiscard]] glm::vec2 wheel_increment() const { return m_wheel_inc; }
 
     //! Returns whether the initiator for the event was the left mouse button
     bool is_left() const { return m_initiator & BUTTON_LEFT; }
@@ -126,7 +126,7 @@ private:
     uint32_t m_initiator = 0;
     int m_x = 0, m_y = 0;
     unsigned int m_modifiers = 0;
-    glm::ivec2 m_wheel_inc{0};
+    glm::vec2 m_wheel_inc{0};
 };
 
 //! Represents a keyboard event

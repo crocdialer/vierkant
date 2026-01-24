@@ -537,7 +537,7 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
         for(auto &pair: self->mouse_delegates)
         {
             if(pair.second.enabled && !pair.second.enabled()) { continue; }
-            glm::ivec2 offset = glm::ivec2(offset_x, offset_y);
+            glm::vec2 offset = glm::vec2(offset_x, offset_y);
             double posX, posY;
             glfwGetCursorPos(window, &posX, &posY);
             uint32_t button_mods, key_mods = 0;
