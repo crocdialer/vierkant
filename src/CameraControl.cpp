@@ -84,7 +84,10 @@ void OrbitCamera::mouse_drag(const MouseEvent &e)
             diff *= glm::vec2(-1, 1) * distance / screen_size;
             pan(diff);
         }
-        else { orbit(diff); }
+        else
+        {
+            orbit(diff);
+        }
         if(transform_cb) { transform_cb(transform()); }
     }
 }
@@ -95,9 +98,24 @@ vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
     ret.mouse_press = [this](const MouseEvent &e) { mouse_press(e); };
     ret.mouse_drag = [this](const MouseEvent &e) { mouse_drag(e); };
     ret.mouse_wheel = [this](const vierkant::MouseEvent &e) {
-        float scroll_gain = e.is_control_down() ? .1f : 1.f;
-        if(enabled) { distance = std::max(.1f, distance - scroll_gain * static_cast<float>(e.wheel_increment().y)); }
-        if(enabled && transform_cb) { transform_cb(transform()); }
+        if(enabled)
+        {
+            if(e.is_control_down())
+            {
+                float scroll_gain = e.is_shift_down() ? .1f : 1.f;
+                distance = std::max(.1f, distance - scroll_gain * static_cast<float>(e.wheel_increment().y));
+            }
+            else if(e.is_shift_down())
+            {
+                glm::vec2 scroll_gain = distance / screen_size;
+                pan(scroll_gain * glm::vec2(-1, 1) * e.wheel_increment());
+            }
+            else
+            {
+                orbit(e.wheel_increment());
+            }
+            if(transform_cb) { transform_cb(transform()); }
+        }
     };
     return ret;
 }
