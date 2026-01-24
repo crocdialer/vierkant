@@ -9,9 +9,7 @@ namespace vierkant
 struct ambient_occlusion_context_t
 {
     vierkant::DevicePtr device;
-    vierkant::CommandPoolPtr command_pool;
     vierkant::PipelineCachePtr pipeline_cache;
-    vierkant::CommandBuffer cmd_buffer;
     vierkant::BufferPtr param_buffer;
     vierkant::BufferPtr staging_buffer;
     vierkant::drawable_t drawable_ssao, drawable_rtao;
@@ -45,11 +43,6 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
                                              std::default_delete<ambient_occlusion_context_t>());
     ret->device = device;
     ret->pipeline_cache = pipeline_cache;
-    ret->command_pool = vierkant::create_command_pool(device, vierkant::Device::Queue::GRAPHICS,
-                                                      VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                                                              VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-
-    ret->cmd_buffer = vierkant::CommandBuffer(device, ret->command_pool.get());
 
     vierkant::Framebuffer::create_info_t framebuffer_info = {};
     framebuffer_info.size = {static_cast<uint32_t>(size.x), static_cast<uint32_t>(size.y), 1};
@@ -67,7 +60,6 @@ ambient_occlusion_context_ptr create_ambient_occlusion_context(const vierkant::D
     renderer_info.viewport.maxDepth = 1;
     renderer_info.pipeline_cache = pipeline_cache;
     renderer_info.descriptor_pool = descriptor_pool;
-    renderer_info.command_pool = ret->command_pool;
     ret->renderer = vierkant::Rasterizer(device, renderer_info);
 
     vierkant::Buffer::create_info_t internal_buffer_info = {};
