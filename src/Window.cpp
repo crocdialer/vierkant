@@ -318,7 +318,9 @@ bool Window::cursor_visible() const { return glfwGetInputMode(m_handle, GLFW_CUR
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void Window::set_cursor_visible(bool b)
-{ glfwSetInputMode(m_handle, GLFW_CURSOR, b ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN); }
+{
+    glfwSetInputMode(m_handle, GLFW_CURSOR, b ? GLFW_CURSOR_NORMAL : GLFW_CURSOR_HIDDEN);
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -540,11 +542,10 @@ void Window::glfw_mouse_wheel_cb(GLFWwindow *window, double offset_x, double off
             glfwGetCursorPos(window, &posX, &posY);
             uint32_t button_mods, key_mods = 0;
             get_modifiers(window, button_mods, key_mods);
-
             auto offset_abs = glm::abs(offset);
             bool is_trackpad = offset_abs != glm::vec2(0.f, 1.f) && offset_abs != glm::vec2(1.f, 0.f);
-            MouseEvent e(is_trackpad ? MouseEvent::TRACKPAD : 0, static_cast<int>(posX), static_cast<int>(posY),
-                         key_mods, offset);
+            uint32_t all_mods = button_mods | key_mods | (is_trackpad ? MouseEvent::TRACKPAD : 0);
+            MouseEvent e(all_mods, static_cast<int>(posX), static_cast<int>(posY), key_mods, offset);
 
             if(pair.second.mouse_wheel) { pair.second.mouse_wheel(e); }
         }
