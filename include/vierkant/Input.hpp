@@ -89,6 +89,9 @@ public:
     //! Returns whether the initiator for the event was the middle mouse button
     bool is_middle() const { return m_initiator & BUTTON_MIDDLE; }
 
+    //! Returns whether a scrolling-event was initiated by a trackpad-swipe
+    bool is_trackpad_scroll() const { return m_initiator & TRACKPAD; }
+
     //! Returns whether the left mouse button was pressed during the event
     bool is_left_down() const { return m_modifiers & BUTTON_LEFT; }
 
@@ -115,11 +118,12 @@ public:
         BUTTON_LEFT = (1 << 0),
         BUTTON_RIGHT = (1 << 1),
         BUTTON_MIDDLE = (1 << 2),
-        SHIFT_DOWN = (1 << 3),
-        ALT_DOWN = (1 << 4),
-        CTRL_DOWN = (1 << 5),
-        META_DOWN = (1 << 6),
-        TOUCH_DOWN = (1 << 7)
+        TRACKPAD = (1 << 3),
+        SHIFT_DOWN = (1 << 4),
+        ALT_DOWN = (1 << 5),
+        CTRL_DOWN = (1 << 6),
+        META_DOWN = (1 << 7),
+        TOUCH_DOWN = (1 << 8)
     };
 
 private:
