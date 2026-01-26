@@ -100,19 +100,27 @@ vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
     ret.mouse_wheel = [this](const vierkant::MouseEvent &e) {
         if(enabled)
         {
-            if(e.is_control_down())
+            if(e.is_trackpad_scroll())
             {
-                float scroll_gain = e.is_shift_down() ? .1f : 1.f;
-                distance = std::max(.1f, distance - scroll_gain * static_cast<float>(e.wheel_increment().y));
-            }
-            else if(e.is_shift_down())
-            {
-                glm::vec2 scroll_gain = distance / screen_size;
-                pan(scroll_gain * glm::vec2(-1, 1) * e.wheel_increment());
+                if(e.is_control_down())
+                {
+                    float scroll_gain = e.is_shift_down() ? .1f : 1.f;
+                    distance = std::max(.1f, distance - scroll_gain * e.wheel_increment().y);
+                }
+                else if(e.is_shift_down())
+                {
+                    glm::vec2 scroll_gain = mouse_sensitivity * distance / screen_size;
+                    pan(scroll_gain * glm::vec2(-1, 1) * e.wheel_increment());
+                }
+                else
+                {
+                    orbit(e.wheel_increment() * mouse_sensitivity);
+                }
             }
             else
             {
-                orbit(e.wheel_increment());
+                float scroll_gain = e.is_control_down() ? .1f : 1.f;
+                distance = std::max(.1f, distance - scroll_gain * e.wheel_increment().y);
             }
             if(transform_cb) { transform_cb(transform()); }
         }
