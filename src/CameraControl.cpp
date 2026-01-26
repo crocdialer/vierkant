@@ -109,12 +109,12 @@ vierkant::mouse_delegate_t OrbitCamera::mouse_delegate()
                 }
                 else if(e.is_shift_down())
                 {
-                    glm::vec2 scroll_gain = mouse_sensitivity * distance / screen_size;
+                    glm::vec2 scroll_gain = mouse_wheel_sensitivity * distance / screen_size;
                     pan(scroll_gain * glm::vec2(-1, 1) * e.wheel_increment());
                 }
                 else
                 {
-                    orbit(e.wheel_increment() * mouse_sensitivity);
+                    orbit(mouse_wheel_sensitivity * e.wheel_increment());
                 }
             }
             else

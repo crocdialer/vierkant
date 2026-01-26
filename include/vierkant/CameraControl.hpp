@@ -28,6 +28,8 @@ public:
 
     glm::vec2 mouse_sensitivity = {1.f, 1.f};
 
+    glm::vec2 mouse_wheel_sensitivity = {1.f, 1.f};
+
     virtual void update(double time_delta) = 0;
 
     virtual vierkant::mouse_delegate_t mouse_delegate() = 0;
