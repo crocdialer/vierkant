@@ -160,10 +160,10 @@ public:
 
     enum
     {
-        SHIFT_DOWN = (1 << 3),
-        ALT_DOWN = (1 << 4),
-        CTRL_DOWN = (1 << 5),
-        META_DOWN = (1 << 6)
+        SHIFT_DOWN = MouseEvent::SHIFT_DOWN,
+        ALT_DOWN = MouseEvent::ALT_DOWN,
+        CTRL_DOWN = MouseEvent::CTRL_DOWN,
+        META_DOWN = MouseEvent::META_DOWN
     };
 
 private:
