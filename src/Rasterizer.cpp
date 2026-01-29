@@ -2,6 +2,8 @@
 #include <unordered_set>
 #include <vierkant/Pipeline.hpp>
 #include <vierkant/Rasterizer.hpp>
+
+#include <ranges>
 #include <vierkant/staging_copy.hpp>
 
 namespace vierkant
@@ -150,7 +152,7 @@ void swap(Rasterizer &lhs, Rasterizer &rhs) noexcept
 
 void Rasterizer::stage_drawable(drawable_t drawable)
 {
-    std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
+    std::lock_guard lock_guard(m_staging_mutex);
     m_staged_drawables[m_current_index].push_back(std::move(drawable));
 }
 
@@ -158,7 +160,7 @@ void Rasterizer::stage_drawable(drawable_t drawable)
 
 void Rasterizer::stage_drawables(const std::span<drawable_t> &drawables)
 {
-    std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
+    std::lock_guard lock_guard(m_staging_mutex);
     auto &frame_drawables = m_staged_drawables[m_current_index];
     frame_drawables.insert(frame_drawables.end(), drawables.begin(), drawables.end());
 }
@@ -267,7 +269,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
     };
 
     auto create_mesh_key = [create_texture_hash](const drawable_t &drawable) -> texture_index_key_t {
-        auto it = drawable.descriptors.find(BINDING_TEXTURES);
+        const auto it = drawable.descriptors.find(BINDING_TEXTURES);
         if(it == drawable.descriptors.end() || it->second.images.empty()) { return {drawable.mesh.get(), {}}; }
         const auto &drawable_textures = it->second.images;
         return {drawable.mesh.get(), create_texture_hash(drawable_textures)};
@@ -284,9 +286,8 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         const auto &drawable_textures = it->second.images;
 
         // insert other textures from drawables
-        texture_index_key_t key = {drawable.mesh.get(), create_texture_hash(drawable_textures)};
-
-        if(!texture_base_index_map.count(key))
+        if(texture_index_key_t key = {drawable.mesh.get(), create_texture_hash(drawable_textures)};
+           !texture_base_index_map.contains(key))
         {
             texture_base_index_map[key] = textures.size();
             textures.insert(textures.end(), drawable_textures.begin(), drawable_textures.end());
@@ -431,14 +432,14 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
                 // keep track of assigned draw-command-indices
                 if(frame_assets.indirect_indexed_bundle.draw_command_indices)//  == indirect_draw
                 {
-                    auto *draw_command_indices = reinterpret_cast<uint32_t *>(
-                            frame_assets.indirect_indexed_bundle.draw_command_indices->map());
+                    auto *draw_command_indices =
+                            static_cast<uint32_t *>(frame_assets.indirect_indexed_bundle.draw_command_indices->map());
                     draw_command_indices[indexed_drawable.object_index] =
                             frame_assets.indirect_indexed_bundle.num_draws;
                 }
 
                 // assign into draw-command buffer
-                auto *draw_command = reinterpret_cast<indexed_indirect_command_t *>(
+                auto *draw_command = static_cast<indexed_indirect_command_t *>(
                                              frame_assets.indirect_indexed_bundle.draws_in->map()) +
                                      frame_assets.indirect_indexed_bundle.num_draws++;
 
@@ -497,7 +498,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
         if(indexed_drawables.empty()) { continue; }
         auto &indirect_draws = pipelines[pipe_fmt];
 
-        for(auto &[mesh, draw_asset]: indirect_draws)
+        for(auto &draw_asset: indirect_draws | std::views::values)
         {
             auto descriptors = draw_asset.drawable->descriptors;
 
@@ -704,7 +705,7 @@ void Rasterizer::render(VkCommandBuffer command_buffer, frame_assets_t &frame_as
 
 void Rasterizer::reset()
 {
-    std::lock_guard<std::mutex> lock_guard(m_staging_mutex);
+    std::lock_guard lock_guard(m_staging_mutex);
     m_current_index = 0;
     m_staged_drawables.clear();
     for(auto &frame_asset: m_frame_assets) { frame_asset = {}; }
@@ -712,7 +713,7 @@ void Rasterizer::reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Rasterizer::frame_assets_t &frame_asset)
+void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset)
 {
     std::vector<VkDeviceAddress> vertex_buffer_refs;
     std::vector<mesh_entry_t> mesh_entries;
@@ -807,10 +808,11 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
     std::vector<staging_copy_info_t> staging_copies;
 
-    auto add_staging_copy = [&staging_copies, &frame_asset, device = m_device](
-                                    const auto &array, vierkant::BufferPtr &outbuffer, VkPipelineStageFlags2 dst_stage,
-                                    VkAccessFlags2 dst_access, const std::string &label) {
-        using elem_t = typename std::decay<decltype(array)>::type::value_type;
+    auto add_staging_copy = [&staging_copies, &frame_asset,
+                             device = m_device]<typename T>(const std::vector<T> &array, vierkant::BufferPtr &outbuffer,
+                                                            VkPipelineStageFlags2 dst_stage, VkAccessFlags2 dst_access,
+                                                            const std::string &label) {
+        using elem_t = std::vector<T>::value_type;
         size_t num_bytes = array.size() * sizeof(elem_t);
 
         if(!outbuffer)
@@ -896,7 +898,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, Raster
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_asset)
+void Rasterizer::resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_asset) const
 {
     // reserve space for indirect drawing-commands
     size_t num_bytes_indexed = std::max<size_t>(num_drawables * sizeof(indexed_indirect_command_t), 1UL << 20);
@@ -1005,8 +1007,9 @@ Rasterizer::frame_assets_t &Rasterizer::next_frame()
     if(query_result == VK_SUCCESS)
     {
         // calculate last gpu-frametime
-        auto frame_ns = std::chrono::nanoseconds(static_cast<uint64_t>(
-                double(timestamps[1] - timestamps[0]) * m_device->properties().core.limits.timestampPeriod));
+        auto frame_ns =
+                std::chrono::nanoseconds(static_cast<uint64_t>(static_cast<double>(timestamps[1] - timestamps[0]) *
+                                                               m_device->properties().core.limits.timestampPeriod));
         frame_assets.frame_time = std::chrono::duration_cast<double_millisecond_t>(frame_ns);
 
         // reset query-pool

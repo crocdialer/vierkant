@@ -347,7 +347,7 @@ private:
     void update_buffers(const std::vector<drawable_t> &drawables, frame_assets_t &frame_asset);
 
     //! create/resize draw_indirect buffers
-    void resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_assets);
+    void resize_draw_indirect_buffers(uint32_t num_drawables, frame_assets_t &frame_assets) const;
 
     //! increment counter, retrieve next frame-assets, update timings, ...
     frame_assets_t &next_frame();
