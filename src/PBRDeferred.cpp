@@ -1313,6 +1313,7 @@ void vierkant::PBRDeferred::resize_storage(vierkant::PBRDeferred::frame_context_
 
         auto depth_fmt = frame_context.g_buffer_main.depth_attachment()->format();
         depth_fmt.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        depth_fmt.initial_layout = VK_IMAGE_LAYOUT_READ_ONLY_OPTIMAL;
         frame_context.depth_map = vierkant::Image::create(m_device, depth_fmt);
 
         // culling context, containing depth-pyramid / HZB
