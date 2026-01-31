@@ -85,10 +85,11 @@ void main()
         // retrieve vertex-buffer, unpack vertex
         const Vertex v = unpack(vertex_buffers[draws[task_payload.object_index].vertex_buffer_index].v[vi]);
 
-        vertex_out[i].current_position = camera.projection * camera.view * vec4(apply_transform(m.transform, v.position), 1.0);
+        vec4 cur_pos = camera.projection * camera.view * vec4(apply_transform(m.transform, v.position), 1.0);
+        vertex_out[i].current_position = cur_pos;
         vertex_out[i].last_position = last_camera.projection * last_camera.view * vec4(apply_transform(m_last.transform, v.position), 1.0);
 
-        vec4 jittered_position = vertex_out[i].current_position;
+        vec4 jittered_position = cur_pos;
         jittered_position.xy += 2.0 * camera.sample_offset * jittered_position.w;
         gl_MeshVerticesEXT[i].gl_Position = jittered_position;
 

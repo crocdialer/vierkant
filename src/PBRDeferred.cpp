@@ -58,7 +58,10 @@ PBRDeferred::PBRDeferred(const DevicePtr &device, const create_info_t &create_in
                                                           {VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK, 1024}};
         m_descriptor_pool = vierkant::create_descriptor_pool(m_device, descriptor_counts, 1024);
     }
-    else { m_descriptor_pool = create_info.descriptor_pool; }
+    else
+    {
+        m_descriptor_pool = create_info.descriptor_pool;
+    }
 
     m_pipeline_cache =
             create_info.pipeline_cache ? create_info.pipeline_cache : vierkant::PipelineCache::create(device);
@@ -298,9 +301,7 @@ PBRDeferred::~PBRDeferred()
 }
 
 PBRDeferredPtr PBRDeferred::create(const DevicePtr &device, const create_info_t &create_info)
-{
-    return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info));
-}
+{ return vierkant::PBRDeferredPtr(new PBRDeferred(device, create_info)); }
 
 void PBRDeferred::update_recycling(const SceneConstPtr &scene, const CameraPtr &cam, frame_context_t &frame_context)
 {
@@ -547,7 +548,10 @@ void PBRDeferred::update_animation_transforms(frame_context_t &frame_context)
             frame_context.mesh_compute_result =
                     vierkant::mesh_compute(frame_context.mesh_compute_context, mesh_compute_params);
         }
-        else { frame_context.timeline.signal(frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE); }
+        else
+        {
+            frame_context.timeline.signal(frame_context.current_semaphore_value + SemaphoreValue::MESH_COMPUTE);
+        }
     }
 
     if(!frame_context.recycle_commands)
@@ -673,7 +677,10 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             {
                 drawable.pipeline_format.shader_stages = stage_it->second;
             }
-            else { drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT]; }
+            else
+            {
+                drawable.pipeline_format.shader_stages = m_g_buffer_shader_stages[PROP_DEFAULT];
+            }
 
             // set attachment count
             drawable.pipeline_format.attachment_count = G_BUFFER_SIZE;
@@ -757,10 +764,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
         else if(params.num_draws && (!frame_context.dirty_drawable_indices.empty() ||
                                      !frame_context.mesh_compute_result.vertex_buffer_offsets.empty()))
         {
-            constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
             constexpr size_t staging_stride = 2 * sizeof(matrix_struct_t);
 
-            std::vector<VkDeviceAddress> vertex_buffer_addresses;
             std::vector<vierkant::matrix_struct_t> matrix_data(2 * frame_context.dirty_drawable_indices.size());
             std::vector<vierkant::material_struct_t> material_data(frame_context.dirty_drawable_indices.size());
             std::vector<vierkant::staging_copy_info_t> staging_copies;
@@ -778,6 +783,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
                     if(flag & flag_component_t::DIRTY_TRANSFORM)
                     {
+                        constexpr size_t stride = sizeof(Rasterizer::mesh_draw_t);
                         vierkant::staging_copy_info_t copy_transform = {};
                         copy_transform.num_bytes = staging_stride;
                         copy_transform.data = matrix_data.data() + 2 * i;
@@ -816,6 +822,7 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
             // vertex-buffers update from animation
             if(!frame_context.mesh_compute_result.vertex_buffer_offsets.empty())
             {
+                std::vector<VkDeviceAddress> vertex_buffer_addresses;
                 vertex_buffer_addresses.reserve(frame_context.mesh_compute_result.vertex_buffer_offsets.size());
                 std::unordered_set<uint32_t> mesh_indices;
 
@@ -826,9 +833,8 @@ vierkant::Framebuffer &PBRDeferred::geometry_pass(cull_result_t &cull_result)
 
                     for(uint32_t idx: frame_context.cull_result.object_id_to_drawable_indices[obj_id])
                     {
-                        uint32_t vertex_buffer_index = params.mesh_draws_host[idx].vertex_buffer_index;
-
-                        if(!mesh_indices.contains(vertex_buffer_index))
+                        if(uint32_t vertex_buffer_index = params.mesh_draws_host[idx].vertex_buffer_index;
+                           !mesh_indices.contains(vertex_buffer_index))
                         {
                             vierkant::staging_copy_info_t copy_vertex_address = {};
                             copy_vertex_address.num_bytes = sizeof(VkDeviceAddress);
