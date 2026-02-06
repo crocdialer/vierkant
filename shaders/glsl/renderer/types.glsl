@@ -1,6 +1,8 @@
 #ifndef RENDERER_TYPES_GLSL
 #define RENDERER_TYPES_GLSL
 
+#extension GL_EXT_shader_explicit_arithmetic_types: require
+
 #include "../utils/transform.glsl"
 
 //! groups transformation matrices
@@ -19,7 +21,8 @@ struct mesh_draw_t
     uint mesh_index;
     uint material_index;
     uint vertex_buffer_index;
-    uint lod_index;
+    uint16_t lod_index;
+    uint16_t lod_count;
 };
 
 //! meshlet parameters
@@ -69,11 +72,12 @@ struct index_bundle_t
     uint mesh_draw_index;
     uint material_index;
     uint meshlet_index;
-    uint lod_index;
+    uint16_t lod_index;
+    uint16_t lod_count;
 };
 
 #define LOCATION_INDEX_BUNDLE 0
-#define LOCATION_VERTEX_BUNDLE 4
+#define LOCATION_VERTEX_BUNDLE 5
 
 //! blendmode definitions
 #define BLEND_MODE_OPAQUE 0

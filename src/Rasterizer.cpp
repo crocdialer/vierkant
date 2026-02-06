@@ -784,7 +784,7 @@ void Rasterizer::update_buffers(const std::vector<drawable_t> &drawables, frame_
         frame_asset.mesh_draws[i].mesh_index = mesh_index;
         frame_asset.mesh_draws[i].material_index = material_index_map[mat];
         frame_asset.mesh_draws[i].vertex_buffer_index = vertex_buffer_index;
-
+        
         if(drawable.last_matrices) { frame_asset.mesh_draws[i].last_matrices = *drawable.last_matrices; }
         else
         {

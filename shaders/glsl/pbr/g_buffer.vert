@@ -36,7 +36,8 @@ void main()
 {
     indices.mesh_draw_index = gl_BaseInstance;
     indices.material_index = draws[gl_BaseInstance].material_index;
-    indices.meshlet_index = 0;
+    indices.lod_index = draws[gl_BaseInstance].lod_index;
+    indices.lod_count = draws[gl_BaseInstance].lod_count;
 
     // retrieve vertex-buffer, unpack vertex
     Vertex v = unpack(vertex_buffers[draws[indices.mesh_draw_index].vertex_buffer_index].v[gl_VertexIndex]);

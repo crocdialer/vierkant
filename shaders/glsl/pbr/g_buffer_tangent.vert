@@ -41,6 +41,7 @@ void main()
     indices.mesh_draw_index = gl_BaseInstance;
     indices.material_index = draws[gl_BaseInstance].material_index;
     indices.lod_index = draws[gl_BaseInstance].lod_index;
+    indices.lod_count = draws[gl_BaseInstance].lod_count;
 
     matrix_struct_t m = draws[indices.mesh_draw_index].current_matrices;
     matrix_struct_t m_last = draws[indices.mesh_draw_index].last_matrices;

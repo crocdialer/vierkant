@@ -164,8 +164,9 @@ void main()
         max_lod_index = cull_data.max_num_lods > 0 ? min(max_lod_index, cull_data.max_num_lods - 1) : max_lod_index;
         uint lod_index = sphere_visible ? clamp(uint(lod_index_f + 1), 0, max_lod_index) : 0;
 
-        // write back lod_index
-        cull_data.mesh_draws_in.v[draw.object_index].lod_index = lod_index; 
+        // write back lod_index and lod_count
+        cull_data.mesh_draws_in.v[draw.object_index].lod_index = uint16_t(lod_index); 
+        cull_data.mesh_draws_in.v[draw.object_index].lod_count = uint16_t(mesh_entry.lod_count);
 
         // select lod
         lod_t lod = mesh_entry.lods[lod_index];

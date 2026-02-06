@@ -95,8 +95,9 @@ void main()
 
         indices[i].mesh_draw_index = task_payload.object_index;
         indices[i].material_index = draws[task_payload.object_index].material_index;
-        indices[i].lod_index = draws[task_payload.object_index].lod_index;
         indices[i].meshlet_index = mi;
+        indices[i].lod_index = draws[task_payload.object_index].lod_index;
+        indices[i].lod_count = draws[task_payload.object_index].lod_count;
 
         vertex_out[i].tex_coord = (m.texture * vec4(v.tex_coord, 0, 1)).xy;
         vertex_out[i].normal = normalize(apply_rotation(m.transform, v.normal));

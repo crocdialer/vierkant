@@ -64,7 +64,8 @@ public:
         uint32_t mesh_index = 0;
         uint32_t material_index = 0;
         uint32_t vertex_buffer_index = 0;
-        uint32_t lod_index = 0;
+        uint16_t lod_index = 0;
+        uint16_t lod_count = 1;
     };
 
     struct mesh_entry_t

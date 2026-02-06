@@ -78,7 +78,7 @@ void main()
         if(has_flag(context.debug_flags, DEBUG_FLAG_LOD))
         {
             // apply colormap on lod_index
-            float lod_factor = 1.0 - (indices.lod_index / float(MAX_NUM_MESH_LODS));
+            float lod_factor = 1.0 - (indices.lod_index / float(indices.lod_count));
             out_color.rgb = jet(lod_factor);
         }
 
