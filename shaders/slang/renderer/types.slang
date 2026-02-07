@@ -1,10 +1,9 @@
-#ifndef RENDERER_TYPES_SLANG
-#define RENDERER_TYPES_SLANG
+import "../utils/transform.slang";
 
-implementing renderer;
+module renderer;
 
 // Transformation data for the current and previous frame
-public struct MatrixStruct
+public struct matrix_struct_t
 {
     public float4x4 projection;
     public float4x4 texture;
@@ -13,14 +12,15 @@ public struct MatrixStruct
 };
 
 // Per-draw data
-public struct MeshDraw
+public struct mesh_draw_t
 {
-    public MatrixStruct current_matrices;
-    public MatrixStruct last_matrices;
+    public matrix_struct_t current_matrices;
+    public matrix_struct_t last_matrices;
     public uint mesh_index;
     public uint material_index;
     public uint vertex_buffer_index;
-    public uint lod_index;
+    public uint16_t lod_index;
+    public uint16_t lod_count;
 };
 
 // Level-of-detail data for a mesh
@@ -35,7 +35,7 @@ public struct lod_t
 #define MAX_NUM_MESH_LODS 8
 
 // Metadata for a mesh and its LODs
-public struct MeshEntry
+public struct mesh_entry_t
 {
     public float3 center;
     public float radius;
@@ -48,19 +48,20 @@ public struct MeshEntry
 };
 
 // Bundle of draw-time indices (passed between shader stages)
-public struct IndexBundle
+public struct index_bundle_t
 {
     public uint mesh_draw_index;
     public uint material_index;
     public uint meshlet_index;
-    public uint lod_index;
+    public uint16_t lod_index;
+    public uint16_t lod_count;
 };
 
 // Vertex output location mapping
 public enum VertexLocation : uint
 {
     IndexBundle = 0,
-    VertexBundle = 4,
+    VertexBundle = 5,
 };
 
 // Vertex attribute location mapping
@@ -188,7 +189,7 @@ public void set_flag(inout uint flag_bits, uint flag, bool value)
 }
 
 // GPU draw command structure for both graphics and mesh shading
-public struct IndexedIndirectCommand
+public struct indexed_draw_command_t
 {
     // DrawIndexed-style parameters
     uint index_count;
@@ -213,7 +214,7 @@ public struct IndexedIndirectCommand
 };
 
 // Compact representation of a meshlet
-public struct Meshlet
+public struct meshlet_t
 {
     uint vertex_offset;
     uint triangle_offset;
@@ -227,5 +228,3 @@ public struct Meshlet
     float3 cone_axis;
     float cone_cutoff;
 };
-
-#endif // RENDERER_TYPES_SLANG

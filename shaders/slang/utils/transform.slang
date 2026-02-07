@@ -1,7 +1,4 @@
-#ifndef UTILS_TRANSFORM_SLANG
-#define UTILS_TRANSFORM_SLANG
-
-implementing utils;
+module transform;
 
 public struct transform_t
 {
@@ -91,5 +88,3 @@ public float4x4 mat4_cast(transform_t t)
         float4(t.translation_x, t.translation_y, t.translation_z, 1.0)
     );
 }
-
-#endif // UTILS_TRANSFORM_SLANG
