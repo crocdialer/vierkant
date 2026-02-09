@@ -101,7 +101,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         {
             if(aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
             {
-                barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                barrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
                 barrier.srcStageMask = VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
             }
             else
@@ -136,7 +136,7 @@ void transition_image_layout(VkCommandBuffer command_buffer, VkImage image, VkIm
         {
             if(aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT)
             {
-                barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+                barrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
                 barrier.dstStageMask =
                         VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
             }
