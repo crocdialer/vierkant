@@ -2,12 +2,15 @@ import "../utils/transform.slang";
 
 module renderer;
 
+namespace renderer
+{
+
 // Transformation data for the current and previous frame
 public struct matrix_struct_t
 {
     public float4x4 projection;
     public float4x4 texture;
-    public transform_t transform;
+    public utils::transform_t transform;
     uint pad[2];
 };
 
@@ -135,8 +138,8 @@ public enum DebugFlagBits
     LOD = 0x2
 };
 
-// Render-time context (usually passed via push constants)
-public struct render_context_t
+// Render-time context (e.g. passed via push constants)
+public struct context_t
 {
     public float2 size;
     public float time;
@@ -228,3 +231,5 @@ public struct meshlet_t
     float3 cone_axis;
     float cone_cutoff;
 };
+
+}// namespace renderer

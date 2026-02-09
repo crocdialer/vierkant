@@ -1,5 +1,8 @@
 module transform;
 
+namespace utils
+{
+    
 public struct transform_t
 {
     public float translation_x, translation_y, translation_z;
@@ -87,4 +90,5 @@ public float4x4 mat4_cast(transform_t t)
         float4(rot[2] * t.scale_z, 0.0),
         float4(t.translation_x, t.translation_y, t.translation_z, 1.0)
     );
+}
 }
