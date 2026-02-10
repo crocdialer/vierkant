@@ -72,8 +72,8 @@ struct index_bundle_t
     uint mesh_draw_index;
     uint material_index;
     uint meshlet_index;
-    uint16_t lod_index;
-    uint16_t lod_count;
+    uint lod_index;
+    uint lod_count;
 };
 
 #define LOCATION_INDEX_BUNDLE 0
