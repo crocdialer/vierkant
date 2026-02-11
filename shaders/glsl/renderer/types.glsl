@@ -29,20 +29,23 @@ struct mesh_draw_t
 struct meshlet_t
 {
     //! offsets within meshlet_vertices and meshlet_triangles
-    uint vertex_offset;
-    uint triangle_offset;
+    uint32_t vertex_offset;
+    uint32_t triangle_offset;
 
     //! number of vertices and triangles used in the meshlet
-    uint vertex_count;
-    uint triangle_count;
+    uint8_t vertex_count;
+    uint8_t triangle_count;
+
+    //! normal cone, useful for backface culling (packed as snorm8)
+    int8_t cone_axis[3];
+    int8_t cone_cutoff;
+
+    uint8_t padding[2];
 
     //! bounding sphere (center, radius), useful for frustum and occlusion culling
     vec3 sphere_center;
     float sphere_radius;
 
-    //! normal cone (axis, cutoff), useful for backface culling
-    vec3 cone_axis;
-    float cone_cutoff;
 };
 
 struct lod_t

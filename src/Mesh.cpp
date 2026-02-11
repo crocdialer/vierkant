@@ -609,8 +609,8 @@ mesh_buffer_bundle_t create_mesh_buffers(const std::vector<Mesh::entry_create_in
                     out_meshlet.triangle_count = m.triangle_count;
 
                     out_meshlet.bounding_sphere = {*reinterpret_cast<glm::vec3 *>(bounds.center), bounds.radius};
-                    out_meshlet.normal_cone = {*reinterpret_cast<glm::vec3 *>(bounds.cone_axis), bounds.cone_cutoff};
-
+                    memcpy(out_meshlet.cone_axis, bounds.cone_axis_s8, sizeof(out_meshlet.cone_axis));
+                    out_meshlet.cone_cutoff = bounds.cone_cutoff_s8;
                     ret.meshlets.push_back(out_meshlet);
                 }
 

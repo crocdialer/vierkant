@@ -166,14 +166,17 @@ public:
         uint32_t triangle_offset = 0;
 
         //! number of vertices and triangles used in the meshlet
-        uint32_t vertex_count = 0;
-        uint32_t triangle_count = 0;
+        uint8_t vertex_count = 0;
+        uint8_t triangle_count = 0;
+
+        //! normal cone, useful for backface culling, packed as snorm8
+        int8_t cone_axis[3] = {};
+        int8_t cone_cutoff = 0;
+
+        uint8_t padding[2] = {};
 
         //! bounding sphere, useful for frustum and occlusion culling
         vierkant::Sphere bounding_sphere;
-
-        //! normal cone, useful for backface culling
-        vierkant::Cone normal_cone;
     };
 
     static MeshPtr create();

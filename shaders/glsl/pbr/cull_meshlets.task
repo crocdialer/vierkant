@@ -111,8 +111,13 @@ void main()
 
             // transform bounding volume and normal-cone
             mat4 m = camera.view * mat4_cast(draw.current_matrices.transform);
-            vec3 cone_axis = normalize(mat3(m) * meshlets[mi].cone_axis);
-            float cone_cutoff = meshlets[mi].cone_cutoff;
+
+            // unpack + rotate normal-cone
+            vec3 cone_axis = vec3(int(meshlets[mi].cone_axis[0]) / 127.0,
+                                  int(meshlets[mi].cone_axis[1]) / 127.0,
+                                  int(meshlets[mi].cone_axis[2]) / 127.0);
+            cone_axis = normalize(mat3(m) * cone_axis);
+            float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
             vec3 center = (m * vec4(meshlets[mi].sphere_center, 1.0)).xyz;
             float radius = meshlets[mi].sphere_radius * max(max(abs(draw.current_matrices.transform.scale_x),
                                                                 abs(draw.current_matrices.transform.scale_y)),
