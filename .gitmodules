@@ -42,5 +42,9 @@
 	shallow = true
 [submodule "extern/mimalloc"]
 	path = extern/mimalloc
-	url = git@github.com:microsoft/mimalloc.git
-	shallow = true
+	url = https://github.com/microsoft/mimalloc.git
+  shallow = true
+[submodule "extern/ktx"]
+	path = extern/ktx
+	url = https://github.com/KhronosGroup/KTX-Software.git
+  shallow = true
