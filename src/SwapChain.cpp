@@ -253,7 +253,13 @@ VkResult SwapChain::present()
     present_info.pResults = nullptr;// Optional
 
     // swap buffers
-    VkResult result = vkQueuePresentKHR(m_device->queue(Device::Queue::PRESENT), &present_info);
+    VkResult result = VK_NOT_READY;
+    VkQueue present_queue = m_device->queue(Device::Queue::PRESENT);
+    if(auto *queue_asset = m_device->queue_asset(present_queue))
+    {
+        std::unique_lock lock(*queue_asset->mutex);
+        result = vkQueuePresentKHR(present_queue, &present_info);
+    }
     m_current_frame_index = (m_current_frame_index + 1) % m_images.size();
     return result;
 }

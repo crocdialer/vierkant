@@ -127,7 +127,10 @@ std::map<Device::Queue, Device::queue_family_info_t> find_queue_families(VkPhysi
                     indices[Device::Queue::PRESENT].index = i;
                     indices[Device::Queue::PRESENT].num_queues = queueFamily.queueCount;
                 }
-                else { indices[Device::Queue::PRESENT].num_queues = 0; }
+                else
+                {
+                    indices[Device::Queue::PRESENT].num_queues = 0;
+                }
                 indices[Device::Queue::GRAPHICS].num_queues = queueFamily.queueCount;
             }
             if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)
@@ -191,7 +194,10 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
             // enable extension if available
             extensions.push_back(ext_name);
         }
-        else { spdlog::warn("requested extension '{}' is not available", ext_name); }
+        else
+        {
+            spdlog::warn("requested extension '{}' is not available", ext_name);
+        }
     };
 
     // check if mesh-shading was requested and if so, enable fragment-rate-shading as well.
@@ -360,7 +366,10 @@ Device::Device(const create_info_t &create_info) : m_physical_device(create_info
                 static_cast<uint32_t>(sizeof(g_validation_layers) / sizeof(const char *));
         device_create_info.ppEnabledLayerNames = g_validation_layers;
     }
-    else { device_create_info.enabledLayerCount = 0; }
+    else
+    {
+        device_create_info.enabledLayerCount = 0;
+    }
 
     spdlog::debug("device-extensions: {}", extensions);
 
@@ -485,7 +494,7 @@ const Device::queue_asset_t *Device::queue_asset(VkQueue queue) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Device::set_object_name(uint64_t handle, VkObjectType type, const std::string &name)
+void Device::set_object_name(uint64_t handle, VkObjectType type, const std::string &name) const
 {
     if(vkSetDebugUtilsObjectNameEXT)
     {
@@ -500,6 +509,6 @@ void Device::set_object_name(uint64_t handle, VkObjectType type, const std::stri
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void Device::wait_idle() { vkDeviceWaitIdle(m_device); }
+void Device::wait_idle() const { vkDeviceWaitIdle(m_device); }
 
 }// namespace vierkant

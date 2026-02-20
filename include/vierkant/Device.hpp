@@ -118,7 +118,7 @@ public:
     /**
      * @brief   wait for the device to become idle
      */
-    void wait_idle();
+    void wait_idle() const;
 
     /**
      * @return a struct grouping physical-device properties
@@ -173,7 +173,7 @@ public:
      * @param   type    an object-type identifier
      * @param   name    a name to use for this object
      */
-    void set_object_name(uint64_t handle, VkObjectType type, const std::string &name);
+    void set_object_name(uint64_t handle, VkObjectType type, const std::string &name) const;
 
 private:
     explicit Device(const create_info_t &create_info);
