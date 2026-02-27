@@ -1,3 +1,4 @@
+#include <format>
 #include <set>
 #include <vierkant/Device.hpp>
 #include <vierkant/git_hash.h>
@@ -47,17 +48,17 @@ std::string device_info(VkPhysicalDevice physical_device)
         uint32_t nvidia_driver_major = (versionraw >> 22) & 0x3ff;
         uint32_t nvidia_driver_minor = (versionraw >> 14) & 0x0ff;
         uint32_t nvidia_driver_patch = (versionraw >> 6) & 0x0ff;
-        driver_info = fmt::format("{}.{}.{:02}", nvidia_driver_major, nvidia_driver_minor, nvidia_driver_patch);
+        driver_info = std::format("{}.{}.{:02}", nvidia_driver_major, nvidia_driver_minor, nvidia_driver_patch);
     }
     // AMD ...
     else
     {
         // default version-schema is 10|10|12
         uint32_t versionraw = physical_device_properties.properties.driverVersion;
-        driver_info = fmt::format("{}.{}.{:02}", VK_VERSION_MAJOR(versionraw), VK_VERSION_MINOR(versionraw),
+        driver_info = std::format("{}.{}.{:02}", VK_VERSION_MAJOR(versionraw), VK_VERSION_MINOR(versionraw),
                                   VK_VERSION_PATCH(versionraw));
     }
-    return fmt::format("Vulkan {}.{}.{} - {} (driver: {}) - vierkant: {} | {} | {}", version_major, version_minor,
+    return std::format("Vulkan {}.{}.{} - {} (driver: {}) - vierkant: {} | {} | {}", version_major, version_minor,
                        version_patch, physical_device_properties.properties.deviceName, driver_info, GIT_BRANCH_NAME,
                        GIT_COMMIT_HASH, GIT_COMMIT_DATE);
 }

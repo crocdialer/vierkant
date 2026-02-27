@@ -114,7 +114,7 @@ vierkant::ImagePtr ambient_occlusion(const ambient_occlusion_context_ptr &contex
     bool use_rtao = params.use_ray_queries && params.top_level;
 
     // debug label
-    vierkant::begin_label(params.commandbuffer, {fmt::format("ambient_occlusion")});
+    vierkant::begin_label(params.commandbuffer, {"ambient_occlusion"});
 
     auto drawable = use_rtao ? context->drawable_rtao : context->drawable_ssao;
 
