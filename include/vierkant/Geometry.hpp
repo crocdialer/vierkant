@@ -163,6 +163,16 @@ public:
      * @return  the newly created Geometry for a box-outline
      */
     static GeometryPtr BoxOutline(const glm::vec3 &half_extents = glm::vec3(.5f));
+
+    /**
+     * @brief   Factory to create a capsule (cylinder with hemispherical ends)
+     *
+     * @param   height          total height of the capsule (including hemispheres)
+     * @param   radius          radius of the capsule
+     * @param   num_segments    number of segments around the capsule
+     * @return  the newly created Geometry for a capsule
+     */
+    static GeometryPtr Capsule(float height = 2.f, float radius = 0.5f, size_t num_segments = 16);
 };
 
 }// namespace vierkant

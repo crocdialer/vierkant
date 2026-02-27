@@ -642,4 +642,160 @@ GeometryPtr Geometry::UVSphere(float radius, size_t num_segments)
     return geom;
 }
 
+GeometryPtr Geometry::Capsule(float height, float radius, size_t num_segments)
+{
+    GeometryPtr geom = Geometry::create();
+
+    // sanitize parameters
+    size_t sectors = std::max<size_t>(3, num_segments);
+
+    // hemisphere rings (including pole and equator)
+    size_t hemi_rings = std::max<size_t>(2, sectors / 2 + 1);
+
+    // cylinder subdivisions along height (internal rings, not counting equators)
+    size_t cyl_stacks = std::max<size_t>(1, hemi_rings - 1);
+
+    float cyl_height = std::max(0.f, height - 2.f * radius);
+    float cyl_half = cyl_height * 0.5f;
+
+    auto &positions = geom->positions;
+    auto &normals = geom->normals;
+    auto &tex_coords = geom->tex_coords;
+    auto &indices = geom->indices;
+
+    const float PI = std::numbers::pi_v<float>;
+
+    // helper to compute theta
+    auto theta_at = [&](size_t s) { return 2.f * PI * (float) s / (float) sectors; };
+
+    // store ring vertex indices (each ring contains `sectors` indices)
+    std::vector<std::vector<index_t>> rings;
+
+    // north pole
+    index_t north_pole = static_cast<index_t>(positions.size());
+    positions.emplace_back(0.f, cyl_half + radius, 0.f);
+    normals.emplace_back(glm::normalize(positions[north_pole] - glm::vec3(0.f, cyl_half, 0.f)));
+    tex_coords.emplace_back(0.5f, 1.f);
+
+    // top hemisphere rings (from pole -> equator)
+    for(size_t r = 1; r < hemi_rings; ++r)
+    {
+        float phi = (float) r / (float) (hemi_rings - 1) * (PI * 0.5f); // 0..pi/2
+        float cos_phi = std::cos(phi);
+        float sin_phi = std::sin(phi);
+
+        std::vector<index_t> ring;
+        ring.reserve(sectors);
+
+        for(size_t s = 0; s < sectors; ++s)
+        {
+            float theta = theta_at(s);
+            float x = std::cos(theta) * sin_phi * radius;
+            float y = cos_phi * radius + cyl_half;
+            float z = std::sin(theta) * sin_phi * radius;
+
+            positions.emplace_back(x, y, z);
+            normals.emplace_back(glm::normalize(positions.back() - glm::vec3(0.f, cyl_half, 0.f)));
+            tex_coords.emplace_back(1.f - (float) s / (float) (sectors - 1), 1.f - (float) r / (float) (hemi_rings - 1));
+            ring.push_back(static_cast<index_t>(positions.size() - 1));
+        }
+        rings.push_back(std::move(ring));
+    }
+
+    // cylinder rings (exclude top equator because it's the last of top hemi rings)
+    for(size_t i = 1; i < cyl_stacks; ++i)
+    {
+        float t = (float) i / (float) cyl_stacks; // 0..1
+        float y = cyl_half - t * cyl_height;
+
+        std::vector<index_t> ring;
+        ring.reserve(sectors);
+
+        for(size_t s = 0; s < sectors; ++s)
+        {
+            float theta = theta_at(s);
+            float x = std::cos(theta) * radius;
+            float z = std::sin(theta) * radius;
+
+            positions.emplace_back(x, y, z);
+            normals.emplace_back(glm::normalize(glm::vec3(x, 0.f, z)));
+            tex_coords.emplace_back(1.f - (float) s / (float) (sectors - 1), 0.5f - t * (cyl_height > 0.f ? 0.5f : 0.f));
+            ring.push_back(static_cast<index_t>(positions.size() - 1));
+        }
+        rings.push_back(std::move(ring));
+    }
+
+    // bottom hemisphere rings (exclude equator to avoid duplication)
+    for(int r = (int) hemi_rings - 2; r >= 1; --r)
+    {
+        float phi = (float) r / (float) (hemi_rings - 1) * (PI * 0.5f); // 0..pi/2
+        float cos_phi = std::cos(phi);
+        float sin_phi = std::sin(phi);
+
+        std::vector<index_t> ring;
+        ring.reserve(sectors);
+
+        for(size_t s = 0; s < sectors; ++s)
+        {
+            float theta = theta_at(s);
+            float x = std::cos(theta) * sin_phi * radius;
+            float y = -cos_phi * radius - cyl_half;
+            float z = std::sin(theta) * sin_phi * radius;
+
+            positions.emplace_back(x, y, z);
+            normals.emplace_back(glm::normalize(positions.back() - glm::vec3(0.f, -cyl_half, 0.f)));
+            tex_coords.emplace_back(1.f - (float) s / (float) (sectors - 1), 0.5f - (float) r / (float) (hemi_rings - 1));
+            ring.push_back(static_cast<index_t>(positions.size() - 1));
+        }
+        rings.push_back(std::move(ring));
+    }
+
+    // south pole
+    index_t south_pole = static_cast<index_t>(positions.size());
+    positions.emplace_back(0.f, -cyl_half - radius, 0.f);
+    normals.emplace_back(glm::normalize(positions[south_pole] - glm::vec3(0.f, -cyl_half, 0.f)));
+    tex_coords.emplace_back(0.5f, 0.f);
+
+    // build indices
+    if(!rings.empty())
+    {
+        // top fan: north pole -> first ring
+        const auto &first_ring = rings.front();
+        for(size_t s = 0; s < sectors; ++s)
+        {
+            indices.push_back(north_pole);
+            indices.push_back(first_ring[(s + 1) % sectors]);
+            indices.push_back(first_ring[s]);
+        }
+
+        // connect successive rings
+        for(size_t r = 0; r + 1 < rings.size(); ++r)
+        {
+            const auto &ra = rings[r];
+            const auto &rb = rings[r + 1];
+            for(size_t s = 0; s < sectors; ++s)
+            {
+                index_t a = ra[s];
+                index_t b = rb[s];
+                index_t c = rb[(s + 1) % sectors];
+                index_t d = ra[(s + 1) % sectors];
+                // use counter-clockwise winding for mantle quads
+                indices.insert(indices.end(), {a, d, c, a, c, b});
+            }
+        }
+
+        // bottom fan: last ring -> south pole
+        const auto &last_ring = rings.back();
+        for(size_t s = 0; s < sectors; ++s)
+        {
+            indices.push_back(south_pole);
+            indices.push_back(last_ring[s]);
+            indices.push_back(last_ring[(s + 1) % sectors]);
+        }
+    }
+
+    geom->compute_tangents();
+    return geom;
+}
+
 }// namespace vierkant
