@@ -72,7 +72,7 @@ vierkant::ImagePtr create_depth_pyramid(const vierkant::gpu_cull_context_ptr &co
                                         const create_depth_pyramid_params_t &params)
 {
     context->depth_pyramid_cmd_buffer.begin(0);
-    vierkant::begin_label(context->depth_pyramid_cmd_buffer.handle(), {fmt::format("create_depth_pyramid")});
+    vierkant::begin_label(context->depth_pyramid_cmd_buffer.handle(), {std::format("create_depth_pyramid")});
 
     VkImageLayout prev_depthmap_layout = params.depth_map->image_layout();
     params.depth_map->transition_layout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -188,7 +188,7 @@ draw_cull_result_t gpu_cull(const vierkant::gpu_cull_context_ptr &context, const
 {
     // start command-buffer
     context->cull_cmd_buffer.begin(0);
-    vierkant::begin_label(context->cull_cmd_buffer.handle(), {fmt::format("gpu_cull")});
+    vierkant::begin_label(context->cull_cmd_buffer.handle(), {std::format("gpu_cull")});
     vkCmdWriteTimestamp2(context->cull_cmd_buffer.handle(), VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
                          params.query_pool.get(), params.query_index_start);
 
@@ -377,8 +377,6 @@ gpu_cull_context_ptr create_gpu_cull_context(const DevicePtr &device, const glm:
 }
 
 vierkant::ImagePtr get_depth_pyramid(const vierkant::gpu_cull_context_ptr &context)
-{
-    return context->depth_pyramid_img;
-}
+{ return context->depth_pyramid_img; }
 
 }// namespace vierkant

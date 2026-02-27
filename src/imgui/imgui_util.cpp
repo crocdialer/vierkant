@@ -33,13 +33,19 @@ struct scoped_child_window_t
         {
             is_open = ImGui::BeginChild(window_name.c_str(), ImVec2(0, 0), false, ImGuiWindowFlags_NoTitleBar);
         }
-        else { is_open = ImGui::Begin(window_name.c_str()); }
+        else
+        {
+            is_open = ImGui::Begin(window_name.c_str());
+        }
     }
 
     ~scoped_child_window_t()
     {
         if(is_child_window) { ImGui::EndChild(); }
-        else { ImGui::End(); }
+        else
+        {
+            ImGui::End();
+        }
     }
 };
 
@@ -351,14 +357,12 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
                                        offsetof(PBRDeferred::statistics_t, draw_cull_result.num_frustum_culled)),
-                               static_cast<int>(draw_result.draw_count), 0.0, 1.0, 0.0, 0, 0,
-                               sizeof(PBRDeferred::statistics_t));
+                               static_cast<int>(stats.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
             ImPlot::PlotShaded("occluded",
                                reinterpret_cast<const uint32_t *>(
                                        (uint8_t *) values.data() +
                                        offsetof(PBRDeferred::statistics_t, draw_cull_result.num_occlusion_culled)),
-                               static_cast<int>(draw_result.draw_count), 0.0, 1.0, 0.0, 0, 0,
-                               sizeof(PBRDeferred::statistics_t));
+                               static_cast<int>(stats.size()), 0.0, 1.0, 0.0, 0, 0, sizeof(PBRDeferred::statistics_t));
             ImPlot::PopStyleVar();
             ImPlot::EndPlot();
         }
@@ -386,16 +390,16 @@ void draw_scene_renderer_statistics_ui_intern(const PBRDeferredPtr &pbr_renderer
     {
         if(ImPlot::BeginPlot("##pbr_timings"))
         {
-            double max_ms = (std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
-                                return lhs.timings.total_ms < rhs.timings.total_ms;
-                            }))->timings.total_ms;
+            const double max_ms = std::max_element(values.begin(), values.end(), [](const auto &lhs, const auto &rhs) {
+                                      return lhs.timings.total_ms < rhs.timings.total_ms;
+                                  })->timings.total_ms;
 
             ImPlot::SetupAxes("frames", "ms", ImPlotAxisFlags_None, ImPlotAxisFlags_NoLabel);
             ImPlot::SetupAxesLimits(0, max_axis_x, 0, max_ms, ImPlotCond_Always);
             ImPlot::PushStyleVar(ImPlotStyleVar_FillAlpha, 0.5f);
 
-            auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
-                                                   offsetof(PBRDeferred::statistics_t, timings.total_ms));
+            const auto *ptr = reinterpret_cast<double *>((uint8_t *) values.data() +
+                                                         offsetof(PBRDeferred::statistics_t, timings.total_ms));
             ImPlot::PlotShaded("total ms", ptr, static_cast<int>(values.size()), 0.0, 1.0, 0.0, 0, 0,
                                sizeof(PBRDeferred::statistics_t));
             ImPlot::PopStyleVar();
@@ -500,10 +504,10 @@ vierkant::Object3DPtr draw_scenegraph_ui_helper(const vierkant::Object3DPtr &obj
 {
     vierkant::Object3DPtr ret;
     ImGuiTreeNodeFlags node_flags = flags | ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
-    node_flags |= selection && selection->count(obj) ? ImGuiTreeNodeFlags_Selected : 0;
+    node_flags |= selection && selection->contains(obj) ? ImGuiTreeNodeFlags_Selected : 0;
 
     // push object id
-    ImGui::PushID((int) obj->id());
+    ImGui::PushID(static_cast<int>(obj->id()));
     bool is_enabled = obj->enabled;
     if(ImGui::Checkbox("", &is_enabled)) { obj->enabled = is_enabled; }
     ImGui::SameLine();
@@ -552,7 +556,10 @@ void draw_scene_ui(const ScenePtr &scene, CameraPtr &camera, std::set<vierkant::
             if(ImGui::IsKeyDown(ImGuiKey_LeftCtrl) || ImGui::IsKeyDown(ImGuiKey_RightCtrl))
             {
                 if(selection->contains(clicked_obj)) { selection->erase(clicked_obj); }
-                else { selection->insert(clicked_obj); }
+                else
+                {
+                    selection->insert(clicked_obj);
+                }
             }
             else
             {
@@ -868,7 +875,10 @@ void draw_mesh_ui(const vierkant::Object3DPtr &object, vierkant::mesh_component_
                     for(uint32_t i = 0; i < mesh->entries.size(); ++i) { mesh_component.entry_indices->insert(i); }
                 }
                 if(entry_enabled) { mesh_component.entry_indices->insert(entry_idx); }
-                else { mesh_component.entry_indices->erase(entry_idx); }
+                else
+                {
+                    mesh_component.entry_indices->erase(entry_idx);
+                }
                 if(mesh_component.entry_indices->size() == mesh->entries.size()) { mesh_component.entry_indices = {}; }
 
                 if(auto *flag_cmp_ptr = object->get_component_ptr<flag_component_t>())
@@ -1145,7 +1155,10 @@ void draw_object_ui(const Object3DPtr &object)
                     phys_cmp.shape_transform.emplace();
                     phys_cmp.shape_transform->translation += aabb.center() * object->global_transform().scale;
                 }
-                else { phys_cmp.shape_transform.reset(); }
+                else
+                {
+                    phys_cmp.shape_transform.reset();
+                }
             }
 
             std::visit(
@@ -1187,7 +1200,10 @@ void draw_object_ui(const Object3DPtr &object)
                         if(ImGui::Checkbox("offset", &has_offset))
                         {
                             if(has_offset) { phys_cmp.shape_transform = vierkant::transform_t{}; }
-                            else { phys_cmp.shape_transform = {}; }
+                            else
+                            {
+                                phys_cmp.shape_transform = {};
+                            }
                         }
 
                         if(phys_cmp.shape_transform)
@@ -1316,7 +1332,10 @@ void draw_object_ui(const Object3DPtr &object)
                                     change |= ImGui::SliderFloat("position", &m.target_position, pos_limit->x,
                                                                  pos_limit->y);
                                 }
-                                else { change |= ImGui::InputFloat("position", &m.target_position); }
+                                else
+                                {
+                                    change |= ImGui::InputFloat("position", &m.target_position);
+                                }
 
                                 change |= draw_spring_settings(m.spring_settings, "spring_settings");
 
