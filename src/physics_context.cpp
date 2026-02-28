@@ -1365,13 +1365,20 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                                               ? JPH::EConstraintSpace::WorldSpace
                                               : JPH::EConstraintSpace::LocalToBodyCOM;
 
+                    // use local_frame to derive planes
+                    auto twist_axis1 = correct_axis(c.twist_axis1);
+                    auto twist_plane1 = local_frame(twist_axis1)[0];
+
                     settings.mPosition1 = type_cast(c.position1);
-                    settings.mTwistAxis1 = type_cast(correct_axis(c.twist_axis1));
-                    settings.mPlaneAxis1 = type_cast(correct_axis(c.plane_axis1));
+                    settings.mTwistAxis1 = type_cast(twist_axis1);
+                    settings.mPlaneAxis1 = type_cast(twist_plane1);
+
+                    auto twist_axis2 = correct_axis(c.twist_axis2);
+                    auto twist_plane2 = local_frame(twist_axis2)[0];
 
                     settings.mPosition2 = type_cast(c.position2);
-                    settings.mTwistAxis2 = type_cast(correct_axis(c.twist_axis2));
-                    settings.mPlaneAxis2 = type_cast(correct_axis(c.plane_axis2));
+                    settings.mTwistAxis2 = type_cast(twist_axis2);
+                    settings.mPlaneAxis2 = type_cast(twist_plane2);
 
                     // prevent negative or zero ratios
                     settings.mSwingType = c.swing_type == constraint::SwingType::Cone ? JPH::ESwingType::Cone
