@@ -1141,7 +1141,7 @@ void draw_object_ui(const Object3DPtr &object)
                         phys_cmp.shape = collision::cylinder_t({glm::compMax(aabb.half_extents().xz()), aabb.height()});
                         break;
                     case 5:
-                        phys_cmp.shape = collision::capsule_t({glm::compMax(aabb.half_extents().xz()), aabb.height()});
+                        phys_cmp.shape = collision::capsule_t({glm::compMax(aabb.half_extents().xz()), aabb.half_extents().y});
                         break;
                     case 6:
                         phys_cmp.shape = collision::mesh_t();
