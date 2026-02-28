@@ -647,8 +647,10 @@ GeometryPtr Geometry::Capsule(float height, float radius, size_t num_segments)
     const float cyl_height = std::max(0.f, height - 2.f * radius);
     const float cyl_half = cyl_height * 0.5f;
 
-    const uint32_t rings = num_segments;
+    // rings for bottom-cap/mantle/top-cap
+    const uint32_t rings = num_segments * 3 / 2;
     const uint32_t sectors = num_segments;
+
     GeometryPtr geom = Geometry::create();
     float const R = 1.f / static_cast<float>(rings - 1);
     float const S = 1.f / static_cast<float>(sectors - 1);
@@ -665,13 +667,29 @@ GeometryPtr Geometry::Capsule(float height, float radius, size_t num_segments)
 
     for(uint32_t r = 0; r < rings; r++)
     {
+        const bool is_top =  r > 2 * rings / 3;
+        const bool is_bottom = r <= rings / 3;
+        const bool is_mantle = !is_top && !is_bottom;
+
+        auto f = is_bottom ? crocore::map_value<float>(r, 0, rings / 3, 0.f, 0.5f)
+                           : crocore::map_value<float>(r, 2 * rings / 3, rings - 1, 0.5f, 1.f);
+
+        const float phi = is_mantle ? pi / 2.f : pi * f;
+
+        float const y = std::sin(-pi / 2.f + phi);
+        float offset_y = y > 0.f ? cyl_half : -cyl_half;
+
+        if(is_mantle)
+        {
+            const float span = static_cast<float>(rings) / 3.f;
+            offset_y = -cyl_half + cyl_height * (static_cast<float>(r) - span) / span;
+        }
+
         for(uint32_t s = 0; s < sectors; s++, ++v, ++n, ++t)
         {
             const float theta = 2.f * pi * static_cast<float>(s) * S;
-            const float phi = pi * static_cast<float>(r) * R;
 
             float const x = std::cos(theta) * std::sin(phi);
-            float const y = std::sin(-std::numbers::pi_v<float> / 2.f + phi);
             float const z = std::sin(theta) * std::sin(phi);
 
             *t = glm::clamp(glm::vec2(1 - static_cast<float>(s) * S, 1 - static_cast<float>(r) * R), glm::vec2(0),
@@ -679,7 +697,7 @@ GeometryPtr Geometry::Capsule(float height, float radius, size_t num_segments)
             *v = glm::vec3(x, y, z) * radius;
 
             // simple offset to turn sphere into capsule
-            v->y += y > 0.f ? cyl_half : -cyl_half;
+            v->y += offset_y;
 
             *n = glm::vec3(x, y, z);
         }
