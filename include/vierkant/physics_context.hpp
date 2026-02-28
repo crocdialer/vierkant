@@ -261,11 +261,9 @@ struct swing_twist_t
 
     glm::vec3 position1{0.f};
     glm::vec3 twist_axis1 = glm::vec3(1.f, 0.f, 0.f);
-    glm::vec3 plane_axis1 = glm::vec3(0.f, 1.f, 0.f);
 
     glm::vec3 position2{0.f};
     glm::vec3 twist_axis2 = glm::vec3(1.f, 0.f, 0.f);
-    glm::vec3 plane_axis2 = glm::vec3(0.f, 1.f, 0.f);
 
     /// type of swing constraint that we want to use.
     constraint::SwingType swing_type = constraint::SwingType::Cone;

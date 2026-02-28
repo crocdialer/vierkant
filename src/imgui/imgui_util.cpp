@@ -1445,13 +1445,9 @@ void draw_object_ui(const Object3DPtr &object)
                                         change |= ImGui::InputFloat3("position1", glm::value_ptr(constraint.position1));
                                         change |= ImGui::InputFloat3("twist_axis1",
                                                                      glm::value_ptr(constraint.twist_axis1));
-                                        change |= ImGui::InputFloat3("plane_axis1",
-                                                                     glm::value_ptr(constraint.plane_axis1));
                                         change |= ImGui::InputFloat3("position2", glm::value_ptr(constraint.position2));
                                         change |= ImGui::InputFloat3("twist_axis2",
                                                                      glm::value_ptr(constraint.twist_axis2));
-                                        change |= ImGui::InputFloat3("plane_axis2",
-                                                                     glm::value_ptr(constraint.plane_axis2));
 
                                         const char *swing_type_items[] = {"Cone", "Pyramid"};
                                         int type_index = static_cast<int>(constraint.swing_type);
