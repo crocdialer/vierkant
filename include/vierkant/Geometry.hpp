@@ -173,6 +173,16 @@ public:
      * @return  the newly created Geometry for a capsule
      */
     static GeometryPtr Capsule(float height = 2.f, float radius = 0.5f, size_t num_segments = 16);
+
+    /**
+     * @brief   Factory to create a cylinder
+     *
+     * @param   height          total height of the cylinder
+     * @param   radius          radius of the cylinder
+     * @param   num_segments    number of segments around the cylinder
+     * @return  the newly created Geometry for a cylinder
+     */
+    static GeometryPtr Cylinder(float height = 2.f, float radius = 0.5f, size_t num_segments = 16);
 };
 
 }// namespace vierkant

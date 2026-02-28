@@ -68,7 +68,10 @@ inline uint64_t swizzle(uint64_t a) { return ((a & 0xFFFFFFFFU) << 32U) | (a >> 
             twin_edge->twin = current_edge;
             current_edge->twin = twin_edge;
         }
-        else { ++boundaryCount; }
+        else
+        {
+            ++boundaryCount;
+        }
     }
 
     if(boundaryCount > 0) { spdlog::debug("mesh is not watertight. contains {} boundary edges.", boundaryCount); }
@@ -109,7 +112,10 @@ void Geometry::compute_vertex_normals()
         normals.clear();
         normals.resize(positions.size(), glm::vec3(0));
     }
-    else { std::fill(normals.begin(), normals.end(), glm::vec3(0)); }
+    else
+    {
+        std::fill(normals.begin(), normals.end(), glm::vec3(0));
+    }
 
     // iterate faces and sum normals for all positions
     for(size_t i = 0; i < indices.size(); i += 3)
@@ -269,7 +275,10 @@ GeometryPtr Geometry::Grid(float width, float depth, uint32_t numSegments_W, uin
     for(uint32_t x = 0; x <= numSegments_W; ++x)
     {
         if(x == 0) { color = color_blue; }
-        else { color = color_gray; }
+        else
+        {
+            color = color_gray;
+        }
 
         // line Z
         vertices.emplace_back(-w2 + x * stepX, 0.f, -h2);
@@ -282,7 +291,10 @@ GeometryPtr Geometry::Grid(float width, float depth, uint32_t numSegments_W, uin
     for(uint32_t z = 0; z <= numSegments_D; ++z)
     {
         if(z == 0) { color = color_red; }
-        else { color = color_gray; }
+        else
+        {
+            color = color_gray;
+        }
 
         // line X
         vertices.emplace_back(-w2, 0.f, -h2 + z * stepZ);
@@ -719,6 +731,122 @@ GeometryPtr Geometry::Capsule(float height, float radius, size_t num_segments)
                                   (r + 1) * sectors + s, (r + 1) * sectors + (s + 1)});
         }
     }
+    geom->compute_tangents();
+    return geom;
+}
+
+GeometryPtr Geometry::Cylinder(float height, float radius, size_t num_segments)
+{
+    // rings for bottom-cap/mantle/top-cap
+    const uint32_t rings = num_segments;
+    const uint32_t sectors = num_segments;
+
+    GeometryPtr geom = Geometry::create();
+    float const R = 1.f / static_cast<float>(rings - 1);
+    float const S = 1.f / static_cast<float>(sectors - 1);
+
+    geom->positions.resize(rings * sectors);
+    geom->normals.resize(rings * sectors);
+    geom->tex_coords.resize(rings * sectors);
+
+    auto *v = geom->positions.data();
+    auto *n = geom->normals.data();
+    auto *t = geom->tex_coords.data();
+
+    constexpr float pi = std::numbers::pi_v<float>;
+
+    for(uint32_t r = 0; r < rings; r++)
+    {
+        float offset_y = -height / 2.f + height * static_cast<float>(r) * R;
+
+        for(uint32_t s = 0; s < sectors; s++, ++v, ++n, ++t)
+        {
+            const float theta = 2.f * pi * static_cast<float>(s) * S;
+
+            float const x = std::cos(theta);
+            float const z = std::sin(theta);
+
+            *t = glm::clamp(glm::vec2(1 - static_cast<float>(s) * S, 1 - static_cast<float>(r) * R), glm::vec2(0),
+                            glm::vec2(1));
+            *v = glm::vec3(x *radius, offset_y, z* radius) ;
+
+            *n = glm::vec3(x, 0.f, z);
+        }
+    }
+
+    geom->indices.reserve(rings * sectors * 6);
+
+    // create mantle faces
+    for(uint32_t r = 0; r < rings - 1; r++)
+    {
+        for(uint32_t s = 0; s < sectors - 1; s++)
+        {
+            geom->indices.insert(geom->indices.end(),
+                                 {r * sectors + s, (r + 1) * sectors + (s + 1), r * sectors + (s + 1), r * sectors + s,
+                                  (r + 1) * sectors + s, (r + 1) * sectors + (s + 1)});
+        }
+    }
+
+    // add bottom and top caps
+    // bottom: center + ring (with normals pointing downwards)
+    const float half_h = height * 0.5f;
+
+    // bottom center
+    const uint32_t bottom_center_idx = static_cast<uint32_t>(geom->positions.size());
+    geom->positions.push_back(glm::vec3(0.f, -half_h, 0.f));
+    geom->normals.push_back(glm::vec3(0.f, -1.f, 0.f));
+    geom->tex_coords.push_back(glm::vec2(0.5f, 0.5f));
+
+    // bottom ring vertices (separate from mantle so normals can point down)
+    for(uint32_t s = 0; s < sectors; ++s)
+    {
+        const float theta = 2.f * pi * static_cast<float>(s) * S;
+        const float x = std::cos(theta);
+        const float z = std::sin(theta);
+        geom->positions.push_back(glm::vec3(x * radius, -half_h, z * radius));
+        geom->normals.push_back(glm::vec3(0.f, -1.f, 0.f));
+        geom->tex_coords.push_back(glm::clamp(glm::vec2(0.5f + 0.5f * x, 0.5f + 0.5f * z), glm::vec2(0), glm::vec2(1)));
+    }
+
+    // bottom cap indices (fan)
+    for(uint32_t s = 0; s < sectors; ++s)
+    {
+        const uint32_t cur = bottom_center_idx + 1 + s;
+        const uint32_t next = bottom_center_idx + 1 + ((s + 1) % sectors);
+        // order such that normal points downwards (outside facing)
+        geom->indices.push_back(bottom_center_idx);
+        geom->indices.push_back(cur);
+        geom->indices.push_back(next);
+    }
+
+    // top center
+    const uint32_t top_center_idx = static_cast<uint32_t>(geom->positions.size());
+    geom->positions.push_back(glm::vec3(0.f, half_h, 0.f));
+    geom->normals.push_back(glm::vec3(0.f, 1.f, 0.f));
+    geom->tex_coords.push_back(glm::vec2(0.5f, 0.5f));
+
+    // top ring vertices (separate from mantle so normals can point up)
+    for(uint32_t s = 0; s < sectors; ++s)
+    {
+        const float theta = 2.f * pi * static_cast<float>(s) * S;
+        const float x = std::cos(theta);
+        const float z = std::sin(theta);
+        geom->positions.push_back(glm::vec3(x * radius, half_h, z * radius));
+        geom->normals.push_back(glm::vec3(0.f, 1.f, 0.f));
+        geom->tex_coords.push_back(glm::clamp(glm::vec2(0.5f + 0.5f * x, 0.5f + 0.5f * z), glm::vec2(0), glm::vec2(1)));
+    }
+
+    // top cap indices (fan)
+    for(uint32_t s = 0; s < sectors; ++s)
+    {
+        const uint32_t cur = top_center_idx + 1 + s;
+        const uint32_t next = top_center_idx + 1 + ((s + 1) % sectors);
+        // order such that normal points upwards (outside facing)
+        geom->indices.push_back(top_center_idx);
+        geom->indices.push_back(next);
+        geom->indices.push_back(cur);
+    }
+
     geom->compute_tangents();
     return geom;
 }
