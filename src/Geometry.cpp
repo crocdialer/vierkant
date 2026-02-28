@@ -667,12 +667,16 @@ GeometryPtr Geometry::Capsule(float height, float radius, size_t num_segments)
 
     for(uint32_t r = 0; r < rings; r++)
     {
-        const bool is_top =  r > 2 * rings / 3;
+        const bool is_top = r > 2 * rings / 3;
         const bool is_bottom = r <= rings / 3;
         const bool is_mantle = !is_top && !is_bottom;
 
-        auto f = is_bottom ? crocore::map_value<float>(r, 0, rings / 3, 0.f, 0.5f)
-                           : crocore::map_value<float>(r, 2 * rings / 3, rings - 1, 0.5f, 1.f);
+        // yes, ugly
+        const auto f = is_bottom
+                               ? crocore::map_value<float>(static_cast<float>(r), 0.f, static_cast<float>(rings) / 3.f,
+                                                           0.f, 0.5f)
+                               : crocore::map_value<float>(static_cast<float>(r), static_cast<float>(rings) * 2.f / 3.f,
+                                                           static_cast<float>(rings - 1), 0.5f, 1.f);
 
         const float phi = is_mantle ? pi / 2.f : pi * f;
 
