@@ -37,6 +37,9 @@
 #include <Jolt/RegisterTypes.h>
 
 // STL includes
+#include "Physics/Constraints/ConeConstraint.h"
+
+
 #include <cstdarg>
 
 // template specializations for hashing
@@ -133,9 +136,7 @@ inline glm::quat type_cast(const JPH::Quat &q) { return {q.GetW(), q.GetX(), q.G
 inline JPH::Quat type_cast(const glm::quat &q) { return {q.x, q.y, q.z, q.w}; }
 
 inline vierkant::AABB type_cast(const JPH::AABox &in_aabb)
-{
-    return {type_cast(in_aabb.mMin), type_cast(in_aabb.mMax)};
-}
+{ return {type_cast(in_aabb.mMin), type_cast(in_aabb.mMax)}; }
 
 inline vierkant::transform_t type_cast(const JPH::Mat44 &mat)
 {
@@ -188,9 +189,7 @@ public:
     }
 
     JPH::DebugRenderer::Batch CreateTriangleBatch(const Triangle *inTriangles, int inTriangleCount) override
-    {
-        return CreateTriangleBatch(inTriangles->mV, inTriangleCount * 3, nullptr, 0);
-    };
+    { return CreateTriangleBatch(inTriangles->mV, inTriangleCount * 3, nullptr, 0); };
 
     JPH::DebugRenderer::Batch CreateTriangleBatch(const Vertex *inVertices, int inVertexCount,
                                                   const uint32_t *inIndices, int inIndexCount) override
@@ -299,9 +298,7 @@ public:
     }
 
     void SetMaxConcurrency(int num_tasks)
-    {
-        m_max_concurrency = std::min<size_t>(num_tasks, m_threadpool.num_threads());
-    }
+    { m_max_concurrency = std::min<size_t>(num_tasks, m_threadpool.num_threads()); }
 
     // See JPH::JobSystem
     void QueueJob(Job *inJob) override { queue(inJob); }
@@ -592,9 +589,7 @@ public:
     // If you take larger steps than 1 / 60th of a second you need to do multiple collision steps
     // in order to keep the simulation stable. Do 1 collision step per 1 / 60th of a second (round up).
     inline void update(float delta, int num_steps = 1)
-    {
-        physics_system.Update(delta, num_steps, m_temp_allocator.get(), job_system.get());
-    }
+    { physics_system.Update(delta, num_steps, m_temp_allocator.get(), job_system.get()); }
 
     void OnBodyActivated(const JPH::BodyID & /*inBodyID*/, uint64_t /*inBodyUserData*/) override {}
 
@@ -662,9 +657,7 @@ public:
     OnSoftBodyContactValidate([[maybe_unused]] const JPH::Body &inSoftBody,
                               [[maybe_unused]] const JPH::Body &inOtherBody,
                               [[maybe_unused]] JPH::SoftBodyContactSettings &ioSettings) override
-    {
-        return JPH::SoftBodyValidateResult::AcceptContact;
-    }
+    { return JPH::SoftBodyValidateResult::AcceptContact; }
 
     void OnSoftBodyContactAdded([[maybe_unused]] const JPH::Body &inSoftBody,
                                 [[maybe_unused]] const JPH::SoftBodyManifold &inManifold) override
@@ -764,9 +757,7 @@ PhysicsContext &PhysicsContext::operator=(PhysicsContext other)
 }
 
 void PhysicsContext::step_simulation(float timestep, int max_sub_steps)
-{
-    m_engine->jolt.update(timestep, max_sub_steps);
-}
+{ m_engine->jolt.update(timestep, max_sub_steps); }
 
 CollisionShapeId PhysicsContext::create_collision_shape(const collision::mesh_t &mesh_cmp, const glm::vec3 &scale)
 {
@@ -1397,6 +1388,23 @@ vierkant::ConstraintId PhysicsContext::create_constraint(const constraint::const
                             m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);
                 }
 
+                if constexpr(std::is_same_v<T, constraint::cone_t>)
+                {
+                    JPH::ConeConstraintSettings settings;
+                    settings.mSpace = c.space == constraint::ConstraintSpace::World
+                                              ? JPH::EConstraintSpace::WorldSpace
+                                              : JPH::EConstraintSpace::LocalToBodyCOM;
+
+                    settings.mPoint1 = type_cast(c.point1);
+                    settings.mTwistAxis1 = type_cast(correct_axis(c.twist_axis1));
+                    settings.mPoint2 = type_cast(c.point2);
+                    settings.mTwistAxis2 = type_cast(correct_axis(c.twist_axis1));
+                    settings.mHalfConeAngle = c.half_cone_angle;
+
+                    new_constraint =
+                            m_engine->jolt.physics_system.GetBodyInterface().CreateConstraint(&settings, body1, body2);
+                }
+
                 if(new_constraint) { m_engine->jolt.constraints[new_id] = new_constraint; }
                 return new_id;
             },
@@ -1576,9 +1584,7 @@ void PhysicsScene::update(double time_delta)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 std::shared_ptr<PhysicsScene> PhysicsScene::create(const std::shared_ptr<vierkant::ObjectStore> &object_store)
-{
-    return std::shared_ptr<PhysicsScene>(new PhysicsScene(object_store));
-}
+{ return std::shared_ptr<PhysicsScene>(new PhysicsScene(object_store)); }
 
 PhysicsScene::PhysicsScene(const std::shared_ptr<vierkant::ObjectStore> &object_store) : Scene(object_store) {}
 
@@ -1593,14 +1599,10 @@ size_t std::hash<vierkant::collision::plane_t>::operator()(const vierkant::colli
 }
 
 size_t std::hash<vierkant::collision::box_t>::operator()(const vierkant::collision::box_t &s) const
-{
-    return std::hash<glm::vec3>()(s.half_extents);
-}
+{ return std::hash<glm::vec3>()(s.half_extents); }
 
 size_t std::hash<vierkant::collision::sphere_t>::operator()(const vierkant::collision::sphere_t &s) const
-{
-    return std::hash<float>()(s.radius);
-}
+{ return std::hash<float>()(s.radius); }
 
 size_t std::hash<vierkant::collision::cylinder_t>::operator()(const vierkant::collision::cylinder_t &s) const
 {

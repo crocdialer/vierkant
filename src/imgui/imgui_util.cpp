@@ -1141,7 +1141,8 @@ void draw_object_ui(const Object3DPtr &object)
                         phys_cmp.shape = collision::cylinder_t({glm::compMax(aabb.half_extents().xz()), aabb.height()});
                         break;
                     case 5:
-                        phys_cmp.shape = collision::capsule_t({glm::compMax(aabb.half_extents().xz()), aabb.half_extents().y});
+                        phys_cmp.shape =
+                                collision::capsule_t({glm::compMax(aabb.half_extents().xz()), aabb.half_extents().y});
                         break;
                     case 6:
                         phys_cmp.shape = collision::mesh_t();
@@ -1242,8 +1243,8 @@ void draw_object_ui(const Object3DPtr &object)
                 {
                     auto &body_constraint = *body_constraint_it;
 
-                    const char *constraint_items[] = {"None",  "Point", "Distance",  "Slider",
-                                                      "Hinge", "Gear",  "SwingTwist"};
+                    const char *constraint_items[] = {"None",  "Point", "Distance", "Slider",
+                                                      "Hinge", "Gear",  "Cone",     "SwingTwist"};
                     int constraint_index = 0;
 
                     std::visit(
@@ -1254,7 +1255,8 @@ void draw_object_ui(const Object3DPtr &object)
                                 if constexpr(std::is_same_v<T, constraint::slider_t>) { constraint_index = 3; }
                                 if constexpr(std::is_same_v<T, constraint::hinge_t>) { constraint_index = 4; }
                                 if constexpr(std::is_same_v<T, constraint::gear_t>) { constraint_index = 5; }
-                                if constexpr(std::is_same_v<T, constraint::swing_twist_t>) { constraint_index = 6; }
+                                if constexpr(std::is_same_v<T, constraint::cone_t>) { constraint_index = 6; }
+                                if constexpr(std::is_same_v<T, constraint::swing_twist_t>) { constraint_index = 7; }
                             },
                             body_constraint.constraint);
 
@@ -1363,7 +1365,8 @@ void draw_object_ui(const Object3DPtr &object)
                                 case 3: body_constraint.constraint = constraint::slider_t{}; break;
                                 case 4: body_constraint.constraint = constraint::hinge_t{}; break;
                                 case 5: body_constraint.constraint = constraint::gear_t{}; break;
-                                case 6: body_constraint.constraint = constraint::swing_twist_t{}; break;
+                                case 6: body_constraint.constraint = constraint::cone_t{}; break;
+                                case 7: body_constraint.constraint = constraint::swing_twist_t{}; break;
                                 default: break;
                             }
                             change = true;
@@ -1437,6 +1440,18 @@ void draw_object_ui(const Object3DPtr &object)
                                         change |= ImGui::InputFloat3("hinge_axis2",
                                                                      glm::value_ptr(constraint.hinge_axis2));
                                         change |= ImGui::InputFloat("ratio", &constraint.ratio);
+                                    }
+
+                                    if constexpr(std::is_same_v<T, constraint::cone_t>)
+                                    {
+                                        change |= draw_contraint_space(constraint.space);
+                                        change |= ImGui::InputFloat3("point1", glm::value_ptr(constraint.point1));
+                                        change |= ImGui::InputFloat3("twist_axis1",
+                                                                     glm::value_ptr(constraint.twist_axis1));
+                                        change |= ImGui::InputFloat3("point2", glm::value_ptr(constraint.point2));
+                                        change |= ImGui::InputFloat3("twist_axis2",
+                                                                     glm::value_ptr(constraint.twist_axis2));
+                                        change |= ImGui::InputFloat("half_cone_angle", &constraint.half_cone_angle);
                                     }
 
                                     if constexpr(std::is_same_v<T, constraint::swing_twist_t>)

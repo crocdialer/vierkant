@@ -158,7 +158,7 @@ struct none_t
 
 struct point_t
 {
-    ConstraintSpace space = ConstraintSpace::World;
+    ConstraintSpace space = ConstraintSpace::LocalToBodyCOM;
     glm::vec3 point1;
     glm::vec3 point2;
     constexpr bool operator==(const vierkant::constraint::point_t &other) const = default;
@@ -166,7 +166,7 @@ struct point_t
 
 struct distance_t
 {
-    ConstraintSpace space = ConstraintSpace::World;
+    ConstraintSpace space = ConstraintSpace::LocalToBodyCOM;
     glm::vec3 point1{0.f};
     glm::vec3 point2{0.f};
     float min_distance = -1.0f;
@@ -178,7 +178,7 @@ struct distance_t
 struct slider_t
 {
     /// This determines in which space the constraint is setup, all properties below should be in the specified space
-    ConstraintSpace space = ConstraintSpace::World;
+    ConstraintSpace space = ConstraintSpace::LocalToBodyCOM;
 
     /// When mSpace is WorldSpace mPoint1 and mPoint2 can be automatically calculated based on the positions of the bodies when the constraint is created (the current relative position/orientation is chosen as the '0' position). Set this to false if you want to supply the attachment points yourself.
     bool auto_detect_point = false;
@@ -211,7 +211,7 @@ struct slider_t
 struct hinge_t
 {
     /// This determines in which space the constraint is setup, all properties below should be in the specified space
-    ConstraintSpace space = ConstraintSpace::World;
+    ConstraintSpace space = ConstraintSpace::LocalToBodyCOM;
 
     /// Body 1 constraint reference frame (space determined by mSpace).
     /// Hinge axis is the axis where rotation is allowed.
@@ -245,7 +245,7 @@ struct hinge_t
 
 struct gear_t
 {
-    ConstraintSpace space = ConstraintSpace::World;
+    ConstraintSpace space = ConstraintSpace::LocalToBodyCOM;
     glm::vec3 hinge_axis1 = glm::vec3(1.f, 0.f, 0.f);
     glm::vec3 hinge_axis2 = glm::vec3(1.f, 0.f, 0.f);
 
@@ -255,9 +255,25 @@ struct gear_t
     constexpr bool operator==(const vierkant::constraint::gear_t &other) const = default;
 };
 
+struct cone_t
+{
+    ConstraintSpace space = ConstraintSpace::LocalToBodyCOM;
+
+    glm::vec3 point1{0.f};
+    glm::vec3 twist_axis1 = glm::vec3(1.f, 0.f, 0.f);
+
+    glm::vec3 point2{0.f};
+    glm::vec3 twist_axis2 = glm::vec3(1.f, 0.f, 0.f);
+
+    //! half of maximum angle between twist axis of body 1 and 2
+    float half_cone_angle = 0.0f;
+
+    constexpr bool operator==(const vierkant::constraint::cone_t &other) const = default;
+};
+
 struct swing_twist_t
 {
-    ConstraintSpace space = ConstraintSpace::World;
+    ConstraintSpace space = ConstraintSpace::LocalToBodyCOM;
 
     glm::vec3 position1{0.f};
     glm::vec3 twist_axis1 = glm::vec3(1.f, 0.f, 0.f);
@@ -285,8 +301,7 @@ struct swing_twist_t
     constexpr bool operator==(const vierkant::constraint::swing_twist_t &other) const = default;
 };
 
-using constraint_t = std::variant<constraint::none_t, constraint::point_t, constraint::distance_t, constraint::slider_t,
-                                  constraint::hinge_t, constraint::gear_t, constraint::swing_twist_t>;
+using constraint_t = std::variant<none_t, point_t, distance_t, slider_t, hinge_t, gear_t, cone_t, swing_twist_t>;
 }// namespace constraint
 
 struct physics_component_t
