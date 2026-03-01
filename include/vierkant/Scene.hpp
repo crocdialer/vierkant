@@ -32,8 +32,8 @@ public:
 
     virtual void update(double time_delta);
 
-    uint64_t current_frame() const { return m_current_frame; }
-    
+    [[nodiscard]] uint64_t current_frame() const { return m_current_frame; }
+
     /**
      * @brief   object_by_id finds and returns an object based on its object/entity-id
      *
@@ -61,11 +61,10 @@ public:
     *
     * in addition the created object offers support for animations and dynamically updated aabbs for submeshes.
     *
-    * @param   registry    a provided entt::registry
-    * @param   mesh        a provided mesh
-    * @return  a newly created Object3D with attached components.
+    * @param    mesh_component  a provided mesh-component
+    * @return   a newly created Object3D with attached components.
     */
-    vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component);
+    [[nodiscard]] vierkant::Object3DPtr create_mesh_object(const vierkant::mesh_component_t &mesh_component) const;
 
 protected:
     explicit Scene(const std::shared_ptr<vierkant::ObjectStore> &object_store);

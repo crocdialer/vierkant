@@ -13,7 +13,7 @@ struct range_item_t
     inline bool operator<(const range_item_t &other) const { return distance < other.distance; }
 };
 
-vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_component)
+vierkant::Object3DPtr Scene::create_mesh_object(const mesh_component_t &mesh_component) const
 {
     auto object = m_object_store->create_object();
 
